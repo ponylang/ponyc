@@ -15,7 +15,6 @@ typedef struct reach_field_t reach_field_t;
 typedef struct reach_param_t reach_param_t;
 typedef struct reach_type_t reach_type_t;
 
-DECLARE_STACK(reachable_expr_stack, reachable_expr_stack_t, void);
 DECLARE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
 DECLARE_HASHMAP_SERIALISE(reach_methods, reach_methods_t, reach_method_t);
 DECLARE_HASHMAP_SERIALISE(reach_mangled, reach_mangled_t, reach_method_t);
@@ -58,9 +57,6 @@ struct reach_method_t
   size_t param_count;
   reach_param_t* params;
   reach_type_t* result;
-
-  // Used when reaching and generating __is for tuples.
-  reach_type_cache_t* tuple_is_types;
 
   compile_opaque_t* c_method;
 };
@@ -112,10 +108,9 @@ struct reach_type_t
   compile_opaque_t* c_type;
 };
 
-typedef struct
+typedef struct reach_t
 {
   reach_types_t types;
-  reachable_expr_stack_t* expr_stack;
   reach_method_stack_t* method_stack;
   uint32_t object_type_count;
   uint32_t numeric_type_count;
@@ -138,13 +133,6 @@ void reach_free(reach_t* r);
 void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
   pass_opt_t* opt);
 
-/** Finalise reached types before use.
- *
- * This must be called once all the necessary reachability analysis has been
- * done and before using the data.
- */
-void reach_done(reach_t* r, pass_opt_t* opt);
-
 reach_type_t* reach_type(reach_t* r, ast_t* type);
 
 reach_type_t* reach_type_name(reach_t* r, const char* name);
@@ -156,6 +144,8 @@ reach_method_name_t* reach_method_name(reach_type_t* t,
   const char* name);
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name);
+
+uint32_t reach_max_type_id(reach_t* r);
 
 void reach_dump(reach_t* r);
 

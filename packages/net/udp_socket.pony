@@ -175,7 +175,7 @@ actor UDPSocket
     """
     if not _closed then
       if _ip.ip4() then
-        @pony_os_broadcast[None](_fd, state)
+        set_so_broadcast(state)
       elseif _ip.ip6() then
         @pony_os_multicast_join[None](_fd, "FF02::1".cstring(), "".cstring())
       end
@@ -198,7 +198,7 @@ actor UDPSocket
     prevents this.
     """
     if not _closed then
-      @pony_os_multicast_loopback[None](_fd, loopback)
+      set_ip_multicast_loop(loopback)
     end
 
   be set_multicast_ttl(ttl: U8) =>
@@ -206,7 +206,7 @@ actor UDPSocket
     Set the TTL for multicast sends. Defaults to 1.
     """
     if not _closed then
-      @pony_os_multicast_ttl[None](_fd, ttl)
+      set_ip_multicast_ttl(ttl)
     end
 
   be multicast_join(group: String, to: String = "") =>
@@ -406,3 +406,158 @@ actor UDPSocket
       @pony_os_socket_close[None](_fd)
       _fd = -1
     end
+
+  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4): (U32, Array[U8] iso^) =>
+    """
+    General wrapper for UDP sockets to the `getsockopt(2)` system call.
+
+    The caller must provide an array that is pre-allocated to be
+    at least as large as the largest data structure that the kernel
+    may return for the requested option.
+
+    In case of system call success, this function returns the 2-tuple:
+    1. The integer `0`.
+    2. An `Array[U8]` of data returned by the system call's `void *`
+       4th argument.  Its size is specified by the kernel via the
+       system call's `sockopt_len_t *` 5th argument.
+
+    In case of system call failure, this function returns the 2-tuple:
+    1. The value of `errno`.
+    2. An undefined value that must be ignored.
+
+    Usage example:
+
+    ```pony
+    // listening() is a callback function for class UDPNotify
+    fun ref listening(sock: UDPSocket ref) =>
+      match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
+        | (0, let gbytes: Array[U8] iso) =>
+          try
+            let br = Reader.create().>append(consume gbytes)
+            ifdef littleendian then
+              let buffer_size = br.u32_le()?
+            else
+              let buffer_size = br.u32_be()?
+            end
+          end
+        | (let errno: U32, _) =>
+          // System call failed
+      end
+    ```
+    """
+    _OSSocket.getsockopt(_fd, level, option_name, option_max_size)
+
+  fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
+    """
+    Wrapper for UDP sockets to the `getsockopt(2)` system call where
+    the kernel's returned option value is a C `uint32_t` type / Pony
+    type `U32`.
+
+    In case of system call success, this function returns the 2-tuple:
+    1. The integer `0`.
+    2. The `*option_value` returned by the kernel converted to a Pony `U32`.
+
+    In case of system call failure, this function returns the 2-tuple:
+    1. The value of `errno`.
+    2. An undefined value that must be ignored.
+    """
+    _OSSocket.getsockopt_u32(_fd, level, option_name)
+
+  fun ref setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
+    """
+    General wrapper for UDP sockets to the `setsockopt(2)` system call.
+
+    The caller is responsible for the correct size and byte contents of
+    the `option` array for the requested `level` and `option_name`,
+    including using the appropriate CPU endian byte order.
+
+    This function returns `0` on success, else the value of `errno` on
+    failure.
+
+    Usage example:
+
+    ```pony
+    // listening() is a callback function for class UDPNotify
+    fun ref listening(sock: UDPSocket ref) =>
+      let sb = Writer
+
+      sb.u32_le(7744)             // Our desired socket buffer size
+      let sbytes = Array[U8]
+      for bs in sb.done().values() do
+        sbytes.append(bs)
+      end
+      match sock.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+        | 0 =>
+          // System call was successful
+        | let errno: U32 =>
+          // System call failed
+      end
+    ```
+    """
+    _OSSocket.setsockopt(_fd, level, option_name, option)
+
+  fun ref setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
+    """
+    Wrapper for UDP sockets to the `setsockopt(2)` system call where
+    the kernel expects an option value of a C `uint32_t` type / Pony
+    type `U32`.
+
+    This function returns `0` on success, else the value of `errno` on
+    failure.
+    """
+    _OSSocket.setsockopt_u32(_fd, level, option_name, option)
+
+
+  fun ref get_so_error(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
+    """
+    _OSSocket.get_so_error(_fd)
+
+  fun ref get_so_rcvbuf(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
+    """
+    _OSSocket.get_so_rcvbuf(_fd)
+
+  fun ref get_so_sndbuf(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
+    """
+    _OSSocket.get_so_sndbuf(_fd)
+
+
+  fun ref set_ip_multicast_loop(loopback: Bool): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_LOOP, ...)`
+    """
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
+    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_loop(), word)
+
+  fun ref set_ip_multicast_ttl(ttl: U8): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_TTL, ...)`
+    """
+    var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
+    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_ttl(), word)
+
+  fun ref set_so_broadcast(state: Bool): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_BROADCAST, ...)`
+    """
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
+    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.so_broadcast(), word)
+
+  fun ref set_so_rcvbuf(bufsize: U32): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
+    """
+    _OSSocket.set_so_rcvbuf(_fd, bufsize)
+
+  fun ref set_so_sndbuf(bufsize: U32): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
+    """
+    _OSSocket.set_so_sndbuf(_fd, bufsize)

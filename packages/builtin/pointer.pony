@@ -28,6 +28,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun _convert[B](): this->Pointer[B] =>
+    """
+    Convert from Pointer[A] to Pointer[B].
+    """
+    compile_intrinsic
+
   fun _apply(i: USize): this->A =>
     """
     Retrieve index i.
@@ -74,12 +80,6 @@ struct Pointer[A]
     """
     compile_intrinsic
 
-  fun ref _consume_from(that: Pointer[A]^, n: USize): Pointer[A]^ =>
-    """
-    Copy n elements from that to this.
-    """
-    compile_intrinsic
-
   fun tag usize(): USize =>
     """
     Convert the pointer into an integer.
@@ -109,8 +109,14 @@ struct Pointer[A]
   fun tag ge(that: Pointer[A] tag): Bool => not lt(that)
   fun tag gt(that: Pointer[A] tag): Bool => not le(that)
 
-  fun tag hash(): U64 =>
+  fun tag hash(): USize =>
     """
     Returns a hash of the address.
     """
     usize().hash()
+
+  fun tag hash64(): U64 =>
+    """
+    Returns a 64-bit hash of the address.
+    """
+    usize().hash64()

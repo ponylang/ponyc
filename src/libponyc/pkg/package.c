@@ -20,16 +20,6 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#if defined(PLATFORM_IS_LINUX)
-#include <unistd.h>
-#elif defined(PLATFORM_IS_MACOSX)
-#include <mach-o/dyld.h>
-#elif defined(PLATFORM_IS_BSD)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#endif
-
 
 #define EXTENSION ".pony"
 
@@ -113,9 +103,6 @@ struct magic_package_t
   const char* mapped_path;
   struct magic_package_t* next;
 };
-
-// Function that will handle a path in some way.
-typedef bool (*path_fn)(const char* path, pass_opt_t* opt);
 
 DECLARE_STACK(package_stack, package_stack_t, package_t)
 DEFINE_STACK(package_stack, package_stack_t, package_t)
@@ -314,7 +301,8 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 // exists
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
-static const char* try_path(const char* base, const char* path)
+static const char* try_path(const char* base, const char* path,
+  bool* out_found_notdir)
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
@@ -327,10 +315,18 @@ static const char* try_path(const char* base, const char* path)
   struct stat s;
   int err = stat(file, &s);
 
-  if((err != -1) && S_ISDIR(s.st_mode))
-    return stringtab(file);
+  if(err == -1)
+    return NULL;
 
-  return NULL;
+  if(!S_ISDIR(s.st_mode))
+  {
+    if(out_found_notdir != NULL)
+      *out_found_notdir = true;
+
+    return NULL;
+  }
+
+  return stringtab(file);
 }
 
 
@@ -358,7 +354,8 @@ static bool is_root(const char* path)
 
 // Try base/../pony_packages/path, and keep adding .. to look another level up
 // until we are looking in /pony_packages/path
-static const char* try_package_path(const char* base, const char* path)
+static const char* try_package_path(const char* base, const char* path,
+  bool* out_found_notdir)
 {
   char path1[FILENAME_MAX];
   char path2[FILENAME_MAX];
@@ -373,7 +370,7 @@ static const char* try_package_path(const char* base, const char* path)
 
     path_cat(path1, "pony_packages", path2);
 
-    const char* result = try_path(path2, path);
+    const char* result = try_path(path2, path, out_found_notdir);
 
     if(result != NULL)
       return result;
@@ -387,14 +384,17 @@ static const char* try_package_path(const char* base, const char* path)
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
 static const char* find_path(ast_t* from, const char* path,
-  bool* out_is_relative, pass_opt_t* opt)
+  bool* out_is_relative, bool* out_found_notdir, pass_opt_t* opt)
 {
   if(out_is_relative != NULL)
     *out_is_relative = false;
 
+  if(out_found_notdir != NULL)
+    *out_found_notdir = false;
+
   // First check for an absolute path
   if(is_path_absolute(path))
-    return try_path(NULL, path);
+    return try_path(NULL, path, out_found_notdir);
 
   // Get the base directory
   const char* base;
@@ -409,7 +409,7 @@ static const char* find_path(ast_t* from, const char* path,
   }
 
   // Try a path relative to the base
-  const char* result = try_path(base, path);
+  const char* result = try_path(base, path, out_found_notdir);
 
   if(result != NULL)
   {
@@ -425,7 +425,7 @@ static const char* find_path(ast_t* from, const char* path,
     // Check ../pony_packages and further up the tree
     if(base != NULL)
     {
-      result = try_package_path(base, path);
+      result = try_package_path(base, path, out_found_notdir);
 
       if(result != NULL)
         return result;
@@ -437,7 +437,7 @@ static const char* find_path(ast_t* from, const char* path,
         package_t* pkg = (package_t*)ast_data(target);
         base = pkg->path;
 
-        result = try_package_path(base, path);
+        result = try_package_path(base, path, out_found_notdir);
 
         if(result != NULL)
           return result;
@@ -448,7 +448,7 @@ static const char* find_path(ast_t* from, const char* path,
     for(strlist_t* p = opt->package_search_paths; p != NULL;
       p = strlist_next(p))
     {
-      result = try_path(strlist_data(p), path);
+      result = try_path(strlist_data(p), path, out_found_notdir);
 
       if(result != NULL)
         return result;
@@ -676,61 +676,15 @@ static bool add_safe(const char* path, pass_opt_t* opt)
 static bool add_exec_dir(pass_opt_t* opt)
 {
   char path[FILENAME_MAX];
-  bool success;
+  bool success = get_compiler_exe_directory(path);
   errors_t* errors = opt->check.errors;
-
-#ifdef PLATFORM_IS_WINDOWS
-  // Specified size *includes* nul terminator
-  GetModuleFileName(NULL, path, FILENAME_MAX);
-  success = (GetLastError() == ERROR_SUCCESS);
-#elif defined PLATFORM_IS_LINUX
-  // Specified size *excludes* nul terminator
-  ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX - 1);
-  success = (r >= 0);
-
-  if(success)
-    path[r] = '\0';
-#elif defined PLATFORM_IS_BSD
-  int mib[4];
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
-
-  size_t len = FILENAME_MAX;
-  int r = sysctl(mib, 4, path, &len, NULL, 0);
-  success = (r == 0);
-#elif defined PLATFORM_IS_MACOSX
-  char exec_path[FILENAME_MAX];
-  uint32_t size = sizeof(exec_path);
-  int r = _NSGetExecutablePath(exec_path, &size);
-  success = (r == 0);
-
-  if(success)
-  {
-    pony_realpath(exec_path, path);
-  }
-#else
-#  error Unsupported platform for exec_path()
-#endif
 
   if(!success)
   {
-    errorf(errors, NULL, "Error determining executable path");
+    errorf(errors, NULL, "Error determining executable path or directory.");
     return false;
   }
 
-  // We only need the directory
-  char *p = strrchr(path, PATH_SLASH);
-
-  if(p == NULL)
-  {
-    errorf(errors, NULL, "Error determining executable path (%s)", path);
-    return false;
-  }
-
-  p++;
-  *p = '\0';
   add_path(path, opt);
 
   // Allow ponyc to find the lib directory when it is installed.
@@ -796,7 +750,7 @@ bool package_init(pass_opt_t* opt)
     safe = strlist_pop(safe, &path);
 
     // Lookup (and hence normalise) path.
-    path = find_path(NULL, path, NULL, opt);
+    path = find_path(NULL, path, NULL, NULL, opt);
 
     if(path == NULL)
     {
@@ -818,7 +772,7 @@ bool package_init(pass_opt_t* opt)
 }
 
 
-static bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
+bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
 {
   if(paths == NULL)
     return true;
@@ -953,11 +907,17 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
   {
     // Lookup (and hence normalise) path
     bool is_relative = false;
-    full_path = find_path(from, path, &is_relative, opt);
+    bool found_notdir = false;
+    full_path = find_path(from, path, &is_relative, &found_notdir, opt);
 
     if(full_path == NULL)
     {
       errorf(opt->check.errors, path, "couldn't locate this path");
+
+      if(found_notdir)
+        errorf_continue(opt->check.errors, path, "note that a compiler "
+          "invocation or a 'use' directive must refer to a directory");
+
       return NULL;
     }
 
@@ -1558,12 +1518,6 @@ static void* s_alloc_fn(pony_ctx_t* ctx, size_t size)
 }
 
 
-static void s_throw_fn()
-{
-  pony_assert(false);
-}
-
-
 // TODO: Make group signature indiependent of package load order.
 const char* package_group_signature(package_group_t* group)
 {
@@ -1576,7 +1530,7 @@ const char* package_group_signature(package_group_t* group)
     char* buf = (char*)ponyint_pool_alloc_size(SIGNATURE_LENGTH);
 
     pony_serialise(&ctx, group, package_group_signature_pony_type(), &array,
-      s_alloc_fn, s_throw_fn);
+      s_alloc_fn);
     int status = blake2b(buf, SIGNATURE_LENGTH, array.ptr, array.size, NULL, 0);
     (void)status;
     pony_assert(status == 0);

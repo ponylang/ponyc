@@ -104,7 +104,10 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
@@ -132,7 +135,10 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
@@ -310,12 +316,12 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // Make sure we ignore signals related to scheduler sleeping/waking
     // as the default for those signals is termination
     struct sigaction new_action;
+
+    new_action.sa_handler = SIG_IGN;
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
     if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
       new_action.sa_handler = empty_signal_handler;
-    else
 #endif
-      new_action.sa_handler = SIG_IGN;
     sigemptyset (&new_action.sa_mask);
 
     // ask to restart interrupted syscalls to match `signal` behavior
@@ -387,7 +393,13 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // tell scheduler threads that asio has no noisy actors
     // if the old_count was 1
     if (old_count == 1)
+    {
       ponyint_sched_unnoisy_asio(SPECIAL_THREADID_KQUEUE);
+
+      // maybe wake up a scheduler thread if they've all fallen asleep
+      ponyint_sched_maybe_wakeup_if_all_asleep(-1);
+    }
+
     ev->noisy = false;
   }
 
@@ -417,12 +429,12 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     // Make sure we ignore signals related to scheduler sleeping/waking
     // as the default for those signals is termination
     struct sigaction new_action;
+
+    new_action.sa_handler = SIG_DFL;
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
     if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
       new_action.sa_handler = empty_signal_handler;
-    else
 #endif
-      new_action.sa_handler = SIG_DFL;
     sigemptyset (&new_action.sa_mask);
 
     // ask to restart interrupted syscalls to match `signal` behavior

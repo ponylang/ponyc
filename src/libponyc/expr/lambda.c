@@ -106,6 +106,10 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, value, "argument not a subtype of parameter");
+        ast_error_frame(&frame, value, "argument type is %s",
+                        ast_print_type(v_type));
+        ast_error_frame(&frame, id_node, "parameter type is %s",
+                        ast_print_type(type));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(v_type);
@@ -131,7 +135,8 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     NODE(TK_FVAR,
       TREE(id_node)
       TREE(type)
-      TREE(value)));
+      TREE(value)
+      NONE));
 
   *out_field = field;
   return true;
@@ -294,8 +299,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
         ast_t* param_type = ast_sibling(param_id);
 
         // Convert a "_" parameter to whatever the expected parameter is.
-        if((ast_id(param_id) == TK_REFERENCE) &&
-          is_name_dontcare(ast_name(ast_child(param_id))))
+        if(is_name_dontcare(ast_name(param_id)))
         {
           ast_replace(&param_id, ast_child(def_param));
           ast_replace(&param_type, ast_childidx(def_param, 1));
@@ -303,7 +307,6 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
         // Give a type-unspecified parameter the type of the expected parameter.
         else if(ast_id(param_type) == TK_NONE)
         {
-          ast_replace(&param_id, ast_child(param_id)); // unwrap reference's id
           ast_replace(&param_type, ast_childidx(def_param, 1));
         }
 
@@ -394,8 +397,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       TREE(ret_type)
       TREE(raises)
       TREE(body)
-      NONE    // Doc string
-      NONE)); // Guard
+      NONE)); // Doc string
 
   ast_list_append(members, &last_member, apply);
   ast_setflag(members, AST_FLAG_PRESERVE);
@@ -515,7 +517,8 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
     NODE(TK_FVAR,
       ID(name)
       TREE(type)
-      NODE(TK_REFERENCE, ID(name))));
+      NODE(TK_REFERENCE, ID(name))
+      NONE));
 
   ast_list_append(captures, last_capture, field);
   return true;
@@ -693,7 +696,6 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       NONE
       NODE(TK_SEQ,
         NODE(TK_TRUE))
-      NONE
       NONE));
 
   BUILD(type_ref, ast, NODE(TK_REFERENCE, ID(c_id)));

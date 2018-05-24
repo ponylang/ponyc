@@ -508,36 +508,44 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
   ast_t* operand_type = alias(match_type);
   bool ok = true;
+  errorframe_t info = NULL;
 
-  switch(is_matchtype(operand_type, pattern_type, opt))
+  switch(is_matchtype(operand_type, pattern_type, &info, opt))
   {
     case MATCHTYPE_ACCEPT:
       break;
 
     case MATCHTYPE_REJECT:
     {
-      ast_error(opt->check.errors, pattern, "this pattern can never match");
-      ast_error_continue(opt->check.errors, match_type, "match type: %s",
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, pattern, "this pattern can never match");
+      ast_error_frame(&frame, match_type, "match type: %s",
         ast_print_type(operand_type));
       // TODO report unaliased type when body is consume !
-      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+      ast_error_frame(&frame, pattern, "pattern type: %s",
         ast_print_type(pattern_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame, opt->check.errors);
+
       ok = false;
       break;
     }
 
     case MATCHTYPE_DENY:
     {
-      ast_error(opt->check.errors, pattern,
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, pattern,
         "this capture violates capabilities, because the match would "
         "need to differentiate by capability at runtime instead of matching "
         "on type alone");
-      ast_error_continue(opt->check.errors, match_type, "the match type "
-        "allows for more than one possibility with the same type as "
-        "pattern type, but different capabilities. match type: %s",
+      ast_error_frame(&frame, match_type, "the match type allows for more than "
+        "one possibility with the same type as pattern type, but different "
+        "capabilities. match type: %s",
         ast_print_type(operand_type));
-      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+      ast_error_frame(&frame, pattern, "pattern type: %s",
         ast_print_type(pattern_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame, opt->check.errors);
 
       ok = false;
       break;
@@ -554,7 +562,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     } else if(!is_bool(guard_type)) {
       ast_error(opt->check.errors, guard,
         "guard must be a boolean expression");
-      ok = false;
     }
   }
 

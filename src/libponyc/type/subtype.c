@@ -708,40 +708,32 @@ static bool is_single_sub_tuple(ast_t* sub, ast_t* super, check_cap_t check_cap,
 static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
-  ast_t* super_def = (ast_t*)ast_data(super);
-
-  if(ast_id(super_def) == TK_INTERFACE)
+  if(is_top_type(super, true))
   {
-    ast_t* super_members = ast_childidx(super_def, 4);
-    pony_assert(ast_id(super_members) == TK_MEMBERS);
-
-    if(ast_childcount(super_members) == 0)
+    for(ast_t* child = ast_child(sub);
+      child != NULL;
+      child = ast_sibling(child))
     {
-      // This is an empty interface, so we let the tuple be a subtype if the
-      // caps of the elements of the tuple are subcaps of the interface cap.
-      for(ast_t* child = ast_child(sub);
-        child != NULL;
-        child = ast_sibling(child))
+      if(!is_x_sub_x(child, super, check_cap, errorf, opt))
       {
-        if(!is_x_sub_x(child, super, check_cap, errorf, opt))
+        if(errorf != NULL)
         {
-          if(errorf != NULL)
-          {
-            ast_error_frame(errorf, child,
-              "%s is not a subtype of %s: %s is not a subtype of %s",
-              ast_print_type(sub), ast_print_type(super),
-              ast_print_type(child), ast_print_type(super));
-          }
-          return false;
+          ast_error_frame(errorf, child,
+            "%s is not a subtype of %s: %s is not a subtype of %s",
+            ast_print_type(sub), ast_print_type(super),
+            ast_print_type(child), ast_print_type(super));
         }
+        return false;
       }
-
-      return true;
     }
+
+    return true;
   }
 
   if(errorf != NULL)
   {
+    ast_t* super_def = (ast_t*)ast_data(super);
+
     ast_error_frame(errorf, sub,
       "%s is not a subtype of %s: the subtype is a tuple",
       ast_print_type(sub), ast_print_type(super));
@@ -837,6 +829,25 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
   // N k <: I k
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
+
+  // We could be reporting false negatives if the traits pass hasn't processed
+  // our defs yet.
+  pass_id sub_pass = (pass_id)ast_checkflag(sub_def, AST_FLAG_PASS_MASK);
+  pass_id super_pass = (pass_id)ast_checkflag(super_def, AST_FLAG_PASS_MASK);
+  pony_assert((sub_pass >= PASS_TRAITS) && (super_pass >= PASS_TRAITS));
+  (void)sub_pass; (void)super_pass;
+
+  if(ast_has_annotation(sub_def, "nosupertype"))
+  {
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, sub,
+        "%s is not a subtype of %s: it is marked 'nosupertype'",
+        ast_print_type(sub), ast_print_type(super));
+    }
+
+    return false;
+  }
 
   if(is_bare(sub) != is_bare(super))
   {
@@ -2013,6 +2024,79 @@ bool is_bare(ast_t* type)
     case TK_ARROW:
       return is_bare(ast_childidx(type, 1));
 
+    case TK_TYPEPARAMREF:
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+    case TK_DONTCARETYPE:
+      return false;
+
+    default : {}
+  }
+
+  pony_assert(0);
+  return false;
+}
+
+bool is_top_type(ast_t* type, bool ignore_cap)
+{
+  if(type == NULL)
+    return false;
+
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!is_top_type(child, ignore_cap))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_NOMINAL:
+    {
+      if(!ignore_cap && (ast_id(cap_fetch(type)) != TK_TAG))
+        return false;
+
+      // An empty interface is a top type.
+      ast_t* def = (ast_t*)ast_data(type);
+
+      if(ast_id(def) != TK_INTERFACE)
+        return false;
+
+      ast_t* members = ast_childidx(def, 4);
+
+      if(ast_childcount(members) != 0)
+        return false;
+
+      return true;
+    }
+
+    case TK_ARROW:
+    {
+      if(ignore_cap)
+        return is_top_type(ast_childidx(type, 1), true);
+
+      ast_t* type_lower = viewpoint_lower(type);
+
+      if(type_lower == NULL)
+        return false;
+
+      bool r = is_top_type(type_lower, false);
+
+      ast_free_unattached(type_lower);
+      return r;
+    }
+
+    case TK_TUPLETYPE:
     case TK_TYPEPARAMREF:
     case TK_FUNTYPE:
     case TK_INFERTYPE:

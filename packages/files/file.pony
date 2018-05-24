@@ -80,7 +80,16 @@ class File
   Operations on a file.
   """
   let path: FilePath
+    """
+    This is the filesystem path locating this file on the file system
+    and an object capability granting access to operate on this file.
+    """
+
   let writeable: Bool
+    """
+    `true` if the underlying file descriptor has been opened as writeable.
+    """
+
   let _newline: String = "\n"
   var _unsynced_data: Bool = false
   var _unsynced_metadata: Bool = false
@@ -151,13 +160,13 @@ class File
       _errno = FileError
     else
       _fd = ifdef windows then
-        @_open[I32](path.path.cstring(), @ponyint_o_rdwr())
+        @_open[I32](path.path.cstring(), @ponyint_o_rdonly())
       else
-        @open[I32](path.path.cstring(), @ponyint_o_rdwr())
+        @open[I32](path.path.cstring(), @ponyint_o_rdonly())
       end
 
       if _fd == -1 then
-        _errno = FileError
+        _errno = _get_error()
       else
         try
           _FileDes.set_rights(_fd, path, writeable)?
@@ -176,7 +185,7 @@ class File
     end
 
     path = from
-    writeable = from.caps(FileRead)
+    writeable = from.caps(FileWrite)
     _fd = fd
 
     _FileDes.set_rights(_fd, path, writeable)?
@@ -212,7 +221,7 @@ class File
     """
     Returns true if the file is currently open.
     """
-    not _fd == -1
+    not (_fd == -1)
 
   fun ref line(): String iso^ ? =>
     """
@@ -452,19 +461,22 @@ class File
     """
     Write pending data.
     Returns false if the file wasn't opened with write permission.
-    Returns raises error if not all the bytes were written.
+    Raises an error if not all the bytes were written.
     Returns true if it sent all pending data.
     Returns num_processed and new pending_total also.
     """
-    // TODO: Make writev_batch_size user configurable
-    let writev_batch_size = @pony_os_writev_max()
     var num_to_send: I32 = 0
     var num_sent: USize = 0
     var bytes_to_send: USize = 0
     var pending_total = _pending_writev_total
-    while
-      writeable and (pending_total > 0) and (_fd != -1)
-    do
+
+    if (not writeable) or (_fd == -1) then
+      return (false, num_sent, pending_total)
+    end
+
+    // TODO: Make writev_batch_size user configurable
+    let writev_batch_size = @pony_os_writev_max()
+    while pending_total > 0 do
       //determine number of bytes and buffers to send
       if (_pending_writev.size().i32()/2) < writev_batch_size then
         num_to_send = _pending_writev.size().i32()/2
@@ -491,20 +503,14 @@ class File
           num_to_send).isize()
       end
 
-      if len < bytes_to_send.isize() then
-        error
-      else
-        // sent all data we requested in this batch
-        pending_total = pending_total - bytes_to_send
-        num_sent = num_sent + num_to_send.usize()
+      if len < bytes_to_send.isize() then error end
 
-        if pending_total == 0 then
-          return (true, num_sent, pending_total)
-        end
-      end
+      // sent all data we requested in this batch
+      pending_total = pending_total - bytes_to_send
+      num_sent = num_sent + num_to_send.usize()
     end
 
-    (false, num_sent, pending_total)
+    (true, num_sent, pending_total)
 
   fun ref position(): USize =>
     """

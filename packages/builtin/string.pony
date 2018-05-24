@@ -231,7 +231,7 @@ actor Main
 
     let ptr = Pointer[U8]._alloc(_size + 1)
     _ptr._copy_to(ptr._unsafe(), _size)
-    ptr._update(_size + 1, 0)
+    ptr._update(_size, 0)
     ptr
 
   fun val array(): Array[U8] val =>
@@ -302,13 +302,13 @@ actor Main
       if (_size + 1).next_pow2() != _alloc.next_pow2() then
         _alloc = (_size + 1).next_pow2()
         let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
-        _ptr._consume_from(consume old_ptr, _size)
+        old_ptr._copy_to(_ptr, _size)
         _set(_size, 0)
       end
     elseif (_size + 1) < _alloc then
       _alloc = (_size + 1)
       let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._consume_from(consume old_ptr, _size)
+      old_ptr._copy_to(_ptr, _size)
       _set(_size, 0)
     end
 
@@ -1108,6 +1108,7 @@ actor Main
     if _size > 0 then
       let chars = Array[U32](s.size())
       var i = _size - 1
+      var truncate_at = _size
 
       for rune in s.runes() do
         chars.push(rune)
@@ -1121,13 +1122,14 @@ actor Main
             if not chars.contains(c) then
               break
             end
+	    truncate_at = i
           end
         else
           break
         end
       until (i = i - 1) == 0 end
 
-      truncate(i + 1)
+      truncate(truncate_at)
     end
 
   fun ref lstrip(s: String box = " \t\v\f\r\n") =>
@@ -1480,8 +1482,11 @@ actor Main
       F64(0)
     end
 
-  fun hash(): U64 =>
-    @ponyint_hash_block[U64](_ptr, _size)
+  fun hash(): USize =>
+    @ponyint_hash_block[USize](_ptr, _size)
+
+  fun hash64(): U64 =>
+    @ponyint_hash_block64[U64](_ptr, _size)
 
   fun string(): String iso^ =>
     clone()

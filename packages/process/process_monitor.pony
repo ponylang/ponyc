@@ -34,8 +34,8 @@ actor Main
       vars.push("PATH=/bin")
       // create a ProcessMonitor and spawn the child process
       let auth = env.root as AmbientAuth
-      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
-      consume args, consume vars)
+      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
+      path, consume args, consume vars)
       // write to STDIN of the child process
       pm.write("one, two, three")
       pm.done_writing() // closing stdin allows cat to terminate
@@ -537,8 +537,31 @@ actor ProcessMonitor
 
   fun ref _close_fd(fd: U32) =>
     """
-    Close a file descriptor.
+    Close a file descriptor.  This function also handles unsubscribing
+    the asio event (if the file descriptor has one), the file
+    descriptor should always be closed _after_ unsubscribing the
+    event, otherwise there is the possibility of reusing the file
+    descriptor in another thread and then unsubscribing the reused
+    file descriptor here!  Unsubscribing and closing the file
+    descriptor should be treated as one operation, and as this
+    function is called from many places in this module put the
+    unsubscribing logic here too.
     """
+    match fd
+    | -1 => return
+    | _stdin_write =>
+      if _stdin_event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(_stdin_event)
+      end
+    | _stdout_read =>
+      if _stdout_event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(_stdout_event)
+      end
+    | _stderr_read =>
+      if _stderr_event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(_stderr_event)
+      end
+    end
     @close[I32](fd)
     match fd
     | _stdin_read => _stdin_read = -1
@@ -551,7 +574,7 @@ actor ProcessMonitor
 
   fun ref _close() =>
     """
-    Close all pipes, unsubscribe events and wait for the child process to exit.
+    Close all pipes wait for the child process to exit.
     """
     ifdef posix then
       if not _closed then
@@ -565,15 +588,6 @@ actor ProcessMonitor
         _stdin_writeable = false
         _stdout_readable = false
         _stderr_readable = false
-        if _stdin_event isnt AsioEvent.none() then
-          @pony_asio_event_unsubscribe(_stdin_event)
-        end
-        if _stdout_event isnt AsioEvent.none() then
-          @pony_asio_event_unsubscribe(_stdout_event)
-        end
-        if _stderr_event isnt AsioEvent.none() then
-          @pony_asio_event_unsubscribe(_stderr_event)
-        end
         if _child_pid > 0 then
           // This is the parent, so capture the exit status of the child
           var wstatus: I32 = 0

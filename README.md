@@ -7,6 +7,7 @@ We have a couple resources designed to help you learn, we suggest starting with 
 * [Tutorial](http://tutorial.ponylang.org).
 * [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
 * [Standard library docs](http://stdlib.ponylang.org/).
+* [Build Problems, see FAQ Compiling](https://www.ponylang.org/faq/#compiling).
 
 If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
@@ -39,6 +40,8 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 * Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 
 # Installation
+
+Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.org/faq/#compiling) for additional information.
 
 ## Using Docker
 
@@ -171,42 +174,10 @@ export CC=`which gcc`
 Install ponyc via bintray:
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "D401AB61 DBE1D0A2"
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "379CE192D401AB61"
 echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
 sudo apt-get update
 sudo apt-get -V install ponyc
-```
-
-## Arch Linux
-
-Currently the ponyc package in Arch does not work because
-Arch is using LLVM 5 and ponyc requires LLVM 3.9.
-
-There is experimental support for building from source with LLVM 5.0.0,
-but this may cause decreased performance or crashes in generated
-applications.
-
-Using [Docker](#using-docker) is one choice, another is to
-use [ponyc-rpm](https://aur.archlinux.org/packages/ponyc-rpm/)
-
-### ponyc-rpm
-#### Prerequisites: `git` and `rpmextract`
-```
-sudo pacman -Syu git rpmextract
-```
-#### Instructions:
-Clone the repo, change directory to the repo, run `makepkg -si`
-or use your favorite AUR package manager.
-```
-git clone https://aur.archlinux.org/ponyc-rpm.git
-cd ponyc-rpm
-makepkg -si
-```
-
-#### Ponyc Usage
-You must pass the `--pic` parameter to ponyc on Arch Linux
-```
-ponyc --pic
 ```
 
 ## Gentoo Linux
@@ -258,7 +229,7 @@ Windows users will need to install:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the `Windows 10 SDK (10.0.15063.0) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -293,30 +264,19 @@ git clone git://github.com/ponylang/ponyc
 
 ### Arch
 
+Install pony dependencies:
+
 ```
 pacman -S llvm make ncurses openssl pcre2 zlib
 ```
 
-To build ponyc and compile helloworld:
+To build ponyc and compile and helloworld:
 
 ```bash
-make
+cd ~/ponyc/
+make default_pic=true default_ssl='openssl_1.1.0'
 ./build/release/ponyc examples/helloworld
-```
-
-If you get errors like
-
-```bash
-/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32 reloc against
- 'Array_String_val_Trace' which may overflow at runtime; recompile with -fPIC
-```
-
-You need to rebuild `ponyc` with `default_pic=true`
-
-```bash
-make clean
-make default_pic=true
-./build/release/ponyc examples/helloworld
+./helloworld
 ```
 
 ### Debian Jessie
@@ -466,6 +426,28 @@ make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
+### Ubuntu Artful
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev llvm-3.9
+```
+
+Clone the ponyc repo:
+
+```bash
+cd ~/
+git clone https://github.com/ponylang/ponyc.git
+```
+
+Build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make default_pic=true
+./build/release/ponyc examples/helloworld
+./helloworld
+```
 
 ### Fedora (25)
 
@@ -484,7 +466,65 @@ make
 ./helloworld
 ```
 
-### OpenSUSE (Leap 24.3)
+### CentOS/RHEL (7)
+
+Instal dependencies:
+
+```bash
+sudo yum install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+  ncurses-devel libatomic
+```
+
+Using LLVM 3.9.1 from copr:
+
+```bash
+sudo yum install yum-plugin-copr
+sudo yum copr enable alonid/llvm-3.9.1
+sudo yum install llvm-3.9.1 llvm-3.9.1-devel llvm-3.9.1-static
+```
+
+Using LLVM 5.0.1 from copr:
+
+```bash
+sudo yum install yum-plugin-copr
+sudo yum copr enable alonid/llvm-5.0.1
+sudo yum install llvm-5.0.1 llvm-5.0.1-devel llvm-5.0.1-static
+```
+
+Using LLVM 4.0.1 from llvm-toolset-7 from SCL:
+
+CentOS:
+```bash
+# 1. Install a package with repository for your system:
+# On CentOS, install package centos-release-scl available in CentOS repository:
+sudo yum install centos-release-scl
+```
+
+RHEL:
+```bash
+# On RHEL, enable RHSCL repository for you system:
+sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+
+```bash
+# 2. Install the collection:
+sudo yum install llvm-toolset-7 llvm-toolset-7-llvm-devel llvm-toolset-7-llvm-static
+```
+
+Enable the llvm collection before building:
+```bash
+scl enable llvm-toolset-7 bash
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make use="llvm_link_static"
+./build/release/ponyc examples/helloworld
+./helloworld
+```
+
+### OpenSUSE (Leap 42.3)
 
 ```bash
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
@@ -503,13 +543,13 @@ make
 ./helloworld
 ```
 
-### Alpine (Edge)
+### Alpine (3.6, 3.7, Edge)
 
 Install build tools/dependencies:
 
 ```bash
 apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev \
-  pcre2-dev libunwind-dev coreutils
+  pcre2-dev libexecinfo-dev coreutils linux-headers
 ```
 
 To build ponyc, compile and run helloworld:
@@ -633,7 +673,7 @@ Building on Windows requires the following:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the `Windows 10 SDK (10.0.15063.0) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
@@ -642,7 +682,7 @@ In a command prompt in the `ponyc` source directory, run the following:
 make.bat configure
 ```
 
-(You only need to run this the first time you build the project.)
+(You only need to run `make.bat configure` the first time you build the project.)
 
 ```
 make.bat build test
@@ -654,7 +694,7 @@ This will automatically perform the following steps:
   - [LLVM](http://llvm.org)
   - [LibreSSL](https://www.libressl.org/)
   - [PCRE](http://www.pcre.org)
-- Build the pony compiler in the `build-<config>-<llvm-version>` directory.
+- Build the pony compiler in the `build/<config>-<llvm-version>` directory.
 - Build the unit tests for the compiler and the standard library.
 - Run the unit tests.
 
@@ -728,5 +768,3 @@ gcc -march=none
 ```
 
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
-
-

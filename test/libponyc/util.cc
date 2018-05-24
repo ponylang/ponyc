@@ -20,14 +20,6 @@
 using std::string;
 
 
-// These will be set when running a JIT'ed program.
-extern "C"
-{
-  EXPORT_SYMBOL pony_type_t** __PonyDescTablePtr;
-  EXPORT_SYMBOL size_t __PonyDescTableSize;
-}
-
-
 static const char* const _builtin =
   "primitive U8 is Real[U8]\n"
   "  new create(a: U8 = 0) => a\n"
@@ -74,6 +66,7 @@ static const char* const _builtin =
   "primitive USize is Real[USize]"
   "  new create(a: USize = 0) => a\n"
   "  fun u64(): U64 => compile_intrinsic\n"
+  "  fun op_xor(a: USize): USize => this xor a\n"
   "primitive ISize is Real[ISize]"
   "  new create(a: ISize = 0) => a\n"
   "  fun neg(): ISize => -this\n"
@@ -111,8 +104,8 @@ static const char* const _builtin =
   "  var _size: USize = 0\n"
   "  var _alloc: USize = 0\n"
   "  var _ptr: Pointer[A] = Pointer[A]\n"
-  "  new create(len: USize, alloc: USize = 0) => true\n"
-  "  fun ref push(value: A): Array[A]^ => this\n"
+  "  new create(len: USize = 0) => true\n"
+  "  fun ref push(value: A) => true\n"
   "  fun apply(index: USize): this->A ? => error\n"
   "  fun values(): Iterator[A] => object ref\n"
   "    fun ref has_next(): Bool => false\n"
@@ -120,7 +113,9 @@ static const char* const _builtin =
   "  end\n"
   "interface Iterator[A]\n"
   "  fun ref has_next(): Bool\n"
-  "  fun ref next(): A ?\n";
+  "  fun ref next(): A ?\n"
+  "primitive DoNotOptimise\n"
+  "  fun apply[A](obj: A) => compile_intrinsic";
 
 
 // Check whether the 2 given ASTs are identical
@@ -242,7 +237,19 @@ void PassTest::SetUp()
   package_clear_magic(&opt);
   opt.verbosity = VERBOSITY_QUIET;
   opt.check_tree = true;
+  opt.verify = true;
   opt.allow_test_symbols = true;
+#if defined(PONY_DEFAULT_PIC)
+#  if (PONY_DEFAULT_PIC == true) || (PONY_DEFAULT_PIC == false)
+    opt.pic = PONY_DEFAULT_PIC;
+#  else
+#    error "PONY_DEFAULT_PIC must be true or false"
+#  endif
+#elif defined(__pic__) || defined(__PIC__) || defined(__pie__) || defined(__PIE__)
+  // The PIC-ness of the JIT-compiled code must match the PIC-ness of the
+  // executable's code.
+  opt.pic = true;
+#endif
   last_pass = PASS_PARSE;
 }
 
@@ -475,10 +482,7 @@ bool PassTest::run_program(int* exit_code)
   pony_assert(compile != NULL);
 
   pony_exitcode(0);
-  jit_symbol_t symbols[] = {
-    {"__PonyDescTablePtr", &__PonyDescTablePtr, sizeof(pony_type_t**)},
-    {"__PonyDescTableSize", &__PonyDescTableSize, sizeof(size_t)}};
-  return gen_jit_and_run(compile, exit_code, symbols, 2);
+  return gen_jit_and_run(compile, exit_code, NULL, 0);
 }
 
 

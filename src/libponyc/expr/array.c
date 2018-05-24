@@ -250,8 +250,9 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
     {
       ast_t* dot = ast_parent(ast);
       antecedent_type = find_antecedent_type(opt, dot, NULL);
-      find_possible_iterator_element_types(opt, antecedent_type,
-        &possible_element_types);
+      if (antecedent_type != NULL)
+        find_possible_iterator_element_types(opt, antecedent_type,
+          &possible_element_types);
     }
   }
 

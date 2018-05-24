@@ -3,6 +3,8 @@
 
 int subtype_kind(reach_type_t* type)
 {
+  pony_assert(type != NULL);
+
   int subtypes = SUBTYPE_KIND_NONE;
 
   size_t i = HASHMAP_BEGIN;
@@ -12,7 +14,7 @@ int subtype_kind(reach_type_t* type)
   {
     if(sub->can_be_boxed)
     {
-      if(type->underlying == TK_PRIMITIVE)
+      if(sub->underlying == TK_PRIMITIVE)
         subtypes |= SUBTYPE_KIND_NUMERIC;
       else
         subtypes |= SUBTYPE_KIND_TUPLE;
@@ -29,6 +31,11 @@ int subtype_kind(reach_type_t* type)
 
 int subtype_kind_overlap(reach_type_t* left, reach_type_t* right)
 {
+  pony_assert(left != NULL);
+
+  if(right == NULL)
+    return subtype_kind(left);
+
   int subtypes = SUBTYPE_KIND_NONE;
 
   size_t i = HASHMAP_BEGIN;

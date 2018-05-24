@@ -214,17 +214,23 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
     return false;
 
   AST_GET_CHILDREN(postfix, receiver, method);
-  ast_t* receiver_type = ast_type(receiver);
+  ast_t* receiver_type = deferred_reify(c->frame->reify, ast_type(receiver),
+    c->opt);
 
-  if(ast_id(receiver_type) != TK_NOMINAL)
+  const char* name = NULL;
+
+  if(ast_id(receiver_type) == TK_NOMINAL)
+  {
+    AST_GET_CHILDREN(receiver_type, package, id);
+
+    if(ast_name(package) == c->str_builtin)
+      name = ast_name(id);
+  }
+
+  ast_free_unattached(receiver_type);
+
+  if(name == NULL)
     return false;
-
-  AST_GET_CHILDREN(receiver_type, package, id);
-
-  if(ast_name(package) != c->str_builtin)
-    return false;
-
-  const char* name = ast_name(id);
 
   if(name == c->str_Bool)
     return special_case_operator(c, ast, value, true, true);
@@ -478,7 +484,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   LLVMValueRef value = gen_expr(c, receiver);
 
   // Get the receiver type.
-  ast_t* type = ast_type(receiver);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(receiver), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
   pony_assert(t != NULL);
 
@@ -486,6 +492,8 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   token_id cap = cap_dispatch(type);
   reach_method_t* m = reach_method(t, cap, name, typeargs);
   LLVMValueRef funptr = dispatch_function(c, t, m, value);
+
+  ast_free_unattached(type);
 
   if((m->cap != TK_AT) && (c->linkage != LLVMExternalLinkage))
   {
@@ -535,13 +543,18 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   size_t args_buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
   LLVMValueRef* cast_args =
     (LLVMValueRef*)ponyint_pool_alloc_size(args_buf_size);
+  size_t arg_types_buf_size = m->param_count * sizeof(ast_t*);
+  ast_t** arg_types = (ast_t**)ponyint_pool_alloc_size(arg_types_buf_size);
 
   ast_t* arg_ast = ast_child(args_ast);
 
+  deferred_reification_t* reify = c->frame->reify;
+
   for(size_t i = 0; i < m->param_count; i++)
   {
+    arg_types[i] = deferred_reify(reify, ast_type(arg_ast), c->opt);
     cast_args[i+1] = gen_assign_cast(c, param_types[i+3], args[i+1],
-      ast_type(arg_ast));
+      arg_types[i]);
     arg_ast = ast_sibling(arg_ast);
   }
 
@@ -561,18 +574,15 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   }
 
   // Trace while populating the message contents.
-  arg_ast = ast_child(args_ast);
   bool need_trace = false;
 
   for(size_t i = 0; i < m->param_count; i++)
   {
-    if(gentrace_needed(c, ast_type(arg_ast), m->params[i].ast))
+    if(gentrace_needed(c, arg_types[i], m->params[i].ast))
     {
       need_trace = true;
       break;
     }
-
-    arg_ast = ast_sibling(arg_ast);
   }
 
   LLVMValueRef ctx = codegen_ctx(c);
@@ -581,13 +591,11 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   {
     LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
     LLVMSetMetadataStr(gc, "pony.msgsend", md);
-    arg_ast = ast_child(args_ast);
 
     for(size_t i = 0; i < m->param_count; i++)
     {
-      gentrace(c, ctx, args[i+1], cast_args[i+1], ast_type(arg_ast),
+      gentrace(c, ctx, args[i+1], cast_args[i+1], arg_types[i],
         m->params[i].ast);
-      arg_ast = ast_sibling(arg_ast);
     }
 
     gc = gencall_runtime(c, "pony_send_done", &ctx, 1, "");
@@ -611,6 +619,11 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   ponyint_pool_free_size(params_buf_size, param_types);
   ponyint_pool_free_size(args_buf_size, cast_args);
+
+  for(size_t i = 0; i < m->param_count; i++)
+    ast_free_unattached(arg_types[i]);
+
+  ponyint_pool_free_size(arg_types_buf_size, arg_types);
 }
 
 static bool contains_boxable(ast_t* type)
@@ -726,6 +739,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   AST_GET_CHILDREN(postfix, receiver, method);
   ast_t* typeargs = NULL;
 
+  deferred_reification_t* reify = c->frame->reify;
+
   // Dig through function qualification.
   switch(ast_id(receiver))
   {
@@ -735,7 +750,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     case TK_FUNREF:
     case TK_BECHAIN:
     case TK_FUNCHAIN:
-      typeargs = method;
+      typeargs = deferred_reify(reify, method, c->opt);
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
 
@@ -744,12 +759,18 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   // Get the receiver type.
   const char* method_name = ast_name(method);
-  ast_t* type = ast_type(receiver);
+  ast_t* type = deferred_reify(reify, ast_type(receiver), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
   pony_assert(t != NULL);
 
+  token_id cap = cap_dispatch(type);
+  reach_method_t* m = reach_method(t, cap, method_name, typeargs);
+
+  ast_free_unattached(type);
+  ast_free_unattached(typeargs);
+
   // Generate the arguments.
-  size_t count = ast_childcount(positional) + 1;
+  size_t count = m->param_count + 1;
   size_t buf_size = count * sizeof(void*);
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
@@ -802,8 +823,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   // Static or virtual dispatch.
-  token_id cap = cap_dispatch(type);
-  reach_method_t* m = reach_method(t, cap, method_name, typeargs);
   LLVMValueRef func = dispatch_function(c, t, m, args[0]);
 
   bool is_message = false;
@@ -836,9 +855,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   {
     // If we're sending a message, trace and send here instead of calling the
     // sender to trace the most specific types possible.
-    token_id cap = cap_dispatch(type);
-    reach_method_t* m = reach_method(t, cap, method_name, typeargs);
-
     codegen_debugloc(c, ast);
     gen_send_message(c, m, args, positional);
     codegen_debugloc(c, NULL);
@@ -863,7 +879,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     while(arg != NULL)
     {
-      args[i] = gen_assign_cast(c, params[i], args[i], ast_type(arg));
+      ast_t* arg_type = deferred_reify(reify, ast_type(arg), c->opt);
+      args[i] = gen_assign_cast(c, params[i], args[i], arg_type);
+      ast_free_unattached(arg_type);
       arg = ast_sibling(arg);
       i++;
     }
@@ -918,7 +936,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 {
   // This is used for structural equality in pattern matching.
-  ast_t* pattern_type = ast_type(pattern);
+  ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
+    c->opt);
 
   if(ast_id(pattern_type) == TK_NOMINAL)
   {
@@ -948,6 +967,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
         (name == c->str_F64)
         )
       {
+        ast_free_unattached(pattern_type);
         return gen_eq_rvalue(c, pattern, r_value, true);
       }
     }
@@ -962,6 +982,8 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   token_id cap = cap_dispatch(pattern_type);
   reach_method_t* m = reach_method(t, cap, c->str_eq, NULL);
   LLVMValueRef func = dispatch_function(c, t, m, l_value);
+
+  ast_free_unattached(pattern_type);
 
   if(func == NULL)
     return NULL;
@@ -1042,6 +1064,8 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
 
   ast_t* arg = ast_child(args);
 
+  deferred_reification_t* reify = c->frame->reify;
+
   while(arg != NULL)
   {
     ast_t* p_type = ast_type(arg);
@@ -1049,9 +1073,11 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
     if(p_type == NULL)
       p_type = ast_childidx(arg, 1);
 
+    p_type = deferred_reify(reify, p_type, c->opt);
     reach_type_t* pt = reach_type(c->reach, p_type);
     pony_assert(pt != NULL);
     f_params[count++] = ((compile_type_t*)pt->c_type)->use_type;
+    ast_free_unattached(p_type);
     arg = ast_sibling(arg);
   }
 
@@ -1126,10 +1152,13 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
 
+  deferred_reification_t* reify = c->frame->reify;
+
   // Get the return type.
-  ast_t* type = ast_type(ast);
+  ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
   pony_assert(t != NULL);
+  ast_free_unattached(type);
 
   // Get the function. First check if the name is in use by a global and error
   // if it's the case.
@@ -1164,7 +1193,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     size_t index = HASHMAP_UNKNOWN;
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
     ffi_decl_t k;
     k.func = func;
 
@@ -1260,7 +1289,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   // Special case a None return value, which is used for void functions.
-  bool isnone = is_none(type);
+  bool isnone = is_none(t->ast);
   bool isvoid = LLVMGetReturnType(f_type) == c->void_type;
 
   if(isnone && isvoid)
@@ -1273,7 +1302,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   result = cast_ffi_arg(c, ffi_decl, ast, result, c_t->use_type,
     "return values");
-  result = gen_assign_cast(c, c_t->use_type, result, type);
+  result = gen_assign_cast(c, c_t->use_type, result, t->ast_cap);
 
   return result;
 }
@@ -1283,8 +1312,7 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 {
   LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
 
-  if(func == NULL)
-    return NULL;
+  pony_assert(func != NULL);
 
   return LLVMBuildCall(c->builder, func, args, count, ret);
 }

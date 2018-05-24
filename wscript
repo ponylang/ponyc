@@ -45,18 +45,18 @@ CONFIGS = [
     'debug'
 ]
 
-MSVC_VERSIONS = [ '15.4', '15.0', '14.0' ]
+MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
     '3.9.1',
-    '4.0.1',
-    '5.0.1'
+    '5.0.1',
+    '6.0.0'
 ]
 
-WINDOWS_LIBS_TAG = "v1.6.0"
+WINDOWS_LIBS_TAG = "v1.7.0"
 LIBRESSL_VERSION = "2.6.4"
-PCRE2_VERSION = "10.30"
+PCRE2_VERSION = "10.31"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
@@ -259,8 +259,8 @@ def build(ctx):
 
     # build targets:
 
-    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5'):
-        print('WARNING: LLVM 4 and 5 support is experimental and may result in decreased performance or crashes')
+    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5') or ctx.options.llvm.startswith('6'):
+        print('WARNING: LLVM 4, 5 and 6 support is experimental and may result in decreased performance or crashes')
 
     # gtest
     ctx(
@@ -270,13 +270,13 @@ def build(ctx):
         defines  = [ '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING' ]
     )
 
-    # gbenchmark
+    # libgbenchmark
     ctx(
         features = 'cxx cxxstlib seq',
-        target   = 'gbenchmark',
-        source   = ctx.path.ant_glob('lib/gbenchmark/*.cc'),
+        target   = 'libgbenchmark',
+        source   = ctx.path.ant_glob('lib/gbenchmark/src/*.cc'),
         includes = [ 'lib/gbenchmark/include' ],
-        defines  = [ 'HAVE_STD_REGEX' ]
+        defines  = [ 'HAVE_STD_REGEX', 'HAVE_STEADY_CLOCK' ]
     )
 
     # blake2
@@ -293,6 +293,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
+        defines   = [ 'PONY_ALWAYS_ASSERT' ],
         use       = [ 'blake2' ]
     )
 
@@ -301,8 +302,8 @@ def build(ctx):
         features = 'cxx cxxprogram seq',
         target   = 'libponyc.benchmarks',
         source   = ctx.path.ant_glob('benchmark/libponyc/**/*.cc'),
-        includes = [ 'lib/gbenchmark/include' ],
-        use      = [ 'libponyc', 'gbenchmark' ],
+        includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        use      = [ 'libponyc', 'libgbenchmark' ],
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
@@ -312,8 +313,7 @@ def build(ctx):
         target   = 'libponyrt',
         source   = ctx.path.ant_glob('src/libponyrt/**/*.c') + \
                    ctx.path.ant_glob('src/libponyrt/**/*.ll'),
-        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
-        defines  = [ 'PONY_NO_ASSERT' ]
+        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes
     )
 
     # libponyrt.benchmarks
@@ -322,7 +322,7 @@ def build(ctx):
         target   = 'libponyrt.benchmarks',
         source   = ctx.path.ant_glob('benchmark/libponyrt/**/*.cc'),
         includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
-        use      = [ 'libponyrt', 'gbenchmark' ],
+        use      = [ 'libponyrt', 'libgbenchmark' ],
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
@@ -332,6 +332,7 @@ def build(ctx):
         target    = 'ponyc',
         source    = ctx.path.ant_glob('src/ponyc/**/*.c'),
         includes  = [ 'src/common' ],
+        defines   = [ 'PONY_ALWAYS_ASSERT' ],
         use       = [ 'libponyc', 'libponyrt' ],
         lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
     )
@@ -350,6 +351,7 @@ def build(ctx):
         includes  = [ 'src/common', 'src/libponyc', 'src/libponyrt',
                       'lib/gtest' ] + llvmIncludes,
         defines   = [
+            'PONY_ALWAYS_ASSERT',
             'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
             '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
         ],

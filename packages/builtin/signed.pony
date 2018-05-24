@@ -152,6 +152,7 @@ primitive I64 is _SignedInteger[I64, U64]
 
   fun min(y: I64): I64 => if this < y then this else y end
   fun max(y: I64): I64 => if this > y then this else y end
+  fun hash(): USize => u64().hash()
 
   fun addc(y: I64): (I64, Bool) =>
     @"llvm.sadd.with.overflow.i64"[(I64, Bool)](this, y)
@@ -160,7 +161,8 @@ primitive I64 is _SignedInteger[I64, U64]
     @"llvm.ssub.with.overflow.i64"[(I64, Bool)](this, y)
 
   fun mulc(y: I64): (I64, Bool) =>
-    @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
+    _SignedCheckedArithmetic._mulc[U64, I64](this, y)
+
 
 primitive ILong is _SignedInteger[ILong, ULong]
   new create(value: ILong) => value
@@ -227,6 +229,7 @@ primitive ILong is _SignedInteger[ILong, ULong]
   fun bitwidth(): ULong => ifdef ilp32 or llp64 then 32 else 64 end
   fun min(y: ILong): ILong => if this < y then this else y end
   fun max(y: ILong): ILong => if this > y then this else y end
+  fun hash(): USize => ulong().hash()
 
   fun addc(y: ILong): (ILong, Bool) =>
     ifdef ilp32 or llp64 then
@@ -246,7 +249,7 @@ primitive ILong is _SignedInteger[ILong, ULong]
     ifdef ilp32 or llp64 then
       @"llvm.smul.with.overflow.i32"[(ILong, Bool)](this, y)
     else
-      @"llvm.smul.with.overflow.i64"[(ILong, Bool)](this, y)
+      _SignedCheckedArithmetic._mulc[ULong, ILong](this, y)
     end
 
 primitive ISize is _SignedInteger[ISize, USize]
@@ -333,7 +336,7 @@ primitive ISize is _SignedInteger[ISize, USize]
     ifdef ilp32 then
       @"llvm.smul.with.overflow.i32"[(ISize, Bool)](this, y)
     else
-      @"llvm.smul.with.overflow.i64"[(ISize, Bool)](this, y)
+      _SignedCheckedArithmetic._mulc[USize, ISize](this, y)
     end
 
 primitive I128 is _SignedInteger[I128, U128]
@@ -366,7 +369,8 @@ primitive I128 is _SignedInteger[I128, U128]
   fun bitwidth(): U128 => 128
   fun min(y: I128): I128 => if this < y then this else y end
   fun max(y: I128): I128 => if this > y then this else y end
-  fun hash(): U64 => ((this.u128() >> 64).u64() xor this.u64()).hash()
+  fun hash(): USize => u128().hash()
+  fun hash64(): U64 => u128().hash64()
 
   fun string(): String iso^ =>
     _ToString._u128(abs().u128(), this < 0)
@@ -488,4 +492,78 @@ primitive I128 is _SignedInteger[I128, U128]
     """
     f64()
 
+  fun addc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.sadd.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let overflow =
+        if y > 0 then
+          (this > (max_value() - y))
+        else
+          (this < (min_value() - y))
+        end
+
+      (this + y, overflow)
+    end
+
+  fun subc(y: I128): (I128, Bool) =>
+    ifdef native128 then
+      @"llvm.ssub.with.overflow.i128"[(I128, Bool)](this, y)
+    else
+      let overflow =
+        if y > 0 then
+          (this < (min_value() + y))
+        else
+          (this > (max_value() + y))
+        end
+
+      (this - y, overflow)
+    end
+
+  fun mulc(y: I128): (I128, Bool) =>
+    // using llvm.smul.with.overflow.i128 would require to link
+    // llvm compiler-rt where the function implementing it lives: https://github.com/llvm-mirror/compiler-rt/blob/master/lib/builtins/muloti4.c
+    // See this bug for reference:
+    // the following implementation is more or less exactly was __muloti4 is
+    // doing
+    _SignedCheckedArithmetic._mulc[U128, I128](this, y)
+
 type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
+
+
+primitive _SignedCheckedArithmetic
+  fun _mulc[U: _UnsignedInteger[U] val, T: (Signed & _SignedInteger[T, U] val)](x: T, y: T): (T, Bool) =>
+    """
+    basically exactly what the runtime functions __muloti4, mulodi4 etc. are doing
+    and roughly as fast as these.
+
+    Additionally on (at least some) 32 bit systems, the runtime function for checked 64 bit integer addition __mulodi4 is not available.
+    So we shouldn't use: `@"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)`
+
+    Also see https://bugs.llvm.org/show_bug.cgi?id=14469
+
+    That's basically why we rolled our own.
+    """
+    let result = x * y
+    if x == T.min_value() then
+      return (result, (y != T.from[I8](0)) and (y != T.from[I8](1)))
+    end
+    if y == T.min_value() then
+      return (result, (x != T.from[I8](0)) and (x != T.from[I8](1)))
+    end
+    let x_neg = x >> (x.bitwidth() - U.from[U8](1))
+    let x_abs = (x xor x_neg) - x_neg
+    let y_neg = y >> (x.bitwidth() - U.from[U8](1))
+    let y_abs = (y xor y_neg) - y_neg
+
+    if ((x_abs < T.from[I8](2)) or (y_abs < T.from[I8](2))) then
+      return (result, false)
+    end
+    if (x_neg == y_neg) then
+      (result, (x_abs > (T.max_value() / y_abs)))
+    else
+      (result, (x_abs > (T.min_value() / -y_abs)))
+    end
+
+
+

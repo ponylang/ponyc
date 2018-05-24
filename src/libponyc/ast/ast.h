@@ -28,24 +28,24 @@ typedef enum
 
 enum
 {
-  AST_FLAG_PASS_MASK    = 0x0F,
-  AST_FLAG_CAN_ERROR    = 0x20,
-  AST_FLAG_CAN_SEND     = 0x40,
-  AST_FLAG_MIGHT_SEND   = 0x80,
-  AST_FLAG_IN_PARENS    = 0x100,
-  AST_FLAG_AMBIGUOUS    = 0x200,
-  AST_FLAG_BAD_SEMI     = 0x400,
-  AST_FLAG_MISSING_SEMI = 0x800,
-  AST_FLAG_PRESERVE     = 0x1000, // Do not process
-  AST_FLAG_RECURSE_1    = 0x2000,
-  AST_FLAG_DONE_1       = 0x4000,
-  AST_FLAG_ERROR_1      = 0x8000,
-  AST_FLAG_RECURSE_2    = 0x10000,
-  AST_FLAG_DONE_2       = 0x20000,
-  AST_FLAG_ERROR_2      = 0x40000,
-  AST_FLAG_JUMPS_AWAY   = 0x80000, // Jumps away (control flow) without a value.
-  AST_FLAG_INCOMPLETE   = 0x100000, // Not all fields are defined.
-  AST_FLAG_IMPORT       = 0x200000, // Import the referenced package.
+  AST_FLAG_PASS_MASK    = 0x1F,
+  AST_FLAG_CAN_ERROR    = 0x40,
+  AST_FLAG_CAN_SEND     = 0x80,
+  AST_FLAG_MIGHT_SEND   = 0x100,
+  AST_FLAG_IN_PARENS    = 0x200,
+  AST_FLAG_AMBIGUOUS    = 0x400,
+  AST_FLAG_BAD_SEMI     = 0x800,
+  AST_FLAG_MISSING_SEMI = 0x1000,
+  AST_FLAG_PRESERVE     = 0x2000, // Do not process
+  AST_FLAG_RECURSE_1    = 0x4000,
+  AST_FLAG_DONE_1       = 0x8000,
+  AST_FLAG_ERROR_1      = 0x10000,
+  AST_FLAG_RECURSE_2    = 0x20000,
+  AST_FLAG_DONE_2       = 0x40000,
+  AST_FLAG_ERROR_2      = 0x80000,
+  AST_FLAG_JUMPS_AWAY   = 0x100000, // Jumps away (control flow) without a value.
+  AST_FLAG_INCOMPLETE   = 0x200000, // Not all fields are defined.
+  AST_FLAG_IMPORT       = 0x400000, // Import the referenced package.
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);
@@ -151,6 +151,7 @@ void ast_printverbose(ast_t* ast);
 void ast_fprint(FILE* fp, ast_t* ast, size_t width);
 void ast_fprintverbose(FILE* fp, ast_t* ast);
 const char* ast_print_type(ast_t* type);
+const char* ast_print_type_no_cap(ast_t* type);
 
 void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 3, 4)));

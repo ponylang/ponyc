@@ -151,6 +151,34 @@ typedef const struct _pony_type_t
   void* vtable;
 } pony_type_t;
 
+/** Language feature initialiser.
+ *
+ * Contains initialisers for the various language features initialised by
+ * the pony_start() function.
+ */
+typedef struct pony_language_features_init_t
+{
+  /// Network-related initialisers.
+
+  bool init_network;
+
+
+  /// Serialisation-related initialisers.
+
+  bool init_serialisation;
+
+  /** Type descriptor table pointer.
+   *
+   * Should point to an array of type descriptors. For each element in the
+   * array, the id field should correspond to the array index. The array can
+   * contain NULL elements.
+   */
+  pony_type_t** descriptor_table;
+
+  /// The total size of the descriptor_table array.
+  size_t descriptor_table_size;
+} pony_language_features_init_t;
+
 /** Padding for actor types.
  *
  * 56 bytes: initial header, not including the type descriptor
@@ -272,7 +300,8 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
 /** Reallocate memory on the current actor's heap.
  *
  * Take heap memory and expand it. This is a no-op if there's already enough
- * space, otherwise it allocates and copies.
+ * space, otherwise it allocates and copies. The old memory must have been
+ * allocated via pony_alloc(), pony_alloc_small(), or pony_alloc_large().
  */
 PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size);
 
@@ -430,12 +459,14 @@ PONY_API int pony_init(int argc, char** argv);
  * The value pointed by exit_code will not be modified if library is true. Use
  * the return value of pony_stop() in that case.
  *
- * If language_features is false, the features of the runtime specific to the
- * Pony language, such as network or serialisation, won't be initialised.
+ * language_features specifies which features of the runtime specific to the
+ * Pony language, such as network or serialisation, should be initialised.
+ * If language_features is NULL, no feature will be initialised.
  *
  * It is not safe to call this again before the runtime has terminated.
  */
-PONY_API bool pony_start(bool library, bool language_features, int* exit_code);
+PONY_API bool pony_start(bool library, int* exit_code,
+  const pony_language_features_init_t* language_features);
 
 /**
  * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be
@@ -454,6 +485,8 @@ PONY_API void pony_register_thread();
  * the Pony runtime.
  */
 PONY_API void pony_unregister_thread();
+
+PONY_API int32_t pony_scheduler_index(pony_ctx_t* ctx);
 
 /** Signals that the pony runtime may terminate.
  *

@@ -28,7 +28,7 @@ struct token_t
     lexint_t integer;
   };
 
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   bool frozen;
 #endif
 };
@@ -94,7 +94,8 @@ void token_free(token_t* token)
 
 void token_freeze(token_t* token)
 {
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  (void)token;
+#ifndef PONY_NDEBUG
   pony_assert(token != NULL);
   token->frozen = true;
 #endif
@@ -498,7 +499,7 @@ static void token_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->line = token->line;
   dst->pos = token->pos;
   dst->printed = NULL;
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   dst->frozen = token->frozen;
 #endif
 

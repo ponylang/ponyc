@@ -2,6 +2,75 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.22.0] - 2018-05-24
+
+### Fixed
+
+- Incorrect rstrip handling of multibyte characters ([PR #2706](https://github.com/ponylang/ponyc/pull/2706))
+- Fix File.flush return value for case of zero bytes to flush. ([PR #2704](https://github.com/ponylang/ponyc/pull/2704))
+- Enable virtual terminal color output on Windows. ([PR #2702](https://github.com/ponylang/ponyc/pull/2702))
+- Compute File.writeable based on FileWrite instead of FileRead. ([PR #2698](https://github.com/ponylang/ponyc/pull/2698))
+- Do not use llvm.smul.with.overflow.i64 anymore ([PR #2693](https://github.com/ponylang/ponyc/pull/2693))
+- Change directory.open_file() to use readonly open ([PR #2697](https://github.com/ponylang/ponyc/pull/2697))
+- Avoid flattening arrow to type param, fixing typechecking when reified with another type param. ([PR #2692](https://github.com/ponylang/ponyc/pull/2692))
+- Fix File.valid() and clarify File behavior in error cases ([PR #2656](https://github.com/ponylang/ponyc/pull/2656))
+- Fix tuple pattern matching issue where only some elements would violate caps. ([PR #2658](https://github.com/ponylang/ponyc/pull/2658))
+- Fix scheduler suspend edge case assertion ([PR #2641](https://github.com/ponylang/ponyc/pull/2641))
+- Fix code generation failure with tuples in recover blocks ([PR #2642](https://github.com/ponylang/ponyc/pull/2642))
+- Do not mute sender if sender is under pressure ([PR #2644](https://github.com/ponylang/ponyc/pull/2644))
+- Fix FilePath.walk performance issues (issue #2158). ([PR #2634](https://github.com/ponylang/ponyc/pull/2634))
+- Fix backpressure-related TCPConnection busy-loop bug (issue #2620). ([PR #2627](https://github.com/ponylang/ponyc/pull/2627))
+- Fix off-by-one error in String.cstring ([PR #2616](https://github.com/ponylang/ponyc/pull/2616))
+- Fix compiler crash related to array inference. ([PR #2603](https://github.com/ponylang/ponyc/pull/2603))
+- Ensure ASIO thread cannot be stopped prematurely ([PR #2612](https://github.com/ponylang/ponyc/pull/2612))
+- Handle EAGAIN errors on socket operations ([PR #2611](https://github.com/ponylang/ponyc/pull/2611))
+- Properly report type parameter capability errors ([PR #2598](https://github.com/ponylang/ponyc/pull/2598))
+- Update the Windows build to support the latest Visual C++ Build Tools ([PR #2594](https://github.com/ponylang/ponyc/pull/2594))
+- Fix tracing of boxed tuples through interfaces ([PR #2593](https://github.com/ponylang/ponyc/pull/2593))
+- Partially mitigate LLVM's infinite loops bug ([PR #2592](https://github.com/ponylang/ponyc/pull/2592))
+- Fix extracting docstring from constructors ([PR #2586](https://github.com/ponylang/ponyc/pull/2586))
+- Always unsubscribe process_monitor fds before closing them (#2529) ([PR #2574](https://github.com/ponylang/ponyc/pull/2574))
+- Fix two race conditions where an ASIO wakeup notifications can be lost ([PR #2561](https://github.com/ponylang/ponyc/pull/2561))
+- Fix compiler crash in alternate name suggestion logic (issue #2508). ([PR #2552](https://github.com/ponylang/ponyc/pull/2552))
+- Make the File.open constructor use read-only mode (Issue #2567) ([PR #2568](https://github.com/ponylang/ponyc/pull/2568))
+- Correctly typecheck FFI arguments with regard to aliasing ([PR #2550](https://github.com/ponylang/ponyc/pull/2550))
+- Allow tuples to match empty interfaces ([PR #2532](https://github.com/ponylang/ponyc/pull/2532))
+- Properly report default argument inference errors ([PR #2504](https://github.com/ponylang/ponyc/pull/2504))
+- Do not catch foreign exceptions in Pony try blocks. This still doesn't work on Windows, foreign code doesn't catch foreign exceptions if they've traversed a Pony frame. ([PR #2466](https://github.com/ponylang/ponyc/pull/2466))
+- Fix LLVM IR verification with DoNotOptimise ([PR #2506](https://github.com/ponylang/ponyc/pull/2506))
+
+### Added
+
+- Add addc, subc and mulc functions to I128 and U128 ([PR #2645](https://github.com/ponylang/ponyc/pull/2645))
+- Add mechanism to register (noisy) signal handler ([PR #2631](https://github.com/ponylang/ponyc/pull/2631))
+- Added `nosupertype` annotation for subtyping exclusion (RFC 54). ([PR #2678](https://github.com/ponylang/ponyc/pull/2678))
+- `SourceLoc.type_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
+- Update with experimental support for LLVM 6.0.0 ([PR #2595](https://github.com/ponylang/ponyc/pull/2595))
+- Improve pattern matching error reporting ([PR #2628](https://github.com/ponylang/ponyc/pull/2628))
+- Allow recovering at most one element of a tuple to mutable capability. ([PR #2585](https://github.com/ponylang/ponyc/pull/2585))
+- Add full'ish support for network socket get & set options ([PR #2513](https://github.com/ponylang/ponyc/pull/2513))
+- Add basic compiler plugins ([PR #2566](https://github.com/ponylang/ponyc/pull/2566))
+- [RFC 50] add member docstrings ([PR #2543](https://github.com/ponylang/ponyc/pull/2543))
+- Allow user defined help string at CommandSpec.add_help() ([PR #2535](https://github.com/ponylang/ponyc/pull/2535))
+- Embed source code into generated documentation. ([PR #2439](https://github.com/ponylang/ponyc/pull/2439))
+- Compile error when comparing sugared constructors with 'is' or 'isnt' (#2024) ([PR #2494](https://github.com/ponylang/ponyc/pull/2494))
+- Support OpenSSL 1.1.0 ([PR #2415](https://github.com/ponylang/ponyc/pull/2415))
+- Add U64 type to `cli` package. ([PR #2488](https://github.com/ponylang/ponyc/pull/2488))
+- Allow customisation of `Env.input` and `Env.exitcode` in artificial environments
+- `hash64()` function and related helper types in `collections` for 64-bit hashes ([PR #2615](https://github.com/ponylang/ponyc/pull/2615))
+
+### Changed
+
+- `SourceLoc.method` renamed as `SourceLoc.method_name` method ([PR #2643](https://github.com/ponylang/ponyc/pull/2643))
+- New Ponybench API (RFC 52) ([PR #2578](https://github.com/ponylang/ponyc/pull/2578))
+- Forbid impossible pattern matching on generic capabilities ([PR #2499](https://github.com/ponylang/ponyc/pull/2499))
+- Remove case functions ([PR #2542](https://github.com/ponylang/ponyc/pull/2542))
+- Rename Date to PosixDate ([PR #2436](https://github.com/ponylang/ponyc/pull/2436))
+- Fix and re-enable dynamic scheduler scaling ([PR #2483](https://github.com/ponylang/ponyc/pull/2483))
+- Expose OutStream rather than StdStream in Env ([PR #2463](https://github.com/ponylang/ponyc/pull/2463))
+- Rename StdinNotify to InputNotify
+- `digestof` and `hash()` now return USize instead of U64 ([PR #2615](https://github.com/ponylang/ponyc/pull/2615))
+
 ## [0.21.3] - 2018-01-14
 
 ### Fixed

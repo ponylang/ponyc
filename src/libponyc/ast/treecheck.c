@@ -326,7 +326,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 
 void check_tree(ast_t* tree, pass_opt_t* opt)
 {
-#ifdef NDEBUG
+#ifdef PONY_NDEBUG
   // Keep compiler happy in release builds.
   (void)tree;
   (void)opt;

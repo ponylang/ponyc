@@ -18,6 +18,7 @@ class CommandSpec
   let _descr: String
   let _options: Map[String, OptionSpec] = _options.create()
   var _help_name: String = ""
+  var _help_info: String = ""
 
   // A parent commands can have sub-commands; leaf commands can have args.
   let _commands: Map[String, CommandSpec box] = _commands.create()
@@ -79,12 +80,13 @@ class CommandSpec
     if _args.size() > 0 then error end
     _commands.update(cmd.name(), cmd)
 
-  fun ref add_help(hname: String = "help") ? =>
+  fun ref add_help(hname: String = "help", descr': String = "") ? =>
     """
     Adds a standard help option and, optionally command, to a root command.
     """
     _help_name = hname
-    let help_option = OptionSpec.bool(_help_name, "", 'h', false)
+    _help_info = descr'
+    let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)
     _options.update(_help_name, help_option)
     if _args.size() == 0 then
       let help_cmd = CommandSpec.leaf(_help_name, "", Array[OptionSpec](), [
@@ -207,12 +209,28 @@ class val OptionSpec
     Creates an Option with an I64 typed value that can be used like
       `--count=42 -C=42`
     to yield an option value like
-      `cmd.option("count").i64() == I64(64)`.
+      `cmd.option("count").i64() == I64(42)`.
     """
     _name = name'
     _descr = descr'
     _short = short'
     (_typ, _default, _required) = _init(_I64Type, default')
+
+  new val u64(name': String,
+    descr': String = "",
+    short': (U8 | None) = None,
+    default': (U64 | None) = None)
+  =>
+    """
+    Creates an Option with an U64 typed value that can be used like
+      `--count=47 -C=47`
+    to yield an option value like
+      `cmd.option("count").u64() == U64(47)`.
+    """
+    _name = name'
+    _descr = descr'
+    _short = short'
+    (_typ, _default, _required) = _init(_U64Type, default')
 
   new val f64(name': String,
     descr': String = "",
@@ -375,6 +393,20 @@ class val ArgSpec
     _descr = descr'
     (_typ, _default, _required) = _init(_I64Type, default')
 
+  new val u64(name': String,
+    descr': String = "",
+    default': (U64 | None) = None)
+  =>
+    """
+    Creates an Arg with an U64 typed value that can be used like
+      `<cmd> 47`
+    to yield an arg value like
+      `cmd.arg("count").u64() == U64(47)`.
+    """
+    _name = name'
+    _descr = descr'
+    (_typ, _default, _required) = _init(_U64Type, default')
+
   new val f64(name': String,
     descr': String = "",
     default': (F64 | None) = None)
@@ -466,7 +498,7 @@ class _StringSeq is ReadSeq[String]
   fun apply(i: USize): this->String ? => strings(i)?
   fun values(): Iterator[this->String]^ => strings.values()
 
-type _Value is (Bool | String | I64 | F64 | _StringSeq val)
+type _Value is (Bool | String | I64 | U64 | F64 | _StringSeq val)
 
 trait val _ValueType
   fun string(): String
@@ -485,6 +517,10 @@ primitive _StringType is _ValueType
 primitive _I64Type is _ValueType
   fun string(): String => "I64"
   fun value_of(s: String): _Value ? => s.i64()?
+
+primitive _U64Type is _ValueType
+  fun string(): String => "U64"
+  fun value_of(s: String): _Value ? => s.u64()?
 
 primitive _F64Type is _ValueType
   fun string(): String => "F64"

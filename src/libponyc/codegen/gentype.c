@@ -1,4 +1,5 @@
 #include "gentype.h"
+#include "genbox.h"
 #include "gendesc.h"
 #include "genexpr.h"
 #include "genfun.h"
@@ -18,6 +19,10 @@
 #include "ponyassert.h"
 #include <stdlib.h>
 #include <string.h>
+
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
 
 static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
 {
@@ -390,7 +395,11 @@ static void make_debug_info(compile_t* c, reach_type_t* t)
     file = "";
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
+#if PONY_LLVM < 600
   c_t->di_file = LLVMDIBuilderCreateFile(c->di, file);
+#else
+  c_t->di_file = LLVMDIBuilderCreateFile(c->di, file, strlen(file), "", 0);
+#endif
 
   switch(t->underlying)
   {
@@ -477,7 +486,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type, true);
   LLVMSetFunctionCallConv(c_t->dispatch_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->dispatch_fn, LLVMExternalLinkage);
-  codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, NULL, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
 
@@ -492,7 +501,29 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
 
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, unreachable);
+
+  // Workaround for LLVM's "infinite loops are undefined behaviour".
+  // If a Pony behaviour contains an infinite loop, the LLVM optimiser in its
+  // current state can assume that the associated message is never received.
+  // From there, if the dispatch switch is optimised to a succession of
+  // conditional branches on the message ID, it is very likely that receiving
+  // the optimised-out message will call another behaviour on the actor, which
+  // is very very bad.
+  // This inline assembly cannot be analysed by the optimiser (and thus must be
+  // assumed to have side-effects), which prevents the removal of the default
+  // case, which in turn prevents the replacement of the switch. In addition,
+  // the setup in codegen_machine results in unreachable instructions being
+  // lowered to trapping machine instructions (e.g. ud2 on x86), which are
+  // guaranteed to crash the program.
+  // As a result, if an actor receives a message affected by this bug, the
+  // program will crash immediately instead of doing some crazy stuff.
+  // TODO: Remove this when LLVM properly supports infinite loops.
+  LLVMTypeRef void_fn = LLVMFunctionType(c->void_type, NULL, 0, false);
+  LLVMValueRef asmstr = LLVMConstInlineAsm(void_fn, "", "~{memory}", true,
+    false);
+  LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
   LLVMBuildUnreachable(c->builder);
+
   codegen_finishfun(c);
 }
 
@@ -778,7 +809,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   }
 
   // Generate the trace function.
-  codegen_startfun(c, c_t->trace_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->trace_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->trace_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->trace_fn, LLVMExternalLinkage);
 
@@ -789,26 +820,37 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
   int extra = 0;
 
-  // Non-structs have a type descriptor.
-  if(t->underlying != TK_STRUCT)
-    extra++;
+  switch(t->underlying)
+  {
+    case TK_CLASS:
+      extra = 1; // Type descriptor.
+      break;
 
-  // Actors have a pad.
-  if(t->underlying == TK_ACTOR)
-    extra++;
+    case TK_ACTOR:
+      extra = 2; // Type descriptor and pad.
+      break;
+
+    case TK_TUPLETYPE:
+      // Skip over the box's descriptor now. It avoids multi-level GEPs later.
+      object = LLVMBuildStructGEP(c->builder, object, 1, "");
+      break;
+
+    default: {}
+  }
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
-    compile_type_t* f_c_t = (compile_type_t*)t->fields[i].type->c_type;
+    reach_field_t* f = &t->fields[i];
+    compile_type_t* f_c_t = (compile_type_t*)f->type->c_type;
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
 
-    if(!t->fields[i].embed)
+    if(!f->embed)
     {
       // Call the trace function indirectly depending on rcaps.
-      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      ast_t* field_type = t->fields[i].ast;
-      value = gen_assign_cast(c, f_c_t->use_type, value, field_type);
-      gentrace(c, ctx, value, value, field_type, field_type);
+      field = LLVMBuildLoad(c->builder, field, "");
+      ast_t* field_type = f->ast;
+      field = gen_assign_cast(c, f_c_t->use_type, field, field_type);
+      gentrace(c, ctx, field, field, field_type, field_type);
     } else {
       // Call the trace function directly without marking the field.
       LLVMValueRef trace_fn = f_c_t->trace_fn;

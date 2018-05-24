@@ -6,7 +6,7 @@ type Map[K: (mut.Hashable val & Equatable[K]), V: Any #share] is
   A map that uses structural equality on the key.
   """
 
-type MapIs[K: Any #share, V: Any #share] is mut.HashMap[K, V, mut.HashIs[K]]
+type MapIs[K: Any #share, V: Any #share] is HashMap[K, V, mut.HashIs[K]]
   """
   A map that uses identity comparison on the key.
   """
@@ -50,7 +50,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     Attempt to get the value corresponding to k.
     """
-    _root(H.hash(k).u32(), k)?
+    _root(H.hash(k), k)?
 
   fun val size(): USize =>
     """
@@ -64,7 +64,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     (let r, let insertion) =
       try
-        _root.update(H.hash(key).u32(), (key, value))?
+        _root.update(H.hash(key), (key, value))?
       else
         (_root, false) // should not occur
       end
@@ -75,7 +75,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     Try to remove the provided key from the Map.
     """
-    _create(_root.remove(H.hash(k).u32(), k)?, _size - 1)
+    _create(_root.remove(H.hash(k), k)?, _size - 1)
 
   fun val get_or_else(k: K, alt: val->V): val->V =>
     """

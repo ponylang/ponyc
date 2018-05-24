@@ -2,6 +2,7 @@
 #include "asio.h"
 #include "../actor/actor.h"
 #include "../mem/pool.h"
+#include "../sched/scheduler.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -122,4 +123,7 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   // sender they aren't covered by backpressure. We pass false for an early
   // bailout in the backpressure code.
   pony_sendv(pony_ctx(), ev->owner, &m->msg, &m->msg, false);
+
+  // maybe wake up a scheduler thread if they've all fallen asleep
+  ponyint_sched_maybe_wakeup_if_all_asleep(-1);
 }

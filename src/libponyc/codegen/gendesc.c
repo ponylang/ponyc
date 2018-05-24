@@ -62,7 +62,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
   LLVMValueRef unbox_fun = codegen_addfun(c, unbox_name, unbox_type, true);
-  codegen_startfun(c, unbox_fun, NULL, NULL, false);
+  codegen_startfun(c, unbox_fun, NULL, NULL, NULL, false);
 
   // Extract the primitive type from element 1 and call the real function.
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
@@ -446,15 +446,7 @@ void gendesc_init(compile_t* c, reach_type_t* t)
 
 void gendesc_table(compile_t* c)
 {
-  uint32_t object_id_max = (c->reach->object_type_count * 2) + 1;
-  uint32_t numeric_id_max = c->reach->numeric_type_count * 4;
-  uint32_t tuple_id_max = (c->reach->tuple_type_count * 4) + 2;
-
-  uint32_t len = object_id_max;
-  if(len < numeric_id_max)
-    len = numeric_id_max;
-  if(len < tuple_id_max)
-    len = tuple_id_max;
+  uint32_t len = reach_max_type_id(c->reach);
 
   size_t size = len * sizeof(LLVMValueRef);
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(size);
@@ -483,24 +475,12 @@ void gendesc_table(compile_t* c)
   }
 
   LLVMTypeRef type = LLVMArrayType(c->descriptor_ptr, len);
-  LLVMValueRef table = LLVMAddGlobal(c->module, type, "__PonyDescTable");
+  LLVMValueRef table = LLVMAddGlobal(c->module, type, "__DescTable");
   LLVMValueRef value = LLVMConstArray(c->descriptor_ptr, args, len);
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
   LLVMSetLinkage(table, LLVMPrivateLinkage);
   c->desc_table = table;
-
-  type = LLVMPointerType(type, 0);
-  LLVMValueRef table_ptr = LLVMAddGlobal(c->module, type, "__PonyDescTablePtr");
-  LLVMSetInitializer(table_ptr, table);
-  LLVMSetGlobalConstant(table_ptr, true);
-  LLVMSetDLLStorageClass(table_ptr, LLVMDLLExportStorageClass);
-
-  LLVMValueRef table_size = LLVMAddGlobal(c->module, c->intptr,
-    "__PonyDescTableSize");
-  LLVMSetInitializer(table_size, LLVMConstInt(c->intptr, len, false));
-  LLVMSetGlobalConstant(table_size, true);
-  LLVMSetDLLStorageClass(table_size, LLVMDLLExportStorageClass);
 
   ponyint_pool_free_size(size, args);
 }

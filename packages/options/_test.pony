@@ -19,24 +19,29 @@ class iso _TestLongOptions is UnitTest
   fun name(): String => "options/Options.longOptions"
 
   fun apply(h: TestHelper) =>
-    let options = Options(["--none"; "--i64"; "12345"; "--f64=67.890"])
+    let options = Options(
+      ["--none"; "--i64"; "12345"; "--u64=54321"; "--f64=67.890"])
     var none: Bool = false
     var i64: I64 = -1
+    var u64: U64 = 1
     var f64: F64 = -1
     options
       .add("none", "n", None, Optional)
       .add("i64", "i", I64Argument, Optional)
+      .add("u64", "u", U64Argument, Optional)
       .add("f64", "f", F64Argument, Optional)
     for option in options do
       match option
       | ("none", let arg: None) => none = true
       | ("i64", let arg: I64) => i64 = arg
+      | ("u64", let arg: U64) => u64 = arg
       | ("f64", let arg: F64) => f64 = arg
       end
     end
 
     h.assert_eq[Bool](true, none)
     h.assert_eq[I64](12345, i64)
+    h.assert_eq[U64](54321, u64)
     h.assert_eq[F64](67.890, f64)
 
 class iso _TestShortOptions is UnitTest
@@ -47,18 +52,21 @@ class iso _TestShortOptions is UnitTest
   fun name(): String => "options/Options.shortOptions"
 
   fun apply(h: TestHelper) =>
-    let options = Options(["-n"; "-i"; "12345"; "-f67.890"])
+    let options = Options(["-n"; "-i"; "12345"; "-u54321"; "-f67.890"])
     var none: Bool = false
     var i64: I64 = -1
+    var u64: U64 = 1
     var f64: F64 = -1
     options
       .add("none", "n", None, Optional)
       .add("i64", "i", I64Argument, Optional)
+      .add("u64", "u", U64Argument, Optional)
       .add("f64", "f", F64Argument, Optional)
     for option in options do
       match option
       | ("none", let arg: None) => none = true
       | ("i64", let arg: I64) => i64 = arg
+      | ("u64", let arg: U64) => u64 = arg
       | ("f64", let arg: F64) => f64 = arg
       else
         h.fail("Invalid option reported")
@@ -67,6 +75,7 @@ class iso _TestShortOptions is UnitTest
 
     h.assert_eq[Bool](true, none)
     h.assert_eq[I64](12345, i64)
+    h.assert_eq[U64](54321, u64)
     h.assert_eq[F64](67.890, f64)
 
 class iso _TestCombineShortOptions is UnitTest

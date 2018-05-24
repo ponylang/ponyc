@@ -32,6 +32,10 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
+
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
 
@@ -86,6 +90,15 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
       scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
   }
 }
+
+// TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
+#if PONY_LLVM == 600
+PONY_EXTERN_C_BEGIN
+void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R) {
+  initializeInstructionCombiningPassPass(*unwrap(R));
+}
+PONY_EXTERN_C_END
+#endif
 
 class HeapToStack : public FunctionPass
 {
@@ -181,12 +194,14 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
 
+    unsigned int align = target_is_ilp32(c->opt->triple) ? 4 : 8;
+
 #if PONY_LLVM < 500
-    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, "",
-      begin);
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, align,
+      "", begin);
 #else
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(),
-      0, int_size, "", begin);
+      0, int_size, align, "", begin);
 #endif
 
     replace->setDebugLoc(call->getDebugLoc());
@@ -300,9 +315,9 @@ public:
         }
 
         case Instruction::Load:
-          // This is a workaround for a problem with LLVM 4 & 5 on *nix when 
+          // This is a workaround for a problem with LLVM 4 & 5 on *nix when
           // hoisting loads (see #2303, #2061, #1592).
-          // TODO: figure out the real reason LLVM 4 and 5 produce bad code 
+          // TODO: figure out the real reason LLVM 4 and 5 produce bad code
           // when hoisting stack allocated loads.
 #if PONY_LLVM >= 400 && !defined(_MSC_VER)
           // fall through
@@ -870,10 +885,8 @@ public:
 #endif
 
     fn->addAttribute(functionIndex, Attribute::NoUnwind);
-#if PONY_LLVM >= 308
     fn->addAttribute(functionIndex,
       Attribute::InaccessibleMemOrArgMemOnly);
-#endif
 
 #if PONY_LLVM < 500
     fn->setDoesNotAlias(0);
@@ -885,7 +898,7 @@ public:
       fn->addDereferenceableAttr(returnIndex, min_size);
 
     AttrBuilder attr;
-    attr.addAlignmentAttr(32);
+    attr.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
 #if PONY_LLVM < 500
     fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(),
       returnIndex, attr));
@@ -1574,4 +1587,18 @@ bool target_is_native128(char* t)
   Triple triple = Triple(t);
 
   return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
+}
+
+bool target_is_bigendian(char* t)
+{
+  Triple triple = Triple(t);
+
+  return !triple.isLittleEndian();
+}
+
+bool target_is_littleendian(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isLittleEndian();
 }

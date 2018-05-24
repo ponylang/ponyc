@@ -295,6 +295,17 @@ TEST_F(ScopeTest, CanShadowDontcare)
 }
 
 
+TEST_F(ScopeTest, MethodOverloading)
+{
+  const char* src =
+    "actor A\n"
+    "  fun foo() => None\n"
+    "  fun foo(a: None) => None";
+
+  TEST_ERROR(src);
+}
+
+
 /*
 TEST_F(ScopeTest, Use)
 {

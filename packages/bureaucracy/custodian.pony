@@ -12,7 +12,7 @@ Need to shutdown a number of actors together? Check out `Custodian`. Need
 to keep track of a lot of stuff and be able to look it up by name? Check out
 `Registrar`.
 
-Put bureaucracy to use today and before long, you're sprawling metropolis of a
+Put bureaucracy to use today and before long, your sprawling metropolis of a
 code base will be manageable again in no time.
 """
 

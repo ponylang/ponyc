@@ -7,9 +7,23 @@
 #include "util.h"
 
 #ifdef _MSC_VER
-// Stop MSVC from complaining about conversions from LLVMBool to bool.
-# pragma warning(disable:4800)
+#  pragma warning(push)
+#  pragma warning(disable:4244)
+#  pragma warning(disable:4800)
+#  pragma warning(disable:4267)
+#  pragma warning(disable:4624)
+#  pragma warning(disable:4141)
+#  pragma warning(disable:4146)
+#  pragma warning(disable:4005)
 #endif
+
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Module.h>
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+
 
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
@@ -45,50 +59,6 @@ TEST_F(CodegenTest, NonPackedStructIsntPacked)
 {
   const char* src =
     "struct Foo\n"
-    "  var a: U8 = 0\n"
-    "  var b: U32 = 0\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    Foo";
-
-  TEST_COMPILE(src);
-
-  reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
-  ASSERT_TRUE(foo != NULL);
-
-  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
-  ASSERT_TRUE(!LLVMIsPackedStruct(type));
-}
-
-
-TEST_F(CodegenTest, ClassCannotBePacked)
-{
-  const char* src =
-    "class \\packed\\ Foo\n"
-    "  var a: U8 = 0\n"
-    "  var b: U32 = 0\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    Foo";
-
-  TEST_COMPILE(src);
-
-  reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
-  ASSERT_TRUE(foo != NULL);
-
-  LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
-  ASSERT_TRUE(!LLVMIsPackedStruct(type));
-}
-
-
-TEST_F(CodegenTest, ActorCannotBePacked)
-{
-  const char* src =
-    "actor \\packed\\ Foo\n"
     "  var a: U8 = 0\n"
     "  var b: U32 = 0\n"
 
@@ -354,7 +324,7 @@ TEST_F(CodegenTest, ViewpointAdaptedFieldReach)
 
 TEST_F(CodegenTest, StringSerialization)
 {
-  // From issue 2245
+  // From issue #2245
   const char* src =
     "use \"serialise\"\n"
 
@@ -472,4 +442,174 @@ EXPORT_SYMBOL char test_custom_serialisation_compare(uint64_t* p1, uint64_t* p2)
   return *p1 == *p2;
 }
 
+}
+
+
+TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    DoNotOptimise[I64](0)";
+
+  TEST_COMPILE(src);
+}
+
+
+// Doesn't work on windows. The C++ code doesn't catch C++ exceptions if they've
+// traversed a Pony frame. This is suspected to be related to how SEH and LLVM
+// exception code generation interact.
+// See https://github.com/ponylang/ponyc/issues/2455 for more details.
+//
+// This test is disabled on LLVM 3.9 and 4.0 because exceptions crossing JIT
+// boundaries are broken with the ORC JIT on these versions.
+#if !defined(PLATFORM_IS_WINDOWS) && (PONY_LLVM >= 500)
+TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let r = @codegen_test_tryblock_catch[I32](this~tryblock())\n"
+    "    @pony_exitcode[I32](r)\n"
+
+    "  fun @tryblock() =>\n"
+    "    try\n"
+    "      @codegen_test_tryblock_throw[None]()?\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+extern "C"
+{
+
+EXPORT_SYMBOL int codegen_test_tryblock_catch(void (*callback)())
+{
+  try
+  {
+    callback();
+    return 0;
+  } catch(std::exception const&) {
+    return 1;
+  }
+}
+
+EXPORT_SYMBOL void codegen_test_tryblock_throw()
+{
+  throw std::exception{};
+}
+
+}
+#endif
+
+
+TEST_F(CodegenTest, DescTable)
+{
+  const char* src =
+    "class C1\n"
+    "class C2\n"
+    "class C3\n"
+    "actor A1\n"
+    "actor A2\n"
+    "actor A3\n"
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+
+  // Reach various types.
+
+    "    (C1, A1, P1)\n"
+    "    (C2, A2, P2)\n"
+    "    (C3, A3, P3)\n"
+    "    (C1, I8)\n"
+    "    (C2, I16)\n"
+    "    (C3, I32)";
+
+  TEST_COMPILE(src);
+
+  auto module = llvm::unwrap(compile->module);
+
+  auto table_glob = module->getNamedGlobal("__DescTable");
+  ASSERT_NE(table_glob, nullptr);
+  ASSERT_TRUE(table_glob->hasInitializer());
+
+  auto desc_table = llvm::dyn_cast_or_null<llvm::ConstantArray>(
+    table_glob->getInitializer());
+  ASSERT_NE(desc_table, nullptr);
+
+  for(unsigned int i = 0; i < desc_table->getNumOperands(); i++)
+  {
+    // Check that for each element of the table, `desc_table[i]->id == i`.
+
+    auto table_element = desc_table->getOperand(i);
+    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->descriptor_ptr));
+
+    if(table_element->isNullValue())
+      continue;
+
+    auto elt_bitcast = llvm::dyn_cast_or_null<llvm::ConstantExpr>(
+      table_element);
+    ASSERT_NE(elt_bitcast, nullptr);
+    ASSERT_EQ(elt_bitcast->getOpcode(), llvm::Instruction::BitCast);
+
+    auto desc_ptr = llvm::dyn_cast_or_null<llvm::GlobalVariable>(
+      elt_bitcast->getOperand(0));
+    ASSERT_NE(desc_ptr, nullptr);
+    ASSERT_TRUE(desc_ptr->hasInitializer());
+
+    auto desc = llvm::dyn_cast_or_null<llvm::ConstantStruct>(
+      desc_ptr->getInitializer());
+    ASSERT_NE(desc, nullptr);
+
+    auto type_id = llvm::dyn_cast_or_null<llvm::ConstantInt>(
+      desc->getOperand(0));
+    ASSERT_NE(type_id, nullptr);
+
+    ASSERT_EQ(type_id->getBitWidth(), 32);
+    ASSERT_EQ(type_id->getZExtValue(), i);
+  }
+}
+
+
+TEST_F(CodegenTest, RecoverCast)
+{
+  // From issue #2639
+  const char* src =
+    "class A\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: ((None, None) | (A iso, None)) =\n"
+    "      if false then\n"
+    "        (None, None)\n"
+    "      else\n"
+    "        recover (A, None) end\n"
+    "      end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, VariableDeclNestedTuple)
+{
+  // From issue #2662
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let array = Array[((U8, U8), U8)]\n"
+    "    for ((a, b), c) in array.values() do\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
 }

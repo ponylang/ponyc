@@ -7,12 +7,14 @@
 #include <unwind.h>
 #include <stdlib.h>
 
-PONY_EXTERN_C_BEGIN
-
-#ifdef PLATFORM_IS_ARM
+#ifdef PLATFORM_IS_ARM32
 #include <string.h>
-#include <stdio.h>
+#define PONY_EXCEPTION_CLASS "Pony\0\0\0\0"
+#else
+#define PONY_EXCEPTION_CLASS 0x506F6E7900000000 // "Pony"
 #endif
+
+PONY_EXTERN_C_BEGIN
 
 static __pony_thread_local struct _Unwind_Exception exception;
 static __pony_thread_local uintptr_t landing_pad;
@@ -26,10 +28,10 @@ static void exception_cleanup(_Unwind_Reason_Code reason,
 
 PONY_API void pony_error()
 {
-#ifdef PLATFORM_IS_ARM
-  memcpy(exception.exception_class, "Pony\0\0\0\0", 8);
+#ifdef PLATFORM_IS_ARM32
+  memcpy(exception.exception_class, PONY_EXCEPTION_CLASS, 8);
 #else
-  exception.exception_class = 0x506F6E7900000000; // "Pony"
+  exception.exception_class = PONY_EXCEPTION_CLASS;
 #endif
   exception.exception_cleanup = exception_cleanup;
   _Unwind_RaiseException(&exception);
@@ -46,7 +48,9 @@ static void set_registers(struct _Unwind_Exception* exception,
   _Unwind_SetIP(context, landing_pad);
 }
 
-#ifdef PLATFORM_IS_ARM
+// Switch to ARM EHABI for ARM32 devices.
+// Note that this does not apply to ARM64 devices which use DWARF Exception Handling.
+#ifdef PLATFORM_IS_ARM32
 
 _Unwind_Reason_Code __gnu_unwind_frame(_Unwind_Exception*, _Unwind_Context*);
 
@@ -59,11 +63,14 @@ static _Unwind_Reason_Code continue_unwind(_Unwind_Exception* exception,
   return _URC_CONTINUE_UNWIND;
 }
 
-PONY_API _Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
+PONY_API _Unwind_Reason_Code ponyint_personality_v0(_Unwind_State state,
   _Unwind_Exception* exception, _Unwind_Context* context)
 {
   if(exception == NULL || context == NULL)
     return _URC_FAILURE;
+
+  if(memcmp(exception->exception_class, PONY_EXCEPTION_CLASS, 8) != 0)
+    return continue_unwind(exception, context);
 
   // Save exception in r12.
   _Unwind_SetGR(context, 12, (uintptr_t)exception);
@@ -116,14 +123,15 @@ PONY_API _Unwind_Reason_Code pony_personality_v0(_Unwind_State state,
 
 #else
 
-PONY_API _Unwind_Reason_Code pony_personality_v0(int version,
+PONY_API _Unwind_Reason_Code ponyint_personality_v0(int version,
   _Unwind_Action actions, uint64_t ex_class,
   struct _Unwind_Exception* exception, struct _Unwind_Context* context)
 {
-  (void)ex_class;
-
   if(version != 1 || exception == NULL || context == NULL)
     return _URC_FATAL_PHASE1_ERROR;
+
+  if(ex_class != PONY_EXCEPTION_CLASS)
+    return _URC_CONTINUE_UNWIND;
 
   // The search phase sets up the landing pad.
   if(actions & _UA_SEARCH_PHASE)

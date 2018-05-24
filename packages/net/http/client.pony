@@ -11,7 +11,7 @@ class HTTPClient
   let _sslctx: SSLContext
   let _pipeline: Bool
   let _sessions: Map[_HostService, _ClientConnection] = _sessions.create()
- 
+
   new create(
     auth: TCPConnectionAuth,
     sslctx: (SSLContext | None) = None,
@@ -62,7 +62,7 @@ class HTTPClient
       s.dispose()
     end
     _sessions.clear()
-    
+
 /*
   fun ref cancel(request: Payload val) =>
     """

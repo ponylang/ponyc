@@ -2,9 +2,9 @@
 #define PACKAGE_H
 
 #include <platform.h>
-#include "../ast/ast.h"
-#include "../ast/stringtab.h"
-#include "../pass/pass.h"
+#include "../libponyrt/ds/list.h"
+
+#include <stdio.h>
 
 #define SIGNATURE_LENGTH 64
 
@@ -13,15 +13,23 @@ PONY_EXTERN_C_BEGIN
 typedef struct package_t package_t;
 typedef struct package_group_t package_group_t;
 typedef struct magic_package_t magic_package_t;
+typedef struct pass_opt_t pass_opt_t;
+typedef struct ast_t ast_t;
+typedef struct typecheck_t typecheck_t;
 
 DECLARE_LIST_SERIALISE(package_group_list, package_group_list_t,
   package_group_t)
+
+// Function that will handle a path in some way.
+typedef bool (*path_fn)(const char* path, pass_opt_t* opt);
 
 /**
  * Cat together the 2 given path fragments into the given buffer.
  * The first path fragment may be absolute, relative or NULL
  */
 void path_cat(const char* part1, const char* part2, char result[FILENAME_MAX]);
+
+bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt);
 
 /**
  * Initialises the search directories. This is composed of a "packages"

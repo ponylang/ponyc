@@ -170,6 +170,11 @@
  */
 #if defined(ARMV2) || defined(__arm__) || defined(__aarch64__)
 # define PLATFORM_IS_ARM
+# if defined(__aarch64__)
+#  define PLATFORM_IS_ARM64
+# else
+#  define PLATFORM_IS_ARM32
+# endif
 #elif defined(__i386__) || defined(_M_IX86) || defined(_X86_) || \
  defined(__amd64__) || defined(__x86_64__) || defined(_M_X64) || \
  defined(_M_AMD64)
@@ -319,6 +324,7 @@ inline uint64_t __pony_clzl(uint64_t x)
 #    error "Clang doesn't support `static_assert` or `_Static_assert`."
 #  endif
 #else
+#  include <assert.h>
 #  define pony_static_assert(c, m) static_assert(c, m)
 #endif
 

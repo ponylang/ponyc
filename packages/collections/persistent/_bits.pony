@@ -8,5 +8,8 @@ primitive _Bits
   fun has_bit(bm: U32, i: U32): Bool =>
     (bm and (U32(1) <<~ i)) != 0
 
-  fun mask(hash: U32, l: U8): U32 =>
-    (hash >> (U32(5) *~ l.u32_unsafe())) and 0x01f
+  fun mask(n: USize, d: USize): USize =>
+    (n >> (d *~ 5)) and 0x01f
+
+  fun next_pow32(n: USize): USize =>
+    USize(32) << (n *~ 5)

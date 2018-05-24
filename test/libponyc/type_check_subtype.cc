@@ -558,6 +558,25 @@ TEST_F(SubTypeTest, IsSubTypeCap)
 }
 
 
+TEST_F(SubTypeTest, IsSubTypeNosupertypeInterface)
+{
+  const char* src =
+    "primitive \\nosupertype\\ P\n"
+
+    "interface Test\n"
+    "  fun z(p: P, a: Any val)";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_FALSE(is_subtype(type_of("p"), type_of("a"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
 TEST_F(SubTypeTest, IsEqType)
 {
   const char* src =
@@ -1132,4 +1151,30 @@ TEST_F(SubTypeTest, TupleValRefNotSubAnyShare)
     "    C[(String val, String ref)]";
 
   TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
+
+
+TEST_F(SubTypeTest, BoxArrowTypeParamReifiedWithTypeParam)
+{
+  const char* src =
+    "interface _V[A: _V[A] ref]\n"
+    "  fun ref reset(delta: A): A\n"
+    "  fun ref converge(other: box->A)\n"
+
+    "class ref Container[V: _V[V] ref] is _V[Container[V]]\n"
+    "  let _value: V\n"
+    "  new ref create(value': V) => _value = value'\n"
+
+    "  fun ref reset(delta: Container[V]): Container[V] =>\n"
+    "    _value.reset(delta._value)\n"
+    "    delta\n"
+
+    "  fun ref converge(other: Container[V] box) =>\n"
+    "    _value.converge(other._value)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
 }

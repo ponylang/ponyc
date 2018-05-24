@@ -8,6 +8,7 @@
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
+#include "../plugin/plugin.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
@@ -35,6 +36,61 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   return actor;
 }
 
+static LLVMValueRef make_lang_features_init(compile_t* c)
+{
+  char* triple = c->opt->triple;
+
+  LLVMTypeRef boolean;
+
+  if(target_is_ppc(triple) && target_is_ilp32(triple) &&
+    target_is_macosx(triple))
+    boolean = c->i32;
+  else
+    boolean = c->i8;
+
+  LLVMTypeRef desc_ptr_ptr = LLVMPointerType(c->descriptor_ptr, 0);
+
+  uint32_t desc_table_size = reach_max_type_id(c->reach);
+
+  LLVMTypeRef f_params[4];
+  f_params[0] = boolean;
+  f_params[1] = boolean;
+  f_params[2] = desc_ptr_ptr;
+  f_params[3] = c->intptr;
+
+  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 4,
+    false);
+
+  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(codegen_fun(c));
+  LLVMValueRef inst = LLVMGetFirstInstruction(entry_block);
+
+  if(inst != NULL)
+    LLVMPositionBuilderBefore(c->builder, inst);
+  else
+    LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
+  LLVMValueRef lfi_object = LLVMBuildAlloca(c->builder, lfi_type, "");
+
+  LLVMPositionBuilderAtEnd(c->builder, this_block);
+
+  LLVMValueRef field = LLVMBuildStructGEP(c->builder, lfi_object, 0, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 1, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 2, "");
+  LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, c->desc_table,
+    desc_ptr_ptr, ""), field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 3, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
+    field);
+
+  return LLVMBuildBitCast(c->builder, lfi_object, c->void_ptr, "");
+}
+
 LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 {
   LLVMTypeRef params[3];
@@ -45,7 +101,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 3, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
-  codegen_startfun(c, func, NULL, NULL, false);
+  codegen_startfun(c, func, NULL, NULL, NULL, false);
 
   LLVMBasicBlockRef start_fail_block = codegen_block(c, "start_fail");
   LLVMBasicBlockRef post_block = codegen_block(c, "post");
@@ -129,8 +185,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i1, 0, false);
-  args[1] = LLVMConstInt(c->i1, 1, false);
-  args[2] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  args[1] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  args[2] = make_lang_features_init(c);
   LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 3, "");
 
   LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
@@ -139,7 +195,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   const char error_msg_str[] = "Error: couldn't start runtime!";
 
-  args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str));
+  args[0] = codegen_string(c, error_msg_str, sizeof(error_msg_str) - 1);
   gencall_runtime(c, "puts", args, 1, "");
   LLVMBuildBr(c->builder, post_block);
 
@@ -280,20 +336,25 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
-  const char* export = target_is_linux(c->opt->triple) ?
-    "-Wl,--export-dynamic-symbol=__PonyDescTablePtr "
-    "-Wl,--export-dynamic-symbol=__PonyDescTableSize" : "-rdynamic";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
+  const char* staticbin = c->opt->staticbin ? "-static" : "";
   const char* dtrace_args =
 #if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
    "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
 #else
     "";
 #endif
+  const char* lexecinfo =
+#if (defined(PLATFORM_IS_LINUX) && !defined(__GLIBC__))
+   "-lexecinfo";
+#else
+    "";
+#endif
 
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl) + strlen(dtrace_args);
+                  + strlen(ldl) + strlen(atomic) + strlen(staticbin)
+                  + strlen(dtrace_args) + strlen(lexecinfo);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -302,9 +363,15 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PONY_USE_LTO
     "-flto -fuse-linker-plugin "
 #endif
-    "%s %s %s %s -lpthread %s %s %s -lm %s",
-    linker, file_exe, arch, mcx16_arg, atomic, fuseld, file_o, lib_args,
-    dtrace_args, ponyrt, ldl, export
+// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
+#ifndef NDEBUG
+    // Allows the implementation of `pony_assert` to correctly get symbol names
+    // for backtrace reporting.
+    "-rdynamic "
+#endif
+    "%s %s %s %s %s -lpthread %s %s %s -lm %s",
+    linker, file_exe, arch, mcx16_arg, atomic, staticbin, fuseld, file_o,
+    lib_args, dtrace_args, ponyrt, ldl, lexecinfo
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -435,7 +502,6 @@ bool genexe(compile_t* c, ast_t* program)
     fprintf(stderr, " Reachability\n");
   reach(c->reach, main_ast, c->str_create, NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
-  reach_done(c->reach, c->opt);
 
   if(c->opt->limit == PASS_REACH)
   {
@@ -447,6 +513,8 @@ bool genexe(compile_t* c, ast_t* program)
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
+
+  plugin_visit_reach(c->reach, c->opt, true);
 
   if(c->opt->limit == PASS_PAINT)
   {
@@ -475,6 +543,8 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
 
   gen_main(c, t_main, t_env);
+
+  plugin_visit_compile(c, c->opt);
 
   if(!genopt(c, true))
     return false;

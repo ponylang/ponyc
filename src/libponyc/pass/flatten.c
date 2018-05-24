@@ -8,27 +8,9 @@
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
 
-static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
+static void flatten_typeexpr_element(ast_t* type, ast_t* elem, token_id id)
 {
-  ast_t* ast = *astp;
-
-  // If there are more than 2 children, this has already been flattened.
-  if(ast_childcount(ast) > 2)
-    return AST_OK;
-
-  AST_EXTRACT_CHILDREN(ast, left, right);
-
-  ast_t* r_ast = type_union(opt, left, right);
-  ast_replace(astp, r_ast);
-  ast_free_unattached(left);
-  ast_free_unattached(right);
-
-  return AST_OK;
-}
-
-static void flatten_isect_element(ast_t* type, ast_t* elem)
-{
-  if(ast_id(elem) != TK_ISECTTYPE)
+  if(ast_id(elem) != id)
   {
     ast_append(type, elem);
     return;
@@ -43,6 +25,23 @@ static void flatten_isect_element(ast_t* type, ast_t* elem)
   }
 
   ast_free_unattached(elem);
+}
+
+static ast_result_t flatten_union(pass_opt_t* opt, ast_t* ast)
+{
+  (void)opt;
+  // Flatten unions without testing subtyping. This will be tested after the
+  // traits pass, when we have full subtyping information.
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
+  AST_EXTRACT_CHILDREN(ast, left, right);
+
+  flatten_typeexpr_element(ast, left, TK_UNIONTYPE);
+  flatten_typeexpr_element(ast, right, TK_UNIONTYPE);
+
+  return AST_OK;
 }
 
 static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
@@ -69,26 +68,45 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
     return AST_ERROR;
   }
 
-  flatten_isect_element(ast, left);
-  flatten_isect_element(ast, right);
+  flatten_typeexpr_element(ast, left, TK_ISECTTYPE);
+  flatten_typeexpr_element(ast, right, TK_ISECTTYPE);
 
   return AST_OK;
 }
 
 ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
 {
-  ast_t* cap = ast_childidx(ast, 1);
+  ast_t* cap_ast = cap_fetch(ast);
+  token_id cap = ast_id(cap_ast);
 
   typeparam_set_cap(ast);
 
-  ast_t* set_cap = ast_childidx(ast, 1);
+  token_id set_cap = ast_id(cap_ast);
 
-  if((ast_id(cap) != TK_NONE) && (ast_id(cap) != ast_id(set_cap)))
+  if((cap != TK_NONE) && (cap != set_cap))
   {
-    ast_error(opt->check.errors, cap, "can't specify a capability on a type "
-      "parameter that differs from the constraint");
-    ast_error_continue(opt->check.errors, set_cap,
-      "constraint capability is here");
+    ast_t* def = (ast_t*)ast_data(ast);
+    ast_t* constraint = typeparam_constraint(ast);
+
+    if(constraint != NULL)
+    {
+      ast_error(opt->check.errors, cap_ast, "can't specify a capability on a "
+        "type parameter that differs from the constraint");
+      ast_error_continue(opt->check.errors, constraint,
+        "constraint definition is here");
+
+      if(ast_parent(constraint) != def)
+      {
+        ast_error_continue(opt->check.errors, def,
+          "type parameter definition is here");
+      }
+    } else {
+      ast_error(opt->check.errors, cap_ast, "a type parameter with no "
+        "constraint can only have #any as its capability");
+      ast_error_continue(opt->check.errors, def,
+        "type parameter definition is here");
+    }
+
     return AST_ERROR;
   }
 
@@ -255,7 +273,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return flatten_union(options, astp);
+      return flatten_union(options, ast);
 
     case TK_ISECTTYPE:
       return flatten_isect(options, ast);

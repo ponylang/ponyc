@@ -15,11 +15,10 @@ invariants. However, if only "trusted" data (i.e. data produced by Pony
 serialisation from the same binary) is deserialised, it will always maintain a
 well-formed heap and all object invariants.
 
-Note that serialised data is not usable between different Pony binaries,
-possibly including recompilation of the same code. This is due to the use of
-type identifiers rather than a heavy-weight self-describing serialisation
-schema. This also means it isn't safe to deserialise something serialised by
-the same program compiled for a different platform.
+Note that serialised data is not usable between different Pony binaries. This is
+due to the use of type identifiers rather than a heavy-weight self-describing
+serialisation schema. This also means it isn't safe to deserialise something
+serialised by the same program compiled for a different platform.
 
 The Serialise.signature method is provided for the purposes of comparing
 communicating Pony binaries to determine if they are the same. Confirming this
@@ -92,9 +91,8 @@ class val Serialised
       @{(ctx: Pointer[None], size: USize): Pointer[None] =>
         @pony_alloc[Pointer[None]](ctx, size)
       }
-    let throw_fn = @{() ? => error }
     @pony_serialise[None](@pony_ctx[Pointer[None]](), data, Pointer[None], r,
-      alloc_fn, throw_fn) ?
+      alloc_fn) ?
     _data = consume r
 
   new input(auth: InputSerialisedAuth, data: Array[U8] val) =>
@@ -120,9 +118,8 @@ class val Serialised
       @{(ctx: Pointer[None], size: USize): Pointer[None] =>
         @pony_alloc_final[Pointer[None]](ctx, size)
       }
-    let throw_fn = @{() ? => error }
     @pony_deserialise[Any iso^](@pony_ctx[Pointer[None]](), Pointer[None], _data,
-      alloc_fn, alloc_final_fn, throw_fn) ?
+      alloc_fn, alloc_final_fn) ?
 
   fun output(auth: OutputSerialisedAuth): Array[U8] val =>
     """

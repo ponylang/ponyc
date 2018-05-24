@@ -87,23 +87,16 @@ int main(int argc, char* argv[])
   opt_state_t s;
   ponyint_opt_init(ponyc_opt_std_args(), &s, &argc, argv);
 
-#if defined(PONY_DEFAULT_PIC)
-  opt.pic = true;
-#endif
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
-  // use by the signals package when not using signals for scheduler scaling
-  define_build_flag("scheduler_scaling_pthreads");
-#endif
-
   exit_code = ponyc_opt_process(&s, &opt, &print_program_ast,
                   &print_package_ast);
+
   if(exit_code == EXIT_255)
   {
     errors_print(opt.check.errors);
+    pass_opt_done(&opt);
     return -1;
   } else if(exit_code == EXIT_0) {
+    pass_opt_done(&opt);
     return 0;
   }
 

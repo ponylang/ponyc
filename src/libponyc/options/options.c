@@ -1,20 +1,28 @@
 #include "options.h"
 
-#include "../libponyc/ponyc.h"
-#include "../libponyc/ast/parserapi.h"
-#include "../libponyc/ast/bnfprint.h"
-#include "../libponyc/pkg/package.h"
-#include "../libponyc/pkg/buildflagset.h"
-#include "../libponyc/ast/stringtab.h"
-#include "../libponyc/ast/treecheck.h"
-#include "../libponyc/options/options.h"
-#include <platform.h>
+#include "../ponyc.h"
+#include "../ast/parserapi.h"
+#include "../ast/bnfprint.h"
+#include "../pkg/package.h"
+#include "../pkg/buildflagset.h"
+#include "../ast/stringtab.h"
+#include "../ast/treecheck.h"
+#include "../pass/pass.h"
+#include "../plugin/plugin.h"
 #include "../libponyrt/options/options.h"
 #include "../libponyrt/mem/pool.h"
+#include <platform.h>
 
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+
+#define MAYBE_UNUSED(x) (void)x
+
+#if !defined(PONY_DEFAULT_SSL)
+// This default value is defined in packages/crypto and packages/net/ssl
+#define PONY_DEFAULT_SSL "openssl_0.9.0"
+#endif
 
 enum
 {
@@ -28,6 +36,7 @@ enum
   OPT_BIN_NAME,
   OPT_LIBRARY,
   OPT_RUNTIMEBC,
+  OPT_STATIC,
   OPT_PIC,
   OPT_NOPIC,
   OPT_DOCS,
@@ -40,6 +49,7 @@ enum
   OPT_STATS,
   OPT_LINK_ARCH,
   OPT_LINKER,
+  OPT_PLUGIN,
 
   OPT_VERBOSE,
   OPT_PASSES,
@@ -72,6 +82,7 @@ static opt_arg_t std_args[] =
   {"bin-name", 'b', OPT_ARG_REQUIRED, OPT_BIN_NAME},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
   {"runtimebc", '\0', OPT_ARG_NONE, OPT_RUNTIMEBC},
+  {"static", '\0', OPT_ARG_NONE, OPT_STATIC},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
   {"nopic", '\0', OPT_ARG_NONE, OPT_NOPIC},
   {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
@@ -84,6 +95,7 @@ static opt_arg_t std_args[] =
   {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
   {"linker", '\0', OPT_ARG_REQUIRED, OPT_LINKER},
+  {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
 
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
@@ -131,6 +143,7 @@ static void usage(void)
     "    =name          Defaults to name of the directory.\n"
     "  --library, -l    Generate a C-API compatible static library.\n"
     "  --runtimebc      Compile with the LLVM bitcode file for the runtime.\n"
+    "  --static         Compile a static binary (experimental, Linux-only).\n"
     "  --pic            Compile using position independent code.\n"
     "  --nopic          Don't compile using position independent code.\n"
     "  --docs, -g       Generate code documentation.\n"
@@ -151,6 +164,11 @@ static void usage(void)
     "    =name          Default is the host architecture.\n"
     "  --linker         Set the linker command to use.\n"
     "    =name          Default is the compiler used to compile ponyc.\n"
+    "  --plugin         Use the specified plugin(s).\n"
+    "    =name\n"
+    "  --define, -D     Define which openssl version to use default is " PONY_DEFAULT_SSL "\n"
+    "    =openssl_1.1.0\n"
+    "    =openssl_0.9.0\n"
     ,
     "Debugging options:\n"
     "  --verbose, -V    Verbosity level.\n"
@@ -159,27 +177,7 @@ static void usage(void)
     "    =2             More detailed compilation information.\n"
     "    =3             External tool command lines.\n"
     "    =4             Very low-level detail.\n"
-    "  --pass, -r       Restrict phases.\n"
-    "    =parse\n"
-    "    =syntax\n"
-    "    =sugar\n"
-    "    =scope\n"
-    "    =import\n"
-    "    =name\n"
-    "    =flatten\n"
-    "    =traits\n"
-    "    =docs\n"
-    "    =refer\n"
-    "    =expr\n"
-    "    =verify\n"
-    "    =final\n"
-    "    =reach\n"
-    "    =paint\n"
-    "    =ir            Output LLVM IR.\n"
-    "    =bitcode       Output LLVM bitcode.\n"
-    "    =asm           Output assembly.\n"
-    "    =obj           Output an object file.\n"
-    "    =all           The default: generate an executable.\n"
+    PASS_HELP
     "  --ast, -a        Output an abstract syntax tree for the whole program.\n"
     "  --astpackage     Output an abstract syntax tree for the main package.\n"
     "  --trace, -t      Enable parse trace.\n"
@@ -199,7 +197,8 @@ static void usage(void)
     "  --ponythreads    Use N scheduler threads. Defaults to the number of\n"
     "                   cores (not hyperthreads) available.\n"
     "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
-    "                   Defaults to the number of '--ponythreads'.\n"
+    "                   Defaults to 1.  Use of 0 is considered experimental\n"
+    "                   and may cause improper scheduler behavior.\n"
     "  --ponycdmin      Defer cycle detection until 2^N actors have blocked.\n"
     "                   Defaults to 2^4.\n"
     "  --ponycdmax      Always cycle detect when 2^N actors have blocked.\n"
@@ -221,6 +220,84 @@ static void usage(void)
     );
 }
 
+static void print_passes()
+{
+  printf("  ");
+  size_t cur_len = 2;
+
+  for(pass_id p = PASS_PARSE; p < PASS_ALL; p = pass_next(p))
+  {
+    const char* name = pass_name(p);
+    size_t len = strlen(name) + 1; // Add 1 for the comma.
+
+    if((cur_len + len) < 80)
+    {
+      printf("%s,", name);
+      cur_len += len;
+    } else {
+      printf("\n  %s,", name);
+      cur_len = len + 2;
+    }
+  }
+
+  const char* name = pass_name(PASS_ALL);
+
+  if((cur_len + strlen(name)) < 80)
+    printf("%s\n", name);
+  else
+    printf("\n%s\n", name);
+}
+
+#define OPENSSL_LEADER "openssl_"
+static const char* valid_openssl_flags[] =
+  { OPENSSL_LEADER "1.1.0", OPENSSL_LEADER "0.9.0", NULL };
+
+
+static bool is_openssl_flag(const char* name)
+{
+  return 0 == strncmp(OPENSSL_LEADER, name, strlen(OPENSSL_LEADER));
+}
+
+static bool validate_openssl_flag(const char* name)
+{
+  for(const char** next = valid_openssl_flags; *next != NULL; next++)
+  {
+    if(0 == strcmp(*next, name))
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Handle special cases of options like compile time defaults
+ *
+ * return CONTINUE if no errors else an ponyc_opt_process_t EXIT_XXX code.
+ */
+static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
+{
+  // Suppress compiler errors due to conditional compilation
+  MAYBE_UNUSED(opt);
+
+#if defined(PONY_DEFAULT_PIC)
+  #if (PONY_DEFAULT_PIC == true) || (PONY_DEFAULT_PIC == false)
+    opt->pic = PONY_DEFAULT_PIC;
+  #else
+    #error "PONY_DEFAULT_PIC must be true or false"
+  #endif
+#endif
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
+  // use by the signals package when not using signals for scheduler scaling
+  define_build_flag("scheduler_scaling_pthreads");
+#endif
+
+  define_build_flag(PONY_DEFAULT_SSL);
+
+  return CONTINUE;
+}
+
+
 ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
        /*OUT*/ bool* print_program_ast,
        /*OUT*/ bool* print_package_ast)
@@ -230,25 +307,49 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
   *print_program_ast = false;
   *print_package_ast = false;
 
+  exit_code = special_opt_processing(opt);
+  if(exit_code != CONTINUE)
+    return exit_code;
+
+  bool wants_help = false;
+
   while((id = ponyint_opt_next(s)) != -1)
   {
     switch(id)
     {
       case OPT_VERSION:
         printf("%s\n", PONY_VERSION_STR);
+        printf("Defaults: pic=%s ssl=%s\n", opt->pic ? "true" : "false",
+            PONY_DEFAULT_SSL);
         return EXIT_0;
 
       case OPT_HELP:
-        usage();
-        return EXIT_0;
+        wants_help = true; break;
       case OPT_DEBUG: opt->release = false; break;
-      case OPT_BUILDFLAG: define_build_flag(s->arg_val); break;
+      case OPT_BUILDFLAG:
+        if(is_openssl_flag(s->arg_val))
+        {
+          if(validate_openssl_flag(s->arg_val))
+          { // User wants to add an openssl_flag,
+            // remove any existing openssl_flags.
+            remove_build_flags(valid_openssl_flags);
+          } else {
+            printf("Error: %s is invalid openssl flag, expecting one of:\n",
+                s->arg_val);
+            for(const char** next=valid_openssl_flags; *next != NULL; next++)
+              printf("       %s\n", *next);
+            return EXIT_255;
+          }
+        }
+        define_build_flag(s->arg_val);
+        break;
       case OPT_STRIP: opt->strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s->arg_val, opt); break;
       case OPT_OUTPUT: opt->output = s->arg_val; break;
       case OPT_BIN_NAME: opt->bin_name = s->arg_val; break;
       case OPT_LIBRARY: opt->library = true; break;
       case OPT_RUNTIMEBC: opt->runtimebc = true; break;
+      case OPT_STATIC: opt->staticbin = true; break;
       case OPT_PIC: opt->pic = true; break;
       case OPT_NOPIC: opt->pic = false; break;
       case OPT_DOCS:
@@ -277,6 +378,13 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_STATS: opt->print_stats = true; break;
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
       case OPT_LINKER: opt->linker = s->arg_val; break;
+      case OPT_PLUGIN:
+        if(!plugin_load(opt, s->arg_val))
+        {
+          printf("Error loading plugins: %s\n", s->arg_val);
+          exit_code = EXIT_255;
+        }
+        break;
 
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTPACKAGE: *print_package_ast = true; break;
@@ -310,9 +418,8 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_PASSES:
         if(!limit_passes(opt, s->arg_val))
         {
-          printf("Invalid pass=%s it should be one of:\n%s", s->arg_val,
-             "  parse,syntax,sugar,scope,import,name,flatten,traits,docs,\n"
-             "  refer,expr,verify,final,reach,paint,ir,bitcode,asm,obj,all\n");
+          printf("Invalid pass=%s it should be one of:\n", s->arg_val);
+          print_passes();
           exit_code = EXIT_255;
         }
         break;
@@ -321,6 +428,20 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         printf("BUG: unprocessed option id %d\n", id);
         return EXIT_255;
     }
+  }
+
+  if(!plugin_parse_options(opt, s->argc, s->argv))
+    exit_code = EXIT_255;
+
+  if(wants_help)
+  {
+    usage();
+    plugin_print_help(opt);
+
+    if(exit_code != EXIT_255)
+      exit_code = EXIT_0;
+
+    return exit_code;
   }
 
   for(int i = 1; i < (*s->argc); i++)

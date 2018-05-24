@@ -46,7 +46,6 @@ typedef struct pony_ctx_t
   ponyint_serialise_t serialise;
   serialise_alloc_fn serialise_alloc;
   serialise_alloc_fn serialise_alloc_final;
-  serialise_throw_fn serialise_throw;
 } pony_ctx_t;
 
 struct scheduler_t
@@ -57,7 +56,7 @@ struct scheduler_t
   uint32_t cpu;
   uint32_t node;
   bool terminate;
-  bool asio_stopped;
+  bool asio_stoppable;
   bool asio_noisy;
   pony_signal_event_t sleep_object;
 
@@ -101,7 +100,11 @@ void ponyint_sched_noisy_asio(int32_t from);
 void ponyint_sched_unnoisy_asio(int32_t from);
 
 // Try and wake up a sleeping scheduler thread to help with load
-void ponyint_sched_maybe_wakeup();
+void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
+
+// Try and wake up a sleeping scheduler thread only if all scheduler
+// threads are asleep
+void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
 
 PONY_EXTERN_C_END
 

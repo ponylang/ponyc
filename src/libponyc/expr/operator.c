@@ -498,20 +498,25 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
     default:
     {
       const char* name = package_hygienic_id(&opt->check);
-      ast_t* a_type = alias(type);
 
       ast_t* expr_type = ast_type(expr);
-      if(is_matchtype(expr_type, type, opt) == MATCHTYPE_DENY)
+      errorframe_t info = NULL;
+      if(is_matchtype(expr_type, type, &info, opt) == MATCHTYPE_DENY)
       {
-        ast_error(opt->check.errors, ast,
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, ast,
           "this capture violates capabilities");
-        ast_error_continue(opt->check.errors, type,
+        ast_error_frame(&frame, type,
           "match type: %s", ast_print_type(type));
-        ast_error_continue(opt->check.errors, expr,
+        ast_error_frame(&frame, expr,
           "pattern type: %s", ast_print_type(expr_type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
 
         return false;
       }
+
+      ast_t* a_type = alias(type);
 
       BUILD(pattern_elem, pattern,
         NODE(TK_SEQ,

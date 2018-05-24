@@ -1,85 +1,75 @@
-type _VecLeafNodes[A: Any #share] is Array[Array[A] val] val
-type _VecNodes[A: Any #share] is Array[_VecNode[A]] val
-
-type _VecEntries[A: Any #share] is (_VecNodes[A] | _VecLeafNodes[A])
+type _VecSubNodes[A: Any #share] is Array[_VecNode[A]]
 
 class val _VecNode[A: Any #share]
-  let _entries: _VecEntries[A]
-  let _level: U8
+  let _entries: (Array[A] val | _VecSubNodes[A] val)
 
-  new val empty(level: U8) =>
+  new val empty(depth: USize) =>
     _entries =
-      if level == 1 then recover Array[Array[A] val] end
-      else recover Array[_VecNode[A]] end
+      recover
+        if depth == 0
+        then Array[A]
+        else _VecSubNodes[A]
+        end
       end
-    _level = level
 
-  new val create(entries: _VecEntries[A], level: U8) =>
-    (_entries, _level) = (consume entries, level)
+  new val create(entries': (Array[A] val | _VecSubNodes[A] val)) =>
+    _entries = entries'
 
-  fun val new_root(): _VecNode[A] =>
-    let entries = recover val Array[_VecNode[A]](1) .> push(this) end
-    create(entries, _level + 1)
+  fun val grow_root(): _VecNode[A] =>
+    create(recover Array[_VecNode[A]](1) .> push(this) end)
 
-  fun apply(i: USize): A ? =>
-    let idx = _Bits.mask(i.u32_unsafe(), _level).usize_unsafe()
+  fun apply(depth: USize, i: USize): A ? =>
+    let idx = _Bits.mask(i, depth)
     match _entries
-    | let sns: _VecNodes[A] => sns(idx)?(i)?
-    | let lns: _VecLeafNodes[A] =>
-      lns(idx)?(_Bits.mask(i.u32_unsafe(), _level - 1).usize_unsafe())?
+    | let ls: Array[A] box => ls(idx)?
+    | let ns: _VecSubNodes[A] box => ns(idx)?(depth - 1, i)?
     end
 
-  fun val update(i: USize, value: A): _VecNode[A] ? =>
-    let idx = _Bits.mask(i.u32_unsafe(), _level).usize_unsafe()
-    match _entries
-    | let sns: _VecNodes[A] =>
-      let sn = sns(idx)?.update(i, value)?
-      let entries = recover val sns.clone() .> update(idx, sn)? end
-      create(entries, _level)
-    | let lns: _VecLeafNodes[A] =>
-      let li = _Bits.mask(i.u32_unsafe(), _level - 1).usize_unsafe()
-      let ln = recover val lns(idx)?.clone() .> update(li, value)? end
-      let entries = recover val lns.clone() .> update(idx, ln)? end
-      create(entries, _level)
-    end
-
-  fun val push(i: USize, tail: Array[A] val): _VecNode[A] ? =>
-    // this method must never be called before a node resize (if required)
-    match _entries
-    | let sns: _VecNodes[A] =>
-      let idx = _Bits.mask(i.u32_unsafe(), _level).usize_unsafe()
+  fun val push(depth: USize, i: USize, tail: Array[A] val): _VecNode[A] ? =>
+    let ns = _entries as _VecSubNodes[A] val
+    if depth == 1 then
+      let ls = create(tail)
+      create(recover ns.clone() .> push(ls) end)
+    else
+      let idx = _Bits.mask(i, depth)
       if _entries.size() > idx then
-        let sn = (_entries as _VecNodes[A])(idx)?.push(i, tail)?
-        let entries = recover val sns.clone() .> update(idx, sn)? end
-        create(entries, _level)
+        let sn = ns(idx)?.push(depth - 1, i, tail)?
+        create(recover ns.clone() .> update(idx, sn)? end)
       else
-        let sn = empty(_level - 1).push(i, tail)?
-        let entries = recover val sns.clone() .> push(sn) end
-        create(entries, _level)
+        let sn = empty(depth - 1).push(depth - 1, i, tail)?
+        create(recover ns.clone() .> push(sn) end)
       end
-    | let lns: _VecLeafNodes[A] =>
-      let entries = recover val lns.clone() .> push(tail) end
-      create(entries, _level)
     end
 
-  fun val pop(i: USize): (_VecNode[A], Array[A] val) ? =>
-    let idx = _Bits.mask(i.u32_unsafe(), _level).usize_unsafe()
+  fun val pop(depth: USize, i: USize): (_VecNode[A], Array[A] val) ? =>
     match _entries
-    | let sns: _VecNodes[A] =>
-      (let sn', let tail) = sns(idx)?.pop(i)?
-      let entries = recover val sns.clone() .> update(idx, sn')? end
-      (create(entries, _level), tail)
-    | let lns: _VecLeafNodes[A] =>
-      let ln = recover val lns(idx)?.clone() .> pop()? end
-      let lns' = recover val lns.clone() .> pop()? end
-      (create(lns', _level), ln)
+    | let ls: Array[A] val => (this, ls)
+    | let ns: _VecSubNodes[A] val =>
+      let idx = _Bits.mask(i, depth)
+      if depth == 1 then
+        let tail = ns(idx)?.pop(depth - 1, i)?._2
+        (create(ns.trim(0, ns.size() - 1)), tail)
+      else
+        (let sn, let tail) = ns(idx)?.pop(depth - 1, i)?
+        (create(recover ns.clone() .> update(idx, sn)? end), tail)
+      end
+    end
+
+  fun val update(depth: USize, i: USize, v: A): _VecNode[A] ? =>
+    let idx = _Bits.mask(i, depth)
+    match _entries
+    | let ls: Array[A] val =>
+      create(recover ls.clone() .> update(idx, v)? end)
+    | let ns: _VecSubNodes[A] val =>
+      let sn = ns(idx)?.update(depth - 1, i, v)?
+      create(recover ns.clone() .> update(idx, sn)? end)
     end
 
   fun val leaf_nodes(lns: Array[Array[A] val]): Array[Array[A] val]^ =>
     match _entries
-    | let sns: _VecNodes[A] =>
-      for sn in sns.values() do sn.leaf_nodes(lns) end
-    | let lns': _VecLeafNodes[A] =>
-      lns.append(lns')
+    | let lns': Array[A] val =>
+      lns.push(lns')
+    | let ns: _VecSubNodes[A] val =>
+      for sn in ns.values() do sn.leaf_nodes(lns) end
     end
     lns

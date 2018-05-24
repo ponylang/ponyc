@@ -429,18 +429,17 @@ TEST_F(HashMapTest, Serialisation)
       (void)ctx;
       return ponyint_pool_alloc_size(size);
     };
-  auto throw_fn = [](){throw std::exception{}; };
 
   pony_ctx_t ctx;
   memset(&ctx, 0, sizeof(pony_ctx_t));
   ponyint_array_t array;
   memset(&array, 0, sizeof(ponyint_array_t));
 
-  pony_serialise(&ctx, &_map, testmap_pony_type(), &array, alloc_fn, throw_fn);
+  pony_serialise(&ctx, &_map, testmap_pony_type(), &array, alloc_fn);
   auto array_guard = manage_array(array);
   std::unique_ptr<testmap_t, testmap_deleter> out_guard{
     (testmap_t*)pony_deserialise(&ctx, testmap_pony_type(), &array, alloc_fn,
-      alloc_fn, throw_fn)};
+      alloc_fn)};
 
   testmap_t* out = out_guard.get();
 

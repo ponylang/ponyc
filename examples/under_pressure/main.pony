@@ -62,11 +62,30 @@ use "time"
 
 class SlowDown is TCPConnectionNotify
   let _auth: BackpressureAuth
-  let _out: StdStream
+  let _out: OutStream
 
-  new iso create(auth: BackpressureAuth, out: StdStream) =>
+  new iso create(auth: BackpressureAuth, out: OutStream) =>
     _auth = auth
     _out = out
+
+  fun ref connected(conn: TCPConnection ref) =>
+    let bufsiz: U32 = 5000
+
+    @printf[I32]("Querying and setting socket options:\n".cstring())
+    @printf[I32]("\tgetsockopt so_error = %d\n".cstring(),
+      conn.get_so_error()._2)
+    @printf[I32]("\tgetsockopt get_tcp_nodelay = %d\n".cstring(),
+      conn.get_tcp_nodelay()._2)
+    @printf[I32]("\tgetsockopt set_tcp_nodelay(true) return value = %d\n".cstring(),
+      conn.set_tcp_nodelay(true))
+    @printf[I32]("\tgetsockopt get_tcp_nodelay = %d\n".cstring(), conn.get_tcp_nodelay()._2)
+
+    @printf[I32]("\tgetsockopt rcvbuf = %d\n".cstring(), conn.get_so_rcvbuf()._2)
+    @printf[I32]("\tgetsockopt sndbuf = %d\n".cstring(), conn.get_so_sndbuf()._2)
+    @printf[I32]("\tsetsockopt rcvbuf %d return was %d\n".cstring(), bufsiz,
+      conn.set_so_rcvbuf(bufsiz))
+    @printf[I32]("\tsetsockopt sndbuf %d return was %d\n".cstring(), bufsiz,
+      conn.set_so_rcvbuf(bufsiz))
 
   fun ref throttled(connection: TCPConnection ref) =>
     _out.print("Experiencing backpressure!")
@@ -76,7 +95,12 @@ class SlowDown is TCPConnectionNotify
     _out.print("Releasing backpressure!")
     Backpressure.release(_auth)
 
+  fun ref closed(connection: TCPConnection ref) =>
+    _out.print("Releasing backpressure if applied!")
+    Backpressure.release(_auth)
+
   fun ref connect_failed(conn: TCPConnection ref) =>
+    @printf[I32]("connect_failed\n".cstring())
     None
 
 class Send is TimerNotify
@@ -86,7 +110,7 @@ class Send is TimerNotify
     _sending_actor = sending_actor
 
   fun ref apply(timer: Timer, count: U64): Bool =>
-    let data = recover val Array[U8].init(72, 1024) end
+    let data = recover val Array[U8].init(72, 16384) end
     _sending_actor.write(data)
     _sending_actor.write("hi\n")
     true

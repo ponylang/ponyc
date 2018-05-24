@@ -10,8 +10,8 @@ branches:
 environment:
   matrix:
   - llvm: 3.9.1
-  - llvm: 4.0.1
   - llvm: 5.0.1
+  - llvm: 6.0.0
 
 configuration:
   - release
@@ -27,6 +27,7 @@ skip_commits:
     - .gitignore
     - .gitmodules
     - .travis.yml
+    - .travis_commands.bash
     - .travis_install.bash
     - .travis_script.bash
     - '**/Dockerfile'
@@ -59,7 +60,6 @@ build_script:
       copy $builddir\ponyrt.* "${ponydir}\ponyc\bin"
       copy $builddir\*.lib "${ponydir}\ponyc\bin"
       copy -recurse packages "${ponydir}\packages"
-      copy -recurse ".docs" "${ponydir}\docs-support"
       7z a -tzip "C:\projects\ponyc\${ponydir}.zip" "${ponydir}"
 
 artifacts:

@@ -8,19 +8,56 @@ class val NetAddress is Equatable[NetAddress]
   This class is modelled after the C data structure for holding socket
   addresses for both IPv4 and IPv6 `sockaddr_storage`.
 
-  The public fields of this class model exactly the fields of `sockaddr_in`
-  and are in network byte order. Use the `name` method
-  to obtain address/hostname and port/service as Strings.
+  Use the `name` method to obtain address/hostname and port/service as Strings.
   """
   let length: U8 = 0
   let family: U8 = 0
   let port: U16 = 0
+    """
+    Port number in network byte order.
+
+    In order to obtain a host byte order port, use:
+
+    ```pony
+    let host_order_port: U16 = @ntohs[U16](net_address.port)
+    ```
+    """
   let addr: U32 = 0
+    """
+    IPv4 address in network byte order.
+    Will be `0` for IPv6 addresses. Check with `ipv4()` and `ipv6()`.
+
+    Use `@ntohl[U32](net_address.addr)` to obtain it in the host byte order.
+    """
+
   let addr1: U32 = 0
+    """
+    Bits 0-32 of the IPv6 address in network byte order.
+
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
+    """
+
   let addr2: U32 = 0
+    """
+    Bits 33-64 of the IPv6 address in network byte order.
+
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
+    """
   let addr3: U32 = 0
+    """
+    Bits 65-96 of the IPv6 address in network byte order.
+
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
+    """
   let addr4: U32 = 0
+    """
+    Bits 97-128 of the IPv6 address in network byte order.
+
+    `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
+    """
+
   let scope: U32 = 0
+    """IPv6 scope identifier: Unicast, Anycast, Multicast and unassigned scopes."""
 
   fun ip4(): Bool =>
     """

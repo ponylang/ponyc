@@ -294,11 +294,32 @@ void errorfv(errors_t* errors, const char* file, const char* fmt, va_list ap)
   errors_push(errors, make_errorfv(file, fmt, ap));
 }
 
+void errorfv_continue(errors_t* errors, const char* file, const char* fmt,
+  va_list ap)
+{
+  if(errors->tail == NULL)
+    return errorfv(errors, file, fmt, ap);
+
+  errormsg_t* p = errors->tail;
+  while(p->frame != NULL)
+    p = p->frame;
+
+  p->frame = make_errorfv(file, fmt, ap);
+}
+
 void errorf(errors_t* errors, const char* file, const char* fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
   errorfv(errors, file, fmt, ap);
+  va_end(ap);
+}
+
+void errorf_continue(errors_t* errors, const char* file, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  errorfv_continue(errors, file, fmt, ap);
   va_end(ap);
 }
 

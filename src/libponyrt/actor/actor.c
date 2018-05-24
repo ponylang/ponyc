@@ -43,7 +43,7 @@ static void unset_flag(pony_actor_t* actor, uint8_t flag)
     memory_order_relaxed);
 }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
 static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 {
   // A message chain is well formed if last is reachable from first and is the
@@ -218,7 +218,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
   while((msg = ponyint_actor_messageq_pop(&actor->q
-#ifdef USE_DYNAMIC_TRACE    
+#ifdef USE_DYNAMIC_TRACE
     , ctx->scheduler, ctx->current
 #endif
     )) != NULL)
@@ -468,7 +468,7 @@ PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
   msg->index = index;
   msg->id = id;
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
   atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
 #endif
 
@@ -507,7 +507,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
     ponyint_maybe_mute(ctx, to);
 
   if(ponyint_actor_messageq_push(&to->q, first, last
-#ifdef USE_DYNAMIC_TRACE 
+#ifdef USE_DYNAMIC_TRACE
     , ctx->scheduler, ctx->current, to
 #endif
     ))
@@ -567,11 +567,12 @@ void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
     // only mute a sender IF:
     // 1. the receiver is overloaded/under pressure/muted
     // AND
-    // 2. the sender isn't overloaded
+    // 2. the sender isn't overloaded or under pressure
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
     if(ponyint_triggers_muting(to) &&
        !has_flag(ctx->current, FLAG_OVERLOADED) &&
+       !has_flag(ctx->current, FLAG_UNDER_PRESSURE) &&
        ctx->current != to)
     {
       ponyint_sched_mute(ctx, ctx->current, to);

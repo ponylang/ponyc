@@ -7,6 +7,11 @@ class JsonDoc
   A JSON document consists of exactly 1 value.
   """
   var data: JsonType
+    """
+    The parsed JSON structure.
+
+    Will be a `None` if `parse(source: String)` has not been called yet.
+    """
 
   // Internal state for parsing
   var _source: String = ""

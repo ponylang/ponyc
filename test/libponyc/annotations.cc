@@ -187,3 +187,36 @@ TEST_F(AnnotationsTest, InternalAnnotation)
 
   TEST_ERROR(src);
 }
+
+TEST_F(AnnotationsTest, StandardAnnotationLocationGood)
+{
+  const char* src =
+    "struct \\packed\\ Foo\n"
+    "  fun foo() =>\n"
+    "    if \\likely\\ bar then None end\n"
+    "    while \\unlikely\\ bar do None end\n"
+    "    repeat None until \\likely\\ bar end\n"
+    "    match bar | \\unlikely\\ bar => None end";
+
+  TEST_COMPILE(src, "syntax");
+}
+
+TEST_F(AnnotationsTest, StandardAnnotationLocationBad)
+{
+  const char* src =
+    "class \\packed\\ Foo\n"
+    "  fun foo() =>\n"
+    "    try \\likely\\ bar else None end\n"
+    "    repeat \\unlikely\\ None until bar end";
+
+  const char* errs[] = {
+    "a 'packed' annotation can only appear on a struct declaration",
+    "a 'likely' annotation can only appear on the condition of an if, while, "
+      "or until, or on the case of a match",
+    "a 'unlikely' annotation can only appear on the condition of an if, while, "
+      "or until, or on the case of a match",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}

@@ -43,7 +43,7 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   c_m->func_type = LLVMFunctionType(result, params, count, false);
   c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
   genfun_param_attrs(c, t, m, c_m->func);
-  codegen_startfun(c, c_m->func, NULL, NULL, false);
+  codegen_startfun(c, c_m->func, NULL, NULL, NULL, false);
 }
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
@@ -56,21 +56,17 @@ static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
 static void generic_function(compile_t* c, reach_type_t* t, const char* name,
   generate_gen_fn gen)
 {
+  reach_method_name_t* n = reach_method_name(t, name);
+
+  if(n == NULL)
+    return;
+
   size_t i = HASHMAP_BEGIN;
-  reach_method_name_t* n;
-  while((n = reach_method_names_next(&t->methods, &i)) != NULL)
+  reach_method_t* m;
+  while((m = reach_methods_next(&n->r_methods, &i)) != NULL)
   {
-    if(n->name == name)
-    {
-      size_t j = HASHMAP_BEGIN;
-      reach_method_t* m;
-      while((m = reach_methods_next(&n->r_methods, &j)) != NULL)
-      {
-        m->intrinsic = true;
-        gen(c, t, m);
-      }
-      break;
-    }
+    m->intrinsic = true;
+    gen(c, t, m);
   }
 }
 
@@ -117,7 +113,6 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable_or_null, size);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
@@ -125,10 +120,6 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
-#else
-  LLVMSetReturnNoAlias(c_m->func);
-  LLVMSetDereferenceableOrNull(c_m->func, 0, size);
-#endif
 
   LLVMValueRef len = LLVMGetParam(c_m->func, 1);
   LLVMValueRef args[2];
@@ -156,7 +147,6 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable_or_null, size);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
@@ -164,10 +154,6 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
-#else
-  LLVMSetReturnNoAlias(c_m->func);
-  LLVMSetDereferenceableOrNull(c_m->func, 0, size);
-#endif
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
@@ -189,6 +175,23 @@ static void pointer_unsafe(compile_t* c, reach_type_t* t)
   start_function(c, t, m, c_t->use_type, &c_t->use_type, 1);
 
   LLVMBuildRet(c->builder, LLVMGetParam(c_m->func, 0));
+  codegen_finishfun(c);
+}
+
+static void pointer_convert(compile_t* c, reach_type_t* t, reach_method_t* m)
+{
+  m->intrinsic = true;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  compile_type_t* t_result = (compile_type_t*)m->result->c_type;
+
+  start_function(c, t, m, t_result->use_type, &c_t->use_type, 1);
+
+  LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
+  ptr = LLVMBuildBitCast(c->builder, ptr, t_result->use_type, "");
+
+  LLVMBuildRet(c->builder, ptr);
   codegen_finishfun(c);
 }
 
@@ -418,33 +421,6 @@ static void pointer_copy_to(compile_t* c, void* data, token_id cap)
   codegen_finishfun(c);
 }
 
-static void pointer_consume_from(compile_t* c, reach_type_t* t,
-  compile_type_t* t_elem)
-{
-  FIND_METHOD("_consume_from", TK_NONE);
-
-  LLVMTypeRef params[3];
-  params[0] = c_t->use_type;
-  params[1] = c_t->use_type;
-  params[2] = c->intptr;
-  start_function(c, t, m, c_t->use_type, params, 3);
-
-  // Set up a constant integer for the allocation size.
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
-  LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
-
-  LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
-  LLVMValueRef ptr2 = LLVMGetParam(c_m->func, 1);
-  LLVMValueRef n = LLVMGetParam(c_m->func, 2);
-  LLVMValueRef elen = LLVMBuildMul(c->builder, n, l_size, "");
-
-  // llvm.memcpy.*(ptr, ptr2, n * sizeof(elem), 1, 0)
-  gencall_memcpy(c, ptr, ptr2, elen);
-
-  LLVMBuildRet(c->builder, ptr);
-  codegen_finishfun(c);
-}
-
 static void pointer_usize(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("usize", TK_NONE);
@@ -521,6 +497,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
 
   pointer_realloc(c, t, c_t_elem);
   pointer_unsafe(c, t);
+  GENERIC_FUNCTION("_convert", pointer_convert);
   BOX_FUNCTION(pointer_apply, box_args);
   pointer_update(c, t, t_elem);
   BOX_FUNCTION(pointer_offset, c_box_args);
@@ -528,7 +505,6 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_insert(c, t, c_t_elem);
   pointer_delete(c, t, t_elem);
   BOX_FUNCTION(pointer_copy_to, c_box_args);
-  pointer_consume_from(c, t, c_t_elem);
   pointer_usize(c, t);
   pointer_is_null(c, t);
   pointer_eq(c, t);
@@ -641,22 +617,20 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
     false);
   LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, &obj, 1, "");
 
-#if PONY_LLVM >= 309
+  bool is_ptr = LLVMGetTypeKind(t_elem->use_type) == LLVMPointerTypeKind;
+
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
   LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
     inaccessiblemem_or_argmemonly, 0);
 
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddCallSiteAttribute(call, 1, readonly_attr);
+
+  if(is_ptr)
+    LLVMAddCallSiteAttribute(call, 1, readonly_attr);
+
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-#else
-  LLVMAddInstrAttribute(call, 1, LLVMReadOnlyAttribute);
-#  if PONY_LLVM >= 308
-  LLVMSetCallInaccessibleMemOrArgMemOnly(call);
-#  endif
-#endif
 
   LLVMBuildRet(c->builder, t_result->instance);
   codegen_finishfun(c);
@@ -674,7 +648,6 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
     false);
   LLVMValueRef call = LLVMBuildCall(c->builder, asmstr, NULL, 0, "");
 
-#if PONY_LLVM >= 309
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
     inaccessiblemem_or_argmemonly, 0);
@@ -682,11 +655,6 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-#elif PONY_LLVM >= 308
-  LLVMSetCallInaccessibleMemOnly(call);
-#else
-  (void)call;
-#endif
 
   LLVMBuildRet(c->builder, t_result->instance);
   codegen_finishfun(c);
@@ -755,7 +723,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
 void genprim_array_trace(compile_t* c, reach_type_t* t)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
-  codegen_startfun(c, c_t->trace_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->trace_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->trace_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->trace_fn, LLVMExternalLinkage);
   LLVMValueRef ctx = LLVMGetParam(c_t->trace_fn, 0);
@@ -783,7 +751,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
   c_t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
     c->trace_type, true);
 
-  codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_trace_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->serialise_trace_fn, LLVMExternalLinkage);
 
@@ -838,7 +806,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type, true);
 
-  codegen_startfun(c, c_t->serialise_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->serialise_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->serialise_fn, LLVMExternalLinkage);
 
@@ -965,7 +933,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
   c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type, true);
 
-  codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->deserialise_fn, LLVMExternalLinkage);
 
@@ -1049,7 +1017,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   c_t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
     c->serialise_type, true);
 
-  codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_trace_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->serialise_trace_fn, LLVMExternalLinkage);
 
@@ -1082,7 +1050,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
     c->serialise_type, true);
 
-  codegen_startfun(c, c_t->serialise_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->serialise_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->serialise_fn, LLVMExternalLinkage);
 
@@ -1152,7 +1120,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
   c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
     c->trace_type, true);
 
-  codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, false);
+  codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->deserialise_fn, LLVMExternalLinkage);
 
@@ -1292,6 +1260,28 @@ static void platform_ilp32(compile_t* c, reach_type_t* t, token_id cap)
   codegen_finishfun(c);
 }
 
+static void platform_bigendian(compile_t* c, reach_type_t* t, token_id cap)
+{
+  FIND_METHOD("bigendian", cap);
+  start_function(c, t, m, c->i1, &c_t->use_type, 1);
+
+  LLVMValueRef result =
+    LLVMConstInt(c->i1, target_is_bigendian(c->opt->triple), false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void platform_littleendian(compile_t* c, reach_type_t* t, token_id cap)
+{
+  FIND_METHOD("littleendian", cap);
+  start_function(c, t, m, c->i1, &c_t->use_type, 1);
+
+  LLVMValueRef result =
+    LLVMConstInt(c->i1, target_is_littleendian(c->opt->triple), false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void platform_native128(compile_t* c, reach_type_t* t, token_id cap)
 {
   FIND_METHOD("native128", cap);
@@ -1325,6 +1315,8 @@ void genprim_platform_methods(compile_t* c, reach_type_t* t)
   BOX_FUNCTION(platform_lp64, t);
   BOX_FUNCTION(platform_llp64, t);
   BOX_FUNCTION(platform_ilp32, t);
+  BOX_FUNCTION(platform_bigendian, t);
+  BOX_FUNCTION(platform_littleendian, t);
   BOX_FUNCTION(platform_native128, t);
   BOX_FUNCTION(platform_debug, t);
 }
@@ -1935,7 +1927,7 @@ static void make_cpuid(compile_t* c)
     LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type, false);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL, false);
+    codegen_startfun(c, fun, NULL, NULL, NULL, false);
 
     LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
       "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
@@ -1964,7 +1956,7 @@ static void make_rdtscp(compile_t* c)
     f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type, false);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL, false);
+    codegen_startfun(c, fun, NULL, NULL, NULL, false);
 
     // Cast i32* to i8* and call the intrinsic.
     LLVMValueRef arg = LLVMGetParam(fun, 0);
@@ -2035,7 +2027,7 @@ void genprim_signature(compile_t* c)
   LLVMTypeRef f_type = LLVMFunctionType(c_t->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, "internal.signature", f_type, false);
   LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-  codegen_startfun(c, fun, NULL, NULL, false);
+  codegen_startfun(c, fun, NULL, NULL, NULL, false);
   LLVMBuildRet(c->builder, g_array);
   codegen_finishfun(c);
 }

@@ -55,11 +55,15 @@
 // The private bits of the flags values
 enum
 {
-  AST_ORPHAN = 0x10,
+  AST_ORPHAN = 0x20,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ALL_FLAGS = 0x3FFFFF
+  AST_ALL_FLAGS = 0x7FFFFF
 };
+
+
+pony_static_assert((int)PASS_ALL <= (int)AST_FLAG_PASS_MASK, "Wrong pass mask");
+pony_static_assert(AST_ORPHAN == (AST_FLAG_PASS_MASK + 1), "Wrong AST_ORPHAN");
 
 
 struct ast_t
@@ -72,7 +76,7 @@ struct ast_t
   ast_t* sibling;
   ast_t* annotation_type;
   uint32_t flags;
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   bool frozen;
 #endif
 };
@@ -851,8 +855,10 @@ void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
 
   if(annotation != NULL)
   {
-    pony_assert(!hasparent(annotation) &&
-      (annotation->annotation_type == NULL));
+    pony_assert(annotation->annotation_type == NULL);
+
+    if(hasparent(annotation))
+      annotation = duplicate(ast, annotation);
 
     if(prev_annotation != NULL)
     {
@@ -863,6 +869,8 @@ void setannotation(ast_t* ast, ast_t* annotation, bool allow_free)
     }
 
     ast->annotation_type = annotation;
+
+    set_scope_and_parent(annotation, ast);
   } else {
     pony_assert(prev_annotation != NULL);
 
@@ -1591,7 +1599,7 @@ bool ast_is_frozen(ast_t* ast)
 {
   pony_assert(ast != NULL);
 
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   return ast->frozen;
 #else
   return false;
@@ -1600,7 +1608,8 @@ bool ast_is_frozen(ast_t* ast)
 
 void ast_freeze(ast_t* ast)
 {
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+  (void)ast;
+#ifndef PONY_NDEBUG
   if((ast == NULL) || ast->frozen)
     return;
 
@@ -1630,7 +1639,6 @@ void ast_fprint(FILE* fp, ast_t* ast, size_t width)
     return;
 
   print(fp, ast, 0, NOT_SPECIAL, width);
-  fprintf(fp, "\n");
 }
 
 void ast_fprintverbose(FILE* fp, ast_t* ast)
@@ -1641,10 +1649,10 @@ void ast_fprintverbose(FILE* fp, ast_t* ast)
   print_verbose(fp, ast, 0, NOT_SPECIAL);
 }
 
-static void print_type(printbuf_t* buffer, ast_t* type);
+static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap);
 
 static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
-  bool square)
+  bool square, bool print_cap)
 {
   if(square)
     printbuf(buffer, "[");
@@ -1656,7 +1664,7 @@ static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
   while(child != NULL)
   {
     ast_t* next = ast_sibling(child);
-    print_type(buffer, child);
+    print_type(buffer, child, print_cap);
 
     if(next != NULL)
       printbuf(buffer, "%s", sep);
@@ -1670,7 +1678,7 @@ static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
     printbuf(buffer, ")");
 }
 
-static void print_type(printbuf_t* buffer, ast_t* type)
+static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
 {
   switch(ast_id(type))
   {
@@ -1689,27 +1697,30 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "%s", ast_nice_name(id));
 
       if(ast_id(typeargs) != TK_NONE)
-        print_typeexpr(buffer, typeargs, ", ", true);
+        print_typeexpr(buffer, typeargs, ", ", true, true);
 
-      if(ast_id(cap) != TK_NONE)
-        printbuf(buffer, " %s", token_print(cap->t));
+      if(print_cap)
+      {
+        if(ast_id(cap) != TK_NONE)
+          printbuf(buffer, " %s", token_print(cap->t));
 
-      if(ast_id(ephemeral) != TK_NONE)
-        printbuf(buffer, "%s", token_print(ephemeral->t));
+        if(ast_id(ephemeral) != TK_NONE)
+          printbuf(buffer, "%s", token_print(ephemeral->t));
+      }
 
       break;
     }
 
     case TK_UNIONTYPE:
-      print_typeexpr(buffer, type, " | ", false);
+      print_typeexpr(buffer, type, " | ", false, print_cap);
       break;
 
     case TK_ISECTTYPE:
-      print_typeexpr(buffer, type, " & ", false);
+      print_typeexpr(buffer, type, " & ", false, print_cap);
       break;
 
     case TK_TUPLETYPE:
-      print_typeexpr(buffer, type, ", ", false);
+      print_typeexpr(buffer, type, ", ", false, print_cap);
       break;
 
     case TK_TYPEPARAMREF:
@@ -1717,11 +1728,14 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       AST_GET_CHILDREN(type, id, cap, ephemeral);
       printbuf(buffer, "%s", ast_nice_name(id));
 
-      if(ast_id(cap) != TK_NONE)
-        printbuf(buffer, " %s", token_print(cap->t));
+      if(print_cap)
+      {
+        if(ast_id(cap) != TK_NONE)
+          printbuf(buffer, " %s", token_print(cap->t));
 
-      if(ast_id(ephemeral) != TK_NONE)
-        printbuf(buffer, " %s", token_print(ephemeral->t));
+        if(ast_id(ephemeral) != TK_NONE)
+          printbuf(buffer, " %s", token_print(ephemeral->t));
+      }
 
       break;
     }
@@ -1729,9 +1743,9 @@ static void print_type(printbuf_t* buffer, ast_t* type)
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
-      print_type(buffer, left);
+      print_type(buffer, left, print_cap);
       printbuf(buffer, "->");
-      print_type(buffer, right);
+      print_type(buffer, right, print_cap);
       break;
     }
 
@@ -1766,7 +1780,18 @@ static void print_type(printbuf_t* buffer, ast_t* type)
 const char* ast_print_type(ast_t* type)
 {
   printbuf_t* buffer = printbuf_new();
-  print_type(buffer, type);
+  print_type(buffer, type, true);
+
+  const char* s = stringtab(buffer->m);
+  printbuf_free(buffer);
+
+  return s;
+}
+
+const char* ast_print_type_no_cap(ast_t* type)
+{
+  printbuf_t* buffer = printbuf_new();
+  print_type(buffer, type, false);
 
   const char* s = stringtab(buffer->m);
   printbuf_free(buffer);
@@ -2260,7 +2285,7 @@ static void ast_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->sibling = (ast_t*)pony_serialise_offset(ctx, ast->sibling);
   dst->annotation_type = (ast_t*)pony_serialise_offset(ctx, ast->annotation_type);
   dst->flags = ast->flags;
-#if !defined(NDEBUG) || !defined(PONY_NO_ASSERT)
+#ifndef PONY_NDEBUG
   dst->frozen = ast->frozen;
 #endif
 }

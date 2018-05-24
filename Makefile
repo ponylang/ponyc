@@ -41,6 +41,7 @@ endif
 config ?= release
 arch ?= native
 tune ?= generic
+cpu ?= $(arch)
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -66,9 +67,21 @@ package_version = $(package_base_version)-$(package_iteration)
 archive = $(package_name)-$(package_version).tar
 package = build/$(package_name)-$(package_version)
 
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+includedir ?= $(prefix)/include
+libdir ?= $(prefix)/lib
+
+# destdir is for backward compatibility only, use ponydir instead.
+ifdef destdir
+  $(warning Please use ponydir instead of destdir.)
+  ponydir ?= $(destdir)
+endif
+ponydir ?= $(libdir)/pony/$(tag)
+
 symlink := yes
 
-ifdef destdir
+ifdef ponydir
   ifndef prefix
     symlink := no
   endif
@@ -86,9 +99,6 @@ else
   SED_INPLACE = sed -i
 endif
 
-prefix ?= /usr/local
-destdir ?= $(prefix)/lib/pony/$(tag)
-
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
@@ -102,7 +112,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
-LL_FLAGS = -mcpu=$(arch)
+LL_FLAGS = -mcpu=$(cpu)
 
 # Determine pointer size in bits.
 BITS := $(bits)
@@ -205,24 +215,14 @@ endif
 ifndef LLVM_CONFIG
   ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+  else ifneq (,$(shell which llvm-config-6.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-6.0
   else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.9
   else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
-  else ifneq (,$(shell which llvm-config-3.8 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.8
-  else ifneq (,$(shell which llvm-config-mp-3.8 2> /dev/null))
-    LLVM_CONFIG = llvm-config-mp-3.8
-  else ifneq (,$(shell which llvm-config-3.7 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.7
-  else ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.6
   else ifneq (,$(shell which llvm-config39 2> /dev/null))
     LLVM_CONFIG = llvm-config39
-  else ifneq (,$(shell which llvm-config38 2> /dev/null))
-    LLVM_CONFIG = llvm-config38
-  else ifneq (,$(shell which llvm-config37 2> /dev/null))
-    LLVM_CONFIG = llvm-config37
   else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
   else ifneq (,$(shell which llvm-config 2> /dev/null))
@@ -233,6 +233,14 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-4.0
   else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-3.9.1/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-3.9.1/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-5.0.1/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-5.0.1/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-5.0.0/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-5.0.0/bin/llvm-config
+  else ifneq (,$(shell which /opt/llvm-4.0.0/bin/llvm-config 2> /dev/null))
+    LLVM_CONFIG = /opt/llvm-4.0.0/bin/llvm-config
   else
     $(error No LLVM installation found!)
   endif
@@ -260,12 +268,6 @@ ifeq ($(OSTYPE),osx)
   ifneq (,$(shell which $(LLVM_BINDIR)/llvm-ar 2> /dev/null))
     AR = $(LLVM_BINDIR)/llvm-ar
     AR_FLAGS := rcs
-  else ifneq (,$(shell which llvm-ar-mp-3.8 2> /dev/null))
-    AR = llvm-ar-mp-3.8
-    AR_FLAGS := rcs
-  else ifneq (,$(shell which llvm-ar-3.8 2> /dev/null))
-    AR = llvm-ar-3.8
-    AR_FLAGS := rcs
   else
     AR = /usr/bin/ar
     AR_FLAGS := -rcs
@@ -279,6 +281,10 @@ else ifeq ($(llvm_version),5.0.0)
   $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
 else ifeq ($(llvm_version),5.0.1)
   $(warning WARNING: LLVM 5 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),6.0.0)
+  $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),6.0.1)
+  $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
   $(warning Please use LLVM 3.9.1)
@@ -290,6 +296,22 @@ ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
     $(error Compiling the runtime as a bitcode file requires clang)
   endif
+endif
+
+# Set default ssl version
+ifdef default_ssl
+  ifeq ("openssl_0.9.0","$(default_ssl)")
+    default_ssl_valid:=ok
+  endif
+  ifeq ("openssl_1.1.0","$(default_ssl)")
+    default_ssl_valid:=ok
+  endif
+  ifeq (ok,$(default_ssl_valid))
+    $(warning default_ssl is $(default_ssl))
+  else
+    $(error default_ssl=$(default_ssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
+  endif
+  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(default_ssl)\"
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -360,7 +382,8 @@ libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest-all.cc
 libgbenchmark := $(lib)
 libgbenchmark.dir := lib/gbenchmark
-libgbenchmark.files := $(libgbenchmark.dir)/gbenchmark_main.cc $(libgbenchmark.dir)/gbenchmark-all.cc
+libgbenchmark.srcdir := $(libgbenchmark.dir)/src
+
 libblake2 := $(lib)
 libblake2.dir := lib/blake2
 libblake2.files := $(libblake2.dir)/blake2b-ref.c
@@ -412,7 +435,11 @@ tests := libponyc.tests libponyrt.tests
 
 # Benchmark suites are directly attached to the libraries they test.
 libponyc.benchmarks  := $(benchmarks)
+libponyc.benchmarks.dir := benchmark/libponyc
+libponyc.benchmarks.srcdir := $(libponyc.benchmarks.dir)
 libponyrt.benchmarks := $(benchmarks)
+libponyrt.benchmarks.dir := benchmark/libponyrt
+libponyrt.benchmarks.srcdir := $(libponyrt.benchmarks.dir)
 
 benchmarks := libponyc.benchmarks libponyrt.benchmarks
 
@@ -443,9 +470,6 @@ ifneq (,$(filter $(OSTYPE), osx bsd))
 endif
 
 # target specific build options
-libponyrt.buildoptions = -DPONY_NO_ASSERT
-libponyrt-pic.buildoptions = -DPONY_NO_ASSERT
-
 libponyrt.tests.linkoptions += -rdynamic
 
 ifneq ($(ALPINE),)
@@ -455,10 +479,12 @@ endif
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
+libponyc.buildoptions += -DPONY_ALWAYS_ASSERT
 
 libponyc.tests.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.tests.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.tests.buildoptions += -D__STDC_LIMIT_MACROS
+libponyc.tests.buildoptions += -DPONY_ALWAYS_ASSERT
 libponyc.tests.buildoptions += -DPONY_PACKAGES_DIR=\"$(packages_abs_src)\"
 
 libponyc.tests.linkoptions += -rdynamic
@@ -471,7 +497,10 @@ libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
 
-libgbenchmark.buildoptions := -DHAVE_POSIX_REGEX
+libgbenchmark.buildoptions := \
+  -Wshadow -pedantic -pedantic-errors \
+  -Wfloat-equal -fstrict-aliasing -Wstrict-aliasing -Wno-invalid-offsetof \
+  -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK
 
 ifneq ($(ALPINE),)
   libponyc.benchmarks.linkoptions += -lexecinfo
@@ -484,6 +513,7 @@ ponyc.linkoptions += -rdynamic
 
 ifneq ($(ALPINE),)
   ponyc.linkoptions += -lexecinfo
+  BUILD_FLAGS += -DALPINE_LINUX
 endif
 
 ifeq ($(OSTYPE), linux)
@@ -491,16 +521,22 @@ ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions-ll += -relocation-model=pic
 endif
 
-# default enable PIC compiling if requested
+# Set default PIC for compiling if requested
 ifdef default_pic
-  libponyrt.buildoptions += -fpic
-  libponyrt.buildoptions-ll += -relocation-model=pic
-  BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  ifeq (true,$(default_pic))
+    libponyrt.buildoptions += -fpic
+    libponyrt.buildoptions-ll += -relocation-model=pic
+    BUILD_FLAGS += -DPONY_DEFAULT_PIC=true
+  else
+    ifneq (false,$(default_pic))
+      $(error default_pic must be true or false)
+    endif
+  endif
 endif
 
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
-libgbenchmark.disable = -Wconversion -Wno-sign-conversion -Wextra
+libgbenchmark.disable = -Wconversion -Wno-sign-conversion
 libblake2.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
@@ -573,7 +609,9 @@ define DIRECTORY
   $(eval sourcedir := )
   $(eval outdir := $(obj)/$(1))
 
-  ifdef $(1).dir
+  ifdef $(1).srcdir
+    sourcedir := $($(1).srcdir)
+  else ifdef $(1).dir
     sourcedir := $($(1).dir)
   else ifneq ($$(filter $(1),$(tests)),)
     sourcedir := $(PONY_TEST_DIR)/$(subst .tests,,$(1))
@@ -780,44 +818,42 @@ install: libponyc libponyrt libponyrt-pic ponyc
 else
 install: libponyc libponyrt ponyc
 endif
-	@mkdir -p $(destdir)/bin
-	@mkdir -p $(destdir)/docs-support
-	@mkdir -p $(destdir)/lib
-	@mkdir -p $(destdir)/include/pony/detail
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+	@mkdir -p $(DESTDIR)$(ponydir)/bin
+	@mkdir -p $(DESTDIR)$(ponydir)/lib
+	@mkdir -p $(DESTDIR)$(ponydir)/include/pony/detail
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(DESTDIR)$(ponydir)/lib
 ifeq ($(OSTYPE),linux)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(DESTDIR)$(ponydir)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(DESTDIR)$(ponydir)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(destdir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(DESTDIR)$(ponydir)/lib
 endif
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
-	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
-	$(SILENT)cp src/libponyrt/pony.h $(destdir)/include
-	$(SILENT)cp src/common/pony/detail/atomics.h $(destdir)/include/pony/detail
-	$(SILENT)cp -r packages $(destdir)/
-	$(SILENT)cp -r .docs/* $(destdir)/docs-support/
+	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(DESTDIR)$(ponydir)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(DESTDIR)$(ponydir)/bin
+	$(SILENT)cp src/libponyrt/pony.h $(DESTDIR)$(ponydir)/include
+	$(SILENT)cp src/common/pony/detail/atomics.h $(DESTDIR)$(ponydir)/include/pony/detail
+	$(SILENT)cp -r packages $(DESTDIR)$(ponydir)/
 ifeq ($$(symlink),yes)
-	@mkdir -p $(prefix)/bin
-	@mkdir -p $(prefix)/lib
-	@mkdir -p $(prefix)/include/pony/detail
-	$(SILENT)ln $(symlink.flags) $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	@mkdir -p $(DESTDIR)$(bindir)
+	@mkdir -p $(DESTDIR)$(libdir)
+	@mkdir -p $(DESTDIR)$(includedir)/pony/detail
+	$(SILENT)ln $(symlink.flags) $(ponydir)/bin/ponyc $(DESTDIR)$(bindir)/ponyc
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt.a $(DESTDIR)$(libdir)/libponyrt.a
 ifeq ($(OSTYPE),linux)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt-pic.a $(DESTDIR)$(libdir)/libponyrt-pic.a
 endif
-ifneq ($(wildcard $(destdir)/lib/libponyrt.bc),)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyrt.bc $(prefix)/lib/libponyrt.bc
+ifneq ($(wildcard $(DESTDIR)$(ponydir)/lib/libponyrt.bc),)
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyrt.bc $(DESTDIR)$(libdir)/libponyrt.bc
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libdtrace_probes.a $(DESTDIR)$(libdir)/libdtrace_probes.a
 endif
-	$(SILENT)ln $(symlink.flags) $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
-	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony.h $(prefix)/include/pony.h
-	$(SILENT)ln $(symlink.flags) $(destdir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
+	$(SILENT)ln $(symlink.flags) $(ponydir)/lib/libponyc.a $(DESTDIR)$(libdir)/libponyc.a
+	$(SILENT)ln $(symlink.flags) $(ponydir)/include/pony.h $(DESTDIR)$(includedir)/pony.h
+	$(SILENT)ln $(symlink.flags) $(ponydir)/include/pony/detail/atomics.h $(DESTDIR)$(includedir)/pony/detail/atomics.h
 endif
 endef
 
@@ -825,21 +861,21 @@ $(eval $(call EXPAND_INSTALL))
 
 define EXPAND_UNINSTALL
 uninstall:
-	-$(SILENT)rm -rf $(destdir) 2>/dev/null ||:
-	-$(SILENT)rm $(prefix)/bin/ponyc 2>/dev/null ||:
-	-$(SILENT)rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+	-$(SILENT)rm -rf $(ponydir) 2>/dev/null ||:
+	-$(SILENT)rm $(bindir)/ponyc 2>/dev/null ||:
+	-$(SILENT)rm $(libdir)/libponyrt.a 2>/dev/null ||:
 ifeq ($(OSTYPE),linux)
-	-$(SILENT)rm $(prefix)/lib/libponyrt-pic.a 2>/dev/null ||:
+	-$(SILENT)rm $(libdir)/libponyrt-pic.a 2>/dev/null ||:
 endif
-ifneq ($(wildcard $(prefix)/lib/libponyrt.bc),)
-	-$(SILENT)rm $(prefix)/lib/libponyrt.bc 2>/dev/null ||:
+ifneq ($(wildcard $(libdir)/libponyrt.bc),)
+	-$(SILENT)rm $(libdir)/libponyrt.bc 2>/dev/null ||:
 endif
-ifneq ($(wildcard $(prefix)/lib/libdtrace_probes.a),)
-	-$(SILENT)rm $(prefix)/lib/libdtrace_probes.a 2>/dev/null ||:
+ifneq ($(wildcard $(libdir)/libdtrace_probes.a),)
+	-$(SILENT)rm $(libdir)/libdtrace_probes.a 2>/dev/null ||:
 endif
-	-$(SILENT)rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
-	-$(SILENT)rm $(prefix)/include/pony.h 2>/dev/null ||:
-	-$(SILENT)rm -r $(prefix)/include/pony/ 2>/dev/null ||:
+	-$(SILENT)rm $(libdir)/libponyc.a 2>/dev/null ||:
+	-$(SILENT)rm $(includedir)/pony.h 2>/dev/null ||:
+	-$(SILENT)rm -r $(includedir)/pony/ 2>/dev/null ||:
 endef
 
 $(eval $(call EXPAND_UNINSTALL))
@@ -876,6 +912,7 @@ test: all
 	@$(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
+	@make test-examples
 
 test-examples: all
 	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree --verify examples
@@ -901,7 +938,6 @@ test-ci: all
 
 docs: all
 	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
-	$(SILENT)cp .docs/extra.js stdlib-docs/docs/
 
 docs-online: docs
 	$(SILENT)$(SED_INPLACE) 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
@@ -918,7 +954,6 @@ deploy: test docs
 	@mkdir -p $(package)/usr/include/pony/detail
 	@mkdir -p $(package)/usr/lib
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
-	@mkdir -p $(package)/usr/lib/pony/$(package_version)/docs-support
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
@@ -949,7 +984,6 @@ endif
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	$(SILENT)ln -f -s /usr/lib/pony/$(package_version)/include/pony/detail/atomics.h $(package)/usr/include/pony/detail/atomics.h
-	$(SILENT)cp -r .docs/* $(package)/usr/lib/pony/$(package_version)/docs-support/
 	$(SILENT)cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	$(SILENT)fpm -s dir -t deb -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release"
 	$(SILENT)fpm -s dir -t rpm -C $(package) -p build/bin --name $(package_name) --conflicts "ponyc-master" --conflicts "ponyc-release" --version $(package_base_version) --description "The Pony Compiler" --provides "ponyc" --provides "ponyc-release" --depends "ponydep-ncurses"
@@ -994,6 +1028,13 @@ help:
 	@echo 'ARCHITECTURE:'
 	@echo '  native (default)'
 	@echo '  [any compiler supported architecture]'
+	@echo
+	@echo 'Compile time default options:'
+	@echo '  default_pic=true     Make --pic the default'
+	@echo '  default_ssl=Name     Make Name the default ssl version'
+	@echo '                       where Name is one of:'
+	@echo '                         openssl_0.9.0'
+	@echo '                         openssl_1.1.0'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'

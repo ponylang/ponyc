@@ -26,16 +26,6 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
 void LLVMSetNoSignedWrap(LLVMValueRef inst);
 void LLVMSetIsExact(LLVMValueRef inst);
-#if PONY_LLVM < 309
-void LLVMSetReturnNoAlias(LLVMValueRef fun);
-void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
-void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
-#  if PONY_LLVM >= 308
-void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst);
-void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
-void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
-#  endif
-#endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
@@ -50,7 +40,6 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type);
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
 
-#if PONY_LLVM >= 309
 #define LLVM_DECLARE_ATTRIBUTEREF(decl, name, val) \
   LLVMAttributeRef decl; \
   { \
@@ -58,7 +47,6 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
       LLVMGetEnumAttributeKindForName(#name, sizeof(#name) - 1); \
     decl = LLVMCreateEnumAttribute(c->context, decl##_id, val); \
   }
-#endif
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
@@ -91,6 +79,7 @@ typedef struct compile_frame_t
   bool is_function;
   bool early_termination;
   bool bare_function;
+  deferred_reification_t* reify;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -241,6 +230,9 @@ bool codegen_pass_init(pass_opt_t* opt);
 
 void codegen_pass_cleanup(pass_opt_t* opt);
 
+LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
+  bool jit);
+
 bool codegen(ast_t* program, pass_opt_t* opt);
 
 bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
@@ -252,7 +244,7 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
   bool pony_abi);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
-  LLVMMetadataRef scope, bool bare);
+  LLVMMetadataRef scope, deferred_reification_t* reify, bool bare);
 
 void codegen_finishfun(compile_t* c);
 

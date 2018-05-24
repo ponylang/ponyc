@@ -28,7 +28,7 @@ type _PayloadState is
   | _ExpectReady         // All done with the message
   | _ExpectError         // Not valid HTTP format
   )
-  
+
 class _HTTPParser
   """
   This is the HTTP parser that builds a message `Payload` object
@@ -223,10 +223,10 @@ class _HTTPParser
       else
         // Failed to get a line. We stay in _ExpectHeader state.
         return
-      end // try 
+      end // try
     end // looping over all headers in this buffer
 
-    // Breaking out of that loop means an error. 
+    // Breaking out of that loop means an error.
     if _state is _ExpectError then error end
 
   fun ref _process_header(line: String) ? =>

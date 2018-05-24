@@ -9,28 +9,24 @@ class val Vec[A: Any #share]
   let _root: (_VecNode[A] | None)
   let _tail: Array[A] val
   let _size: USize
-  let _depth: U8
-  let _tail_offset: USize
+  let _depth: USize
 
   new val create() =>
     _root = None
     _tail = recover Array[A] end
     _size = 0
-    _depth = 1
-    _tail_offset = 0
+    _depth = -1
 
   new val _create(
     root': (_VecNode[A] | None),
     tail': Array[A] val,
     size': USize,
-    depth': U8,
-    tail_offset': USize)
+    depth': USize)
   =>
     _root = root'
     _tail = tail'
     _size = size'
     _depth = depth'
-    _tail_offset = tail_offset'
 
   fun size(): USize =>
     """
@@ -38,14 +34,20 @@ class val Vec[A: Any #share]
     """
     _size
 
+  fun _tail_offset(): USize =>
+    """
+    Return the amount of values in the root.
+    """
+    _size - _tail.size()
+
   fun apply(i: USize): val->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """
-    if i < _tail_offset then
-      (_root as _VecNode[A])(i)?
+    if i < _tail_offset() then
+      (_root as _VecNode[A])(_depth, i)?
     else
-      _tail(i - _tail_offset)?
+      _tail(i - _tail_offset())?
     end
 
   fun val update(i: USize, value: val->A): Vec[A] ? =>
@@ -53,13 +55,13 @@ class val Vec[A: Any #share]
     Return a vector with the i-th element changed, raising an error if the
     index is out of bounds.
     """
-    if i < _tail_offset then
-      let root = (_root as _VecNode[A]).update(i, value)?
-      _create(root, _tail, _size, _depth, _tail_offset)
+    if i < _tail_offset() then
+      let root = (_root as _VecNode[A]).update(_depth, i, value)?
+      _create(root, _tail, _size, _depth)
     else
       let tail =
-        recover val _tail.clone() .> update(i - _tail_offset, value)? end
-      _create(_root, tail, _size, _depth, _tail_offset)
+        recover val _tail.clone() .> update(i - _tail_offset(), value)? end
+      _create(_root, tail, _size, _depth)
     end
 
   fun val insert(i: USize, value: val->A): Vec[A] ? =>
@@ -105,45 +107,50 @@ class val Vec[A: Any #share]
     """
     Return a vector with the value added to the end.
     """
-    if _tail.size() < 32 then
+    // push tail into root when it becomes full
+    let size' = _size + 1
+    let tail = recover val _tail.clone() .> push(value) end
+    if tail.size() < 32 then
       // push value into tail
-      let tail = recover val _tail.clone() .> push(value) end
-      _create(_root, tail, _size + 1, _depth, _tail_offset)
-    elseif _tail_offset == _pow32(_depth.usize_unsafe()) then
+      _create(_root, tail, size', _depth)
+    elseif _tail_offset() == _Bits.next_pow32(_depth) then
       // create new root
       // push tail into root
-      // push value into new tail
-      let root =
-        try (_root as _VecNode[A]).new_root().push(_tail_offset, _tail)?
-        else _root
+      let depth' = _depth + 1
+      let root' =
+        match _root
+        | let r: _VecNode[A] =>
+          try r.grow_root().push(depth', _tail_offset(), tail)?
+          else r
+          end
+        | None => _VecNode[A](tail)
         end
-      let tail = recover val Array[A](1) .> push(value) end
-      _create(root, tail, _size + 1, _depth + 1, _tail_offset + 32)
+      _create(root', recover Array[A] end, size', depth')
     else
       // push tail into root
-      // push value into new tail
-      let root =
-        match _root
-        | let r: _VecNode[A] => try r.push(_tail_offset, _tail)? else r end
-        | None =>
-          let r = _VecNode[A].empty(1)
-          try r.push(0, _tail)? else r end
+      let root' =
+        try (_root as _VecNode[A]).push(_depth, _tail_offset(), tail)?
+        else _root
         end
-      let tail = recover val Array[A](1) .> push(value) end
-      _create(root, tail, _size + 1, _depth, _tail_offset + 32)
+      _create(root', recover Array[A] end, size', _depth)
     end
 
   fun val pop(): Vec[A] ? =>
     """
     Return a vector with the value at the end removed.
     """
-    if (_tail.size() > 0) or (_size == 1) then
-      let tail = recover val _tail.clone() .> pop()? end
-      _create(_root, tail, _size - 1, _depth, _tail_offset)
+    // root is popped when tail is empty
+    let size' = _size - 1
+    if _tail.size() > 0 then
+      let tail = _tail.trim(0, _tail.size() - 1)
+      _create(_root, tail, size', _depth)
     else
-      let tail_offset = _tail_offset - 32
-      (let root, let tail) = (_root as _VecNode[A]).pop(tail_offset)?
-      _create(root, tail, _size - 1, _depth, tail_offset)
+      (let root, var tail) = (_root as _VecNode[A]).pop(_depth, size')?
+      tail = tail.trim(0, tail.size() - 1)
+      if _depth == 0
+      then _create(None, tail, size', -1)
+      else _create(root, tail, size', _depth)
+      end
     end
 
   fun val concat(iter: Iterator[val->A]): Vec[A] =>
