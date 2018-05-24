@@ -817,7 +817,7 @@ class iso _TestFileFlush is UnitTest
 
         // Now expect to be able to see the data.
         with read_file = CreateFile(path) as File do
-          h.assert_eq[String]("foobar\n", read_file.read_string(7))
+          h.assert_eq[String]("foobar", "".join(read_file.lines()))
         end
       end
       path.remove()
