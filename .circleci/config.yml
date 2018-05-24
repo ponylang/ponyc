@@ -21,60 +21,32 @@ jobs:
       - run: find . -name '*.bash' -exec shellcheck {} \;
   llvm-600-debug:
     docker:
-      - image: ponylang/ponyc-ci:llvm-6.0.0
+      - image: ponylang/ponyc-ci:llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true
+      - run: make test-ci config=debug default_pic=true LLVM_PROJ=llvm-6.0.0
   llvm-600-release:
     docker:
-      - image: ponylang/ponyc-ci:llvm-6.0.0
+      - image: ponylang/ponyc-ci:llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true
-  llvm-501-debug:
-    docker:
-      - image: ponylang/ponyc-ci:llvm-5.0.1
-        user: pony
-    steps:
-      - checkout
-      - run: make test-ci config=debug default_pic=true
-  llvm-501-release:
-    docker:
-      - image: ponylang/ponyc-ci:llvm-5.0.1
-        user: pony
-    steps:
-      - checkout
-      - run: make test-ci config=release default_pic=true
-  llvm-401-debug:
-    docker:
-      - image: ponylang/ponyc-ci:llvm-4.0.1
-        user: pony
-    steps:
-      - checkout
-      - run: make test-ci config=debug default_pic=true
-  llvm-401-release:
-    docker:
-      - image: ponylang/ponyc-ci:llvm-4.0.1
-        user: pony
-    steps:
-      - checkout
-      - run: make test-ci config=release default_pic=true
+      - run: make test-ci config=release default_pic=true LLVM_PROJ=llvm-6.0.0
   llvm-391-debug:
     docker:
       - image: ponylang/ponyc-ci:llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true
+      - run: make test-ci config=debug default_pic=true LLVM_PROJ=llvm-3.9.1
   llvm-391-release:
     docker:
       - image: ponylang/ponyc-ci:llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true
+      - run: make test-ci config=release default_pic=true LLVM_PROJ=llvm-3.9.1
   openssl-110:
     docker:
       - image: ponylang/ponyc-ci:openssl-1.1.0
@@ -88,28 +60,28 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true
+      - run: make test-ci config=debug default_pic=true LLVM_PROJ=llvm-3.9.1
   alpine-llvm-391-release:
     docker:
       - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true
+      - run: make test-ci config=release default_pic=true LLVM_PROJ=llvm-3.9.1
   centos7-llvm-391-debug:
     docker:
       - image: ponylang/ponyc-ci:centos7-llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true use="llvm_link_static"
+      - run: make test-ci config=debug default_pic=true use="llvm_link_static" LLVM_PROJ=llvm-3.9.1
   centos7-llvm-391-release:
     docker:
       - image: ponylang/ponyc-ci:centos7-llvm-3.9.1
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true use="llvm_link_static"
+      - run: make test-ci config=release default_pic=true use="llvm_link_static" LLVM_PROJ=llvm-3.9.1
 
 workflows:
   version: 2
@@ -120,10 +92,6 @@ workflows:
       - validate-docker-image-builds
       - llvm-600-debug
       - llvm-600-release
-      - llvm-501-debug
-      - llvm-501-release
-      - llvm-401-debug
-      - llvm-401-release
       - llvm-391-debug
       - llvm-391-release
       - openssl-110

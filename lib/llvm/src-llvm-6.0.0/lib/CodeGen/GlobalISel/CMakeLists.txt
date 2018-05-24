@@ -1,0 +1,19 @@
+add_llvm_library(LLVMGlobalISel
+        CallLowering.cpp
+        GlobalISel.cpp
+        IRTranslator.cpp
+        InstructionSelect.cpp
+        InstructionSelector.cpp
+        LegalizerHelper.cpp
+        Legalizer.cpp
+        LegalizerInfo.cpp
+        Localizer.cpp
+        MachineIRBuilder.cpp
+        RegBankSelect.cpp
+        RegisterBank.cpp
+        RegisterBankInfo.cpp
+        Utils.cpp
+
+        DEPENDS
+        intrinsics_gen
+  )

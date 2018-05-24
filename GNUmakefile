@@ -6,28 +6,28 @@
 # and GNUmakefile will be removed.
 #
 # The version of llvm can be controlled by passing LLVM_PROJ on the command
-# line. The default is llvm 3.9.1, passing LLVM_PROJ=tags/RELEASE_600/final will
-# cause llvm 6.0.0 to be compiled.
+# line. The default is llvm-3.9.1 if its not specified and maybe set to
+# LLVM_PROJ=llvm-6.0.0.
 
 ROOT_DIR=$(shell pwd)
 llvm_dir=$(ROOT_DIR)/lib/llvm
-LLVM_PROJ=tags/RELEASE_391/final
+LLVM_PROJ=llvm-3.9.1
 
 PONY_LIB_LLVM=$(llvm_dir)
 LLVM_CONFIG=$(PONY_LIB_LLVM)/dist/bin/llvm-config
+
 NEW_PATH=$(PONY_LIB_LLVM)/dist/bin:$(PATH)
 
 pony_targets = libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
 pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples test-ci docs-online
 
-
 .PHONY: $(pony_targets)
 $(pony_targets): $(LLVM_CONFIG)
 	@PATH=$(NEW_PATH) $(MAKE) -f Makefile $(MAKECMDGOALS) $(MAKEFLAGS)
 
 $(LLVM_CONFIG):
-	@$(MAKE) -C $(PONY_LIB_LLVM) LLVM_PROJ=$(LLVM_PROJ)
+	@$(MAKE) -C $(PONY_LIB_LLVM) $(LLVM_PROJ)
 	@$(MAKE) -C $(PONY_LIB_LLVM) install
 
 clean:
@@ -56,9 +56,9 @@ help:
 	@echo '                       where Name is one of:'
 	@echo '                         openssl_0.9.0'
 	@echo '                         openssl_1.1.0'
-	@echo '  LLVM_PROJ=Tag        Make llvm the default Tag is tags/RELEASE_391/final'
-	@echo '                       other Tag values, such as tags/RELEASE_600/final'
-	@echo '                       are possible.'
+	@echo '  LLVM_PROJ=Proj       Make llvm where Proj is one of:'
+	@echo '                         llvm-3.9.1 (default)'
+	@echo '                         llvm-6.0.0'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
