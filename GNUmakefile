@@ -1,5 +1,10 @@
-# This GNUmakefile optionally invokes lib/llvm/Makefile if use=pony_lib_llvm is
-# provided on the command line and then compiles ponyc by invoking Makefile.
+# Since the current pony Makefile requires llvm-config to exist before
+# its run GNUmakefile will compile lib/llvm before invoking Makefile.
+# This works because gnu make searchs for GNUmakefile before Makefile.
+#
+# In the future compiling lib/llvm will be incorporated into Makefile
+# and GNUmakefile will be removed.
+#
 # The version of llvm can be controlled by passing LLVM_PROJ on the command
 # line. The default is llvm 3.9.1, passing LLVM_PROJ=tags/RELEASE_600/final will
 # cause llvm 6.0.0 to be compiled.
@@ -8,15 +13,9 @@ ROOT_DIR=$(shell pwd)
 llvm_dir=$(ROOT_DIR)/lib/llvm
 LLVM_PROJ=tags/RELEASE_391/final
 
-ifneq (,$(filter $(use), pony_lib_llvm))
-  PONY_LIB_LLVM=$(llvm_dir)
-  LLVM_CONFIG=$(PONY_LIB_LLVM)/dist/bin/llvm-config
-  NEW_PATH=$(PONY_LIB_LLVM)/dist/bin:$(PATH)
-  pre_targets=$(LLVM_CONFIG)
-else
-  NEW_PATH=$(PATH)
-  pre_targets=
-endif
+PONY_LIB_LLVM=$(llvm_dir)
+LLVM_CONFIG=$(PONY_LIB_LLVM)/dist/bin/llvm-config
+NEW_PATH=$(PONY_LIB_LLVM)/dist/bin:$(PATH)
 
 pony_targets = libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
@@ -24,10 +23,10 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 
 .PHONY: $(pony_targets)
-$(pony_targets): $(pre_targets)
+$(pony_targets): $(LLVM_CONFIG)
 	@PATH=$(NEW_PATH) $(MAKE) -f Makefile $(MAKECMDGOALS) $(MAKEFLAGS)
 
-$(PONY_LIB_LLVM)/dist/bin/llvm-config:
+$(LLVM_CONFIG):
 	@$(MAKE) -C $(PONY_LIB_LLVM) LLVM_PROJ=$(LLVM_PROJ)
 	@$(MAKE) -C $(PONY_LIB_LLVM) install
 
@@ -69,7 +68,6 @@ help:
 	@echo '   coverage'
 	@echo '   scheduler_scaling_pthreads'
 	@echo '   llvm_link_static'
-	@echo '   pony_lib_llvm'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'
