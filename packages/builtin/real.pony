@@ -257,6 +257,7 @@ trait val Integer[A: Integer[A] val] is Real[A]
   fun op_xor(y: A): A => this xor y
   fun op_not(): A => not this
 
+  fun bit_reverse(): A
   fun bswap(): A
 
 trait val _SignedInteger[A: _SignedInteger[A, B] val,

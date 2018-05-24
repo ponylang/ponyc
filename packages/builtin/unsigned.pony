@@ -10,6 +10,7 @@ primitive U8 is _UnsignedInteger[U8]
     1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U8 => this
+  fun bit_reverse(): U8 => @"llvm.bitreverse.i8"[U8](this)
   fun bswap(): U8 => this
   fun popcount(): U8 => @"llvm.ctpop.i8"[U8](this)
   fun clz(): U8 => @"llvm.ctlz.i8"[U8](this, false)
@@ -54,6 +55,7 @@ primitive U16 is _UnsignedInteger[U16]
     1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U16 => this
+  fun bit_reverse(): U16 => @"llvm.bitreverse.i16"[U16](this)
   fun bswap(): U16 => @"llvm.bswap.i16"[U16](this)
   fun popcount(): U16 => @"llvm.ctpop.i16"[U16](this)
   fun clz(): U16 => @"llvm.ctlz.i16"[U16](this, false)
@@ -98,6 +100,7 @@ primitive U32 is _UnsignedInteger[U32]
     1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U32 => this
+  fun bit_reverse(): U32 => @"llvm.bitreverse.i32"[U32](this)
   fun bswap(): U32 => @"llvm.bswap.i32"[U32](this)
   fun popcount(): U32 => @"llvm.ctpop.i32"[U32](this)
   fun clz(): U32 => @"llvm.ctlz.i32"[U32](this, false)
@@ -142,6 +145,7 @@ primitive U64 is _UnsignedInteger[U64]
     1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U64 => this
+  fun bit_reverse(): U64 => @"llvm.bitreverse.i64"[U64](this)
   fun bswap(): U64 => @"llvm.bswap.i64"[U64](this)
   fun popcount(): U64 => @"llvm.ctpop.i64"[U64](this)
   fun clz(): U64 => @"llvm.ctlz.i64"[U64](this, false)
@@ -199,6 +203,13 @@ primitive ULong is _UnsignedInteger[ULong]
     1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): ULong => this
+
+  fun bit_reverse(): ULong =>
+    ifdef ilp32 or llp64 then
+      @"llvm.bitreverse.i32"[ULong](this)
+    else
+      @"llvm.bitreverse.i64"[ULong](this)
+    end
 
   fun bswap(): ULong =>
     ifdef ilp32 or llp64 then
@@ -301,6 +312,13 @@ primitive USize is _UnsignedInteger[USize]
 
   fun abs(): USize => this
 
+  fun bit_reverse(): USize =>
+    ifdef ilp32 then
+      @"llvm.bitreverse.i32"[USize](this)
+    else
+      @"llvm.bitreverse.i64"[USize](this)
+    end
+
   fun bswap(): USize =>
     ifdef ilp32 then
       @"llvm.bswap.i32"[USize](this)
@@ -388,6 +406,7 @@ primitive U128 is _UnsignedInteger[U128]
     1 << (if x == 0 then 0 else bitwidth() - x end)
 
   fun abs(): U128 => this
+  fun bit_reverse(): U128 => @"llvm.bitreverse.i128"[U128](this)
   fun bswap(): U128 => @"llvm.bswap.i128"[U128](this)
   fun popcount(): U128 => @"llvm.ctpop.i128"[U128](this)
   fun clz(): U128 => @"llvm.ctlz.i128"[U128](this, false)
