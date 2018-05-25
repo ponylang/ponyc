@@ -18,7 +18,9 @@ RUN apt-get update \
   xz-utils \
   zlib1g-dev \
  && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz \
- | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8
+ | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8 \
+ && wget https://cmake.org/files/v3.10/cmake-3.10.3-Linux-x86_64.sh \
+ && sh cmake-3.10.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
 # install pcre2
 RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2 \
