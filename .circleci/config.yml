@@ -6,6 +6,13 @@ jobs:
     steps:
       - checkout
       - run: changelog-tool verify CHANGELOG.md
+  validate-docker-image-builds:
+      docker:
+        - image: docker:17.05.0-ce-git
+      steps:
+        - checkout
+        - setup_remote_docker
+        - run: docker build --cache-from=app -t app .
   validate-shell-scripts:
     docker:
       - image: ponylang/ponyc-ci:shellcheck
@@ -110,6 +117,7 @@ workflows:
     jobs:
       - verify-changelog
       - validate-shell-scripts
+      - validate-docker-image-builds
       - llvm-600-debug
       - llvm-600-release
       - llvm-501-debug
