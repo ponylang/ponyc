@@ -18,9 +18,6 @@ case "${TRAVIS_OS_NAME}" in
       set_linux_compiler
       ponyc-build-packages
       ponyc-build-docs
-      echo "DONE BUILDING"
-      echo "I'm within $(pwd) ..."
-      ls -al
     fi
   ;;
 
