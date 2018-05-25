@@ -13,6 +13,7 @@ download_llvm(){
   pushd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r ./* /tmp/llvm/
   sudo ln -s "/tmp/llvm/bin/llvm-config" "/usr/local/bin/${LLVM_CONFIG}"
   popd
+  popd
 }
 
 download_pcre(){
