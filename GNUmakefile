@@ -5,30 +5,30 @@
 # In the future compiling lib/llvm will be incorporated into Makefile
 # and GNUmakefile will be removed.
 #
-# The version of llvm can be controlled by passing LLVM_PROJ on the command
+# The version of llvm can be controlled by passing llvm_proj on the command
 # line. The default is llvm-3.9.1 if its not specified and maybe set to
-# LLVM_PROJ=llvm-6.0.0.
+# llvm_proj=llvm-6.0.0.
 
-ROOT_DIR=$(shell pwd)
-llvm_dir=$(ROOT_DIR)/lib/llvm
-LLVM_PROJ=llvm-3.9.1
+root_dir := $(shell pwd)
+llvm_dir := $(root_dir)/lib/llvm
+llvm_proj := llvm-3.9.1
 
-PONY_LIB_LLVM=$(llvm_dir)
-LLVM_CONFIG=$(PONY_LIB_LLVM)/dist/bin/llvm-config
+pony_lib_llvm := $(llvm_dir)
+llvm_config := $(pony_lib_llvm)/dist/bin/llvm-config
 
-NEW_PATH=$(PONY_LIB_LLVM)/dist/bin:$(PATH)
+new_path := $(pony_lib_llvm)/dist/bin:$(PATH)
 
-pony_targets = libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
+pony_targets := libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
 pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples test-ci docs-online
 
 .PHONY: $(pony_targets)
-$(pony_targets): $(LLVM_CONFIG)
-	@PATH=$(NEW_PATH) $(MAKE) -f Makefile $(MAKECMDGOALS) $(MAKEFLAGS)
+$(pony_targets): $(llvm_config)
+	@PATH=$(new_path) $(MAKE) -f Makefile $(MAKECMDGOALS) $(MAKEFLAGS)
 
-$(LLVM_CONFIG):
-	@$(MAKE) -C $(PONY_LIB_LLVM) $(LLVM_PROJ)
-	@$(MAKE) -C $(PONY_LIB_LLVM) install
+$(llvm_config):
+	@$(MAKE) -C $(pony_lib_llvm) $(llvm_proj)
+	@$(MAKE) -C $(pony_lib_llvm) install
 
 clean:
 	@$(MAKE) -f Makefile clean
@@ -56,7 +56,7 @@ help:
 	@echo '                       where Name is one of:'
 	@echo '                         openssl_0.9.0'
 	@echo '                         openssl_1.1.0'
-	@echo '  LLVM_PROJ=Proj       Make llvm where Proj is one of:'
+	@echo '  llvm_proj=Proj       Make llvm where Proj is one of:'
 	@echo '                         llvm-3.9.1 (default)'
 	@echo '                         llvm-6.0.0'
 	@echo

@@ -1,33 +1,33 @@
 # Build llvm library and optionally clang and compiler-rt
 # Based on [yurydelendik wasmllvm](https://gist.github.com/yurydelendik/4eeff8248aeb14ce763e)
 
-ROOT_DIR=$(shell pwd)
+ROOT_DIR := $(shell pwd)
 
 $(warning MAKECMDGOALS=$(MAKECMDGOALS) LLVM_PROJ=$(LLVM_PROJ))
 
 ifeq ($(MAKECMDGOALS),llvm-6.0.0)
-  LLVM_PROJ=llvm-6.0.0
+  LLVM_PROJ := llvm-6.0.0
 else ifeq ($(MAKECMDGOALS),llvm-3.9.1)
-  LLVM_PROJ=llvm-3.9.1
+  LLVM_PROJ := llvm-3.9.1
 else
-  LLVM_PROJ=llvm-3.9.1
+  LLVM_PROJ := llvm-3.9.1
   MAKECMDGOALS += llvm-3.9.1
 endif
 
-LLVM_SRCDIR=$(ROOT_DIR)/src-$(LLVM_PROJ)
-LLVM_BUILDDIR=$(ROOT_DIR)/build
+LLVM_SRCDIR := $(ROOT_DIR)/src-$(LLVM_PROJ)
+LLVM_BUILDDIR := $(ROOT_DIR)/build
 
-BUILD_ENGINE="Unix Makefiles"
-BUILD_TYPE=Release
-LLVM_INSTALLDIR=$(ROOT_DIR)/dist
-LINKER=bfd
+BUILD_ENGINE := "Unix Makefiles"
+BUILD_TYPE := Release
+LLVM_INSTALLDIR := $(ROOT_DIR)/dist
+LINKER := bfd
 
 ifeq ($(BUILD_ENGINE),Ninja)
-MAKE=ninja
-MAKEFILE=build.ninja
+MAKE := ninja
+MAKEFILE := build.ninja
 else
-MAKE=make
-MAKEFILE=Makefile
+MAKE := make
+MAKEFILE := Makefile
 endif
 
 $(LLVM_PROJ): built-llvm-$(LLVM_PROJ)
