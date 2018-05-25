@@ -25,6 +25,7 @@ RUN apt-get update \
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/
+COPY benchmark /src/ponyc/benchmark
 COPY src      /src/ponyc/src
 COPY lib      /src/ponyc/lib
 COPY test     /src/ponyc/test
