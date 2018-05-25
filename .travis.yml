@@ -46,6 +46,7 @@ deploy:
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_debian.json
+    skip_cleanup: true
     on:
       branch: release
       condition: "$RELEASE_CONFIG == yes"
@@ -56,6 +57,7 @@ deploy:
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_rpm.json
+    skip_cleanup: true
     on:
       branch: release
       condition: "$RELEASE_CONFIG == yes"
@@ -65,6 +67,7 @@ deploy:
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_source.json
+    skip_cleanup: true
     on:
       branch: release
       condition: "$RELEASE_CONFIG == yes"
