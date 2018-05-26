@@ -19,69 +19,83 @@ jobs:
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
-  llvm-600-debug:
+  ubuntu-llvm-600-debug:
     docker:
-      - image: ponylang/ponyc-ci:llvm-3.9.1
+      - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true LLVM_PROJ=llvm-6.0.0
-  llvm-600-release:
+      - run: make test-ci -j10 config=debug default_pic=true llvm_proj=llvm-6.0.0
+  ubuntu-llvm-600-release:
     docker:
-      - image: ponylang/ponyc-ci:llvm-3.9.1
+      - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true LLVM_PROJ=llvm-6.0.0
-  llvm-391-debug:
+      - run: make test-ci -j10 config=release default_pic=true llvm_proj=llvm-6.0.0
+  ubuntu-debug:
     docker:
-      - image: ponylang/ponyc-ci:llvm-3.9.1
+      - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true LLVM_PROJ=llvm-3.9.1
-  llvm-391-release:
+      - run: make test-ci -j10 config=debug default_pic=true llvm_proj=llvm-3.9.1
+  ubuntu-release:
     docker:
-      - image: ponylang/ponyc-ci:llvm-3.9.1
+      - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true LLVM_PROJ=llvm-3.9.1
-  openssl-110:
+      - run: make test-ci -j10 config=release default_pic=true llvm_proj=llvm-3.9.1
+  ubuntu-openssl-110:
     docker:
-      - image: ponylang/ponyc-ci:openssl-1.1.0
+      - image: ponylang/ponyc-ci:ubuntu-openssl-1.1.0
         user: pony
     steps:
       - checkout
-      - run: make test-ci default_ssl=openssl_1.1.0 default_pic=true
-  alpine-llvm-391-debug:
+      - run: make test-ci -j10 default_ssl=openssl_1.1.0 default_pic=true
+  alpine-debug:
     docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
+      - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true LLVM_PROJ=llvm-3.9.1
-  alpine-llvm-391-release:
+      - run: make test-ci verbose=1 -j10 config=debug default_pic=true llvm_proj=llvm-3.9.1
+  alpine-release:
     docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
+      - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true LLVM_PROJ=llvm-3.9.1
-  centos7-llvm-391-debug:
+      - run: make test-ci verbose=1 -j10 config=release default_pic=true llvm_proj=llvm-3.9.1
+  alpine-llvm-600-release:
     docker:
-      - image: ponylang/ponyc-ci:centos7-llvm-3.9.1
+      - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=debug default_pic=true use="llvm_link_static" LLVM_PROJ=llvm-3.9.1
-  centos7-llvm-391-release:
+      - run: make test-ci verbose=1 -j10 config=release default_pic=true llvm_proj=llvm-6.0.0
+  centos7-debug:
     docker:
-      - image: ponylang/ponyc-ci:centos7-llvm-3.9.1
+      - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: make test-ci config=release default_pic=true use="llvm_link_static" LLVM_PROJ=llvm-3.9.1
+      - run: make test-ci -j10 config=debug default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
+  centos7-release:
+    docker:
+      - image: ponylang/ponyc-ci:centos7
+        user: pony
+    steps:
+      - checkout
+      - run: make test-ci -j10 config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
+  centos7-llvm-600-release:
+    docker:
+      - image: ponylang/ponyc-ci:centos7
+        user: pony
+    steps:
+      - checkout
+      - run: make test-ci -j10 config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-6.0.0
 
 workflows:
   version: 2
@@ -90,12 +104,14 @@ workflows:
       - verify-changelog
       - validate-shell-scripts
       - validate-docker-image-builds
-      - llvm-600-debug
-      - llvm-600-release
-      - llvm-391-debug
-      - llvm-391-release
-      - openssl-110
-      - alpine-llvm-391-debug
-      - alpine-llvm-391-release
-      - centos7-llvm-391-debug
-      - centos7-llvm-391-release
+      - ubuntu-llvm-600-debug
+      - ubuntu-llvm-600-release
+      - ubuntu-debug
+      - ubuntu-release
+      - ubuntu-openssl-110
+      - alpine-debug
+      - alpine-release
+      - alpine-llvm-600-release
+      - centos7-debug
+      - centos7-release
+      - centos7-llvm-600-release
