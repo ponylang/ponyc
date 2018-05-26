@@ -14,7 +14,8 @@ RUN apt-get update \
   make \
   wget \
   xz-utils \
-  zlib1g-dev
+  zlib1g-dev \
+  python
 
 # install pcre2
 RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2 \

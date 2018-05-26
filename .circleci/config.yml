@@ -49,7 +49,7 @@ jobs:
       - run: make test-ci -j10 config=release default_pic=true llvm_proj=llvm-3.9.1
   ubuntu-openssl-110:
     docker:
-      - image: ponylang/ponyc-ci:ubuntu-openssl-1.1.0
+      - image: ponylang/ponyc-ci:ubuntu-openssl_1.1.0
         user: pony
     steps:
       - checkout

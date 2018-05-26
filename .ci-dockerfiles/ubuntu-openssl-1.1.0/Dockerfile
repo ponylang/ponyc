@@ -11,7 +11,8 @@ RUN apt-get update \
   make \
   wget \
   xz-utils \
-  zlib1g-dev
+  zlib1g-dev \
+  python
 
  RUN wget https://www.openssl.org/source/openssl-1.1.0.tar.gz \
    && tar xf openssl-1.1.0.tar.gz \
