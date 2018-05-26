@@ -9,7 +9,7 @@ In order to do a release, you absolutely must have:
 * Commit access to the `ponyc` repo
 * The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 
-While not strictly required, you life will be made much easier if you:
+While not strictly required, your life will be made much easier if you:
 
 * Have a [bintray account](https://bintray.com/) and have been granted access `pony-language` organization by a "release admin".
 * Have read and write access to the ponylang [travis-ci](https://travis-ci.org) account
