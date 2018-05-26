@@ -1,6 +1,5 @@
 #define __STDC_FORMAT_MACROS
 #include "cycle.h"
-#include "../asio/asio.h"
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
 #include "../ds/stack.h"
@@ -822,10 +821,6 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
     {
       // check for blocked actors/cycles
       check_blocked(ctx, d);
-
-      // re-arm timer for next check
-      asio_msg_t* m = (asio_msg_t*)msg;
-      pony_asio_event_setnsec(m->event, d->detect_interval);
       break;
     }
 
@@ -890,7 +885,7 @@ static pony_type_t cycle_type =
   NULL,
   cycle_dispatch,
   NULL,
-  ACTORMSG_CHECKBLOCKED, // event_notify
+  0,
   NULL,
   NULL,
   NULL
@@ -912,8 +907,30 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
 
   detector_t* d = (detector_t*)cycle_detector;
 
-  //convert to nanos
-  d->detect_interval = detect_interval * 1000000;
+  // convert to cycles for use with ponyint_cpu_tick()
+  // 1 second = 2000000000 cycles (approx.)
+  // based on same scale as ponyint_cpu_core_pause() uses
+  d->detect_interval = detect_interval * 2000000;
+}
+
+bool ponyint_cycle_check_blocked(pony_ctx_t* ctx, uint64_t tsc, uint64_t tsc2)
+{
+  // if tsc > tsc2 then don't trigger cycle detector
+  // this is used to ensure scheduler queue is empty during
+  // termination
+  if(tsc > tsc2)
+    return false;
+
+  detector_t* d = (detector_t*)cycle_detector;
+
+  // if enough time has passed, trigger cycle detector
+  if((tsc2 - tsc) > d->detect_interval)
+  {
+    pony_send(ctx, cycle_detector, ACTORMSG_CHECKBLOCKED);
+    return true;
+  }
+
+  return false;
 }
 
 void ponyint_cycle_actor_created(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -970,36 +987,4 @@ void ponyint_cycle_terminate(pony_ctx_t* ctx)
 bool ponyint_is_cycle(pony_actor_t* actor)
 {
   return actor == cycle_detector;
-}
-
-asio_event_t* ponyint_cycle_create_timer()
-{
-  // if block messages are disabled don't create the timer
-  if(ponyint_actor_getnoblock())
-    return NULL;
-
-  detector_t* d = (detector_t*)cycle_detector;
-
-  // create non-noisy timer for cycle detector
-  // asio backend will dispose of it on shutdown
-  // can't use pony_asio_event_create because it tries to
-  // trace the event for GC purposes and that is not a
-  // good idea when the actor is the cycle detector
-  pony_type_t* type = *(pony_type_t**)cycle_detector;
-  uint32_t msg_id = type->event_notify;
-
-  asio_event_t* ev = POOL_ALLOC(asio_event_t);
-
-  ev->magic = ev;
-  ev->owner = cycle_detector;
-  ev->msg_id = msg_id;
-  ev->fd = 0;
-  ev->flags = ASIO_TIMER;
-  ev->noisy = false;
-  ev->nsec = d->detect_interval;
-  ev->writeable = false;
-  ev->readable = false;
-
-  pony_asio_event_subscribe(ev);
-  return ev;
 }

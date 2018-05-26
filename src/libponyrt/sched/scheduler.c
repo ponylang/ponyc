@@ -30,6 +30,7 @@ typedef enum
 } sched_msg_t;
 
 // Scheduler global data.
+static uint64_t last_cd_tsc;
 static uint32_t scheduler_count;
 static uint32_t min_scheduler_count;
 static PONY_ATOMIC(uint32_t) active_scheduler_count;
@@ -315,6 +316,13 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 
   if(sched->ack_count >= current_active_scheduler_count)
   {
+    // mark last cycle detector tsc as something huge to ensure
+    // cycle detector will not get triggered
+    // this is required to ensure scheduler queues are empty
+    // upon termination
+    uint64_t saved_last_cd_tsc = last_cd_tsc;
+    last_cd_tsc = -1;
+
     if(sched->asio_stoppable && ponyint_asio_stop())
     {
       // successfully stopped ASIO thread
@@ -332,9 +340,17 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 
       // Run another CNF/ACK cycle.
       send_msg_all_active(sched->index, SCHED_CNF, sched->ack_token);
+
+      // restore last cycle detector tsc to re-enable cycle detector
+      // triggering
+      last_cd_tsc = saved_last_cd_tsc;
     } else {
       // ASIO is not stoppable
       sched->asio_stoppable = false;
+
+      // restore last cycle detector tsc to re-enable cycle detector
+      // triggering
+      last_cd_tsc = saved_last_cd_tsc;
     }
   }
 
@@ -726,6 +742,22 @@ static pony_actor_t* steal(scheduler_t* sched)
       if (actor != NULL)
         break;
     }
+
+    // if we're scheduler 0 and cycle detection is enabled
+    if((sched->index == 0) && !ponyint_actor_getnoblock())
+    {
+      // trigger cycle detector by sending it a message if it is time
+      uint64_t current_tsc = ponyint_cpu_tick();
+      if(ponyint_cycle_check_blocked(&sched->ctx, last_cd_tsc, current_tsc))
+      {
+        last_cd_tsc = current_tsc;
+
+        // cycle detector should now be on the queue
+        actor = pop_global(sched);
+        if(actor != NULL)
+          break;
+      }
+    }
   }
 
   if(block_sent)
@@ -745,6 +777,7 @@ static pony_actor_t* steal(scheduler_t* sched)
  */
 static void run(scheduler_t* sched)
 {
+  last_cd_tsc = 0;
   pony_actor_t* actor = pop_global(sched);
   if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
     DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
@@ -752,6 +785,21 @@ static void run(scheduler_t* sched)
 
   while(true)
   {
+    // if we're scheduler 0 and cycle detection is enabled
+    if((sched->index == 0) && !ponyint_actor_getnoblock())
+    {
+      // trigger cycle detector by sending it a message if it is time
+      uint64_t current_tsc = ponyint_cpu_tick();
+      if(ponyint_cycle_check_blocked(&sched->ctx, last_cd_tsc, current_tsc))
+      {
+        last_cd_tsc = current_tsc;
+
+        // cycle detector should now be on the queue
+        if(actor == NULL)
+          actor = pop_global(sched);
+      }
+    }
+
     // In response to reading a message, we might have unmuted an actor and
     // added it back to our queue. if we don't have an actor to run, we want
     // to pop from our queue to check for a recently unmuted actor

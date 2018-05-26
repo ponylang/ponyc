@@ -4,7 +4,6 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
-#include "../gc/cycle.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
 #include "ponyassert.h"
@@ -178,8 +177,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pthread_sigmask(SIG_BLOCK, &set, NULL);
 #endif
 
-  asio_event_t* cd_timer_event = ponyint_cycle_create_timer();
-
   struct kevent fired[MAX_EVENTS];
 
   while(b->kq != -1)
@@ -256,27 +253,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     }
 
     handle_queue(b);
-  }
-
-  // destory cycle detector timer event
-  if(cd_timer_event)
-  {
-    struct kevent event[1];
-
-    if(cd_timer_event->flags & ASIO_TIMER)
-    {
-      EV_SET(&event[0], (uintptr_t)cd_timer_event, EVFILT_TIMER, EV_DELETE,
-        0, 0, cd_timer_event);
-    }
-
-    kevent(b->kq, event, 1, NULL, 0, NULL);
-
-    // can't use pony_asio_event_destroy because it tries to
-    // trace the event for GC purposes and that is not a
-    // good idea when the actor is the cycle detector
-    POOL_FREE(asio_event_t, cd_timer_event);
-
-    cd_timer_event = NULL;
   }
 
   ponyint_messageq_destroy(&b->q);
