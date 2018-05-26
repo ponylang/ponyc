@@ -90,9 +90,7 @@ During the time since you push to the release branch, Travis CI and Appveyor hav
 
 The pattern for releases is similar as what we previously saw. In the case of RPM and Deb, the versions look something like:
 
-`0.3.1-1885.8a8ee28`
-
-where the `1885` is the Travis build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
+`0.3.1`
 
 For windows, the versions look something like:
 
