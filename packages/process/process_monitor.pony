@@ -242,12 +242,13 @@ actor ProcessMonitor
     end
 
     let ok = try
-      FileInfo(filepath)?.mode.any_exec
+      FileInfo(filepath)?.file
     else
       false
     end
     if not ok then
-      // path is to a non-executable file or that file doesn't exist
+      // unable to stat the file path given so it may not exist
+      // or may be a directory.
       _notifier.failed(this, ExecveError)
       return
     end

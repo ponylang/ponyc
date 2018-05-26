@@ -9,7 +9,7 @@ In order to do a release, you absolutely must have:
 * Commit access to the `ponyc` repo
 * The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 
-While not strictly required, you life will be made much easier if you:
+While not strictly required, your life will be made much easier if you:
 
 * Have a [bintray account](https://bintray.com/) and have been granted access `pony-language` organization by a "release admin".
 * Have read and write access to the ponylang [travis-ci](https://travis-ci.org) account
@@ -90,9 +90,7 @@ During the time since you push to the release branch, Travis CI and Appveyor hav
 
 The pattern for releases is similar as what we previously saw. In the case of RPM and Deb, the versions look something like:
 
-`0.3.1-1885.8a8ee28`
-
-where the `1885` is the Travis build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
+`0.3.1`
 
 For windows, the versions look something like:
 
@@ -137,6 +135,18 @@ If this is an "emergency release" that is designed to get a high priority bug fi
 Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
+
+### Add to "Last Week in Pony"
+
+Last Week in Pony is our weekly newsletter. Add information about the release, including a link to the release notes, to the [current Last Week in Pony](https://github.com/ponylang/ponylang.github.io/issues?q=is%3Aissue+is%3Aopen+label%3Alast-week-in-pony).
+
+### Post release notes to Link aggregators
+
+All Pony releases should be posted to:
+
+- [/r/ponylang](https://www.reddit.com/r/ponylang/)
+- [Hacker News](https://news.ycombinator.com/)
+- [Lobste.rs](https://lobste.rs/)
 
 ### Close the GitHub issue
 

@@ -19,9 +19,12 @@ download_llvm(){
 download_pcre(){
   echo "Downloading and building PCRE2..."
 
-  wget "ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2"
+  git lfs clone -I "pcre2-10.21.tar.bz2" https://github.com/ponylang/ponyc-llvm-dependencies.git pcre-dependencies
+
+  pushd pcre-dependencies
   tar -xjf pcre2-10.21.tar.bz2
   pushd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install
+  popd
   popd
 }
 

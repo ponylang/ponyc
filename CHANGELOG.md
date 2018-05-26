@@ -2,6 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.22.2] - 2018-05-26
+
+### Fixed
+
+- Relax ProcessMonitor checks for execute bits ([PR #2717](https://github.com/ponylang/ponyc/pull/2717))
+
 ## [0.22.1] - 2018-05-25
 
 ### Fixed
