@@ -109,8 +109,8 @@ workflows:
       - ubuntu-debug
       - ubuntu-release
       - ubuntu-openssl-110
-      - alpine-debug
-      - alpine-release
+      #- alpine-debug
+      #- alpine-release
       - alpine-llvm-600-release
       - centos7-debug
       - centos7-release
