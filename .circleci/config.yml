@@ -25,77 +25,77 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=debug default_pic=true llvm_proj=llvm-6.0.0
+      - run: make test-ci config=debug default_pic=true llvm_proj=llvm-6.0.0
   ubuntu-llvm-600-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=release default_pic=true llvm_proj=llvm-6.0.0
+      - run: make test-ci config=release default_pic=true llvm_proj=llvm-6.0.0
   ubuntu-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=debug default_pic=true llvm_proj=llvm-3.9.1
+      - run: make test-ci config=debug default_pic=true llvm_proj=llvm-3.9.1
   ubuntu-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=release default_pic=true llvm_proj=llvm-3.9.1
+      - run: make test-ci config=release default_pic=true llvm_proj=llvm-3.9.1
   ubuntu-openssl-110:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl_1.1.0
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 default_ssl=openssl_1.1.0 default_pic=true
+      - run: make test-ci default_ssl=openssl_1.1.0 default_pic=true
   alpine-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make test-ci verbose=1 -j10 config=debug default_pic=true llvm_proj=llvm-3.9.1
+      - run: make test-ci verbose=1 config=debug default_pic=true llvm_proj=llvm-3.9.1
   alpine-release:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make test-ci verbose=1 -j10 config=release default_pic=true llvm_proj=llvm-3.9.1
+      - run: make test-ci verbose=1 config=release default_pic=true llvm_proj=llvm-3.9.1
   alpine-llvm-600-release:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make test-ci verbose=1 -j10 config=release default_pic=true llvm_proj=llvm-6.0.0
+      - run: make test-ci verbose=1 config=release default_pic=true llvm_proj=llvm-6.0.0
   centos7-debug:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=debug default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
+      - run: make test-ci config=debug default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
   centos7-release:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
+      - run: make test-ci config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
   centos7-llvm-600-release:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: make test-ci -j10 config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-6.0.0
+      - run: make test-ci config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-6.0.0
 
 workflows:
   version: 2
