@@ -30,15 +30,15 @@ $(llvm_config):
 	@$(MAKE) -C $(pony_lib_llvm) $(llvm_proj)
 	@$(MAKE) -C $(pony_lib_llvm) install
 
+.PHONY: clean
 clean:
 	@$(MAKE) -f Makefile clean
 
+.PHONY: clean-all
 clean-all: clean
 	@$(MAKE) -C lib/llvm clean
 
-distclean: clean-all
-	@$(MAKE) -C lib/llvm distclean
-
+.PHONY: help
 help:
 	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
 	@echo
@@ -87,5 +87,4 @@ help:
 	@echo '  stats                  Print Pony cloc statistics'
 	@echo '  clean                  Delete all build files but nothing in $(llvm_dir)'
 	@echo '  clean-all              clean plus clean $(llvm_dir)'
-	@echo '  distclean              clean-all plus distclean $(llvm_dir)'
 	@echo
