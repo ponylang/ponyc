@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Relax ProcessMonitor checks for execute bits ([PR #2717](https://github.com/ponylang/ponyc/pull/2717))
 
 ### Added
 
