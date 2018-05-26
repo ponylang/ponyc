@@ -138,6 +138,10 @@ Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony 
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
+### Add to "Last Week in Pony"
+
+Last Week in Pony is our weekly newsletter. Add information about the release, including a link to the release notes, to the [current Last Week in Pony](https://github.com/ponylang/ponylang.github.io/issues?q=is%3Aissue+is%3Aopen+label%3Alast-week-in-pony).
+
 ### Close the GitHub issue
 
 Close the GitHub issue for this release.
