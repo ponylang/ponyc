@@ -1,4 +1,5 @@
-# Build llvm library and optionally clang and compiler-rt
+# Build llvm library
+#
 # Based on [yurydelendik wasmllvm](https://gist.github.com/yurydelendik/4eeff8248aeb14ce763e)
 
 ROOT_DIR := $(shell pwd)
