@@ -694,7 +694,7 @@ define CONFIGURE_LINKER_WHOLE
 endef
 
 define CONFIGURE_LINKER
-  $(eval linkcmd := $(LINKER_FLAGS) -L $(lib) -L /usr/local/lib )
+  $(eval linkcmd := $(LINKER_FLAGS) -L $(lib))
   $(eval linker := $(CC))
   $(eval libs :=)
 
@@ -706,7 +706,7 @@ define CONFIGURE_LINKER
 
   $(eval $(call CONFIGURE_LINKER_WHOLE,$(1)))
   $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
-  linkcmd += $(libs) $($(1).linkoptions)
+  linkcmd += $(libs) -L $(libdir) $($(1).linkoptions)
 endef
 
 define PREPARE
