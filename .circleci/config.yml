@@ -214,10 +214,10 @@ workflows:
       #- centos7-llvm-391-debug
       #- centos7-llvm-391-release
       # Jobs for building and testing with ponyc vendor lib/llvm
-      - ubuntu-llvm-600-debug
-      - ubuntu-llvm-600-release
+      #- ubuntu-llvm-600-debug
+      #- ubuntu-llvm-600-release
       - ubuntu-debug
-      - ubuntu-release
+      #- ubuntu-release
       #- ubuntu-openssl-110
       #- alpine-debug
       #- alpine-release
