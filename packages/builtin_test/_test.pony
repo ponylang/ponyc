@@ -1100,7 +1100,7 @@ class iso _TestStringConcatOffsetLen is UnitTest
   fun name(): String => "builtin/String.concat"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String](recover String .> concat("ABCD".values(), 1, 2) end, "BC")
+    h.assert_eq[String](recover String.>concat("ABCD".values(), 1, 2) end, "BC")
 
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
