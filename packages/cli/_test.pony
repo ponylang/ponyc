@@ -373,7 +373,7 @@ class iso _TestOptionStop is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS=astring"; "-I=42"; "-F=42.0"
+      "-BS=astring"; "-I=42"; "-F=42.0"; "-U=23"
       "--"; "-f=1.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)

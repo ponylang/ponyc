@@ -58,6 +58,7 @@ actor Main is TestList
     builtin_test.Main.make().tests(test)
     buffered.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
+    cli.Main.make().tests(test)
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
     crypto.Main.make().tests(test)
