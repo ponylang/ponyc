@@ -880,12 +880,14 @@ actor Main
 
       n = 0
 
-      while n < len do
+      while (n < len) or (len == USize(-1)) do
         if iter.has_next() then
           push(iter.next()?)
         else
           return
         end
+
+        n = n + 1
       end
     end
 
