@@ -704,7 +704,7 @@ define CONFIGURE_LINKER
 
   $(eval $(call CONFIGURE_LINKER_WHOLE,$(1)))
   $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
-  linkcmd += $(libs) -L $(libdir) $($(1).linkoptions)
+  linkcmd += $(libs) -L /usr/local/lib $($(1).linkoptions)
 endef
 
 define PREPARE
