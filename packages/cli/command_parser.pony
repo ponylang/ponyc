@@ -195,7 +195,7 @@ class CommandParser
     end
 
     // Specifying only the parent and not a leaf command is an error.
-    if _spec.commands().size() > 0 then
+    if _spec.is_parent() then
       return SyntaxError(_spec.name(), "missing subcommand")
     end
 
