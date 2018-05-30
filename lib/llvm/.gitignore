@@ -1,5 +1,4 @@
-build/
-bin/
-src/
-built-*
-installed-*
+/build/
+/dist/
+/built-*
+/installed-*
