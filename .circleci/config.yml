@@ -128,14 +128,16 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true llvm_proj=llvm-6.0.0
+      - run: echo 'export llvm_ver=6.0.0; export config=debug' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
   ubuntu-llvm-600-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true llvm_proj=llvm-6.0.0
+      - run: echo 'export llvm_ver=6.0.0; export config=release' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
   ubuntu-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
@@ -143,7 +145,6 @@ jobs:
     steps:
       - checkout
       - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      #- run: echo 'export config=debug' >> $BASH_ENV; source $BASH_ENV
       - run: *make-lib-llvm
   ubuntu-release:
     docker:
@@ -153,81 +154,73 @@ jobs:
       - checkout
       - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
       - run: *make-lib-llvm
-      #- run: make -f Makefile-lib-llvm test-ci config=release default_pic=true llvm_proj=llvm-3.9.1
   ubuntu-openssl-110:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl_1.1.0
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci default_ssl=openssl_1.1.0 default_pic=true
+      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
   alpine-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci verbose=1 config=debug default_pic=true llvm_proj=llvm-3.9.1
+      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
   alpine-release:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci verbose=1 config=release default_pic=true llvm_proj=llvm-3.9.1
-  alpine-llvm-600-release:
-    docker:
-      - image: ponylang/ponyc-ci:alpine
-        user: pony
-    steps:
-      - checkout
-      - run: make -f Makefile-lib-llvm test-ci verbose=1 config=release default_pic=true llvm_proj=llvm-6.0.0
+      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
   centos7-debug:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
+      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
   centos7-release:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-3.9.1
-  centos7-llvm-600-release:
-    docker:
-      - image: ponylang/ponyc-ci:centos7
-        user: pony
-    steps:
-      - checkout
-      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true use="llvm_link_static" llvm_proj=llvm-6.0.0
+      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
 
 workflows:
   version: 2
   tests:
     jobs:
-      #- verify-changelog
-      #- validate-shell-scripts
-      #- validate-docker-image-builds
+      - verify-changelog
+      - validate-shell-scripts
+      - validate-docker-image-builds
+
       # Run jobs building and testing with the system installed llvm
-      #- llvm-600-debug
-      #- llvm-600-release
-      #- llvm-501-debug
-      #- llvm-501-release
-      #- llvm-401-debug
-      #- llvm-401-release
-      #- llvm-391-debug
-      #- llvm-391-release
-      #- openssl-110
-      #- alpine-llvm-391-debug
-      #- alpine-llvm-391-release
-      #- centos7-llvm-391-debug
-      #- centos7-llvm-391-release
+      - llvm-600-debug
+      - llvm-600-release
+      - llvm-501-debug
+      - llvm-501-release
+      - llvm-401-debug
+      - llvm-401-release
+      - llvm-391-debug
+      - llvm-391-release
+      - openssl-110
+      - alpine-llvm-391-debug
+      - alpine-llvm-391-release
+      - centos7-llvm-391-debug
+      - centos7-llvm-391-release
+
       # Jobs for building and testing with ponyc vendor lib/llvm
-      #- ubuntu-llvm-600-debug
-      #- ubuntu-llvm-600-release
+      - ubuntu-llvm-600-debug
+      - ubuntu-llvm-600-release
       - ubuntu-debug
       - ubuntu-release
       #- ubuntu-openssl-110
