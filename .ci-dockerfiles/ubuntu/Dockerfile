@@ -26,8 +26,9 @@ RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.b
  && cd .. \
  && rm -rf pcre2-10.21*
 
-RUN wget https://cmake.org/files/v3.10/cmake-3.10.3-Linux-x86_64.sh \
- && sh cmake-3.10.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
+# install a newer cmake, ubuntu's is to old
+RUN wget https://cmake.org/files/v3.11/cmake-3.11.2-Linux-x86_64.sh \
+ && sh cmake-3.11.2-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
 # add user pony in order to not run tests as root
 RUN useradd -ms /bin/bash -d /home/pony -g root pony
