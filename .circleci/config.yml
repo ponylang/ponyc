@@ -136,14 +136,10 @@ jobs:
       - checkout
       - run:
           command: |
-            cmake --version
-            nproc --all
-            lscpu | grep -E '^Thread|^Core|^Socket|^CPU\('
-            echo 'if (( $(nproc --all) > 1 )); then (( cnt=$(nproc --all) / 2 )); else cnt=1; fi; export CPUs=$cnt;' >> $BASH_ENV
-            source $BASH_ENV
-            echo CPUS=$CPUs
-
-            ls -al lib/llvm/src-llvm-3.9.1/utils/unittest/googletest/src
+            #echo 'if (( $(nproc) > 1 )); then (( cnt=$(nproc) / 2 )); else cnt=1; fi; export CPUs=$cnt;' >> $BASH_ENV
+            #source $BASH_ENV
+            CPUs=1
+            #echo CPUS=$CPUs
             make -f Makefile-lib-llvm test-ci -j$CPUs config=debug default_pic=true llvm_proj=llvm-3.9.1
   ubuntu-release:
     docker:
