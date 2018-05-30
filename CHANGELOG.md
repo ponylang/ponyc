@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix String.concat ignoring the len parameter ([PR #2723](https://github.com/ponylang/ponyc/pull/2723))
 
 ### Added
 
