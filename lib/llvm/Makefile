@@ -21,7 +21,14 @@ LLVM_BUILDDIR := $(ROOT_DIR)/build
 BUILD_ENGINE := "Unix Makefiles"
 BUILD_TYPE := Release
 LLVM_INSTALLDIR := $(ROOT_DIR)/dist
+
 LINKER := bfd
+ifeq (llvm-3.9.1,$(LLVM_PROJ))
+  # 3.9.1 doesn't supprot -DLLVM_USE_LINKER so make it empty to supress a warning
+  USE_LINKER=
+else
+  USE_LINKER=-DLLVM_USE_LINKER=$(LINKER)
+endif
 
 ifeq ($(BUILD_ENGINE),Ninja)
 MAKE := ninja
@@ -61,5 +68,5 @@ $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ):
 	@echo generate $(LLVM_PROJ) makefile
 	$(MAKE) clean
 	mkdir -p $(LLVM_BUILDDIR)
-	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) $(VERBOSE_CMAKE) -DLLVM_USE_LINKER=$(LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALLDIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_SRCDIR)
+	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) $(VERBOSE_CMAKE) $(USE_LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALLDIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_SRCDIR)
 	@touch $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ)
