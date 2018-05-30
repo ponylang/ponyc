@@ -4,7 +4,7 @@
 
 ROOT_DIR := $(shell pwd)
 
-$(warning MAKECMDGOALS=$(MAKECMDGOALS) LLVM_PROJ=$(LLVM_PROJ))
+$(warning MAKECMDGOALS=$(MAKECMDGOALS) llvm_proj=$(llvm_proj))
 
 ifeq ($(MAKECMDGOALS),llvm-6.0.0)
   LLVM_PROJ := llvm-6.0.0
