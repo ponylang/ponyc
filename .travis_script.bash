@@ -16,6 +16,7 @@ case "${TRAVIS_OS_NAME}" in
       download_llvm
       download_pcre
       set_linux_compiler
+      ponyc-kickoff-copr-ppa
       ponyc-build-packages
       ponyc-build-docs
     fi
