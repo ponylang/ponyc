@@ -333,7 +333,8 @@ static bool link_exe(compile_t* c, ast_t* program,
   bool fallback_linker = false;
   const char* linker = c->opt->linker != NULL ? c->opt->linker :
     env_cc_or_pony_compiler(&fallback_linker);
-  const char* mcx16_arg = target_is_ilp32(c->opt->triple) ? "" : "-mcx16";
+  const char* mcx16_arg = (target_is_lp64(c->opt->triple)
+    && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
   const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
