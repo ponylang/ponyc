@@ -51,6 +51,7 @@ actor Main is TestList
     test(_TestStringRecalc)
     test(_TestStringTruncate)
     test(_TestStringChop)
+    test(_TestStringConcatOffsetLen)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -1091,6 +1092,15 @@ class iso _TestStringChop is UnitTest
     (let left: String iso, let right: String iso) = (consume orig).chop(split_point)
     h.assert_eq[String box](expected_left, consume left)
     h.assert_eq[String box](expected_right, consume right)
+
+class iso _TestStringConcatOffsetLen is UnitTest
+  """
+  Test String.concat working correctly for non-default offset and len arguments
+  """
+  fun name(): String => "builtin/String.concat"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String](recover String.>concat("ABCD".values(), 1, 2) end, "BC")
 
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"

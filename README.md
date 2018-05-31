@@ -38,6 +38,7 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
     - [pony-snippets](https://github.com/SeanTAllen/pony-snippets)
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 * Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
+* Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
 
 # Installation
 
