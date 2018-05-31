@@ -40,7 +40,7 @@ ponyc-kickoff-copr-ppa(){
   echo "Kicking off ponyc packaging for PPA..."
   wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
   tar -xvzf "ponyc_${package_version}.orig.tar.gz"
-  cd "ponyc-${package_version}"
+  pushd "ponyc-${package_version}"
   cp -r .packaging/deb debian
   cp LICENSE debian/copyright
 
@@ -79,6 +79,9 @@ ponyc-kickoff-copr-ppa(){
   # COPR for fedora/centos/suse
   echo "Kicking off ponyc packaging for COPR..."
   docker run -it --rm -e COPR_LOGIN="${COPR_LOGIN}" -e COPR_USERNAME=ponylang -e COPR_TOKEN="${COPR_TOKEN}" -e COPR_COPR_URL=https://copr.fedorainfracloud.org mgruener/copr-cli buildscm --clone-url https://github.com/ponylang/ponyc --commit "${package_version}" --subdir /.packaging/rpm/ --spec ponyc.spec --type git --nowait ponylang
+
+  # restore original working directory
+  popd
 }
 
 ponyc-build-packages(){
