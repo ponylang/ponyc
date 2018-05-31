@@ -1,18 +1,10 @@
-make-lib-llvm: &make-lib-llvm
+test-ci-lib-llvm: &test-ci-lib-llvm
   name: Run make lib-llvm
   command: |
     echo 'cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; export CPUs=$cnt;' >> $BASH_ENV
     source $BASH_ENV
-    echo "make-llvm: CPUS=$CPUs llvm_ver=$llvm_ver config=$config"
-    make -f Makefile-lib-llvm test-ci -j$CPUs config=$config default_pic=true llvm_proj="llvm-$llvm_ver"
-
-test-ci-lib-llvm-openssl-110: &test-ci-lib-llvm-openssl-110
-  name: Test-ci lib-llvm openssl 1.1.0
-  command: |
-    echo 'cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; export CPUs=$cnt;' >> $BASH_ENV
-    source $BASH_ENV
-    echo "make-llvm: CPUS=$CPUs llvm_ver=$llvm_ver config=$config"
-    make -f Makefile-lib-llvm test-ci -j$CPUs config=$config default_pic=true default_ssl=openssl_1.1.0 llvm_proj="llvm-$llvm_ver"
+    echo "make-llvm: CPUS=$CPUs test_ci_params='$test_ci_params'"
+    make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
 
 version: 2
 jobs:
@@ -130,86 +122,93 @@ jobs:
       - run: make test-ci config=release default_pic=true use="llvm_link_static"
 
   # Jobs for building and testing with ponyc vendor lib/llvm
-  ubuntu-llvm-600-debug:
+  ubuntu-default:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=6.0.0; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
-  ubuntu-llvm-600-release:
-    docker:
-      - image: ponylang/ponyc-ci:ubuntu
-        user: pony
-    steps:
-      - checkout
-      - run: echo 'export llvm_ver=6.0.0; export config=release' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: *test-ci-lib-llvm
   ubuntu-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: echo 'export test_ci_params="config=debug default_pic=true"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   ubuntu-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: echo 'export test_ci_params="-j10 config=release default_pic=true"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   ubuntu-openssl-110-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl-110
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      - run: *test-ci-lib-llvm-openssl-110
+      - run: echo 'export test_ci_params="config=debug default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   ubuntu-openssl-110-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl-110
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
-      - run: *test-ci-lib-llvm-openssl-110
+      - run: echo 'export test_ci_params="config=release default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
+  ubuntu-llvm-600-debug:
+    docker:
+      - image: ponylang/ponyc-ci:ubuntu
+        user: pony
+    steps:
+      - checkout
+      - run: echo 'export test_ci_params="config=debug default_pic=true llvm_proj=llvm-6.0.0"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
+  ubuntu-llvm-600-release:
+    docker:
+      - image: ponylang/ponyc-ci:ubuntu
+        user: pony
+    steps:
+      - checkout
+      - run: echo 'export test_ci_params="config=release default_pic=true llvm_proj=llvm-6.0.0"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   alpine-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: echo 'export test_ci_params="config=debug default_pic=true"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   alpine-release:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: echo 'export test_ci_params="config=release default_pic=true"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   centos7-debug:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: echo 'export test_ci_params="config=debug default_pic=true use="llvm_link_static"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
   centos7-release:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
     steps:
       - checkout
-      - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: echo 'export test_ci_params="config=release default_pic=true use="llvm_link_static"' >> $BASH_ENV; source $BASH_ENV
+      - run: *test-ci-lib-llvm
 
 workflows:
   version: 2
