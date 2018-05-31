@@ -6,6 +6,14 @@ make-lib-llvm: &make-lib-llvm
     echo "make-llvm: CPUS=$CPUs llvm_ver=$llvm_ver config=$config"
     make -f Makefile-lib-llvm test-ci -j$CPUs config=$config default_pic=true llvm_proj="llvm-$llvm_ver"
 
+test-ci-lib-llvm-openssl-110: &test-ci-lib-llvm-openssl-110
+  name: Test-ci lib-llvm openssl 1.1.0
+  command: |
+    echo 'cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; export CPUs=$cnt;' >> $BASH_ENV
+    source $BASH_ENV
+    echo "make-llvm: CPUS=$CPUs llvm_ver=$llvm_ver config=$config"
+    make -f Makefile-lib-llvm test-ci -j$CPUs config=$config default_pic=true default_ssl=openssl_1.1.0 llvm_proj="llvm-$llvm_ver"
+
 version: 2
 jobs:
   verify-changelog:
@@ -161,7 +169,7 @@ jobs:
     steps:
       - checkout
       - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: *test-ci-lib-llvm-openssl-110
   ubuntu-openssl-110-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl-110
@@ -169,7 +177,7 @@ jobs:
     steps:
       - checkout
       - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
-      - run: *make-lib-llvm
+      - run: *test-ci-lib-llvm-openssl-110
   alpine-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine
