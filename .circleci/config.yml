@@ -154,9 +154,17 @@ jobs:
       - checkout
       - run: echo 'export llvm_ver=3.9.1; export config=release' >> $BASH_ENV; source $BASH_ENV
       - run: *make-lib-llvm
-  ubuntu-openssl-110:
+  ubuntu-openssl-110-debug:
     docker:
-      - image: ponylang/ponyc-ci:ubuntu-openssl_1.1.0
+      - image: ponylang/ponyc-ci:ubuntu-openssl-110
+        user: pony
+    steps:
+      - checkout
+      - run: echo 'export llvm_ver=3.9.1; export config=debug' >> $BASH_ENV; source $BASH_ENV
+      - run: *make-lib-llvm
+  ubuntu-openssl-110-release:
+    docker:
+      - image: ponylang/ponyc-ci:ubuntu-openssl-110
         user: pony
     steps:
       - checkout
@@ -223,10 +231,16 @@ workflows:
       - ubuntu-llvm-600-release
       - ubuntu-debug
       - ubuntu-release
-      #- ubuntu-openssl-110
+      - ubuntu-openssl-110-debug
+      - ubuntu-openssl-110-release
+      - centos7-debug
+      - centos7-release
+
+      # Alpine debug and release don't work because alpine linux
+      # patches llvm to make it work with musl c library.
+      # I've done preliminary testing using the patches found
+      # in the alpine aport repsitory but they don't apply cleanly.
+      # Apparently there version of llvm 3.9.1 is slightly different
+      # from what we have. For now skipping testing them.
       #- alpine-debug
       #- alpine-release
-      #- alpine-llvm-600-release
-      #- centos7-debug
-      #- centos7-release
-      #- centos7-llvm-600-release
