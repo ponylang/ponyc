@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Only enable mcx16 for gcc for x86_64 targets ([PR #2725](https://github.com/ponylang/ponyc/pull/2725))
 - Fix String.concat ignoring the len parameter ([PR #2723](https://github.com/ponylang/ponyc/pull/2723))
 
 ### Added
