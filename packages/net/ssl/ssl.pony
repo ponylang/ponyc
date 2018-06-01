@@ -70,6 +70,21 @@ class SSL
       @SSL_set_connect_state[None](_ssl)
       @SSL_do_handshake[I32](_ssl)
     end
+  
+  fun box alpn_selected(): (ALPNProtocolName | None) =>
+    """
+    Get the protocol identifier negotiated via ALPN
+    """
+    var ptr: Pointer[U8] iso = recover Pointer[U8] end
+    var len = U32(0)
+    ifdef "openssl_1.1.0" then
+      @SSL_get0_alpn_selected[None](_ssl, addressof ptr, addressof len)
+    end
+
+    if ptr.is_null() then None
+    else
+      recover val String.copy_cpointer(consume ptr, USize.from[U32](len)) end
+    end
 
   fun state(): SSLState =>
     """
