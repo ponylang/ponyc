@@ -104,43 +104,69 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
-## Linux using an RPM package (via Bintray)
+## Linux using an RPM package (via COPR)
 
-For Red Hat, CentOS, Oracle Linux, or Fedora Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-rpm](https://bintray.com/pony-language/ponyc-rpm)).
+For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
 
-To install builds via DNF:
+### Using `yum` for Red Hat, CentOS, Oracle Linux and other RHEL compatible systems:
+
 ```bash
-wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
-sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
-
-sudo dnf --refresh install ponyc
+yum copr enable ponylang/ponylang epel-7
+yum install ponyc
 ```
 
-Or via Yum:
-```bash
-wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
-sudo mv bintray-pony-language-ponyc-rpm.repo /etc/yum.repos.d/
+See https://bugzilla.redhat.com/show_bug.cgi?id=1581675 for why `epel-7` is required on the command line.
 
-sudo yum install ponyc
+### Using `DNF` for Fedora Linux:
+
+```bash
+dnf copr enable ponylang/ponylang
+dnf install ponyc
 ```
 
-Or via Zypper:
-```bash
-sudo zypper install gcc6 binutils-gold \
-  zlib-devel libopenssl-devel pcre2-devel
-wget https://bintray.com/pony-language/ponyc-rpm/rpm -O bintray-pony-language-ponyc-rpm.repo
-sudo mv bintray-pony-language-ponyc-rpm.repo /etc/zypp/repos.d/
+### Using Zypper for OpenSuSE Leap 15:
 
-sudo zypper install ponyc
+```bash
+zypper addrepo --refresh --repo https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/repo/opensuse-leap-15.0/ponylang-ponylang-opensuse-leap-15.0.repo
+wget https://copr-be.cloud.fedoraproject.org/results/ponylang/ponylang/pubkey.gpg
+rpm --import pubkey.gpg
+zypper install ponyc
 ```
+### Using Zypper for OpenSuSE Tumbleweed:
+
+```bash
+zypper addrepo --refresh --repo https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/repo/opensuse-tumbleweed/ponylang-ponylang-opensuse-tumbleweed.repo
+wget https://copr-be.cloud.fedoraproject.org/results/ponylang/ponylang/pubkey.gpg
+rpm --import pubkey.gpg
+zypper install ponyc
+```
+
 
 ### RPM and AVX2 Support
 
 By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
-## Linux using a DEB package (via Bintray)
+## Ubuntu Linux using a DEB package (via Launchpad PPA)
 
-For Ubuntu or Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
+For Ubuntu Linux (Trusty, Xenial, Artful, Bionic, Cosmic), the `release` builds are packaged and available on Launchpad PPA ([ponylang/ponylang](https://launchpad.net/~ponylang/+archive/ubuntu/ponylang)).
+
+To install builds via Apt:
+
+```bash
+add-apt-repository ppa:ponylang/ponylang
+apt-get update
+apt-get install ponyc
+```
+
+NOTE: For Trusty, you will need to manually compile/install `libpcre2` to use `regex` related functionality.
+
+### DEB and AVX2 Support
+
+By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
+## Debian Linux using a DEB package (via Bintray)
+
+For Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
 
 To install builds via Apt (and install Bintray's public key):
 
@@ -156,30 +182,6 @@ You may need to install `ponyc` (current) instead of `ponyc-release` (deprecated
 ### DEB and AVX2 Support
 
 By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
-
-## Prepackaged Ubuntu Xenial
-
-Make sure you have a gcc installed:
-
-```bash
-sudo apt-get install build-essential
-```
-
-Set the `CC` environment variable:
-
-```bash
-echo "export CC=`which gcc`" >> ~/.profile
-export CC=`which gcc`
-```
-
-Install ponyc via bintray:
-
-```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "379CE192D401AB61"
-echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
-sudo apt-get update
-sudo apt-get -V install ponyc
-```
 
 ## Gentoo Linux
 
@@ -245,9 +247,7 @@ First of all, you need a compiler with decent C11 support. The following compile
 
 Pony requires LLVM version 3.9.1.
 
-There is experimental support for building with LLVM 4.0.1 or 5.0.0,
-but this may result in decreased performance or crashes in generated
-applications.
+There is experimental support for building with LLVM 4.0.1, 5.0.1 or 6.0.0, but this may result in decreased performance or crashes in generated applications.
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
@@ -467,13 +467,38 @@ make
 ./helloworld
 ```
 
+### Fedora (26, 27, 28, Rawhide)
+
+```bash
+dnf check-update
+sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+  llvm3.9-devel ncurses-devel libatomic
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make default_ssl='openssl_1.1.0'
+./build/release/ponyc examples/helloworld
+./helloworld
+```
+
 ### CentOS/RHEL (7)
 
-Instal dependencies:
+#### Instal dependencies:
 
 ```bash
 sudo yum install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
   ncurses-devel libatomic
+```
+
+Using LLVM 3.9.1 from EPEL:
+
+```bash
+wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo yum install ./epel-release-latest-7.noarch.rpm
+sudo yum install llvm3.9-devel llvm3.9-static
 ```
 
 Using LLVM 3.9.1 from copr:
@@ -505,6 +530,7 @@ RHEL:
 ```bash
 # On RHEL, enable RHSCL repository for you system:
 sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+```
 
 ```bash
 # 2. Install the collection:
@@ -516,7 +542,7 @@ Enable the llvm collection before building:
 scl enable llvm-toolset-7 bash
 ```
 
-To build ponyc, compile and run helloworld:
+#### To build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
@@ -533,6 +559,24 @@ sudo zypper refresh
 sudo zypper update
 sudo zypper install git gcc-c++ make libopenssl-devel pcre2-devel zlib-devel \
   llvm3_9-devel binutils-gold
+```
+
+To build ponyc, compile and run helloworld:
+
+```bash
+cd ~/ponyc/
+make
+./build/release/ponyc examples/helloworld
+./helloworld
+```
+
+### OpenSuSE (Leap 15, Tumbleweed)
+
+NOTE: LLVM 3.9 doesn't seem to be available so these instructions install the default LLVM version available.
+
+```bash
+sudo zypper install git gcc-c++ make libopenssl-devel pcre2-devel zlib-devel \
+  llvm-devel binutils-gold
 ```
 
 To build ponyc, compile and run helloworld:
