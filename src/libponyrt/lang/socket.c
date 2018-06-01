@@ -90,7 +90,7 @@ typedef struct
   struct sockaddr_storage addr;
 } ipaddress_t;
 
-static socklen_t address_length(ipaddress_t* ipaddr)
+PONY_API socklen_t address_length(ipaddress_t* ipaddr)
 {
   switch(ipaddr->addr.ss_family)
   {
@@ -846,6 +846,14 @@ PONY_API struct addrinfo* pony_os_addrinfo(int family, const char* host,
 
   return os_addrinfo_intern(family, 0, 0, host, service, true);
 }
+
+/*
+typedef struct
+{
+  pony_type_t* type;
+  struct sockaddr_storage addr;
+} ipaddress_t;
+*/
 
 PONY_API void pony_os_getaddr(struct addrinfo* addr, ipaddress_t* ipaddr)
 {
