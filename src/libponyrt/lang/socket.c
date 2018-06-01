@@ -90,7 +90,7 @@ typedef struct
   struct sockaddr_storage addr;
 } ipaddress_t;
 
-static socklen_t address_length(ipaddress_t* ipaddr)
+PONY_API socklen_t address_length(ipaddress_t* ipaddr)
 {
   switch(ipaddr->addr.ss_family)
   {
