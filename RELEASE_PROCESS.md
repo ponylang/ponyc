@@ -99,11 +99,10 @@ Additionally, any breaking changes that require end users to change their code s
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
 
-* [RPM](https://bintray.com/pony-language/ponyc-rpm/ponyc)
 * [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc)
 * [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
-The pattern for releases is similar as what we previously saw. In the case of RPM and Deb, the versions look something like:
+The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
 
 `0.3.1`
 
@@ -112,6 +111,21 @@ For windows, the versions look something like:
 `ponyc-release-0.3.1-1526.8a8ee28`
 
 where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
+
+### Wait on COPR/PPA
+
+The Travis CI build for the release branch kicks off packaging builds on Fedora COPR and Ubuntu Launchpad PPA. These packaging builds can take some time but are usually quick. Periodically check to see if the releases are finished and published on these site:
+
+* [Fedora COPR](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/builds/)
+* [Ubuntu Launchpad PPA](https://launchpad.net/~ponylang/+archive/ubuntu/ponylang/+packages)
+
+The pattern for packaging release builds is similar as what we previously saw. In the case of Fedora COPR, the version looks something like:
+
+`0.3.1-1.fc27`
+
+The pattern for packaging release builds is similar as what we previously saw. In the case of Ubuntu Launchpad PPA, the versions looks something like:
+
+`ponyc - 0.3.1-0ppa1~<UBUNTU DISTRIBUTION NAME>`
 
 ### Wait on Homebrew
 
