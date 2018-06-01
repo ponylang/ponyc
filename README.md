@@ -486,7 +486,7 @@ make default_ssl='openssl_1.1.0'
 
 ### CentOS/RHEL (7)
 
-#### Instal dependencies:
+#### Install dependencies:
 
 ```bash
 sudo yum install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
