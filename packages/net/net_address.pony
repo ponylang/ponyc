@@ -1,4 +1,4 @@
-type MaybeIPAddr is (U32 | Array[U32] | None)
+type MaybeIPAddr is (U32 | Array[U32])
 
 class val NetAddress is Equatable[NetAddress]
   """
