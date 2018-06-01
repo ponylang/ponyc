@@ -6,6 +6,7 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestMinimal)
+    test(_TestMinimalWithHelp)
     test(_TestBadName)
     test(_TestUnknownCommand)
     test(_TestUnexpectedArg)
@@ -35,15 +36,30 @@ class iso _TestMinimal is UnitTest
     ])?
 
     h.assert_eq[String]("minimal", cs.name())
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] = ["ignored"; "--aflag=true"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[Bool](true, cmd.option("aflag").bool())
+
+class iso _TestMinimalWithHelp is UnitTest
+  fun name(): String => "ponycli/minimal_help"
+
+  fun apply(h: TestHelper) ? =>
+    let cs = CommandSpec.leaf("minimal_help", "",[])? .> add_help()?
+    h.assert_eq[String]("minimal_help", cs.name())
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
+
+    let args: Array[String] = ["--help"]
+    // test for successful parsing
+    let cmdErr = CommandParser(cs).parse(args) as Command
 
 class iso _TestBadName is UnitTest
   fun name(): String => "ponycli/badname"
@@ -61,6 +77,8 @@ class iso _TestUnknownCommand is UnitTest
   // Negative test: unknown command should report
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()?
+    h.assert_false(cs.is_leaf())
+    h.assert_true(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -83,6 +101,8 @@ class iso _TestUnexpectedArg is UnitTest
   // Negative test: unexpected arg/command token should report
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -106,6 +126,8 @@ class iso _TestUnknownShort is UnitTest
   // Negative test: unknown short option should report
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -129,6 +151,8 @@ class iso _TestUnknownLong is UnitTest
   // Negative test: unknown long option should report
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -155,11 +179,13 @@ class iso _TestHyphenArg is UnitTest
     let cs = CommandSpec.leaf("minimal" where args' = [
       ArgSpec.string("name", "")
     ])?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
     let args: Array[String] = ["ignored"; "-"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[String]("-", cmd.arg("name").string())
@@ -170,12 +196,14 @@ class iso _TestBools is UnitTest
   // Rules 2, 3, 5, 7 w/ Bools
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.bools_cli_spec()?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] = ["ignored"; "-ab"; "-c=true"; "-d=false"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("bools", cmd.fullname())
     h.assert_eq[Bool](true, cmd.option("aaa").bool())
@@ -189,13 +217,15 @@ class iso _TestDefaults is UnitTest
   // Rules 2, 3, 5, 6
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] =
       ["ignored"; "-B"; "-S--"; "-I42"; "-U47"; "-F42.0"]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[Bool](true, cmd.option("boolo").bool())
     h.assert_eq[String]("astring", cmd.option("stringo").string())
@@ -210,6 +240,8 @@ class iso _TestShortsAdj is UnitTest
   // Rules 2, 3, 5, 6, 8
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
+    h.assert_true(cs.is_leaf())
+    h.assert_false(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -218,7 +250,7 @@ class iso _TestShortsAdj is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
@@ -244,7 +276,7 @@ class iso _TestShortsEq is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
@@ -271,7 +303,7 @@ class iso _TestShortsNext is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
@@ -298,7 +330,7 @@ class iso _TestLongsEq is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
@@ -325,7 +357,7 @@ class iso _TestLongsNext is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("--", cmd.option("stringr").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
@@ -356,7 +388,7 @@ class iso _TestEnvs is UnitTest
     let cmdErr = CommandParser(cs).parse(args, envs)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
@@ -373,13 +405,13 @@ class iso _TestOptionStop is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS=astring"; "-I=42"; "-F=42.0"
+      "-BS=astring"; "-I=42"; "-F=42.0"; "-U=23"
       "--"; "-f=1.0"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("-f=1.0", cmd.arg("words").string())
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
@@ -399,7 +431,7 @@ class iso _TestDuplicate is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("newstring", cmd.option("stringr").string())
 
@@ -408,6 +440,8 @@ class iso _TestChat is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()?
+    h.assert_false(cs.is_leaf())
+    h.assert_true(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -417,7 +451,7 @@ class iso _TestChat is UnitTest
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
 
-    let cmd = match cmdErr | let c: Command => c else error end
+    let cmd = cmdErr as Command
 
     h.assert_eq[String]("chat/say", cmd.fullname())
 
@@ -449,6 +483,8 @@ class iso _TestMustBeLeaf is UnitTest
   // Negative test: can't just supply parent command
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()?
+    h.assert_false(cs.is_leaf())
+    h.assert_true(cs.is_parent())
 
     let args: Array[String] = [
       "ignored"
@@ -471,7 +507,7 @@ class iso _TestHelp is UnitTest
     let cs = _Fixtures.chat_cli_spec()?
 
     let chErr = Help.for_command(cs, ["config"; "server"])
-    let ch = match chErr | let c: CommandHelp => c else error end
+    let ch = chErr as CommandHelp
 
     let help = ch.help_string()
     h.log(help)
