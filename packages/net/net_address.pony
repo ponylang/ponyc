@@ -1,5 +1,3 @@
-type MaybeIPAddr is (U32 | Array[U32])
-
 class val NetAddress is Equatable[NetAddress]
   """
   Represents an IPv4 or IPv6 address. The family field indicates the address
@@ -123,7 +121,7 @@ class val NetAddress is Equatable[NetAddress]
         and (this._addr2 == that._addr2)
         and (this._addr3 == that._addr3)
         and (this._addr4 == that._addr4)
-  end
+    end
 
   fun length() : U8 =>
     """
@@ -133,7 +131,7 @@ class val NetAddress is Equatable[NetAddress]
     """
 
     ifdef linux or windows then
-      (@address_length[U32](this)).u8()
+      (@ponyint_address_length[U32](this)).u8()
     else
       ifdef bigendian then
         ((_family >> 8) and 0xff).u8()
@@ -167,12 +165,19 @@ class val NetAddress is Equatable[NetAddress]
     fun scope() : U32 =>
       _scope
 
-    fun addr() : MaybeIPAddr =>
+    fun addr() : (U32 | Array[U32]) =>
+      """
+        Returns IPV4 address (`_addr` field in the class) if `ip4()` is `True`.
+        If this is a IPV6 address, then returns an `Array` (say a), 
+        such that 
+              `a.size() = 4` 
+              `a(0) = _addr1` // Bits 0-32 of the IPv6 address in network byte order.
+              `a(1) = _addr2` // Bits 33-64 of the IPv6 address in network byte order.
+              `a(2) = _addr3` // Bits 65-96 of the IPv6 address in network byte order.
+              `a(3) = _addr4` // Bits 97-128 of the IPv6 address in network byte order.
+      """
       if ip4() then
         _addr
       else
-        _v6_addr()
+        [_addr1; _addr2; _addr3; _addr4]
       end
-
-    fun _v6_addr() : Array[U32] =>
-      [_addr1; _addr2; _addr3; _addr4]
