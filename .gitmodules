@@ -1,0 +1,4 @@
+[submodule "lib/llvm/src"]
+	path = lib/llvm/src
+	url = https://github.com/winksaville/llvm.git
+	branch = release_39
