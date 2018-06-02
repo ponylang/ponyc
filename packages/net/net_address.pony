@@ -125,9 +125,9 @@ class val NetAddress is Equatable[NetAddress]
 
   fun length() : U8 =>
     """
-    For platforms (Linux and Windows) with `length` field as part of 
+    For platforms (OSX/FreeBSD) with `length` field as part of 
     its `struct sockaddr` definition, returns the `length`. 
-    Else returns the size of `sockaddr_in` or `sockaddr_in6`.
+    Else (Linux/Windows) returns the size of `sockaddr_in` or `sockaddr_in6`.
     """
 
     ifdef linux or windows then
