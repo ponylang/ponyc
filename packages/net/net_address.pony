@@ -15,19 +15,12 @@ class val NetAddress is Equatable[NetAddress]
   let _port: U16 = 0
     """
     Port number in network byte order.
-
-    In order to obtain a host byte order port, use:
-
-    ```pony
-    let host_order_port: U16 = @ntohs[U16](net_address.port)
-    ```
     """
+    
   let _addr: U32 = 0
     """
     IPv4 address in network byte order.
     Will be `0` for IPv6 addresses. Check with `ipv4()` and `ipv6()`.
-
-    Use `@ntohl[U32](net_address.addr)` to obtain it in the host byte order.
     """
 
   let _addr1: U32 = 0
@@ -141,43 +134,57 @@ class val NetAddress is Equatable[NetAddress]
     end
 
     fun family() : U8 =>
-    """
-      Returns the `family`.
-    """
+      """
+        Returns the `family`.
+      """
 
-    ifdef linux or windows then
-      ifdef bigendian then
-        ((_family >> 8) and 0xff).u8()
+      ifdef linux or windows then
+        ifdef bigendian then
+          ((_family >> 8) and 0xff).u8()
+        else
+          (_family and 0xff).u8()
+        end
       else
-        (_family and 0xff).u8()
+        ifdef bigendian then
+          (_family and 0xff).u8()
+        else
+          ((_family >> 8) and 0xff).u8()
+        end
       end
-    else
-      ifdef bigendian then
-        (_family and 0xff).u8()
-      else
-        ((_family >> 8) and 0xff).u8()
-      end
-    end
 
     fun port() : U16 =>
-      _port
+      """
+        Returns port number in host byte order.
+      """
+      @ntohs[U16](_port)
 
     fun scope() : U32 =>
-      _scope
+      """
+        Returns IPv6 scope identifier: Unicast, Anycast, Multicast and 
+        unassigned scopes.
+      """
 
-    fun addr() : (U32 | Array[U32]) =>
+      @ntohl[U32](_scope)
+
+    fun ipv4_addr() : U32 =>
       """
         Returns IPV4 address (`_addr` field in the class) if `ip4()` is `True`.
-        If this is a IPV6 address, then returns an `Array` (say a), 
-        such that 
-              `a.size() = 4` 
-              `a(0) = _addr1` // Bits 0-32 of the IPv6 address in network byte order.
-              `a(1) = _addr2` // Bits 33-64 of the IPv6 address in network byte order.
-              `a(2) = _addr3` // Bits 65-96 of the IPv6 address in network byte order.
-              `a(3) = _addr4` // Bits 97-128 of the IPv6 address in network byte order.
+        If `ip4()` is `False` then the contents are invalid.
       """
-      if ip4() then
-        _addr
-      else
-        [_addr1; _addr2; _addr3; _addr4]
-      end
+      @ntohl[U32](_addr)
+
+    fun ipv6_addr() : (U32, U32, U32, U32) =>
+      """
+        Returns IPV6 address as the 4-tuple (say `a`). 
+        `a._1 = _addr1` // Bits 0-32 of the IPv6 address in host byte order.
+        `a._2 = _addr2  // Bits 33-64 of the IPv6 address in host byte order.
+        `a._3 = _addr3  // Bits 65-96 of the IPv6 address in host byte order.
+        `a._4 = _addr4  // Bits 97-128 of the IPv6 address in host byte order.
+
+        The contents of the 4-tuple returned are valid only if `ip6()` is `True`.
+      """
+      (@ntohl[U32](_addr1),
+       @ntohl[U32](_addr2),
+       @ntohl[U32](_addr3),
+       @ntohl[U32](_addr4)
+      )
