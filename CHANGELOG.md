@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler crash related to union types with duplicate members. ([PR #2738](https://github.com/ponylang/ponyc/pull/2738))
 - Fix CommandSpec without args and help ([PR #2721](https://github.com/ponylang/ponyc/pull/2721))
 
 ### Added
