@@ -613,3 +613,24 @@ TEST_F(CodegenTest, VariableDeclNestedTuple)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(CodegenTest, RedundantUnionInForLoopIteratorValueType)
+{
+  // From issue #2736
+  const char* src =
+    "type T is (U8 | U8)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let i = I\n"
+    "    for m in i do\n"
+    "      None\n"
+    "    end\n"
+
+    "class ref I is Iterator[T]\n"
+    "  new create() => None\n"
+    "  fun ref has_next(): Bool => false\n"
+    "  fun ref next(): T ? => error";
+
+  TEST_COMPILE(src);
+}

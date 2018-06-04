@@ -641,6 +641,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     return AST_ERROR;
   }
 
+  // If the ast's type is a union type, we may need to fold it here.
+  ast_t* type = ast_type(*astp);
+  if(type && (ast_id(type) == TK_UNIONTYPE))
+    fold_union(options, &type);
+
   // Can't use ast here, it might have changed
   symtab_t* symtab = ast_get_symtab(*astp);
 

@@ -2,6 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.22.4] - 2018-06-04
+
+### Fixed
+
+- Fix compiler crash related to union types with duplicate members. ([PR #2738](https://github.com/ponylang/ponyc/pull/2738))
+- Fix CommandSpec without args and help ([PR #2721](https://github.com/ponylang/ponyc/pull/2721))
+
 ## [0.22.3] - 2018-05-31
 
 ### Fixed

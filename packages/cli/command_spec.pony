@@ -1,6 +1,11 @@
 use "collections"
 use pc = "collections/persistent"
 
+primitive _CommandSpecLeaf
+primitive _CommandSpecParent
+
+type _CommandSpecType is (_CommandSpecLeaf | _CommandSpecParent )
+
 class CommandSpec
   """
   CommandSpec describes the specification of a parent or leaf command. Each
@@ -14,6 +19,7 @@ class CommandSpec
      - a Map of child commands.
      - an Array of arguments.
   """
+  let _type: _CommandSpecType
   let _name: String
   let _descr: String
   let _options: Map[String, OptionSpec] = _options.create()
@@ -34,6 +40,7 @@ class CommandSpec
     Creates a command spec that can accept options and child commands, but not
     arguments.
     """
+    _type = _CommandSpecParent
     _name = _assertName(name')?
     _descr = descr'
     for o in options'.values() do
@@ -53,6 +60,7 @@ class CommandSpec
     Creates a command spec that can accept options and arguments, but not child
     commands.
     """
+    _type = _CommandSpecLeaf
     _name = _assertName(name')?
     _descr = descr'
     for o in options'.values() do
@@ -77,7 +85,7 @@ class CommandSpec
     """
     Adds an additional child command to this parent command.
     """
-    if _args.size() > 0 then error end
+    if is_leaf() then error end
     _commands.update(cmd.name(), cmd)
 
   fun ref add_help(hname: String = "help", descr': String = "") ? =>
@@ -88,7 +96,7 @@ class CommandSpec
     _help_info = descr'
     let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)
     _options.update(_help_name, help_option)
-    if _args.size() == 0 then
+    if is_parent() then
       let help_cmd = CommandSpec.leaf(_help_name, "", Array[OptionSpec](), [
         ArgSpec.string("command" where default' = "")
       ])?
@@ -124,6 +132,10 @@ class CommandSpec
     Returns an array of the positional arguments of this command.
     """
     _args
+
+  fun is_leaf(): Bool => _type is _CommandSpecLeaf
+
+  fun is_parent(): Bool => _type is _CommandSpecParent
 
   fun help_name(): String =>
     """

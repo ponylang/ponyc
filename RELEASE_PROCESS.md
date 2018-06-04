@@ -8,6 +8,8 @@ In order to do a release, you absolutely must have:
 
 * Commit access to the `ponyc` repo
 * The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
+* Access to the ponylang twitter account
+* Accounts on reddit/hacker news/lobste.rs/ponylang irc for posting release notes
 
 While not strictly required, your life will be made much easier if you:
 
@@ -91,17 +93,16 @@ We do a blog post announcing each release. The release notes blog post should in
 
 Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
 
-[Examples of prior release posts](https://www.ponylang.org/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included.
+[Examples of prior release posts](https://www.ponylang.org/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponylang.github.io/pull/284/files))
 
 ### Wait on Travis and Appveyor
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
 
-* [RPM](https://bintray.com/pony-language/ponyc-rpm/ponyc)
 * [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc)
 * [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
-The pattern for releases is similar as what we previously saw. In the case of RPM and Deb, the versions look something like:
+The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
 
 `0.3.1`
 
@@ -110,6 +111,21 @@ For windows, the versions look something like:
 `ponyc-release-0.3.1-1526.8a8ee28`
 
 where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
+
+### Wait on COPR/PPA
+
+The Travis CI build for the release branch kicks off packaging builds on Fedora COPR and Ubuntu Launchpad PPA. These packaging builds can take some time but are usually quick. Periodically check to see if the releases are finished and published on these site:
+
+* [Fedora COPR](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/builds/)
+* [Ubuntu Launchpad PPA](https://launchpad.net/~ponylang/+archive/ubuntu/ponylang/+packages)
+
+The pattern for packaging release builds is similar as what we previously saw. In the case of Fedora COPR, the version looks something like:
+
+`0.3.1-1.fc27`
+
+The pattern for packaging release builds is similar as what we previously saw. In the case of Ubuntu Launchpad PPA, the versions looks something like:
+
+`ponyc - 0.3.1-0ppa1~<UBUNTU DISTRIBUTION NAME>`
 
 ### Wait on Homebrew
 
@@ -139,29 +155,34 @@ Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/
 
 Once the dockerhub images have been updated, visit the [Pony Playground](https://playground.ponylang.org/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
 
+### Merge the release blog post PR for the ponylang website
+
+Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.org/blog/).
+
 ### Inform #ponylang
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release blog post.
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release blog post. ([example](https://irclog.whitequark.org/ponylang/2018-05-26#22183154;))
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Inform pony-user
 
-Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release blog post.
+Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release blog post. ([example](https://pony.groups.io/g/user/topic/pony_0_22_2_has_been_released/20332095))
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
 ### Add to "Last Week in Pony"
 
-Last Week in Pony is our weekly newsletter. Add information about the release, including a link to the release notes, to the [current Last Week in Pony](https://github.com/ponylang/ponylang.github.io/issues?q=is%3Aissue+is%3Aopen+label%3Alast-week-in-pony).
+Last Week in Pony is our weekly newsletter. Add information about the release, including a link to the release notes, to the [current Last Week in Pony](https://github.com/ponylang/ponylang.github.io/issues?q=is%3Aissue+is%3Aopen+label%3Alast-week-in-pony). ([example](https://github.com/ponylang/ponylang.github.io/issues/282#issuecomment-392230067))
 
 ### Post release notes to Link aggregators
 
 All Pony releases should be posted to:
 
-- [/r/ponylang](https://www.reddit.com/r/ponylang/)
-- [Hacker News](https://news.ycombinator.com/)
-- [Lobste.rs](https://lobste.rs/)
+- [/r/ponylang](https://www.reddit.com/r/ponylang/) ([example](https://www.reddit.com/r/ponylang/comments/8m85p9/0222_released/))
+- [Hacker News](https://news.ycombinator.com/) ([example](https://news.ycombinator.com/item?id=17150567))
+- [Lobste.rs](https://lobste.rs/) ([example](https://lobste.rs/s/yknbfl/pony_0_22_0_released))
+- [ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
 
 ### Close the GitHub issue
 
