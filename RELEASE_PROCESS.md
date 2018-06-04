@@ -121,11 +121,11 @@ The Travis CI build for the release branch kicks off packaging builds on Fedora 
 
 The pattern for packaging release builds is similar as what we previously saw. In the case of Fedora COPR, the version looks something like:
 
-`0.3.1-1.fc27`
+`0.3.1-1.fc27` (confirm `status` is `succeeded`)
 
 The pattern for packaging release builds is similar as what we previously saw. In the case of Ubuntu Launchpad PPA, the versions looks something like:
 
-`ponyc - 0.3.1-0ppa1~<UBUNTU DISTRIBUTION NAME>`
+`ponyc - 0.3.1-0ppa1~<UBUNTU DISTRIBUTION NAME>` (confirm `build status` is a green checkmark)
 
 ### Wait on Homebrew
 
