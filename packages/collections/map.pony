@@ -64,7 +64,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       (let i, let found) = _search(key)
 
       let k = if found then
-        _array(i)? as (K^, _)
+        (_array(i)? = _MapDeleted) as (K^, _)
       else
         consume key
       end

@@ -109,48 +109,9 @@ class Iter[A] is Iterator[A]
     `filter`.
     """
     Iter[A](
-      object
-        var _next: (A! | _None) = _None
-
-        fun ref _find_next() =>
-          try
-            match _next
-            | _None =>
-              if _iter.has_next() then
-                let a = _iter.next()?
-                if try f(a)? else false end then
-                  _next = a
-                else
-                  _find_next()
-                end
-              end
-            end
-          end
-
-        fun ref has_next(): Bool =>
-          match _next
-          | _None =>
-            if _iter.has_next() then
-              _find_next()
-              has_next()
-            else
-              false
-            end
-          else
-            true
-          end
-
-        fun ref next(): A ? =>
-          match _next = _None
-          | let a: A => consume a
-          else
-            if _iter.has_next() then
-              _find_next()
-              next()?
-            else
-              error
-            end
-          end
+      object ref is Iterator[A]
+        fun ref has_next(): Bool => false
+        fun ref next(): A ? => error
       end)
 
   fun ref filter_map_stateful[B](f: {ref(A!): (B | None) ?}): Iter[B]^ =>
@@ -159,48 +120,9 @@ class Iter[A] is Iterator[A]
     similar to `filter_map`.
     """
     Iter[B](
-      object is Iterator[B]
-        var _next: (B | _None) = _None
-
-        fun ref _find_next() =>
-          try
-            match _next
-            | _None =>
-              if _iter.has_next() then
-                match f(_iter.next()?)?
-                | let b: B => _next = consume b
-                | None => _find_next()
-                end
-              end
-            end
-          end
-
-        fun ref has_next(): Bool =>
-          match _next
-          | _None =>
-            if _iter.has_next() then
-              _find_next()
-              has_next()
-            else
-              false
-            end
-          else
-            true
-          end
-
-        fun ref next(): B ? =>
-          match _next
-          | let b: B =>
-            _next = _None
-            consume b
-          else
-            if _iter.has_next() then
-              _find_next()
-              next()?
-            else
-              error
-            end
-          end
+      object ref is Iterator[B]
+        fun ref has_next(): Bool => false
+        fun ref next(): B ? => error
       end)
 
   fun ref all(f: {(A!): Bool ?} box): Bool =>
@@ -724,36 +646,9 @@ class Iter[A] is Iterator[A]
     `1 2 3`
     """
     Iter[A](
-      object
-        var _done: Bool = false
-        var _next: (A! | None) = None
-
-        fun ref has_next(): Bool =>
-          if _next isnt None then true
-          else _try_next()
-          end
-
-        fun ref next(): A ? =>
-          if (_next isnt None) or _try_next() then
-            (_next = None) as A
-          else error
-          end
-
-        fun ref _try_next(): Bool =>
-          if _done then false
-          elseif not _iter.has_next() then
-            _done = true
-            false
-          else
-            _next =
-              try _iter.next()?
-              else
-                _done = true
-                return false
-              end
-            _done = try not f(_next as A)? else true end
-            not _done
-          end
+      object ref is Iterator[A]
+        fun ref has_next(): Bool => false
+        fun ref next(): A ? => error
       end)
 
   /*

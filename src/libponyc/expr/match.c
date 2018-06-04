@@ -526,6 +526,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         ast_print_type(pattern_type));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
+      is_matchtype(operand_type, pattern_type, &info, opt);
 
       ok = false;
       break;
