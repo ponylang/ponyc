@@ -1,13 +1,15 @@
-# Since the current pony Makefile requires llvm-config to exist before
-# its run GNUmakefile will compile lib/llvm before invoking Makefile.
-# This works because gnu make searchs for GNUmakefile before Makefile.
+# This makefile invokes lib/llvm/Makefile before invoking Makefile-ponyc.
+# The reason for doing this is that Makefile-ponyc requires llvm-config to
+# be present before it is invoked, thus the need to build lib/llvm/Makefile
+# first.
+#
+# The default target of this makefile builds llvm defined by the submodule,
+# which is currently llvm-3.9.1. You may also build lvm-6.0.0 by using
+# llvm_proj=llvm-6.0.0. In addition, if you specify llvm_proj=llvm-current
+# then lib/llvm/src will not be altered but will be built.
 #
 # In the future compiling lib/llvm will be incorporated into Makefile
-# and GNUmakefile will be removed.
-#
-# The version of llvm can be controlled by passing llvm_proj on the command
-# line. The default is llvm-3.9.1 if its not specified and maybe set to
-# llvm_proj=llvm-6.0.0.
+# and Makefile-lib-llvm will be removed.
 
 root_dir := $(shell pwd)
 llvm_dir := $(root_dir)/lib/llvm
@@ -24,7 +26,7 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH=$(new_path) $(MAKE) -f Makefile $(MAKECMDGOALS) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc $(MAKECMDGOALS) $(MAKEFLAGS)
 
 $(llvm_config):
 	@$(MAKE) -C $(pony_lib_llvm) $(llvm_proj)
@@ -32,7 +34,7 @@ $(llvm_config):
 
 .PHONY: clean
 clean:
-	@$(MAKE) -f Makefile clean
+	@$(MAKE) -f Makefile-ponyc clean
 
 .PHONY: clean-all
 clean-all: clean
@@ -59,6 +61,7 @@ help:
 	@echo '  llvm_proj=Proj       Make llvm where Proj is one of:'
 	@echo '                         llvm-3.9.1 (default if not specified)'
 	@echo '                         llvm-6.0.0'
+	@echo '                         llvm-current'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
