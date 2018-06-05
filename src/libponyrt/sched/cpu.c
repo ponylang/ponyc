@@ -97,7 +97,7 @@ void ponyint_cpu_init()
   CPU_ZERO(&hw_cpus);
   CPU_ZERO(&ht_cpus);
 
-  avail_cpu_count = CPU_COUNT(&all_cpus);
+  avail_cpu_size = avail_cpu_count = CPU_COUNT(&all_cpus);
   uint32_t index = 0;
   uint32_t found = 0;
 
@@ -130,7 +130,6 @@ void ponyint_cpu_init()
     avail_cpu_count =
       ponyint_numa_core_list(&hw_cpus, &ht_cpus, avail_cpu_list);
   } else {
-    avail_cpu_size = avail_cpu_count;
     avail_cpu_list =
       (uint32_t*)ponyint_pool_alloc_size(avail_cpu_size * sizeof(uint32_t));
 
