@@ -17,6 +17,11 @@ else ifeq ($(MAKECMDGOALS),llvm-3.9.1)
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_PROJ)
   LLVM_SRC_DEPTH := --depth=1
   LLVM_BRANCH := -b release_39
+else ifeq ($(MAKECMDGOALS),llvm-current)
+  LLVM_PROJ := llvm-current
+  GET_LLVM_SRC_TARGET := get-nothing
+  LLVM_SRC_DEPTH :=
+  LLVM_BRANCH :=
 else
   LLVM_PROJ := llvm-default
   GET_LLVM_SRC_TARGET := get-default-llvm-src
@@ -79,6 +84,11 @@ $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ): $(GET_LLVM_SRC_TARGET)
 	mkdir -p $(LLVM_BUILDDIR)
 	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) $(VERBOSE_CMAKE) $(USE_LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALLDIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_SRCDIR)
 	touch $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ)
+
+get-nothing:
+	@echo get-nothing
+	$(MAKE) clean
+	touch get-nothing
 
 get-default-llvm-src:
 	@echo get-default-llvm-src
