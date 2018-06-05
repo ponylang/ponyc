@@ -21,6 +21,11 @@ from the ponyc project root:
 circleci build --job ubuntu-openssl-110-debug
 circleci build --job ubuntu-openssl-110-release
 ```
+Note: when building you might want to set CPUs environment
+variable to speed up the build:
+```bash
+circleci build -e CPUs=10 --job ubuntu-openssl-110-debug
+```
 
 # Push to dockerhub
 

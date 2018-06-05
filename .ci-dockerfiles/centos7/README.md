@@ -22,6 +22,11 @@ circleci build --job centos7-debug
 circleci build --job centos7-release
 circleci build --job centos7-llvm-600-release
 ```
+Note: when building you might want to set CPUs environment
+variable to speed up the build:
+```bash
+circleci build -e CPUs=10 --job centos7-debug
+```
 
 # Push to dockerhub
 

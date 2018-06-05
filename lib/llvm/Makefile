@@ -67,29 +67,31 @@ installed-$(LLVM_PROJ):
 	@rm -rf $(LLVM_INSTALLDIR)
 	@mkdir -p $(LLVM_INSTALLDIR)
 	$(MAKE) -C $(LLVM_BUILDDIR) install
-	@touch installed-$(LLVM_PROJ)
+	touch installed-$(LLVM_PROJ)
 
 built-llvm-$(LLVM_PROJ): $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ)
 	@echo building $(LLVM_PROJ)
 	$(MAKE) -C $(LLVM_BUILDDIR)
-	@touch built-llvm-$(LLVM_PROJ)
+	touch built-llvm-$(LLVM_PROJ)
 
 $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ): $(GET_LLVM_SRC_TARGET)
 	@echo generate $(LLVM_PROJ) makefile
 	mkdir -p $(LLVM_BUILDDIR)
 	cd $(LLVM_BUILDDIR); cmake -G $(BUILD_ENGINE) $(VERBOSE_CMAKE) $(USE_LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALLDIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(LLVM_SRCDIR)
-	@touch $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ)
+	touch $(LLVM_BUILDDIR)/generated-llvm-makefile-$(LLVM_PROJ)
 
 get-default-llvm-src:
-	echo get-default-llvm-src
+	@echo get-default-llvm-src
 	$(MAKE) clean
+	rm -rf $(LLVM_SRCDIR)
+	mkdir $(LLVM_SRCDIR)
 	git submodule init
 	git submodule update $(LLVM_SRC_DEPTH)
-	@touch get-default-llvm-src
+	touch get-default-llvm-src
 
 get-llvm-src-$(LLVM_PROJ):
-	echo get-llvm-src-$(LLVM_PROJ)
+	@echo get-llvm-src-$(LLVM_PROJ)
 	$(MAKE) clean
 	rm -rf $(LLVM_SRCDIR)
 	git clone $(LLVM_BRANCH) $(LLVM_SRC_DEPTH) $(LLVM_URL) $(LLVM_SRCDIR)
-	@touch get-llvm-src-$(LLVM_PROJ)
+	touch get-llvm-src-$(LLVM_PROJ)

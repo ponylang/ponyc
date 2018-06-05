@@ -21,6 +21,11 @@ from the ponyc project root:
 circleci build --job alpine-debug
 circleci build --job alpine-release
 ```
+Note: when building you might want to set CPUs environment
+variable to speed up the build:
+```bash
+circleci build -e CPUs=10 --job alpine-debug
+```
 
 # Push to dockerhub
 

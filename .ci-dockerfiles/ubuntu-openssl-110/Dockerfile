@@ -23,6 +23,15 @@ RUN apt-get update \
    && cd .. \
    && rm -rf openssl-1.1.0*
 
+# install newer git to support submodules
+RUN apt-get install -y gettext libcurl3-dev libexpat-dev zlib1g-dev \
+  && git clone https://github.com/git/git git-src \
+  && cd git-src \
+  && git checkout v2.17.1 \
+  && make -j$(nproc) prefix=/usr all \
+  && make prefix=/usr install \
+  && rm -rf git-src
+
 # add user pony in order to not run tests as root
 RUN useradd -ms /bin/bash -d /home/pony -g root pony
 USER pony

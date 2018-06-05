@@ -26,9 +26,18 @@ RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.b
  && cd .. \
  && rm -rf pcre2-10.21*
 
-# install a newer cmake, ubuntu's is to old
+# install a newer cmake
 RUN wget https://cmake.org/files/v3.11/cmake-3.11.2-Linux-x86_64.sh \
  && sh cmake-3.11.2-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
+
+# install newer git to support submodules
+RUN apt-get install -y gettext libcurl3-dev libexpat-dev zlib1g-dev \
+  && git clone https://github.com/git/git git-src \
+  && cd git-src \
+  && git checkout v2.17.1 \
+  && make -j$(nproc) prefix=/usr all \
+  && make prefix=/usr install \
+  && rm -rf git-src
 
 # add user pony in order to not run tests as root
 RUN useradd -ms /bin/bash -d /home/pony -g root pony

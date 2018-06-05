@@ -23,6 +23,11 @@ circleci build --job ubuntu-release
 circleci build --job ubuntu-llvm-600-debug
 circleci build --job ubuntu-llvm-600-release
 ```
+Note: when building you might want to set CPUs environment
+variable to speed up the build:
+```bash
+circleci build -e CPUs=10 --job ubuntu-debug
+```
 
 # Push to dockerhub
 
