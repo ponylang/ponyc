@@ -11,7 +11,7 @@ class JsonArray
     The actual array containing JSON structures.
     """
 
-  new iso create(len: USize = 0) =>
+  new create(len: USize = 0) =>
     """
     Create an array with zero elements, but space for len elements.
     """
@@ -81,7 +81,7 @@ class JsonObject
     mapping `String` keys to other JSON structures.
     """
 
-  new iso create(prealloc: USize = 6) =>
+  new create(prealloc: USize = 6) =>
     """
     Create a map with space for prealloc elements without triggering a
     resize. Defaults to 6.
