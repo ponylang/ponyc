@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix memory overflow when allocating CPUs when numa is enabled ([PR #2745](https://github.com/ponylang/ponyc/pull/2745))
 
 ### Added
 
