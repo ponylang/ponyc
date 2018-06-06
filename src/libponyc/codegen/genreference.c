@@ -215,6 +215,11 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
       ponyint_pool_free_size(buf_size, elements);
       return GEN_NOVALUE;
     }
+    else if(value == GEN_NOTNEEDED)
+    {
+      ponyint_pool_free_size(buf_size, elements);
+      return GEN_NOTNEEDED;
+    }
 
     ast_t* child_type = deferred_reify(reify, ast_type(child), c->opt);
     value = gen_assign_cast(c, elements[i], value, child_type);

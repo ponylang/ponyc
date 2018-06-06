@@ -614,6 +614,19 @@ TEST_F(CodegenTest, VariableDeclNestedTuple)
   TEST_COMPILE(src);
 }
 
+TEST_F(CodegenTest, TupleRemoveUnreachableBlock)
+{
+  // From issue #2735
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true then\n"
+    "      (let f, let g) = (U8(2), U8(3))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(CodegenTest, RedundantUnionInForLoopIteratorValueType)
 {
   // From issue #2736
