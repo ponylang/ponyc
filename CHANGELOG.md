@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix performance related to dynamic scheduler scaling ([PR #2751](https://github.com/ponylang/ponyc/pull/2751))
 - Fix incorrect disposable/destroyed epoll resubscribe handling ([PR #2744](https://github.com/ponylang/ponyc/pull/2744))
+- Fix performance regression in serialization performance ([PR #2752](https://github.com/ponylang/ponyc/pull/2752))
 
 ### Added
 
