@@ -40,6 +40,11 @@ static void* s_alloc_fn(pony_ctx_t* ctx, size_t size)
   return ponyint_pool_alloc_size(size);
 }
 
+static void s_throw_fn()
+{
+  throw std::exception{};
+}
+
 struct pool_size_deleter
 {
   size_t size;
@@ -94,11 +99,11 @@ void CompilerSerialisationTest::test_pass_ast(const char* pass)
   ponyint_array_t array;
   memset(&array, 0, sizeof(ponyint_array_t));
 
-  pony_serialise(&ctx, program, ast_pony_type(), &array, s_alloc_fn);
+  pony_serialise(&ctx, program, ast_pony_type(), &array, s_alloc_fn, s_throw_fn);
   auto array_guard = manage_array(array);
   std::unique_ptr<ast_t, ast_deleter> new_guard{
     (ast_t*)pony_deserialise(&ctx, ast_pony_type(), &array, s_alloc_fn,
-      s_alloc_fn)};
+      s_alloc_fn, s_throw_fn)};
 
   ast_t* new_program = new_guard.get();
 
@@ -134,12 +139,12 @@ void CompilerSerialisationTest::test_pass_reach(const char* pass)
   ponyint_array_t array;
   memset(&array, 0, sizeof(ponyint_array_t));
 
-  pony_serialise(&ctx, r, reach_pony_type(), &array, s_alloc_fn);
+  pony_serialise(&ctx, r, reach_pony_type(), &array, s_alloc_fn, s_throw_fn);
   auto array_guard = manage_array(array);
   array_guard.get_deleter().size = array.size;
   std::unique_ptr<reach_t, reach_deleter> new_guard{
     (reach_t*)pony_deserialise(&ctx, reach_pony_type(), &array, s_alloc_fn,
-      s_alloc_fn)};
+      s_alloc_fn, s_throw_fn)};
 
   reach_t* new_r = new_guard.get();
 
