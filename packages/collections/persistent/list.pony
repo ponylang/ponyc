@@ -55,11 +55,7 @@ primitive Lists[A]
     """
     Builds a new list from an Array
     """
-    var lst = this.empty()
-    for v in arr.values() do
-      lst = lst.prepend(v)
-    end
-    lst.reverse()
+    this.from(arr.values())
 
   fun from(iter: Iterator[val->A]): List[A] =>
     """
@@ -70,7 +66,7 @@ primitive Lists[A]
     for i in iter do
       l = Cons[A](i, l)
     end
-    l
+    l.reverse()
 
   fun eq[T: Equatable[T] val = A](l1: List[T], l2: List[T]): Bool ? =>
     """
