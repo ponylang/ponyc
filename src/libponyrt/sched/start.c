@@ -23,6 +23,7 @@ typedef struct options_t
   // concurrent options
   uint32_t threads;
   uint32_t min_threads;
+  uint32_t thread_suspend_threshold;
   uint32_t cd_detect_interval;
   size_t gc_initial;
   double gc_factor;
@@ -51,6 +52,7 @@ enum
 {
   OPT_THREADS,
   OPT_MINTHREADS,
+  OPT_SUSPENDTHRESHOLD,
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
@@ -65,6 +67,7 @@ static opt_arg_t args[] =
 {
   {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
+  {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
@@ -89,6 +92,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     {
       case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
       case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); break;
+      case OPT_SUSPENDTHRESHOLD: opt->thread_suspend_threshold = atoi(s.arg_val); break;
       case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
@@ -147,7 +151,7 @@ PONY_API int pony_init(int argc, char** argv)
   pony_exitcode(0);
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
-    opt.pinasio, opt.min_threads);
+    opt.pinasio, opt.min_threads, opt.thread_suspend_threshold);
 
   ponyint_cycle_create(ctx, opt.cd_detect_interval);
 
