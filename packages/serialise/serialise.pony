@@ -91,8 +91,9 @@ class val Serialised
       @{(ctx: Pointer[None], size: USize): Pointer[None] =>
         @pony_alloc[Pointer[None]](ctx, size)
       }
+    let throw_fn = @{() ? => error }
     @pony_serialise[None](@pony_ctx[Pointer[None]](), data, Pointer[None], r,
-      alloc_fn) ?
+      alloc_fn, throw_fn) ?
     _data = consume r
 
   new input(auth: InputSerialisedAuth, data: Array[U8] val) =>
@@ -118,8 +119,9 @@ class val Serialised
       @{(ctx: Pointer[None], size: USize): Pointer[None] =>
         @pony_alloc_final[Pointer[None]](ctx, size)
       }
+    let throw_fn = @{() ? => error }
     @pony_deserialise[Any iso^](@pony_ctx[Pointer[None]](), Pointer[None], _data,
-      alloc_fn, alloc_final_fn) ?
+      alloc_fn, alloc_final_fn, throw_fn) ?
 
   fun output(auth: OutputSerialisedAuth): Array[U8] val =>
     """
