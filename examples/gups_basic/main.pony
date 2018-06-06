@@ -10,7 +10,7 @@ class val Config
   let updater_count: USize
 
   new val create(env: Env) ? =>
-    let cs = CommandSpec.parent("gups_basic", "", [
+    let cs = CommandSpec.leaf("gups_basic", "", [
       OptionSpec.i64("table", "Log2 of the total table size." where default' = 20)
       OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
       OptionSpec.i64("chunk", "Chunk size." where default' = 1024)
