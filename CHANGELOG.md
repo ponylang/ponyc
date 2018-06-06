@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix incorrect disposable/destroyed epoll resubscribe handling ([PR #2744](https://github.com/ponylang/ponyc/pull/2744))
 
 ### Added
 
