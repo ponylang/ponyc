@@ -543,8 +543,8 @@ static pony_actor_t* perhaps_suspend_scheduler(
   // if we're the highest active scheduler thread
   // and there are more active schedulers than the minimum requested
   // and we're not terminating
-  if ((sched == &scheduler[current_active_scheduler_count - 1])
-    && (current_active_scheduler_count > min_scheduler_count)
+  if ((current_active_scheduler_count > min_scheduler_count)
+    && (sched == &scheduler[current_active_scheduler_count - 1])
     && (!sched->terminate)
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     // try to acquire mutex if using pthreads
@@ -677,10 +677,10 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    By waiting 1 millisecond before sending a block message, we are going to
     //    delay quiescence by a small amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
+    uint32_t current_active_scheduler_count = get_active_scheduler_count();
+
     if (!block_sent)
     {
-      uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
       // make sure thread scaling order is still valid. we should never be
       // active if the active_scheduler_count isn't larger than our index.
       pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
@@ -717,9 +717,6 @@ static pony_actor_t* steal(scheduler_t* sched)
       // block sent and no work to do. We should try and suspend if we can now
       // if we do suspend, we'll send a unblock message first to ensure cnf/ack
       // cycle works as expected
-
-      // get active scheduler count
-      uint32_t current_active_scheduler_count = get_active_scheduler_count();
 
       // make sure thread scaling order is still valid. we should never be
       // active if the active_scheduler_count isn't larger than our index.
