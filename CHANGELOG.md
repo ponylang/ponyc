@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- RFC 56: Make buffered.reader.line return String iso^ ([PR #2756](https://github.com/ponylang/ponyc/pull/2756))
 
 ## [0.22.6] - 2018-06-07
 
