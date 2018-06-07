@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler segfault caused by dead code removal of tupled variables ([PR #2757](https://github.com/ponylang/ponyc/pull/2757))
 - Fix `collections/persistent/Lists.from()` to return elements in the correct order ([PR #2754](https://github.com/ponylang/ponyc/pull/2754))
 - Fix performance related to dynamic scheduler scaling ([PR #2751](https://github.com/ponylang/ponyc/pull/2751))
 - Fix incorrect disposable/destroyed epoll resubscribe handling ([PR #2744](https://github.com/ponylang/ponyc/pull/2744))
