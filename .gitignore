@@ -30,6 +30,7 @@ output/
 _ReSharper.*
 .vscode/
 src/common/dtrace_probes.h
+packages/stdlib/stdlib
 
 /stdlib-docs/
 

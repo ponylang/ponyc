@@ -37,6 +37,7 @@ class ListenHandler
   fun ref listening(server: HTTPServer ref) =>
     try
       (let host, let service) = server.local_address().name()?
+      _env.out.print("connected: " + host)
     else
       _env.out.print("Couldn't get local address.")
       server.dispose()
@@ -60,10 +61,12 @@ class BackendMaker is HandlerFactory
 class BackendHandler is HTTPHandler
   """
   Notification class for a single HTTP session.  A session can process
-  several requests, one at a time.
+  several requests, one at a time.  Data recieved using OneshotTransfer 
+  transfer mode is echoed in the response.
   """
   let _env: Env
   let _session: HTTPSession
+  var _response: Payload = Payload.response()
 
   new ref create(env: Env, session: HTTPSession) =>
     """
@@ -76,18 +79,33 @@ class BackendHandler is HTTPHandler
     """
     Start processing a request.
     """
-    let response = Payload.response()
-    response.add_chunk("You asked for ")
-    response.add_chunk(request.url.path)
+    _response.add_chunk("You asked for ")
+    _response.add_chunk(request.url.path)
 
     if request.url.query.size() > 0 then
-      response.add_chunk("?")
-      response.add_chunk(request.url.query)
+      _response.add_chunk("?")
+      _response.add_chunk(request.url.query)
     end
 
     if request.url.fragment.size() > 0 then
-      response.add_chunk("#")
-      response.add_chunk(request.url.fragment)
+      _response.add_chunk("#")
+      _response.add_chunk(request.url.fragment)
     end
 
-    _session(consume response)
+    if request.method.eq("GET") then
+      _session(_response = Payload.response())
+    end
+
+  fun ref chunk(data: ByteSeq val) =>
+    """
+    Process the next chunk of data received.
+    """
+    _response.add_chunk("\n")
+    _response.add_chunk(data)
+
+  fun ref finished() =>
+    """
+    Called when the last chunk has been handled.
+    """
+    _env.out.print("Finished")
+    _session(_response = Payload.response())

@@ -1518,6 +1518,12 @@ static void* s_alloc_fn(pony_ctx_t* ctx, size_t size)
 }
 
 
+static void s_throw_fn()
+{
+  pony_assert(false);
+}
+
+
 // TODO: Make group signature indiependent of package load order.
 const char* package_group_signature(package_group_t* group)
 {
@@ -1530,7 +1536,7 @@ const char* package_group_signature(package_group_t* group)
     char* buf = (char*)ponyint_pool_alloc_size(SIGNATURE_LENGTH);
 
     pony_serialise(&ctx, group, package_group_signature_pony_type(), &array,
-      s_alloc_fn);
+      s_alloc_fn, s_throw_fn);
     int status = blake2b(buf, SIGNATURE_LENGTH, array.ptr, array.size, NULL, 0);
     (void)status;
     pony_assert(status == 0);

@@ -186,7 +186,7 @@ actor Main
     _env = env
 
     let cs = try
-        CommandSpec.parent("yield",
+        CommandSpec.leaf("yield",
         """
         Demonstrate use of the yield behaviour when writing tail recursive
         behaviours in pony.

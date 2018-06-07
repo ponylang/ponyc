@@ -60,7 +60,7 @@ class iso _TestListFrom is UnitTest
   fun name(): String => "collections/persistent/Lists (from)"
 
   fun apply(h: TestHelper) ? =>
-    let l1 = Lists[U32]([1; 2; 3])
+    let l1 = Lists[U32].from([1; 2; 3].values())
     h.assert_eq[USize](l1.size(), 3)
     h.assert_eq[U32](l1.head()?, 1)
 

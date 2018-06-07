@@ -9,7 +9,7 @@ class val Config
   let logactors: USize
 
   new val create(env: Env) ? =>
-    let cs = CommandSpec.parent("gups_opt", "", [
+    let cs = CommandSpec.leaf("gups_opt", "", [
       OptionSpec.i64("table", "Log2 of the total table size."
         where default' = 20)
       OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
