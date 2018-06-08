@@ -277,7 +277,7 @@ primitive Promises[A: Any #share]
 
     let j = _Join[A](p', ps'.size())
     for p in ps'.values() do
-      p.next[None]({(a)(j) => j(a)})
+      p.next[None]({(a)(j) => j(a)}, {() => p'.reject()})
     end
 
     p'
