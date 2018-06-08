@@ -33,19 +33,42 @@ Every call to [parse](json-JsonDoc#parse) overwrites the `data` field, so one
 JsonDoc instance can be used to parse multiple JSON Strings one by one.
 
 ```pony
-val doc = JsonDoc
+let doc = JsonDoc
 // parsing
 doc.parse(\"\"\"{"key":"value", "property: true, "array":[1, 2.5, false]}\"\"\")?
 
 // extracting values from a JSON structure
-val json: JsonObject  = doc.data as JsonObject
-val key: String       = json.data("key")? as String
-val property: Boolean = json.data("property")? as Bool
-val array: JsonArray  = json.data("array")?
-val first: I64        = array.data(0)? as I64
-val second: F64       = array.data(1)? as F64
-val last: Bool        = array.data(2)? as Bool
+let json: JsonObject  = doc.data as JsonObject
+let key: String       = json.data("key")? as String
+let property: Boolean = json.data("property")? as Bool
+let array: JsonArray  = json.data("array")?
+let first: I64        = array.data(0)? as I64
+let second: F64       = array.data(1)? as F64
+let last: Bool        = array.data(2)? as Bool
 ```
+
+### Sending JSON
+
+[JsonDoc](json-JsonDoc) has the `ref` reference capability, which means it is
+not sendable by default. If you need to send it to another actor you need to
+recover it to a sendable reference capability (either `val` or `iso`). For the
+sake of simplicity it is recommended to do the parsing already in the recover
+block:
+
+```pony
+// sending an iso doc
+let json_string = """{"array":[1, true, null]}"""
+let sendable_doc: JsonDoc iso = recover iso JsonDoc.>parse(json_string)? end
+some_actor.send(consume sendable_doc)
+
+// sending a val doc
+let val_doc: JsonDoc val = recover val JsonDoc.>parse(json_string)? end
+some_actor.send_val(val_doc)
+```
+
+When sending an `iso` JsonDoc it is important to recover it to a `ref` on the
+receiving side in order to be able to properly access the json structures in
+`data`.
 
 ## Writing JSON
 
