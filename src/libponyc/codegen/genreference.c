@@ -279,7 +279,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
   // Put the builder back where it was.
   LLVMPositionBuilderAtEnd(c->builder, this_block);
-  return GEN_NOVALUE;
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
