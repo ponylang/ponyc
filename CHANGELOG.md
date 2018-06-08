@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Integer.bit_reverse, exposing the llvm.bitreverse intrinsic. ([PR #2710](https://github.com/ponylang/ponyc/pull/2710))
 
 ### Changed
 
