@@ -210,15 +210,10 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     // We'll have an undefined element if one of our source elements is a
     // variable declaration. This is ok, since the tuple value will never be
     // used.
-    if(value == GEN_NOVALUE)
+    if(value == GEN_NOVALUE || value == GEN_NOTNEEDED)
     {
       ponyint_pool_free_size(buf_size, elements);
-      return GEN_NOVALUE;
-    }
-    else if(value == GEN_NOTNEEDED)
-    {
-      ponyint_pool_free_size(buf_size, elements);
-      return GEN_NOTNEEDED;
+      return value;
     }
 
     ast_t* child_type = deferred_reify(reify, ast_type(child), c->opt);
