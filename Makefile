@@ -917,7 +917,7 @@ test: all
 	@make test-examples
 
 test-examples: all
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree $(shell find examples/*/* -name '*.pony' -print | xargs -n 1 dirname  | sort -u | grep -v ffi-)
+	@PONYPATH=. find examples/*/* -name '*.pony' -print | xargs -n 1 dirname  | sort -u | grep -v ffi- | xargs -n 1 -I {} $(PONY_BUILD_DIR)/ponyc -d -s --checktree -o {} {}
 
 test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --version
@@ -929,7 +929,7 @@ test-ci: all
 	@$(PONY_BUILD_DIR)/ponyc --checktree --verify packages/stdlib
 	@./stdlib --sequential
 	@rm stdlib
-	@PONYPATH=. $(PONY_BUILD_DIR)/ponyc -d -s --checktree $(shell find examples/*/* -name '*.pony' -print | xargs -n 1 dirname  | sort -u | grep -v ffi-)
+	@PONYPATH=. find examples/*/* -name '*.pony' -print | xargs -n 1 dirname  | sort -u | grep -v ffi- | xargs -n 1 -I {} $(PONY_BUILD_DIR)/ponyc -d -s --checktree -o {} {}
 	@$(PONY_BUILD_DIR)/ponyc --antlr > pony.g.new
 	@diff pony.g pony.g.new
 	@rm pony.g.new
