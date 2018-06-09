@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix incorrect tuple handling ([PR #2763](https://github.com/ponylang/ponyc/pull/2763))
 - Fix Promise bug where join() element's reject doesn't reject the entire join ([PR #2770](https://github.com/ponylang/ponyc/pull/2770))
 
 ### Added
