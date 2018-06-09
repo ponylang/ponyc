@@ -649,7 +649,7 @@ class iso _TestFileWritev is UnitTest
       let path = "tmp.writev"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
       with file = CreateFile(filepath) as File do
-        file.writev(wb.done())
+        h.assert_true(file.writev(wb.done()))
       end
       with file2 = CreateFile(filepath) as File do
         let fileline1 = file2.line()?
@@ -765,7 +765,7 @@ class iso _TestFileWritevLarge is UnitTest
       let path = "tmp.writevlarge"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
       with file = CreateFile(filepath) as File do
-        file.writev(wb.done())
+        h.assert_true(file.writev(wb.done()))
       end
       with file2 = CreateFile(filepath) as File do
         count = 0
@@ -773,6 +773,10 @@ class iso _TestFileWritevLarge is UnitTest
           let fileline1 = file2.line()?
           h.assert_eq[String](count.string(), consume fileline1)
           count = count + 1
+          h.log(count.string())
+        end
+        try
+          h.fail("expected end of file, but got line: " + file2.line()?)
         end
       end
       filepath.remove()

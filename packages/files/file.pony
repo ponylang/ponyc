@@ -477,35 +477,35 @@ class File
     // TODO: Make writev_batch_size user configurable
     let writev_batch_size = @pony_os_writev_max()
     while pending_total > 0 do
-      //determine number of bytes and buffers to send
-      if (_pending_writev.size().i32()/2) < writev_batch_size then
-        num_to_send = _pending_writev.size().i32()/2
+      // Determine the number of bytes and buffers to send.
+      num_to_send = (_pending_writev.size().i32() / 2) - num_sent.i32()
+      if num_to_send <= writev_batch_size then
         bytes_to_send = pending_total
       else
-        //have more buffers than a single writev can handle
-        //iterate over buffers being sent to add up total
+        // We have more buffers than a single writev can handle.
+        // We must iterate over the buffers being sent to add up to the total.
         num_to_send = writev_batch_size
         bytes_to_send = 0
-        var counter: I32 = (num_sent.i32()*2) + 1
+        var counter: I32 = (num_sent.i32() * 2) + 1
         repeat
           bytes_to_send = bytes_to_send + _pending_writev(counter.usize())?
           counter = counter + 2
-        until counter >= (num_to_send*2) end
+        until counter >= (num_to_send * 2) end
       end
 
       // Write as much data as possible (vectored i/o).
       // On Windows only write 1 buffer at a time.
       var len = ifdef windows then
-        @_write(_fd, _pending_writev(num_sent*2)?,
+        @_write(_fd, _pending_writev(num_sent * 2)?,
           bytes_to_send.i32()).isize()
       else
-        @writev(_fd, _pending_writev.cpointer(num_sent*2),
+        @writev(_fd, _pending_writev.cpointer(num_sent * 2),
           num_to_send).isize()
       end
 
       if len < bytes_to_send.isize() then error end
 
-      // sent all data we requested in this batch
+      // We've sent all the data we requested in this batch.
       pending_total = pending_total - bytes_to_send
       num_sent = num_sent + num_to_send.usize()
     end
