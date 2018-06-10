@@ -37,7 +37,12 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 
 ## Releasing
 
-Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. It is advised that you use a clone of this repo and not a fork.
+Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. You have to be using a clone rather than a fork. Further, due to how git works, you need to make sure that both your `master` and `release` branches are up-to-date. It is advised to your do this but making a fresh clone of the ponyc repo from which you will release. For example:
+
+```bash
+git clone git@github.com:ponylang/ponyc.git ponyc-release-clean
+cd ponyc-release-clean
+```
 
 For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
 
