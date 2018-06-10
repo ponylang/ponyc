@@ -11,6 +11,7 @@ actor Main is TestList
     test(_TestPromiseSelect)
     test(_TestPromiseTimeout)
     test(_TestPromisesJoin)
+    test(_TestPromisesJoinThenReject)
 
 class iso _TestPromise is UnitTest
   fun name(): String => "promises/Promise"
@@ -129,3 +130,18 @@ class iso _TestPromisesJoin is UnitTest
     a("a")
     b("b")
     c("c")
+
+class iso _TestPromisesJoinThenReject is UnitTest
+  fun name(): String => "promises/Promise.join"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(2_000_000_000)
+    h.expect_action("rejected")
+    (let a, let b, let c) = (Promise[String], Promise[String], Promise[String])
+    let abc = Promises[String].join([a; b; c].values())
+      .next[String]({(l) => String.join(l.values()) },
+        {() => h.complete_action("rejected"); "string"})
+
+    a("a")
+    b("b")
+    c.reject()

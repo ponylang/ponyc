@@ -2,6 +2,22 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.23.0] - 2018-06-10
+
+### Fixed
+
+- Fix File.writev and File.flush in cases where the IO vector exceeds IOV_MAX. ([PR #2771](https://github.com/ponylang/ponyc/pull/2771))
+- Fix incorrect tuple handling ([PR #2763](https://github.com/ponylang/ponyc/pull/2763))
+- Fix Promise bug where join() element's reject doesn't reject the entire join ([PR #2770](https://github.com/ponylang/ponyc/pull/2770))
+
+### Added
+
+- Add Integer.bit_reverse, exposing the llvm.bitreverse intrinsic. ([PR #2710](https://github.com/ponylang/ponyc/pull/2710))
+
+### Changed
+
+- RFC 56: Make buffered.reader.line return String iso^ ([PR #2756](https://github.com/ponylang/ponyc/pull/2756))
+
 ## [0.22.6] - 2018-06-07
 
 ### Fixed

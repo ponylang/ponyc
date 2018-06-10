@@ -214,7 +214,7 @@ class _HTTPParser
         else
           // A non-empty line *must* be a header. Error if not.
           try
-            _process_header(line)?
+            _process_header(consume line)?
           else
             _state = _ExpectError
             break

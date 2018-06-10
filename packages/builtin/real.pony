@@ -257,6 +257,12 @@ trait val Integer[A: Integer[A] val] is Real[A]
   fun op_xor(y: A): A => this xor y
   fun op_not(): A => not this
 
+  fun bit_reverse(): A
+    """
+    Reverse the order of the bits within the integer.
+    For example, 0b11101101 (237) would return 0b10110111 (183).
+    """
+
   fun bswap(): A
 
 trait val _SignedInteger[A: _SignedInteger[A, B] val,
