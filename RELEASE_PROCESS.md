@@ -30,6 +30,9 @@ We rely on both Travis CI and Appveyor as part of our release process. Both need
 
 * [Travis CI Status](https://www.traviscistatus.com)
 * [Appveyor Status](https://appveyor.statuspage.io)
+* [COPR Build System](https://status.fedoraproject.org/)
+* [Launchpad Buildfarm](https://twitter.com/launchpadstatus)
+
 
 ### A GitHub issue exists for the release
 
