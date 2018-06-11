@@ -30,6 +30,9 @@ We rely on both Travis CI and Appveyor as part of our release process. Both need
 
 * [Travis CI Status](https://www.traviscistatus.com)
 * [Appveyor Status](https://appveyor.statuspage.io)
+* [COPR Build System](https://status.fedoraproject.org/)
+* [Launchpad Buildfarm](https://twitter.com/launchpadstatus)
+
 
 ### A GitHub issue exists for the release
 
@@ -37,7 +40,12 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 
 ## Releasing
 
-Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. It is advised that you use a clone of this repo and not a fork.
+Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. You have to be using a clone rather than a fork. Further, due to how git works, you need to make sure that both your `master` and `release` branches are up-to-date. It is advised to your do this but making a fresh clone of the ponyc repo from which you will release. For example:
+
+```bash
+git clone git@github.com:ponylang/ponyc.git ponyc-release-clean
+cd ponyc-release-clean
+```
 
 For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
 
@@ -181,7 +189,6 @@ All Pony releases should be posted to:
 
 - [/r/ponylang](https://www.reddit.com/r/ponylang/) ([example](https://www.reddit.com/r/ponylang/comments/8m85p9/0222_released/))
 - [Hacker News](https://news.ycombinator.com/) ([example](https://news.ycombinator.com/item?id=17150567))
-- [Lobste.rs](https://lobste.rs/) ([example](https://lobste.rs/s/yknbfl/pony_0_22_0_released))
 - [ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
 
 ### Close the GitHub issue

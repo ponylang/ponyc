@@ -614,6 +614,20 @@ TEST_F(CodegenTest, VariableDeclNestedTuple)
   TEST_COMPILE(src);
 }
 
+TEST_F(CodegenTest, TupleRemoveUnreachableBlockInLoop)
+{
+  // From issue #2760
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var token = U8(1)\n"
+    "    repeat\n"
+    "      (token, let source) = (U8(1), U8(2))\n"
+    "    until token == 2 end";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(CodegenTest, TupleRemoveUnreachableBlock)
 {
   // From issue #2735
