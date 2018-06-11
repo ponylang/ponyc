@@ -145,7 +145,23 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: echo 'export test_ci_params="-j10 config=release default_pic=true"' >> $BASH_ENV
+      - run: echo 'export test_ci_params="config=release default_pic=true"' >> $BASH_ENV
+      - run: *test-ci-lib-llvm
+  ubuntu-18.04-debug:
+    docker:
+      - image: ponylang/ponyc-ci:ubuntu-18.04
+        user: pony
+    steps:
+      - checkout
+      - run: echo 'export test_ci_params="config=debug default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV
+      - run: *test-ci-lib-llvm
+  ubuntu-18.04-release:
+    docker:
+      - image: ponylang/ponyc-ci:ubuntu-18.04
+        user: pony
+    steps:
+      - checkout
+      - run: echo 'export test_ci_params="config=release default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
   ubuntu-openssl-110-debug:
     docker:
@@ -240,6 +256,8 @@ workflows:
       - ubuntu-llvm-600-release
       - ubuntu-debug
       - ubuntu-release
+      - ubuntu-18.04-debug
+      - ubuntu-18.04-release
       - ubuntu-openssl-110-debug
       - ubuntu-openssl-110-release
       - centos7-debug
