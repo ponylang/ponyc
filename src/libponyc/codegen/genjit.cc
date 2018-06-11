@@ -2,17 +2,7 @@
 #include "genexe.h"
 #include "genopt.h"
 
-#ifdef _MSC_VER
-#  pragma warning(push)
-#  pragma warning(disable:4244)
-#  pragma warning(disable:4800)
-#  pragma warning(disable:4267)
-#  pragma warning(disable:4624)
-#  pragma warning(disable:4141)
-#  pragma warning(disable:4291)
-#  pragma warning(disable:4146)
-#  pragma warning(disable:4005)
-#endif
+#include "llvm_config_begin.h"
 
 #include <llvm/IR/Mangler.h>
 #include <llvm/IR/Module.h>
@@ -26,9 +16,7 @@
 #endif
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
+#include "llvm_config_end.h"
 
 namespace orc = llvm::orc;
 

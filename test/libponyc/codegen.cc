@@ -6,24 +6,12 @@
 
 #include "util.h"
 
-#ifdef _MSC_VER
-#  pragma warning(push)
-#  pragma warning(disable:4244)
-#  pragma warning(disable:4800)
-#  pragma warning(disable:4267)
-#  pragma warning(disable:4624)
-#  pragma warning(disable:4141)
-#  pragma warning(disable:4146)
-#  pragma warning(disable:4005)
-#endif
+#include "llvm_config_begin.h"
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Module.h>
 
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
-
+#include "llvm_config_end.h"
 
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
