@@ -250,14 +250,11 @@ class File
         end)
           .isize()
 
-      if r < bytes_to_read.isize() then
-        _errno =
-          if r == 0 then
-             FileEOF
-           else
-             _get_error() // error
-             error
-           end
+      match r
+      | 0  => _errno = FileEOF
+      | -1 =>
+        _errno = _get_error()
+        error
       else
         // truncate at offset in order to adjust size of string after ffi call
         // and to avoid scanning full array via recalc
@@ -312,13 +309,9 @@ class File
         end)
           .isize()
 
-      if r < len.isize() then
-        _errno =
-          if r == 0 then
-             FileEOF
-           else
-             _get_error() // error
-           end
+      match r
+      | 0  => _errno = FileEOF
+      | -1 => _errno = _get_error()
       end
 
       result.truncate(r.usize())
@@ -341,13 +334,9 @@ class File
         @read(_fd, result.cpointer(), result.space())
       end).isize()
 
-      if r < len.isize() then
-        _errno =
-          if r == 0 then
-             FileEOF
-           else
-             _get_error() // error
-           end
+      match r
+      | 0  => _errno = FileEOF
+      | -1 => _errno = _get_error()
       end
 
       result.truncate(r.usize())
