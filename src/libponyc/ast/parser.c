@@ -815,7 +815,7 @@ DEF(repeat);
   SCOPE();
   RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", annotatedrawseq);
+  RULE("condition expression", annotatedseq);
   IF(TK_ELSE, RULE("else clause", annotatedseq));
   TERMINATE("repeat loop", TK_END);
   DONE();
