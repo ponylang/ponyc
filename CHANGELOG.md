@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix some edge cases in code generation for loops that jump away. ([PR #2791](https://github.com/ponylang/ponyc/pull/2791))
 - Fix repeat loop symbol tracking to allow more valid cases. ([PR #2786](https://github.com/ponylang/ponyc/pull/2786))
 -  Fix incorrect disposable/destroyed epoll resubscribe handling ([PR #2781](https://github.com/ponylang/ponyc/pull/2781))
 - Fix GC-safety issue with writev pointers in File. ([PR #2775](https://github.com/ponylang/ponyc/pull/2775))
