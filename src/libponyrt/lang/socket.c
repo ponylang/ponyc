@@ -66,9 +66,10 @@ typedef int SOCKET;
 #include <linux/udp.h>
 #endif
 #ifdef PLATFORM_IS_BSD
+#ifndef PLATFORM_IS_DRAGONFLY
 #include <netinet/ip_mroute.h>
 #include <netinet/sctp.h>
-#include <netinet/sctp.h>
+#endif
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
