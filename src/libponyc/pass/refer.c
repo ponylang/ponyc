@@ -935,6 +935,7 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
           ast_consolidate_branches(then_clause, 2);
         }
       }
+      break;
 
       case TK_REPEAT:
       {
@@ -951,6 +952,7 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
           ast_consolidate_branches(else_clause, 2);
         }
       }
+      break;
 
       default: {}
     }
