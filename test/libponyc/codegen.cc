@@ -661,3 +661,67 @@ TEST_F(CodegenTest, RedundantUnionInForLoopIteratorValueType)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(CodegenTest, WhileLoopBreakOnlyValueNeeded)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = while true do break true else false end\n"
+        "if x then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, WhileLoopBreakOnlyInBranches)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "while true do\n"
+          "if true then\n"
+            "break None\n"
+          "else\n"
+            "break\n"
+          "end\n"
+        "else\n"
+          "return\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, RepeatLoopBreakOnlyValueNeeded)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = repeat break true until false else false end\n"
+        "if x then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "repeat\n"
+          "if true then\n"
+            "break None\n"
+          "else\n"
+            "break\n"
+          "end\n"
+        "until\n"
+          "false\n"
+        "else\n"
+          "return\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
