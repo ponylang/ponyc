@@ -28,7 +28,6 @@ use debug = "debug"
 use files = "files"
 use format = "format"
 use glob = "glob"
-use http = "net/http"
 use ini = "ini"
 use itertools = "itertools"
 use json = "json"
@@ -70,7 +69,6 @@ actor Main is TestList
       glob.Main.make().tests(test)
     end
 
-    http.Main.make().tests(test)
     ini.Main.make().tests(test)
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
