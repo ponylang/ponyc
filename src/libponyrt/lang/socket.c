@@ -90,7 +90,7 @@ typedef struct
   struct sockaddr_storage addr;
 } ipaddress_t;
 
-static socklen_t address_length(ipaddress_t* ipaddr)
+PONY_API socklen_t ponyint_address_length(ipaddress_t* ipaddr)
 {
   switch(ipaddr->addr.ss_family)
   {
@@ -412,7 +412,7 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 static bool iocp_sendto(int fd, const char* data, size_t len,
   ipaddress_t* ipaddr)
 {
-  socklen_t socklen = address_length(ipaddr);
+  socklen_t socklen = ponyint_address_length(ipaddr);
 
   if(socklen == (socklen_t)-1)
     return false;
@@ -801,7 +801,7 @@ PONY_API bool pony_os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
   char host[NI_MAXHOST];
   char serv[NI_MAXSERV];
 
-  socklen_t len = address_length(ipaddr);
+  socklen_t len = ponyint_address_length(ipaddr);
 
   if(len == (socklen_t)-1)
     return false;
@@ -1010,7 +1010,7 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
 
   return 0;
 #else
-  socklen_t addrlen = address_length(ipaddr);
+  socklen_t addrlen = ponyint_address_length(ipaddr);
 
   if(addrlen == (socklen_t)-1)
     pony_error();
