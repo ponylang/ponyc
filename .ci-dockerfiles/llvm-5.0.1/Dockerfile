@@ -1,23 +1,11 @@
-FROM ubuntu:16.04
+FROM ponylang/ponyc-ci:ubuntu-14.04-base
 
 ENV LLVM_VERSION 5.0.1
 
-RUN apt-get update \
- && apt-get install -y \
-  apt-transport-https \
-  g++ \
-  git \
-  libncurses5-dev \
-  libpcre2-dev \
-  libssl-dev \
-  make \
-  wget \
-  xz-utils \
-  zlib1g-dev \
- && wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04.tar.xz \
- | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-16.04
+USER root
 
-# add user pony in order to not run tests as root
-RUN useradd -ms /bin/bash -d /home/pony -g root pony
+RUN wget -O - http://llvm.org/releases/${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz \
+ | tar xJf - --strip-components 1 -C /usr/local/ clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8
+
 USER pony
 WORKDIR /home/pony

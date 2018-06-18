@@ -1528,7 +1528,7 @@ bool target_is_arm(char* t)
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
 #endif
 
-  return !strcmp("arm", arch);
+  return (!strcmp("arm", arch) || !strcmp("aarch64", arch));
 }
 
 // This function is used to safeguard against potential oversights on the size
