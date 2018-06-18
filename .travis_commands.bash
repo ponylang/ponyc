@@ -3,8 +3,9 @@
 set -o errexit
 set -o nounset
 
-ponyc-test(){
+osx-ponyc-test(){
   echo "Building and testing ponyc..."
+  make CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) all
   make CC="$CC1" CXX="$CXX1" test-ci
 }
 
