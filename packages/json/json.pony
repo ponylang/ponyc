@@ -57,7 +57,7 @@ block:
 
 ```pony
 // sending an iso doc
-let json_string = """{"array":[1, true, null]}"""
+let json_string = \"\"\"{"array":[1, true, null]}\"\"\"
 let sendable_doc: JsonDoc iso = recover iso JsonDoc.>parse(json_string)? end
 some_actor.send(consume sendable_doc)
 
