@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- [RFC 55] Remove package net/http from stdlib ([PR #2795](https://github.com/ponylang/ponyc/pull/2795))
 - Change refcap of JsonDoc to ref for better usability ([PR #2747](https://github.com/ponylang/ponyc/pull/2747))
 - Change NetAddress class to hide its fields behind functions, fixing cross-platform compatibility. ([PR #2734](https://github.com/ponylang/ponyc/pull/2734))
 
