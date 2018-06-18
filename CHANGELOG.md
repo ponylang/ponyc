@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Correctly allocate memory for linker arguments ([PR #2797](https://github.com/ponylang/ponyc/pull/2797))
 - Fix build on DragonFly BSD ([PR #2794](https://github.com/ponylang/ponyc/pull/2794))
 - Fix some edge cases in code generation for loops that jump away. ([PR #2791](https://github.com/ponylang/ponyc/pull/2791))
 - Fix repeat loop symbol tracking to allow more valid cases. ([PR #2786](https://github.com/ponylang/ponyc/pull/2786))
