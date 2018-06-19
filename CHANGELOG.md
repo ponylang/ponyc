@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Do not set File._errno when reading less than requested bytes. ([PR #2785](https://github.com/ponylang/ponyc/pull/2785))
 - Correctly allocate memory for linker arguments ([PR #2797](https://github.com/ponylang/ponyc/pull/2797))
 - Fix build on DragonFly BSD ([PR #2794](https://github.com/ponylang/ponyc/pull/2794))
 - Fix some edge cases in code generation for loops that jump away. ([PR #2791](https://github.com/ponylang/ponyc/pull/2791))
