@@ -207,8 +207,9 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   {
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
     LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
-    args[0] = final_actor;
-    gencall_runtime(c, "ponyint_destroy", args, 1, "");
+    args[0] = ctx;
+    args[1] = final_actor;
+    gencall_runtime(c, "ponyint_destroy", args, 2, "");
   }
 
   args[0] = ctx;
