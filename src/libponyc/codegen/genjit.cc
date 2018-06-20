@@ -14,6 +14,14 @@
 #  pragma warning(disable:4005)
 #endif
 
+#if PONY_LLVM < 400
+   // Define NDEBUG so assertIsChecked does not abort, assertIsChecked is
+   // located in lib/llvm/src/include/llvm/Support/Error.h
+#  pragma push_macro("NDEBUG")
+#  undef NDEBUG
+#  define NDEBUG
+#endif
+
 #include <llvm/IR/Mangler.h>
 #include <llvm/IR/Module.h>
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
@@ -25,6 +33,10 @@
 #  include <llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h>
 #endif
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+
+#if PONY_LLVM < 400
+#  pragma pop_macro("NDEBUG")
+#endif
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
