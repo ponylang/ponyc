@@ -47,6 +47,7 @@ actor Main is TestList
     test(_TestFileLinesEmptyFile)
     test(_TestFileLinesSingleLine)
     test(_TestFileLinesMultiLine)
+    test(_TestFileLinesMovingCursor)
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
@@ -788,9 +789,6 @@ class iso _TestFileWritevLarge is UnitTest
           count = count + 1
           h.log(count.string())
         end
-        try
-          h.fail("expected end of file, but got line: " + file2.line()?)
-        end
       end
       filepath.remove()
     else
@@ -1003,3 +1001,47 @@ class _TestFileLinesMultiLine is UnitTest
       end
     end
 
+class _TestFileLinesMovingCursor is UnitTest
+  var tmp_dir: (FilePath | None) = None
+
+  fun ref set_up(h: TestHelper) ? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "multi-line")?
+
+  fun ref tear_down(h: TestHelper) =>
+    try
+      (tmp_dir as FilePath).remove()
+    end
+
+  fun name(): String => "files/FileLines.moving-cursor"
+
+  fun ref apply(h: TestHelper)? =>
+    let tmp_file = (tmp_dir as FilePath).join("moving-cursor")?
+    with file = CreateFile(tmp_file) as File do
+      h.assert_true(
+        file.write("a\nb\nc\nd"),
+        "could not write to file: " + tmp_file.path)
+    end
+
+    with file = OpenFile(tmp_file) as File do
+      h.assert_eq[USize](file.position(), 0)
+      let fl1 = FileLines(file)
+      h.assert_eq[String](" ".join(fl1), "a b c d")
+      h.assert_eq[USize](file.position(), 0)
+
+      file.seek_start(2)
+      let fl2 = FileLines(file)
+      h.assert_eq[String](" ".join(fl2), "b c d")
+      h.assert_eq[USize](file.position(), 2)
+
+      file.seek_start(0)
+      let fl3 = FileLines(file)
+      file.seek_start(2)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "a")
+      h.assert_eq[USize](file.position(), 2)
+      file.seek_start(4)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "b")
+      h.assert_eq[USize](file.position(), 4)
+
+    end

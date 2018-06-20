@@ -28,55 +28,67 @@ class FileLines is Iterator[String iso^]
     _has_next
 
   fun ref next(): String iso^ ? =>
-    // get back to position of last line
-    let current_pos = _file.position()
-    _file.seek_start(_cursor)
+    """
+    next:
+      set _has_next to false iff:
 
-    try
-      while _file.errno() isnt FileEOF do
-        try
-          return _read_line()?
-        else
-          if _file.valid() then
-            // get new line from file
-            let read_bytes = _last_line_length.max(_min_read_size)
-            let read_buf = _file.read(read_bytes)
-            _cursor = _file.position()
+    while loop exit condition:
 
-            let errno = _file.errno()
-            if (read_buf.size() == 0) and (errno isnt FileOK) and (errno isnt FileEOF) then
-              _has_next = false
-              error
-            end
-
-            // TODO: Limit size of read buffer
-            _reader.append(consume read_buf)
-          else
-            _has_next = false
-            error
-          end
-
+    """
+    while true do
+      try
+        return _read_line()?
+      else
+        if not _fill_buffer() then
+          // nothing to read from file, we can savely exit here
+          break
         end
       end
+    end
+    _has_next = false
+    if _reader.size() > 0 then
       // don't forget the last line
-      _has_next = false
-      if _reader.size() > 0 then
-        return _read_last_line()?
-      else
-        error
-      end
+      _read_last_line()?
     else
-      // propagating error
+      // nothing to return, we can only error here
       error
-    then
-      // reset position to not disturb other operations on the file
-      _file.seek_start(current_pos)
     end
 
   fun ref _read_line(): String iso^ ? =>
     let line = _reader.line()?
     _last_line_length = line.size()
     consume line
+
+  fun ref _fill_buffer(): Bool =>
+    """
+    read from file and fill the reader-buffer.
+
+    Returns `true` if data could be read from the file.
+
+    After a successful reading operation `_cursor` is updated.
+    """
+    var result = true
+    // get back to position of last line
+    let current_pos = _file.position()
+    _file.seek_start(_cursor)
+    if _file.valid() then
+      let read_bytes = _last_line_length.max(_min_read_size)
+      let read_buf = _file.read(read_bytes)
+      _cursor = _file.position()
+
+      let errno = _file.errno()
+      if (read_buf.size() == 0) and (errno isnt FileOK) then
+        result = false
+      else
+        // TODO: Limit size of read buffer
+        _reader.append(consume read_buf)
+      end
+    else
+      result = false
+    end
+    // reset position to not disturb other operations on the file
+    _file.seek_start(current_pos)
+    result
 
   fun ref _read_last_line(): String iso^ ? =>
     let block = _reader.block(_reader.size())?
