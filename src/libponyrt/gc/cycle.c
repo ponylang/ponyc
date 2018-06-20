@@ -10,6 +10,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#define CD_MAX_CHECK_BLOCKED 1000
+
 typedef struct block_msg_t
 {
   pony_msg_t msg;
@@ -137,6 +139,7 @@ typedef struct detector_t
 
   size_t next_token;
   size_t detect_interval;
+  size_t last_checked;
 
   viewmap_t views;
   viewmap_t deferred;
@@ -542,7 +545,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 
 static void check_blocked(pony_ctx_t* ctx, detector_t* d)
 {
-  size_t i = HASHMAP_BEGIN;
+  size_t i = d->last_checked;
   view_t* view;
 
   while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
@@ -553,7 +556,19 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     {
       pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
     }
+
+    // if we've hit the max limit for # of actors to check
+    if(i > CD_MAX_CHECK_BLOCKED)
+      break;
   }
+
+  // if we've reached the end of the map, reset and start from
+  // the beginning next time else continue from where we left
+  // off
+  if(view == NULL)
+    d->last_checked = HASHMAP_BEGIN;
+  else
+    d->last_checked = i;
 
   // process all deferred view stuff
   deferred(ctx, d);
@@ -911,6 +926,9 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
   // 1 second = 2000000000 cycles (approx.)
   // based on same scale as ponyint_cpu_core_pause() uses
   d->detect_interval = detect_interval * 2000000;
+
+  // initialize last_checked
+  d->last_checked = HASHMAP_BEGIN;
 }
 
 bool ponyint_cycle_check_blocked(pony_ctx_t* ctx, uint64_t tsc, uint64_t tsc2)
