@@ -44,7 +44,7 @@ static bool verify_main_create(pass_opt_t* opt, ast_t* ast)
         "single Env parameter");
     else
       ast_error(opt->check.errors, params,
-        "the create constructor of the Main actor must take only a single Env"
+        "the create constructor of the Main actor must take only a single Env "
         "parameter");
     ok = false;
   }
@@ -138,9 +138,12 @@ static bool verify_any_final(pass_opt_t* opt, ast_t* ast)
 
   bool ok = true;
 
-  if((ast_id(opt->check.frame->type) == TK_PRIMITIVE) &&
-    (ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE))
+  if(ast_id(opt->check.frame->type) == TK_STRUCT)
   {
+    ast_error(opt->check.errors, ast, "a struct cannot have a _final method");
+    ok = false;
+  } else if((ast_id(opt->check.frame->type) == TK_PRIMITIVE) &&
+    (ast_id(ast_childidx(opt->check.frame->type, 1)) != TK_NONE)) {
     ast_error(opt->check.errors, ast,
       "a primitive with type parameters cannot have a _final method");
     ok = false;
@@ -189,10 +192,152 @@ static bool verify_any_final(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+static bool verify_serialise_space(pass_opt_t* opt, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+
+  if(strcmp(ast_name(id), "_serialise_space"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(opt->check.errors, ast, "_serialise_space must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_BOX)
+  {
+    ast_error(opt->check.errors, cap, "_serialise_space must be box");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(opt->check.errors, typeparams, "_serialise_space must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 0)
+  {
+    ast_error(opt->check.errors, params, "_serialise_space must have no parameters");
+    ok = false;
+  }
+
+  if(!is_literal(result, "USize"))
+  {
+    ast_error(opt->check.errors, result, "_serialise_space must return USize");
+    ok = false;
+  }
+
+  return ok;
+}
+
+static bool verify_serialiser(pass_opt_t* opt, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+
+  if(strcmp(ast_name(id), "_serialise"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(opt->check.errors, ast, "_serialise must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_BOX)
+  {
+    ast_error(opt->check.errors, cap, "_serialise must be box");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(opt->check.errors, typeparams, "_serialise must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    ast_error(opt->check.errors, params, "_serialise must have one parameter");
+    ok = false;
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(opt->check.errors, result, "_serialise must return None");
+    ok = false;
+  }
+
+  return ok;
+}
+
+static bool verify_deserialiser(pass_opt_t* opt, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+
+  if(strcmp(ast_name(id), "_deserialise"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(opt->check.errors, ast, "_deserialise must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_REF)
+  {
+    ast_error(opt->check.errors, cap, "_deserialise must be ref");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(opt->check.errors, typeparams, "_deserialise must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    ast_error(opt->check.errors, params, "_deserialise must have one parameter");
+    ok = false;
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(opt->check.errors, result, "_deserialise must return None");
+    ok = false;
+  }
+
+  return ok;
+}
+
+static bool verify_any_serialise(pass_opt_t* opt, ast_t* ast)
+{
+  if (!verify_serialise_space(opt, ast) || !verify_serialiser(opt, ast) ||
+      !verify_deserialiser(opt, ast))
+    return false;
+
+  return true;
+}
+
 static bool show_partiality(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
   bool found = false;
+
+  if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
+  {
+      pony_assert(child != NULL);
+      // Skip error in body.
+      child = ast_sibling(child);
+  }
 
   while(child != NULL)
   {
@@ -223,7 +368,8 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
   // Run checks tailored to specific kinds of methods, if any apply.
   if(!verify_main_create(opt, ast) ||
     !verify_primitive_init(opt, ast) ||
-    !verify_any_final(opt, ast))
+    !verify_any_final(opt, ast) ||
+    !verify_any_serialise(opt, ast))
     return false;
 
   // Check partial functions.

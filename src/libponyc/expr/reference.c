@@ -50,6 +50,81 @@ static bool check_provides(pass_opt_t* opt, ast_t* type, ast_t* provides,
   return false;
 }
 
+static bool is_legal_dontcare_read(ast_t* ast)
+{
+  // We either are the LHS of an assignment, a case expr or a tuple element. That tuple must
+  // either be a pattern or the LHS of an assignment. It can be embedded in
+  // other tuples, which may appear in sequences.
+
+  // '_' may be wrapped in a sequence.
+  ast_t* parent = ast_parent(ast);
+  if(ast_id(parent) == TK_SEQ)
+    parent = ast_parent(parent);
+
+  switch(ast_id(parent))
+  {
+    case TK_ASSIGN:
+    {
+      AST_GET_CHILDREN(parent, left, right);
+      if(ast == left)
+        return true;
+      return false;
+    }
+    case TK_CASE:
+    {
+      // we have a single `_` as case pattern
+      // which is actually forbidden in favor for the else clause
+      // but it is referentially legal
+      AST_GET_CHILDREN(parent, case_pattern);
+      if(case_pattern == ast)
+        return true;
+      return false;
+    }
+    case TK_TUPLE:
+    {
+      ast_t* grandparent = ast_parent(parent);
+
+      while((ast_id(grandparent) == TK_TUPLE) ||
+        (ast_id(grandparent) == TK_SEQ))
+      {
+        parent = grandparent;
+        grandparent = ast_parent(parent);
+      }
+
+      switch(ast_id(grandparent))
+      {
+        case TK_ASSIGN:
+        {
+          AST_GET_CHILDREN(grandparent, left, right);
+
+          if(parent == left)
+            return true;
+
+          break;
+        }
+
+        case TK_CASE:
+        {
+          AST_GET_CHILDREN(grandparent, pattern, guard, body);
+
+          if(parent == pattern)
+            return true;
+
+          break;
+        }
+
+        default: {}
+      }
+
+      break;
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
 bool expr_provides(pass_opt_t* opt, ast_t* ast)
 {
   // Check that the type actually provides everything it declares.
@@ -174,7 +249,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
         current = parent;
         parent = ast_parent(parent);
       }
-      if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+      if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access field of non-sendable "
@@ -220,15 +295,20 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     if(!expr_nominal(opt, &type))
     {
       ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-      ast_free_unattached(type);
       return false;
     }
   }
+
+  // Handle cases where we just want to transform a typeref for type purposes.
+  if(ast_parent(ast) == NULL)
+    return true;
 
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
     case TK_DOT:
+    case TK_TILDE:
+    case TK_CHAIN:
       break;
 
     case TK_CALL:
@@ -243,7 +323,6 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       if(!expr_dot(opt, astp))
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
         return false;
       }
 
@@ -265,15 +344,16 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
         {
           // Add a call node.
           ast_t* call = ast_from(ast, TK_CALL);
+          ast_add(call, ast_from(call, TK_NONE)); // Call partiality
           ast_add(call, ast_from(call, TK_NONE)); // Named
           ast_add(call, ast_from(call, TK_NONE)); // Positional
           ast_swap(ast, call);
-          ast_append(call, ast);
+          *astp = call;
+          ast_add(call, ast);
 
           if(!expr_call(opt, &call))
           {
             ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-            ast_free_unattached(type);
             return false;
           }
 
@@ -281,12 +361,12 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_t* apply = ast_from(call, TK_DOT);
           ast_add(apply, ast_from_string(call, "apply"));
           ast_swap(call, apply);
+          *astp = apply;
           ast_add(apply, call);
 
           if(!expr_dot(opt, &apply))
           {
             ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-            ast_free_unattached(type);
             return false;
           }
         }
@@ -306,23 +386,22 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       // Call the default constructor with no arguments.
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
-      ast_add(call, dot); // Receiver comes last.
+      ast_add(call, ast_from(ast, TK_NONE)); // Call partiality.
       ast_add(call, ast_from(ast, TK_NONE)); // Named args.
       ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
+      ast_add(call, dot);
 
       *astp = call;
 
       if(!expr_dot(opt, &dot))
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
         return false;
       }
 
       if(!expr_call(opt, astp))
       {
         ast_settype(ast, ast_from(type, TK_ERRORTYPE));
-        ast_free_unattached(type);
         return false;
       }
       break;
@@ -334,8 +413,13 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
 bool expr_dontcareref(pass_opt_t* opt, ast_t* ast)
 {
-  (void)opt;
   pony_assert(ast_id(ast) == TK_DONTCAREREF);
+
+  if(is_result_needed(ast) && !is_legal_dontcare_read(ast))
+  {
+    ast_error(opt->check.errors, ast, "can't read from '_'");
+    return false;
+  }
 
   ast_settype(ast, ast_from(ast, TK_DONTCARETYPE));
 
@@ -393,7 +477,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
             current = parent;
             parent = ast_parent(parent);
           }
-          if(ast_id(parent) == TK_ASSIGN && ast_child(parent) != current)
+          if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
           {
             ast_error(opt->check.errors, ast, "can't access a non-sendable "
               "local defined outside of a recover expression from within "
@@ -517,27 +601,83 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Set the type to Pointer[ast_type(expr)]. Set to Pointer[None] for function
-  // pointers.
   ast_t* expr_type = ast_type(expr);
 
   if(is_typecheck_error(expr_type))
     return false;
 
+  ast_t* type = NULL;
+
   switch(ast_id(expr))
   {
     case TK_FUNREF:
     case TK_BEREF:
+    {
       if(!method_check_type_params(opt, &expr))
         return false;
 
-      expr_type = type_builtin(opt, ast, "None");
-      break;
+      AST_GET_CHILDREN(expr, receiver, method);
+      if(ast_id(receiver) == ast_id(expr))
+        AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
 
-    default: {}
+      deferred_reification_t* def = lookup(opt, expr, ast_type(receiver),
+        ast_name(method));
+      pony_assert((ast_id(def->ast) == TK_FUN) || (ast_id(def->ast) == TK_BE));
+
+      ast_t* r_def = deferred_reify_method_def(def, def->ast, opt);
+
+      // Set the type to a bare lambda type equivalent to the function type.
+      bool bare = ast_id(ast_child(r_def)) == TK_AT;
+      ast_t* params = ast_childidx(r_def, 3);
+      ast_t* result = ast_sibling(params);
+      ast_t* partial = ast_sibling(result);
+
+      ast_t* lambdatype_params = ast_from(params, TK_NONE);
+      if(ast_id(params) != TK_NONE)
+      {
+        ast_setid(lambdatype_params, TK_PARAMS);
+        ast_t* param = ast_child(params);
+        while(param != NULL)
+        {
+          ast_t* param_type = ast_childidx(param, 1);
+          ast_append(lambdatype_params, param_type);
+          param = ast_sibling(param);
+        }
+      }
+
+      if(!bare)
+      {
+        ast_setid(lambdatype_params, TK_PARAMS);
+        ast_t* receiver_type = ast_type(receiver);
+        ast_add(lambdatype_params, receiver_type);
+      }
+
+      BUILD_NO_DECL(type, expr_type,
+        NODE(TK_BARELAMBDATYPE,
+          NONE // receiver cap
+          NONE // id
+          NONE // type parameters
+          TREE(lambdatype_params)
+          TREE(result)
+          TREE(partial)
+          NODE(TK_VAL) // object cap
+          NONE)); // object cap mod
+
+      ast_free_unattached(r_def);
+      deferred_reify_free(def);
+
+      if(!ast_passes_subtree(&type, opt, PASS_EXPR))
+        return false;
+
+      break;
+    }
+
+    default:
+      // Set the type to Pointer[ast_type(expr)].
+      type = type_pointer_to(opt, expr_type);
+      break;
   }
 
-  ast_t* type = type_pointer_to(opt, expr_type);
   ast_settype(ast, type);
   return true;
 }
@@ -564,8 +704,8 @@ bool expr_digestof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Set the type to U64.
-  ast_t* type = type_builtin(opt, expr, "U64");
+  // Set the type to USize.
+  ast_t* type = type_builtin(opt, expr, "USize");
   ast_settype(ast, type);
   return true;
 }
@@ -576,6 +716,13 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   {
     ast_error(opt->check.errors, ast,
       "can't reference 'this' in a default argument");
+    return false;
+  }
+
+  if(ast_id(ast_child(opt->check.frame->method)) == TK_AT)
+  {
+    ast_error(opt->check.errors, ast,
+      "can't reference 'this' in a bare method");
     return false;
   }
 
@@ -670,6 +817,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     if(!incomplete_ok)
     {
       ast_t* tag_type = set_cap_and_ephemeral(nominal, TK_TAG, TK_NONE);
+      ast_setflag(tag_type, AST_FLAG_INCOMPLETE);
       ast_replace(&nominal, tag_type);
     }
   }
@@ -704,7 +852,9 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
       }
 
       ast_t* c_type = ast_type(child);
-      pony_assert(c_type != NULL); // maybe needs to be removed?
+
+      if((c_type == NULL) || (ast_id(c_type) == TK_ERRORTYPE))
+        return false;
 
       if(is_type_literal(c_type))
       {

@@ -5,7 +5,9 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestBroadcast)
+    ifdef not osx then
+      test(_TestBroadcast)
+    end
     test(_TestTCPWritev)
     test(_TestTCPExpect)
     test(_TestTCPMute)
@@ -23,23 +25,23 @@ class _TestPing is UDPNotify
 
     _ip = try
       let auth = h.env.root as AmbientAuth
-      (_, let service) = ip.name()
+      (_, let service) = ip.name()?
 
       let list = if ip.ip4() then
-        ifdef freebsd then
+        ifdef bsd then
           DNS.ip4(auth, "", service)
         else
           DNS.broadcast_ip4(auth, service)
         end
       else
-        ifdef freebsd then
+        ifdef bsd then
           DNS.ip6(auth, "", service)
         else
           DNS.broadcast_ip6(auth, service)
         end
       end
 
-      list(0)
+      list(0)?
     else
       _h.fail("Couldn't make broadcast address")
       ip
@@ -54,10 +56,14 @@ class _TestPing is UDPNotify
     sock.set_broadcast(true)
     sock.write("ping!", _ip)
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress) =>
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
     _h.complete_action("ping receive")
 
-    let s = String.>append(consume data)
+    let s = String .> append(consume data)
     _h.assert_eq[String box](s, "pong!")
     _h.complete(true)
 
@@ -90,11 +96,14 @@ class _TestPong is UDPNotify
       _h.fail_action("ping create")
     end
 
-  fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
   =>
     _h.complete_action("pong receive")
 
-    let s = String.>append(consume data)
+    let s = String .> append(consume data)
     _h.assert_eq[String box](s, "ping!")
     sock.writev(
       recover val [[U8('p'); U8('o'); U8('n'); U8('g'); U8('!')]] end,
@@ -166,7 +175,7 @@ class _TestTCP is TCPListenNotify
     try
       let auth = _h.env.root as AmbientAuth
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
-      (let host, let port) = listen.local_address().name()
+      (let host, let port) = listen.local_address().name()?
       _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
       _h.complete_action("client create")
     else
@@ -225,8 +234,11 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     _h.complete_action("expect received")
     qty
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
   =>
     if _frame then
       _frame = false
@@ -288,7 +300,9 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
     _h = h
 
   fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
-    recover Array[ByteSeq].>concat(data.values()).>push(" (from client)") end
+    recover
+      Array[ByteSeq] .> concat(data.values()) .> push(" (from client)")
+    end
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
@@ -304,8 +318,11 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
   new iso create(h: TestHelper) =>
     _h = h
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
     _buffer.append(consume data)
 
@@ -367,8 +384,11 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
     _h.complete_action("receiver asks for data")
     _h.dispose_when_done(conn)
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
   =>
     _h.complete(false)
     true
@@ -397,8 +417,11 @@ class _TestTCPMuteSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connect failed")
 
-   fun ref received(conn: TCPConnection ref, data: Array[U8] val,
-    times: USize): Bool
+   fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
    =>
      conn.write("it's sad that you won't ever read this")
      _h.complete_action("sender sent data")
@@ -449,8 +472,11 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     conn.unmute()
     _h.complete_action("receiver unmuted")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
   =>
     _h.complete(true)
     true
@@ -527,8 +553,11 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connect failed")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] val,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
   =>
     conn.write("it's sad that you won't ever read this")
     _h.complete_action("sender sent data")

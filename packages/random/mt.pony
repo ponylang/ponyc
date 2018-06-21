@@ -1,11 +1,13 @@
 class MT is Random
   """
-  A Mersenne Twister. This is a non-cryptographic random number generator.
+  A Mersenne Twister. This is a non-cryptographic random number generator. This
+  should only be used for legacy applications that require a Mersenne Twister,
+  otherwise use Rand.
   """
   embed _state: Array[U64]
   var _index: USize
 
-  new create(seed: U64 = 5489) =>
+  new create(x: U64 = 5489, y: U64 = 0) =>
     """
     Create with the specified seed. Returned values are deterministic for a
     given seed.
@@ -13,27 +15,27 @@ class MT is Random
     _state = Array[U64](_n())
     _index = _n()
 
-    var x = seed
+    var seed = x xor y
 
-    _state.push(x)
+    _state.push(seed)
     var i: USize = 1
 
     while i < _n() do
-      x = ((x xor (x >> 62)) * 6364136223846793005) + i.u64()
-      _state.push(x)
+      seed = ((seed xor (seed >> 62)) * 6364136223846793005) + i.u64()
+      _state.push(seed)
       i = i + 1
     end
 
   fun ref next(): U64 =>
     """
-    A random integer in [0, 2^64 - 1]
+    A random integer in [0, 2^64)
     """
     if _index >= _n() then
       _populate()
     end
 
     try
-      var x = _state(_index)
+      var x = _state(_index)?
       _index = _index + 1
 
       x = x xor ((x >> 29) and 0x5555555555555555)
@@ -50,23 +52,23 @@ class MT is Random
     """
     try
       _index = 0
-      var x = _state(0)
+      var x = _state(0)?
       var i: USize = 0
 
       while i < _m() do
-        x = _lower(i, x)
+        x = _lower(i, x)?
         i = i + 1
       end
 
-      x = _state(_m())
+      x = _state(_m())?
       i = _m()
 
       while i < _n1() do
-        x = _upper(i, x)
+        x = _upper(i, x)?
         i = i + 1
       end
 
-      _wrap()
+      _wrap()?
     end
 
   fun tag _n(): USize => 312
@@ -83,17 +85,17 @@ class MT is Random
     (z >> 1) xor _matrix(z)
 
   fun ref _lower(i: USize, x: U64): U64 ? =>
-    let y = _state(i + 1)
-    _state(i) = _state(i + _m()) xor _mix(x, y)
+    let y = _state(i + 1)?
+    _state(i)? = _state(i + _m())? xor _mix(x, y)
     y
 
   fun ref _upper(i: USize, x: U64): U64 ? =>
-    let y = _state(i + 1)
-    _state(i) = _state(i - _m()) xor _mix(x, y)
+    let y = _state(i + 1)?
+    _state(i)? = _state(i - _m())? xor _mix(x, y)
     y
 
   fun ref _wrap(): U64 ? =>
-    let x = _state(_n1())
-    let y = _state(0)
-    _state(_n1()) = _state(_m() - 1) xor _mix(x, y)
+    let x = _state(_n1())?
+    let y = _state(0)?
+    _state(_n1())? = _state(_m() - 1)? xor _mix(x, y)
     y

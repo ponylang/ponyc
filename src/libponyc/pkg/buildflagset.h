@@ -86,6 +86,10 @@ bool define_build_flag(const char* name);
 // Report whether the given user build flag is defined.
 bool is_build_flag_defined(const char* name);
 
+// Remove all flags in the null terminated list
+// Returns: true if one or more of the flags were removed
+bool remove_build_flags(const char* flags[]);
+
 PONY_EXTERN_C_END
 
 #endif

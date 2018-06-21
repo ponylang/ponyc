@@ -21,7 +21,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 {
   // Sugar .apply()
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
   ast_t* dot = ast_from(ast, TK_DOT);
   ast_add(dot, ast_from_string(ast, "apply"));
@@ -82,6 +82,7 @@ static bool extend_positional_args(pass_opt_t* opt, ast_t* params,
   if(arg_len > param_len)
   {
     ast_error(opt->check.errors, positional, "too many arguments");
+    ast_error_continue(opt->check.errors, params, "definition is here");
     return false;
   }
 
@@ -154,22 +155,27 @@ static bool apply_named_args(pass_opt_t* opt, ast_t* params, ast_t* positional,
   return true;
 }
 
-static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
+static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 {
   // Pick up a default argument.
   AST_GET_CHILDREN(param, id, type, def_arg);
 
   if(ast_id(def_arg) == TK_NONE)
   {
-    ast_error(opt->check.errors, arg, "not enough arguments");
+    ast_error(opt->check.errors, *argp, "not enough arguments");
+    ast_error_continue(opt->check.errors, param, "definition is here");
     return false;
   }
 
-  if(ast_id(def_arg) == TK_LOCATION)
+  pony_assert(ast_id(def_arg) == TK_SEQ);
+
+  if(ast_id(ast_child(def_arg)) == TK_LOCATION)
   {
     // Default argument is __loc. Expand call location.
+    ast_t* arg = *argp;
     ast_t* location = expand_location(arg);
     ast_add(arg, location);
+    ast_setid(arg, TK_SEQ);
 
     if(!ast_passes_subtree(&location, opt, PASS_EXPR))
       return false;
@@ -177,12 +183,10 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
   else
   {
     // Just use default argument.
-    ast_add(arg, def_arg);
+    ast_replace(argp, def_arg);
   }
 
-  ast_setid(arg, TK_SEQ);
-
-  if(!expr_seq(opt, arg))
+  if(!ast_passes_subtree(argp, opt, PASS_EXPR))
     return false;
 
   return true;
@@ -207,7 +211,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
         continue;
       } else {
         // Pick up a default argument if we can.
-        if(!apply_default_arg(opt, param, arg))
+        if(!apply_default_arg(opt, param, &arg))
           return false;
       }
     }
@@ -236,7 +240,20 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, arg, "argument type is %s",
+                      ast_print_type(a_type));
+      ast_error_frame(&frame, param, "parameter type is %s",
+                      ast_print_type(p_type));
       errorframe_append(&frame, &info);
+
+      if (ast_childcount(arg) > 1)
+        ast_error_frame(&frame, arg,
+          "note that arguments must be separated by a comma");
+
+      if(ast_checkflag(ast_type(arg), AST_FLAG_INCOMPLETE))
+        ast_error_frame(&frame, arg,
+          "this might be possible if all fields were already defined");
+
       errorframe_report(&frame, opt->check.errors);
       ast_free_unattached(a_type);
       return false;
@@ -297,6 +314,18 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   return true;
 }
 
+static ast_t* method_receiver(ast_t* method)
+{
+  ast_t* receiver = ast_child(method);
+
+  // Dig through function qualification.
+  if((ast_id(receiver) == TK_FUNREF) || (ast_id(receiver) == TK_FUNAPP) ||
+     (ast_id(receiver) == TK_FUNCHAIN))
+    receiver = ast_child(receiver);
+
+  return receiver;
+}
+
 static ast_t* method_receiver_type(ast_t* method)
 {
   ast_t* receiver = ast_child(method);
@@ -313,7 +342,7 @@ static ast_t* method_receiver_type(ast_t* method)
 
 static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
 {
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
   ast_t* type = ast_type(lhs);
 
@@ -378,6 +407,11 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
       "receiver type: %s", ast_print_type(a_type));
     ast_error_frame(&frame, cap,
       "target type: %s", ast_print_type(t_type));
+    errorframe_append(&frame, &info);
+
+    if(ast_checkflag(ast_type(method_receiver(lhs)), AST_FLAG_INCOMPLETE))
+      ast_error_frame(&frame, method_receiver(lhs),
+        "this might be possible if all fields were already defined");
 
     if(!can_recover && cap_recover && is_subtype(r_type, t_type, NULL, opt))
     {
@@ -386,7 +420,6 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
         "were all sendable");
     }
 
-    errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
   }
 
@@ -435,7 +468,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
 {
   if(opt->check.frame->recover != NULL)
   {
-    AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+    AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
     ast_t* type = ast_type(lhs);
 
@@ -486,7 +519,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
 
 static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
   if(!method_check_type_params(opt, &lhs))
     return false;
@@ -511,11 +544,30 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(!check_receiver_cap(opt, ast, NULL))
-        return false;
+      if(ast_id(ast_child(type)) != TK_AT)
+      {
+        if(!check_receiver_cap(opt, ast, NULL))
+          return false;
 
-      if(!check_nonsendable_recover(opt, ast))
-        return false;
+        if(!check_nonsendable_recover(opt, ast))
+          return false;
+      } else {
+        ast_t* receiver = ast_child(lhs);
+
+        // Dig through function qualification.
+        if((ast_id(receiver) == TK_FUNREF) || (ast_id(receiver) == TK_FUNAPP) ||
+           (ast_id(receiver) == TK_FUNCHAIN))
+          receiver = ast_child(receiver);
+
+        ast_t* recv_type = ast_type(receiver);
+        if(!is_known(recv_type) && (ast_id(receiver) == TK_TYPEREF))
+        {
+          ast_error(opt->check.errors, lhs, "a bare method cannot be called on "
+            "an abstract type reference");
+          return false;
+        }
+      }
+
       break;
 
     default: {}
@@ -529,7 +581,7 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   if(!method_application(opt, ast, false))
     return false;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
   ast_t* type = ast_type(lhs);
 
   if(is_typecheck_error(type))
@@ -610,7 +662,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(!method_application(opt, ast, true))
     return false;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
   // LHS must be an application, possibly wrapped in another application
   // if the method had type parameters for qualification.
@@ -626,9 +678,16 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   }
 
   // Look up the original method definition for this method call.
-  ast_t* method_def = lookup(opt, lhs, ast_type(receiver), ast_name(method));
-  pony_assert(ast_id(method_def) == TK_FUN || ast_id(method_def) == TK_BE ||
-    ast_id(method_def) == TK_NEW);
+  deferred_reification_t* method_def = lookup(opt, lhs, ast_type(receiver),
+    ast_name(method));
+  ast_t* method_ast = method_def->ast;
+
+  // The deferred reification doesn't own the underlying AST so we can free it
+  // safely.
+  deferred_reify_free(method_def);
+
+  pony_assert(ast_id(method_ast) == TK_FUN || ast_id(method_ast) == TK_BE ||
+    ast_id(method_ast) == TK_NEW);
 
   // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
@@ -637,27 +696,103 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(is_typecheck_error(type))
     return false;
 
-  token_id apply_cap = partial_application_cap(opt, type, receiver,
-    positional);
   AST_GET_CHILDREN(type, cap, type_params, target_params, result);
 
-  token_id can_error = ast_id(ast_childidx(method_def, 5));
+  bool bare = ast_id(cap) == TK_AT;
+
+  token_id apply_cap = TK_AT;
+  if(!bare)
+    apply_cap = partial_application_cap(opt, type, receiver, positional);
+
+  token_id can_error = ast_id(ast_childidx(method_ast, 5));
   const char* recv_name = package_hygienic_id(t);
 
-  // Build captures. We always have at least one capture, for receiver.
-  // Capture: `$0 = recv`
-  BUILD(captures, receiver,
-    NODE(TK_LAMBDACAPTURES,
-      NODE(TK_LAMBDACAPTURE,
-        ID(recv_name)
-        NONE  // Infer type.
-        TREE(receiver))));
+  // Build lambda expression.
+  ast_t* call_receiver = NULL;
+  if(bare)
+  {
+    ast_t* arg = ast_child(positional);
+    while(arg != NULL)
+    {
+      if(ast_id(arg) != TK_NONE)
+      {
+        ast_error(opt->check.errors, arg, "the partial application of a bare "
+          "method cannot take arguments");
+        return false;
+      }
+
+      arg = ast_sibling(arg);
+    }
+
+    ast_t* receiver_type = ast_type(receiver);
+    if(is_bare(receiver_type))
+    {
+      // Partial application on a bare object, simply return the object itself.
+      ast_replace(astp, receiver);
+      return true;
+    }
+
+    AST_GET_CHILDREN(receiver_type, recv_type_package, recv_type_name);
+
+    const char* recv_package_str = ast_name(recv_type_package);
+    const char* recv_name_str = ast_name(recv_type_name);
+
+    ast_t* module = ast_nearest(ast, TK_MODULE);
+    ast_t* package = ast_parent(module);
+    ast_t* pkg_id = package_id(package);
+    const char* pkg_str = ast_name(pkg_id);
+
+    const char* pkg_alias = NULL;
+
+    if(recv_package_str != pkg_str)
+      pkg_alias = package_alias_from_id(module, recv_package_str);
+
+    ast_free_unattached(pkg_id);
+
+    if(pkg_alias != NULL)
+    {
+      // `package.Type.f`
+      BUILD_NO_DECL(call_receiver, ast,
+        NODE(TK_DOT,
+          NODE(TK_DOT,
+            NODE(TK_REFERENCE, ID(pkg_alias))
+            ID(recv_name_str))
+          TREE(method)));
+    } else {
+      // `Type.f`
+      BUILD_NO_DECL(call_receiver, ast,
+        NODE(TK_DOT,
+          NODE(TK_REFERENCE, ID(recv_name_str))
+          TREE(method)));
+    }
+  } else {
+    // `$0.f`
+    BUILD_NO_DECL(call_receiver, ast,
+      NODE(TK_DOT,
+        NODE(TK_REFERENCE, ID(recv_name))
+        TREE(method)));
+  }
+
+  ast_t* captures = NULL;
+  if(bare)
+  {
+    captures = ast_from(receiver, TK_NONE);
+  } else {
+    // Build captures. We always have at least one capture, for receiver.
+    // Capture: `$0 = recv`
+    BUILD_NO_DECL(captures, receiver,
+      NODE(TK_LAMBDACAPTURES,
+        NODE(TK_LAMBDACAPTURE,
+          ID(recv_name)
+          NONE  // Infer type.
+          TREE(receiver))));
+  }
 
   // Process arguments.
-  ast_t* given_arg = ast_child(positional);
   ast_t* target_param = ast_child(target_params);
   ast_t* lambda_params = ast_from(target_params, TK_NONE);
   ast_t* lambda_call_args = ast_from(positional, TK_NONE);
+  ast_t* given_arg = ast_child(positional);
 
   while(given_arg != NULL)
   {
@@ -721,13 +856,6 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   pony_assert(target_param == NULL);
 
-  // Build lambda expression.
-  // `$0.f`
-  BUILD(call_receiver, ast,
-    NODE(TK_DOT,
-      NODE(TK_REFERENCE, ID(recv_name))
-      TREE(method)));
-
   if(type_args != NULL)
   {
     // The partial call has type args, add them to the actual call in apply().
@@ -740,7 +868,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   }
 
   REPLACE(astp,
-    NODE(TK_LAMBDA,
+    NODE((bare ? TK_BARELAMBDA : TK_LAMBDA),
       NODE(apply_cap)
       NONE  // Lambda function name.
       NONE  // Lambda type params.
@@ -750,9 +878,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(can_error)
       NODE(TK_SEQ,
         NODE(TK_CALL,
+          TREE(call_receiver)
           TREE(lambda_call_args)
           NONE  // Named args.
-          TREE(call_receiver)))
+          NODE(can_error)))
       NONE)); // Lambda reference capability.
 
   // Need to preserve various lambda children.
@@ -770,9 +899,17 @@ static bool method_chain(pass_opt_t* opt, ast_t* ast)
   if(!method_application(opt, ast, false))
     return false;
 
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
+
+  ast_t* type = ast_type(lhs);
+  if(ast_id(ast_child(type)) == TK_AT)
+  {
+    ast_error(opt->check.errors, ast, "a bare method cannot be chained");
+    return false;
+  }
+
   // We check the receiver cap now instead of in method_application because
   // we need to know whether the receiver was recovered.
-  ast_t* lhs = ast_childidx(ast, 2);
   ast_t* r_type = method_receiver_type(lhs);
   if(ast_id(lhs) == TK_FUNCHAIN)
   {
@@ -809,7 +946,7 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
   if((type != NULL) && (ast_id(type) != TK_INFERTYPE))
     return true;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
   switch(ast_id(lhs))
   {

@@ -22,6 +22,11 @@ class Directory
   Capsicum.
   """
   let path: FilePath
+    """
+    This is the filesystem path locating this directory on the file system
+    and an object capability granting access to operate on this directory.
+    """
+
   var _fd: I32 = -1
   // We don't need a file descriptor in Windows. However we do still need to
   // know whether we've disposed of this object, so we use the _fd to indicate
@@ -38,15 +43,18 @@ class Directory
       error
     end
 
-    if not FileInfo(from).directory then
+    if not FileInfo(from)?.directory then
       error
     end
 
     path = from
 
     ifdef posix then
-      _fd = @open[I32](from.path.cstring(),
-        @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
+      _fd =
+        @open[I32](from.path.cstring(),
+          @ponyint_o_rdonly()
+            or @ponyint_o_directory()
+            or @ponyint_o_cloexec())
 
       if _fd == -1 then
         error
@@ -57,7 +65,7 @@ class Directory
       compile_error "unsupported platform"
     end
 
-    _FileDes.set_rights(_fd, path)
+    _FileDes.set_rights(_fd, path)?
 
   new iso _relative(path': FilePath, fd': I32) =>
     """
@@ -88,13 +96,17 @@ class Directory
           error
         end
 
-        let h = ifdef linux or freebsd then
-          let fd = @openat[I32](fd', ".".cstring(),
-            @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
-          @fdopendir[Pointer[_DirectoryHandle]](fd)
-        else
-          @opendir[Pointer[_DirectoryHandle]](path'.cstring())
-        end
+        let h =
+          ifdef linux or bsd then
+            let fd =
+              @openat[I32](fd', ".".cstring(),
+                @ponyint_o_rdonly()
+                  or @ponyint_o_directory()
+                  or @ponyint_o_cloexec())
+            @fdopendir[Pointer[_DirectoryHandle]](fd)
+          else
+            @opendir[Pointer[_DirectoryHandle]](path'.cstring())
+          end
 
         if h.is_null() then
           error
@@ -126,7 +138,7 @@ class Directory
         until not @FindNextFileA[Bool](h, find) end
 
         @FindClose[Bool](h)
-        @free[None](find)
+        @ponyint_windows_find_data_free[None](find)
       else
         compile_error "unsupported platform"
       end
@@ -143,14 +155,17 @@ class Directory
       error
     end
 
-    let path' = FilePath(path, target, path.caps)
+    let path' = FilePath(path, target, path.caps)?
 
-    ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.cstring(),
-        @ponyint_o_rdonly() or @ponyint_o_directory() or @ponyint_o_cloexec())
+    ifdef linux or bsd then
+      let fd' =
+        @openat[I32](_fd, target.cstring(),
+          @ponyint_o_rdonly()
+            or @ponyint_o_directory()
+            or @ponyint_o_cloexec())
       _relative(path', fd')
     else
-      recover create(path') end
+      recover create(path')? end
     end
 
   fun mkdir(target: String): Bool =>
@@ -167,14 +182,14 @@ class Directory
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
-      ifdef linux or freebsd then
+      ifdef linux or bsd then
         var offset: ISize = 0
 
         repeat
           let element = try
-            offset = target.find(Path.sep(), offset) + 1
+            offset = target.find(Path.sep(), offset)? + 1
             target.substring(0, offset - 1)
           else
             offset = -1
@@ -184,7 +199,7 @@ class Directory
           @mkdirat[I32](_fd, element.cstring(), U32(0x1FF))
         until offset < 0 end
 
-        FileInfo(path').directory
+        FileInfo(path')?.directory
       else
         path'.mkdir()
       end
@@ -198,21 +213,24 @@ class Directory
     if it does exist.
     """
     if
-      not path.caps(FileCreate) or
-      not path.caps(FileRead) or
-      not path.caps(FileWrite) or
-      (_fd == -1)
+      not path.caps(FileCreate)
+        or not path.caps(FileRead)
+        or not path.caps(FileWrite)
+        or (_fd == -1)
     then
       error
     end
 
-    let path' = FilePath(path, target, path.caps)
+    let path' = FilePath(path, target, path.caps)?
 
-    ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.cstring(),
-        @ponyint_o_rdwr() or @ponyint_o_creat() or @ponyint_o_cloexec(),
-        I32(0x1B6))
-      recover File._descriptor(fd', path') end
+    ifdef linux or bsd then
+      let fd' =
+        @openat[I32](_fd, target.cstring(),
+          @ponyint_o_rdwr()
+            or @ponyint_o_creat()
+            or @ponyint_o_cloexec(),
+          I32(0x1B6))
+      recover File._descriptor(fd', path')? end
     else
       recover File(path') end
     end
@@ -222,20 +240,22 @@ class Directory
     Open for read only, failing if it doesn't exist.
     """
     if
-      not path.caps(FileRead) or
-      (_fd == -1)
+      not path.caps(FileRead)
+        or (_fd == -1)
     then
       error
     end
 
-    let path' = FilePath(path, target, path.caps - FileWrite)
+    let path' = FilePath(path, target, path.caps - FileWrite)?
 
-    ifdef linux or freebsd then
-      let fd' = @openat[I32](_fd, target.cstring(),
-        @ponyint_o_rdonly() or @ponyint_o_cloexec(), I32(0x1B6))
-      recover File._descriptor(fd', path') end
+    ifdef linux or bsd then
+      let fd' =
+        @openat[I32](_fd, target.cstring(),
+          @ponyint_o_rdonly() or @ponyint_o_cloexec(),
+          I32(0x1B6))
+      recover File._descriptor(fd', path')? end
     else
-      recover File(path') end
+      recover File.open(path') end
     end
 
   fun info(): FileInfo ? =>
@@ -243,7 +263,7 @@ class Directory
     Return a FileInfo for this directory. Raise an error if the fd is invalid
     or if we don't have FileStat permission.
     """
-    FileInfo._descriptor(_fd, path)
+    FileInfo._descriptor(_fd, path)?
 
   fun chmod(mode: FileMode box): Bool =>
     """
@@ -275,19 +295,19 @@ class Directory
     Return a FileInfo for some path relative to this directory.
     """
     if
-      not path.caps(FileStat) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileStat)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       error
     end
 
-    let path' = FilePath(path, target, path.caps)
+    let path' = FilePath(path, target, path.caps)?
 
-    ifdef linux or freebsd then
-      FileInfo._relative(_fd, path', target)
+    ifdef linux or bsd then
+      FileInfo._relative(_fd, path', target)?
     else
-      FileInfo(path')
+      FileInfo(path')?
     end
 
   fun chmodat(target: String, mode: FileMode box): Bool =>
@@ -295,19 +315,18 @@ class Directory
     Set the FileMode for some path relative to this directory.
     """
     if
-      not path.caps(FileChmod) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileChmod)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       return false
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
-      ifdef linux or freebsd then
-        0 == @fchmodat[I32](_fd, target.cstring(), mode._os(),
-          I32(0))
+      ifdef linux or bsd then
+        0 == @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0))
       else
         path'.chmod(mode)
       end
@@ -320,19 +339,18 @@ class Directory
     Set the FileMode for some path relative to this directory.
     """
     if
-      not path.caps(FileChown) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileChown)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       return false
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
-      ifdef linux or freebsd then
-        0 == @fchownat[I32](_fd, target.cstring(), uid, gid,
-          I32(0))
+      ifdef linux or bsd then
+        0 == @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0))
       else
         path'.chown(uid, gid)
       end
@@ -346,29 +364,33 @@ class Directory
     """
     set_time_at(target, Time.now(), Time.now())
 
-  fun set_time_at(target: String, atime: (I64, I64), mtime: (I64, I64)): Bool
+  fun set_time_at(
+    target: String,
+    atime: (I64, I64),
+    mtime: (I64, I64))
+    : Bool
   =>
     """
     Set the last access and modification times of the directory to the given
     values.
     """
     if
-      not path.caps(FileChown) or
-      not path.caps(FileLookup) or
-      (_fd == -1)
+      not path.caps(FileChown)
+        or not path.caps(FileLookup)
+        or (_fd == -1)
     then
       return false
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
-      ifdef linux or freebsd then
+      ifdef linux or bsd then
         var tv: (ILong, ILong, ILong, ILong) =
-          (atime._1.ilong(), atime._2.ilong() / 1000,
-            mtime._1.ilong(), mtime._2.ilong() / 1000)
-        0 == @futimesat[I32](_fd, target.cstring(),
-          addressof tv)
+          ( atime._1.ilong(), atime._2.ilong() / 1000,
+            mtime._1.ilong(), mtime._2.ilong() / 1000 )
+
+        0 == @futimesat[I32](_fd, target.cstring(), addressof tv)
       else
         path'.set_time(atime, mtime)
       end
@@ -382,21 +404,20 @@ class Directory
     this directory.
     """
     if
-      not path.caps(FileLink) or
-      not path.caps(FileLookup) or
-      not path.caps(FileCreate) or
-      not source.caps(FileLink) or
-      (_fd == -1)
+      not path.caps(FileLink)
+        or not path.caps(FileLookup)
+        or not path.caps(FileCreate)
+        or not source.caps(FileLink)
+        or (_fd == -1)
     then
       return false
     end
 
     try
-      let path' = FilePath(path, link_name, path.caps)
+      let path' = FilePath(path, link_name, path.caps)?
 
-      ifdef linux or freebsd then
-        0 == @symlinkat[I32](source.path.cstring(), _fd,
-          link_name.cstring())
+      ifdef linux or bsd then
+        0 == @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring())
       else
         source.symlink(path')
       end
@@ -410,23 +431,23 @@ class Directory
     well, recursively. Symlinks will be removed but not traversed.
     """
     if
-      not path.caps(FileLookup) or
-      not path.caps(FileRemove) or
-      (_fd == -1)
+      not path.caps(FileLookup)
+        or not path.caps(FileRemove)
+        or (_fd == -1)
     then
       return false
     end
 
     try
-      let path' = FilePath(path, target, path.caps)
+      let path' = FilePath(path, target, path.caps)?
 
-      ifdef linux or freebsd then
-        let fi = FileInfo(path')
+      ifdef linux or bsd then
+        let fi = FileInfo(path')?
 
         if fi.directory and not fi.symlink then
-          let directory = open(target)
+          let directory = open(target)?
 
-          for entry in directory.entries().values() do
+          for entry in directory.entries()?.values() do
             if not directory.remove(entry) then
               return false
             end
@@ -449,22 +470,22 @@ class Directory
     relative to the `to` directory).
     """
     if
-      not path.caps(FileLookup) or
-      not path.caps(FileRename) or
-      not to.path.caps(FileLookup) or
-      not to.path.caps(FileCreate) or
-      (_fd == -1) or (to._fd == -1)
+      not path.caps(FileLookup)
+       or not path.caps(FileRename)
+       or not to.path.caps(FileLookup)
+       or not to.path.caps(FileCreate)
+       or (_fd == -1)
+       or (to._fd == -1)
     then
       return false
     end
 
     try
-      let path' = FilePath(path, source, path.caps)
-      let path'' = FilePath(to.path, target, to.path.caps)
+      let path' = FilePath(path, source, path.caps)?
+      let path'' = FilePath(to.path, target, to.path.caps)?
 
-      ifdef linux or freebsd then
-        0 == @renameat[I32](_fd, source.cstring(), to._fd,
-          target.cstring())
+      ifdef linux or bsd then
+        0 == @renameat[I32](_fd, source.cstring(), to._fd, target.cstring())
       else
         path'.rename(path'')
       end

@@ -27,8 +27,8 @@ primitive X509
     end
 
     let subject = @X509_get_subject_name[Pointer[_X509Name]](cert)
-    let len = @X509_NAME_get_text_by_NID[I32](subject, I32(13), Pointer[U8],
-      I32(0))
+    let len =
+      @X509_NAME_get_text_by_NID[I32](subject, I32(13), Pointer[U8], I32(0))
 
     if len < 0 then
       error
@@ -58,22 +58,28 @@ primitive X509
     end
 
     try
-      array.push(common_name(cert))
+      array.push(common_name(cert)?)
     end
 
-    let stack = @X509_get_ext_d2i[Pointer[_GeneralNameStack]](cert, I32(85),
-      Pointer[U8], Pointer[U8])
+    let stack =
+      @X509_get_ext_d2i[Pointer[_GeneralNameStack]](cert, I32(85),
+        Pointer[U8], Pointer[U8])
 
     if stack.is_null() then
       return array
     end
 
-    var name = @sk_pop[Pointer[_GeneralName]](stack)
+    var name =
+      ifdef "openssl_1.1.0" then
+        @OPENSSL_sk_pop[Pointer[_GeneralName]](stack)
+      else
+        @sk_pop[Pointer[_GeneralName]](stack)
+      end
 
     while not name.is_null() do
       var ptype = I32(0)
-      let value = @GENERAL_NAME_get0_value[Pointer[U8] tag](name,
-        addressof ptype)
+      let value =
+        @GENERAL_NAME_get0_value[Pointer[U8] tag](name, addressof ptype)
 
       match ptype
       | 2 => // GEN_DNS
@@ -108,10 +114,18 @@ primitive X509
       end
 
       @GENERAL_NAME_free[None](name)
-      name = @sk_pop[Pointer[_GeneralName]](stack)
+      ifdef "openssl_1.1.0" then
+        name = @OPENSSL_sk_pop[Pointer[_GeneralName]](stack)
+      else
+        name = @sk_pop[Pointer[_GeneralName]](stack)
+      end
     end
 
-    @sk_free[None](stack)
+    ifdef "openssl_1.1.0" then
+      @OPENSSL_sk_free[None](stack)
+    else
+      @sk_free[None](stack)
+    end
     array
 
   fun _match_name(host: String, name: String): Bool =>
@@ -130,25 +144,25 @@ primitive X509
     end
 
     try
-      if name(0) == '*' then
+      if name(0)? == '*' then
         // The name has a wildcard. Must be followed by at least two
         // non-empty domain levels.
-        if (name.size() < 3) or (name(1) != '.') or (name(2) == '.') then
+        if (name.size() < 3) or (name(1)? != '.') or (name(2)? == '.') then
           return false
         end
 
         try
           // Find the second domain level and make sure it's followed by
           // something other than a dot.
-          let offset = name.find(".", 3)
+          let offset = name.find(".", 3)?
 
-          if name.at_offset(offset + 1) == '.' then
+          if name.at_offset(offset + 1)? == '.' then
             return false
           end
         end
 
         // Get the host domain.
-        let domain = host.find(".")
+        let domain = host.find(".")?
 
         // If the host domain is the wildcard domain ignoring case, they match.
         return

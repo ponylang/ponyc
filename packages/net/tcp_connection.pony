@@ -20,7 +20,7 @@ actor TCPConnection
   the local host, writes "hello world", and listens for a response,
   which it then prints.
 
-  ```
+  ```pony
   use "net"
 
   class MyTCPConnectionNotify is TCPConnectionNotify
@@ -32,9 +32,15 @@ actor TCPConnection
     fun ref connected(conn: TCPConnection ref) =>
       conn.write("hello world")
 
-    fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
+    fun ref received(
+      conn: TCPConnection ref,
+      data: Array[U8] iso,
+      times: USize)
+      : Bool
+    =>
       _out.print("GOT:" + String.from_array(consume data))
       conn.close()
+      true
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
@@ -64,47 +70,60 @@ actor TCPConnection
   that are called when backpressure is applied and released.
 
   Upon receiving a `throttled` notification, your application has two choices
-  on how to handle it. One is to inform any actors sending the connection to
-  stop sending data. For example, you might construct your application like:
+  on how to handle it. One is to inform the Pony runtime that it can no
+  longer make progress and that runtime backpressure should be applied to
+  any actors sending this one messages. For example, you might construct your
+  application like:
 
   ```pony
   // Here we have a TCPConnectionNotify that upon construction
-  // is given a tag to a "Coordinator". Any actors that want to
-  // "publish" to this connection should register with the
-  // coordinator. This allows the notifier to inform the coordinator
-  // that backpressure has been applied and then it in turn can
-  // notify senders who could then pause sending.
+  // is given a BackpressureAuth token. This allows the notifier
+  // to inform the Pony runtime when to apply and release backpressure
+  // as the connection experiences it.
+  // Note the calls to
+  //
+  // Backpressure.apply(_auth)
+  // Backpressure.release(_auth)
+  //
+  // that apply and release backpressure as needed
+
+  use "backpressure"
+  use "collections"
+  use "net"
 
   class SlowDown is TCPConnectionNotify
-    let _coordinator: Coordinator
+    let _auth: BackpressureAuth
+    let _out: StdStream
 
-    new create(coordinator: Coordinator) =>
-      _coordinator = coordinator
+    new iso create(auth: BackpressureAuth, out: StdStream) =>
+      _auth = auth
+      _out = out
 
     fun ref throttled(connection: TCPConnection ref) =>
-      _coordinator.throttled(this)
+      _out.print("Experiencing backpressure!")
+      Backpressure.apply(_auth)
 
     fun ref unthrottled(connection: TCPConnection ref) =>
-      _coordinator.unthrottled(this)
+      _out.print("Releasing backpressure!")
+      Backpressure.release(_auth)
+
+    fun ref closed(connection: TCPConnection ref) =>
+      // if backpressure has been applied, make sure we release
+      // when shutting down
+      _out.print("Releasing backpressure if applied!")
+      Backpressure.release(_auth)
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
 
-  actor Coordinator
-    var _senders: List[Any tag] = _senders.create()
-
-    be register(sender: Any tag) =>
-      _senders.push(sender)
-
-    be throttled(connection: TCPConnection) =>
-      for sender in _senders.values() do
-        sender.pause_sending_to(connection)
+  actor Main
+    new create(env: Env) =>
+      try
+        let auth = env.root as AmbientAuth
+        let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
+          "", "7669")
       end
 
-     be unthrottled(connection: TCPConnection) =>
-      for sender in _senders.values() do
-        sender.resume_sending_to(connection)
-      end
   ```
 
   Or if you want, you could handle backpressure by shedding load, that is,
@@ -112,8 +131,10 @@ actor TCPConnection
   like:
 
   ```pony
+  use "net"
+
   class ThrowItAway is TCPConnectionNotify
-    var _throttled = false
+    var _throttled: Bool = false
 
     fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq =>
       if not _throttled then
@@ -126,7 +147,7 @@ actor TCPConnection
       if not _throttled then
         data
       else
-        Array[String]
+        recover Array[String] end
       end
 
     fun ref throttled(connection: TCPConnection ref) =>
@@ -137,6 +158,13 @@ actor TCPConnection
 
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
+
+  actor Main
+    new create(env: Env) =>
+      try
+        TCPConnection(env.root as AmbientAuth,
+          recover ThrowItAway end, "", "7669")
+      end
   ```
 
   In general, unless you have a very specific use case, we strongly advise that
@@ -170,10 +198,15 @@ actor TCPConnection
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
+  var _throttled: Bool = false
   var _closed: Bool = false
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
   var _in_sent: Bool = false
+  // _pending is used to avoid GC prematurely reaping memory.
+  // See GitHub bug 2526 for more.  It looks like a write-only
+  // data structure, but its use is vital to avoid GC races:
+  // _pending_writev's C pointers are invisible to ORCA.
   embed _pending: Array[ByteSeq] = _pending.create()
   embed _pending_writev: Array[USize] = _pending_writev.create()
   var _pending_sent: USize = 0
@@ -188,57 +221,76 @@ actor TCPConnection
 
   var _muted: Bool = false
 
-  new create(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
-    host: String, service: String, from: String = "", init_size: USize = 64,
+  new create(
+    auth: TCPConnectionAuth,
+    notify: TCPConnectionNotify iso,
+    host: String,
+    service: String,
+    from: String = "",
+    init_size: USize = 64,
     max_size: USize = 16384)
   =>
     """
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
     will be made from the specified interface.
     """
-    _read_buf = recover Array[U8].>undefined(init_size) end
+    _read_buf = recover Array[U8] .> undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp[U32](this,
-      host.cstring(), service.cstring(),
-      from.cstring())
+    _connect_count =
+      @pony_os_connect_tcp[U32](this, host.cstring(), service.cstring(),
+        from.cstring())
     _notify_connecting()
 
-  new ip4(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
-    host: String, service: String, from: String = "", init_size: USize = 64,
+  new ip4(
+    auth: TCPConnectionAuth,
+    notify: TCPConnectionNotify iso,
+    host: String,
+    service: String,
+    from: String = "",
+    init_size: USize = 64,
     max_size: USize = 16384)
   =>
     """
     Connect via IPv4.
     """
-    _read_buf = recover Array[U8].>undefined(init_size) end
+    _read_buf = recover Array[U8] .> undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp4[U32](this,
-      host.cstring(), service.cstring(),
-      from.cstring())
+    _connect_count =
+      @pony_os_connect_tcp4[U32](this, host.cstring(), service.cstring(),
+        from.cstring())
     _notify_connecting()
 
-  new ip6(auth: TCPConnectionAuth, notify: TCPConnectionNotify iso,
-    host: String, service: String, from: String = "", init_size: USize = 64,
+  new ip6(
+    auth: TCPConnectionAuth,
+    notify: TCPConnectionNotify iso,
+    host: String,
+    service: String,
+    from: String = "",
+    init_size: USize = 64,
     max_size: USize = 16384)
   =>
     """
     Connect via IPv6.
     """
-    _read_buf = recover Array[U8].>undefined(init_size) end
+    _read_buf = recover Array[U8] .> undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
     _notify = consume notify
-    _connect_count = @pony_os_connect_tcp6[U32](this,
-      host.cstring(), service.cstring(),
-      from.cstring())
+    _connect_count =
+      @pony_os_connect_tcp6[U32](this, host.cstring(), service.cstring(),
+        from.cstring())
     _notify_connecting()
 
-  new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U32,
-    init_size: USize = 64, max_size: USize = 16384)
+  new _accept(
+    listen: TCPListener,
+    notify: TCPConnectionNotify iso,
+    fd: U32,
+    init_size: USize = 64,
+    max_size: USize = 16384)
   =>
     """
     A new connection accepted on a server.
@@ -259,7 +311,7 @@ actor TCPConnection
       @pony_asio_event_set_writeable(_event, true)
     end
     _writeable = true
-    _read_buf = recover Array[U8].>undefined(init_size) end
+    _read_buf = recover Array[U8] .> undefined(init_size) end
     _next_size = init_size
     _max_size = max_size
 
@@ -293,16 +345,19 @@ actor TCPConnection
           var num_to_send: I32 = 0
           for bytes in _notify.sentv(this, data).values() do
             // Add an IOCP write.
-            _pending_writev.>push(bytes.size()).>push(bytes.cpointer().usize())
+            _pending_writev
+              .> push(bytes.size())
+              .> push(bytes.cpointer().usize())
             _pending_writev_total = _pending_writev_total + bytes.size()
             _pending.push(bytes)
             num_to_send = num_to_send + 1
           end
 
           // Write as much data as possible.
-          var len = @pony_os_writev[USize](_event,
-            _pending_writev.cpointer(_pending_sent * 2),
-            num_to_send) ?
+          var len =
+            @pony_os_writev[USize](_event,
+              _pending_writev.cpointer(_pending_sent * 2),
+              num_to_send) ?
 
           _pending_sent = _pending_sent + num_to_send.usize()
 
@@ -315,7 +370,9 @@ actor TCPConnection
         end
       else
         for bytes in _notify.sentv(this, data).values() do
-          _pending_writev.>push(bytes.cpointer().usize()).>push(bytes.size())
+          _pending_writev
+            .> push(bytes.cpointer().usize())
+            .> push(bytes.size())
           _pending_writev_total = _pending_writev_total + bytes.size()
           _pending.push(bytes)
         end
@@ -385,14 +442,15 @@ actor TCPConnection
     socket.
     """
     if _connected then
-      @pony_os_nodelay[None](_fd, state)
+      set_tcp_nodelay(state)
     end
 
   fun ref set_keepalive(secs: U32) =>
     """
-    Sets the TCP keepalive timeout to approximately `secs` seconds. Exact timing
-    is OS dependent. If `secs` is zero, TCP keepalive is disabled. TCP keepalive
-    is disabled by default. This can only be set on a connected socket.
+    Sets the TCP keepalive timeout to approximately `secs` seconds. Exact
+    timing is OS dependent. If `secs` is zero, TCP keepalive is disabled. TCP
+    keepalive is disabled by default. This can only be set on a connected
+    socket.
     """
     if _connected then
       @pony_os_keepalive[None](_fd, secs)
@@ -410,7 +468,7 @@ actor TCPConnection
 
         if not _connected and not _closed then
           // We don't have a connection yet.
-          if @pony_os_connected[Bool](fd) then
+          if _is_sock_connected(fd) then
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
@@ -440,6 +498,7 @@ actor TCPConnection
           // We're already connected, unsubscribe the event and close.
           @pony_asio_event_unsubscribe(event)
           @pony_os_socket_close[None](fd)
+          _try_shutdown()
         end
       else
         // It's not our event.
@@ -492,7 +551,7 @@ actor TCPConnection
       ifdef windows then
         try
           // Add an IOCP write.
-          _pending_writev.>push(data.size()).>push(data.cpointer().usize())
+          _pending_writev .> push(data.size()) .> push(data.cpointer().usize())
           _pending_writev_total = _pending_writev_total + data.size()
           _pending.push(data)
 
@@ -509,7 +568,7 @@ actor TCPConnection
           end
         end
       else
-        _pending_writev.>push(data.cpointer().usize()).>push(data.size())
+        _pending_writev .> push(data.cpointer().usize()) .> push(data.size())
         _pending_writev_total = _pending_writev_total + data.size()
         _pending.push(data)
         _pending_writes()
@@ -529,7 +588,8 @@ actor TCPConnection
       end
 
       try
-        _manage_pending_buffer(len.usize(), _pending_writev_total, _pending.size())
+        _manage_pending_buffer(len.usize(),
+          _pending_writev_total, _pending.size())?
       end
 
       if _pending_sent < 16 then
@@ -563,7 +623,7 @@ actor TCPConnection
             num_to_send = writev_batch_size
             bytes_to_send = 0
             for d in Range[USize](1, num_to_send * 2, 2) do
-              bytes_to_send = bytes_to_send + _pending_writev(d)
+              bytes_to_send = bytes_to_send + _pending_writev(d)?
             end
           end
 
@@ -571,7 +631,7 @@ actor TCPConnection
           var len = @pony_os_writev[USize](_event,
             _pending_writev.cpointer(), num_to_send.i32()) ?
 
-          if _manage_pending_buffer(len, bytes_to_send, num_to_send) then
+          if _manage_pending_buffer(len, bytes_to_send, num_to_send)? then
             return true
           end
         else
@@ -583,8 +643,11 @@ actor TCPConnection
 
     false
 
-  fun ref _manage_pending_buffer(bytes_sent: USize, bytes_to_send: USize,
-    num_to_send: USize): Bool ?
+  fun ref _manage_pending_buffer(
+    bytes_sent: USize,
+    bytes_to_send: USize,
+    num_to_send: USize)
+    : Bool ?
   =>
     """
     Manage pending buffer for data sent. Returns a boolean of whether
@@ -593,32 +656,34 @@ actor TCPConnection
     var len = bytes_sent
     if len < bytes_to_send then
       while len > 0 do
-        let iov_p = ifdef windows then
-                      _pending_writev(1)
-                    else
-                      _pending_writev(0)
-                    end
-        let iov_s = ifdef windows then
-                      _pending_writev(0)
-                    else
-                      _pending_writev(1)
-                    end
+        let iov_p =
+          ifdef windows then
+            _pending_writev(1)?
+          else
+            _pending_writev(0)?
+          end
+        let iov_s =
+          ifdef windows then
+            _pending_writev(0)?
+          else
+            _pending_writev(1)?
+          end
         if iov_s <= len then
           len = len - iov_s
-          _pending_writev.shift()
-          _pending_writev.shift()
-          _pending.shift()
+          _pending_writev.shift()?
+          _pending_writev.shift()?
+          _pending.shift()?
           ifdef windows then
             _pending_sent = _pending_sent - 1
           end
           _pending_writev_total = _pending_writev_total - iov_s
         else
           ifdef windows then
-            _pending_writev.update(1, iov_p+len)
-            _pending_writev.update(0, iov_s-len)
+            _pending_writev.update(1, iov_p+len)?
+            _pending_writev.update(0, iov_s-len)?
           else
-            _pending_writev.update(0, iov_p+len)
-            _pending_writev.update(1, iov_s-len)
+            _pending_writev.update(0, iov_p+len)?
+            _pending_writev.update(1, iov_s-len)?
           end
           _pending_writev_total = _pending_writev_total - len
           len = 0
@@ -639,9 +704,9 @@ actor TCPConnection
         return true
       else
         for d in Range[USize](0, num_to_send, 1) do
-          _pending_writev.shift()
-          _pending_writev.shift()
-          _pending.shift()
+          _pending_writev.shift()?
+          _pending_writev.shift()?
+          _pending.shift()?
           ifdef windows then
             _pending_sent = _pending_sent - 1
           end
@@ -791,17 +856,17 @@ actor TCPConnection
     """
     Attempt to perform a graceful shutdown. Don't accept new writes. If the
     connection isn't muted then we won't finish closing until we get a zero
-    length read.  If the connection is muted, perform a hard close and
-    shut down immediately.
+    length read. If the connection is muted, perform a hard close and shut
+    down immediately.
     """
-     ifdef windows then
+    ifdef windows then
       _close()
     else
       if _muted then
         _hard_close()
       else
-       _close()
-     end
+        _close()
+      end
     end
 
   fun ref _close() =>
@@ -880,7 +945,17 @@ actor TCPConnection
 
     try (_listen as TCPListener)._conn_closed() end
 
+
+  // Check this when a connection gets its first writeable event.
+  fun _is_sock_connected(fd: U32): Bool =>
+    (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
+    (errno == 0) and (value == 0)
+
   fun ref _apply_backpressure() =>
+    if not _throttled then
+      _throttled = true
+      _notify.throttled(this)
+    end
     ifdef not windows then
       _writeable = false
 
@@ -890,7 +965,158 @@ actor TCPConnection
       @pony_asio_event_resubscribe_write(_event)
     end
 
-    _notify.throttled(this)
-
   fun ref _release_backpressure() =>
-    _notify.unthrottled(this)
+    if _throttled then
+      _throttled = false
+      _notify.unthrottled(this)
+    end
+
+  /**************************************/
+
+  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4):
+    (U32, Array[U8] iso^) =>
+    """
+    General wrapper for TCP sockets to the `getsockopt(2)` system call.
+
+    The caller must provide an array that is pre-allocated to be
+    at least as large as the largest data structure that the kernel
+    may return for the requested option.
+
+    In case of system call success, this function returns the 2-tuple:
+    1. The integer `0`.
+    2. An `Array[U8]` of data returned by the system call's `void *`
+       4th argument.  Its size is specified by the kernel via the
+       system call's `sockopt_len_t *` 5th argument.
+
+    In case of system call failure, this function returns the 2-tuple:
+    1. The value of `errno`.
+    2. An undefined value that must be ignored.
+
+    Usage example:
+
+    ```pony
+    // connected() is a callback function for class TCPConnectionNotify
+    fun ref connected(conn: TCPConnection ref) =>
+      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
+        | (0, let gbytes: Array[U8] iso) =>
+          try
+            let br = Reader.create().>append(consume gbytes)
+            ifdef littleendian then
+              let buffer_size = br.u32_le()?
+            else
+              let buffer_size = br.u32_be()?
+            end
+          end
+        | (let errno: U32, _) =>
+          // System call failed
+      end
+    ```
+    """
+    _OSSocket.getsockopt(_fd, level, option_name, option_max_size)
+
+  fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
+    """
+    Wrapper for TCP sockets to the `getsockopt(2)` system call where
+    the kernel's returned option value is a C `uint32_t` type / Pony
+    type `U32`.
+
+    In case of system call success, this function returns the 2-tuple:
+    1. The integer `0`.
+    2. The `*option_value` returned by the kernel converted to a Pony `U32`.
+
+    In case of system call failure, this function returns the 2-tuple:
+    1. The value of `errno`.
+    2. An undefined value that must be ignored.
+    """
+    _OSSocket.getsockopt_u32(_fd, level, option_name)
+
+  fun ref setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
+    """
+    General wrapper for TCP sockets to the `setsockopt(2)` system call.
+
+    The caller is responsible for the correct size and byte contents of
+    the `option` array for the requested `level` and `option_name`,
+    including using the appropriate machine endian byte order.
+
+    This function returns `0` on success, else the value of `errno` on
+    failure.
+
+    Usage example:
+
+    ```pony
+    // connected() is a callback function for class TCPConnectionNotify
+    fun ref connected(conn: TCPConnection ref) =>
+      let sb = Writer
+
+      sb.u32_le(7744)             // Our desired socket buffer size
+      let sbytes = Array[U8]
+      for bs in sb.done().values() do
+        sbytes.append(bs)
+      end
+      match conn.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+        | 0 =>
+          // System call was successful
+        | let errno: U32 =>
+          // System call failed
+      end
+    ```
+    """
+    _OSSocket.setsockopt(_fd, level, option_name, option)
+
+  fun ref setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
+    """
+    General wrapper for TCP sockets to the `setsockopt(2)` system call where
+    the kernel expects an option value of a C `uint32_t` type / Pony
+    type `U32`.
+
+    This function returns `0` on success, else the value of `errno` on
+    failure.
+    """
+    _OSSocket.setsockopt_u32(_fd, level, option_name, option)
+
+
+  fun ref get_so_error(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
+    """
+    _OSSocket.get_so_error(_fd)
+
+  fun ref get_so_rcvbuf(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
+    """
+    _OSSocket.get_so_rcvbuf(_fd)
+
+  fun ref get_so_sndbuf(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
+    """
+    _OSSocket.get_so_sndbuf(_fd)
+
+  fun ref get_tcp_nodelay(): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
+    """
+    _OSSocket.getsockopt_u32(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay())
+
+
+  fun ref set_so_rcvbuf(bufsize: U32): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
+    """
+    _OSSocket.set_so_rcvbuf(_fd, bufsize)
+
+  fun ref set_so_sndbuf(bufsize: U32): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
+    """
+    _OSSocket.set_so_sndbuf(_fd, bufsize)
+
+  fun ref set_tcp_nodelay(state: Bool): U32 =>
+    """
+    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
+    """
+    var word: Array[U8] ref =
+      _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
+    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
+

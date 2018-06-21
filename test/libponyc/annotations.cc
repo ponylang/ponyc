@@ -112,7 +112,7 @@ TEST_F(AnnotationsTest, AnnotationsArePresent)
 
   ast = ast_annotation(ast);
 
-  ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_BACKSLASH));
+  ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_ANNOTATION));
   ast = ast_child(ast);
 
   ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_ID) &&
@@ -178,4 +178,45 @@ TEST_F(AnnotationsTest, AnnotateLambda)
   ast = lookup_in(ast, "apply");
 
   ASSERT_TRUE(ast_has_annotation(ast, "a"));
+}
+
+TEST_F(AnnotationsTest, InternalAnnotation)
+{
+  const char* src =
+    "actor \\ponyint\\ A\n";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(AnnotationsTest, StandardAnnotationLocationGood)
+{
+  const char* src =
+    "struct \\packed\\ Foo\n"
+    "  fun foo() =>\n"
+    "    if \\likely\\ bar then None end\n"
+    "    while \\unlikely\\ bar do None end\n"
+    "    repeat None until \\likely\\ bar end\n"
+    "    match bar | \\unlikely\\ bar => None end";
+
+  TEST_COMPILE(src, "syntax");
+}
+
+TEST_F(AnnotationsTest, StandardAnnotationLocationBad)
+{
+  const char* src =
+    "class \\packed\\ Foo\n"
+    "  fun foo() =>\n"
+    "    try \\likely\\ bar else None end\n"
+    "    repeat \\unlikely\\ None until bar end";
+
+  const char* errs[] = {
+    "a 'packed' annotation can only appear on a struct declaration",
+    "a 'likely' annotation can only appear on the condition of an if, while, "
+      "or until, or on the case of a match",
+    "a 'unlikely' annotation can only appear on the condition of an if, while, "
+      "or until, or on the case of a match",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
 }

@@ -1,5 +1,6 @@
 #include "stringtab.h"
 #include "../../libponyrt/ds/hash.h"
+#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,7 +24,7 @@ typedef struct stringtab_entry_t
 
 static size_t stringtab_hash(stringtab_entry_t* a)
 {
-  return (size_t)ponyint_hash_block(a->str, a->len);
+  return ponyint_hash_block(a->str, a->len);
 }
 
 static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
@@ -39,8 +40,7 @@ static void stringtab_free(stringtab_entry_t* a)
 
 DECLARE_HASHMAP(strtable, strtable_t, stringtab_entry_t);
 DEFINE_HASHMAP(strtable, strtable_t, stringtab_entry_t, stringtab_hash,
-  stringtab_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  stringtab_free);
+  stringtab_cmp, stringtab_free);
 
 static strtable_t table;
 
@@ -115,4 +115,126 @@ void stringtab_done()
 {
   strtable_destroy(&table);
   memset(&table, 0, sizeof(strtable_t));
+}
+
+static void string_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)ctx;
+  (void)mutability;
+
+  const char* string = (const char*)object;
+
+  memcpy((void*)((uintptr_t)buf + offset), object, strlen(string) + 1);
+}
+
+static __pony_thread_local struct _pony_type_t string_pony =
+{
+  0,
+  0,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL,
+  string_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+void string_trace(pony_ctx_t* ctx, const char* string)
+{
+  string_trace_len(ctx, string, strlen(string));
+}
+
+void string_trace_len(pony_ctx_t* ctx, const char* string, size_t len)
+{
+  string_pony.size = (uint32_t)(len + 1);
+  pony_traceknown(ctx, (char*)string, &string_pony, PONY_TRACE_OPAQUE);
+}
+
+static void* string_deserialise(void* buf, size_t remaining_size)
+{
+  size_t len = 1;
+
+  do
+  {
+    if(len >= remaining_size)
+      return NULL;
+  } while(((char*)buf)[len++] != '\0');
+
+  return (void*)stringtab_len((const char*)buf, len - 1);
+}
+
+const char* string_deserialise_offset(pony_ctx_t* ctx, uintptr_t offset)
+{
+  return (const char*)pony_deserialise_raw(ctx, offset, string_deserialise);
+}
+
+static void strlist_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  strlist_t* list = (strlist_t*)object;
+
+  if(list->contents.data != NULL)
+    string_trace(ctx, (const char*)list->contents.data);
+
+  if(list->contents.next != NULL)
+    pony_traceknown(ctx, list->contents.next, strlist_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+static void strlist_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  strlist_t* list = (strlist_t*)object;
+  strlist_t* dst = (strlist_t*)((uintptr_t)buf + offset);
+
+  dst->contents.data = (void*)pony_serialise_offset(ctx, list->contents.data);
+  dst->contents.next = (list_t*)pony_serialise_offset(ctx, list->contents.next);
+
+}
+
+static void strlist_deserialise(pony_ctx_t* ctx, void* object)
+{
+  strlist_t* list = (strlist_t*)object;
+
+  list->contents.data = (void*)string_deserialise_offset(ctx,
+    (uintptr_t)list->contents.data);
+  list->contents.next = (list_t*)pony_deserialise_offset(ctx,
+    strlist_pony_type(), (uintptr_t)list->contents.next);
+}
+
+static pony_type_t strlist_pony =
+{
+  0,
+  sizeof(strlist_t),
+  0,
+  0,
+  NULL,
+  NULL,
+  strlist_serialise_trace,
+  strlist_serialise,
+  strlist_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+pony_type_t* strlist_pony_type()
+{
+  return &strlist_pony;
 }

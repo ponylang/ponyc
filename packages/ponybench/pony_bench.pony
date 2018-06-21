@@ -1,162 +1,163 @@
 """
-The PonyBench package provides a microbenchmarking framework. It is designed to
-easily benchmark synchronous and asynchronous operations.
+PonyBench provides a microbenchmarking framework. It is designed to measure
+the runtime of synchronous and asynchronous operations.
 
-## Example program
+## Example Program
 
 The following is a complete program with multiple trivial benchmarks followed
 by their output.
 
 ```pony
-use "ponybench"
-use "promises"
+use "time"
 
-actor Main
+actor Main is BenchmarkList
   new create(env: Env) =>
-    let bench = PonyBench(env)
+    PonyBench(env, this)
 
-    // benchmark Fib with different inputs
-    bench[USize]("fib 5", {(): USize => Fib(5)})
-    bench[USize]("fib 10", {(): USize => Fib(10)})
-    bench[USize]("fib 20", {(): USize => Fib(20)})
-    bench[USize]("fib 40", {(): USize => Fib(40)})
+  fun tag benchmarks(bench: PonyBench) =>
+    bench(_Nothing)
+    bench(_Fib(5))
+    bench(_Fib(10))
+    bench(_Fib(20))
+    bench(_Timer(10_000))
 
-    // show what happens when a benchmark fails
-    bench[String]("fail", {(): String ? => error})
+class iso _Nothing is MicroBenchmark
+  // Benchmark absolutely nothing.
+  fun name(): String => "Nothing"
 
-    // async benchmark
-    bench.async[USize](
-      "async",
-      {(): Promise[USize] => Promise[USize].>apply(0)} iso
-    )
+  fun apply() =>
+    // prevent compiler from optimizing out this operation
+    DoNotOptimise[None](None)
+    DoNotOptimise.observe()
 
-    // async benchmark timeout
-    bench.async[USize](
-      "timeout",
-      {(): Promise[USize] => Promise[USize]} iso,
-      1_000_000
-    )
+class iso _Fib is MicroBenchmark
+  // Benchmark non-tail-recursive fibonacci
+  let _n: U64
 
-    // benchmarks with set ops
-    bench[USize]("add", {(): USize => 1 + 2}, 10_000_000)
-    bench[USize]("sub", {(): USize => 2 - 1}, 10_000_000)
+  new iso create(n: U64) =>
+    _n = n
 
-primitive Fib
-  fun apply(n: USize): USize =>
-    if n < 2 then
-      n
-    else
-      apply(n-1) + apply(n-2)
+  fun name(): String =>
+    "_Fib(" + _n.string() + ")"
+
+  fun apply() =>
+    DoNotOptimise[U64](_fib(_n))
+    DoNotOptimise.observe()
+
+  fun _fib(n: U64): U64 =>
+    if n < 2 then 1
+    else _fib(n - 1) + _fib(n - 2)
     end
+
+class iso _Timer is AsyncMicroBenchmark
+  // Asynchronous benchmark of timer.
+  let _ts: Timers = Timers
+  let _ns: U64
+
+  new iso create(ns: U64) =>
+    _ns = ns
+
+  fun name(): String =>
+    "_Timer (" + _ns.string() + " ns)"
+
+  fun apply(c: AsyncBenchContinue) =>
+    _ts(Timer(
+      object iso is TimerNotify
+        fun apply(timer: Timer, count: U64 = 0): Bool =>
+          // signal completion of async benchmark iteration when timer fires
+          c.complete()
+          false
+      end,
+      _ns))
+
 ```
-Output:
+By default, the results are printed to stdout like so:
 ```
-fib 5       50000000            33 ns/op
-fib 10       5000000           371 ns/op
-fib 20         30000         45310 ns/op
-fib 40             2     684868666 ns/op
-**** FAILED Benchmark: fail
-async         200000         26512 ns/op
-**** FAILED Benchmark: timeout (timeout)
-add         10000000             2 ns/op
-sub         10000000             2 ns/op
+Benchmark results will have their mean and median adjusted for overhead.
+You may disable this with --noadjust.
+
+Benchmark                                   mean            median   deviation  iterations
+Nothing                                     1 ns              1 ns      ±0.87%     3000000
+_Fib(5)                                    12 ns             12 ns      ±1.02%     2000000
+_Fib(10)                                  185 ns            184 ns      ±1.03%     1000000
+_Fib(20)                                23943 ns          23898 ns      ±1.11%       10000
+_Timer (10000ns)                        10360 ns          10238 ns      ±3.25%       10000
 ```
+The `--noadjust` option outputs results of the overhead measured prior to each
+benchmark run followed by the unadjusted benchmark result. An example of the
+output of this program with `--noadjust` is as follows:
+```
+Benchmark                                   mean            median   deviation  iterations
+Benchmark Overhead                        604 ns            603 ns      ±0.58%      300000
+Nothing                                   553 ns            553 ns      ±0.30%      300000
+Benchmark Overhead                        555 ns            555 ns      ±0.51%      300000
+_Fib(5)                                   574 ns            574 ns      ±0.43%      300000
+Benchmark Overhead                        554 ns            556 ns      ±0.48%      300000
+_Fib(10)                                  822 ns            821 ns      ±0.39%      200000
+Benchmark Overhead                        554 ns            553 ns      ±0.65%      300000
+_Fib(20)                                30470 ns          30304 ns      ±1.55%        5000
+Benchmark Overhead                        552 ns            552 ns      ±0.39%      300000
+_Timer (10000 ns)                       10780 ns          10800 ns      ±3.60%       10000
+```
+
+It is recommended that a PonyBench program is compiled with the `--runtimebc`
+option, if possible, and run with the `--ponynoyield` option.
 """
-use "collections"
-use "format"
-use "promises"
-use "term"
+// TODO more examples in tutorial
 
 actor PonyBench
-  embed _bs: Array[(String, _Benchmark)] = Array[(String, _Benchmark)]
   let _env: Env
+  let _output_manager: _OutputManager
+  embed _bench_q: Array[(Benchmark, Bool)] = Array[(Benchmark, Bool)]
+  var _running: Bool = false
 
-  new create(env: Env) =>
-    _env = env
+  new create(env: Env, list: BenchmarkList) =>
+    _env = consume env
+    ifdef debug then
+      _env.err.print("***WARNING*** Benchmark was built as DEBUG. Timings may be affected.")
+    end
 
-  be apply[A: Any #share](name: String, f: {(): A ?} val, ops: U64 = 0) =>
-    """
-    Benchmark the function `f` by calling it repeatedly and output a simple
-    average of the total run time over the amount of times `f` is called. This
-    amount can be set manually as `ops` or to the default value of 0 which will
-    trigger the benchmark runner to increase the value of `ops` until it is
-    satisfied with the stability of the benchmark.
-    """
-    _add(
-      name,
-      if ops == 0 then
-        _AutoBench[A](name, this, f)
-      else
-        _Bench[A](name, this, f, ops)
+    _output_manager =
+      if _env.args.contains("-csv", {(a, b) => a == b })
+      then _CSVOutput(_env)
+      else _TerminalOutput(_env)
       end
-    )
 
-  be async[A: Any #share](
-    name: String,
-    f: {(): Promise[A] ?} val,
-    timeout: U64 = 0,
-    ops: U64 = 0
-  ) =>
-    """
-    Benchmark the time taken for the promise returned by `f` to be fulfilled.
-    If `timeout` is greater than 0, the benchmark will fail if the promise is
-    not fulfilled within the time given. This check for timeout is done before
-    the benchmarks are counted towards an average run time.
-    """
-    _add(
-      name,
-      if ops == 0 then
-        _AutoBenchAsync[A](name, this, f, timeout)
-      else
-        _BenchAsync[A](name, this, f, ops, timeout)
+    list.benchmarks(this)
+
+  be apply(bench: Benchmark) =>
+    match consume bench
+    | let b: MicroBenchmark =>
+      _bench_q.push((b.overhead(), true))
+      _bench_q.push((consume b, false))
+    | let b: AsyncMicroBenchmark =>
+      _bench_q.push((b.overhead(), true))
+      _bench_q.push((consume b, false))
+    end
+
+    if not _running then
+      _running = true
+      _next_benchmark()
+    end
+
+  be _next_benchmark() =>
+    if _bench_q.size() > 0 then
+      try
+        match _bench_q.shift()?
+        | (let b: MicroBenchmark, let overhead: Bool) =>
+          _RunSync(this, consume b, overhead)
+        | (let b: AsyncMicroBenchmark, let overhead: Bool) =>
+          _RunAsync(this, consume b, overhead)
+        end
       end
-    )
-
-  be _result(name: String, ops: U64, nspo: U64) =>
-    _remove(name)
-    let sl =
-      [ name
-        "\t"
-        Format.int[U64](ops where width=10)
-        "\t"
-        Format.int[U64](nspo where width=10)
-        " ns/op"
-      ]
-    _env.out.print(String.join(sl))
-    _next()
-
-  be _failure(name: String, timeout: Bool) =>
-    _remove(name)
-    let sl = [ANSI.red(); "**** FAILED Benchmark: "; name]
-    if timeout then
-      sl.push(" (timeout)")
-    end
-    sl.push(ANSI.reset())
-    _env.out.print(String.join(sl))
-    _next()
-
-  fun ref _add(name: String, b: _Benchmark) =>
-    _bs.push((name, b))
-    if _bs.size() < 2 then
-      b.run()
+    else
+      _running = false
     end
 
-  fun ref _remove(name: String) =>
-    for (i, (n, _)) in _bs.pairs() do
-      if n == name then
-        try _bs.delete(i) end
-        return
-      end
-    end
+  be _complete(results: _Results) =>
+    _output_manager(consume results)
+    _next_benchmark()
 
-  fun ref _next() =>
-    try
-      _bs(0)._2.run()
-    end
-
-interface tag _BenchNotify
-  be _result(name: String, ops: U64, nspo: U64)
-  be _failure(name: String, timeout: Bool)
-
-trait tag _Benchmark
-  be run()
+  be _fail(name: String) =>
+    _env.err.print("Failed benchmark: " + name)
+    _env.exitcode(1)

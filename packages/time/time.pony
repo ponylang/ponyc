@@ -8,10 +8,10 @@ dealing with dates and times, and scheduling tasks.
 use "lib:rt" if linux
 
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I64, I64)])
-  if lp64 and (linux or freebsd)
+  if lp64 and (linux or bsd)
 
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I32, I32)])
-  if ilp32 and (linux or freebsd)
+  if ilp32 and (linux or bsd)
 
 use @mach_absolute_time[U64]() if osx
 
@@ -19,7 +19,7 @@ type _Clock is (_ClockRealtime | _ClockMonotonic)
 
 primitive _ClockRealtime
   fun apply(): U32 =>
-    ifdef linux or freebsd then
+    ifdef linux or bsd then
       0
     else
       compile_error "no clock_gettime realtime clock"
@@ -29,7 +29,7 @@ primitive _ClockMonotonic
   fun apply(): U32 =>
     ifdef linux then
       1
-    elseif freebsd then
+    elseif bsd then
       4
     else
       compile_error "no clock_gettime monotonic clock"
@@ -48,7 +48,7 @@ primitive Time
       var ts: (I64, I64) = (0, 0)
       @gettimeofday[I32](addressof ts, U64(0))
       (ts._1, ts._2 * 1000)
-    elseif linux or freebsd then
+    elseif linux or bsd then
       _clock_gettime(_ClockRealtime)
     elseif windows then
       var ft: (U32, U32) = (0, 0)
@@ -74,7 +74,7 @@ primitive Time
     """
     ifdef osx then
       @mach_absolute_time() / 1000000
-    elseif linux or freebsd then
+    elseif linux or bsd then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000) + (ts._2 / 1000000)).u64()
     elseif windows then
@@ -90,7 +90,7 @@ primitive Time
     """
     ifdef osx then
       @mach_absolute_time() / 1000
-    elseif linux or freebsd then
+    elseif linux or bsd then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000) + (ts._2 / 1000)).u64()
     elseif windows then
@@ -106,7 +106,7 @@ primitive Time
     """
     ifdef osx then
       @mach_absolute_time()
-    elseif linux or freebsd then
+    elseif linux or bsd then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000000) + ts._2).u64()
     elseif windows then
@@ -115,16 +115,6 @@ primitive Time
     else
       compile_error "unsupported platform"
     end
-
-  fun wall_to_nanos(wall: (I64, I64)): U64 =>
-    """
-    Converts a wall-clock adjusted system time to monotonic unadjusted
-    nanoseconds.
-    """
-    let wall_now = now()
-    nanos() +
-      (((wall._1 * 1000000000) + wall._2) -
-      ((wall_now._1 * 1000000000) + wall_now._2)).u64()
 
   fun cycles(): U64 =>
     """
@@ -163,13 +153,13 @@ primitive Time
 
   fun _clock_gettime(clock: _Clock): (I64, I64) =>
     """
-    Return a clock time on linux and freebsd.
+    Return a clock time on linux and bsd.
     """
-    ifdef lp64 and (linux or freebsd) then
+    ifdef lp64 and (linux or bsd) then
       var ts: (I64, I64) = (0, 0)
       @clock_gettime(clock(), addressof ts)
       ts
-    elseif ilp32 and (linux or freebsd) then
+    elseif ilp32 and (linux or bsd) then
       var ts: (I32, I32) = (0, 0)
       @clock_gettime(clock(), addressof ts)
       (ts._1.i64(), ts._2.i64())

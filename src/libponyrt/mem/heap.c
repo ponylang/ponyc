@@ -81,7 +81,9 @@ static void final_small(chunk_t* chunk, uint32_t mark)
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
-  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers)))) {
+  while(finalisers != 0)
+  {
+    bit = __pony_ctzl(finalisers);
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
@@ -102,23 +104,19 @@ static void final_small_freed(chunk_t* chunk)
   // run any finalisers that need to be run for any newly freed slots
   void* p = NULL;
 
-  uint32_t finalisers = chunk->finalisers;
+  uint32_t finalisers = chunk->finalisers & chunk->slots;
+  chunk->finalisers = chunk->finalisers & ~chunk->slots;
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
-  while((finalisers != 0) && (0 != (bit = __pony_ctzl(finalisers)))) {
-    // nothing to do if the slot isn't empty
-    if((chunk->slots & (1 << bit)) == 0)
-      continue;
-
+  while(finalisers != 0)
+  {
+    bit = __pony_ctzl(finalisers);
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
     pony_assert((*(pony_type_t**)p)->final != NULL);
     (*(pony_type_t**)p)->final(p);
-
-    // clear finaliser in chunk
-    chunk->finalisers &= ~(1 << bit);
 
     // clear bit just found in our local finaliser map
     finalisers &= (finalisers - 1);
@@ -130,6 +128,7 @@ static void final_large(chunk_t* chunk, uint32_t mark)
   if(chunk->finalisers == 1)
   {
     // run finaliser
+    pony_assert((*(pony_type_t**)chunk->m)->final != NULL);
     (*(pony_type_t**)chunk->m)->final(chunk->m);
     chunk->finalisers = 0;
   }
@@ -185,11 +184,15 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
     } else {
       used += sizeof(block_t) -
         (__pony_popcount(chunk->slots) * size);
-      chunk->next = *avail;
-      *avail = chunk;
 
       // run finalisers for freed slots
       final_small_freed(chunk);
+
+      // make chunk available for allocations only after finalisers have been
+      // run to prevent premature reuse of memory slots by an allocation
+      // required for finaliser execution
+      chunk->next = *avail;
+      *avail = chunk;
     }
 
     chunk = next;
@@ -463,15 +466,11 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   if(p == NULL)
     return ponyint_heap_alloc(actor, heap, size);
 
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get(p);
 
-  if(chunk == NULL)
-  {
-    // Get new memory and copy from the old memory.
-    void* q = ponyint_heap_alloc(actor, heap, size);
-    memcpy(q, p, size);
-    return q;
-  }
+  // We can't realloc memory that wasn't pony_alloc'ed since we can't know how
+  // much to copy from the previous location.
+  pony_assert(chunk != NULL);
 
   size_t oldsize;
 

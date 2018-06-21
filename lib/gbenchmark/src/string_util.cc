@@ -27,8 +27,6 @@ static_assert(arraysize(kSmallSIUnits) == arraysize(kBigSIUnits),
 
 static const int64_t kUnitsSize = arraysize(kBigSIUnits);
 
-}  // end anonymous namespace
-
 void ToExponentAndMantissa(double val, double thresh, int precision,
                            double one_k, std::string* mantissa,
                            int64_t* exponent) {
@@ -45,6 +43,8 @@ void ToExponentAndMantissa(double val, double thresh, int precision,
       std::max(thresh, 1.0 / std::pow(10.0, precision));
   const double big_threshold = adjusted_threshold * one_k;
   const double small_threshold = adjusted_threshold;
+  // Values in ]simple_threshold,small_threshold[ will be printed as-is
+  const double simple_threshold = 0.01;
 
   if (val > big_threshold) {
     // Positive powers
@@ -62,14 +62,16 @@ void ToExponentAndMantissa(double val, double thresh, int precision,
     *exponent = 0;
   } else if (val < small_threshold) {
     // Negative powers
-    double scaled = val;
-    for (size_t i = 0; i < arraysize(kSmallSIUnits); ++i) {
-      scaled *= one_k;
-      if (scaled >= small_threshold) {
-        mantissa_stream << scaled;
-        *exponent = -static_cast<int64_t>(i + 1);
-        *mantissa = mantissa_stream.str();
-        return;
+    if (val < simple_threshold) {
+      double scaled = val;
+      for (size_t i = 0; i < arraysize(kSmallSIUnits); ++i) {
+        scaled *= one_k;
+        if (scaled >= small_threshold) {
+          mantissa_stream << scaled;
+          *exponent = -static_cast<int64_t>(i + 1);
+          *mantissa = mantissa_stream.str();
+          return;
+        }
       }
     }
     mantissa_stream << val;
@@ -96,13 +98,15 @@ std::string ExponentToPrefix(int64_t exponent, bool iec) {
 }
 
 std::string ToBinaryStringFullySpecified(double value, double threshold,
-                                         int precision) {
+                                         int precision, double one_k = 1024.0) {
   std::string mantissa;
   int64_t exponent;
-  ToExponentAndMantissa(value, threshold, precision, 1024.0, &mantissa,
+  ToExponentAndMantissa(value, threshold, precision, one_k, &mantissa,
                         &exponent);
   return mantissa + ExponentToPrefix(exponent, false);
 }
+
+}  // end namespace
 
 void AppendHumanReadable(int n, std::string* str) {
   std::stringstream ss;
@@ -111,14 +115,14 @@ void AppendHumanReadable(int n, std::string* str) {
   *str += ss.str();
 }
 
-std::string HumanReadableNumber(double n) {
+std::string HumanReadableNumber(double n, double one_k) {
   // 1.1 means that figures up to 1.1k should be shown with the next unit down;
   // this softens edge effects.
   // 1 means that we should show one decimal place of precision.
-  return ToBinaryStringFullySpecified(n, 1.1, 1);
+  return ToBinaryStringFullySpecified(n, 1.1, 1, one_k);
 }
 
-std::string StringPrintFImp(const char* msg, va_list args) {
+std::string StrFormatImp(const char* msg, va_list args) {
   // we might need a second shot at this, so pre-emptivly make a copy
   va_list args_cp;
   va_copy(args_cp, args);
@@ -148,10 +152,10 @@ std::string StringPrintFImp(const char* msg, va_list args) {
   return std::string(buff_ptr.get());
 }
 
-std::string StringPrintF(const char* format, ...) {
+std::string StrFormat(const char* format, ...) {
   va_list args;
   va_start(args, format);
-  std::string tmp = StringPrintFImp(format, args);
+  std::string tmp = StrFormatImp(format, args);
   va_end(args);
   return tmp;
 }

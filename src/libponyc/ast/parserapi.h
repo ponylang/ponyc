@@ -112,7 +112,8 @@ void infix_builder(rule_state_t* state, ast_t* new_ast);
 
 void infix_reverse_builder(rule_state_t* state, ast_t* new_ast);
 
-void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id);
+void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id,
+  token_t* token_for_pos);
 
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   const char* terminating, const token_id* id_set, bool make_ast,
@@ -128,9 +129,6 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
 // External API
 
-/// Enable or disable parsing trace output
-void parse_trace(bool enable);
-
 /** Generates a module AST and attaches it to the given package AST.
  * The expected argument is used in the generated error message if nothing is
  * found. It is not stored.
@@ -138,7 +136,7 @@ void parse_trace(bool enable);
  * failure.
  */
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors);
+  errors_t* errors, bool allow_test_symbols, bool trace);
 
 
 /* The API for parser rules starts here */
@@ -198,7 +196,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
  * Example:
  *    AST_NODE(TK_CASE);
  */
-#define AST_NODE(ID)  add_deferrable_ast(parser, &state, ID)
+#define AST_NODE(ID)  add_deferrable_ast(parser, &state, ID, NULL)
 
 
 /** Map our AST node ID.
@@ -463,7 +461,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
  * be freed within the provided code.
  *
  * Example:
- *    REWRITE(ast_print(ast));
+ *    REWRITE(ast_print(ast, 80));
  */
 #define REWRITE(body) \
   { \

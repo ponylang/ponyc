@@ -8,9 +8,16 @@ branches:
 dist: trusty
 sudo: required
 
+# NOTE: This holds fedora COPR API related variables. Unfortunately, the values expire every 180 days.
+# As a result, we have to remember to visit https://copr.fedorainfracloud.org/api/ and generate a new token
+# and then run the following to update variables and replace the "secure" value.
+# travis encrypt COPR_LOGIN=VALUE COPR_TOKEN=VALUE --org -r ponylang/ponyc
+env:
+  global:
+    secure: "YoSty8dHJOOj52w7Y1ycbO95GCNIGxAr0ZujtiINreMp4u6zAGkehYAy4rnPtDzbhwEf3SoQLegnG+yxg5TOaNejUJw85ZD1FgzAHOTbxHJAzLMnj544TuXt37Pd34m/P1FgG9OuGdMJQMaTBVCaOEeZ7y54fXcXpTQFH6gnDCRqRA0UQRZNR4Y6AtkDt5rfiwbQG3KJhb7oSydF7MgDOK9D+D5M40L4ANjAp1e8Imu4YMXZUUhZs2Vy49LQWOWD2Kuv0MOZt9W4ISrPaSR7lDMvtaWsScU+asrji/Jnc68SBmjCcU4sMxY0WeBF3fzu5h7VP7Yovkxju4e0UQG0PI/EEYukgw5b6k9za6flTczqs+pLIVhPwBWIE943nhqrLE9/l00vEpVBBj4X1iofrT9r4TSmaMzewZQx3cX4IOmwSuHA14NPUapXgwrP97ANtk+mkYg4HJ9W1e5/nD7juGBondfDTp/cW1z+1PUN4PQZrJJ9UFbryX51/2YB/8K5mdU970qcdsrljcB9WSxTUCogo+s6bc/hFUmH6BRmN10x10wrGbO62J/v0PpxKtymwSqAwvkr2cDejrCfm3bS/6Uoqo7gC6smTOlKSH8rEdLty1lA584/rXL0VvfjtUrn94g5BCkV1jRlufT33hv3nQjpkpCRokt0phKUQLxjv8c="
+
 matrix:
-  include:
-
+   include:
     - os: linux
       addons:
         apt:
@@ -19,154 +26,19 @@ matrix:
           packages:
             - g++-6
       env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
-        - LLVM_CONFIG="llvm-config-3.7"
-        - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
-        - LLVM_CONFIG="llvm-config-3.7"
-        - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
-          packages:
-            - g++-6
-            - llvm-3.9-dev
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - CC1=gcc-6
-        - CXX1=g++-6
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
-          packages:
-            - g++-6
-            - llvm-3.9-dev
-      env:
-        - FAVORITE_CONFIG=yes
+        - RELEASE_CONFIG=yes
         - LLVM_VERSION="3.9.1"
         - LLVM_CONFIG="llvm-config-3.9"
         - config=release
-        - CC1=gcc-6
-        - CXX1=g++-6
+        - CC1=gcc
+        - CXX1=g++
+        - ICC1=gcc-6
+        - ICXX1=g++-6
 
     - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
-        - LLVM_CONFIG="llvm-config-3.7"
-        - config=debug
-        - CC1=clang-3.7
-        - CXX1=clang++-3.7
-
-    - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.7.1"
-        - LLVM_CONFIG="llvm-config-3.7"
-        - config=release
-        - lto=no
-        - CC1=clang-3.7
-        - CXX1=clang++-3.7
-
-    - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=debug
-        - CC1=clang-3.8
-        - CXX1=clang++-3.8
-
-    - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.8.1"
-        - LLVM_CONFIG="llvm-config-3.8"
-        - config=release
-        - lto=no
-        - CC1=clang-3.8
-        - CXX1=clang++-3.8
-
-    - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
-
-    - os: osx
-      env:
-        - FAVORITE_CONFIG=no
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-        - lto=no
-        - CC1=clang-3.9
-        - CXX1=clang++-3.9
 
 rvm:
   - 2.2.3
-
-install:
-  - bash .travis_install.bash
 
 script:
   - bash .travis_script.bash
@@ -182,9 +54,10 @@ deploy:
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_debian.json
+    skip_cleanup: true
     on:
       branch: release
-      condition: "$FAVORITE_CONFIG == yes"
+      condition: "$RELEASE_CONFIG == yes"
 
     key:
       secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
@@ -192,18 +65,20 @@ deploy:
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_rpm.json
+    skip_cleanup: true
     on:
       branch: release
-      condition: "$FAVORITE_CONFIG == yes"
+      condition: "$RELEASE_CONFIG == yes"
     key:
       secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 
   - provider: bintray
     user: pony-buildbot-2
     file: /home/travis/build/ponylang/ponyc/bintray_source.json
+    skip_cleanup: true
     on:
       branch: release
-      condition: "$FAVORITE_CONFIG == yes"
+      condition: "$RELEASE_CONFIG == yes"
     key:
       secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
 

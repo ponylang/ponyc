@@ -56,8 +56,12 @@ primitive DNS
     """
     @pony_os_host_ip6[Bool](host.cstring())
 
-  fun _resolve(auth: DNSLookupAuth, family: U32, host: String,
-    service: String): Array[NetAddress] iso^
+  fun _resolve(
+    auth: DNSLookupAuth,
+    family: U32,
+    host: String,
+    service: String)
+    : Array[NetAddress] iso^
   =>
     """
     Turns an addrinfo pointer into an array of addresses.

@@ -18,7 +18,7 @@ static PONY_ATOMIC(bool) assert_guard = false;
 
 #ifdef PLATFORM_IS_POSIX_BASED
 
-#ifdef PLATFORM_IS_FREEBSD
+#ifdef PLATFORM_IS_BSD
 typedef size_t stack_depth_t;
 #else
 typedef int stack_depth_t;

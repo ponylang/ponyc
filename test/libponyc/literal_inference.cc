@@ -6,6 +6,9 @@
 #define TEST_ERROR(src) DO(test_error(src, "expr"))
 #define TEST_COMPILE(src) DO(test_compile(src, "expr"))
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
 
 class LiteralTest : public PassTest
 {
@@ -243,7 +246,21 @@ TEST_F(LiteralTest, CantInfer_Let_InsufficientlySpecifiedGeneric)
     "  new create() =>\n"
     "    let x: A = 17";
 
-  TEST_ERROR(src);
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(LiteralTest, CantInfer_DefaultArg_InsufficientlySpecifiedGeneric)
+{
+  const char* src =
+    "class Foo[A]\n"
+    "  new create(field: A = 0) =>\n"
+    "    None\n"
+    "\n"
+    "class Bar\n"
+    "  new create() =>\n"
+    "    let foo = Foo[U16]()";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
 }
 
 
@@ -268,14 +285,14 @@ TEST_F(LiteralTest, CantInfer_Return_InvalidUnion )
 }
 
 
-TEST_F(LiteralTest, CantInfer_Array_UnambiguousUnion )
+TEST_F(LiteralTest, Array_UnambiguousUnion )
 {
   const char* src =
     "class Foo5a\n"
-    "  fun run() => test([8])\n"       // FIXME? inferred as Array[I32], not Array[String|I32]
+    "  fun run() => test([8])\n"
     "  fun test(a: Array[ (String | I32) ] ): Bool => true\n";
 
-  TEST_ERROR(src);
+  TEST_COMPILE(src);
 }
 
 

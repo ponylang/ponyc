@@ -1,13 +1,13 @@
 #ifndef asio_asio_h
 #define asio_asio_h
 
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 #include <stdbool.h>
 
 #if defined(PLATFORM_IS_LINUX)
 #  define ASIO_USE_EPOLL
-#elif defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+#elif defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
 #  define ASIO_USE_KQUEUE
 #elif defined(PLATFORM_IS_WINDOWS)
 #  define ASIO_USE_IOCP
@@ -68,6 +68,11 @@ bool ponyint_asio_start();
  */
 asio_backend_t* ponyint_asio_get_backend();
 
+/** Returns the cpu assigned for the ASIO thread.
+ *
+ */
+uint32_t ponyint_asio_get_cpu();
+
 /** Attempts to stop an asynchronous event mechanism.
  *
  * Stopping an event mechanism is only possible if there are no pending "noisy"
@@ -78,13 +83,20 @@ asio_backend_t* ponyint_asio_get_backend();
  */
 bool ponyint_asio_stop();
 
+/** Checks if it is safe to stop the asynchronous event mechanism.
+ *
+ * Stopping an event mechanism is only possible if there are no pending "noisy"
+ * subscriptions.
+ */
+bool ponyint_asio_stoppable();
+
 /** Add a noisy event subscription.
  */
-void ponyint_asio_noisy_add();
+uint64_t ponyint_asio_noisy_add();
 
 /** Remove a noisy event subscription.
  */
-void ponyint_asio_noisy_remove();
+uint64_t ponyint_asio_noisy_remove();
 
 /** Destroys an ASIO backend.
  *

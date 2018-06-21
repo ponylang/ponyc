@@ -1,6 +1,12 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#ifdef __linux__
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -23,7 +29,11 @@
 #elif defined(__linux__)
 #  define PLATFORM_IS_LINUX
 #elif defined(__FreeBSD__)
+#  define PLATFORM_IS_BSD
 #  define PLATFORM_IS_FREEBSD
+#elif defined(__DragonFly__)
+#  define PLATFORM_IS_BSD
+#  define PLATFORM_IS_DRAGONFLY
 #elif defined(_WIN32)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
@@ -92,7 +102,7 @@
 #  error PLATFORM NOT SUPPORTED!
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_BSD)
 #  define PLATFORM_IS_POSIX_BASED
 #endif
 
@@ -160,6 +170,11 @@
  */
 #if defined(ARMV2) || defined(__arm__) || defined(__aarch64__)
 # define PLATFORM_IS_ARM
+# if defined(__aarch64__)
+#  define PLATFORM_IS_ARM64
+# else
+#  define PLATFORM_IS_ARM32
+# endif
 #elif defined(__i386__) || defined(_M_IX86) || defined(_X86_) || \
  defined(__amd64__) || defined(__x86_64__) || defined(_M_X64) || \
  defined(_M_AMD64)
@@ -231,7 +246,7 @@ inline uint32_t __pony_ffs(uint32_t x)
   unsigned char non_zero = _BitScanForward(&i, x);
   return non_zero ? i + 1 : 0;
 }
-  
+
 #  ifdef PLATFORM_IS_ILP32
 inline uint32_t __pony_ffsl(uint32_t x)
 {
@@ -296,6 +311,23 @@ inline uint64_t __pony_clzl(uint64_t x)
 
 #endif
 
+/** Static assert
+ *
+ */
+
+#if defined(__clang__)
+#  if __has_feature(cxx_static_assert)
+#    define pony_static_assert(c, m) static_assert(c, m)
+#  elif __has_feature(c_static_assert)
+#    define pony_static_assert(c, m) _Static_assert(c, m)
+#  else
+#    error "Clang doesn't support `static_assert` or `_Static_assert`."
+#  endif
+#else
+#  include <assert.h>
+#  define pony_static_assert(c, m) static_assert(c, m)
+#endif
+
 /** Storage class modifiers.
  *
  */
@@ -340,6 +372,10 @@ inline uint64_t __pony_clzl(uint64_t x)
 
 #if defined(PLATFORM_IS_WINDOWS)
 #  include "vcvars.h"
+#endif
+
+#if defined(ARMV7) && !defined(__ARM_NEON) && !defined(__ARM_NEON__)
+#  define PLATFORM_IS_ARMHF_WITHOUT_NEON 1
 #endif
 
 #endif

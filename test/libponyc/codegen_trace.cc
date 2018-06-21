@@ -97,7 +97,7 @@ TEST_F(CodegenTraceTest, NoTrace)
 
     "  new create(env: Env) =>\n"
          // Trigger GC to remove env from the object map.
-    "    @pony_triggergc[None](this)\n"
+    "    @pony_triggergc[None](@pony_ctx[Pointer[None]]())\n"
     "    test()\n"
 
     "  be test() =>\n"
@@ -427,6 +427,70 @@ TEST_F(CodegenTraceTest, TraceTupleWithNumberBoxedSentThroughInterface)
     "      @objectmap_has_object_rc[Bool](map_after, x._1, USize(0))\n"
     "    @gc_local_snapshot_destroy[None](map_before)\n"
     "    @pony_exitcode[None](I32(if ok then 1 else 0 end))";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+TEST_F(CodegenTraceTest, TraceStructField)
+{
+  const char* src =
+    "class Foo\n"
+
+    "struct Bar\n"
+    "  let f: Foo = Foo\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    trace(recover Bar end)\n"
+
+    "  be trace(x: Bar iso) =>\n"
+    "    let map = @gc_local[Pointer[None]](this)\n"
+    "    let ok = @objectmap_has_object[Bool](map, x) and\n"
+    "      @objectmap_has_object[Bool](map, x.f)\n"
+    "    @pony_exitcode[None](I32(if ok then 1 else 0 end))";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+TEST_F(CodegenTraceTest, TraceTupleBoxedSentThroughInterface)
+{
+  const char* src =
+    "class C\n"
+
+    "interface tag I\n"
+    "  be trace(x: (C iso, C iso))\n"
+
+    "actor Main\n"
+    "  var map_before: Pointer[None] = Pointer[None]\n"
+
+    "  new create(env: Env) =>\n"
+    "    let i: I = this\n"
+    "    i.trace((C, C))\n"
+    "    map_before = @gc_local_snapshot[Pointer[None]](this)\n"
+
+    "  be trace(x: Any iso) =>\n"
+    "    let y = consume ref x\n"
+    "    match y\n"
+    "    | (let c1: C, let c2: C) =>\n"
+    "      let map_after = @gc_local[Pointer[None]](this)\n"
+    "      let ok = @objectmap_has_object_rc[Bool](map_before, y, USize(1)) and\n"
+    "        @objectmap_has_object_rc[Bool](map_after, y, USize(0)) and\n"
+    "        @objectmap_has_object_rc[Bool](map_before, c1, USize(1)) and\n"
+    "        @objectmap_has_object_rc[Bool](map_after, c1, USize(0)) and\n"
+    "        @objectmap_has_object_rc[Bool](map_before, c2, USize(1)) and\n"
+    "        @objectmap_has_object_rc[Bool](map_after, c2, USize(0))\n"
+    "      @gc_local_snapshot_destroy[None](map_before)\n"
+    "      @pony_exitcode[None](I32(if ok then 1 else 0 end))\n"
+    "    end";
 
   TEST_COMPILE(src);
 

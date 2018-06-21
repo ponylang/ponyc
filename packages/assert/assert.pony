@@ -13,7 +13,7 @@ primitive Assert
   """
   fun apply(test: Bool, msg: String = "") ? =>
     ifdef debug then
-      Fact(test, msg)
+      Fact(test, msg)?
     end
 
 primitive Fact

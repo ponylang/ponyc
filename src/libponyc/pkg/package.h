@@ -2,13 +2,26 @@
 #define PACKAGE_H
 
 #include <platform.h>
-#include "../ast/ast.h"
-#include "../ast/stringtab.h"
-#include "../pass/pass.h"
+#include "../libponyrt/ds/list.h"
+
+#include <stdio.h>
+
+#define SIGNATURE_LENGTH 64
 
 PONY_EXTERN_C_BEGIN
 
 typedef struct package_t package_t;
+typedef struct package_group_t package_group_t;
+typedef struct magic_package_t magic_package_t;
+typedef struct pass_opt_t pass_opt_t;
+typedef struct ast_t ast_t;
+typedef struct typecheck_t typecheck_t;
+
+DECLARE_LIST_SERIALISE(package_group_list, package_group_list_t,
+  package_group_t)
+
+// Function that will handle a path in some way.
+typedef bool (*path_fn)(const char* path, pass_opt_t* opt);
 
 /**
  * Cat together the 2 given path fragments into the given buffer.
@@ -16,17 +29,14 @@ typedef struct package_t package_t;
  */
 void path_cat(const char* part1, const char* part2, char result[FILENAME_MAX]);
 
+bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt);
+
 /**
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories
  * specified in the PONYPATH environment variable.
  */
 bool package_init(pass_opt_t* opt);
-
-/**
- * Gets the list of search paths.
- */
-strlist_t* package_paths();
 
 /**
  * Appends a list of paths to the list of paths that will be searched for
@@ -51,23 +61,19 @@ bool package_add_safe(const char* paths, pass_opt_t* opt);
  * The specified path is not expanded or normalised and must exactly match that
  * requested.
  */
-void package_add_magic_src(const char* path, const char* src);
+void package_add_magic_src(const char* path, const char* src, pass_opt_t* opt);
 
 /**
  * Add a magic package. Same as package_add_magic_src but uses an alternative
  * path instead.
  */
-void package_add_magic_path(const char* path, const char* mapped_path);
+void package_add_magic_path(const char* path, const char* mapped_path,
+  pass_opt_t* opt);
 
 /**
  * Clear any magic packages that have been added.
  */
-void package_clear_magic();
-
-/**
- * Suppress printing "building" message for each package.
- */
-void package_suppress_build_message();
+void package_clear_magic(pass_opt_t* opt);
 
 /**
  * Load a program. The path specifies the package that represents the program.
@@ -128,9 +134,56 @@ const char* package_hygienic_id(typecheck_t* t);
 bool package_allow_ffi(typecheck_t* t);
 
 /**
+ * Gets the alias of a package in the current module from the hygienic ID
+ * of that package. Returns NULL if there is no alias. The package must have
+ * been imported in the current module.
+ *
+ * For example, if the package `foo` was imported in the current module with
+ * `use foo = "foo"` and the global ID of the package "foo" is `$2`, the call
+ * `package_alias_from_id(current_module_ast, "$2")` will return the string
+ * "foo".
+ */
+const char* package_alias_from_id(ast_t* module, const char* id);
+
+/**
+ * Adds a package to the dependency list of another package.
+ */
+void package_add_dependency(ast_t* package, ast_t* dep);
+
+const char* package_signature(ast_t* package);
+
+size_t package_group_index(ast_t* package);
+
+package_group_t* package_group_new();
+
+void package_group_free(package_group_t* group);
+
+/**
+ * Build a list of the dependency groups (the strongly connected components) in
+ * the package dependency graph. The list is topologically sorted.
+ */
+package_group_list_t* package_dependency_groups(ast_t* first_package);
+
+const char* package_group_signature(package_group_t* group);
+
+void package_group_dump(package_group_t* group);
+
+/**
  * Cleans up the list of search directories.
  */
-void package_done();
+void package_done(pass_opt_t* opt);
+
+pony_type_t* package_dep_signature_pony_type();
+
+pony_type_t* package_signature_pony_type();
+
+pony_type_t* package_group_dep_signature_pony_type();
+
+pony_type_t* package_group_signature_pony_type();
+
+pony_type_t* package_pony_type();
+
+pony_type_t* package_group_pony_type();
 
 bool is_path_absolute(const char* path);
 

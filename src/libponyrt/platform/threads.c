@@ -3,15 +3,17 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #endif
 
-#if defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_BSD)
 #include <pthread_np.h>
+#endif
+#if defined(PLATFORM_IS_FREEBSD)
 #include <sys/cpuset.h>
 typedef cpuset_t cpu_set_t;
 #endif
@@ -176,8 +178,6 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
     CPU_ZERO(&set);
     CPU_SET(cpu, &set);
 
-    pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
-
     if(use_numa)
     {
       struct rlimit limit;
@@ -201,6 +201,7 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   if(pthread_create(thread, NULL, start, arg))
     return false;
 #endif
+
   return true;
 }
 
@@ -231,4 +232,46 @@ pony_thread_id_t ponyint_thread_self()
 #else
   return pthread_self();
 #endif
+}
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+void ponyint_thread_suspend(pony_signal_event_t signal, pthread_mutex_t* mut)
+#else
+void ponyint_thread_suspend(pony_signal_event_t signal)
+#endif
+{
+#ifdef PLATFORM_IS_WINDOWS
+  WaitForSingleObject(signal, INFINITE);
+#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+  int ret;
+
+  // wait for condition variable (will sleep and release mutex)
+  ret = pthread_cond_wait(signal, mut);
+  // TODO: What to do if `ret` is an unrecoverable error?
+  (void) ret;
+#else
+  int sig;
+  sigset_t sigmask;
+  sigemptyset(&sigmask);         /* zero out all bits */
+  sigaddset(&sigmask, signal);   /* unblock desired signal */
+
+  // sleep waiting for signal to wake up again
+  sigwait(&sigmask, &sig);
+#endif
+}
+
+int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
+{
+  int ret;
+#if defined(PLATFORM_IS_WINDOWS)
+  (void) thread;
+  ret = !SetEvent(signal);
+#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+  (void) thread;
+  // signal condition variable
+  ret = pthread_cond_signal(signal);
+#else
+  ret = pthread_kill(thread, signal);
+#endif
+  return ret;
 }

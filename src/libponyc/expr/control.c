@@ -136,8 +136,9 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
 bool expr_iftype(pass_opt_t* opt, ast_t* ast)
 {
-  pony_assert(ast_id(ast) == TK_IFTYPE);
-  AST_GET_CHILDREN(ast, sub, super, left, right);
+  pony_assert(ast_id(ast) == TK_IFTYPE_SET);
+  AST_GET_CHILDREN(ast, left_control, right);
+  AST_GET_CHILDREN(left_control, sub, super, left);
 
   ast_t* type = NULL;
 
@@ -388,11 +389,11 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
   ast_t* body_type = ast_type(body);
 
+  if(is_typecheck_error(body_type))
+    return false;
+
   if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
   {
-    if(is_typecheck_error(body_type))
-      return false;
-
     ast_error(opt->check.errors, body,
       "return value cannot be a control statement");
     return false;

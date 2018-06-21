@@ -5,6 +5,7 @@
 
 #include "lexint.h"
 #include "source.h"
+#include "../libponyrt/pony.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -13,6 +14,8 @@ extern "C" {
 #endif
 
 typedef struct token_t token_t;
+
+typedef struct token_signature_t token_signature_t;
 
 typedef enum token_id
 {
@@ -58,6 +61,7 @@ typedef enum token_id
   TK_MOD,
   TK_MOD_TILDE,
   TK_AT,
+  TK_AT_LBRACE,
 
   TK_LSHIFT,
   TK_LSHIFT_TILDE,
@@ -109,6 +113,7 @@ typedef enum token_id
   TK_ACTOR,
   TK_OBJECT,
   TK_LAMBDA,
+  TK_BARELAMBDA,
 
   TK_AS,
   TK_IS,
@@ -145,10 +150,10 @@ typedef enum token_id
   TK_IF,
   TK_IFDEF,
   TK_IFTYPE,
+  TK_IFTYPE_SET,
   TK_THEN,
   TK_ELSE,
   TK_ELSEIF,
-  TK_ELSEIFTYPE,
   TK_END,
   TK_WHILE,
   TK_DO,
@@ -196,6 +201,7 @@ typedef enum token_id
   TK_THISTYPE,
   TK_FUNTYPE,
   TK_LAMBDATYPE,
+  TK_BARELAMBDATYPE,
   TK_DONTCARETYPE,
   TK_INFERTYPE,
   TK_ERRORTYPE,
@@ -250,6 +256,8 @@ typedef enum token_id
   TK_BECHAIN,
   TK_FUNCHAIN,
 
+  TK_ANNOTATION,
+
   // Pseudo tokens that never actually exist
   TK_NEWLINE,  // Used by parser macros
   TK_FLATTEN,  // Used by parser macros for tree building
@@ -284,6 +292,19 @@ token_t* token_dup_new_id(token_t* token, token_id id);
   * The token argument may be NULL.
   */
 void token_free(token_t* token);
+
+/// Set the token as read-only.
+void token_freeze(token_t* token);
+
+/// Get a pony_type_t for token_t. Should only be used for signature computation.
+pony_type_t* token_signature_pony_type();
+
+/// Get a pony_type_t for a docstring token_t. Should only be used for signature
+/// computation.
+pony_type_t* token_docstring_signature_pony_type();
+
+/// Get a pony_type_t for token_t. Should only be used for serialisation.
+pony_type_t* token_pony_type();
 
 
 // Read accessors

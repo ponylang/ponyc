@@ -34,6 +34,29 @@ static void node_free(mpmcq_node_t* node)
   POOL_FREE(mpmcq_node_t, node);
 }
 
+#ifndef PONY_NDEBUG
+
+static size_t mpmcq_size_debug(mpmcq_t* q)
+{
+  size_t count = 0;
+
+#ifdef PLATFORM_IS_X86
+  mpmcq_node_t* tail = q->tail.object;
+#else
+  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
+#endif
+
+  while(atomic_load_explicit(&tail->next, memory_order_relaxed) != NULL)
+  {
+    count++;
+    tail = atomic_load_explicit(&tail->next, memory_order_relaxed);
+  }
+
+  return count;
+}
+
+#endif
+
 void ponyint_mpmcq_init(mpmcq_t* q)
 {
   mpmcq_node_t* node = node_alloc(NULL);
@@ -44,6 +67,10 @@ void ponyint_mpmcq_init(mpmcq_t* q)
   q->tail.counter = 0;
 #else
   atomic_store_explicit(&q->tail, node, memory_order_relaxed);
+#endif
+
+#ifndef PONY_NDEBUG
+  mpmcq_size_debug(q);
 #endif
 }
 
@@ -64,12 +91,23 @@ void ponyint_mpmcq_push(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = node_alloc(data);
 
+  // Without that fence, the store to node->next in node_alloc could be
+  // reordered after the exchange on the head and after the store to prev->next
+  // done by the next push, which would result in the pop incorrectly seeing
+  // the queue as empty.
+  // Also synchronise with the pop on prev->next.
+  atomic_thread_fence(memory_order_release);
+
   mpmcq_node_t* prev = atomic_exchange_explicit(&q->head, node,
     memory_order_relaxed);
+
 #ifdef USE_VALGRIND
+  // Double fence with Valgrind since we need to have prev in scope for the
+  // synchronisation annotation.
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
+  atomic_thread_fence(memory_order_release);
 #endif
-  atomic_store_explicit(&prev->next, node, memory_order_release);
+  atomic_store_explicit(&prev->next, node, memory_order_relaxed);
 }
 
 void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
@@ -79,6 +117,9 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
   // If we have a single producer, the swap of the head need not be atomic RMW.
   mpmcq_node_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
   atomic_store_explicit(&q->head, node, memory_order_relaxed);
+
+  // If we have a single producer, the fence can be replaced with a store
+  // release on prev->next.
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif
@@ -116,10 +157,13 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
 #ifdef PLATFORM_IS_X86
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
-  } while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
+#endif
+  }
+#ifdef PLATFORM_IS_X86
+  while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
     memory_order_relaxed, memory_order_relaxed));
 #else
-  } while(!atomic_compare_exchange_weak_explicit(&q->tail, &tail, next,
+  while(!atomic_compare_exchange_weak_explicit(&q->tail, &tail, next,
     memory_order_relaxed, memory_order_relaxed));
 #endif
 

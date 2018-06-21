@@ -34,7 +34,7 @@ interface TCPConnectionNotify
     It is expected to implement proper error handling. You need to opt in to
     ignoring errors, which can be implemented like this:
 
-    ```
+    ```pony
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
     ```
@@ -65,8 +65,11 @@ interface TCPConnectionNotify
     """
     data
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
     """
     Called when new data is received on the connection. Return true if you

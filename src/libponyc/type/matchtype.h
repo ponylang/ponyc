@@ -37,7 +37,8 @@ typedef enum
  *
  * Return REJECT if no such type can exist.
  */
-matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, pass_opt_t* opt);
+matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
+  pass_opt_t* opt);
 
 PONY_EXTERN_C_END
 

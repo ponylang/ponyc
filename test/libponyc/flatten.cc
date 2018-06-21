@@ -6,7 +6,10 @@
 
 #include "util.h"
 
-class FlattenTest: public testing::Test
+#define TEST_ERROR(src) DO(test_error(src, "flatten"))
+
+
+class FlattenTest: public PassTest
 {};
 
 /*
@@ -39,3 +42,14 @@ TEST(FlattenTest, Union)
   ASSERT_NO_FATAL_FAILURE(test(before, after, TK_UNIONTYPE));
 }
 */
+
+
+TEST_F(FlattenTest, TypeparamCap)
+{
+  const char* src =
+    "class C\n"
+    "  fun foo[A]() =>\n"
+    "    let a: A ref";
+
+  TEST_ERROR(src);
+}

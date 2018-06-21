@@ -1,7 +1,11 @@
 use "collections"
 
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-  flags: U32, nsec: U64, noisy: Bool)
+use @pony_asio_event_create[AsioEventID](
+  owner: AsioEventNotify,
+  fd: U32,
+  flags: U32,
+  nsec: U64,
+  noisy: Bool)
 use @pony_asio_event_setnsec[U32](event: AsioEventID, nsec: U64)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
@@ -47,7 +51,7 @@ actor Timers
     Cancels a timer.
     """
     try
-      (_, let timer') = _map.remove(timer)
+      (_, let timer') = _map.remove(timer)?
       timer'._cancel()
 
       if (_map.size() == 0) and (not _event.is_null()) then
@@ -59,7 +63,7 @@ actor Timers
 
   be dispose() =>
     """
-    Dipose of this set of timing wheels.
+    Dispose of this set of timing wheels.
     """
     for wheel in _wheel.values() do
       wheel.clear()
@@ -90,7 +94,7 @@ actor Timers
 
     try
       for i in Range(0, _wheels()) do
-        if not _wheel(i).advance(_pending, _current, elapsed) then
+        if not _wheel(i)?.advance(_pending, _current, elapsed) then
           break
         end
       end
@@ -107,7 +111,8 @@ actor Timers
     if _event.is_null() then
       if nsec != -1 then
         // Create a new event.
-        _event = @pony_asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
+        _event =
+          @pony_asio_event_create(this, 0, AsioEvent.timer(), nsec, true)
       end
     else
       if nsec != -1 then
@@ -127,14 +132,14 @@ actor Timers
     """
     if not timer._fire(_current) then
       try
-        _map.remove(timer)
+        _map.remove(timer)?
       end
       return
     end
 
     try
       let rem = timer._next() - _current
-      _get_wheel(rem).schedule(consume timer)
+      _get_wheel(rem)?.schedule(consume timer)
     end
 
   fun _next(): U64 =>
@@ -147,7 +152,7 @@ actor Timers
 
     try
       for i in Range(0, _wheels()) do
-        next = next.min(_wheel(i).next(_current))
+        next = next.min(_wheel(i)?.next(_current))
       end
     end
 
@@ -171,7 +176,7 @@ actor Timers
     """
     let t = rem.min(_expiration_max())
     let i = ((t.bitwidth() - t.clz()) - 1).usize() / _bits()
-    _wheel(i)
+    _wheel(i)?
 
   fun tag _expiration_max(): U64 =>
     """

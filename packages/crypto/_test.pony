@@ -24,8 +24,8 @@ class iso _TestConstantTimeCompare is UnitTest
     let s2 = "54321"
     let s3 = "123456"
     let s4 = "1234"
-    let s5 = recover val [U8(0); U8(0); U8(0); U8(0); U8(0)] end
-    let s6 = String.from_array(recover [U8(0); U8(0); U8(0); U8(0); U8(0)] end)
+    let s5 = recover val [as U8: 0; 0; 0; 0; 0] end
+    let s6 = String.from_array([0; 0; 0; 0; 0])
     let s7 = ""
     h.assert_true(ConstantTimeCompare(s1, s1))
     h.assert_false(ConstantTimeCompare(s1, s2))
@@ -89,7 +89,8 @@ class iso _TestSHA384 is UnitTest
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
-      "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc4b7ef1ccb126255d196047dfedf17a0a9",
+      "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc4" +
+      "b7ef1ccb126255d196047dfedf17a0a9",
       ToHexString(SHA384("test")))
 
 class iso _TestSHA512 is UnitTest
@@ -97,7 +98,8 @@ class iso _TestSHA512 is UnitTest
 
   fun apply(h: TestHelper) =>
     h.assert_eq[String](
-      "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff",
+      "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db2" +
+      "7ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff",
       ToHexString(SHA512("test")))
 
 class iso _TestDigest is UnitTest
@@ -105,8 +107,8 @@ class iso _TestDigest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let d = Digest.md5()
-    d.append("message1")
-    d.append("message2")
+    d.append("message1")?
+    d.append("message2")?
     h.assert_eq[String](
       "94af09c09bb9bb7b5c94fec6e6121482",
       ToHexString(d.final()))
@@ -115,7 +117,8 @@ class iso _TestDigest is UnitTest
       ToHexString(d.final()))
 
     let d' = Digest.sha512()
-    d'.append("test")
+    d'.append("test")?
     h.assert_eq[String](
-      "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff",
+      "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db2" +
+      "7ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff",
       ToHexString(d'.final()))

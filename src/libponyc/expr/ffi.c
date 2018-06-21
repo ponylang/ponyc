@@ -2,7 +2,10 @@
 #include "literal.h"
 #include "../type/subtype.h"
 #include "../pkg/ifdef.h"
+#include "../pass/expr.h"
+#include "../type/alias.h"
 #include "ponyassert.h"
+#include <string.h>
 
 static bool void_star_param(ast_t* param_type, ast_t* arg_type)
 {
@@ -52,20 +55,36 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if(!coerce_literals(&arg, p_type, opt))
       return false;
 
-    ast_t* a_type = ast_type(arg);
+    ast_t* arg_type = ast_type(arg);
 
+    if(is_typecheck_error(arg_type))
+      return false;
+
+    if(ast_id(arg_type) == TK_TUPLETYPE)
+    {
+      ast_error(opt->check.errors, arg, "cannot pass tuples as FFI arguments");
+      return false;
+    }
+
+    ast_t* a_type = alias(arg_type);
     errorframe_t info = NULL;
-    if((a_type != NULL) &&
-      !void_star_param(p_type, a_type) &&
+
+    if(!void_star_param(p_type, a_type) &&
       !is_subtype(a_type, p_type, &info, opt))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, arg, "argument type is %s",
+                      ast_print_type(a_type));
+      ast_error_frame(&frame, param, "parameter type is %s",
+                      ast_print_type(p_type));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
+      ast_free_unattached(a_type);
       return false;
     }
 
+    ast_free_unattached(a_type);
     arg = ast_sibling(arg);
     param = ast_sibling(param);
   }
@@ -97,6 +116,17 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   // Check return types
   ast_t* call_ret_type = ast_child(call_ret_typeargs);
   ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
+
+  const char* f_name = ast_name(decl_name) + 1;
+  bool intrinsic = !strncmp(f_name, "llvm.", 5) ||
+    !strncmp(f_name, "internal.", 9);
+
+  if(!intrinsic && (ast_id(decl_ret_type) == TK_TUPLETYPE))
+  {
+    ast_error(opt->check.errors, decl_ret_type, "an FFI function cannot return "
+      "a tuple");
+    return false;
+  }
 
   errorframe_t info = NULL;
   if((call_ret_type != NULL) &&
@@ -134,11 +164,21 @@ bool expr_ffi(pass_opt_t* opt, ast_t* ast)
   {
     ast_t* a_type = ast_type(arg);
 
-    if((a_type != NULL) && is_type_literal(a_type))
+    if(a_type != NULL)
     {
-      ast_error(opt->check.errors, arg,
-        "Cannot pass number literals as unchecked FFI arguments");
-      return false;
+      if(is_type_literal(a_type))
+      {
+        ast_error(opt->check.errors, arg,
+          "Cannot pass number literals as unchecked FFI arguments");
+        return false;
+      }
+
+      if(ast_id(a_type) == TK_TUPLETYPE)
+      {
+        ast_error(opt->check.errors, arg, "cannot pass tuples as FFI "
+          "arguments");
+        return false;
+      }
     }
   }
 
@@ -148,6 +188,17 @@ bool expr_ffi(pass_opt_t* opt, ast_t* ast)
   {
     ast_error(opt->check.errors, name,
       "FFIs without declarations must specify return type");
+    return false;
+  }
+
+  const char* f_name = ast_name(name) + 1;
+  bool intrinsic = !strncmp(f_name, "llvm.", 5) ||
+    !strncmp(f_name, "internal.", 9);
+
+  if(!intrinsic && (ast_id(return_type) == TK_TUPLETYPE))
+  {
+    ast_error(opt->check.errors, return_type, "an FFI function cannot return a "
+      "tuple");
     return false;
   }
 

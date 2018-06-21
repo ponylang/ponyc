@@ -3,6 +3,7 @@
 #include "genobj.h"
 #include "genheader.h"
 #include "genprim.h"
+#include "../plugin/plugin.h"
 #include "../reach/paint.h"
 #include "../type/assemble.h"
 #include "../../libponyrt/mem/pool.h"
@@ -91,8 +92,6 @@ static bool reachable_actors(compile_t* c, ast_t* program)
     package = ast_sibling(package);
   }
 
-  reach_done(c->reach, c->opt);
-
   if(!found)
   {
     errorf(errors, NULL, "no C-API actors found in package '%s'", c->filename);
@@ -102,6 +101,9 @@ static bool reachable_actors(compile_t* c, ast_t* program)
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
   paint(&c->reach->types);
+
+  plugin_visit_reach(c->reach, c->opt, true);
+
   return true;
 }
 
@@ -148,7 +150,7 @@ static bool link_lib(compile_t* c, const char* file_o)
     return false;
   }
 
-  size_t len = 128 + strlen(file_lib) + strlen(file_o);
+  size_t len = strlen(vcvars.ar) + strlen(file_lib) + strlen(file_o) + 64;
   char* cmd = (char*)ponyint_pool_alloc_size(len);
 
   snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
@@ -176,6 +178,8 @@ bool genlib(compile_t* c, ast_t* program)
     !genheader(c)
     )
     return false;
+
+  plugin_visit_compile(c, c->opt);
 
   if(!genopt(c, true))
     return false;

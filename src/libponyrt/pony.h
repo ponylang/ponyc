@@ -41,12 +41,14 @@ typedef struct pony_ctx_t pony_ctx_t;
  * dispatch. The index is a pool allocator index and is used for freeing the
  * message. The next pointer should not be read or set.
  */
-typedef struct pony_msg_t
+typedef struct pony_msg_t pony_msg_t;
+
+struct pony_msg_t
 {
   uint32_t index;
   uint32_t id;
-  PONY_ATOMIC(struct pony_msg_t*) next;
-} pony_msg_t;
+  PONY_ATOMIC(pony_msg_t*) next;
+};
 
 /// Convenience message for sending an integer.
 typedef struct pony_msgi_t
@@ -66,6 +68,8 @@ typedef struct pony_msgp_t
  *
  * Each type supplies a trace function. It is invoked with the currently
  * executing context and the object being traced.
+ *
+ * A trace function must not raise errors.
  */
 typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
@@ -74,31 +78,62 @@ typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
  * Each type may supply a serialise function. It is invoked with the currently
  * executing context, the object being serialised, and an address to serialise
  * to.
+ *
+ * A serialise function must not raise errors.
  */
 typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
   size_t offset, int m);
+
+/** Serialise Space function.
+ *
+ * Each class may supply a group of custom serialisation function. This
+ * function returns the amount of extra space that the object needs for
+ * custom serialisation.
+ *
+ * A serialise space function must not raise errors.
+ */
+typedef size_t (*pony_custom_serialise_space_fn)(void* p);
+
+/** Custom Deserialise function.
+ *
+ * Each class may supply a group of custom serialisation function. This
+ * function takes a pointer to a byte array and does whatever user-defined
+ * deserialization.
+ *
+ * A custom deserialise function must not raise errors.
+ */
+typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
 
 /** Dispatch function.
  *
  * Each actor has a dispatch function that is invoked when the actor handles
  * a message.
+ *
+ * A dispatch function must not raise errors.
  */
 typedef void (*pony_dispatch_fn)(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* m);
 
-/** Finalizer.
+/** Finaliser.
  *
- * An actor or object can supply a finalizer, which is called before it is
+ * An actor or object can supply a finaliser, which is called before it is
  * collected.
+ *
+ * A finaliser must not raise errors.
  */
 typedef void (*pony_final_fn)(void* p);
+
+/** Partial function.
+ *
+ * A callback for the pony_try() function, which is allowed to raise errors.
+ */
+typedef void (*pony_partial_fn)(void* data);
 
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
 {
   uint32_t id;
   uint32_t size;
-  uint32_t trait_count;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
@@ -106,24 +141,55 @@ typedef const struct _pony_type_t
   pony_trace_fn serialise_trace;
   pony_serialise_fn serialise;
   pony_trace_fn deserialise;
+  pony_custom_serialise_space_fn custom_serialise_space;
+  pony_custom_deserialise_fn custom_deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
-  uint32_t** traits;
+  uintptr_t** traits;
   void* fields;
   void* vtable;
 } pony_type_t;
+
+/** Language feature initialiser.
+ *
+ * Contains initialisers for the various language features initialised by
+ * the pony_start() function.
+ */
+typedef struct pony_language_features_init_t
+{
+  /// Network-related initialisers.
+
+  bool init_network;
+
+
+  /// Serialisation-related initialisers.
+
+  bool init_serialisation;
+
+  /** Type descriptor table pointer.
+   *
+   * Should point to an array of type descriptors. For each element in the
+   * array, the id field should correspond to the array index. The array can
+   * contain NULL elements.
+   */
+  pony_type_t** descriptor_table;
+
+  /// The total size of the descriptor_table array.
+  size_t descriptor_table_size;
+} pony_language_features_init_t;
 
 /** Padding for actor types.
  *
  * 56 bytes: initial header, not including the type descriptor
  * 52/104 bytes: heap
- * 44/80 bytes: gc
+ * 48/88 bytes: gc
+ * 28/0 bytes: padding to 64 bytes, ignored
  */
 #if INTPTR_MAX == INT64_MAX
-#  define PONY_ACTOR_PAD_SIZE 256
+#  define PONY_ACTOR_PAD_SIZE 248
 #elif INTPTR_MAX == INT32_MAX
-#  define PONY_ACTOR_PAD_SIZE 164
+#  define PONY_ACTOR_PAD_SIZE 160
 #endif
 
 typedef struct pony_actor_pad_t
@@ -145,14 +211,47 @@ PONY_API pony_ctx_t* pony_ctx();
 PONY_API ATTRIBUTE_MALLOC pony_actor_t* pony_create(pony_ctx_t* ctx,
   pony_type_t* type);
 
-/// Allocates a message and sets up the header. The index is a POOL_INDEX.
+/// Allocate a message and set up the header. The index is a POOL_INDEX.
 PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);
 
-/// Allocates a message and sets up the header. The size is in bytes.
+/// Allocate a message and set up the header. The size is in bytes.
 PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
 
-/// Sends a message to an actor.
-PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
+/** Send a chain of messages to an actor.
+ *
+ * The first and last messages must either be the same message or the two ends
+ * of a chain built with calls to pony_chain.
+ *
+ * has_app_msg should be true if there are application messages in the chain.
+ */
+PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
+  pony_msg_t* last, bool has_app_msg);
+
+/** Single producer version of pony_sendv.
+ *
+ * This is a more efficient version of pony_sendv in the single producer case.
+ * This is unsafe to use with multiple producers, only use this function when
+ * you know nobody else will try to send a message to the actor at the same
+ * time. This includes messages sent by ASIO event notifiers.
+ *
+ * The first and last messages must either be the same message or the two ends
+ * of a chain built with calls to pony_chain.
+ *
+ * has_app_msg should be true if there are application messages in the chain.
+ */
+PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
+  pony_msg_t* first, pony_msg_t* last, bool has_app_msg);
+
+/** Chain two messages together.
+ *
+ * Make a link in a chain of messages in preparation for a subsequent call to
+ * pony_sendv with the completed chain. prev will appear before next in the
+ * delivery order.
+ *
+ * prev must either be an unchained message or the end of an existing chain.
+ * next must either be an unchained message or the start of an existing chain.
+ */
+PONY_API void pony_chain(pony_msg_t* prev, pony_msg_t* next);
 
 /** Convenience function to send a message with no arguments.
  *
@@ -176,13 +275,14 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
 
 /** Store a continuation.
  *
- * This puts a message at the front of the actor's queue, instead of at the
- * back. This is not concurrency safe: an actor should only push a continuation
- * to itself.
+ * This puts a message at the front of the current actor's queue, instead of at
+ * the back.
  *
  * Not used in Pony.
  */
-PONY_API void pony_continuation(pony_actor_t* self, pony_msg_t* m);
+#ifdef USE_ACTOR_CONTINUATIONS
+PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m);
+#endif
 
 /** Allocate memory on the current actor's heap.
  *
@@ -200,7 +300,8 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
 /** Reallocate memory on the current actor's heap.
  *
  * Take heap memory and expand it. This is a no-op if there's already enough
- * space, otherwise it allocates and copies.
+ * space, otherwise it allocates and copies. The old memory must have been
+ * allocated via pony_alloc(), pony_alloc_small(), or pony_alloc_large().
  */
 PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size);
 
@@ -219,7 +320,7 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_small_final(pony_ctx_t* ctx,
 PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size);
 
 /// Trigger GC next time the current actor is scheduled
-PONY_API void pony_triggergc(pony_actor_t* actor);
+PONY_API void pony_triggergc(pony_ctx_t* ctx);
 
 /** Start gc tracing for sending.
  *
@@ -347,20 +448,25 @@ PONY_API int pony_init(int argc, char** argv);
 
 /** Starts the pony runtime.
  *
- * Returns -1 if the scheduler couldn't start, otherwise returns the exit code
- * set with pony_exitcode(), defaulting to 0.
+ * Returns false if the runtime couldn't start, otherwise returns true with
+ * the value pointed by exit_code set with pony_exitcode(), defaulting to 0.
+ * exit_code can be NULL if you don't care about the exit code.
  *
  * If library is false, this call will return when the pony program has
  * terminated. If library is true, this call will return immediately, with an
  * exit code of 0, and the runtime won't terminate until pony_stop() is
  * called. This allows further processing to be done on the current thread.
+ * The value pointed by exit_code will not be modified if library is true. Use
+ * the return value of pony_stop() in that case.
  *
- * If language_features is false, the features of the runtime specific to the
- * Pony language, such as network or serialisation, won't be initialised.
+ * language_features specifies which features of the runtime specific to the
+ * Pony language, such as network or serialisation, should be initialised.
+ * If language_features is NULL, no feature will be initialised.
  *
  * It is not safe to call this again before the runtime has terminated.
  */
-PONY_API int pony_start(bool library, bool language_features);
+PONY_API bool pony_start(bool library, int* exit_code,
+  const pony_language_features_init_t* language_features);
 
 /**
  * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be
@@ -379,6 +485,8 @@ PONY_API void pony_register_thread();
  * the Pony runtime.
  */
 PONY_API void pony_unregister_thread();
+
+PONY_API int32_t pony_scheduler_index(pony_ctx_t* ctx);
 
 /** Signals that the pony runtime may terminate.
  *
@@ -435,6 +543,25 @@ PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor);
  * A thread must pony_become an actor before it can pony_poll.
  */
 PONY_API void pony_poll(pony_ctx_t* ctx);
+
+/**
+ * The pony_try function can be used to handle Pony errors from C code.
+ * callback is invoked with data passed as its argument.
+ * Returns false if an error was raised, true otherwise.
+ */
+PONY_API bool pony_try(pony_partial_fn callback, void* data);
+
+/**
+ * Raise a Pony error.
+ *
+ * This should only be called from pony_try() or from a Pony try block. In both
+ * cases, arbitrarily deep call stacks are allowed between the call to
+ * pony_error() and the error destination.
+ *
+ * If pony_error() is called and neither pony_try() nor a try block exist higher
+ * in the call stack, the runtime calls the C abort() function.
+ */
+PONY_API void pony_error();
 
 #if defined(__cplusplus)
 }

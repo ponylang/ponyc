@@ -3,9 +3,9 @@ use "collections"
 actor Consumer
   var _quantity_to_consume: U32
   let _buffer: Buffer
-  let _out: StdStream
+  let _out: OutStream
 
-  new create(quantity_to_consume: U32, buffer: Buffer, out: StdStream) =>
+  new create(quantity_to_consume: U32, buffer: Buffer, out: OutStream) =>
     _quantity_to_consume = quantity_to_consume
     _buffer = buffer
     _out = out

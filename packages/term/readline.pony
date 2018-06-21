@@ -20,8 +20,11 @@ class Readline is ANSINotify
   var _cur_pos: ISize = 0
   var _blocked: Bool = true
 
-  new iso create(notify: ReadlineNotify iso, out: OutStream,
-    path: (FilePath | None) = None, maxlen: USize = 0)
+  new iso create(
+    notify: ReadlineNotify iso,
+    out: OutStream,
+    path: (FilePath | None) = None,
+    maxlen: USize = 0)
   =>
     """
     Create a readline handler to be passed to stdin. It begins blocked. Set an
@@ -85,7 +88,7 @@ class Readline is ANSINotify
     _blocked = false
 
     try
-      let line = _queue.shift()
+      let line = _queue.shift()?
       _add_history(line)
       _out.print(_cur_prompt + line)
       _handle_line(term, line)
@@ -106,7 +109,7 @@ class Readline is ANSINotify
     try
       if _cur_line > 0 then
         _cur_line = _cur_line - 1
-        _edit = _history(_cur_line).clone()
+        _edit = _history(_cur_line)?.clone()
         end_key()
       end
     end
@@ -118,7 +121,7 @@ class Readline is ANSINotify
     try
       if _cur_line < (_history.size() - 1) then
         _cur_line = _cur_line + 1
-        _edit = _history(_cur_line).clone()
+        _edit = _history(_cur_line)?.clone()
       else
         _cur_line = _history.size()
         _edit.clear()
@@ -140,7 +143,7 @@ class Readline is ANSINotify
         _cur_pos = _cur_pos - 1
       until
         (_cur_pos == 0) or
-        ((_edit.at_offset(_cur_pos) and 0xC0) != 0x80)
+        ((_edit.at_offset(_cur_pos)? and 0xC0) != 0x80)
       end
 
       _refresh_line()
@@ -157,7 +160,7 @@ class Readline is ANSINotify
 
       while
         (_cur_pos < _edit.size().isize()) and
-        ((_edit.at_offset(_cur_pos) and 0xC0) == 0x80)
+        ((_edit.at_offset(_cur_pos)? and 0xC0) == 0x80)
       do
         _cur_pos = _cur_pos + 1
       end
@@ -172,7 +175,10 @@ class Readline is ANSINotify
     _cur_pos = 0
     _refresh_line()
 
-  fun ref end_key(ctrl: Bool = false, alt: Bool = false, shift: Bool = false)
+  fun ref end_key(
+    ctrl: Bool = false,
+    alt: Bool = false,
+    shift: Bool = false)
   =>
     """
     End of the line.
@@ -193,7 +199,7 @@ class Readline is ANSINotify
 
       repeat
         _cur_pos = _cur_pos - 1
-        c = _edit.at_offset(_cur_pos)
+        c = _edit.at_offset(_cur_pos)?
         _edit.delete(_cur_pos, 1)
       until
         (_cur_pos == 0) or ((c and 0xC0) != 0x80)
@@ -213,7 +219,7 @@ class Readline is ANSINotify
 
       while
         (_cur_pos < _edit.size().isize()) and
-        ((_edit.at_offset(_cur_pos) and 0xC0) == 0x80)
+        ((_edit.at_offset(_cur_pos)? and 0xC0) == 0x80)
       do
         _edit.delete(_cur_pos, 1)
       end
@@ -234,9 +240,9 @@ class Readline is ANSINotify
     """
     try
       if (_cur_pos > 0) and (_cur_pos < _edit.size().isize()) then
-        _edit(_cur_pos.usize()) =
-          _edit((_cur_pos - 1).usize()) =
-            _edit(_cur_pos.usize())
+        _edit(_cur_pos.usize())? =
+          _edit((_cur_pos - 1).usize())? =
+            _edit(_cur_pos.usize())?
       end
 
       _refresh_line()
@@ -249,11 +255,11 @@ class Readline is ANSINotify
     try
       let old = _cur_pos
 
-      while (_cur_pos > 0) and (_edit((_cur_pos - 1).usize()) == ' ') do
+      while (_cur_pos > 0) and (_edit((_cur_pos - 1).usize())? == ' ') do
         _cur_pos = _cur_pos - 1
       end
 
-      while (_cur_pos > 0) and (_edit((_cur_pos - 1).usize()) != ' ') do
+      while (_cur_pos > 0) and (_edit((_cur_pos - 1).usize())? != ' ') do
         _cur_pos = _cur_pos - 1
       end
 
@@ -273,7 +279,7 @@ class Readline is ANSINotify
     | 0 => None
     | 1 =>
       try
-        _edit = r(0).clone()
+        _edit = r(0)?.clone()
         end_key()
       end
     else
@@ -311,8 +317,7 @@ class Readline is ANSINotify
 
     promise.next[Any tag](
       recover term~prompt() end,
-      recover term~dispose() end
-      )
+      recover term~dispose() end)
 
     _notify(line, promise)
     _cur_pos = 0
@@ -355,7 +360,7 @@ class Readline is ANSINotify
     Add a line to the history, trimming an earlier line if necessary.
     """
     try
-      if (_history.size() > 0) and (_history(_history.size() - 1) == line) then
+      if (_history.size() > 0) and (_history(_history.size() - 1)? == line) then
         _cur_line = _history.size()
         return
       end
@@ -363,7 +368,7 @@ class Readline is ANSINotify
 
     if (_maxlen > 0) and (_history.size() >= _maxlen) then
       try
-        _history.shift()
+        _history.shift()?
       end
     end
 
@@ -379,7 +384,7 @@ class Readline is ANSINotify
     try
       with file = File.open(_path as FilePath) do
         for line in file.lines() do
-          _add_history(line)
+          _add_history(consume line)
         end
       end
     end

@@ -88,12 +88,19 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
     return false;
   }
 
-  if(name != NULL && ast_id(name) == TK_ID) // We have an alias
-    return set_scope(options, ast, name, package, false);
-
   // Store the package so we can import it later without having to look it up
   // again
   ast_setdata(ast, (void*)package);
+
+  ast_t* curr_package = ast_nearest(ast, TK_PACKAGE);
+  pony_assert(curr_package != NULL);
+  package_add_dependency(curr_package, package);
+
+  if(name != NULL && ast_id(name) == TK_ID) // We have an alias
+    return set_scope(options, ast, name, package, false);
+
+  ast_setflag(ast, AST_FLAG_IMPORT);
+
   return true;
 }
 
@@ -190,14 +197,17 @@ static ast_t* make_iftype_typeparam(pass_opt_t* opt, ast_t* subtype,
       TREE(new_constraint)
       NONE));
 
-  ast_setdata(typeparam, typeparam);
+  // keep data pointing to the original def
+  ast_setdata(typeparam, ast_data(def));
 
   return typeparam;
 }
 
 static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, subtype, supertype, then_clause);
+  pony_assert(ast_id(ast) == TK_IFTYPE);
+
+  AST_GET_CHILDREN(ast, subtype, supertype, body, typeparam_store);
 
   ast_t* typeparams = ast_from(ast, TK_TYPEPARAMS);
 
@@ -205,15 +215,14 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   {
     case TK_NOMINAL:
     {
-      ast_t* typeparam = make_iftype_typeparam(opt, subtype, supertype,
-        then_clause);
+      ast_t* typeparam = make_iftype_typeparam(opt, subtype, supertype, ast);
       if(typeparam == NULL)
       {
         ast_free_unattached(typeparams);
         return AST_ERROR;
       }
 
-      if(!set_scope(opt, then_clause, ast_child(typeparam), typeparam, true))
+      if(!set_scope(opt, ast, ast_child(typeparam), typeparam, true))
       {
         ast_free_unattached(typeparams);
         return AST_ERROR;
@@ -248,14 +257,14 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
       while(sub_child != NULL)
       {
         ast_t* typeparam = make_iftype_typeparam(opt, sub_child, super_child,
-          then_clause);
+          ast);
         if(typeparam == NULL)
         {
           ast_free_unattached(typeparams);
           return AST_ERROR;
         }
 
-        if(!set_scope(opt, then_clause, ast_child(typeparam), typeparam, true))
+        if(!set_scope(opt, ast, ast_child(typeparam), typeparam, true))
         {
           ast_free_unattached(typeparams);
           return AST_ERROR;
@@ -279,8 +288,36 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   // We don't want the scope pass to run on typeparams. The compiler would think
   // that type parameters are declared twice.
   ast_pass_record(typeparams, PASS_SCOPE);
-  ast_append(ast, typeparams);
+  pony_assert(ast_id(typeparam_store) == TK_NONE);
+  ast_replace(&typeparam_store, typeparams);
   return AST_OK;
+}
+
+static bool scope_call(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_CALL);
+  AST_GET_CHILDREN(ast, lhs, positional, named, question);
+
+  // Run the args before the receiver, so that symbol status tracking
+  // will have their scope names defined in the args first.
+  if(!ast_passes_subtree(&positional, opt, PASS_SCOPE) ||
+    !ast_passes_subtree(&named, opt, PASS_SCOPE))
+    return false;
+
+  return true;
+}
+
+static bool scope_assign(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_ASSIGN);
+  AST_GET_CHILDREN(ast, left, right);
+
+  // Run the right side before the left side, so that symbol status tracking
+  // will have their scope names defined in the right side first.
+  if(!ast_passes_subtree(&right, opt, PASS_SCOPE))
+    return false;
+
+  return true;
 }
 
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
@@ -315,11 +352,22 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 
       // Store the original definition of the typeparam in the data field here.
       // It will be retained later if the typeparam def is copied via ast_dup.
-      ast_setdata(ast, ast);
+      if(ast_data(ast) == NULL)
+        ast_setdata(ast, ast);
       break;
 
     case TK_IFTYPE:
       return scope_iftype(options, ast);
+
+    case TK_CALL:
+      if(!scope_call(options, ast))
+        return AST_ERROR;
+      break;
+
+    case TK_ASSIGN:
+      if(!scope_assign(options, ast))
+        return AST_ERROR;
+      break;
 
     default: {}
   }

@@ -49,18 +49,16 @@ typedef struct hashmap_t
  *
  *  This is a quadratic probing hash map.
  */
-void ponyint_hashmap_init(hashmap_t* map, size_t size, alloc_fn alloc);
+void ponyint_hashmap_init(hashmap_t* map, size_t size);
 
 /** Destroys a hash map.
  *
  */
-void ponyint_hashmap_destroy(hashmap_t* map, free_size_fn fr,
-  free_fn free_elem);
+void ponyint_hashmap_destroy(hashmap_t* map, free_fn free_elem);
 
 /** Optimize hashmap by iterating hashmap and calling optimize_item for each entry.
  */
-void ponyint_hashmap_optimize(hashmap_t* map, alloc_fn alloc,
-  free_size_fn fr, cmp_fn cmp);
+void ponyint_hashmap_optimize(hashmap_t* map, cmp_fn cmp);
 
 /** Retrieve an element from a hash map.
  *
@@ -73,15 +71,14 @@ void* ponyint_hashmap_get(hashmap_t* map, void* key, size_t hash, cmp_fn cmp, si
  *  If the element (according to cmp_fn) is already in the hash map, the old
  *  element is overwritten and returned to the caller.
  */
-void* ponyint_hashmap_put(hashmap_t* map, void* entry, size_t hash, cmp_fn cmp,
-  alloc_fn alloc, free_size_fn fr);
+void* ponyint_hashmap_put(hashmap_t* map, void* entry, size_t hash, cmp_fn cmp);
 
 
 /** Put a new element in a hash map at a specific index (shifting other elements
  *  if necessary).
  */
 void ponyint_hashmap_putindex(hashmap_t* map, void* entry, size_t hash, cmp_fn cmp,
-  alloc_fn alloc, free_size_fn fr, size_t index);
+  size_t index);
 
 /** Removes a given entry from a hash map.
  *
@@ -113,6 +110,15 @@ size_t ponyint_hashmap_size(hashmap_t* map);
 void* ponyint_hashmap_next(size_t* i, size_t count, bitmap_t* item_bitmap,
   size_t size, hashmap_entry_t* buckets);
 
+void ponyint_hashmap_serialise_trace(pony_ctx_t* ctx, void* object,
+  pony_type_t* elem_type);
+
+void ponyint_hashmap_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset);
+
+void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
+  pony_type_t* elem_type);
+
 #define DECLARE_HASHMAP(name, name_t, type) \
   typedef struct name_t { hashmap_t contents; } name_t; \
   void name##_init(name_t* map, size_t size); \
@@ -126,29 +132,33 @@ void* ponyint_hashmap_next(size_t* i, size_t count, bitmap_t* item_bitmap,
   void name##_clearindex(name_t* map, size_t index); \
   size_t name##_size(name_t* map); \
   type* name##_next(name_t* map, size_t* i); \
-  void name##_trace(void* map); \
 
-#define DEFINE_HASHMAP(name, name_t, type, hash, cmp, alloc, fr, free_elem) \
+#define DECLARE_HASHMAP_SERIALISE(name, name_t, type) \
+  DECLARE_HASHMAP(name, name_t, type) \
+  void name##_serialise_trace(pony_ctx_t* ctx, void* object); \
+  void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
+    size_t offset, int mutability); \
+  void name##_deserialise(pony_ctx_t* ctx, void* object); \
+  const pony_type_t* name##_pony_type(); \
+
+#define DEFINE_HASHMAP(name, name_t, type, hash, cmp, free_elem) \
   typedef struct name_t name_t; \
   typedef bool (*name##_cmp_fn)(type* a, type* b); \
   typedef void (*name##_free_fn)(type* a); \
-  typedef void (*name_trace_fn)(void* a); \
   \
   void name##_init(name_t* map, size_t size) \
   { \
-    alloc_fn allocf = alloc; \
-    ponyint_hashmap_init((hashmap_t*)map, size, allocf); \
+    ponyint_hashmap_init((hashmap_t*)map, size); \
   } \
   void name##_destroy(name_t* map) \
   { \
     name##_free_fn freef = free_elem; \
-    ponyint_hashmap_destroy((hashmap_t*)map, fr, (free_fn)freef); \
+    ponyint_hashmap_destroy((hashmap_t*)map, (free_fn)freef); \
   } \
   void name##_optimize(name_t* map) \
   { \
     name##_cmp_fn cmpf = cmp; \
-    return ponyint_hashmap_optimize((hashmap_t*)map, \
-      alloc, fr, (cmp_fn)cmpf); \
+    return ponyint_hashmap_optimize((hashmap_t*)map, (cmp_fn)cmpf); \
   } \
   type* name##_get(name_t* map, type* key, size_t* index) \
   { \
@@ -160,13 +170,13 @@ void* ponyint_hashmap_next(size_t* i, size_t count, bitmap_t* item_bitmap,
   { \
     name##_cmp_fn cmpf = cmp; \
     return (type*)ponyint_hashmap_put((hashmap_t*)map, (void*)entry, \
-      hash(entry), (cmp_fn)cmpf, alloc, fr); \
+      hash(entry), (cmp_fn)cmpf); \
   } \
   void name##_putindex(name_t* map, type* entry, size_t index) \
   { \
     name##_cmp_fn cmpf = cmp; \
     ponyint_hashmap_putindex((hashmap_t*)map, (void*)entry, \
-      hash(entry), (cmp_fn)cmpf, alloc, fr, index); \
+      hash(entry), (cmp_fn)cmpf, index); \
   } \
   type* name##_remove(name_t* map, type* entry) \
   { \
@@ -191,6 +201,47 @@ void* ponyint_hashmap_next(size_t* i, size_t count, bitmap_t* item_bitmap,
     hashmap_t* h = (hashmap_t*)map; \
     return (type*)ponyint_hashmap_next(i, h->count, h->item_bitmap, \
       h->size, h->buckets); \
+  } \
+
+#define DEFINE_HASHMAP_SERIALISE(name, name_t, type, hash, cmp, free_elem, elem_type) \
+  DEFINE_HASHMAP(name, name_t, type, hash, cmp, free_elem) \
+  void name##_serialise_trace(pony_ctx_t* ctx, void* object) \
+  { \
+    ponyint_hashmap_serialise_trace(ctx, object, elem_type); \
+  } \
+  void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
+    size_t offset, int mutability) \
+  { \
+    (void)mutability; \
+    ponyint_hashmap_serialise(ctx, object, buf, offset); \
+  } \
+  void name##_deserialise(pony_ctx_t* ctx, void* object) \
+  { \
+    ponyint_hashmap_deserialise(ctx, object, elem_type); \
+  } \
+  static pony_type_t name##_pony = \
+  { \
+    0, \
+    sizeof(name_t), \
+    0, \
+    0, \
+    NULL, \
+    NULL, \
+    name##_serialise_trace, \
+    name##_serialise, \
+    name##_deserialise, \
+    NULL, \
+    NULL, \
+    NULL, \
+    NULL, \
+    0, \
+    NULL, \
+    NULL, \
+    NULL, \
+  }; \
+  const pony_type_t* name##_pony_type() \
+  { \
+    return &name##_pony; \
   } \
 
 #define HASHMAP_INIT {0, 0, NULL}

@@ -13,10 +13,19 @@ class val FilePath
   that path.
   """
   let path: String
+    """
+    Absolute filesystem path.
+    """
   let caps: FileCaps = FileCaps
+    """
+    Set of capabilities for operations on `path`.
+    """
 
-  new val create(base: (FilePath | AmbientAuth), path': String,
-    caps': FileCaps val = recover val FileCaps.>all() end) ?
+  new val create(
+    base: (FilePath | AmbientAuth),
+    path': String,
+    caps': FileCaps val = recover val FileCaps .> all() end)
+    ?
   =>
     """
     Create a new path. The caller must either provide the root capability or an
@@ -31,26 +40,28 @@ class val FilePath
     """
     caps.union(caps')
 
-    match base
-    | let b: FilePath =>
-      if not b.caps(FileLookup) then
-        error
+    path = match base
+      | let b: FilePath =>
+        if not b.caps(FileLookup) then
+          error
+        end
+
+        let tmp_path = Path.join(b.path, path')
+        caps.intersect(b.caps)
+
+        if not tmp_path.at(b.path, 0) then
+          error
+        end
+        tmp_path
+      | let b: AmbientAuth =>
+        Path.abs(path')
       end
 
-      path = Path.join(b.path, path')
-      caps.intersect(b.caps)
-
-      if not path.at(b.path, 0) then
-        error
-      end
-    | let b: AmbientAuth =>
-      path = Path.abs(path')
-    else
-      error
-    end
-
-  new val mkdtemp(base: (FilePath | AmbientAuth), prefix: String = "",
-    caps': FileCaps val = recover val FileCaps.>all() end) ?
+  new val mkdtemp(
+    base: (FilePath | AmbientAuth),
+    prefix: String = "",
+    caps': FileCaps val = recover val FileCaps .> all() end)
+    ?
   =>
     """
     Create a temporary directory and returns a path to it. The directory's name
@@ -65,16 +76,16 @@ class val FilePath
     the supplied capabilities and the capabilities on the base.
     """
     (let dir, let pre) = Path.split(prefix)
-    let parent = FilePath(base, dir)
+    let parent = FilePath(base, dir)?
 
     if not parent.mkdir() then
       error
     end
 
-    var temp = FilePath(parent, pre + Path.random())
+    var temp = FilePath(parent, pre + Path.random())?
 
     while not temp.mkdir(true) do
-      temp = FilePath(parent, pre + Path.random())
+      temp = FilePath(parent, pre + Path.random())?
     end
 
     caps.union(caps')
@@ -88,30 +99,35 @@ class val FilePath
     path = path'
     caps.union(caps')
 
-  fun val join(path': String,
-    caps': FileCaps val = recover val FileCaps.>all() end): FilePath ? =>
+  fun val join(
+    path': String,
+    caps': FileCaps val = recover val FileCaps .> all() end)
+    : FilePath ?
+  =>
     """
     Return a new path relative to this one.
     """
-    create(this, path', caps')
+    create(this, path', caps')?
 
   fun val walk(handler: WalkHandler ref, follow_links: Bool = false) =>
     """
     Walks a directory structure starting at this.
 
     `handler(dir_path, dir_entries)` will be called for each directory
-    starting with this one.  The handler can control which subdirectories are
+    starting with this one. The handler can control which subdirectories are
     expanded by removing them from the `dir_entries` list.
     """
     try
-      var entries: Array[String] ref = Directory(this).entries()
-      handler(this, entries)
-      for e in entries.values() do
-        let p = this.join(e)
-        if not follow_links and FileInfo(p).symlink then
-          continue
+      with dir = Directory(this)? do
+        var entries: Array[String] ref = dir.entries()?
+        handler(this, entries)
+        for e in entries.values() do
+          let p = this.join(e)?
+          let info = FileInfo(p)?
+          if info.directory and (follow_links or not info.symlink) then
+            p.walk(handler, follow_links)
+          end
         end
-        p.walk(handler, follow_links)
       end
     else
       return
@@ -122,14 +138,14 @@ class val FilePath
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
     """
-    _create(Path.canonical(path), caps)
+    _create(Path.canonical(path)?, caps)
 
   fun val exists(): Bool =>
     """
     Returns true if the path exists. Returns false for a broken symlink.
     """
     try
-      not FileInfo(this).broken
+      not FileInfo(this)?.broken
     else
       false
     end
@@ -149,7 +165,7 @@ class val FilePath
 
     repeat
       let element = try
-        offset = path.find(Path.sep(), offset) + 1
+        offset = path.find(Path.sep(), offset)? + 1
         path.substring(0, offset - 1)
       else
         offset = -1
@@ -176,7 +192,7 @@ class val FilePath
     until offset < 0 end
 
     try
-      FileInfo(this).directory
+      FileInfo(this)?.directory
     else
       false
     end
@@ -191,13 +207,13 @@ class val FilePath
     end
 
     try
-      let info = FileInfo(this)
+      let info = FileInfo(this)?
 
       if info.directory and not info.symlink then
-        let directory = Directory(this)
+        let directory = Directory(this)?
 
-        for entry in directory.entries().values() do
-          if not join(entry).remove() then
+        for entry in directory.entries()?.values() do
+          if not join(entry)?.remove() then
             return false
           end
         end
@@ -228,8 +244,7 @@ class val FilePath
       return false
     end
 
-    0 == @rename[I32](path.cstring(),
-      new_path.path.cstring())
+    0 == @rename[I32](path.cstring(), new_path.path.cstring())
 
   fun symlink(link_name: FilePath): Bool =>
     """
@@ -240,11 +255,9 @@ class val FilePath
     end
 
     ifdef windows then
-      0 != @CreateSymbolicLink[U8](link_name.path.cstring(),
-        path.cstring())
+      0 != @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring())
     else
-      0 == @symlink[I32](path.cstring(),
-        link_name.path.cstring())
+      0 == @symlink[I32](path.cstring(), link_name.path.cstring())
     end
 
   fun chmod(mode: FileMode box): Bool =>
@@ -296,7 +309,8 @@ class val FilePath
       0 == @_utime64[I32](path.cstring(), addressof tv)
     else
       var tv: (ILong, ILong, ILong, ILong) =
-        (atime._1.ilong(), atime._2.ilong() / 1000,
-          mtime._1.ilong(), mtime._2.ilong() / 1000)
+        ( atime._1.ilong(), atime._2.ilong() / 1000,
+          mtime._1.ilong(), mtime._2.ilong() / 1000 )
+
       0 == @utimes[I32](path.cstring(), addressof tv)
     end

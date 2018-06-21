@@ -15,19 +15,16 @@ primitive _FormatInt
     | FormatHexBare => (16, "", _large())
     | FormatHexSmall => (16, "x0", _small())
     | FormatHexSmallBare => (16, "", _small())
-    else
-      (10, "", _large())
+    else (10, "", _large())
     end
 
   fun _prefix(neg: Bool, prefix: PrefixNumber): String =>
-    if neg then
-      "-"
+    if neg then "-"
     else
       match prefix
       | PrefixSpace => " "
       | PrefixSign => "+"
-      else
-        ""
+      else ""
       end
     end
 
@@ -65,9 +62,135 @@ primitive _FormatInt
       s.reverse_in_place()
     end
 
-  fun u64(x: U64, neg: Bool, fmt: FormatInt, prefix: PrefixNumber,
-    prec: USize, width: USize, align: Align, fill: U32
-  ): String iso^ =>
+  fun u8(
+    x: U8,
+    neg: Bool,
+    fmt: FormatInt,
+    prefix: PrefixNumber,
+    prec: USize,
+    width: USize,
+    align: Align,
+    fill: U32)
+    : String iso^
+  =>
+    (var base', var typestring, var table) = _fmt_int(fmt)
+    var prestring = _prefix(neg, prefix)
+    var prec' = if prec == -1 then 0 else prec end
+    let base = base'.u8()
+
+    recover
+      var s = String((prec + 1).max(width.max(31)))
+      var value = x
+
+      try
+        if value == 0 then
+          s.push(table(0)?)
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base))
+            s.push(table(index.usize())?)
+          end
+        end
+      end
+
+      _extend_digits(s, prec')
+      s.append(typestring)
+      s.append(prestring)
+      _pad(s, width, align, fill)
+      s
+    end
+
+  fun u16(
+    x: U16,
+    neg: Bool,
+    fmt: FormatInt,
+    prefix: PrefixNumber,
+    prec: USize,
+    width: USize,
+    align: Align,
+    fill: U32)
+    : String iso^
+  =>
+    (var base', var typestring, var table) = _fmt_int(fmt)
+    var prestring = _prefix(neg, prefix)
+    var prec' = if prec == -1 then 0 else prec end
+    let base = base'.u16()
+
+    recover
+      var s = String((prec + 1).max(width.max(31)))
+      var value = x
+
+      try
+        if value == 0 then
+          s.push(table(0)?)
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base))
+            s.push(table(index.usize())?)
+          end
+        end
+      end
+
+      _extend_digits(s, prec')
+      s.append(typestring)
+      s.append(prestring)
+      _pad(s, width, align, fill)
+      s
+    end
+
+  fun u32(
+    x: U32,
+    neg: Bool,
+    fmt: FormatInt,
+    prefix: PrefixNumber,
+    prec: USize,
+    width: USize,
+    align: Align,
+    fill: U32)
+    : String iso^
+  =>
+    match fmt
+    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
+    end
+
+    (var base', var typestring, var table) = _fmt_int(fmt)
+    var prestring = _prefix(neg, prefix)
+    var prec' = if prec == -1 then 0 else prec end
+    let base = base'.u32()
+
+    recover
+      var s = String((prec + 1).max(width.max(31)))
+      var value = x
+
+      try
+        if value == 0 then
+          s.push(table(0)?)
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base))
+            s.push(table(index.usize())?)
+          end
+        end
+      end
+
+      _extend_digits(s, prec')
+      s.append(typestring)
+      s.append(prestring)
+      _pad(s, width, align, fill)
+      s
+    end
+
+  fun u64(
+    x: U64,
+    neg: Bool,
+    fmt: FormatInt,
+    prefix: PrefixNumber,
+    prec: USize,
+    width: USize,
+    align: Align,
+    fill: U32)
+    : String iso^
+  =>
     match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
@@ -83,11 +206,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = ((value = value / base) - (value * base))
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end
@@ -99,10 +222,17 @@ primitive _FormatInt
       s
     end
 
-  fun u128(x: U128, neg: Bool, fmt: FormatInt = FormatDefault,
-    prefix: PrefixNumber = PrefixDefault, prec: USize = -1, width: USize = 0,
-    align: Align = AlignLeft, fill: U32 = ' '
-  ): String iso^ =>
+  fun u128(
+    x: U128,
+    neg: Bool,
+    fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault,
+    prec: USize = -1,
+    width: USize = 0,
+    align: Align = AlignLeft,
+    fill: U32 = ' ')
+    : String iso^
+  =>
     match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
@@ -118,11 +248,11 @@ primitive _FormatInt
 
       try
         if value == 0 then
-          s.push(table(0))
+          s.push(table(0)?)
         else
           while value != 0 do
             let index = (value = value / base) - (value * base)
-            s.push(table(index.usize()))
+            s.push(table(index.usize())?)
           end
         end
       end

@@ -12,7 +12,7 @@ const char* genname_type_and_cap(ast_t* ast);
 
 const char* genname_alloc(const char* type);
 
-const char* genname_traitlist(const char* type);
+const char* genname_traitmap(const char* type);
 
 const char* genname_fieldlist(const char* type);
 
@@ -37,6 +37,8 @@ const char* genname_be(const char* name);
 const char* genname_box(const char* name);
 
 const char* genname_unbox(const char* name);
+
+const char* genname_unsafe(const char* name);
 
 const char* genname_program_fn(const char* program, const char* name);
 

@@ -76,9 +76,8 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
     {
       case TK_ASSIGN:
       {
-        // Has to be the left hand side of an assignment. Left and right sides
-        // are swapped, so we must be the second child.
-        if(ast_childidx(parent, 1) != ast)
+        // Has to be the left hand side of an assignment (the first child).
+        if(ast_child(parent) != ast)
           return false;
 
         if(!check_result_needed)
@@ -223,14 +222,30 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   {
     ast_t* id = case_ast;
 
-    if(ast_id(id) != TK_ID)
-      id = ast_child(id);
+    int tk = ast_id(id);
+    if(tk != TK_ID)
+    {
+      AST_GET_CHILDREN(case_ast, first, second);
 
-    pony_assert(ast_id(id) == TK_ID);
-    const char* try_name = ast_name(id);
+      if((tk = ast_id(first)) == TK_ID)
+      {
+        // First is a TK_ID give it as a suggestion
+        id = first;
+      } else if((tk = ast_id(second)) == TK_ID) {
+        // Second is a TK_ID give it as a suggestion
+        id = second;
+      } else {
+        // Giving up on different case as tk != TK_ID
+      }
+    }
 
-    if(ast_get(ast, try_name, NULL) != NULL)
-      return try_name;
+    if(tk == TK_ID)
+    {
+      const char* try_name = ast_name(id);
+
+      if(ast_get(ast, try_name, NULL) != NULL)
+        return try_name;
+    }
   }
 
   // Give up
@@ -633,7 +648,9 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
       if(ast_id(left) == TK_THIS)
       {
         ast_t* def = (ast_t*)ast_data(ast);
-        pony_assert(def != NULL);
+
+        if(def == NULL)
+          return false;
 
         switch(ast_id(def))
         {
@@ -681,10 +698,37 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
   return false;
 }
 
+static bool refer_pre_call(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_CALL);
+  AST_GET_CHILDREN(ast, lhs, positional, named, question);
+
+  // Run the args before the receiver, so that symbol status tracking
+  // will see things like consumes in the args first.
+  if(!ast_passes_subtree(&positional, opt, PASS_REFER) ||
+    !ast_passes_subtree(&named, opt, PASS_REFER))
+    return false;
+
+  return true;
+}
+
+static bool refer_pre_assign(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_ASSIGN);
+  AST_GET_CHILDREN(ast, left, right);
+
+  // Run the right side before the left side, so that symbol status tracking
+  // will see things like consumes in the right side first.
+  if(!ast_passes_subtree(&right, opt, PASS_REFER))
+    return false;
+
+  return true;
+}
+
 static bool refer_assign(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ASSIGN);
-  AST_GET_CHILDREN(ast, right, left);
+  AST_GET_CHILDREN(ast, left, right);
 
   if(!is_lvalue(opt, left, is_result_needed(ast)))
   {
@@ -866,7 +910,8 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
   if(ast_checkflag(ast_childlast(ast), AST_FLAG_JUMPS_AWAY))
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
-  // Propagate consumes forward if this seq is the body of a try expression.
+  // Propagate symbol status forward in some cases where control flow branches
+  // always precede other branches of the same control flow structure.
   if(ast_has_scope(ast))
   {
     ast_t* parent = ast_parent(ast);
@@ -890,12 +935,74 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
           ast_consolidate_branches(then_clause, 2);
         }
       }
+      break;
+
+      case TK_REPEAT:
+      {
+        AST_GET_CHILDREN(parent, body, cond, else_clause);
+
+        if(body == ast)
+        {
+          // Push our consumes and our defines to the cond clause.
+          ast_inheritstatus(cond, body);
+        } else if(cond == ast) {
+          // Push our consumes, but not defines, to the else clause. This
+          // includes the consumes from the body.
+          ast_inheritbranch(else_clause, cond);
+          ast_consolidate_branches(else_clause, 2);
+        }
+      }
+      break;
 
       default: {}
     }
   }
 
   return true;
+}
+
+static bool valid_is_comparand(pass_opt_t* opt, ast_t* ast)
+{
+  ast_t* type;
+  switch(ast_id(ast))
+  {
+    case TK_TYPEREF:
+      type = (ast_t*) ast_data(ast);
+      if(ast_id(type) != TK_PRIMITIVE)
+      {
+        ast_error(opt->check.errors, ast, "identity comparison with a new object will always be false");
+        return false;
+      }
+      return true;
+    case TK_SEQ:
+      type = ast_child(ast);
+      while(type != NULL)
+      {
+        if(ast_sibling(type) == NULL)
+          return valid_is_comparand(opt, type);
+        type = ast_sibling(type);
+      }
+      return true;
+    case TK_TUPLE:
+      type = ast_child(ast);
+      while(type != NULL)
+      {
+        if (!valid_is_comparand(opt, type))
+          return false;
+        type = ast_sibling(type);
+      }
+      return true;
+    default:
+      return true;
+  }
+}
+
+static bool refer_is(pass_opt_t* opt, ast_t* ast)
+{
+  (void)opt;
+  pony_assert((ast_id(ast) == TK_IS) || (ast_id(ast) == TK_ISNT));
+  AST_GET_CHILDREN(ast, left, right);
+  return valid_is_comparand(opt, right) && valid_is_comparand(opt, left);
 }
 
 static bool refer_if(pass_opt_t* opt, ast_t* ast)
@@ -933,8 +1040,10 @@ static bool refer_if(pass_opt_t* opt, ast_t* ast)
 static bool refer_iftype(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
-  pony_assert(ast_id(ast) == TK_IFTYPE);
-  AST_GET_CHILDREN(ast, sub, super, left, right);
+  pony_assert(ast_id(ast) == TK_IFTYPE_SET);
+
+  AST_GET_CHILDREN(ast, left_clause, right);
+  AST_GET_CHILDREN(left_clause, sub, super, left);
 
   size_t branch_count = 0;
 
@@ -1005,7 +1114,7 @@ static bool refer_while(pass_opt_t* opt, ast_t* ast)
 static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_REPEAT);
-  AST_GET_CHILDREN(ast, cond, body, else_clause);
+  AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   // All consumes have to be in scope when the loop body finishes.
   errorframe_t errorf = NULL;
@@ -1020,17 +1129,29 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
   // No symbol status is inherited from the loop body. Nothing from outside the
   // loop body can be consumed, and definitions in the body may not occur.
   if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  {
     branch_count++;
+    ast_inheritbranch(ast, body);
+  }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
-    branch_count++;
-    ast_inheritbranch(ast, else_clause);
-
-    // Use a branch count of two instead of one. This means we will pick up any
-    // consumes, but not any definitions, since definitions may not occur.
-    ast_consolidate_branches(ast, 2);
+    // Only include the else clause in the branch analysis
+    // if the loop has a break statement somewhere in it.
+    // This allows us to treat the entire loop body as being
+    // sure to execute in every case, at least for the purposes
+    // of analyzing variables being defined in its scope.
+    // For the case of errors and return statements that may
+    // exit the loop, they do not affect our analysis here
+    // because they will skip past more than just the loop itself.
+    if(ast_checkflag(body, AST_FLAG_MAY_BREAK))
+    {
+      branch_count++;
+      ast_inheritbranch(ast, else_clause);
+    }
   }
+
+  ast_consolidate_branches(ast, branch_count);
 
   // If all branches jump away with no value, then we do too.
   if(branch_count == 0)
@@ -1056,7 +1177,11 @@ static bool refer_match(pass_opt_t* opt, ast_t* ast)
     ast_inheritbranch(ast, cases);
   }
 
-  if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  if(ast_id(else_clause) == TK_NONE)
+  {
+    branch_count++;
+  }
+  else if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
     branch_count++;
     ast_inheritbranch(ast, else_clause);
@@ -1160,6 +1285,8 @@ static bool refer_break(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_BREAK);
+
   errorframe_t errorf = NULL;
   if(!ast_all_consumes_in_scope(opt->check.frame->loop_body, ast, &errorf))
   {
@@ -1247,7 +1374,9 @@ ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_NEW: r = refer_pre_new(options, ast); break;
+    case TK_NEW:    r = refer_pre_new(options, ast); break;
+    case TK_CALL:   r = refer_pre_call(options, ast); break;
+    case TK_ASSIGN: r = refer_pre_assign(options, ast); break;
 
     default: {}
   }
@@ -1283,7 +1412,8 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
     case TK_SEQ:       r = refer_seq(options, ast); break;
     case TK_IFDEF:
     case TK_IF:        r = refer_if(options, ast); break;
-    case TK_IFTYPE:    r = refer_iftype(options, ast); break;
+    case TK_IFTYPE_SET:
+                       r = refer_iftype(options, ast); break;
     case TK_WHILE:     r = refer_while(options, ast); break;
     case TK_REPEAT:    r = refer_repeat(options, ast); break;
     case TK_MATCH:     r = refer_match(options, ast); break;
@@ -1297,6 +1427,9 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
     case TK_ERROR:     r = refer_error(options, ast); break;
     case TK_COMPILE_ERROR:
                        r = refer_compile_error(options, ast); break;
+    case TK_IS:
+    case TK_ISNT:
+                       r = refer_is(options, ast); break;
 
     default: {}
   }

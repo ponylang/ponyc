@@ -11,7 +11,7 @@ use "regex"
 actor Main
   new create(env: Env) =>
     try
-      let r = Regex("\\d+")
+      let r = Regex("\\d+")?
 
       if r == "1234" then
         env.out.print("1234 is a series of numbers")
@@ -21,18 +21,18 @@ actor Main
         env.out.print("'Not a number' is not a series of numbers")
       end
 
-      let matched = r("There are 02 numbers in here.")
-      env.out.print(matched(0) + " was matched")
+      let matched = r("There are 02 numbers in here.")?
+      env.out.print(matched(0)? + " was matched")
       env.out.print("The match started at " + matched.start_pos().string())
       env.out.print("The match ended at " + matched.end_pos().string())
     end
 
     try
-      let r = Regex("(\\d+)?\\.(\\d+)?")
-      let matched = r("123.456")
-      env.out.print(matched(0) + " was matched")
-      env.out.print("The first match was " + matched(1))
-      env.out.print("The second match was " + matched(2))
+      let r = Regex("(\\d+)?\\.(\\d+)?")?
+      let matched = r("123.456")?
+      env.out.print(matched(0)? + " was matched")
+      env.out.print("The first match was " + matched(1)?)
+      env.out.print("The second match was " + matched(2)?)
     end
 ```
 
@@ -63,7 +63,8 @@ class Regex
     var err: I32 = 0
     var erroffset: USize = 0
 
-    _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cpointer(), from.size(),
+    _pattern =
+      @pcre2_compile_8[Pointer[_Pattern]](from.cpointer(), from.size(),
         _PCRE2.utf(), addressof err, addressof erroffset, Pointer[U8])
 
     if _pattern.is_null() then
@@ -72,12 +73,19 @@ class Regex
 
     _jit = jit and (@pcre2_jit_compile_8[I32](_pattern, U32(1)) == 0)
 
+  fun matches(subject: String): MatchIterator =>
+    """ 
+    Creates a match iterator from the regular expression that will iterate
+    over the supplied subject returning matches.
+    """
+    MatchIterator(this, subject)
+
   fun eq(subject: ByteSeq box): Bool =>
     """
     Return true on a successful match, false otherwise.
     """
     try
-      let m = _match(subject, 0, 0)
+      let m = _match(subject, 0, 0)?
       @pcre2_match_data_free_8[None](m)
       true
     else
@@ -96,11 +104,15 @@ class Regex
     object that can give precise match details. Raises an error if there is no
     match.
     """
-    let m = _match(subject, offset, U32(0))
+    let m = _match(subject, offset, U32(0))?
     Match._create(subject, m)
 
-  fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
-    value: ByteSeq box, offset: USize = 0, global: Bool = false): A^ ?
+  fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](
+    subject: ByteSeq,
+    value: ByteSeq box,
+    offset: USize = 0,
+    global: Bool = false)
+    : A^ ?
   =>
     """
     Perform a match on the subject, starting at the given offset, and create
@@ -123,10 +135,11 @@ class Regex
     var rc = I32(0)
 
     repeat
-      rc = @pcre2_substitute_8[I32](_pattern,
-        subject.cpointer(), subject.size(), offset, opt, Pointer[U8],
-        Pointer[U8], value.cpointer(), value.size(), out.cpointer(),
-        addressof len)
+      rc =
+        @pcre2_substitute_8[I32](_pattern,
+          subject.cpointer(), subject.size(), offset, opt, Pointer[U8],
+          Pointer[U8], value.cpointer(), value.size(), out.cpointer(),
+          addressof len)
 
       if rc == -48 then
         len = out.space() * 2
@@ -156,7 +169,7 @@ class Regex
 
     try
       while off < subject.size() do
-        let m' = _match(subject, off, _PCRE2.not_empty())
+        let m' = _match(subject, off, _PCRE2.not_empty())?
         let m = Match._create(subject, m')
         let off' = m.start_pos()
         out.push(subject.substring(off.isize(), off'.isize()))
@@ -173,8 +186,8 @@ class Regex
     Returns the index of a named capture. Raises an error if the named capture
     does not exist.
     """
-    let rc = @pcre2_substring_number_from_name[I32](_pattern,
-      name.cstring())
+    let rc =
+      @pcre2_substring_number_from_name[I32](_pattern, name.cstring())
 
     if rc < 0 then
       error
@@ -191,8 +204,8 @@ class Regex
       _pattern = Pointer[_Pattern]
     end
 
-  fun _match(subject: ByteSeq box, offset: USize, options: U32):
-    Pointer[_Match]?
+  fun _match(subject: ByteSeq box, offset: USize, options: U32)
+    : Pointer[_Match]?
   =>
     """
     Match the subject and keep the capture results. Raises an error if there
@@ -202,8 +215,9 @@ class Regex
       error
     end
 
-    let m = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
-      Pointer[U8])
+    let m =
+      @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
+        Pointer[U8])
 
     let rc = if _jit then
       @pcre2_jit_match_8[I32](_pattern, subject.cpointer(), subject.size(),

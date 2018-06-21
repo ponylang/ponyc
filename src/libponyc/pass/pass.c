@@ -1,6 +1,4 @@
 #include "pass.h"
-#include "../ast/parser.h"
-#include "../ast/treecheck.h"
 #include "syntax.h"
 #include "sugar.h"
 #include "scope.h"
@@ -12,8 +10,14 @@
 #include "expr.h"
 #include "verify.h"
 #include "finalisers.h"
+#include "serialisers.h"
 #include "docgen.h"
+#include "../ast/ast.h"
+#include "../ast/parser.h"
+#include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
+#include "../pkg/program.h"
+#include "../plugin/plugin.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
@@ -58,6 +62,7 @@ const char* pass_name(pass_id pass)
     case PASS_EXPR: return "expr";
     case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
+    case PASS_SERIALISER: return "serialise";
     case PASS_REACH: return "reach";
     case PASS_PAINT: return "paint";
     case PASS_LLVM_IR: return "ir";
@@ -95,12 +100,15 @@ void pass_opt_init(pass_opt_t* options)
   options->limit = PASS_ALL;
   options->verbosity = VERBOSITY_INFO;
   options->check.errors = errors_alloc();
+  options->ast_print_width = 80;
   frame_push(&options->check, NULL);
 }
 
 
 void pass_opt_done(pass_opt_t* options)
 {
+  plugin_unload(options);
+
   // Free the error collection.
   errors_free(options->check.errors);
   options->check.errors = NULL;
@@ -177,7 +185,8 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(!pass_parse(package, source, options->check.errors))
+  if(!pass_parse(package, source, options->check.errors,
+    options->allow_test_symbols, options->parse_trace))
     return false;
 
   if(options->limit < PASS_SYNTAX)
@@ -189,7 +198,7 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
     return false;
 
   if(options->check_tree)
-    check_tree(module, options->check.errors);
+    check_tree(module, options);
   return true;
 }
 
@@ -199,44 +208,75 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 {
   pony_assert(astp != NULL);
   bool r;
+  bool is_program = ast_id(*astp) == TK_PROGRAM;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_SYNTAX);
 
   if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_SUGAR);
+
   if(options->check_tree)
-    check_tree(*astp, options->check.errors);
+    check_tree(*astp, options);
 
   if(!visit_pass(astp, options, last, &r, PASS_SCOPE, pass_scope, NULL))
     return r;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_SCOPE);
+
   if(!visit_pass(astp, options, last, &r, PASS_IMPORT, pass_import, NULL))
     return r;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_IMPORT);
 
   if(!visit_pass(astp, options, last, &r, PASS_NAME_RESOLUTION, NULL,
     pass_names))
     return r;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_NAME_RESOLUTION);
+
   if(!visit_pass(astp, options, last, &r, PASS_FLATTEN, NULL, pass_flatten))
     return r;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_FLATTEN);
 
   if(!visit_pass(astp, options, last, &r, PASS_TRAITS, pass_traits, NULL))
     return r;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_TRAITS);
+
   if(!check_limit(astp, options, PASS_DOCS, last))
     return true;
 
-  if(options->docs && ast_id(*astp) == TK_PROGRAM)
+  if(is_program && options->docs)
     generate_docs(*astp, options);
 
   if(!visit_pass(astp, options, last, &r, PASS_REFER, pass_pre_refer,
     pass_refer))
     return r;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_REFER);
+
   if(!visit_pass(astp, options, last, &r, PASS_EXPR, pass_pre_expr, pass_expr))
     return r;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_EXPR);
+
   if(!visit_pass(astp, options, last, &r, PASS_VERIFY, NULL, pass_verify))
     return r;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_VERIFY);
 
   if(!check_limit(astp, options, PASS_FINALISER, last))
     return true;
@@ -244,8 +284,31 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!pass_finalisers(*astp, options))
     return false;
 
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_FINALISER);
+
+  if(!check_limit(astp, options, PASS_SERIALISER, last))
+    return true;
+
+  if(!pass_serialisers(*astp, options))
+    return false;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_SERIALISER);
+
   if(options->check_tree)
-    check_tree(*astp, options->check.errors);
+    check_tree(*astp, options);
+
+  ast_freeze(*astp);
+
+  if(is_program)
+  {
+    program_signature(*astp);
+
+    if(options->verbosity >= VERBOSITY_TOOL_INFO)
+      program_dump(*astp);
+  }
+
   return true;
 }
 
@@ -321,7 +384,8 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   if(ast_pass >= pass)  // This pass already done for this AST node
     return AST_OK;
 
-  if(ast_checkflag(*ast, AST_FLAG_PRESERVE))  // Do not process this subtree
+  // Do not process this subtree
+  if((pass > PASS_SYNTAX) && ast_checkflag(*ast, AST_FLAG_PRESERVE))
     return AST_OK;
 
   typecheck_t* t = &options->check;

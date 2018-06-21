@@ -26,7 +26,7 @@ fulfilled + bar
 fulfilled + baz
 ```
 
-```
+```pony
 use "promises"
 
 class PrintFulfill is Fulfill[String, String]
@@ -36,7 +36,7 @@ class PrintFulfill is Fulfill[String, String]
     _env = env
     _msg = msg
   fun apply(s: String): String =>
-    _env.out.print(" + ".join([s, _msg]))
+    _env.out.print(" + ".join([s; _msg]))
     s
 
 actor Main
@@ -56,7 +56,7 @@ value which fulfills the fourth one. The output is the average length
 of the words passed on the command line or `0` if there are no command
 line arguments.
 
-```
+```pony
 use "promises"
 
 primitive Computation
@@ -89,6 +89,7 @@ actor Main
      promise(" ".join(env.args.slice(1)))
 ```
 """
+use "time"
 
 actor Promise[A: Any #share]
   """
@@ -132,8 +133,10 @@ actor Promise[A: Any #share]
 
     _list.clear()
 
-  fun tag next[B: Any #share](fulfill: Fulfill[A, B],
-    rejected: Reject[B] = RejectAlways[B]): Promise[B]
+  fun tag next[B: Any #share](
+    fulfill: Fulfill[A, B],
+    rejected: Reject[B] = RejectAlways[B])
+    : Promise[B]
   =>
     """
     Chain a promise after this one.
@@ -157,6 +160,90 @@ actor Promise[A: Any #share]
     _attach(consume attach)
     promise
 
+  fun tag add[B: Any #share = A](p: Promise[B]): Promise[(A, B)] =>
+    """
+    Add two promises into one promise that returns the result of both when
+    they are fulfilled. If either of the promises is rejected then the new
+    promise is also rejected.
+    """
+    let p' = Promise[(A, B)]
+    
+    let c =
+      object
+        var _a: (A | _None) = _None
+        var _b: (B | _None) = _None
+
+        be fulfill_a(a: A) =>
+          match _b
+          | let b: B => p'((a, b))
+          else _a = a
+          end
+
+        be fulfill_b(b: B) =>
+          match _a
+          | let a: A => p'((a, b))
+          else _b = b
+          end
+      end
+
+    next[None](
+      {(a) => c.fulfill_a(a) },
+      {() => p'.reject() })
+
+    p.next[None](
+      {(b) => c.fulfill_b(b) },
+      {() => p'.reject() })
+
+    p'
+
+  fun tag join(ps: Iterator[Promise[A]]): Promise[Array[A] val] =>
+    """
+    Create a promise that is fulfilled when the receiver and all promises in
+    the given iterator are fulfilled. If the receiver or any promise in the
+    sequence is rejected then the new promise is also rejected.
+    """
+    Promises[A].join(
+      [this]
+        .> concat(ps)
+        .values())
+
+  fun tag select(p: Promise[A]): Promise[(A, Promise[A])] =>
+    """
+    Return a promise that is fulfilled when either promise is fulfilled,
+    resulting in a tuple of its value and the other promise.
+    """
+    let p' = Promise[(A, Promise[A])]
+
+    let s =
+      object tag
+        var _complete: Bool = false
+        let _p: Promise[(A, Promise[A])] = p'
+        
+        be apply(a: A, p: Promise[A]) =>
+          if not _complete then
+            _p((a, p))
+            _complete = true
+          end
+      end
+
+    next[None]({(a) => s(a, p) })
+    p.next[None]({(a)(p = this) => s(a, p) })
+    
+    p'
+
+  fun tag timeout(expiration: U64) =>
+    """
+    Reject the promise after the given expiration in nanoseconds.
+    """
+    Timers.apply(Timer(
+      object iso is TimerNotify
+        let _p: Promise[A] = this
+        fun ref apply(timer: Timer, count: U64): Bool =>
+          _p.reject()
+          false
+      end,
+      expiration))
+
   be _attach(attach: _IThen[A] iso) =>
     """
     Attaches a step asynchronously. If this promise has already been fulfilled
@@ -170,3 +257,48 @@ actor Promise[A: Any #share]
     else
       try attach(_value as A) end
     end
+
+primitive Promises[A: Any #share]
+  fun join(ps: Iterator[Promise[A]]): Promise[Array[A] val] =>
+    """
+    Create a promise that is fulfilled when all promises in the given sequence
+    are fulfilled. If any promise in the sequence is rejected then the new
+    promise is also rejected. The order that values appear in the final array
+    is based on when each promise is fulfilled and not the order that they are
+    given.
+    """
+    let p' = Promise[Array[A] val]
+    let ps' = Array[Promise[A]] .> concat(consume ps)
+
+    if ps'.size() == 0 then
+      p'(recover Array[A] end)
+      return p'
+    end
+
+    let j = _Join[A](p', ps'.size())
+    for p in ps'.values() do
+      p.next[None]({(a)(j) => j(a)}, {() => p'.reject()})
+    end
+
+    p'
+
+actor _Join[A: Any #share]
+  embed _xs: Array[A]
+  let _space: USize
+  let _p: Promise[Array[A] val]
+
+  new create(p: Promise[Array[A] val], space: USize) =>
+    (_xs, _space, _p) = (Array[A](space), space, p)
+
+  be apply(a: A) =>
+    _xs.push(a)
+    if _xs.size() == _space then
+      let len = _xs.size()
+      let xs = recover Array[A](len) end
+      for x in _xs.values() do
+        xs.push(x)
+      end
+      _p(consume xs)
+    end
+
+primitive _None

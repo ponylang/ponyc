@@ -3,101 +3,91 @@
 set -o errexit
 set -o nounset
 
-if [[ "$TRAVIS_BRANCH" == "release" && "$FAVORITE_CONFIG" != "yes" ]]
-then
-  echo "This is a release branch and there's nothing this matrix element must do."
-  exit 0
-fi
+# include install commands
+. .travis_install.bash
+# include various build commands
+. .travis_commands.bash
 
-ponyc-test(){
-  echo "Building and testing ponyc..."
-  make CC="$CC1" CXX="$CXX1" test-ci
-}
-
-verify-changelog(){
-  echo "Building changelog tool..."
-  make CC="$CC1" CXX="$CXX1" && sudo make install
-
-  pushd /tmp
-
-  git clone "https://github.com/jemc/pony-stable"
-  cd pony-stable && make && sudo make install && cd -
-
-  git clone "https://github.com/ponylang/changelog-tool"
-  cd changelog-tool && git checkout tags/0.1.2 && make && sudo make install && cd -
-
-  popd
-
-  changelog-tool verify CHANGELOG.md
-}
-
-ponyc-build-packages(){
-  echo "Installing ruby, rpm, and fpm..."
-  rvm use 2.2.3 --default
-  sudo apt-get install -y rpm
-  gem install fpm
-
-  # The PACKAGE_ITERATION will be fed to the DEB and RPM systems by FPM
-  # as a suffix to the base version (DEB:debian_revision or RPM:release,
-  # used to disambiguate packages with the same version).
-  PACKAGE_ITERATION="${TRAVIS_BUILD_NUMBER}.$(git rev-parse --short --verify 'HEAD^{commit}')"
-
-  echo "Building ponyc packages for deployment..."
-  make CC="$CC1" CXX="$CXX1" verbose=1 arch=x86-64 tune=intel package_name="ponyc" package_base_version="$(cat VERSION)" package_iteration="${PACKAGE_ITERATION}" deploy
-}
-
-ponyc-build-docs(){
-  echo "Installing mkdocs..."
-  sudo -H pip install mkdocs
-
-  echo "Building ponyc docs..."
-  make CC="$CC1" CXX="$CXX1" docs
-
-  echo "Uploading docs using mkdocs..."
-  git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
-  git fetch gh-token
-  git reset gh-token/master
-  cd stdlib-docs
-  mkdocs gh-deploy -v --clean --remote-name gh-token --remote-branch master
-}
-
-case "${TRAVIS_OS_NAME}:${LLVM_CONFIG}" in
-
-  "linux:llvm-config-3.7")
-    ponyc-test
-  ;;
-
-  "linux:llvm-config-3.8")
-    ponyc-test
-  ;;
-
-  "linux:llvm-config-3.9")
-    # when FAVORITE_CONFIG stops matching part of this case, move this logic
-    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$FAVORITE_CONFIG" == "yes" ]]
+case "${TRAVIS_OS_NAME}" in
+  "linux")
+    # when RELEASE_CONFIG stops matching part of this case, move this logic
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" ]]
     then
+      download_llvm
+      download_pcre
+      set_linux_compiler
+      ponyc-kickoff-copr-ppa
       ponyc-build-packages
       ponyc-build-docs
-    else
-      ponyc-test
-      verify-changelog
     fi
   ;;
 
-  "osx:llvm-config-3.7")
-    ponyc-test
-  ;;
+  "osx")
+    if [[ "$TRAVIS_BRANCH" != "release" ]]
+    then
+      brew update
+      brew install pcre2
+      brew install libressl
 
-  "osx:llvm-config-3.8")
-    ponyc-test
-  ;;
+      export PATH=llvmsym/:$PATH
+      mkdir llvmsym
 
-  "osx:llvm-config-3.9")
-    export PATH=llvmsym/:$PATH
-    ponyc-test
+      # 3.9.x
+      brew install llvm@3.9
+      brew link --overwrite --force llvm@3.9
+      ln -fs "$(which llvm-config)" llvmsym/llvm-config-3.9
+      ln -fs "$(which clang++)" llvmsym/clang++-3.9
+
+      export CC1=clang-3.9
+      export CXX1=clang++-3.9
+      echo "Running LLVM 3.9 config=debug build..."
+      export config=debug
+      ponyc-test
+      echo "Running LLVM 3.9 config=release build..."
+      export config=release
+      ponyc-test
+
+      make clean
+      brew uninstall llvm@3.9
+
+      # 5.0.x
+      brew install llvm@5
+      brew link --overwrite --force llvm@5
+      ln -fs "$(which llvm-config)" llvmsym/llvm-config-5.0
+      ln -fs "$(which clang++)" llvmsym/clang++-5.0
+
+      export CC1=clang-5.0
+      export CXX1=clang++-5.0
+      echo "Running LLVM 5.0 config=release build..."
+      export config=release
+      ponyc-test
+
+      make clean
+      brew uninstall llvm@5
+
+      # 6.0.x
+      # There is no llvm@6 package right now, so this will break once LLVM 7
+      # is released. Hopefully when they do that there will be a llvm@6 package
+      # at which point both `brew install llvm` and `brew uninstall llvm`
+      # should be updated to replace `llvm` with `llvm@6`
+      brew install llvm
+      brew link --overwrite --force llvm
+      ln -fs "$(which llvm-config)" llvmsym/llvm-config-6.0
+      ln -fs "$(which clang++)" llvmsym/clang++-6.0
+
+      export CC1=clang-6.0
+      export CXX1=clang++-6.0
+      echo "Running LLVM 6.0 config=release build..."
+      export config=release
+      ponyc-test
+
+      make clean
+      brew uninstall llvm
+    fi
   ;;
 
   *)
-    echo "ERROR: An unrecognized OS and LLVM tuple was found! Consider OS: ${TRAVIS_OS_NAME} and LLVM: ${LLVM_CONFIG}"
+    echo "ERROR: An unrecognized OS. Consider OS: ${TRAVIS_OS_NAME}."
     exit 1
   ;;
 

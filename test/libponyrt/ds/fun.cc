@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <ds/fun.h>
+#include <mem/pool.h>
 
 /** Hashing the same integer returns the same key.
  *
@@ -34,14 +35,14 @@ TEST(DsFunTest, HashSameStringGivesSameKey)
  */
 TEST(DsFunTest, HashSamePointerGivesSameKey)
 {
-  void* p = malloc(sizeof(void*));
+  void* p = POOL_ALLOC(void*);
 
   uint64_t key2 = ponyint_hash_ptr(p);
   uint64_t key1 = ponyint_hash_ptr(p);
 
   ASSERT_EQ(key1, key2);
 
-  free(p);
+  POOL_FREE(void*, p);
 }
 
 /** Numbers are rounded to the next power of two.

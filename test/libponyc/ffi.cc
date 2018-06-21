@@ -267,3 +267,17 @@ TEST_F(FFITest, DeclarationEllipsisNotLast)
 
   TEST_ERROR(src);
 }
+
+
+TEST_F(FFITest, DeclarationAlias)
+{
+  const char* src =
+    "use @foo[None](x: Foo iso)\n"
+
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    let x: Foo iso = Foo\n"
+    "    @foo(x)";
+
+  TEST_ERROR(src);
+}

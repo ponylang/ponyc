@@ -4,11 +4,11 @@
 #include "util.h"
 
 
-#define TEST_COMPILE(src) DO(test_compile(src, "finalisers"))
+#define TEST_COMPILE(src) DO(test_compile(src, "final"))
 
 #define TEST_ERRORS_1(src, err1) \
   { const char* errs[] = {err1, NULL}; \
-    DO(test_expected_errors(src, "finalisers", errs)); }
+    DO(test_expected_errors(src, "final", errs)); }
 
 
 class FinalisersTest : public PassTest
@@ -109,4 +109,28 @@ TEST_F(FinalisersTest, FinalCannotCallChainedBehaviour)
     "    a.>apply()";
 
   TEST_ERRORS_1(src, "_final cannot create actors or send messages");
+}
+
+TEST_F(FinalisersTest, CannotLookupFinal)
+{
+  const char* src =
+    "class Actor\n"
+    "  fun apply() =>\n"
+    "    _final()\n"
+    "  fun _final() =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "can't lookup a _final function");
+}
+
+TEST_F(FinalisersTest, CannotLookupPrimitiveInit)
+{
+  const char* src =
+    "primitive Prim\n"
+    "  fun apply() =>\n"
+    "    _init()\n"
+    "  fun _init() =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "can't lookup an _init function on a primitive");
 }

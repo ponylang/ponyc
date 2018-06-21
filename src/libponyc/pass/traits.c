@@ -385,6 +385,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   {
     ast_set_name(doc, "");
     ast_setid(doc, TK_NONE);
+    ast_settype(doc, NULL);
   }
 
   ast_t* local = ast_append(ast_childidx(entity, 4), basis_method);
@@ -671,6 +672,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* opt)
       return true;
 
     case AST_FLAG_ERROR_1:
+    case AST_FLAG_ERROR_1 | AST_FLAG_DONE_1:
       return false;
 
     default:
@@ -811,7 +813,6 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
           NODE(TK_IS,
             NODE(TK_THIS)
             NODE(TK_REFERENCE, ID("that"))))
-        NONE
         NONE));
 
     // Need to set function data field to point to originating type, ie ast.
@@ -843,7 +844,6 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
           NODE(TK_ISNT,
             NODE(TK_THIS)
             NODE(TK_REFERENCE, ID("that"))))
-        NONE
         NONE));
 
     // Need to set function data field to point to originating type, ie ast.

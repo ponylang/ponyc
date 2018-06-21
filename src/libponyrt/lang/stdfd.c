@@ -376,6 +376,12 @@ PONY_API void pony_os_stdout_setup()
   handle = GetStdHandle(STD_OUTPUT_HANDLE);
   type = GetFileType(handle);
 
+  DWORD mode;
+  if (GetConsoleMode(handle, &mode))
+  {
+    SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+  }
+
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   GetConsoleScreenBufferInfo(handle, &csbi);
   stdout_reset = csbi.wAttributes;
@@ -383,6 +389,10 @@ PONY_API void pony_os_stdout_setup()
 
   handle = GetStdHandle(STD_ERROR_HANDLE);
   type = GetFileType(handle);
+  if (GetConsoleMode(handle, &mode))
+  {
+    SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+  }
 
   GetConsoleScreenBufferInfo(handle, &csbi);
   stderr_reset = csbi.wAttributes;
@@ -510,9 +520,9 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
 PONY_API void pony_os_std_print(FILE* fp, char* buffer, size_t len)
 {
   if(len == 0)
-    return;
-
-  fprintf(fp, "%*.*s\n", (int)len, (int)len, buffer);
+    fprintf(fp, "\n");
+  else
+    fprintf(fp, "%*.*s\n", (int)len, (int)len, buffer);
 }
 
 PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)

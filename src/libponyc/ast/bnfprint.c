@@ -32,7 +32,7 @@
 
 
 // Fixed text to add to printed BNF to make complete antlr file
-static const char* antlr_pre =
+static const char* const antlr_pre =
   "// ANTLR v3 grammar\n"
   "grammar pony;\n\n"
   "options\n"
@@ -42,7 +42,7 @@ static const char* antlr_pre =
   "}\n\n"
   "// Parser\n";
 
-static const char* antlr_post =
+static const char* const antlr_post =
   "// Rules of the form antlr_* are only present to avoid a bug in the\n"
   "// interpreter\n\n"
   "/* Precedence\n\n"
@@ -103,7 +103,7 @@ static const char* antlr_post =
   "  ;\n\n"
   "fragment\n"
   "CHAR_CHAR\n"
-  "  : '\\\\' '\\'' | ESC\n"
+  "  : '\\\\' '\\'' | CHAR_ESC\n"
   "  | ~('\\'' | '\\\\')\n"
   "  ;\n\n"
   "fragment\n"
@@ -133,11 +133,15 @@ static const char* antlr_post =
   "  ;\n\n"
   "fragment\n"
   "ESC\n"
+  "  : CHAR_ESC\n"
+  "  | UNICODE_ESC\n"
+  "  | UNICODE2_ESC\n"
+  "  ;\n\n"
+  "fragment\n"
+  "CHAR_ESC\n"
   "  : '\\\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | "
   "'\\\\' | '0')\n"
   "  | HEX_ESC\n"
-  "  | UNICODE_ESC\n"
-  "  | UNICODE2_ESC\n"
   "  ;\n\n"
   "fragment\n"
   "HEX_ESC\n"

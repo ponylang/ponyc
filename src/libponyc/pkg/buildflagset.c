@@ -11,7 +11,9 @@
 // Mutually exclusive platform flag groups.
 static const char* _os_flags[] =
 {
+  OS_BSD_NAME,
   OS_FREEBSD_NAME,
+  OS_DRAGONFLY_NAME,
   OS_LINUX_NAME,
   OS_MACOSX_NAME,
   OS_WINDOWS_NAME,
@@ -36,12 +38,20 @@ static const char* _size_flags[] =
   NULL  // Terminator.
 };
 
+static const char* _endian_flags[] =
+{
+  OS_BIGENDIAN_NAME,
+  OS_LITTLEENDIAN_NAME,
+  "unknown_endian",
+  NULL  // Terminator.
+};
+
 static bool _stringtabed = false;
 
 
-// Replace all the strings in the _os_flags, _arch_flags and _size_flags
+// Replace all the strings in the _{os,arch,size,endian}_flags
 // arrays with stringtab'ed versions the first time this is called.
-// This method of initialisatino is obviously not at all concurrency safe, but
+// This method of initialisation is obviously not at all concurrency safe, but
 // it works with unit tests trivially.
 static void stringtab_mutexgroups()
 {
@@ -56,6 +66,9 @@ static void stringtab_mutexgroups()
 
   for(size_t i = 0; _size_flags[i] != NULL; i++)
     _size_flags[i] = stringtab(_size_flags[i]);
+
+  for(size_t i = 0; _endian_flags[i] != NULL; i++)
+    _endian_flags[i] = stringtab(_endian_flags[i]);
 
   _stringtabed = true;
 }
@@ -99,8 +112,7 @@ static void flag_free(flag_t* flag)
 }
 
 DECLARE_HASHMAP(flagtab, flagtab_t, flag_t);
-DEFINE_HASHMAP(flagtab, flagtab_t, flag_t, flag_hash, flag_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, flag_free);
+DEFINE_HASHMAP(flagtab, flagtab_t, flag_t, flag_hash, flag_cmp, flag_free);
 
 
 struct buildflagset_t
@@ -108,12 +120,14 @@ struct buildflagset_t
   bool have_os_flags;
   bool have_arch_flags;
   bool have_size_flags;
+  bool have_endian_flags;
   bool started_enum;
   bool first_config_ready;
   flagtab_t* flags;
   uint32_t enum_os_flags;
   uint32_t enum_arch_flags;
   uint32_t enum_size_flags;
+  uint32_t enum_endian_flags;
   char* text_buffer;    // Buffer for printing config.
   size_t buffer_size;   // Size allocated for text_buffer.
 };
@@ -127,6 +141,7 @@ buildflagset_t* buildflagset_create()
   p->have_os_flags = false;
   p->have_arch_flags = false;
   p->have_size_flags = false;
+  p->have_endian_flags = false;
   p->started_enum = false;
   p->flags = POOL_ALLOC(flagtab_t);
   flagtab_init(p->flags, 8);
@@ -203,6 +218,23 @@ static ssize_t size_index(const char* flag)
 }
 
 
+// Determine the index of the given endian flag, if it is one.
+// Returns: index of flag into _endian_flags array, or <0 if not an endian flag.
+static ssize_t endian_index(const char* flag)
+{
+  pony_assert(flag != NULL);
+
+  stringtab_mutexgroups();
+
+  for(size_t i = 0; _endian_flags[i] != NULL; i++)
+    if(flag == _endian_flags[i])  // Match found.
+      return i;
+
+  // Match not found.
+  return -1;
+}
+
+
 void buildflagset_add(buildflagset_t* set, const char* flag)
 {
   pony_assert(set != NULL);
@@ -229,6 +261,13 @@ void buildflagset_add(buildflagset_t* set, const char* flag)
   {
     // Size flag.
     set->have_size_flags = true;
+    return;
+  }
+
+  if(endian_index(flag) >= 0)
+  {
+    // Endian flag.
+    set->have_endian_flags = true;
     return;
   }
 
@@ -282,6 +321,15 @@ double buildflagset_configcount(buildflagset_t* set)
     r *= count;
   }
 
+  if(set->have_endian_flags)
+  {
+    int count = 0;
+    while(_endian_flags[count] != NULL)
+      count++;
+
+    r *= count;
+  }
+
   // Now check normal flags, each doubles number of configs.
   size_t i = HASHMAP_BEGIN;
 
@@ -304,6 +352,7 @@ void buildflagset_startenum(buildflagset_t* set)
   set->enum_os_flags = 0;
   set->enum_arch_flags = 0;
   set->enum_size_flags = 0;
+  set->enum_endian_flags = 0;
 
   size_t i = HASHMAP_BEGIN;
   flag_t* flag;
@@ -359,6 +408,17 @@ bool buildflagset_next(buildflagset_t* set)
     set->enum_size_flags = 0;
   }
 
+  if(set->have_endian_flags)
+  {
+    // Overflow to the endian flags.
+    set->enum_endian_flags++;
+
+    if(_endian_flags[set->enum_endian_flags] != NULL)
+      return true;
+
+    set->enum_endian_flags = 0;
+  }
+
   // Overflow to the remaining flags.
   size_t i = HASHMAP_BEGIN;
   flag_t* flag;
@@ -403,6 +463,11 @@ bool buildflagset_get(buildflagset_t* set, const char* flag)
 
   if(index >= 0)  // Size platform flag.
     return set->enum_size_flags == (uint32_t)index;
+
+  index = endian_index(flag);
+
+  if(index >= 0)  // Endian platform flag.
+    return set->enum_endian_flags == (uint32_t)index;
 
   // Just a normal flag.
   flag_t f1 = {flag, false};
@@ -473,6 +538,9 @@ const char* buildflagset_print(buildflagset_t* set)
   if(set->have_size_flags)
     print_flag(_size_flags[set->enum_size_flags], true, set, &p);
 
+  if(set->have_endian_flags)
+    print_flag(_endian_flags[set->enum_endian_flags], true, set, &p);
+
   // Next the normal flags, in any order.
   size_t i = HASHMAP_BEGIN;
   flag_t* flag;
@@ -530,6 +598,33 @@ bool define_build_flag(const char* name)
   // new one without another search
   flagtab_putindex(_user_flags, flag_dup(&f1), index);
   return true;
+}
+
+
+bool remove_build_flags(const char* flags[])
+{
+  pony_assert(flags != NULL);
+
+  if(_user_flags == NULL)
+  {
+    // Initialise flags table.
+    _user_flags = POOL_ALLOC(flagtab_t);
+    flagtab_init(_user_flags, 8);
+  }
+
+  size_t removed = 0;
+  for(const char** next = flags; *next != NULL; next += 1)
+  {
+    flag_t f1 = {stringtab(*next), false};
+    flag_t* found = flagtab_remove(_user_flags, &f1);
+    if(found != NULL)
+    {
+      flag_free(found);
+      removed += 1;
+    }
+  }
+
+  return removed > 0;
 }
 
 

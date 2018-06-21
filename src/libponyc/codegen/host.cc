@@ -18,6 +18,8 @@
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/Support/SourceMgr.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Target/TargetOptions.h>
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
@@ -28,6 +30,34 @@
 #include "ponyassert.h"
 
 using namespace llvm;
+
+LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
+  bool jit)
+{
+  Optional<Reloc::Model> reloc;
+
+  if(opt->pic || opt->library)
+    reloc = Reloc::PIC_;
+
+  CodeGenOpt::Level opt_level =
+    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::None;
+
+  TargetOptions options;
+  options.TrapUnreachable = true;
+
+  Target* t = reinterpret_cast<Target*>(target);
+
+#if PONY_LLVM < 600
+  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
+  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+    opt->features, options, reloc, model, opt_level);
+#else
+TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+  opt->features, options, reloc, llvm::None, opt_level, jit);
+#endif
+
+  return reinterpret_cast<LLVMTargetMachineRef>(m);
+}
 
 char* LLVMGetHostCPUName()
 {
@@ -45,6 +75,15 @@ char* LLVMGetHostCPUFeatures()
   size_t buf_size = 0;
   for(auto it = features.begin(); it != features.end(); it++)
     buf_size += (*it).getKey().str().length() + 2; // plus +/- char and ,/null
+
+#if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
+  // Add extra buffer space for llvm bug workaround
+  buf_size += 9;
+#endif
+
+#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  buf_size += 6;
+#endif
 
   char* buf = (char*)malloc(buf_size);
   pony_assert(buf != NULL);
@@ -64,12 +103,26 @@ char* LLVMGetHostCPUFeatures()
       strcat(buf, ",");
   }
 
+#if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
+  // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
+  strcat(buf, ",-avx512f");
+#endif
+
+#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  // Workaround for https://bugs.llvm.org/show_bug.cgi?id=30842
+  strcat(buf, ",-neon");
+#endif
+
   return buf;
 }
 
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {
+#if PONY_LLVM < 600
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
+#else // See https://reviews.llvm.org/D39304 for this change
+  unwrap<Instruction>(inst)->setHasAllowReassoc(true);
+#endif
 }
 
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst)
@@ -87,66 +140,6 @@ void LLVMSetIsExact(LLVMValueRef inst)
   unwrap<BinaryOperator>(inst)->setIsExact(true);
 }
 
-#if PONY_LLVM < 309
-void LLVMSetReturnNoAlias(LLVMValueRef fun)
-{
-  unwrap<Function>(fun)->setDoesNotAlias(0);
-}
-
-void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size)
-{
-  Function* f = unwrap<Function>(fun);
-
-  AttrBuilder attr;
-  attr.addDereferenceableAttr(size);
-
-  f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
-}
-
-void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size)
-{
-  Function* f = unwrap<Function>(fun);
-
-  AttrBuilder attr;
-  attr.addDereferenceableOrNullAttr(size);
-
-  f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
-}
-
-#  if PONY_LLVM >= 308
-void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst)
-{
-  Instruction* i = unwrap<Instruction>(inst);
-  if(CallInst* c = dyn_cast<CallInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOnly);
-  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOnly);
-  else
-    pony_assert(0);
-}
-
-void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun)
-{
-  unwrap<Function>(fun)->setOnlyAccessesInaccessibleMemOrArgMem();
-}
-
-void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst)
-{
-  Instruction* i = unwrap<Instruction>(inst);
-  if(CallInst* c = dyn_cast<CallInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOrArgMemOnly);
-  else if(InvokeInst* c = dyn_cast<InvokeInst>(i))
-    c->addAttribute(AttributeSet::FunctionIndex,
-      Attribute::InaccessibleMemOrArgMemOnly);
-  else
-    pony_assert(0);
-}
-#  endif
-#endif
-
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type)
 {
   Type* t = unwrap<Type>(type);
@@ -159,23 +152,9 @@ LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative)
 {
   Type* t = unwrap<Type>(type);
 
-#if PONY_LLVM >= 307
   Value* inf = ConstantFP::getInfinity(t, negative);
-#else
-  fltSemantics const& sem = *float_semantics(t->getScalarType());
-  APFloat flt = APFloat::getInf(sem, negative);
-  Value* inf = ConstantFP::get(t->getContext(), flt);
-#endif
-
   return wrap(inf);
 }
-
-#if PONY_LLVM < 308
-static LLVMContext* unwrap(LLVMContextRef ctx)
-{
-  return reinterpret_cast<LLVMContext*>(ctx);
-}
-#endif
 
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file)
 {
@@ -197,13 +176,40 @@ static MDNode* extractMDNode(MetadataAsValue* mdv)
   return MDNode::get(mdv->getContext(), md);
 }
 
-void LLVMSetMetadataStr(LLVMValueRef inst, const char* str, LLVMValueRef node)
+bool LLVMHasMetadataStr(LLVMValueRef val, const char* str)
+{
+  Value* v = unwrap<Value>(val);
+  Instruction* i = dyn_cast<Instruction>(v);
+
+  if(i != NULL)
+    return i->getMetadata(str) != NULL;
+
+  return cast<Function>(v)->getMetadata(str) != NULL;
+}
+
+void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node)
 {
   pony_assert(node != NULL);
 
   MDNode* n = extractMDNode(unwrap<MetadataAsValue>(node));
+  Value* v = unwrap<Value>(val);
+  Instruction* i = dyn_cast<Instruction>(v);
 
-  unwrap<Instruction>(inst)->setMetadata(str, n);
+  if(i != NULL)
+    i->setMetadata(str, n);
+  else
+    cast<Function>(v)->setMetadata(str, n);
+}
+
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
+  LLVMValueRef node)
+{
+  pony_assert(parent != NULL);
+  pony_assert(node != NULL);
+
+  MDNode *pn = extractMDNode(unwrap<MetadataAsValue>(parent));
+  MDNode *cn = extractMDNode(unwrap<MetadataAsValue>(node));
+  pn->replaceOperandWith(i, cn);
 }
 
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
@@ -230,16 +236,28 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::memmove, {params, 3}));
 }
 
-LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module)
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type)
 {
   Module* m = unwrap(module);
 
+#if PONY_LLVM < 500
+  (void)type;
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, {}));
+#else
+  Type* t[1] = { unwrap(type) };
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, t));
+#endif
 }
 
-LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module)
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
 {
   Module* m = unwrap(module);
 
+#if PONY_LLVM < 500
+  (void)type;
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, {}));
+#else
+  Type* t[1] = { unwrap(type) };
+  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, t));
+#endif
 }

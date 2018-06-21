@@ -1,14 +1,19 @@
 provider pony {
   /**
    * Fired when a actor is being created
+   * @param scheduler is the scheduler that created the actor
+   * @actor is the actor that was created
    */
-  probe actor__alloc(uintptr_t scheduler);
+  probe actor__alloc(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when a message is being send
+   * @param scheduler is the active scheduler
    * @param id the message id
+   * @param actor_from is the sending actor
+   * @param actor_to is the receiving actor
    */
-  probe actor__msg__send(uintptr_t scheduler, uint32_t id);
+  probe actor__msg__send(uintptr_t scheduler, uint32_t id, uintptr_t actor_from, uintptr_t actor_to);
 
   /**
    * Fired when a message is being run by an actor
@@ -16,6 +21,38 @@ provider pony {
    * @param id the message id
    */
   probe actor__msg__run(uintptr_t scheduler, uintptr_t actor, uint32_t id);
+
+  /**
+   * Fired when a message is being sent to an actor
+   * @param scheduler is the active scheduler's index
+   * @param id the message id
+   * @param actor_from is the sending actor
+   * @param actor_to is the receiving actor
+   */
+  probe actor__msg__push(int32_t scheduler_index, uint32_t id, uintptr_t actor_from, uintptr_t actor_to);
+
+  /**
+   * Fired when a message is being run by an actor
+   * @param scheduler is the active scheduler's index
+   * @param id the message id
+   * @param actor_to is the receiving actor
+   */
+  probe actor__msg__pop(int32_t scheduler_index, uint32_t id, uintptr_t actor);
+
+  /**
+   * Fired when a message is being sent to an thread
+   * @param id the message id
+   * @param thread_from is the sending thread index
+   * @param thread_to is the receiving thread index
+   */
+  probe thread__msg__push(uint32_t id, uintptr_t thread_from, uintptr_t thread_to);
+
+  /**
+   * Fired when a message is being run by an thread
+   * @param id the message id
+   * @param thread_to is the receiving thread index
+   */
+  probe thread__msg__pop(uint32_t id, uintptr_t thread);
 
   /**
    * Fired when actor is scheduled
@@ -30,6 +67,30 @@ provider pony {
    * @param actor is the descheduled actor
    */
   probe actor__descheduled(uintptr_t scheduler, uintptr_t actor);
+
+  /**
+   * Fired when actor becomes overloaded
+   * @param actor is the overloaded actor
+   */
+  probe actor__overloaded(uintptr_t actor);
+
+  /**
+   * Fired when actor stops being overloaded
+   * @param actor is the no longer overloaded actor
+   */
+  probe actor__overloaded__cleared(uintptr_t actor);
+
+  /**
+   * Fired when actor is under pressure
+   * @param actor is the under pressure actor
+   */
+  probe actor__under__pressure(uintptr_t actor);
+
+  /**
+   * Fired when actor is no longer under pressure
+   * @param actor is the no longer under pressure actor
+   */
+  probe actor__pressure__released(uintptr_t actor);
 
   /**
    * Fired when cpu goes into nanosleep
@@ -108,5 +169,17 @@ provider pony {
    * @param victim is the victim that the scheduler attempted to steal from
    */
   probe work__steal__failure(uintptr_t scheduler, uintptr_t victim);
+
+  /**
+   * Fired when a scheduler suspends
+   * @param scheduler is the scheduler that suspended
+   */
+  probe thread__suspend(uintptr_t scheduler);
+
+  /**
+   * Fired when a scheduler resumes
+   * @param scheduler is the scheduler that resumed
+   */
+  probe thread__resume(uintptr_t scheduler);
 
 };

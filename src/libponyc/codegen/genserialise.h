@@ -6,12 +6,14 @@
 
 PONY_EXTERN_C_BEGIN
 
+typedef struct compile_type_t compile_type_t;
+
 void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
   LLVMValueRef ctx, LLVMValueRef ptr, LLVMValueRef offset);
 
 void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset);
 
-void gendeserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset);
+void gendeserialise_typeid(compile_t* c, compile_type_t* t, LLVMValueRef offset);
 
 void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
   LLVMValueRef ctx, LLVMValueRef ptr);

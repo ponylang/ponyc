@@ -10,14 +10,6 @@
 #include <string.h>
 #include <inttypes.h>
 
-typedef struct init_msg_t
-{
-  pony_msg_t msg;
-  uint32_t min_deferred;
-  uint32_t max_deferred;
-  uint32_t conf_group;
-} init_msg_t;
-
 typedef struct block_msg_t
 {
   pony_msg_t msg;
@@ -55,7 +47,7 @@ DEFINE_STACK(ponyint_viewrefstack, viewrefstack_t, viewref_t);
 
 DECLARE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t);
 DEFINE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t, viewref_hash,
-  viewref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size, viewref_free);
+  viewref_cmp, viewref_free);
 
 enum
 {
@@ -107,14 +99,12 @@ static void view_free(view_t* view)
 
 // no element free for a viewmap. views are kept in many maps.
 DECLARE_HASHMAP(ponyint_viewmap, viewmap_t, view_t);
-DEFINE_HASHMAP(ponyint_viewmap, viewmap_t, view_t, view_hash, view_cmp,
-  ponyint_pool_alloc_size, ponyint_pool_free_size, NULL);
+DEFINE_HASHMAP(ponyint_viewmap, viewmap_t, view_t, view_hash, view_cmp, NULL);
 
 struct perceived_t
 {
   size_t token;
   size_t ack;
-  size_t last_conf;
   viewmap_t map;
 };
 
@@ -136,19 +126,17 @@ static void perceived_free(perceived_t* per)
 
 DECLARE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t);
 DEFINE_HASHMAP(ponyint_perceivedmap, perceivedmap_t, perceived_t,
-  perceived_hash, perceived_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, perceived_free);
+  perceived_hash, perceived_cmp, perceived_free);
+
+DECLARE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);
+DEFINE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);
 
 typedef struct detector_t
 {
   pony_actor_pad_t pad;
 
   size_t next_token;
-  size_t min_deferred;
-  size_t max_deferred;
-  size_t conf_group;
-  size_t next_deferred;
-  size_t since_deferred;
+  size_t detect_interval;
 
   viewmap_t views;
   viewmap_t deferred;
@@ -166,6 +154,8 @@ static pony_actor_t* cycle_detector;
 
 static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
 {
+  pony_assert(actor != NULL);
+
   view_t key;
   key.actor = actor;
   size_t index = HASHMAP_UNKNOWN;
@@ -249,7 +239,7 @@ static void apply_delta(detector_t* d, view_t* view)
 
 static bool mark_grey(detector_t* d, view_t* view, size_t rc)
 {
-  if(!view->blocked || (view->actor == NULL))
+  if(!view->blocked)
     return false;
 
   // apply any stored reference delta
@@ -296,7 +286,7 @@ static void scan_grey(detector_t* d, view_t* view, size_t rc)
 
 static bool mark_black(view_t* view, size_t rc, int* count)
 {
-  if(!view->blocked || (view->actor == NULL))
+  if(!view->blocked)
   {
     pony_assert(view->color == COLOR_BLACK);
     return false;
@@ -425,22 +415,15 @@ static int collect_white(perceived_t* per, view_t* view, size_t rc)
   return count;
 }
 
-static void send_conf(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
+static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 {
-  size_t i = per->last_conf;
-  size_t count = 0;
+  size_t i = HASHMAP_BEGIN;
   view_t* view;
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
     pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
-    count++;
-
-    if(count == d->conf_group)
-      break;
   }
-
-  per->last_conf = i;
 }
 
 static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
@@ -459,7 +442,6 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
   perceived_t* per = (perceived_t*)POOL_ALLOC(perceived_t);
   per->token = d->next_token++;
   per->ack = 0;
-  per->last_conf = HASHMAP_BEGIN;
   ponyint_viewmap_init(&per->map, count);
   ponyint_perceivedmap_put(&d->perceived, per);
 
@@ -469,20 +451,14 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
   pony_assert(count2 == count);
   pony_assert(ponyint_viewmap_size(&per->map) == (size_t)count);
 
-  send_conf(ctx, d, per);
+  send_conf(ctx, per);
   return true;
 }
 
 static void deferred(pony_ctx_t* ctx, detector_t* d)
 {
-  d->since_deferred++;
-
-  if(d->since_deferred < d->next_deferred)
-    return;
-
   d->attempted++;
 
-  bool found = false;
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -497,21 +473,7 @@ static void deferred(pony_ctx_t* ctx, detector_t* d)
 
     view->deferred = false;
 
-    if(!detect(ctx, d, view))
-      break;
-
-    found = true;
-  }
-
-  if(found)
-  {
-    if(d->next_deferred > d->min_deferred)
-      d->next_deferred >>= 1;
-  } else {
-    if(d->next_deferred < d->max_deferred)
-      d->next_deferred <<= 1;
-
-    d->since_deferred = 0;
+    detect(ctx, d, view);
   }
 }
 
@@ -578,7 +540,50 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   d->collected++;
 }
 
-static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
+static void check_blocked(pony_ctx_t* ctx, detector_t* d)
+{
+  size_t i = HASHMAP_BEGIN;
+  view_t* view;
+
+  while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
+  {
+    // send message asking if actor is blocked
+    // if it is not already blocked
+    if(!view->blocked)
+    {
+      pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+    }
+  }
+
+  // process all deferred view stuff
+  deferred(ctx, d);
+}
+
+static void actor_created(detector_t* d, pony_actor_t* actor)
+{
+  // get view (and add actor to view map at that time)
+  get_view(d, actor, true);
+}
+
+static void actor_destroyed(detector_t* d, pony_actor_t* actor)
+{
+  // this would only called by a manual destroy of an actor
+  // if that was possible. It is currently unused.
+  // used to clean up the dangling reference to this actor
+  // in the cycle detector to avoid a crash
+
+  // get view for actor
+  view_t* view = get_view(d, actor, false);
+
+  if(view)
+  {
+    // remove and free view
+    ponyint_viewmap_remove(&d->views, view);
+    view_free(view);
+  }
+}
+
+static void block(detector_t* d, pony_actor_t* actor,
   size_t rc, deltamap_t* map)
 {
   view_t* view = get_view(d, actor, true);
@@ -599,27 +604,11 @@ static void block(pony_ctx_t* ctx, detector_t* d, pony_actor_t* actor,
   // if we're in a perceived cycle, that cycle is invalid
   expire(d, view);
 
-  if(rc == 0)
+  // add to the deferred set
+  if(!view->deferred)
   {
-    // remove from the deferred set
-    if(view->deferred)
-    {
-      ponyint_viewmap_remove(&d->deferred, view);
-      view->deferred = false;
-    }
-
-    // detect from this actor, bypassing deferral
-    detect(ctx, d, view);
-  } else {
-    // add to the deferred set
-    if(!view->deferred)
-    {
-      ponyint_viewmap_put(&d->deferred, view);
-      view->deferred = true;
-    }
-
-    // look for cycles
-    deferred(ctx, d);
+    ponyint_viewmap_put(&d->deferred, view);
+    view->deferred = true;
   }
 }
 
@@ -665,19 +654,21 @@ static void ack(pony_ctx_t* ctx, detector_t* d, size_t token)
     collect(ctx, d, per);
     return;
   }
-
-  if((per->ack & (d->conf_group - 1)) == 0)
-    send_conf(ctx, d, per);
 }
 
 static void final(pony_ctx_t* ctx, pony_actor_t* self)
 {
   // Find block messages and invoke finalisers for those actors
+  pendingdestroystack_t* stack = NULL;
   pony_msg_t* msg;
 
   do
   {
-    while((msg = ponyint_messageq_pop(&self->q)) != NULL)
+    while((msg = ponyint_actor_messageq_pop(&self->q
+#ifdef USE_DYNAMIC_TRACE
+      , ctx->scheduler, self
+#endif
+      )) != NULL)
     {
       if(msg->id == ACTORMSG_BLOCK)
       {
@@ -690,6 +681,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
         {
           ponyint_actor_setpendingdestroy(m->actor);
           ponyint_actor_final(ctx, m->actor);
+          stack = ponyint_pendingdestroystack_push(stack, m->actor);
         }
       }
     }
@@ -699,28 +691,41 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  // Invoke the actor's finalizer. Note that system actors and unscheduled
-  // actors will not necessarily be finalised. If the actor isn't marked as
-  // blocked, it has already been destroyed.
+  // Invoke the actor's finalizer for all actors as long as
+  // they haven't already been destroyed.
   while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
   {
-    if(view->blocked && !ponyint_actor_pendingdestroy(view->actor))
+    if(!ponyint_actor_pendingdestroy(view->actor))
     {
       ponyint_actor_setpendingdestroy(view->actor);
       ponyint_actor_final(ctx, view->actor);
+      stack = ponyint_pendingdestroystack_push(stack, view->actor);
     }
+  }
+
+  pony_actor_t* actor;
+
+  while(stack != NULL)
+  {
+    stack = ponyint_pendingdestroystack_pop(stack, &actor);
+    ponyint_actor_destroy(actor);
   }
 
   i = HASHMAP_BEGIN;
   while((view = ponyint_viewmap_next(&d->deferred, &i)) != NULL)
-    ponyint_viewmap_remove(&d->deferred, view);
+  {
+    ponyint_viewmap_removeindex(&d->deferred, i);
+    // always scan again from same index because robin hood hashmap
+    // will shift delete items
+    i--;
+  }
 
   ponyint_viewmap_destroy(&d->deferred);
   ponyint_viewmap_destroy(&d->views);
   ponyint_perceivedmap_destroy(&d->perceived);
 }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
 
 static void dump_view(view_t* view)
 {
@@ -812,10 +817,31 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
   switch(msg->id)
   {
+    case ACTORMSG_CHECKBLOCKED:
+    {
+      // check for blocked actors/cycles
+      check_blocked(ctx, d);
+      break;
+    }
+
+    case ACTORMSG_CREATED:
+    {
+      pony_msgp_t* m = (pony_msgp_t*)msg;
+      actor_created(d, (pony_actor_t*)m->p);
+      break;
+    }
+
+    case ACTORMSG_DESTROYED:
+    {
+      pony_msgp_t* m = (pony_msgp_t*)msg;
+      actor_destroyed(d, (pony_actor_t*)m->p);
+      break;
+    }
+
     case ACTORMSG_BLOCK:
     {
       block_msg_t* m = (block_msg_t*)msg;
-      block(ctx, d, m->actor, m->rc, m->delta);
+      block(d, m->actor, m->rc, m->delta);
       break;
     }
 
@@ -833,7 +859,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
-#ifndef NDEBUG
+#ifndef PONY_NDEBUG
     default:
     {
       // Never happens, used to keep debug functions.
@@ -850,7 +876,8 @@ static pony_type_t cycle_type =
   sizeof(detector_t),
   0,
   0,
-  0,
+  NULL,
+  NULL,
   NULL,
   NULL,
   NULL,
@@ -864,29 +891,63 @@ static pony_type_t cycle_type =
   NULL
 };
 
-void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
-  uint32_t max_deferred, uint32_t conf_group)
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
 {
-  if(min_deferred > 30)
-    min_deferred = 30;
+  // max is 1 second (1000 ms)
+  if(detect_interval > 1000)
+    detect_interval = 1000;
 
-  if(max_deferred > 30)
-    max_deferred = 30;
+  // min is 10 ms
+  if(detect_interval < 10)
+    detect_interval = 10;
 
-  if(max_deferred < min_deferred)
-    max_deferred = min_deferred;
-
-  if(conf_group > 30)
-    conf_group = 30;
-
+  cycle_detector = NULL;
   cycle_detector = pony_create(ctx, &cycle_type);
   ponyint_actor_setsystem(cycle_detector);
 
   detector_t* d = (detector_t*)cycle_detector;
-  d->min_deferred = (size_t)1 << (size_t)min_deferred;
-  d->max_deferred = (size_t)1 << (size_t)max_deferred;
-  d->conf_group = (size_t)1 << (size_t)conf_group;
-  d->next_deferred = min_deferred;
+
+  // convert to cycles for use with ponyint_cpu_tick()
+  // 1 second = 2000000000 cycles (approx.)
+  // based on same scale as ponyint_cpu_core_pause() uses
+  d->detect_interval = detect_interval * 2000000;
+}
+
+bool ponyint_cycle_check_blocked(pony_ctx_t* ctx, uint64_t tsc, uint64_t tsc2)
+{
+  // if tsc > tsc2 then don't trigger cycle detector
+  // this is used to ensure scheduler queue is empty during
+  // termination
+  if(tsc > tsc2)
+    return false;
+
+  detector_t* d = (detector_t*)cycle_detector;
+
+  // if enough time has passed, trigger cycle detector
+  if((tsc2 - tsc) > d->detect_interval)
+  {
+    pony_send(ctx, cycle_detector, ACTORMSG_CHECKBLOCKED);
+    return true;
+  }
+
+  return false;
+}
+
+void ponyint_cycle_actor_created(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  // this will only be false during the creation of the cycle detector
+  // and after the runtime has been shut down
+  if(cycle_detector)
+    pony_sendp(ctx, cycle_detector, ACTORMSG_CREATED, actor);
+}
+
+void ponyint_cycle_actor_destroyed(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  // this will only be false during the creation of the cycle detector
+  // and after the runtime has been shut down or if the cycle detector
+  // is being destroyed
+  if(cycle_detector && !ponyint_is_cycle(actor))
+    pony_sendp(ctx, cycle_detector, ACTORMSG_DESTROYED, actor);
 }
 
 void ponyint_cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
@@ -902,7 +963,7 @@ void ponyint_cycle_block(pony_ctx_t* ctx, pony_actor_t* actor, gc_t* gc)
   m->delta = ponyint_gc_delta(gc);
   pony_assert(gc->delta == NULL);
 
-  pony_sendv(ctx, cycle_detector, &m->msg);
+  pony_sendv(ctx, cycle_detector, &m->msg, &m->msg, false);
 }
 
 void ponyint_cycle_unblock(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -919,7 +980,7 @@ void ponyint_cycle_terminate(pony_ctx_t* ctx)
 {
   pony_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
-  ponyint_destroy(cycle_detector);
+  ponyint_destroy(ctx, cycle_detector);
   cycle_detector = NULL;
 }
 

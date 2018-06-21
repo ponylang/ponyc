@@ -167,13 +167,87 @@ TEST_F(CodegenIdentityTest, BoxedTupleIsBoxedTuple)
 }
 
 
+TEST_F(CodegenIdentityTest, TupleCardinality)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if (env, this, this) isnt (env, this) then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+TEST_F(CodegenIdentityTest, AbstractTypeNoSubtyping)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: (Env | None) = None\n"
+    "    let b: (Main | None) = None\n"
+    "    if a is b then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+TEST_F(CodegenIdentityTest, NestedTuple)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: (((U8, U16) | None, U8) | None) = None\n"
+    "    let b: (((U8, U16) | None, U8) | None) = None\n"
+    "    if a is b then\n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
+TEST_F(CodegenIdentityTest, TupleDifferentTypes)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: ((Any, U8) | None) = (U8(0), 0)\n"
+    "    let b: ((U8, U8) | None) = (0, 0)\n"
+    "    if a is b then \n"
+    "      @pony_exitcode[None](I32(1))\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 1);
+}
+
+
 TEST_F(CodegenIdentityTest, DigestofObject)
 {
   const char* src =
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let dg = digestof env\n"
-    "    if dg == @ptr_to_int[USize](env).u64() then\n"
+    "    if dg == @ptr_to_int[USize](env) then\n"
     "      @pony_exitcode[None](I32(1))\n"
     "    end";
 

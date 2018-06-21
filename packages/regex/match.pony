@@ -57,15 +57,17 @@ class Match
     out.truncate(len)
     out
 
-  fun find[A: (ByteSeq iso & Seq[U8] iso) = String iso](name: String box): A^ ?
+  fun find[A: (ByteSeq iso & Seq[U8] iso) = String iso]
+    (name: String box): A^ ?
   =>
     """
     Returns a capture by name. Raises an error if the named capture does not
     exist.
     """
     var len = USize(0)
-    let rc = @pcre2_substring_length_byname_8[I32](_match, name.cstring(),
-      addressof len)
+    let rc =
+      @pcre2_substring_length_byname_8[I32](_match, name.cstring(),
+        addressof len)
 
     if rc != 0 then
       error
@@ -82,14 +84,14 @@ class Match
 
   fun groups(): Array[String] iso^ =>
     """
-    Returns all of the captured subgroups.  Groups that failed to capture
+    Returns all of the captured subgroups. Groups that failed to capture
     anything will contain the empty string.
     """
     let res = recover Array[String] end
     var i: U32 = 1
     while i < _size do
       try
-        let g: String = apply(i)
+        let g: String = apply(i)?
         res.push(g)
       else
         res.push("")

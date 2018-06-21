@@ -10,15 +10,14 @@ struct parser_t
   source_t* source;
   lexer_t* lexer;
   token_t* token;
+  token_t* last_token;
   const char* last_matched;
-  size_t last_token_line;
   uint32_t next_flags;  // Data flags to set on the next token created
+  bool free_last_token;
   bool failed;
   errors_t* errors;
+  bool trace_enable;
 };
-
-
-static bool trace_enable = false;
 
 
 static token_id current_token_id(parser_t* parser)
@@ -27,13 +26,10 @@ static token_id current_token_id(parser_t* parser)
 }
 
 
-static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
+static void fetch_next_lexer_token(parser_t* parser, bool free_last_token)
 {
   token_t* old_token = parser->token;
   token_t* new_token = lexer_next(parser->lexer);
-
-  if(old_token != NULL)
-    parser->last_token_line = token_line_number(old_token);
 
   if(old_token != NULL && token_get_id(new_token) == TK_EOF)
   {
@@ -42,8 +38,14 @@ static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
       token_line_number(old_token), token_line_position(old_token));
   }
 
-  if(free_prev_token)
-    token_free(old_token);
+  if(old_token != NULL)
+  {
+    if(parser->free_last_token)
+      token_free(parser->last_token);
+
+    parser->free_last_token = free_last_token;
+    parser->last_token = old_token;
+  }
 
   parser->token = new_token;
 }
@@ -207,21 +209,25 @@ static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
 
 
 // Add an AST node for the specified token, which may be deferred
-void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
+void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id,
+  token_t* token_for_pos)
 {
-  pony_assert(parser->token != NULL);
+  if(token_for_pos == NULL)
+    token_for_pos = parser->token;
+
+  pony_assert(token_for_pos != NULL);
 
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
     // This is the first AST node, defer creation
     state->deferred = true;
     state->deferred_id = id;
-    state->line = token_line_number(parser->token);
-    state->pos = token_line_position(parser->token);
+    state->line = token_line_number(token_for_pos);
+    state->pos = token_line_position(token_for_pos);
     return;
   }
 
-  add_ast(parser, state, ast_new(parser->token, id), default_builder);
+  add_ast(parser, state, ast_new(token_for_pos, id), default_builder);
 }
 
 
@@ -233,7 +239,7 @@ static void ditch_restart(parser_t* parser, rule_state_t* state)
   pony_assert(state != NULL);
   pony_assert(state->restart != NULL);
 
-  if(trace_enable)
+  if(parser->trace_enable)
     fprintf(stderr, "Rule %s: Attempting recovery:\n", state->fn_name);
 
   while(true)
@@ -245,7 +251,7 @@ static void ditch_restart(parser_t* parser, rule_state_t* state)
       if(*p == id)
       {
         // Legal token found
-        if(trace_enable)
+        if(parser->trace_enable)
           fprintf(stderr, "  recovered with %s\n", token_print(parser->token));
 
         return;
@@ -253,7 +259,7 @@ static void ditch_restart(parser_t* parser, rule_state_t* state)
     }
 
     // Current token is not in legal set, ditch it
-    if(trace_enable)
+    if(parser->trace_enable)
       fprintf(stderr, "  ignoring %d %s %s\n", id, lexer_print(id),
         token_print(parser->token));
 
@@ -274,7 +280,7 @@ static ast_t* propogate_error(parser_t* parser, rule_state_t* state)
 
   if(state->restart == NULL)
   {
-    if(trace_enable)
+    if(parser->trace_enable)
       fprintf(stderr, "Rule %s: Propagate failure\n", state->fn_name);
 
     return PARSE_ERROR;
@@ -306,7 +312,7 @@ static ast_t* handle_found(parser_t* parser, rule_state_t* state,
   if(!state->matched)
   {
     // First token / sub rule in rule was found
-    if(trace_enable)
+    if(parser->trace_enable)
       fprintf(stderr, "Rule %s: Matched\n", state->fn_name);
 
     state->matched = true;
@@ -344,7 +350,7 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   {
     // Optional token / sub rule not found
     if(state->deflt_id != TK_EOF) // Default node is specified
-      add_deferrable_ast(parser, state, state->deflt_id);
+      add_deferrable_ast(parser, state, state->deflt_id, parser->last_token);
 
     state->deflt_id = TK_LEX_ERROR;
     return PARSE_OK;
@@ -355,7 +361,7 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   if(!state->matched)
   {
     // Rule not matched
-    if(trace_enable)
+    if(parser->trace_enable)
       fprintf(stderr, "Rule %s: Not matched\n", state->fn_name);
 
     ast_free(state->ast);
@@ -364,7 +370,7 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   }
 
   // Rule partially matched, error
-  if(trace_enable)
+  if(parser->trace_enable)
     fprintf(stderr, "Rule %s: Error\n", state->fn_name);
 
   syntax_error(parser, desc, state->ast, terminating);
@@ -413,7 +419,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   if(desc == NULL)
     desc = token_id_desc(id_set[0]);
 
-  if(trace_enable)
+  if(parser->trace_enable)
   {
     fprintf(stderr, "Rule %s: Looking for %s token%s %s. Found %s. ",
       state->fn_name,
@@ -428,14 +434,14 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
     if(*p == TK_NEWLINE)
     {
       pony_assert(parser->token != NULL);
-      size_t last_token_line = parser->last_token_line;
+      size_t last_token_line = token_line_number(parser->last_token);
       size_t next_token_line = token_line_number(parser->token);
       bool is_newline = (next_token_line != last_token_line);
 
       if(out_found != NULL)
         *out_found = is_newline;
 
-      if(trace_enable)
+      if(parser->trace_enable)
         fprintf(stderr, "\\n %smatched\n", is_newline ? "" : "not ");
 
       state->deflt_id = TK_LEX_ERROR;
@@ -445,7 +451,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
     if(id == *p)
     {
       // Current token matches one in set
-      if(trace_enable)
+      if(parser->trace_enable)
         fprintf(stderr, "Compatible\n");
 
       parser->last_matched = token_print(parser->token);
@@ -461,7 +467,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   }
 
   // Current token does not match any in current set
-  if(trace_enable)
+  if(parser->trace_enable)
     fprintf(stderr, "Not compatible\n");
 
   return handle_not_found(parser, state, desc, terminating, out_found);
@@ -493,7 +499,7 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   if(id == TK_LEX_ERROR)
     return propogate_error(parser, state);
 
-  if(trace_enable)
+  if(parser->trace_enable)
   {
     fprintf(stderr, "Rule %s: Looking for %s rule%s \"%s\"\n",
       state->fn_name,
@@ -549,7 +555,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   if(state->scope && state->ast != NULL)
     ast_scope(state->ast);
 
-  if(trace_enable)
+  if(parser->trace_enable)
     fprintf(stderr, "Rule %s: Complete\n", state->fn_name);
 
   if(state->restart == NULL)
@@ -558,7 +564,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   // We have a restart point, check next token is legal
   token_id id = current_token_id(parser);
 
-  if(trace_enable)
+  if(parser->trace_enable)
     fprintf(stderr, "Rule %s: Check restart set for next token %s\n",
       state->fn_name, token_print(parser->token));
 
@@ -567,7 +573,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
     if(*p == id)
     {
       // Legal token found
-      if(trace_enable)
+      if(parser->trace_enable)
         fprintf(stderr, "Rule %s: Restart check successful\n", state->fn_name);
 
       return state->ast;
@@ -575,7 +581,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   }
 
   // Next token is not in restart set, error
-  if(trace_enable)
+  if(parser->trace_enable)
     fprintf(stderr, "Rule %s: Restart check error\n", state->fn_name);
 
   pony_assert(parser->token != NULL);
@@ -593,21 +599,15 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
 
 // Top level functions
 
-void parse_trace(bool enable)
-{
-  trace_enable = enable;
-}
-
-
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors)
+  errors_t* errors, bool allow_test_symbols, bool trace)
 {
   pony_assert(package != NULL);
   pony_assert(source != NULL);
   pony_assert(expected != NULL);
 
   // Open the lexer
-  lexer_t* lexer = lexer_open(source, errors);
+  lexer_t* lexer = lexer_open(source, errors, allow_test_symbols);
 
   if(lexer == NULL)
     return false;
@@ -617,11 +617,13 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   parser->source = source;
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
+  parser->last_token = parser->token;
   parser->last_matched = NULL;
-  parser->last_token_line = 0;
   parser->next_flags = 0;
+  parser->free_last_token = false;
   parser->failed = false;
   parser->errors = errors;
+  parser->trace_enable = trace;
 
   // Parse given start rule
   builder_fn_t build_fn;

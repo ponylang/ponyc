@@ -1,6 +1,86 @@
 class Array[A] is Seq[A]
   """
   Contiguous, resizable memory to store elements of type A.
+
+  ## Usage
+
+  Creating an Array of String.
+  ```pony
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
+    // array.size() == 3
+    // array.space() >= 3
+  ```
+
+  Creating an empty Array of String, which may hold at least 10 elements before
+  requesting more space.
+  ```pony
+    let array = Array(10)
+    // array.size() == 0
+    // array.space() >= 10
+  ```
+
+  Accessing elements can be done via the `apply(i: USize): this->A ?` method.
+  The provided index might be out of bounds so `apply` is partial and has to be
+  called within a try-catch block or inside another partial method.
+  ```pony
+    let array: Array[String] = ["dog"; "cat"; "wombat"]
+    let is_second_element_wobat = try
+      // indexes start from 0, so 1 is the second element
+      array(1)? == "wombat"
+    else
+      false
+    end
+  ```
+
+  Adding and removing elements to and from the end of the Array can be done via
+  `push` and `pop` methods. You could treat the array as a FIFO queue using
+  those methods.
+  ```pony
+    while (array.size() > 0) do
+      let elem = array.pop()?
+      // do something with element
+    end
+  ```
+
+  Modifying the Array can be done via `update`, `insert` and `delete` methods
+  which alter the Array at an arbitrary index, moving elements left (when
+  deleting) or right (when inserting) as necessary.
+
+  Iterating over the elements of an Array can be done using the `values` method.
+  ```pony
+    for element in array.values() do
+        // do something with element
+    end
+  ```
+
+  ## Memory allocation
+  Array allocates contiguous memory. It always allocates at least enough memory
+  space to hold all of its elements. Space is the number of elements the Array
+  can hold without allocating more memory. The `space()` method returns the
+  number of elements an Array can hold. The `size()` method returns the number
+  of elements the Array holds.
+
+  Different data types require different amounts of memory. Array[U64] with size
+  of 6 will take more memory than an Array[U8] of the same size.
+
+  When creating an Array or adding more elements will calculate the next power
+  of 2 of the requested number of elements and allocate that much space, with a
+  lower bound of space for 8 elements.
+
+  Here's a few examples of the space allocated when initialising an Array with
+  various number of elements:
+
+  | size | space |
+  |------|-------|
+  | 0    | 0     |
+  | 1    | 8     |
+  | 8    | 8     |
+  | 9    | 16    |
+  | 16   | 16    |
+  | 17   | 32    |
+
+  Call the `compact()` method to ask the GC to reclaim unused space. There are
+  no guarantees that the GC will actually reclaim any space.
   """
   var _size: USize
   var _alloc: USize
@@ -56,8 +136,12 @@ class Array[A] is Seq[A]
 
     _ptr = ptr
 
-  fun _copy_to(ptr: Pointer[this->A!], copy_len: USize,
-    from_offset: USize = 0, to_offset: USize = 0) =>
+  fun _copy_to(
+    ptr: Pointer[this->A!],
+    copy_len: USize,
+    from_offset: USize = 0,
+    to_offset: USize = 0)
+  =>
     """
     Copy copy_len elements from this to that at specified offsets.
     """
@@ -100,12 +184,12 @@ class Array[A] is Seq[A]
       if _size.next_pow2() != _alloc.next_pow2() then
         _alloc = _size.next_pow2()
         let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
-        _ptr._consume_from(consume old_ptr, _size)
+        old_ptr._copy_to(_ptr._convert[A!](), _size)
       end
     elseif _size < _alloc then
       _alloc = _size
       let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
-      _ptr._consume_from(consume old_ptr, _size)
+      old_ptr._copy_to(_ptr._convert[A!](), _size)
     end
 
   fun ref undefined[B: (A & Real[B] val & Number) = A](len: USize) =>
@@ -179,10 +263,15 @@ class Array[A] is Seq[A]
     """
     let last = _size.min(to)
     let offset = last.min(from)
+    let size' = last - offset
 
-    _size = last - offset
-    _alloc = _alloc - offset
-    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+    // use the new size' for alloc if we're not including the last used byte
+    // from the original data and only include the extra allocated bytes if
+    // we're including the last byte.
+    _alloc = if last == _size then _alloc - offset else size' end
+
+    _size = size'
+    _ptr = _ptr._offset(offset)
 
   fun val trim(from: USize = 0, to: USize = -1): Array[A] val =>
     """
@@ -195,7 +284,11 @@ class Array[A] is Seq[A]
 
     recover
       let size' = last - offset
-      let alloc = _alloc - offset
+
+      // use the new size' for alloc if we're not including the last used byte
+      // from the original data and only include the extra allocated bytes if
+      // we're including the last byte.
+      let alloc = if last == _size then _alloc - offset else size' end
 
       if size' > 0 then
         from_cpointer(_ptr._offset(offset)._unsafe(), size', alloc)
@@ -204,7 +297,36 @@ class Array[A] is Seq[A]
       end
     end
 
-  fun copy_to(dst: Array[this->A!], src_idx: USize, dst_idx: USize,
+  fun iso chop(split_point: USize): (Array[A] iso^, Array[A] iso^) =>
+    """
+    Chops the array in half at the split point requested and returns both
+    the left and right portions. The original array is trimmed in place and
+    returned as the right portion. If the split point is larger than the
+    array, the left portion is the original array and the right portion
+    is a new empty array.
+    Both arrays are isolated and mutable, as they do not share memory.
+    The operation does not allocate a new array pointer nor copy elements.
+    """
+    let start_ptr = _ptr
+    let size' = _size.min(split_point)
+    let alloc = if size' == _size then _alloc else split_point end
+
+    trim_in_place(split_point)
+
+    let left = recover
+      if size' > 0 then
+        from_cpointer(start_ptr._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+    (consume left, consume this)
+
+  fun copy_to(
+    dst: Array[this->A!],
+    src_idx: USize,
+    dst_idx: USize,
     len: USize)
   =>
     """
@@ -246,14 +368,14 @@ class Array[A] is Seq[A]
     Remove an element from the end of the array.
     The removed element is returned.
     """
-    delete(_size - 1)
+    delete(_size - 1)?
 
   fun ref unshift(value: A) =>
     """
     Add an element to the beginning of the array.
     """
     try
-      insert(0, consume value)
+      insert(0, consume value)?
     end
 
   fun ref shift(): A^ ? =>
@@ -261,9 +383,11 @@ class Array[A] is Seq[A]
     Remove an element from the beginning of the array.
     The removed element is returned.
     """
-    delete(0)
+    delete(0)?
 
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+  fun ref append(
+    seq: (ReadSeq[A] & ReadElement[A^]),
+    offset: USize = 0,
     len: USize = -1)
   =>
     """
@@ -280,7 +404,7 @@ class Array[A] is Seq[A]
 
     try
       while n < copy_len do
-        _ptr._update(_size + n, seq(offset + n))
+        _ptr._update(_size + n, seq(offset + n)?)
 
         n = n + 1
       end
@@ -299,7 +423,7 @@ class Array[A] is Seq[A]
     try
       while n < offset do
         if iter.has_next() then
-          iter.next()
+          iter.next()?
         else
           return
         end
@@ -320,7 +444,7 @@ class Array[A] is Seq[A]
       try
         while n < len do
           if iter.has_next() then
-            _ptr._update(_size + n, iter.next())
+            _ptr._update(_size + n, iter.next()?)
           else
             break
           end
@@ -334,7 +458,7 @@ class Array[A] is Seq[A]
       try
         while n < len do
           if iter.has_next() then
-            push(iter.next())
+            push(iter.next()?)
           else
             break
           end
@@ -344,9 +468,12 @@ class Array[A] is Seq[A]
       end
     end
 
-  fun find(value: A!, offset: USize = 0, nth: USize = 0,
-    predicate: {(box->A!, box->A!): Bool} val =
-      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
+  fun find(
+    value: A!,
+    offset: USize = 0,
+    nth: USize = 0,
+    predicate: {(box->A!, box->A!): Bool} val = {(l, r) => l is r })
+    : USize ?
   =>
     """
     Find the `nth` appearance of `value` from the beginning of the array,
@@ -354,8 +481,9 @@ class Array[A] is Seq[A]
     `predicate` for comparisons. Returns the index of the value, or raise an
     error if the value isn't present.
 
-    By default, the search starts at the first element of the array, returns the
-    first instance of `value` found, and uses object identity for comparison.
+    By default, the search starts at the first element of the array, returns
+    the first instance of `value` found, and uses object identity for
+    comparison.
     """
     var i = offset
     var n = USize(0)
@@ -374,8 +502,12 @@ class Array[A] is Seq[A]
 
     error
 
-  fun contains(value: A!, predicate: {(box->A!, box->A!): Bool} val =
-    {(l: box->A!, r: box->A!): Bool => l is r }): Bool =>
+  fun contains(
+    value: A!,
+    predicate: {(box->A!, box->A!): Bool} val =
+      {(l: box->A!, r: box->A!): Bool => l is r })
+    : Bool
+  =>
     """
     Returns true if the array contains `value`, false otherwise.
     """
@@ -390,9 +522,13 @@ class Array[A] is Seq[A]
     end
     false
 
-  fun rfind(value: A!, offset: USize = -1, nth: USize = 0,
+  fun rfind(
+    value: A!,
+    offset: USize = -1,
+    nth: USize = 0,
     predicate: {(box->A!, box->A!): Bool} val =
-      {(l: box->A!, r: box->A!): Bool => l is r }): USize ?
+      {(l: box->A!, r: box->A!): Bool => l is r })
+    : USize ?
   =>
     """
     Find the `nth` appearance of `value` from the end of the array, starting at
@@ -415,7 +551,8 @@ class Array[A] is Seq[A]
 
           n = n + 1
         end
-      until (i = i - 1) == 0 end
+      until (i = i - 1) == 0
+      end
     end
 
     error
@@ -431,7 +568,10 @@ class Array[A] is Seq[A]
     out._size = _size
     out
 
-  fun slice(from: USize = 0, to: USize = -1, step: USize = 1)
+  fun slice(
+    from: USize = 0,
+    to: USize = -1,
+    step: USize = 1)
     : Array[this->A!]^
   =>
     """
@@ -454,7 +594,7 @@ class Array[A] is Seq[A]
           var i = from
 
           while i < last do
-            out.push(this(i))
+            out.push(this(i)?)
             i = i + step
           end
         end
@@ -473,7 +613,7 @@ class Array[A] is Seq[A]
     """
     let out = Array[this->A!]
     for i in indices do
-      out.push(this(i))
+      out.push(this(i)?)
     end
     out
 
@@ -483,7 +623,7 @@ class Array[A] is Seq[A]
     The new array contains references to the same elements that the old array
     contains, the elements themselves are not copied.
     """
-    clone().>reverse_in_place()
+    clone() .> reverse_in_place()
 
   fun ref reverse_in_place() =>
     """
@@ -501,6 +641,17 @@ class Array[A] is Seq[A]
         j = j - 1
       end
     end
+
+  fun ref swap_elements(i: USize, j: USize) ? =>
+    """
+    Swap the element at index i with the element at index j.
+    If either i or j are out of bounds, an error is raised.
+    """
+    if (i >= _size) or (j >= _size) then error end
+
+    let x = _ptr._apply(i)
+    _ptr._update(i, _ptr._apply(j))
+    _ptr._update(j, consume x)
 
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     """
@@ -550,7 +701,7 @@ class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
     _i < _array.size()
 
   fun ref next(): B->A ? =>
-    _array(_i = _i + 1)
+    _array(_i = _i + 1)?
 
   fun ref rewind(): ArrayValues[A, B] =>
     _i = 0
@@ -568,4 +719,4 @@ class ArrayPairs[A, B: Array[A] #read] is Iterator[(USize, B->A)]
     _i < _array.size()
 
   fun ref next(): (USize, B->A) ? =>
-    (_i, _array(_i = _i + 1))
+    (_i, _array(_i = _i + 1)?)

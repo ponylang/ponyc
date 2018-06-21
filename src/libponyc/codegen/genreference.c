@@ -1,11 +1,14 @@
 #include "genreference.h"
 #include "genbox.h"
+#include "gencall.h"
 #include "gendesc.h"
 #include "genexpr.h"
+#include "genfun.h"
 #include "genname.h"
-#include "gencall.h"
+#include "genopt.h"
 #include "gentype.h"
 #include "../expr/literal.h"
+#include "../reach/subtype.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
@@ -35,8 +38,7 @@ static void genned_string_free(genned_string_t* s)
 }
 
 DEFINE_HASHMAP(genned_strings, genned_strings_t, genned_string_t,
-  genned_string_hash, genned_string_cmp, ponyint_pool_alloc_size,
-  ponyint_pool_free_size, genned_string_free);
+  genned_string_hash, genned_string_cmp, genned_string_free);
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {
@@ -50,7 +52,10 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
   pony_assert(def != NULL);
   int index = (int)ast_index(def);
 
-  return LLVMGetParam(codegen_fun(c), index + 1);
+  if(!c->frame->bare_function)
+    index++;
+
+  return LLVMGetParam(codegen_fun(c), index);
 }
 
 static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
@@ -59,9 +64,10 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   pony_assert(ast_id(l_type) == TK_NOMINAL);
   pony_assert(ast_id(right) == TK_ID);
 
-  ast_t* def = (ast_t*)ast_data(l_type);
-  ast_t* field = ast_get(def, ast_name(right), NULL);
-  int index = (int)ast_index(field);
+  ast_t* def;
+  ast_t* field;
+  uint32_t index;
+  get_fieldinfo(l_type, right, &def, &field, &index);
 
   if(ast_id(def) != TK_STRUCT)
     index++;
@@ -81,28 +87,43 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
   if(l_value == NULL)
     return NULL;
 
-  ast_t* l_type = ast_type(left);
-  return make_fieldptr(c, l_value, l_type, right);
+  ast_t* l_type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+  LLVMValueRef ret = make_fieldptr(c, l_value, l_type, right);
+  ast_free_unattached(l_type);
+  return ret;
 }
 
 LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
 
   LLVMValueRef field = gen_fieldptr(c, ast);
 
   if(field == NULL)
     return NULL;
 
-  pony_assert(ast_id(l_type) == TK_NOMINAL);
+  deferred_reification_t* reify = c->frame->reify;
+
+  ast_t* type = deferred_reify(reify, ast_type(right), c->opt);
+  reach_type_t* t = reach_type(c->reach, type);
+  pony_assert(t != NULL);
+  ast_free_unattached(type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   field = LLVMBuildLoad(c->builder, field, "");
-  LLVMValueRef metadata = tbaa_metadata_for_type(c, l_type);
+
+  type = deferred_reify(reify, ast_type(left), c->opt);
+  LLVMValueRef metadata = tbaa_metadata_for_type(c, type);
+  ast_free_unattached(type);
+
+#if PONY_LLVM >= 400
+  tbaa_tag(c, metadata, field);
+#else
   const char id[] = "tbaa";
   LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+#endif
 
-  return field;
+  return gen_assign_cast(c, c_t->use_type, field, t->ast_cap);
 }
 
 
@@ -134,8 +155,18 @@ LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast)
   if(l_value == NULL)
     return NULL;
 
-  ast_t* l_type = ast_type(left);
-  return make_tupleelemptr(c, l_value, l_type, right);
+  deferred_reification_t* reify = c->frame->reify;
+
+  ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
+  reach_type_t* t = reach_type(c->reach, type);
+  pony_assert(t != NULL);
+  ast_free_unattached(type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
+  LLVMValueRef value = make_tupleelemptr(c, l_value, l_type, right);
+  ast_free_unattached(l_type);
+  return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }
 
 LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
@@ -145,14 +176,25 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   if(ast_sibling(child) == NULL)
     return gen_expr(c, child);
 
-  ast_t* type = ast_type(ast);
+  deferred_reification_t* reify = c->frame->reify;
+
+  ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
 
   // If we contain '_', we have no usable value.
   if(contains_dontcare(type))
+  {
+    ast_free_unattached(type);
     return GEN_NOTNEEDED;
+  }
 
   reach_type_t* t = reach_type(c->reach, type);
-  LLVMValueRef tuple = LLVMGetUndef(t->primitive);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  int count = LLVMCountStructElementTypes(c_t->primitive);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMGetStructElementTypes(c_t->primitive, elements);
+
+  LLVMValueRef tuple = LLVMGetUndef(c_t->primitive);
   int i = 0;
 
   while(child != NULL)
@@ -160,25 +202,34 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     LLVMValueRef value = gen_expr(c, child);
 
     if(value == NULL)
+    {
+      ponyint_pool_free_size(buf_size, elements);
       return NULL;
+    }
 
     // We'll have an undefined element if one of our source elements is a
     // variable declaration. This is ok, since the tuple value will never be
     // used.
-    if(value == GEN_NOVALUE)
-      return GEN_NOTNEEDED;
+    if(value == GEN_NOVALUE || value == GEN_NOTNEEDED)
+    {
+      ponyint_pool_free_size(buf_size, elements);
+      return value;
+    }
 
+    ast_t* child_type = deferred_reify(reify, ast_type(child), c->opt);
+    value = gen_assign_cast(c, elements[i], value, child_type);
+    ast_free_unattached(child_type);
     tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
     child = ast_sibling(child);
   }
 
+  ponyint_pool_free_size(buf_size, elements);
   return tuple;
 }
 
 LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
-  ast_t* type = ast_type(id);
   const char* name = ast_name(id);
 
   // If this local has already been generated, don't create another copy. This
@@ -189,7 +240,10 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   if(value != NULL)
     return GEN_NOVALUE;
 
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(id), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
+  ast_free_unattached(type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   // All alloca should happen in the entry block of a function.
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -201,7 +255,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   else
     LLVMPositionBuilderAtEnd(c->builder, entry_block);
 
-  LLVMValueRef alloc = LLVMBuildAlloca(c->builder, t->use_type, name);
+  LLVMValueRef alloc = LLVMBuildAlloca(c->builder, c_t->mem_type, name);
 
   // Store the alloca to use when we reference this local.
   codegen_setlocal(c, name, alloc);
@@ -210,7 +264,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   LLVMMetadataRef scope = codegen_discope(c);
 
   LLVMMetadataRef info = LLVMDIBuilderCreateAutoVariable(c->di, scope, name,
-    file, (unsigned)ast_line(ast), t->di_type);
+    file, (unsigned)ast_line(ast), c_t->di_type);
 
   LLVMMetadataRef expr = LLVMDIBuilderCreateExpression(c->di, NULL, 0);
 
@@ -220,7 +274,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
   // Put the builder back where it was.
   LLVMPositionBuilderAtEnd(c->builder, this_block);
-  return GEN_NOVALUE;
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
@@ -241,7 +295,13 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   if(local_ptr == NULL)
     return NULL;
 
-  return LLVMBuildLoad(c->builder, local_ptr, "");
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
+  reach_type_t* t = reach_type(c->reach, type);
+  ast_free_unattached(type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  LLVMValueRef value = LLVMBuildLoad(c->builder, local_ptr, "");
+  return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }
 
 LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
@@ -267,38 +327,7 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-enum subtype_kind_t
-{
-  SUBTYPE_KIND_NONE,
-  SUBTYPE_KIND_BOXED = 1 << 0,
-  SUBTYPE_KIND_UNBOXED = 1 << 1,
-  SUBTYPE_KIND_BOTH = SUBTYPE_KIND_BOXED | SUBTYPE_KIND_UNBOXED
-};
-
-static int has_boxed_subtype(reach_t* reach, ast_t* type)
-{
-  reach_type_t* t = reach_type(reach, type);
-
-  int subtypes = SUBTYPE_KIND_NONE;
-
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* sub;
-
-  while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
-  {
-    if(sub->can_be_boxed)
-      subtypes |= SUBTYPE_KIND_BOXED;
-    else
-      subtypes |= SUBTYPE_KIND_UNBOXED;
-
-    if(subtypes == SUBTYPE_KIND_BOTH)
-      return subtypes;
-  }
-
-  return subtypes;
-}
-
-static LLVMValueRef gen_digestof_box(compile_t* c, ast_t* type,
+static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
   LLVMValueRef value, int boxed_subtype)
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(value)) == LLVMPointerTypeKind);
@@ -307,14 +336,16 @@ static LLVMValueRef gen_digestof_box(compile_t* c, ast_t* type,
   LLVMBasicBlockRef nonbox_block = NULL;
   LLVMBasicBlockRef post_block = NULL;
 
-  if(boxed_subtype == SUBTYPE_KIND_BOTH)
+  LLVMValueRef desc = gendesc_fetch(c, value);
+
+  if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)
   {
     box_block = codegen_block(c, "digestof_box");
     nonbox_block = codegen_block(c, "digestof_nonbox");
     post_block = codegen_block(c, "digestof_post");
 
     // Check if it's a boxed value.
-    LLVMValueRef type_id = gendesc_typeid(c, value);
+    LLVMValueRef type_id = gendesc_typeid(c, desc);
     LLVMValueRef boxed_mask = LLVMConstInt(c->i32, 1, false);
     LLVMValueRef is_boxed = LLVMBuildAnd(c->builder, type_id, boxed_mask, "");
     LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
@@ -324,33 +355,48 @@ static LLVMValueRef gen_digestof_box(compile_t* c, ast_t* type,
   }
 
   // Call the type-specific __digestof function, which will unbox the value.
-  reach_type_t* t = reach_type(c->reach, type);
-  reach_method_t* digest_fn = reach_method(t, TK_BOX, stringtab("__digestof"),
-    NULL);
+  reach_method_t* digest_fn = reach_method(type, TK_BOX,
+    stringtab("__digestof"), NULL);
   pony_assert(digest_fn != NULL);
-  LLVMValueRef func = gendesc_vtable(c, value, digest_fn->vtable_index);
-  LLVMTypeRef fn_type = LLVMFunctionType(c->i64, &c->object_ptr, 1, false);
+  LLVMValueRef func = gendesc_vtable(c, desc, digest_fn->vtable_index);
+  LLVMTypeRef fn_type = LLVMFunctionType(c->intptr, &c->object_ptr, 1, false);
   func = LLVMBuildBitCast(c->builder, func, LLVMPointerType(fn_type, 0), "");
-  LLVMValueRef box_digest = codegen_call(c, func, &value, 1);
+  LLVMValueRef box_digest = codegen_call(c, func, &value, 1, true);
 
-  if(boxed_subtype == SUBTYPE_KIND_BOTH)
+  if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)
   {
     LLVMBuildBr(c->builder, post_block);
 
     // Just cast the address.
     LLVMPositionBuilderAtEnd(c->builder, nonbox_block);
-    LLVMValueRef nonbox_digest = LLVMBuildPtrToInt(c->builder, value, c->i64,
+    LLVMValueRef nonbox_digest = LLVMBuildPtrToInt(c->builder, value, c->intptr,
       "");
     LLVMBuildBr(c->builder, post_block);
 
     LLVMPositionBuilderAtEnd(c->builder, post_block);
-    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i64, "");
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
     LLVMAddIncoming(phi, &box_digest, &box_block, 1);
     LLVMAddIncoming(phi, &nonbox_digest, &nonbox_block, 1);
     return phi;
   } else {
     return box_digest;
   }
+}
+
+static LLVMValueRef gen_digestof_int64(compile_t* c, LLVMValueRef value)
+{
+  pony_assert(LLVMTypeOf(value) == c->i64);
+
+  if(target_is_ilp32(c->opt->triple))
+  {
+    LLVMValueRef shift = LLVMConstInt(c->i64, 32, false);
+    LLVMValueRef high = LLVMBuildLShr(c->builder, value, shift, "");
+    high = LLVMBuildTrunc(c->builder, high, c->i32, "");
+    value = LLVMBuildTrunc(c->builder, value, c->i32, "");
+    value = LLVMBuildXor(c->builder, value, high, "");
+  }
+
+  return value;
 }
 
 static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
@@ -362,10 +408,11 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
   {
     case LLVMFloatTypeKind:
       value = LLVMBuildBitCast(c->builder, value, c->i32, "");
-      return LLVMBuildZExt(c->builder, value, c->i64, "");
+      return LLVMBuildZExt(c->builder, value, c->intptr, "");
 
     case LLVMDoubleTypeKind:
-      return LLVMBuildBitCast(c->builder, value, c->i64, "");
+      value = LLVMBuildBitCast(c->builder, value, c->i64, "");
+      return gen_digestof_int64(c, value);
 
     case LLVMIntegerTypeKind:
     {
@@ -373,22 +420,25 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
 
       if(width < 64)
       {
-        value = LLVMBuildZExt(c->builder, value, c->i64, "");
+        return LLVMBuildZExt(c->builder, value, c->intptr, "");
+      } else if(width == 64) {
+        return gen_digestof_int64(c, value);
       } else if(width == 128) {
         LLVMValueRef shift = LLVMConstInt(c->i128, 64, false);
         LLVMValueRef high = LLVMBuildLShr(c->builder, value, shift, "");
         high = LLVMBuildTrunc(c->builder, high, c->i64, "");
         value = LLVMBuildTrunc(c->builder, value, c->i64, "");
-        value = LLVMBuildXor(c->builder, value, high, "");
+        high = gen_digestof_int64(c, high);
+        value = gen_digestof_int64(c, value);
+        return LLVMBuildXor(c->builder, value, high, "");
       }
-
-      return value;
+      break;
     }
 
     case LLVMStructTypeKind:
     {
       uint32_t count = LLVMCountStructElementTypes(impl_type);
-      LLVMValueRef result = LLVMConstInt(c->i64, 0, false);
+      LLVMValueRef result = LLVMConstInt(c->intptr, 0, false);
       ast_t* child = ast_child(type);
 
       for(uint32_t i = 0; i < count; i++)
@@ -407,12 +457,14 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
     case LLVMPointerTypeKind:
       if(!is_known(type))
       {
-        int sub_kind = has_boxed_subtype(c->reach, type);
+        reach_type_t* t = reach_type(c->reach, type);
+        int sub_kind = subtype_kind(t);
+
         if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
-          return gen_digestof_box(c, type, value, sub_kind);
+          return gen_digestof_box(c, t, value, sub_kind);
       }
 
-      return LLVMBuildPtrToInt(c->builder, value, c->i64, "");
+      return LLVMBuildPtrToInt(c->builder, value, c->intptr, "");
 
     default: {}
   }
@@ -425,7 +477,10 @@ LLVMValueRef gen_digestof(compile_t* c, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
   LLVMValueRef value = gen_expr(c, expr);
-  return gen_digestof_value(c, ast_type(expr), value);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
+  LLVMValueRef ret = gen_digestof_value(c, type, value);
+  ast_free_unattached(type);
+  return ret;
 }
 
 void gen_digestof_fun(compile_t* c, reach_type_t* t)
@@ -433,12 +488,16 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
   pony_assert(t->can_be_boxed);
 
   reach_method_t* m = reach_method(t, TK_BOX, stringtab("__digestof"), NULL);
-  pony_assert(m != NULL);
 
-  m->func_type = LLVMFunctionType(c->i64, &t->structure_ptr, 1, false);
-  m->func = codegen_addfun(c, m->full_name, m->func_type);
+  if(m == NULL)
+    return;
 
-  codegen_startfun(c, m->func, NULL, NULL);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+  c_m->func_type = LLVMFunctionType(c->intptr, &c_t->structure_ptr, 1, false);
+  c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
+
+  codegen_startfun(c, c_m->func, NULL, NULL, NULL, false);
   LLVMValueRef value = LLVMGetParam(codegen_fun(c), 0);
 
   value = gen_unbox(c, t->ast_cap, value);
@@ -449,8 +508,10 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
 
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
-  ast_t* type = ast_type(ast);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
+  ast_free_unattached(type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   lexint_t* value = ast_int(ast);
   LLVMValueRef vlow = LLVMConstInt(c->i128, value->low, false);
@@ -459,26 +520,27 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   vhigh = LLVMConstShl(vhigh, shift);
   vhigh = LLVMConstAdd(vhigh, vlow);
 
-  if(t->primitive == c->i128)
+  if(c_t->primitive == c->i128)
     return vhigh;
 
-  if((t->primitive == c->f32) || (t->primitive == c->f64))
-    return LLVMConstUIToFP(vhigh, t->primitive);
+  if((c_t->primitive == c->f32) || (c_t->primitive == c->f64))
+    return LLVMConstUIToFP(vhigh, c_t->primitive);
 
-  return LLVMConstTrunc(vhigh, t->primitive);
+  return LLVMConstTrunc(vhigh, c_t->primitive);
 }
 
 LLVMValueRef gen_float(compile_t* c, ast_t* ast)
 {
-  ast_t* type = ast_type(ast);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
+  ast_free_unattached(type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  return LLVMConstReal(t->primitive, ast_float(ast));
+  return LLVMConstReal(c_t->primitive, ast_float(ast));
 }
 
 LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 {
-  ast_t* type = ast_type(ast);
   const char* name = ast_name(ast);
 
   genned_string_t k;
@@ -489,30 +551,21 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   if(string != NULL)
     return string->global;
 
+  ast_t* type = ast_type(ast);
+  pony_assert(is_literal(type, "String"));
+  reach_type_t* t = reach_type(c->reach, type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   size_t len = ast_name_len(ast);
 
   LLVMValueRef args[4];
-  args[0] = LLVMConstInt(c->i32, 0, false);
-  args[1] = LLVMConstInt(c->i32, 0, false);
-
-  LLVMValueRef str = LLVMConstStringInContext(c->context, name, (int)len,
-    false);
-  LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "");
-  LLVMSetLinkage(g_str, LLVMPrivateLinkage);
-  LLVMSetInitializer(g_str, str);
-  LLVMSetGlobalConstant(g_str, true);
-  LLVMSetUnnamedAddr(g_str, true);
-  LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
-
-  reach_type_t* t = reach_type(c->reach, type);
-
-  args[0] = t->desc;
+  args[0] = c_t->desc;
   args[1] = LLVMConstInt(c->intptr, len, false);
   args[2] = LLVMConstInt(c->intptr, len + 1, false);
-  args[3] = str_ptr;
+  args[3] = codegen_string(c, name, len);
 
-  LLVMValueRef inst = LLVMConstNamedStruct(t->structure, args, 4);
-  LLVMValueRef g_inst = LLVMAddGlobal(c->module, t->structure, "");
+  LLVMValueRef inst = LLVMConstNamedStruct(c_t->structure, args, 4);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, c_t->structure, "");
   LLVMSetInitializer(g_inst, inst);
   LLVMSetGlobalConstant(g_inst, true);
   LLVMSetLinkage(g_inst, LLVMPrivateLinkage);

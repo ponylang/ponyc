@@ -42,7 +42,7 @@ class List[A] is Seq[A]
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """
-    index(i)()
+    index(i)?()?
 
   fun ref update(i: USize, value: A): A^ ? =>
     """
@@ -50,7 +50,7 @@ class List[A] is Seq[A]
     Returns the previous value, which may be None if the node has been popped
     but left on the list.
     """
-    index(i)() = consume value
+    index(i)?()? = consume value
 
   fun index(i: USize): this->ListNode[A] ? =>
     """
@@ -75,7 +75,7 @@ class List[A] is Seq[A]
     Remove the i-th node, raising an error if the index is out of bounds.
     The removed node is returned.
     """
-    index(i).>remove()
+    index(i)? .> remove()
 
   fun ref clear() =>
     """
@@ -125,7 +125,7 @@ class List[A] is Seq[A]
     """
     if this isnt that then
       while that._size > 0 do
-        try append_node(that.head()) end
+        try append_node(that.head()?) end
       end
     end
 
@@ -135,7 +135,7 @@ class List[A] is Seq[A]
     """
     if this isnt that then
       while that._size > 0 do
-        try prepend_node(that.tail()) end
+        try prepend_node(that.tail()?) end
       end
     end
 
@@ -149,7 +149,7 @@ class List[A] is Seq[A]
     """
     Removes a value from the tail of the list.
     """
-    tail().>remove().pop()
+    tail()? .> remove().pop()?
 
   fun ref unshift(a: A) =>
     """
@@ -161,9 +161,11 @@ class List[A] is Seq[A]
     """
     Removes a value from the head of the list.
     """
-    head().>remove().pop()
+    head()? .> remove().pop()?
 
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+  fun ref append(
+    seq: (ReadSeq[A] & ReadElement[A^]),
+    offset: USize = 0,
     len: USize = -1)
   =>
     """
@@ -181,7 +183,7 @@ class List[A] is Seq[A]
 
     try
       while i < cap do
-        push(seq(i))
+        push(seq(i)?)
         i = i + 1
       end
     end
@@ -194,7 +196,7 @@ class List[A] is Seq[A]
     try
       for i in Range(0, offset) do
         if iter.has_next() then
-          iter.next()
+          iter.next()?
         else
           return
         end
@@ -202,7 +204,7 @@ class List[A] is Seq[A]
 
       for i in Range(0, len) do
         if iter.has_next() then
-          push(iter.next())
+          push(iter.next()?)
         else
           return
         end
@@ -216,7 +218,7 @@ class List[A] is Seq[A]
     """
     try
       while _size > len do
-        pop()
+        pop()?
       end
     end
 
@@ -236,18 +238,21 @@ class List[A] is Seq[A]
     Builds a new list by applying a function to every member of the list.
     """
     try
-      _map[B](head(), f, List[B])
+      _map[B](head()?, f, List[B])
     else
       List[B]
     end
 
-  fun _map[B](ln: this->ListNode[A], f: {(this->A!): B^} box, acc: List[B])
+  fun _map[B](
+    ln: this->ListNode[A],
+    f: {(this->A!): B^} box,
+    acc: List[B])
     : List[B]^
   =>
     """
     Private helper for map, recursively working with ListNodes.
     """
-    try acc.push(f(ln())) end
+    try acc.push(f(ln()?)) end
 
     try
       _map[B](ln.next() as this->ListNode[A], f, acc)
@@ -261,18 +266,20 @@ class List[A] is Seq[A]
     using the elements of the resulting lists.
     """
     try
-      _flat_map[B](head(), f, List[B])
+      _flat_map[B](head()?, f, List[B])
     else
       List[B]
     end
 
-  fun _flat_map[B](ln: this->ListNode[A], f: {(this->A!): List[B]} box,
+  fun _flat_map[B](
+    ln: this->ListNode[A],
+    f: {(this->A!): List[B]} box,
     acc: List[B]): List[B]^
   =>
     """
     Private helper for flat_map, recursively working with ListNodes.
     """
-    try acc.append_list(f(ln())) end
+    try acc.append_list(f(ln()?)) end
 
     try
       _flat_map[B](ln.next() as this->ListNode[A], f, acc)
@@ -285,19 +292,21 @@ class List[A] is Seq[A]
     Builds a new list with those elements that satisfy a provided predicate.
     """
     try
-      _filter(head(), f, List[this->A!])
+      _filter(head()?, f, List[this->A!])
     else
       List[this->A!]
     end
 
-  fun _filter(ln: this->ListNode[A], f: {(this->A!): Bool} box,
+  fun _filter(
+    ln: this->ListNode[A],
+    f: {(this->A!): Bool} box,
     acc: List[this->A!]): List[this->A!]
   =>
     """
     Private helper for filter, recursively working with ListNodes.
     """
     try
-      let cur = ln()
+      let cur = ln()?
       if f(cur) then acc.push(cur) end
     end
 
@@ -312,19 +321,23 @@ class List[A] is Seq[A]
     Folds the elements of the list using the supplied function.
     """
     let h = try
-      head()
+      head()?
     else
       return acc
     end
 
     _fold[B](h, f, consume acc)
 
-  fun _fold[B](ln: this->ListNode[A], f: {(B!, this->A!): B^} box, acc: B): B
+  fun _fold[B](
+    ln: this->ListNode[A],
+    f: {(B!, this->A!): B^} box,
+    acc: B)
+    : B
   =>
     """
     Private helper for fold, recursively working with ListNodes.
     """
-    let nextAcc: B = try f(acc, ln()) else consume acc end
+    let nextAcc: B = try f(acc, ln()?) else consume acc end
     let h = try
       ln.next() as this->ListNode[A]
     else
@@ -339,7 +352,7 @@ class List[A] is Seq[A]
     otherwise.
     """
     try
-      _every(head(), f)
+      _every(head()?, f)
     else
       true
     end
@@ -349,7 +362,7 @@ class List[A] is Seq[A]
     Private helper for every, recursively working with ListNodes.
     """
     try
-      if not(f(ln())) then
+      if not(f(ln()?)) then
         false
       else
         _every(ln.next() as this->ListNode[A], f)
@@ -364,7 +377,7 @@ class List[A] is Seq[A]
     false otherwise.
     """
     try
-      _exists(head(), f)
+      _exists(head()?, f)
     else
       false
     end
@@ -374,7 +387,7 @@ class List[A] is Seq[A]
     Private helper for exists, recursively working with ListNodes.
     """
     try
-      if f(ln()) then
+      if f(ln()?) then
         true
       else
         _exists(ln.next() as this->ListNode[A], f)
@@ -383,7 +396,9 @@ class List[A] is Seq[A]
       false
     end
 
-  fun partition(f: {(this->A!): Bool} box): (List[this->A!]^, List[this->A!]^)
+  fun partition(
+    f: {(this->A!): Bool} box)
+    : (List[this->A!]^, List[this->A!]^)
   =>
     """
     Builds a pair of lists, the first of which is made up of the elements
@@ -405,10 +420,10 @@ class List[A] is Seq[A]
 
     if size() > n then
       try
-        var node = index(n)
+        var node = index(n)?
 
         for i in Range(n, size()) do
-          l.push(node())
+          l.push(node()?)
           node = node.next() as this->ListNode[A]
         end
       end
@@ -423,10 +438,10 @@ class List[A] is Seq[A]
 
     if size() > 0 then
       try
-        var node = head()
+        var node = head()?
 
         for i in Range(0, n.min(size())) do
-          l.push(node())
+          l.push(node()?)
           node = node.next() as this->ListNode[A]
         end
       end
@@ -442,10 +457,10 @@ class List[A] is Seq[A]
 
     if size() > 0 then
       try
-        var node = head()
+        var node = head()?
 
         for i in Range(0, size()) do
-          let item = node()
+          let item = node()?
           if f(item) then l.push(item) else return l end
           node = node.next() as this->ListNode[A]
         end
@@ -458,7 +473,7 @@ class List[A] is Seq[A]
     Builds a new list by reversing the elements in the list.
     """
     try
-      _reverse(head(), List[this->A!])
+      _reverse(head()?, List[this->A!])
     else
       List[this->A!]
     end
@@ -467,7 +482,7 @@ class List[A] is Seq[A]
     """
     Private helper for reverse, recursively working with ListNodes.
     """
-    try acc.unshift(ln()) end
+    try acc.unshift(ln()?) end
 
     try
       _reverse(ln.next() as this->ListNode[A], acc)
@@ -480,19 +495,21 @@ class List[A] is Seq[A]
     Returns true if the list contains the provided element, false otherwise.
     """
     try
-      _contains[B](head(), a)
+      _contains[B](head()?, a)
     else
       false
     end
 
-  fun _contains[B: (A & HasEq[A!] #read) = A](ln: this->ListNode[A],
-    a: box->B): Bool
+  fun _contains[B: (A & HasEq[A!] #read) = A](
+    ln: this->ListNode[A],
+    a: box->B)
+    : Bool
   =>
     """
     Private helper for contains, recursively working with ListNodes.
     """
     try
-      if a == ln() then
+      if a == ln()? then
         true
       else
         _contains[B](ln.next() as this->ListNode[A], a)
@@ -612,7 +629,7 @@ class ListValues[A, N: ListNode[A] #read] is Iterator[N->A]
         _next = next'.next()
       end
 
-      next'()
+      next'()?
     else
       error
     end

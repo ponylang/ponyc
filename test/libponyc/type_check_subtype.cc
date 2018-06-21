@@ -5,6 +5,10 @@
 
 #define TEST_COMPILE(src) DO(test_compile(src, "expr"))
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
+
 class SubTypeTest: public PassTest
 {};
 
@@ -554,6 +558,25 @@ TEST_F(SubTypeTest, IsSubTypeCap)
 }
 
 
+TEST_F(SubTypeTest, IsSubTypeNosupertypeInterface)
+{
+  const char* src =
+    "primitive \\nosupertype\\ P\n"
+
+    "interface Test\n"
+    "  fun z(p: P, a: Any val)";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_FALSE(is_subtype(type_of("p"), type_of("a"), NULL, &opt));
+
+  pass_opt_init(&opt);
+}
+
+
 TEST_F(SubTypeTest, IsEqType)
 {
   const char* src =
@@ -1051,4 +1074,107 @@ TEST_F(SubTypeTest, IsTypeparamSubIntersect)
   ASSERT_TRUE(is_subtype(type_of("b"), type_of("a"), NULL, &opt));
 
   pass_opt_init(&opt);
+}
+
+
+TEST_F(SubTypeTest, TupleValRefSubAnyBox)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C val, C ref)) =>\n"
+    "    let x': Any box = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleTagTagSubAnyTag)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C tag, C tag)) =>\n"
+    "    let x': Any tag = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleTagTagNotSubAnyVal)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C tag, C tag)) =>\n"
+    "    let x': Any val = consume x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+
+TEST_F(SubTypeTest, TupleRefValOrValSubAnyBox)
+{
+  const char* src =
+    "class C\n"
+    "class D\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C ref, (C val | D val))) =>\n"
+    "    let x': Any box = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleValTagSubAnyShare)
+{
+  const char* src =
+    "class C[A: Any #share]\n"
+    "primitive P\n"
+    "  fun apply() =>\n"
+    "    C[(String val, String tag)]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleValRefNotSubAnyShare)
+{
+  const char* src =
+    "class C[A: Any #share]\n"
+    "primitive P\n"
+    "  fun apply() =>\n"
+    "    C[(String val, String ref)]";
+
+  TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
+
+
+TEST_F(SubTypeTest, BoxArrowTypeParamReifiedWithTypeParam)
+{
+  const char* src =
+    "interface _V[A: _V[A] ref]\n"
+    "  fun ref reset(delta: A): A\n"
+    "  fun ref converge(other: box->A)\n"
+
+    "class ref Container[V: _V[V] ref] is _V[Container[V]]\n"
+    "  let _value: V\n"
+    "  new ref create(value': V) => _value = value'\n"
+
+    "  fun ref reset(delta: Container[V]): Container[V] =>\n"
+    "    _value.reset(delta._value)\n"
+    "    delta\n"
+
+    "  fun ref converge(other: Container[V] box) =>\n"
+    "    _value.converge(other._value)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_COMPILE(src);
 }

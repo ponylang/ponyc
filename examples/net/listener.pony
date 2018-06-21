@@ -19,19 +19,24 @@ class Listener is TCPListenNotify
         let auth = env.root as AmbientAuth
         recover
           SSLContext
-            .>set_authority(FilePath(auth, "./test/pony/net/cert.pem"))
+            .>set_authority(FilePath(auth, "./examples/net/cert.pem")?)?
             .>set_cert(
-              FilePath(auth, "./test/pony/net/cert.pem"),
-              FilePath(auth, "./test/pony/net/key.pem"))
+              FilePath(auth, "./examples/net/cert.pem")?,
+              FilePath(auth, "./examples/net/key.pem")?)?
             .>set_client_verify(true)
             .>set_server_verify(true)
         end
       end
     end
+    if not (_sslctx is None) then
+      _env.out.print("SSL authentication is setup")
+    else
+      _env.out.print("SSL authentication is NOT setup")
+    end
 
   fun ref listening(listen: TCPListener ref) =>
     try
-      (_host, _service) = listen.local_address().name()
+      (_host, _service) = listen.local_address().name()?
       _env.out.print("listening on " + _host + ":" + _service)
       _spawn(listen)
     else
@@ -49,9 +54,11 @@ class Listener is TCPListenNotify
     try
       let server = match _sslctx
       | let ctx: SSLContext =>
-        let ssl = ctx.server()
+        let ssl = ctx.server()?
+        _env.out.print("Server starting with SSL")
         SSLConnection(ServerSide(env), consume ssl)
       else
+        _env.out.print("Server starting without SSL")
         ServerSide(env)
       end
 
@@ -76,10 +83,12 @@ class Listener is TCPListenNotify
 
       match _sslctx
       | let ctx: SSLContext =>
-        let ssl = ctx.client()
+        _env.out.print("Client starting with SSL")
+        let ssl = ctx.client()?
         TCPConnection(_env.root as AmbientAuth,
           SSLConnection(ClientSide(env), consume ssl), _host, _service)
       else
+        _env.out.print("Client starting without SSL")
         TCPConnection(_env.root as AmbientAuth,
           ClientSide(env), _host, _service)
       end

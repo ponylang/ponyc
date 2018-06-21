@@ -118,7 +118,7 @@ const char* genname_alloc(const char* type)
   return stringtab_two(type, "Alloc");
 }
 
-const char* genname_traitlist(const char* type)
+const char* genname_traitmap(const char* type)
 {
   return stringtab_two(type, "Traits");
 }
@@ -167,7 +167,10 @@ const char* genname_fun(token_id cap, const char* name, ast_t* typeargs)
 {
   // cap_name[_Arg1_Arg2]
   printbuf_t* buf = printbuf_new();
-  printbuf(buf, "%s_%s", lexer_print(cap), name);
+  if(cap == TK_AT)
+    printbuf(buf, "%s", name);
+  else
+    printbuf(buf, "%s_%s", lexer_print(cap), name);
   types_append(buf, typeargs);
   return stringtab_buf(buf);
 }
@@ -185,6 +188,11 @@ const char* genname_box(const char* name)
 const char* genname_unbox(const char* name)
 {
   return stringtab_two(name, "Unbox");
+}
+
+const char* genname_unsafe(const char* name)
+{
+  return stringtab_two(name, "unsafe");
 }
 
 const char* genname_program_fn(const char* program, const char* name)

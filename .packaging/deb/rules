@@ -1,0 +1,66 @@
+#!/usr/bin/make -f
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+export DH_VERBOSE = 1
+
+
+# see FEATURE AREAS in dpkg-buildflags(1)
+#export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# see ENVIRONMENT in dpkg-buildflags(1)
+# package maintainers to append CFLAGS
+#export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
+# package maintainers to append LDFLAGS
+#export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+
+dpkg_late_eval ?= $(or $(value DPKG_CACHE_$(1)),$(eval DPKG_CACHE_$(1) := $(shell $(2)))$(value DPKG_CACHE_$(1)))
+DEB_DISTRIBUTION = $(call dpkg_late_eval,DEB_DISTRIBUTION,dpkg-parsechangelog -SDistribution)
+
+MAKE_OPTIONS := prefix=/usr
+
+ifeq ($(DEB_HOST_ARCH),amd64)
+ifeq ($(DEB_DISTRIBUTION),trusty)
+	MAKE_OPTIONS += arch=x86-64 tune=generic
+else
+	MAKE_OPTIONS += arch=x86-64 tune=intel
+endif
+endif
+
+ifeq ($(DEB_HOST_ARCH),s390x)
+	MAKE_OPTIONS += arch=z900 tune=z900
+endif
+
+ifeq ($(DEB_HOST_ARCH),armhf)
+	MAKE_OPTIONS += arch=armv7 tune=arm7
+endif
+
+# trusty, xenial and artful are on openssl 1.0
+# artful and newer require PIC
+ifeq (,$(filter $(DEB_DISTRIBUTION),trusty xenial artful))
+	MAKE_OPTIONS += default_ssl='openssl_1.1.0' default_pic=true
+else
+ifeq ($(DEB_DISTRIBUTION),artful)
+	MAKE_OPTIONS += default_pic=true
+endif
+endif
+
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	env
+	uname -m
+	dh_auto_build -- $(MAKE_OPTIONS)
+
+override_dh_auto_install:
+	dh_auto_install -- $(MAKE_OPTIONS)
+
+override_dh_auto_test:
+	$(MAKE) test-ci $(MAKE_OPTIONS)
+
+# dh_make generated override targets
+# This is example for Cmake (See https://bugs.debian.org/641051 )
+#override_dh_auto_configure:
+#	dh_auto_configure -- #	-DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)
+

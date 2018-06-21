@@ -313,9 +313,10 @@ actor PonyTest
 
     try
       if not _no_prog then
-        _env.out.print(_started.string() + " test" + _plural(_started) +
-          " started, " + _finished.string() + " complete: " +
-          _records(id).name + " started")
+        _env.out.print(
+          _started.string() + " test" + _plural(_started)
+            + " started, " + _finished.string() + " complete: "
+            + _records(id)?.name + " started")
       end
     end
 
@@ -328,12 +329,13 @@ actor PonyTest
     _finished = _finished + 1
 
     try
-      _records(id)._result(pass, log)
+      _records(id)?._result(pass, log)
 
       if not _no_prog then
-        _env.out.print(_started.string() + " test" + _plural(_started) +
-          " started, " + _finished.string() + " complete: " +
-          _records(id).name + " complete")
+        _env.out.print(
+          _started.string() + " test" + _plural(_started)
+            + " started, " + _finished.string() + " complete: "
+            + _records(id)?.name + " complete")
       end
     end
 
@@ -403,10 +405,10 @@ actor PonyTest
         _env.out.print("  " + exe_name + " [options]")
         _env.out.print("")
         _env.out.print("Options:")
-        _env.out.print("  --exclude=prefix  - Don't run tests whose names " +
-          "start with the given prefix.")
-        _env.out.print("  --only=prefix     - Only run tests whose names " +
-          "start with the given prefix.")
+        _env.out.print("  --exclude=prefix  - Don't run tests whose names "
+          + "start with the given prefix.")
+        _env.out.print("  --only=prefix     - Only run tests whose names "
+          + "start with the given prefix.")
         _env.out.print("  --verbose         - Show all test output.")
         _env.out.print("  --sequential      - Run tests sequentially.")
         _env.out.print("  --noprog          - Do not print progress messages.")
@@ -436,10 +438,10 @@ actor PonyTest
 
     // Next we print the pass / fail stats.
     _env.out.print("----")
-    _env.out.print("---- " + _records.size().string() + " test" +
-      _plural(_records.size()) + " ran.")
-    _env.out.print(_Color.green() + "---- Passed: " + pass_count.string() +
-      _Color.reset())
+    _env.out.print("---- " + _records.size().string() + " test"
+      + _plural(_records.size()) + " ran.")
+    _env.out.print(_Color.green() + "---- Passed: " + pass_count.string()
+      + _Color.reset())
 
     if fail_count == 0 then
       // Success, nothing failed.
@@ -447,8 +449,8 @@ actor PonyTest
     end
 
     // Not everything passed.
-    _env.out.print(_Color.red() + "**** FAILED: " + fail_count.string() +
-      " test" + _plural(fail_count) + ", listed below:" + _Color.reset())
+    _env.out.print(_Color.red() + "**** FAILED: " + fail_count.string()
+      + " test" + _plural(fail_count) + ", listed below:" + _Color.reset())
 
     // Finally print our list of failed tests.
     for rec in _records.values() do

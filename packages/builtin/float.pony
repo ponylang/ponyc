@@ -169,7 +169,8 @@ primitive F32 is FloatingPoint[F32]
 
   fun copysign(sign: F32): F32 => @"llvm.copysign.f32"[F32](this, sign)
 
-  fun hash(): U64 => bits().hash()
+  fun hash(): USize => bits().hash()
+  fun hash64(): U64 => bits().hash64()
 
   fun i128(): I128 => f64().i128()
   fun u128(): U128 => f64().u128()
@@ -359,7 +360,8 @@ primitive F64 is FloatingPoint[F64]
 
   fun copysign(sign: F64): F64 => @"llvm.copysign.f64"[F64](this, sign)
 
-  fun hash(): U64 => bits().hash()
+  fun hash(): USize => bits().hash()
+  fun hash64(): U64 => bits().hash64()
 
   fun i128(): I128 =>
     if this > I128.max_value().f64() then

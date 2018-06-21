@@ -10,7 +10,7 @@ primitive EnvVars
 
     for kv in from.values() do
       try
-        let delim = kv.find("=")
+        let delim = kv.find("=")?
         let k = kv.substring(0, delim)
         let v = kv.substring(delim + 1)
         map(consume k) = consume v

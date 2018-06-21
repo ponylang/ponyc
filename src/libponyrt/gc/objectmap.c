@@ -34,7 +34,7 @@ static void object_free(object_t* obj)
 }
 
 DEFINE_HASHMAP(ponyint_objectmap, objectmap_t, object_t, object_hash,
-  object_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size, object_free);
+  object_cmp, object_free);
 
 object_t* ponyint_objectmap_getobject(objectmap_t* map, void* address, size_t* index)
 {
@@ -70,7 +70,7 @@ void ponyint_objectmap_sweep(objectmap_t* map)
 
     if(obj->rc > 0)
     {
-      chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
+      chunk_t* chunk = ponyint_pagemap_get(p);
       ponyint_heap_mark_shallow(chunk, p);
     } else {
       ponyint_objectmap_clearindex(map, i);
