@@ -374,4 +374,8 @@ inline uint64_t __pony_clzl(uint64_t x)
 #  include "vcvars.h"
 #endif
 
+#if defined(ARMV7) && !defined(__ARM_NEON) && !defined(__ARM_NEON__)
+#  define PLATFORM_IS_ARMHF_WITHOUT_NEON 1
+#endif
+
 #endif

@@ -6,13 +6,24 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Do not set File._errno when reading less than requested bytes. ([PR #2785](https://github.com/ponylang/ponyc/pull/2785))
+- Correctly allocate memory for linker arguments ([PR #2797](https://github.com/ponylang/ponyc/pull/2797))
+- Fix build on DragonFly BSD ([PR #2794](https://github.com/ponylang/ponyc/pull/2794))
+- Fix some edge cases in code generation for loops that jump away. ([PR #2791](https://github.com/ponylang/ponyc/pull/2791))
+- Fix repeat loop symbol tracking to allow more valid cases. ([PR #2786](https://github.com/ponylang/ponyc/pull/2786))
+-  Fix incorrect disposable/destroyed epoll resubscribe handling ([PR #2781](https://github.com/ponylang/ponyc/pull/2781))
 - Fix GC-safety issue with writev pointers in File. ([PR #2775](https://github.com/ponylang/ponyc/pull/2775))
+- Disable neon for armhf if not supported by C/C++ compiler ([PR #2672](https://github.com/ponylang/ponyc/pull/2672))
 
 ### Added
 
 
 ### Changed
 
+- Run cycle detector every N ms based on timer ([PR #2709](https://github.com/ponylang/ponyc/pull/2709))
+- [RFC 55] Remove package net/http from stdlib ([PR #2795](https://github.com/ponylang/ponyc/pull/2795))
+- Change refcap of JsonDoc to ref for better usability ([PR #2747](https://github.com/ponylang/ponyc/pull/2747))
+- Change NetAddress class to hide its fields behind functions, fixing cross-platform compatibility. ([PR #2734](https://github.com/ponylang/ponyc/pull/2734))
 
 ## [0.23.0] - 2018-06-10
 

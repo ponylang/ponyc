@@ -46,6 +46,7 @@ enum
   AST_FLAG_JUMPS_AWAY   = 0x100000, // Jumps away (control flow) without a value.
   AST_FLAG_INCOMPLETE   = 0x200000, // Not all fields are defined.
   AST_FLAG_IMPORT       = 0x400000, // Import the referenced package.
+  AST_FLAG_MAY_BREAK    = 0x800000, // This loop has seen a break statement in it.
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);

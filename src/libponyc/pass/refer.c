@@ -910,7 +910,8 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
   if(ast_checkflag(ast_childlast(ast), AST_FLAG_JUMPS_AWAY))
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
-  // Propagate consumes forward if this seq is the body of a try expression.
+  // Propagate symbol status forward in some cases where control flow branches
+  // always precede other branches of the same control flow structure.
   if(ast_has_scope(ast))
   {
     ast_t* parent = ast_parent(ast);
@@ -934,6 +935,24 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
           ast_consolidate_branches(then_clause, 2);
         }
       }
+      break;
+
+      case TK_REPEAT:
+      {
+        AST_GET_CHILDREN(parent, body, cond, else_clause);
+
+        if(body == ast)
+        {
+          // Push our consumes and our defines to the cond clause.
+          ast_inheritstatus(cond, body);
+        } else if(cond == ast) {
+          // Push our consumes, but not defines, to the else clause. This
+          // includes the consumes from the body.
+          ast_inheritbranch(else_clause, cond);
+          ast_consolidate_branches(else_clause, 2);
+        }
+      }
+      break;
 
       default: {}
     }
@@ -1095,7 +1114,7 @@ static bool refer_while(pass_opt_t* opt, ast_t* ast)
 static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_REPEAT);
-  AST_GET_CHILDREN(ast, cond, body, else_clause);
+  AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   // All consumes have to be in scope when the loop body finishes.
   errorframe_t errorf = NULL;
@@ -1110,17 +1129,29 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
   // No symbol status is inherited from the loop body. Nothing from outside the
   // loop body can be consumed, and definitions in the body may not occur.
   if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  {
     branch_count++;
+    ast_inheritbranch(ast, body);
+  }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
-    branch_count++;
-    ast_inheritbranch(ast, else_clause);
-
-    // Use a branch count of two instead of one. This means we will pick up any
-    // consumes, but not any definitions, since definitions may not occur.
-    ast_consolidate_branches(ast, 2);
+    // Only include the else clause in the branch analysis
+    // if the loop has a break statement somewhere in it.
+    // This allows us to treat the entire loop body as being
+    // sure to execute in every case, at least for the purposes
+    // of analyzing variables being defined in its scope.
+    // For the case of errors and return statements that may
+    // exit the loop, they do not affect our analysis here
+    // because they will skip past more than just the loop itself.
+    if(ast_checkflag(body, AST_FLAG_MAY_BREAK))
+    {
+      branch_count++;
+      ast_inheritbranch(ast, else_clause);
+    }
   }
+
+  ast_consolidate_branches(ast, branch_count);
 
   // If all branches jump away with no value, then we do too.
   if(branch_count == 0)
@@ -1253,6 +1284,8 @@ static bool refer_break(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, ast, "must be in a loop");
     return false;
   }
+
+  ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_BREAK);
 
   errorframe_t errorf = NULL;
   if(!ast_all_consumes_in_scope(opt->check.frame->loop_body, ast, &errorf))

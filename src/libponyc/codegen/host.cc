@@ -81,6 +81,10 @@ char* LLVMGetHostCPUFeatures()
   buf_size += 9;
 #endif
 
+#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  buf_size += 6;
+#endif
+
   char* buf = (char*)malloc(buf_size);
   pony_assert(buf != NULL);
   buf[0] = 0;
@@ -102,6 +106,11 @@ char* LLVMGetHostCPUFeatures()
 #if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
   // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
   strcat(buf, ",-avx512f");
+#endif
+
+#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  // Workaround for https://bugs.llvm.org/show_bug.cgi?id=30842
+  strcat(buf, ",-neon");
 #endif
 
   return buf;

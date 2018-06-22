@@ -40,6 +40,7 @@ actor Main is TestList
     test(_TestFileMixedWriteQueue)
     test(_TestFileWritevLarge)
     test(_TestFileFlush)
+    test(_TestFileReadMore)
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
@@ -811,3 +812,27 @@ class iso _TestFileFlush is UnitTest
     else
       h.fail("Unhandled error!")
     end
+
+class iso _TestFileReadMore is UnitTest
+  fun name(): String => "files/File.read-more"
+  fun apply(h: TestHelper)? =>
+    let path = FilePath(h.env.root as AmbientAuth, "tmp-read-more")?
+    with file = CreateFile(path) as File do
+      h.assert_true(file.write("foobar"))
+    end
+
+    with read_file = OpenFile(path) as File do
+      let content = read_file.read(10)
+      h.assert_eq[USize](6, content.size())
+      h.assert_is[FileErrNo](
+        read_file.errno(),
+        FileOK,
+        "File errno is not OK after reading fewer bytes than requested")
+      h.assert_eq[USize](0, read_file.read(10).size())
+      h.assert_is[FileErrNo](
+        read_file.errno(),
+        FileEOF,
+        "File errno is not EOF after reading past the last byte")
+    end
+    path.remove()
+

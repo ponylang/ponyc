@@ -17,7 +17,11 @@ PONY_EXTERN_C_BEGIN
 // Reminder: When adding new types, please also update
 // examples/dtrace/telemetry.d
 
-#define ACTORMSG_APPLICATION_START (UINT32_MAX - 7)
+#define ACTORMSG_APPLICATION_START (UINT32_MAX - 11)
+#define ACTORMSG_CHECKBLOCKED (UINT32_MAX - 10)
+#define ACTORMSG_DESTROYED (UINT32_MAX - 9)
+#define ACTORMSG_CREATED (UINT32_MAX - 8)
+#define ACTORMSG_ISBLOCKED (UINT32_MAX - 7)
 #define ACTORMSG_BLOCK (UINT32_MAX - 6)
 #define ACTORMSG_UNBLOCK (UINT32_MAX - 5)
 #define ACTORMSG_ACQUIRE (UINT32_MAX - 4)
@@ -44,7 +48,7 @@ typedef struct pony_actor_t
 enum
 {
   FLAG_BLOCKED = 1 << 0,
-  FLAG_RC_CHANGED = 1 << 1,
+  FLAG_BLOCKED_SENT = 1 << 1,
   FLAG_SYSTEM = 1 << 2,
   FLAG_UNSCHEDULED = 1 << 3,
   FLAG_PENDINGDESTROY = 1 << 4,
@@ -75,6 +79,8 @@ void ponyint_actor_setsystem(pony_actor_t* actor);
 
 void ponyint_actor_setnoblock(bool state);
 
+bool ponyint_actor_getnoblock();
+
 void ponyint_actor_setoverloaded(pony_actor_t* actor);
 
 void ponyint_actor_unsetoverloaded(pony_actor_t* actor);
@@ -89,7 +95,7 @@ void ponyint_unmute_actor(pony_actor_t* actor);
 
 void ponyint_mute_actor(pony_actor_t* actor);
 
-PONY_API void ponyint_destroy(pony_actor_t* actor);
+PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor);
 
 PONY_EXTERN_C_END
 

@@ -274,7 +274,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
       if(flags != 0)
       {
-        if (!(flags & ASIO_DESTROYED) || !(flags & ASIO_DISPOSABLE))
+        if (!(flags & ASIO_DESTROYED) && !(flags & ASIO_DISPOSABLE))
         {
           if(ev->auto_resub && !(flags & ASIO_WRITE))
             pony_asio_event_resubscribe_write(ev);

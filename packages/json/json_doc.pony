@@ -21,7 +21,7 @@ class JsonDoc
   var _err_msg: String = "" // ..
   var _last_index: USize = 0  // Last source index we peeked or got, for errors
 
-  new iso create() =>
+  new create() =>
     """
     Default constructor building a document containing a single null.
     """
