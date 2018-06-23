@@ -510,6 +510,9 @@ class Array[A] is Seq[A]
   =>
     """
     Returns true if the array contains `value`, false otherwise.
+
+    The default predicate checks for matches by identity. To search for matches
+    by structural equality, pass an object literal such as `{(l, r) => l == r}`.
     """
     var i = USize(0)
 
