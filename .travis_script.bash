@@ -10,6 +10,11 @@ set -o nounset
 
 case "${TRAVIS_OS_NAME}" in
   "linux")
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" != "" ]]
+    then
+      "ponyc-build-debs-$RELEASE_DEBS" "$(cat VERSION)"
+    fi
+
     # when RELEASE_CONFIG stops matching part of this case, move this logic
     if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" ]]
     then
