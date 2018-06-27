@@ -116,22 +116,38 @@ PONY_API const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
 
 PONY_API int ponyint_o_rdonly()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_RDONLY | _O_BINARY;
+#else
   return O_RDONLY;
+#endif
 }
 
 PONY_API int ponyint_o_rdwr()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_RDWR | _O_BINARY;
+#else
   return O_RDWR;
+#endif
 }
 
 PONY_API int ponyint_o_creat()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_CREAT | _O_BINARY;
+#else
   return O_CREAT;
+#endif
 }
 
 PONY_API int ponyint_o_trunc()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_TRUNC | _O_BINARY;
+#else
   return O_TRUNC;
+#endif
 }
 
 #if defined(PLATFORM_IS_POSIX_BASED)
