@@ -262,6 +262,18 @@ LLVM_LINK := $(LLVM_BINDIR)/llvm-link
 LLVM_OPT := $(LLVM_BINDIR)/opt
 LLVM_LLC := $(LLVM_BINDIR)/llc
 LLVM_AS := $(LLVM_BINDIR)/llvm-as
+llvm_build_mode := $(shell $(LLVM_CONFIG) --build-mode)
+ifeq (Release,$(llvm_build_mode))
+  LLVM_BUILD_MODE=LLVM_BUILD_MODE_Release
+else ifeq (RelWithDebInfo,$(llvm_build_mode))
+  LLVM_BUILD_MODE=LLVM_BUILD_MODE_RelWithDebInfo
+else ifeq (Debug,$(llvm_build_mode))
+  LLVM_BUILD_MODE=LLVM_BUILD_MODE_Debug
+else
+  $(error "Uknown llvm build-mode of $(llvm_build_mode)", aborting)
+endif
+
+
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
@@ -488,12 +500,14 @@ libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
 libponyc.buildoptions += -DPONY_ALWAYS_ASSERT
+libponyc.buildoptions += -DLLVM_BUILD_MODE=$(LLVM_BUILD_MODE)
 
 libponyc.tests.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.tests.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.tests.buildoptions += -D__STDC_LIMIT_MACROS
 libponyc.tests.buildoptions += -DPONY_ALWAYS_ASSERT
 libponyc.tests.buildoptions += -DPONY_PACKAGES_DIR=\"$(packages_abs_src)\"
+libponyc.tests.buildoptions += -DLLVM_BUILD_MODE=$(LLVM_BUILD_MODE)
 
 libponyc.tests.linkoptions += -rdynamic
 
@@ -504,6 +518,7 @@ endif
 libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
+libponyc.benchmarks.buildoptions += -DLLVM_BUILD_MODE=$(LLVM_BUILD_MODE)
 
 libgbenchmark.buildoptions := \
   -Wshadow -pedantic -pedantic-errors \
