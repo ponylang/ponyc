@@ -257,6 +257,18 @@ def build(ctx):
             else:
                 llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)\.lib', r'\1', x) for x in llvmLibFiles.split(' ')]
 
+            llvmBuildMode = cmd_output([llvmConfig, '--build-mode'])
+            if llvmBuildMode == 'Release':
+                llvmBuildMode = 'LLVM_BUILD_MODE_Release'
+            elif llvmBuildMode == 'RelWithDebInfo':
+                llvmBuildMode = 'LLVM_BUILD_MODE_RelWithDebInfo'
+            elif llvmBuildMode == 'Debug':
+                llvmBuildMode = 'LLVM_BUILD_MODE_Debug'
+            else:
+                print('Unknown llvm build-mode of {0}'.format(llvmBuildMode))
+                sys.exit(1)
+            llvmBuildMode = 'LLVM_BUILD_MODE={0}'.format(llvmBuildMode)
+
     # build targets:
 
     if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5') or ctx.options.llvm.startswith('6'):
@@ -293,7 +305,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
-        defines   = [ 'PONY_ALWAYS_ASSERT' ],
+        defines   = [ 'PONY_ALWAYS_ASSERT', llvmBuildMode ],
         use       = [ 'blake2' ]
     )
 
@@ -303,6 +315,7 @@ def build(ctx):
         target   = 'libponyc.benchmarks',
         source   = ctx.path.ant_glob('benchmark/libponyc/**/*.cc'),
         includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        defines  = [ llvmBuildMode ],
         use      = [ 'libponyc', 'libgbenchmark' ],
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
@@ -353,7 +366,8 @@ def build(ctx):
         defines   = [
             'PONY_ALWAYS_ASSERT',
             'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
-            '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
+            '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING',
+            llvmBuildMode
         ],
         use       = testcUses,
         lib       = testcLibs,
