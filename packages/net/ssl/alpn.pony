@@ -10,13 +10,13 @@ primitive ALPNWarning
 
 type ALPNMatchResult is (ALPNProtocolName | ALPNNoAck | ALPNWarning | ALPNFatal)
 
-interface ALPNProtocolResolver
+interface box ALPNProtocolResolver
   """
   Controls the protocol name to be chosen for incomming SSLConnections using the ALPN extension.
   """
   fun box resolve(advertised: Array[ALPNProtocolName] val): ALPNMatchResult
 
-class ALPNStandardProtocolResolver is ALPNProtocolResolver
+class val ALPNStandardProtocolResolver is ALPNProtocolResolver
   """
   Implements the standard protocol selection akin to the OpenSSL function `SSL_select_next_proto`.
   """
