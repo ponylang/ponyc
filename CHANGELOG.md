@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Always use "binary" mode when opening files on Windows. ([PR #2811](https://github.com/ponylang/ponyc/pull/2811))
 - Do not set File._errno when reading less than requested bytes. ([PR #2785](https://github.com/ponylang/ponyc/pull/2785))
 - Correctly allocate memory for linker arguments ([PR #2797](https://github.com/ponylang/ponyc/pull/2797))
 - Fix build on DragonFly BSD ([PR #2794](https://github.com/ponylang/ponyc/pull/2794))
