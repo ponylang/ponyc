@@ -744,7 +744,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     }
 
     // if we're scheduler 0 and cycle detection is enabled
-    if((sched->index == 0) && !ponyint_actor_getnoblock())
+    if(!ponyint_actor_getnoblock() && (sched->index == 0))
     {
       // trigger cycle detector by sending it a message if it is time
       uint64_t current_tsc = ponyint_cpu_tick();
@@ -786,7 +786,7 @@ static void run(scheduler_t* sched)
   while(true)
   {
     // if we're scheduler 0 and cycle detection is enabled
-    if((sched->index == 0) && !ponyint_actor_getnoblock())
+    if(!ponyint_actor_getnoblock() && (sched->index == 0))
     {
       // trigger cycle detector by sending it a message if it is time
       uint64_t current_tsc = ponyint_cpu_tick();
