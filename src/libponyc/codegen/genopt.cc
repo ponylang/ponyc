@@ -25,10 +25,10 @@
 #include <llvm-c/DebugInfo.h>
 #endif
 
+#include "llvm_config_end.h"
+
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
-
-#include "llvm_config_end.h"
 
 using namespace llvm;
 using namespace llvm::legacy;
