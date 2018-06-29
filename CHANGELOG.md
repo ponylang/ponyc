@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.24.0] - 2018-06-29
 
 ### Fixed
 
@@ -15,9 +15,6 @@ All notable changes to the Pony compiler and standard library will be documented
 -  Fix incorrect disposable/destroyed epoll resubscribe handling ([PR #2781](https://github.com/ponylang/ponyc/pull/2781))
 - Fix GC-safety issue with writev pointers in File. ([PR #2775](https://github.com/ponylang/ponyc/pull/2775))
 - Disable neon for armhf if not supported by C/C++ compiler ([PR #2672](https://github.com/ponylang/ponyc/pull/2672))
-
-### Added
-
 
 ### Changed
 
