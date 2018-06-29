@@ -1,14 +1,4 @@
-#ifdef _MSC_VER
-#  pragma warning(push)
-//because LLVM IR Builder code is broken: e.g. Instructions.h:521-527
-#  pragma warning(disable:4244)
-#  pragma warning(disable:4800)
-#  pragma warning(disable:4267)
-#  pragma warning(disable:4624)
-#  pragma warning(disable:4141)
-#  pragma warning(disable:4291)
-#  pragma warning(disable:4146)
-#endif
+#include "llvm_config_begin.h"
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -21,9 +11,7 @@
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Target/TargetOptions.h>
 
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
+#include "llvm_config_end.h"
 
 #include <stdio.h>
 #include "codegen.h"
@@ -81,6 +69,10 @@ char* LLVMGetHostCPUFeatures()
   buf_size += 9;
 #endif
 
+#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  buf_size += 6;
+#endif
+
   char* buf = (char*)malloc(buf_size);
   pony_assert(buf != NULL);
   buf[0] = 0;
@@ -102,6 +94,11 @@ char* LLVMGetHostCPUFeatures()
 #if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
   // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
   strcat(buf, ",-avx512f");
+#endif
+
+#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
+  // Workaround for https://bugs.llvm.org/show_bug.cgi?id=30842
+  strcat(buf, ",-neon");
 #endif
 
   return buf;

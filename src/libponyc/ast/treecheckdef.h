@@ -323,7 +323,7 @@ RULE(repeat,
   IS_SCOPE
   HAS_TYPE(type)
   CHILD(seq)        // Loop body
-  CHILD(rawseq)        // Condition
+  CHILD(seq)        // Condition
   CHILD(seq, none), // Else body
   TK_REPEAT);
 

@@ -1,18 +1,7 @@
-#ifdef _MSC_VER
-#  pragma warning(push)
-// because LLVM IR Builder code is broken: e.g. Instructions.h:521-527
-#  pragma warning(disable:4244)
-#  pragma warning(disable:4800)
-#  pragma warning(disable:4267)
-#  pragma warning(disable:4624)
-#  pragma warning(disable:4141)
-#  pragma warning(disable:4146)
-// LLVM claims DEBUG as a macro name. Conflicts with MSVC headers.
-#  pragma warning(disable:4005)
-#endif
-
 #include "genopt.h"
 #include <string.h>
+
+#include "llvm_config_begin.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/CallSite.h>
@@ -39,9 +28,7 @@
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
 
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
+#include "llvm_config_end.h"
 
 using namespace llvm;
 using namespace llvm::legacy;

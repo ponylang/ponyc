@@ -6,24 +6,12 @@
 
 #include "util.h"
 
-#ifdef _MSC_VER
-#  pragma warning(push)
-#  pragma warning(disable:4244)
-#  pragma warning(disable:4800)
-#  pragma warning(disable:4267)
-#  pragma warning(disable:4624)
-#  pragma warning(disable:4141)
-#  pragma warning(disable:4146)
-#  pragma warning(disable:4005)
-#endif
+#include "llvm_config_begin.h"
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Module.h>
 
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
-
+#include "llvm_config_end.h"
 
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
@@ -660,4 +648,165 @@ TEST_F(CodegenTest, RedundantUnionInForLoopIteratorValueType)
     "  fun ref next(): T ? => error";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, WhileLoopBreakOnlyValueNeeded)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = while true do break true else false end\n"
+        "if x then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, WhileLoopBreakOnlyInBranches)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "while true do\n"
+          "if true then\n"
+            "break None\n"
+          "else\n"
+            "break\n"
+          "end\n"
+        "else\n"
+          "return\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, RepeatLoopBreakOnlyValueNeeded)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = repeat break true until false else false end\n"
+        "if x then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
+{
+  // From issue #2788
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "repeat\n"
+          "if true then\n"
+            "break None\n"
+          "else\n"
+            "break\n"
+          "end\n"
+        "until\n"
+          "false\n"
+        "else\n"
+          "return\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, CycleDetector)
+{
+  const char* src =
+    "actor Ring\n"
+    "  let _id: U32\n"
+    "  var _next: (Ring | None)\n"
+
+    "  new create(id: U32, neighbor: (Ring | None) = None) =>\n"
+    "    _id = id\n"
+    "    _next = neighbor\n"
+
+    "  be set(neighbor: Ring) =>\n"
+    "    _next = neighbor\n"
+
+    "  be pass(i: USize) =>\n"
+    "    if i > 0 then\n"
+    "      match _next\n"
+    "      | let n: Ring =>\n"
+    "        n.pass(i - 1)\n"
+    "      end\n"
+    "    end\n"
+
+    "  fun _final() =>\n"
+    "    let i = @pony_get_exitcode[I32]()\n"
+    "    @pony_exitcode[None](i + 1)\n"
+
+    "actor Watcher\n"
+    "  var _c: I32 = 0\n"
+    "  new create(num: I32) => check_done(num)\n"
+
+    "  be check_done(num: I32) =>\n"
+    "    if @pony_get_exitcode[I32]() != num then\n"
+    "      /* wait for cycle detector to reap ring actors */\n"
+    "      ifdef windows then\n"
+    "        @Sleep[None](U32(30))\n"
+    "      else\n"
+    "        @ponyint_cpu_core_pause[None](U64(0), U64(20000000000), true)\n"
+    "      end\n"
+    "      _c = _c + 1\n"
+    "      if _c > 50 then\n"
+    "        @printf[I32](\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode[I32](), num)\n"
+    "        @pony_exitcode[None](I32(1))\n"
+    "      else\n"
+    "        check_done(num)\n"
+    "      end\n"
+    "    else\n"
+    "      @pony_exitcode[None](I32(0))\n"
+    "    end\n"
+
+
+    "actor Main\n"
+    "  var _ring_size: U32 = 5\n"
+    "  var _ring_count: U32 = 2\n"
+    "  var _pass: USize = 10\n"
+
+    "  new create(env: Env) =>\n"
+    "    setup_ring()\n"
+    "    Watcher((_ring_size * _ring_count).i32())\n"
+
+    "  fun setup_ring() =>\n"
+    "    var j: U32 = 0\n"
+    "    while true do\n"
+    "      let first = Ring(1)\n"
+    "      var next = first\n"
+
+    "      var k: U32 = 0\n"
+    "      while true do\n"
+    "        let current = Ring(_ring_size - k, next)\n"
+    "        next = current\n"
+
+    "        k = k + 1\n"
+    "        if k >= (_ring_size - 1) then\n"
+    "          break\n"
+    "        end\n"
+    "      end\n"
+
+    "      first.set(next)\n"
+
+    "      if _pass > 0 then\n"
+    "        first.pass(_pass)\n"
+    "      end\n"
+
+    "      j = j + 1\n"
+    "      if j >= _ring_count then\n"
+    "        break\n"
+    "      end\n"
+    "    end\n";
+
+  set_builtin(NULL);
+
+  TEST_COMPILE(src);
+
+  int exit_code = -1;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 0);
 }

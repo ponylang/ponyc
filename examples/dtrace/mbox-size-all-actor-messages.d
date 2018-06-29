@@ -11,7 +11,11 @@
  */
 
 inline unsigned int UINT32_MAX = 4294967295;
-inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 7);  /* -8 */
+inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 11); /* -12 */
+inline unsigned int ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);      /* -11 */
+inline unsigned int ACTORMSG_DESTROYED = (UINT32_MAX - 9);          /* -10 */
+inline unsigned int ACTORMSG_CREATED = (UINT32_MAX - 8);            /* -9 */
+inline unsigned int ACTORMSG_ISBLOCKED = (UINT32_MAX - 7);          /* -8 */
 inline unsigned int ACTORMSG_BLOCK = (UINT32_MAX - 6);              /* -7 */
 inline unsigned int ACTORMSG_UNBLOCK = (UINT32_MAX - 5);            /* -6 */
 inline unsigned int ACTORMSG_ACQUIRE = (UINT32_MAX - 4);            /* -5 */
@@ -26,7 +30,9 @@ BEGIN
   printf("Column headings:    actor id, msg id (sys msg < zero), msg-in|msg-out, =, count\n");
   printf("System message ids: ACK = -2, CONF = -3, RELEASE = -4,\n");
   printf("                    ACQUIRE = -5, UNBLOCK = -6,\n");
-  printf("                    BLOCK = -7, APPLICATION_START = -8\n");
+  printf("                    BLOCK = -7, ISBLOCKED = -8\n");
+  printf("                    CREATED = -9, DESTROYED = -10\n");
+  printf("                    CHECKBLOCKED = -11, APPLICATION_START = -12\n");
   printf("\n");
 }
 

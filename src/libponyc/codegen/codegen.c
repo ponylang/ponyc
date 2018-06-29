@@ -303,9 +303,10 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
-  // void ponyint_destroy(__object*)
-  params[0] = c->object_ptr;
-  type = LLVMFunctionType(c->void_type, params, 1, false);
+  // void ponyint_destroy(i8*, __object*)
+  params[0] = c->void_ptr;
+  params[1] = c->object_ptr;
+  type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
