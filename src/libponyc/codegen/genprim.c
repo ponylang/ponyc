@@ -1318,6 +1318,7 @@ void genprim_platform_methods(compile_t* c, reach_type_t* t)
 {
   BOX_FUNCTION(platform_freebsd, t);
   BOX_FUNCTION(platform_dragonfly, t);
+  BOX_FUNCTION(platform_openbsd, t);
   BOX_FUNCTION(platform_linux, t);
   BOX_FUNCTION(platform_osx, t);
   BOX_FUNCTION(platform_windows, t);
