@@ -1172,6 +1172,17 @@ static void platform_dragonfly(compile_t* c, reach_type_t* t, token_id cap)
   codegen_finishfun(c);
 }
 
+static void platform_openbsd(compile_t* c, reach_type_t* t, token_id cap)
+{
+  FIND_METHOD("openbsd", cap);
+  start_function(c, t, m, c->i1, &c_t->use_type, 1);
+
+  LLVMValueRef result =
+    LLVMConstInt(c->i1, target_is_openbsd(c->opt->triple), false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void platform_linux(compile_t* c, reach_type_t* t, token_id cap)
 {
   FIND_METHOD("linux", cap);

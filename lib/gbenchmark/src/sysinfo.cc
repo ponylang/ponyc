@@ -486,7 +486,8 @@ double GetCPUCyclesPerSecond() {
 
 #elif defined BENCHMARK_HAS_SYSCTL
   constexpr auto* FreqStr =
-#if defined(BENCHMARK_OS_FREEBSD) || defined(BENCHMARK_OS_NETBSD)
+#if defined(BENCHMARK_OS_FREEBSD) || defined(BENCHMARK_OS_NETBSD) ||
+    defined(BENCHMARK_OS_OPENBSD)
       "machdep.tsc_freq";
 #else
       "hw.cpufrequency";

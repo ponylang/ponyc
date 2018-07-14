@@ -31,6 +31,11 @@ else
     OSTYPE = bsd
     CXX = c++
   endif
+
+  ifeq ($(UNAME_S),OpenBSD)
+    OSTYPE = bsd
+    CXX = c++
+  endif
 endif
 
 ifdef LTO_PLUGIN

@@ -226,7 +226,7 @@ bool get_compiler_exe_path(char* output_path)
 
   if(success)
     output_path[r] = '\0';
-#elif defined PLATFORM_IS_BSD
+#elif defined PLATFORM_IS_BSD && !defined PLATFORM_IS_OPENBSD
   int mib[4];
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
@@ -246,6 +246,12 @@ bool get_compiler_exe_path(char* output_path)
   {
     pony_realpath(exec_path, output_path);
   }
+#elif defined PLATFORM_IS_OPENBSD
+  // OpenBSD has no support for this, so we fake it
+  // For a package of pony, the binary lives in /usr/local/bin
+  char exec_path[FILENAME_MAX] = "/usr/local/bin";
+  pony_realpath(exec_path, output_path);
+  success = true;
 #else
 #  error Unsupported platform for exec_path()
 #endif

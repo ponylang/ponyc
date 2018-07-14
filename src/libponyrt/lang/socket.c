@@ -66,9 +66,14 @@ typedef int SOCKET;
 #include <linux/udp.h>
 #endif
 #ifdef PLATFORM_IS_BSD
-#ifndef PLATFORM_IS_DRAGONFLY
+#ifdef PLATFORM_IS_FREEBSD
 #include <netinet/ip_mroute.h>
 #include <netinet/sctp.h>
+#elif defined(PLATFORM_IS_OPENBSD)
+// Taken from FreeBSD
+#define TCP_KEEPCNT 1024
+#define TCP_KEEPIDLE 256
+#define TCP_KEEPINTVL 512
 #endif
 #include <sys/socket.h>
 #include <netinet/in.h>
