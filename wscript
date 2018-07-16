@@ -188,6 +188,7 @@ def build(ctx):
 
     llvmIncludes = []
     llvmLibs = []
+    llvmBuildMode = ''
     sslIncludes = []
 
     # download windows libraries needed for building
