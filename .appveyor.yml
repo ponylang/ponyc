@@ -47,6 +47,7 @@ build_script:
       Update-AppveyorBuild -Version "ponyc-$package_version-$package_iteration"
   - cd C:\projects\ponyc
   - python -x waf configure
+  - python -x waf clean --config %configuration% --llvm %llvm%
   - python -x waf build --config %configuration% --llvm %llvm%
   - ps: |
       $ponydir = "ponyc-${package_version}-win64"
