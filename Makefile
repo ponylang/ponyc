@@ -438,7 +438,8 @@ endif
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
-  llvm.libs += -lpthread -lexecinfo
+  extra.bsd.libs = -lpthread -lexecinfo
+  llvm.libs += $(extra.bsd.libs)
 endif
 
 prebuilt := llvm
@@ -582,9 +583,9 @@ endif
 
 ifeq ($(OSTYPE),bsd)
   libponyc.tests.links += libpthread
-  libponyrt.tests.links += libpthread
+  libponyrt.tests.links += $(extra.bsd.libs)
   libponyc.benchmarks.links += libpthread
-  libponyrt.benchmarks.links += libpthread
+  libponyrt.benchmarks.links += $(extra.bsd.libs)
 endif
 
 ifneq (, $(DTRACE))
