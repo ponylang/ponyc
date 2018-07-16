@@ -933,6 +933,9 @@ class iso _TestFileLinesSingleLine is UnitTest
         h.assert_eq[USize](lines_returned, 1,
           "FileLines returned " + lines_returned.string() +
           " for single line: '" + line + "'")
+        h.assert_eq[USize](file.position(), line.size(),
+          "FileLines advanced the file cursor to " + file.position().string() +
+          " though the line has " + line.size().string() + " bytes.")
       end
       i = i + 1
     end
@@ -1005,20 +1008,21 @@ class _TestFileLinesMovingCursor is UnitTest
   var tmp_dir: (FilePath | None) = None
 
   fun ref set_up(h: TestHelper) ? =>
-    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "multi-line")?
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "moving-cursor")?
 
   fun ref tear_down(h: TestHelper) =>
     try
       (tmp_dir as FilePath).remove()
     end
 
-  fun name(): String => "files/FileLines.moving-cursor"
+  fun name(): String => "files/FileLines.moving_cursor"
 
   fun ref apply(h: TestHelper)? =>
     let tmp_file = (tmp_dir as FilePath).join("moving-cursor")?
+    let content = "a\nb\nc\nd"
     with file = CreateFile(tmp_file) as File do
       h.assert_true(
-        file.write("a\nb\nc\nd"),
+        file.write(content),
         "could not write to file: " + tmp_file.path)
     end
 
@@ -1026,22 +1030,29 @@ class _TestFileLinesMovingCursor is UnitTest
       h.assert_eq[USize](file.position(), 0)
       let fl1 = FileLines(file)
       h.assert_eq[String](" ".join(fl1), "a b c d")
-      h.assert_eq[USize](file.position(), 0)
+      h.assert_eq[USize](file.position(), content.size())
 
       file.seek_start(2)
       let fl2 = FileLines(file)
       h.assert_eq[String](" ".join(fl2), "b c d")
-      h.assert_eq[USize](file.position(), 2)
+      h.assert_eq[USize](file.position(), content.size())
 
       file.seek_start(0)
       let fl3 = FileLines(file)
-      file.seek_start(2)
+      file.seek_start(3)
       h.assert_true(fl3.has_next())
       h.assert_eq[String](fl3.next()?, "a")
       h.assert_eq[USize](file.position(), 2)
-      file.seek_start(4)
+      file.seek_start(5)
       h.assert_true(fl3.has_next())
       h.assert_eq[String](fl3.next()?, "b")
       h.assert_eq[USize](file.position(), 4)
-
+      file.seek_start(0)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "c")
+      h.assert_eq[USize](file.position(), 6)
+      file.seek_start(10)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "d")
+      h.assert_eq[USize](file.position(), 7)
     end

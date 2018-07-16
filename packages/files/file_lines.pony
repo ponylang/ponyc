@@ -3,25 +3,43 @@ use "buffered"
 class FileLines is Iterator[String iso^]
   """
   Iterate over the lines in a file.
+
+  Returns lines without trailing line breaks.
+  Advances the file cursor to the end of each line returned from `next`.
+
+  This class buffers the file contents to accumulate full lines. If the file
+  does not contain linebreaks, the whole file content is read and buffered, which
+  might exceed memory resources. Take care.
   """
   let _reader: Reader = Reader
   let _file: File
   let _min_read_size: USize
-  var _last_line_length: USize = 256
+  var _last_line_length: USize
+  var _buffer_cursor: USize
+    """Internal cursor for keeping track until where in the file we already buffered."""
   var _cursor: USize
+    """Keeps track of the file position we update after every returned line."""
   var _has_next: Bool
 
-  new create(
-    file: File,
-    start_position: (USize | None) = None,
-    min_read_size: USize = 256) =>
+  new create(file: File, min_read_size: USize = 256) =>
+    """
+    Create a FileLines instance on a given file.
+
+    This instance returns lines from the position of the given `file`
+    at the time this constructor is called. Later manipulation of the file position
+    is not accounted for. As a result iterating with this class will always return the full
+    file content without gaps or repeated lines.
+
+    `min_read_size` determines the minimum amount of bytes to read from the file
+    in one go. This class keeps track of the line lengths in the current file
+    and uses the length of the last line as amount of bytes to read next, but it
+    will never read less than `min_read_size`.
+    """
     _file = file
-    _cursor =
-      match start_position
-      | let pos: USize => pos
-      | None => _file.position()
-      end
+    _buffer_cursor = _file.position()
+    _cursor = _file.position()
     _min_read_size = min_read_size
+    _last_line_length = min_read_size
     _has_next = _file.valid()
 
   fun ref has_next(): Bool =>
@@ -29,11 +47,7 @@ class FileLines is Iterator[String iso^]
 
   fun ref next(): String iso^ ? =>
     """
-    next:
-      set _has_next to false iff:
-
-    while loop exit condition:
-
+    Returns the next line in the file.
     """
     while true do
       try
@@ -55,8 +69,16 @@ class FileLines is Iterator[String iso^]
     end
 
   fun ref _read_line(): String iso^ ? =>
-    let line = _reader.line()?
-    _last_line_length = line.size()
+    let line = _reader.line(where keep_line_breaks = true)?
+    let len = line.size()
+    _last_line_length = len
+
+    // advance the cursor to the end of the returned line
+    _inc_public_file_cursor(len)
+
+    // strip trailing line break
+    line.truncate(
+      len - if (len >= 2) and (line.at_offset(-2)? == '\r') then 2 else 1 end)
     consume line
 
   fun ref _fill_buffer(): Bool =>
@@ -65,16 +87,16 @@ class FileLines is Iterator[String iso^]
 
     Returns `true` if data could be read from the file.
 
-    After a successful reading operation `_cursor` is updated.
+    After a successful reading operation `_buffer_cursor` is updated.
     """
     var result = true
     // get back to position of last line
     let current_pos = _file.position()
-    _file.seek_start(_cursor)
+    _file.seek_start(_buffer_cursor)
     if _file.valid() then
       let read_bytes = _last_line_length.max(_min_read_size)
       let read_buf = _file.read(read_bytes)
-      _cursor = _file.position()
+      _buffer_cursor = _file.position()
 
       let errno = _file.errno()
       if (read_buf.size() == 0) and (errno isnt FileOK) then
@@ -87,12 +109,18 @@ class FileLines is Iterator[String iso^]
       result = false
     end
     // reset position to not disturb other operations on the file
+    // we only actually advance the cursor if the line is returned.
     _file.seek_start(current_pos)
     result
 
   fun ref _read_last_line(): String iso^ ? =>
     let block = _reader.block(_reader.size())?
+    _inc_public_file_cursor(block.size())
     String.from_iso_array(consume block)
+
+  fun ref _inc_public_file_cursor(amount: USize) =>
+    _cursor = _cursor + amount
+    _file.seek_start(_cursor)
 
 
 
