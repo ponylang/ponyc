@@ -684,6 +684,25 @@ gmake
 ./build/release/ponyc examples/helloworld
 ```
 
+## Building on OpenBSD
+
+OpenBSD has been tested on OpenBSD 6.4.
+
+First, install the required dependencies:
+
+```bash
+doas pkg_add gmake libexecinfo llvm pcre2
+```
+
+This will build ponyc:
+
+```bash
+gmake
+```
+
+It is highly recommended you use the OpenBSD package of pony
+instead of building it yourself.
+
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
