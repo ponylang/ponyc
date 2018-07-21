@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Add libexecinfo to debug builds for BSD ([PR #2826](https://github.com/ponylang/ponyc/pull/2826))
 
 ### Added
 
