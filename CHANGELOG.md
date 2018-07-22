@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.24.1] - 2018-07-22
 
 ### Fixed
 
@@ -12,9 +12,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add SSL APLN support ([PR #2816](https://github.com/ponylang/ponyc/pull/2816))
 - Make dynamic scheduler scaling more robust and configurable ([PR #2801](https://github.com/ponylang/ponyc/pull/2801))
-
-### Changed
-
 
 ## [0.24.0] - 2018-06-29
 
