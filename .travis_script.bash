@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 set -o errexit
 set -o nounset
@@ -10,6 +10,31 @@ set -o nounset
 
 case "${TRAVIS_OS_NAME}" in
   "linux")
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" != "" ]]
+    then
+      "ponyc-build-debs-$RELEASE_DEBS" "$(cat VERSION)"
+    fi
+
+    # when running a cross build of ponyc
+    if [[ "${CROSS_ARCH}" != "" ]]
+    then
+      set -x
+      # build and test for x86_64 first
+      echo "Building and testing ponyc..."
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} CC="$CC1" CXX="$CXX1" verbose=1 -j$(nproc) all
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} CC="$CC1" CXX="$CXX1" verbose=1 test-ci
+
+      echo "Building and testing cross ponyc..."
+      # build libponyrt for target arch
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 CC="${CROSS_CC}" CXX="${CROSS_CXX}" arch="${CROSS_ARCH}" tune="${CROSS_TUNE}" bits="${CROSS_BITS}" CFLAGS="${CROSS_CFLAGS}" CXXFLAGS="${CROSS_CXXFLAGS}" LDFLAGS="${CROSS_LDFLAGS}" -j$(nproc) libponyrt
+      # build ponyc for target cross compilation
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 -j$(nproc) all PONYPATH=/usr/cross/lib cross_triple="${CROSS_TRIPLE}" cross_cpu="${CROSS_TUNE}" cross_arch="${CROSS_ARCH}" cross_linker="${CROSS_LINKER}"
+      # run tests for cross built stdlib using ponyc cross building support
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 test-cross-ci PONYPATH=/usr/cross/lib cross_triple="${CROSS_TRIPLE}" cross_cpu="${CROSS_TUNE}" cross_arch="${CROSS_ARCH}" cross_linker="${CROSS_LINKER}" QEMU_RUNNER="${QEMU_RUNNER:-}"
+
+      set +x
+    fi
+
     # when RELEASE_CONFIG stops matching part of this case, move this logic
     if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" ]]
     then
@@ -42,10 +67,10 @@ case "${TRAVIS_OS_NAME}" in
       export CXX1=clang++-3.9
       echo "Running LLVM 3.9 config=debug build..."
       export config=debug
-      ponyc-test
+      osx-ponyc-test
       echo "Running LLVM 3.9 config=release build..."
       export config=release
-      ponyc-test
+      osx-ponyc-test
 
       make clean
       brew uninstall llvm@3.9
@@ -60,7 +85,7 @@ case "${TRAVIS_OS_NAME}" in
       export CXX1=clang++-5.0
       echo "Running LLVM 5.0 config=release build..."
       export config=release
-      ponyc-test
+      osx-ponyc-test
 
       make clean
       brew uninstall llvm@5
@@ -79,7 +104,7 @@ case "${TRAVIS_OS_NAME}" in
       export CXX1=clang++-6.0
       echo "Running LLVM 6.0 config=release build..."
       export config=release
-      ponyc-test
+      osx-ponyc-test
 
       make clean
       brew uninstall llvm

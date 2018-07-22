@@ -231,6 +231,70 @@ class val SSLContext
     """
     @SSL_CTX_ctrl(_ctx, _SslCtrlGetMaxProtoVersion.apply(), 0, Pointer[None])
 
+  fun ref alpn_set_resolver(resolver: ALPNProtocolResolver box): Bool =>
+    """
+    Use `resolver` to choose the protocol to be selected for incomming connections.
+
+    Returns true on success
+    Requires OpenSSL >= 1.0.2
+    """
+    ifdef "openssl_1.1.0" then
+      @SSL_CTX_set_alpn_select_cb[None](_ctx, addressof SSLContext._alpn_select_cb, resolver)
+      return true
+    end
+
+    false
+  
+  fun ref alpn_set_client_protocols(protocols: Array[String] box): Bool =>
+    """
+    Configures the SSLContext to advertise the protocol names defined in `protocols` when connecting to a server
+    protocol names must have a size of 1 to 255
+
+    Returns true on success
+    Requires OpenSSL >= 1.0.2
+    """
+    ifdef "openssl_1.1.0" then
+      try
+        let proto_list = _ALPNProtocolList.from_array(protocols)?
+        let result = @SSL_CTX_set_alpn_protos[I32](_ctx, proto_list.cpointer(), proto_list.size())
+        return result == 0
+      end
+    end
+
+    false
+  
+  fun @_alpn_select_cb(
+    ssl: Pointer[_SSL] tag,
+    out: Pointer[Pointer[U8] tag] tag,
+    outlen: Pointer[U8] tag,
+    inptr: Pointer[U8] box,
+    inlen: U32 val,
+    resolver: ALPNProtocolResolver box)
+    : I32 val
+  =>
+    let proto_arr_str = String.copy_cpointer(inptr, USize.from[U32](inlen))
+    try
+      let proto_arr = _ALPNProtocolList.to_array(proto_arr_str)?
+
+      match resolver.resolve(proto_arr)
+      | let matched: String val =>
+      var size = matched.size()
+      if (size > 0) and (size <= 255) then
+        var ptr = matched.cpointer()
+        @memcpy[None](out, addressof ptr, size.bitwidth() / 8)
+        @memcpy[None](outlen, addressof size, USize(1))
+        _ALPNMatchResultCode.ok()
+      else
+        _ALPNMatchResultCode.fatal()
+      end
+      | ALPNNoAck => _ALPNMatchResultCode.no_ack()
+      | ALPNWarning => _ALPNMatchResultCode.warning()
+      | ALPNFatal => _ALPNMatchResultCode.fatal()
+      end
+    else
+      _ALPNMatchResultCode.fatal()
+    end
+
   fun ref allow_tls_v1(state: Bool) =>
     """
     Allow TLS v1. Defaults to false.

@@ -115,6 +115,11 @@ class SSLConnection is TCPConnectionNotify
         _connected = true
         _notify.connected(conn)
 
+        match _notify
+        | let alpn_notify: ALPNProtocolNotify =>
+        alpn_notify.alpn_negotiated(conn, _ssl.alpn_selected())
+        end
+
         try
           while _pending.size() > 0 do
             _ssl.write(_pending.shift()?)?

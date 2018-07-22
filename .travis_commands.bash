@@ -3,9 +3,95 @@
 set -o errexit
 set -o nounset
 
-ponyc-test(){
+osx-ponyc-test(){
   echo "Building and testing ponyc..."
+  make CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) all
   make CC="$CC1" CXX="$CXX1" test-ci
+}
+
+build_deb(){
+  deb_distro=$1
+
+  # untar source code
+  tar -xzf "ponyc_${package_version}.orig.tar.gz"
+
+  pushd "ponyc-${package_version}"
+
+  cp -r .packaging/deb debian
+  cp LICENSE debian/copyright
+
+  # create changelog
+  rm -f debian/changelog
+  dch --package ponyc -v "${package_version}" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
+
+  # remove pcre2 dependency from package and tests for trusty and jessie
+  if [[ ("$deb_distro" == "trusty") || ("$deb_distro" == "jessie") ]]
+  then
+    sed -i 's/, libpcre2-dev//g' debian/control
+    sed -i 's#use glob#//use glob#g' packages/stdlib/_test.pony
+    sed -i 's#glob.Main.make#None//glob.Main.make#g' packages/stdlib/_test.pony
+    sed -i 's#use regex#//use regex#g' packages/stdlib/_test.pony
+    sed -i 's#regex.Main.make#//regex.Main.make#g' packages/stdlib/_test.pony
+    EDITOR=/bin/true dpkg-source --commit . removepcredep
+  fi
+
+  # create package for distro using docker to run debuild
+  sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder" sh -c 'cd ponyc* && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
+
+  ls -l ..
+
+  # restore original working directory
+  popd
+
+  # create bintray upload json file
+  bash .bintray_deb.bash "$package_version" "$deb_distro"
+
+  # rename package to avoid clashing across different distros packages
+  mv "ponyc_${package_version}_amd64.deb" "ponyc_${package_version}_${deb_distro}_amd64.deb"
+
+  # clean up old build directory to ensure things are all clean
+  sudo rm -rf "ponyc-${package_version}"
+}
+
+ponyc-build-debs-ubuntu(){
+  package_version=$1
+
+  set -x
+
+  echo "Install devscripts..."
+  sudo apt-get update
+  sudo apt-get install -y devscripts
+
+  echo "Building off ponyc debs for bintray..."
+  wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
+
+  build_deb xenial
+  build_deb artful
+  build_deb bionic
+  build_deb trusty
+
+  ls -la
+  set +x
+}
+
+ponyc-build-debs-debian(){
+  package_version=$1
+
+  set -x
+
+  echo "Install devscripts..."
+  sudo apt-get update
+  sudo apt-get install -y devscripts
+
+  echo "Building off ponyc debs for bintray..."
+  wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
+
+  build_deb buster
+  build_deb stretch
+  build_deb jessie
+
+  ls -la
+  set +x
 }
 
 build_and_submit_deb_src(){
