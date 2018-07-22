@@ -692,7 +692,7 @@ static bool add_exec_dir(pass_opt_t* opt)
   success = add_relative_path(path, "..\\lib", opt);
 #else
   const char* link_arch = opt->link_arch != NULL ? opt->link_arch
-                                              : "native";
+                                              : PONY_ARCH;
   size_t lib_len = 8 + strlen(link_arch);
   char* lib_path = (char*)ponyint_pool_alloc_size(lib_len);
   snprintf(lib_path, lib_len, "../lib/%s", link_arch);
