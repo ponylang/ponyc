@@ -989,16 +989,16 @@ deploy: test docs
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include/pony/detail
 	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/lib/$(arch)/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/lib/$(arch)/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
 ifeq ($(OSTYPE),linux)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt-pic.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/lib/$(arch)/libponyrt-pic.a $(package)/usr/lib/pony/$(package_version)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
 	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(package)/usr/lib/pony/$(package_version)/lib
 endif
 ifneq ($(wildcard $(PONY_BUILD_DIR)/libdtrace_probes.a),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libdtrace_probes.a $(package)/usr/lib/pony/$(package_version)/lib
+	$(SILENT)cp $(PONY_BUILD_DIR)/lib/$(arch)/libdtrace_probes.a $(package)/usr/lib/pony/$(package_version)/lib
 endif
 	$(SILENT)cp $(PONY_BUILD_DIR)/ponyc $(package)/usr/lib/pony/$(package_version)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
