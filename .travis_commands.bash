@@ -24,17 +24,6 @@ build_deb(){
   rm -f debian/changelog
   dch --package ponyc -v "${package_version}" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
 
-  # remove pcre2 dependency from package and tests for trusty and jessie
-  if [[ ("$deb_distro" == "trusty") || ("$deb_distro" == "jessie") ]]
-  then
-    sed -i 's/, libpcre2-dev//g' debian/control
-    sed -i 's#use glob#//use glob#g' packages/stdlib/_test.pony
-    sed -i 's#glob.Main.make#None//glob.Main.make#g' packages/stdlib/_test.pony
-    sed -i 's#use regex#//use regex#g' packages/stdlib/_test.pony
-    sed -i 's#regex.Main.make#//regex.Main.make#g' packages/stdlib/_test.pony
-    EDITOR=/bin/true dpkg-source --commit . removepcredep
-  fi
-
   # create package for distro using docker to run debuild
   sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder" sh -c 'cd ponyc* && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
 
@@ -98,10 +87,6 @@ build_and_submit_deb_src(){
   deb_distro=$1
   rm -f debian/changelog
   dch --package ponyc -v "${package_version}-0ppa1~${deb_distro}" -D "${deb_distro}" --controlmaint --create "Release ${package_version}"
-  if [[ "$deb_distro" == "trusty" ]]
-  then
-    EDITOR=/bin/true dpkg-source --commit . removepcredep
-  fi
   debuild -S
   dput custom-ppa "../ponyc_${package_version}-0ppa1~${deb_distro}_source.changes"
 }
@@ -152,14 +137,6 @@ ponyc-kickoff-copr-ppa(){
   build_and_submit_deb_src artful
   build_and_submit_deb_src bionic
   build_and_submit_deb_src cosmic
-
-  # run trusty last because we will modify things to not rely on pcre2
-  # remove pcre dependency from package and tests
-  sed -i 's/, libpcre2-dev//g' debian/control
-  sed -i 's#use glob#//use glob#g' packages/stdlib/_test.pony
-  sed -i 's#glob.Main.make#None//glob.Main.make#g' packages/stdlib/_test.pony
-  sed -i 's#use regex#//use regex#g' packages/stdlib/_test.pony
-  sed -i 's#regex.Main.make#//regex.Main.make#g' packages/stdlib/_test.pony
   build_and_submit_deb_src trusty
 
   # COPR for fedora/centos/suse
