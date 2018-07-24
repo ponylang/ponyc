@@ -36,7 +36,7 @@ case "${TRAVIS_OS_NAME}" in
     fi
 
     # when RELEASE_CONFIG stops matching part of this case, move this logic
-    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" ]]
+    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" == "" ]]
     then
       download_llvm
       download_pcre
