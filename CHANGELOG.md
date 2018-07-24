@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.24.2] - 2018-07-24
 
 ### Fixed
 
 - Fix `make arch=XXXXX` command to be able to correctly find libponyrt.
-
-### Added
-
-
-### Changed
-
 
 ## [0.24.1] - 2018-07-22
 
