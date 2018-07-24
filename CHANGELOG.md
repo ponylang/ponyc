@@ -9,7 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
- - Nothing - this was purely to fix a problem in the previously release
+- Nothing - this was purely to fix a problem in the previously release
 
 ### Changed
 
