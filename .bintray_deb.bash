@@ -45,7 +45,7 @@ JSON="{
     \"vcs_url\": \"https://github.com/ponylang/ponyc.git\",
     \"licenses\": [\"BSD 2-Clause\"],
     \"github_repo\": \"ponylang/ponyc\",
-    \"github_release_notes_file\": \"CHANGELOG.md\"
+    \"github_release_notes_file\": \"CHANGELOG.md\",
     \"public_download_numbers\": true
   },
   \"version\": {
