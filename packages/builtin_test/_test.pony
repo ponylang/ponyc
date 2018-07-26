@@ -502,6 +502,7 @@ class iso _TestStringTrimInPlace is UnitTest
     case(h, "", "0123456", 4, 1, 0)
     case(h, "456", "0123456789".clone().>trim_in_place(1, 8), 3, 6, 3)
     case(h, "456", "0123456789".trim(1, 8), 3, 6, 3)
+    case(h, "", "0123456789".clone().>trim_in_place(1, 8), 3, 3, 0)
 
   fun case(
     h: TestHelper,
@@ -512,10 +513,17 @@ class iso _TestStringTrimInPlace is UnitTest
     space: USize = 0)
   =>
     let copy: String ref = orig.clone()
+    let pre_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
     h.assert_eq[USize](space, copy.space())
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
+    let post_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
+    if copy.space() == 0 then
+      h.assert_eq[USize](0, post_trim_pagemap.usize())
+    else
+      h.assert_eq[USize](pre_trim_pagemap.usize(), post_trim_pagemap.usize())
+    end
 
 class iso _TestStringTrimInPlaceWithAppend is UnitTest
   """
@@ -1236,6 +1244,7 @@ class iso _TestArrayTrimInPlace is UnitTest
     case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4 where space = 4)
     case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4, 0)
     case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1, 0)
+    case(h, Array[U8], Array[U8].init(8, 1024), 1024)
 
   fun case(
     h: TestHelper,
@@ -1246,9 +1255,16 @@ class iso _TestArrayTrimInPlace is UnitTest
     space: USize = 0)
   =>
     let copy: Array[U8] ref = orig.clone()
+    let pre_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[USize](space, copy.space())
     h.assert_array_eq[U8](expected, copy)
+    let post_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
+    if copy.space() == 0 then
+      h.assert_eq[USize](0, post_trim_pagemap.usize())
+    else
+      h.assert_eq[USize](pre_trim_pagemap.usize(), post_trim_pagemap.usize())
+    end
 
 class iso _TestArrayTrimInPlaceWithAppend is UnitTest
   """
