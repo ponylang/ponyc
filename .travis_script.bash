@@ -17,6 +17,13 @@ case "${TRAVIS_OS_NAME}" in
       exit
     fi
 
+    # when building appimage package for a nightly cron job to make sure packaging isn't broken
+    if [[ "$TRAVIS_BRANCH" == "master" && "$TRAVIS_EVENT_TYPE" == "cron" && "$RELEASE_DEBS" == "" ]]
+    then
+      build_appimage "$(cat VERSION)"
+      exit
+    fi
+
     # when building debian packages for a release
     if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" != "" ]]
     then
@@ -52,6 +59,7 @@ case "${TRAVIS_OS_NAME}" in
       ponyc-kickoff-copr-ppa
       ponyc-build-packages
       ponyc-build-docs
+      build_appimage "$(cat VERSION)"
     fi
   ;;
 
