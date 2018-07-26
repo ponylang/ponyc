@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix array and string trim_in_place allocation bounds check ([PR #2840](https://github.com/ponylang/ponyc/pull/2840))
 
 ### Added
 
