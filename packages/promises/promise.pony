@@ -36,7 +36,7 @@ class PrintFulfill is Fulfill[String, String]
     _env = env
     _msg = msg
   fun apply(s: String): String =>
-    _env.out.print(" + ".join([s; _msg]))
+    _env.out.print(" + ".join([s; _msg].values()))
     s
 
 actor Main
@@ -86,7 +86,7 @@ actor Main
             .next[Array[USize] val](recover Computation~strings_to_sizes() end)
             .next[USize](recover Computation~sizes_to_avg() end)
             .next[None](recover Computation~output(env) end)
-     promise(" ".join(env.args.slice(1)))
+     promise(" ".join(env.args.slice(1).values()))
 ```
 """
 use "time"
@@ -167,7 +167,7 @@ actor Promise[A: Any #share]
     promise is also rejected.
     """
     let p' = Promise[(A, B)]
-    
+
     let c =
       object
         var _a: (A | _None) = _None
@@ -241,7 +241,7 @@ actor Promise[A: Any #share]
       object tag
         var _complete: Bool = false
         let _p: Promise[(A, Promise[A])] = p'
-        
+
         be apply(a: A, p: Promise[A]) =>
           if not _complete then
             _p((a, p))
@@ -251,7 +251,7 @@ actor Promise[A: Any #share]
 
     next[None]({(a) => s(a, p) })
     p.next[None]({(a)(p = this) => s(a, p) })
-    
+
     p'
 
   fun tag timeout(expiration: U64) =>
