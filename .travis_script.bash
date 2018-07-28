@@ -10,15 +10,15 @@ set -o nounset
 
 case "${TRAVIS_OS_NAME}" in
   "linux")
-    # when building debian packages for a nightly cron job to make sure packaging isn't broken
-    if [[ "$TRAVIS_BRANCH" == "master" && "$TRAVIS_EVENT_TYPE" == "cron" && "$RELEASE_DEBS" != "" ]]
+    # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
+    if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
     then
       "ponyc-build-debs-$RELEASE_DEBS" master
       exit
     fi
 
-    # when building appimage package for a nightly cron job to make sure packaging isn't broken
-    if [[ "$TRAVIS_BRANCH" == "master" && "$TRAVIS_EVENT_TYPE" == "cron" && "$RELEASE_DEBS" == "" ]]
+    # when building appimage package for a nightly cron job or manual api requested job to make sure packaging isn't broken
+    if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" == "" && "$CROSS_ARCH" == "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
     then
       build_appimage "$(cat VERSION)"
       exit
@@ -64,8 +64,8 @@ case "${TRAVIS_OS_NAME}" in
   ;;
 
   "osx")
-    # when running for a nightly cron job to make sure packaging isn't broken
-    if [[ "$TRAVIS_BRANCH" == "master" && "$TRAVIS_EVENT_TYPE" == "cron" ]]
+    # when running for a nightly cron job or manual api requested job to make sure packaging isn't broken
+    if [[ "$TRAVIS_BRANCH" == "master" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
     then
       brew install ponyc --HEAD
       brew uninstall ponyc

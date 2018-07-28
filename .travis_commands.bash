@@ -34,23 +34,23 @@ EOF
   sudo rm -rf build
 
   # can't run appimages in docker; need to extract and then run
-  ./linuxdeploy-x86_64.AppImage --appimage-extract
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./linuxdeploy-x86_64.AppImage --appimage-extract"
 
   # need to run in CentOS 7 docker image
-  sudo docker run -v "$(pwd):/home/pony" --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= test-ci"
-  sudo docker run -v "$(pwd):/home/pony" --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= install"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= test-ci"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= install"
 
   # build stdlib to ensure libraries like openssl and pcre2 get packaged in the appimage
-  sudo docker run -v "$(pwd):/home/pony" --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./build/release/ponyc packages/stdlib"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./build/release/ponyc packages/stdlib"
   cp stdlib ponyc.AppDir/usr/bin
 
-  sudo docker run -v "$(pwd):/home/pony" --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc"
 
   # delete stdlib to not include it in appimage
   rm ponyc.AppDir/usr/bin/stdlib
 
   # build appimage
-  sudo docker run -v "$(pwd):/home/pony" --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc --output appimage"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc --output appimage"
 
   mv Pony_Compiler-x86_64.AppImage "Pony_Compiler-${package_version}-x86_64.AppImage"
 
