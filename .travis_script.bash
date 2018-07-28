@@ -8,6 +8,49 @@ set -o nounset
 # include various build commands
 . .travis_commands.bash
 
+# when running a vagrant build of ponyc
+if [[ "${VAGRANT_ENV}" != "" ]]
+then
+  set -x
+
+  case "${VAGRANT_ENV}" in
+
+    "freebsd11-x86_64")
+      date
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony ponylang/ponyc-ci:cross-llvm-3.9.1-freebsd11-x86_64 make arch=x86-64 config=${config} verbose=1 CC=clang CXX=clang++ CFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" CXXFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" LDFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/ -L/opt/cross-freebsd-11/usr/local/llvm39/lib" OSTYPE=bsd use="llvm_link_static" CROSS_SYSROOT=/opt/cross-freebsd-11 -j$(nproc)
+      date
+      download_vagrant
+      qemu-system-x86_64 --version
+      date
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/ponyc --version"
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/libponyc.tests"
+      date
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/libponyrt.tests"
+      date
+      sudo vagrant ssh -c "cd /vagrant && PONYPATH=.:${PONYPATH} ./build/${config}/ponyc -d -s --checktree --verify packages/stdlib"
+      sudo vagrant ssh -c "cd /vagrant && ./stdlib --sequential && rm ./stdlib"
+      date
+      sudo vagrant ssh -c "cd /vagrant && PONYPATH=.:${PONYPATH} ./build/${config}/ponyc --checktree --verify packages/stdlib"
+      sudo vagrant ssh -c "cd /vagrant && ./stdlib --sequential && rm ./stdlib"
+      date
+      sudo vagrant ssh -c "cd /vagrant && PONYPATH=.:${PONYPATH} find examples/*/* -name '*.pony' -print | xargs -n 1 dirname  | sort -u | grep -v ffi- | xargs -n 1 -I {} ./build/${config}/ponyc -d -s --checktree -o {} {}"
+      date
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/ponyc --antlr > pony.g.new"
+      sudo vagrant ssh -c "cd /vagrant && diff pony.g pony.g.new"
+      sudo vagrant ssh -c "cd /vagrant && rm pony.g.new"
+      date
+    ;;
+
+    *)
+      echo "ERROR: An unrecognized vagrant environment was found! VAGRANT_ENV: ${VAGRANT_ENV}"
+      exit 1
+    ;;
+
+  esac
+                                                                                                                        68,1          Bot
+  exit
+fi
+
 case "${TRAVIS_OS_NAME}" in
   "linux")
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
