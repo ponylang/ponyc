@@ -3,6 +3,26 @@
 set -o errexit
 set -o nounset
 
+download_vagrant(){
+  echo "Downloading and installing vagrant/libvirt..."
+  sudo add-apt-repository ppa:linuxsimba/libvirt-udp-tunnel -y
+  sudo apt-get update
+  sudo apt-get install libvirt-bin libvirt-dev qemu-utils qemu -y
+  sudo /etc/init.d/libvirt-bin restart
+  sudo virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images
+  sudo virsh pool-autostart default || true
+  sudo virsh pool-build default || true
+  sudo virsh pool-start default || true
+  sudo /etc/init.d/libvirt-bin restart
+  sudo libvirtd --version
+  wget "https://releases.hashicorp.com/vagrant/2.1.2/vagrant_2.1.2_x86_64.deb"
+  sudo dpkg -i vagrant_2.1.2_x86_64.deb
+  rm vagrant_2.1.2_x86_64.deb
+  vagrant plugin install vagrant-libvirt
+  cd .ci-vagrantfiles/${VAGRANT_ENV}
+  sudo vagrant up --provider=libvirt
+}
+
 osx-ponyc-test(){
   echo "Building and testing ponyc..."
   make CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) all
