@@ -9,13 +9,61 @@ osx-ponyc-test(){
   make CC="$CC1" CXX="$CXX1" test-ci
 }
 
+build_appimage(){
+  package_version=$1
+
+  mkdir ponyc.AppDir
+
+  cat > ./ponyc.desktop <<\EOF
+[Desktop Entry]
+Name=Pony Compiler
+Icon=ponyc
+Type=Application
+NoDisplay=true
+Exec=ponyc
+Terminal=true
+Categories=Development;
+EOF
+
+  curl https://www.ponylang.org/images/logo.png -o ponyc.png
+
+  curl https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -o linuxdeploy-x86_64.AppImage -J -L
+  chmod +x linuxdeploy-x86_64.AppImage
+
+  # remove any existing build artifacts
+  sudo rm -rf build
+
+  # can't run appimages in docker; need to extract and then run
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./linuxdeploy-x86_64.AppImage --appimage-extract"
+
+  # need to run in CentOS 7 docker image
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= test-ci"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= install"
+
+  # build stdlib to ensure libraries like openssl and pcre2 get packaged in the appimage
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./build/release/ponyc packages/stdlib"
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "cp stdlib ponyc.AppDir/usr/bin"
+
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc"
+
+  # delete stdlib to not include it in appimage
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "rm ponyc.AppDir/usr/bin/stdlib"
+
+  # build appimage
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc --output appimage"
+
+  mv Pony_Compiler-x86_64.AppImage "Pony_Compiler-${package_version}-x86_64.AppImage"
+
+  bash .bintray.bash appimage "${package_version}" ponyc
+}
+
 build_deb(){
   deb_distro=$1
 
   # untar source code
   tar -xzf "ponyc_${package_version}.orig.tar.gz"
 
-  pushd "ponyc-${package_version}"
+  pushd ponyc-*
 
   cp -r .packaging/deb debian
   cp LICENSE debian/copyright
@@ -39,7 +87,7 @@ build_deb(){
   mv "ponyc_${package_version}_amd64.deb" "ponyc_${package_version}_${deb_distro}_amd64.deb"
 
   # clean up old build directory to ensure things are all clean
-  sudo rm -rf "ponyc-${package_version}"
+  sudo rm -rf ponyc-*
 }
 
 ponyc-build-debs-ubuntu(){
@@ -53,6 +101,12 @@ ponyc-build-debs-ubuntu(){
 
   echo "Building off ponyc debs for bintray..."
   wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
+
+  if [ "${package_version}" == "master" ]
+  then
+    mv "ponyc_${package_version}.orig.tar.gz" "ponyc_$(cat VERSION).orig.tar.gz"
+    package_version=$(cat VERSION)
+  fi
 
   build_deb xenial
   build_deb artful
@@ -74,6 +128,12 @@ ponyc-build-debs-debian(){
 
   echo "Building off ponyc debs for bintray..."
   wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
+
+  if [ "${package_version}" == "master" ]
+  then
+    mv "ponyc_${package_version}.orig.tar.gz" "ponyc_$(cat VERSION).orig.tar.gz"
+    package_version=$(cat VERSION)
+  fi
 
   build_deb buster
   build_deb stretch

@@ -2,6 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.24.4] - 2018-07-29
+
+### Fixed
+
+- Fix array and string trim_in_place allocation bounds check ([PR #2840](https://github.com/ponylang/ponyc/pull/2840))
+
 ## [0.24.3] - 2018-07-24
 
 ### Added
