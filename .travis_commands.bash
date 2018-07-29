@@ -42,12 +42,12 @@ EOF
 
   # build stdlib to ensure libraries like openssl and pcre2 get packaged in the appimage
   sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./build/release/ponyc packages/stdlib"
-  cp stdlib ponyc.AppDir/usr/bin
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "cp stdlib ponyc.AppDir/usr/bin"
 
   sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc"
 
   # delete stdlib to not include it in appimage
-  rm ponyc.AppDir/usr/bin/stdlib
+  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "rm ponyc.AppDir/usr/bin/stdlib"
 
   # build appimage
   sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --app-name=ponyc --output appimage"
