@@ -228,6 +228,7 @@ ponyc-build-docs(){
   git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
   git fetch gh-token
   git reset gh-token/master
-  cd stdlib-docs
+  pushd stdlib-docs
   mkdocs gh-deploy -v --clean --remote-name gh-token --remote-branch master
+  popd
 }
