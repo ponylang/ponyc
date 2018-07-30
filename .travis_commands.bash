@@ -55,6 +55,11 @@ EOF
   mv Pony_Compiler-x86_64.AppImage "Pony_Compiler-${package_version}-x86_64.AppImage"
 
   bash .bintray.bash appimage "${package_version}" ponyc
+
+  rm linuxdeploy-x86_64.AppImage
+
+  # cleanup
+  sudo rm -rf build
 }
 
 build_deb(){

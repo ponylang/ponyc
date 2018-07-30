@@ -56,10 +56,10 @@ case "${TRAVIS_OS_NAME}" in
       download_llvm
       download_pcre
       set_linux_compiler
+      build_appimage "$(cat VERSION)"
       ponyc-kickoff-copr-ppa
       ponyc-build-packages
       ponyc-build-docs
-      build_appimage "$(cat VERSION)"
     fi
   ;;
 
