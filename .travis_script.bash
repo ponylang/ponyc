@@ -100,7 +100,7 @@ case "${TRAVIS_OS_NAME}" in
       download_pcre
       set_linux_compiler
       build_appimage "$(cat VERSION)"
-      ponyc-kickoff-copr-ppa
+      ponyc-kickoff-copr
       ponyc-build-packages
       ponyc-build-docs
     fi

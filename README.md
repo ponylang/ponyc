@@ -105,6 +105,18 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
+## Linux using an AppImage package (via Bintray)
+
+For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponylang-appimage](https://bintray.com/pony-language/ponylang-appimage)) as an AppImage.
+
+The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with with no conflicts.
+
+To install builds via AppImage, you need to go to Bintray and download the appropriate file for the version you want. After the file is downloaded, you need to make it executable using `chmod`.
+
+### DEB and AVX2 Support
+
+By default, the Pony AppImage package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
 ## Linux using an RPM package (via COPR)
 
 For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
@@ -147,38 +159,29 @@ zypper install ponyc
 
 By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
-## Ubuntu Linux using a DEB package (via Launchpad PPA)
+## Ubuntu and Debian Linux using a DEB package (via Bintray)
 
-For Ubuntu Linux (Trusty, Xenial, Artful, Bionic, Cosmic), the `release` builds are packaged and available on Launchpad PPA ([ponylang/ponylang](https://launchpad.net/~ponylang/+archive/ubuntu/ponylang)).
+For Ubuntu and Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponylang-debian](https://bintray.com/pony-language/ponylang-debian)).
 
-To install builds via Apt:
+Install packages to allow `apt` to use a repository over HTTPS:
 
 ```bash
-add-apt-repository ppa:ponylang/ponylang
-apt-get update
-apt-get install ponyc
+sudo apt-get install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
 ```
 
-NOTE: For Trusty, you will need to manually compile/install `libpcre2` to use `regex` related functionality.
-
-### DEB and AVX2 Support
-
-By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
-
-## Debian Linux using a DEB package (via Bintray)
-
-For Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
-
-To install builds via Apt (and install Bintray's public key):
+Install builds via Apt (and install Ponylang's public key):
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "D401AB61 DBE1D0A2"
-echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian  $(lsb_release -cs) main"
 sudo apt-get update
 sudo apt-get -V install ponyc
 ```
-
-You may need to install `ponyc` (current) instead of `ponyc-release` (deprecated).  And if you have issues with package authentication you may need to comment out the `deb` line in `/etc/apt/sources.list`, do an update, and uncomment it again.  Feel free to ask for help if you have any problems!
 
 ### DEB and AVX2 Support
 

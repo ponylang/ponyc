@@ -24,6 +24,15 @@ Before getting started, you will need a number for the version that you will be 
 
 * It passed all CI checks
 
+While not strictly necessary, it is recommended to ensure one of the following to confirm that packaging isn't broken:
+
+* Confirm that the last Travis CI daily cron triggered jobs ran successfully (https://travis-ci.org/ponylang/ponyc/builds)
+* Manually kick off a run via an "API request" using the "Trigger Build" functionality in the Travis Web UI and wait to confirm all the jobs run successfully (https://travis-ci.org/ponylang/ponyc/builds)
+
+Both of these go through the motions to build all the packages we normally create to confirm there aren't any issues. While this will not guarantee no errors in other parts of the "release" CI run, it does confirm that there will not be any packaging related errors.
+
+If these jobs are not passing, you should get the issues resolved prior to releasing as both DEB and RPM packaging work off of the tag in GitHub and any changes or fixes made after tagging will not be included and will require a new release to be tagged.
+
 ### Validate external services are functional
 
 We rely on both Travis CI and Appveyor as part of our release process. Both need to be up and functional in order to do a release. Check the status of each before starting a release. If either is reporting issues, push the release back a day or until whenever they both are reporting no problems.
@@ -31,8 +40,7 @@ We rely on both Travis CI and Appveyor as part of our release process. Both need
 * [Travis CI Status](https://www.traviscistatus.com)
 * [Appveyor Status](https://appveyor.statuspage.io)
 * [COPR Build System](https://status.fedoraproject.org/)
-* [Launchpad Buildfarm](https://twitter.com/launchpadstatus)
-
+* [Bintray Status](http://status.bintray.com)
 
 ### A GitHub issue exists for the release
 
@@ -107,12 +115,22 @@ Additionally, any breaking changes that require end users to change their code s
 
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
 
-* [Debian](https://bintray.com/pony-language/ponyc-debian/ponyc)
-* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
+* [Travis CI](https://travis-ci.org/ponylang/ponyc/builds) (confirm that the Travis jobs for the `release` branch ran successfully)
+* [AppImage](https://bintray.com/pony-language/ponylang-appimage/ponyc)
+* [Debian](https://bintray.com/pony-language/ponylang-debian/ponyc)
 
 The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
 
 `0.3.1`
+
+It is recommended to check the files for the Deb version to ensure that every distribution we support has a file successfully uploaded.
+
+For AppImage, the versions look something like:
+
+`0.3.1`
+
+* [Appveyor](https://ci.appveyor.com/project/ponylang/ponyc/history) (confirm that Appveyor jobs ran successfully for at least the LLVM 3.9.1/Release job)
+* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
 For windows, the versions look something like:
 
@@ -120,20 +138,15 @@ For windows, the versions look something like:
 
 where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
 
-### Wait on COPR/PPA
+### Wait on COPR
 
-The Travis CI build for the release branch kicks off packaging builds on Fedora COPR and Ubuntu Launchpad PPA. These packaging builds can take some time but are usually quick. Periodically check to see if the releases are finished and published on these site:
+The Travis CI build for the release branch kicks off packaging builds on Fedora COPR. These packaging builds can take some time but are usually quick. Periodically check to see if the releases are finished and published on this site:
 
 * [Fedora COPR](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/builds/)
-* [Ubuntu Launchpad PPA](https://launchpad.net/~ponylang/+archive/ubuntu/ponylang/+packages)
 
-The pattern for packaging release builds is similar as what we previously saw. In the case of Fedora COPR, the version looks something like:
+The pattern for packaging release builds is similar as what we previously saw. The version looks something like:
 
 `0.3.1-1.fc27` (confirm `status` is `succeeded`)
-
-The pattern for packaging release builds is similar as what we previously saw. In the case of Ubuntu Launchpad PPA, the versions looks something like:
-
-`ponyc - 0.3.1-0ppa1~<UBUNTU DISTRIBUTION NAME>` (confirm `build status` is a green checkmark)
 
 ### Wait on Homebrew
 
