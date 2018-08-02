@@ -201,6 +201,29 @@ actor Promise[A: Any #share]
     Create a promise that is fulfilled when the receiver and all promises in
     the given iterator are fulfilled. If the receiver or any promise in the
     sequence is rejected then the new promise is also rejected.
+
+    Join `p1` and `p2` with an existing promise, `p3`.
+    ```pony
+    use "promises"
+
+    actor Main
+      new create(env: Env) =>
+
+        let p1 = Promise[String val]
+        let p2 = Promise[String val]
+        let p3 = Promise[String val]
+
+        p3.join([p1; p2].values())
+          .next[None]({(a: Array[String val] val) =>
+            for s in a.values() do
+              env.out.print(s)
+            end
+          })
+
+        p2("second")
+        p3("third")
+        p1("first")
+    ```
     """
     Promises[A].join(
       [this]
@@ -266,6 +289,29 @@ primitive Promises[A: Any #share]
     promise is also rejected. The order that values appear in the final array
     is based on when each promise is fulfilled and not the order that they are
     given.
+
+    Join three existing promises to make a fourth.
+    ```pony
+    use "promises"
+
+    actor Main
+      new create(env: Env) =>
+
+        let p1 = Promise[String val]
+        let p2 = Promise[String val]
+        let p3 = Promise[String val]
+
+        Promises[String val].join([p1; p2; p3].values())
+          .next[None]({(a: Array[String val] val) =>
+            for s in a.values() do
+              env.out.print(s)
+            end
+          })
+
+        p2("second")
+        p3("third")
+        p1("first")
+    ```
     """
     let p' = Promise[Array[A] val]
     let ps' = Array[Promise[A]] .> concat(consume ps)
