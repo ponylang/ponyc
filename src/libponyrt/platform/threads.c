@@ -159,6 +159,7 @@ uint32_t ponyint_numa_node_of_cpu(uint32_t cpu)
 bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   uint32_t cpu, void* arg)
 {
+  bool ret = true;
   (void)cpu;
 
 #if defined(PLATFORM_IS_WINDOWS)
@@ -168,41 +169,46 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
     return false;
 
   *thread = (HANDLE)p;
-#elif defined(PLATFORM_IS_LINUX)
+#else
+  bool setstack_called = false;
+  struct rlimit limit;
   pthread_attr_t attr;
-  pthread_attr_init(&attr);
+  pthread_attr_t* attr_p = &attr;
+  pthread_attr_init(attr_p);
 
-  if(cpu != (uint32_t)-1)
+  // Some systems, e.g., macOS, hav a different default default
+  // stack size than the typical system's RLIMIT_STACK.
+  // Let's use RLIMIT_STACK's current limit if it is sane.
+  if(getrlimit(RLIMIT_STACK, &limit) == 0 &&
+    limit.rlim_cur != RLIM_INFINITY &&
+    limit.rlim_cur >= PTHREAD_STACK_MIN)
   {
-    cpu_set_t set;
-    CPU_ZERO(&set);
-    CPU_SET(cpu, &set);
-
-    if(use_numa)
+#if defined(PLATFORM_IS_LINUX)
+    if(cpu != (uint32_t)-1 && use_numa)
     {
-      struct rlimit limit;
+      cpu_set_t set;
+      CPU_ZERO(&set);
+      CPU_SET(cpu, &set);
 
-      if(getrlimit(RLIMIT_STACK, &limit) == 0)
-      {
-        int node = _numa_node_of_cpu(cpu);
-        void* stack = _numa_alloc_onnode((size_t)limit.rlim_cur, node);
-        if (stack != NULL) {
-          pthread_attr_setstack(&attr, stack, (size_t)limit.rlim_cur);
-        }
+      int node = _numa_node_of_cpu(cpu);
+      void* stack = _numa_alloc_onnode((size_t)limit.rlim_cur, node);
+      if (stack != NULL) {
+        pthread_attr_setstack(&attr, stack, (size_t)limit.rlim_cur);
+        setstack_called = true;
       }
     }
+#endif
+    if(! setstack_called)
+      pthread_attr_setstacksize(&attr, (size_t)limit.rlim_cur);
+  } else {
+    attr_p = NULL;
   }
 
-  if(pthread_create(thread, &attr, start, arg))
-    return false;
-
+  if(pthread_create(thread, attr_p, start, arg))
+    ret = false;
   pthread_attr_destroy(&attr);
-#else
-  if(pthread_create(thread, NULL, start, arg))
-    return false;
 #endif
-
-  return true;
+  return ret;
 }
 
 bool ponyint_thread_join(pony_thread_id_t thread)
