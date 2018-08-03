@@ -470,11 +470,54 @@ LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
   return ret;
 }
 
+static void gen_then_clauses(compile_t* c, ast_t* ast, bool within_loop)
+{
+  pony_assert(ast != NULL);
+  // search upward the current ast and generate all try-then clauses up to
+  // the first loop to which we are continuing here if within_loop is true
+  // else up to the enclosing fun, be or constructor
+  ast_t* last = ast;
+  ast_t* parent = ast_parent(ast);
+
+  while (parent != NULL)
+  {
+    switch(ast_id(parent))
+    {
+      case TK_FOR:
+      case TK_REPEAT:
+      case TK_WHILE:
+      {
+        if (within_loop)
+          return;
+        break;
+      }
+
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+        return;
+
+      case TK_TRY:
+      case TK_TRY_NO_CHECK:
+      {
+        if(ast_index(last) != 2)
+          gen_expr(c, ast_childidx(parent, 2));
+        break;
+      }
+      default: {}
+    }
+    last = parent;
+    parent = ast_parent(parent);
+  }
+}
+
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* body = ast_child(ast);
 
   LLVMBasicBlockRef target;
+
+  gen_then_clauses(c, ast, true);
 
   if(ast_id(body) == TK_NONE)
   {
@@ -522,7 +565,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
-  (void)ast;
+  gen_then_clauses(c, ast, true);
 
   // Jump to the continue target.
   codegen_scope_lifetime_end(c);
@@ -538,13 +581,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   ast_t* expr = ast_child(ast);
   LLVMValueRef value = gen_expr(c, expr);
 
-  size_t clause;
-  ast_t* try_expr = ast_try_clause(ast, &clause);
-
-  // Do the then block only if we return in the body or else clause.
-  // In the then block, return without doing the then block.
-  if((try_expr != NULL) && (clause != 2))
-    gen_expr(c, ast_childidx(try_expr, 2));
+  gen_then_clauses(c, ast, false);
 
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(codegen_fun(c)));
   LLVMTypeRef r_type = LLVMGetReturnType(f_type);

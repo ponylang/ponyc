@@ -957,6 +957,12 @@ ast_t* ast_try_clause(ast_t* ast, size_t* clause)
         *clause = ast_index(last);
         return ast;
       }
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+        // try clauses outside of the current constructor, function, behaviour
+        // are not considered
+        return NULL;
 
       default: {}
     }
