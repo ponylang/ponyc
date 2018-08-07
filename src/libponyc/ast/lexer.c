@@ -1215,11 +1215,11 @@ static token_id newline_symbols(token_id raw_token, bool newline)
 
   switch(raw_token)
   {
-    case TK_LPAREN:      return TK_LPAREN_NEW;
-    case TK_LSQUARE:     return TK_LSQUARE_NEW;
-    case TK_MINUS:       return TK_MINUS_NEW;
-    case TK_MINUS_TILDE: return TK_MINUS_TILDE_NEW;
-    default:             return raw_token;
+    case TK_LPAREN:         return TK_LPAREN_NEW;
+    case TK_LSQUARE:        return TK_LSQUARE_NEW;
+    case TK_MINUS:          return TK_MINUS_NEW;
+    case TK_MINUS_TILDE:    return TK_MINUS_TILDE_NEW;
+    default:                return raw_token;
   }
 }
 

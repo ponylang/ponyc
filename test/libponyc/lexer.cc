@@ -174,6 +174,16 @@ TEST_F(LexerTest, SymbolNotNewAfterOther)
   DO(test(src));
 }
 
+TEST_F(LexerTest, QuestionMarkAfterOperator)
+{
+  const char* src = "/?";
+
+  expect(1, 1, TK_DIVIDE, "/");
+  expect(1, 2, TK_QUESTION, "?");
+  expect(1, 3, TK_EOF, "EOF");
+  DO(test(src));
+}
+
 
 TEST_F(LexerTest, EofIfEmpty)
 {

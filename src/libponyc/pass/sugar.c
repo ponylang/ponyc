@@ -731,7 +731,7 @@ static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 }
 
 
-static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_binop(ast_t** astp, const char* fn_name, const char* fn_name_partial)
 {
   AST_GET_CHILDREN(*astp, left, right, question);
 
@@ -752,9 +752,13 @@ static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
     ast_add(positional, arg);
   }
 
+  const char* name = fn_name;
+  if(fn_name_partial != NULL && ast_id(question) == TK_QUESTION)
+    name = fn_name_partial;
+
   REPLACE(astp,
     NODE(TK_CALL,
-      NODE(TK_DOT, TREE(left) ID(fn_name))
+      NODE(TK_DOT, TREE(left) ID(name))
       TREE(positional)
       NONE
       TREE(question)));
@@ -1149,69 +1153,69 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_MODULE:           return sugar_module(options, ast);
-    case TK_PRIMITIVE:        return sugar_entity(options, ast, true, TK_VAL);
-    case TK_STRUCT:           return sugar_entity(options, ast, true, TK_REF);
-    case TK_CLASS:            return sugar_entity(options, ast, true, TK_REF);
-    case TK_ACTOR:            return sugar_entity(options, ast, true, TK_TAG);
+    case TK_MODULE:              return sugar_module(options, ast);
+    case TK_PRIMITIVE:           return sugar_entity(options, ast, true, TK_VAL);
+    case TK_STRUCT:              return sugar_entity(options, ast, true, TK_REF);
+    case TK_CLASS:               return sugar_entity(options, ast, true, TK_REF);
+    case TK_ACTOR:               return sugar_entity(options, ast, true, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:        return sugar_entity(options, ast, false, TK_REF);
-    case TK_TYPEPARAM:        return sugar_typeparam(ast);
-    case TK_NEW:              return sugar_new(options, ast);
-    case TK_BE:               return sugar_be(options, ast);
-    case TK_FUN:              return sugar_fun(options, ast);
-    case TK_RETURN:           return sugar_return(options, ast);
+    case TK_INTERFACE:           return sugar_entity(options, ast, false, TK_REF);
+    case TK_TYPEPARAM:           return sugar_typeparam(ast);
+    case TK_NEW:                 return sugar_new(options, ast);
+    case TK_BE:                  return sugar_be(options, ast);
+    case TK_FUN:                 return sugar_fun(options, ast);
+    case TK_RETURN:              return sugar_return(options, ast);
     case TK_IF:
     case TK_WHILE:
-    case TK_REPEAT:           return sugar_else(ast, 2);
-    case TK_IFTYPE_SET:       return sugar_else(ast, 1);
-    case TK_TRY:              return sugar_try(ast);
-    case TK_FOR:              return sugar_for(options, astp);
-    case TK_WITH:             return sugar_with(options, astp);
-    case TK_CASE:             return sugar_case(options, ast);
-    case TK_ASSIGN:           return sugar_update(astp);
-    case TK_AS:               return sugar_as(options, astp);
-    case TK_PLUS:             return sugar_binop(astp, "add");
-    case TK_MINUS:            return sugar_binop(astp, "sub");
-    case TK_MULTIPLY:         return sugar_binop(astp, "mul");
-    case TK_DIVIDE:           return sugar_binop(astp, "div");
-    case TK_MOD:              return sugar_binop(astp, "mod");
-    case TK_PLUS_TILDE:       return sugar_binop(astp, "add_unsafe");
-    case TK_MINUS_TILDE:      return sugar_binop(astp, "sub_unsafe");
-    case TK_MULTIPLY_TILDE:   return sugar_binop(astp, "mul_unsafe");
-    case TK_DIVIDE_TILDE:     return sugar_binop(astp, "div_unsafe");
-    case TK_MOD_TILDE:        return sugar_binop(astp, "mod_unsafe");
-    case TK_LSHIFT:           return sugar_binop(astp, "shl");
-    case TK_RSHIFT:           return sugar_binop(astp, "shr");
-    case TK_LSHIFT_TILDE:     return sugar_binop(astp, "shl_unsafe");
-    case TK_RSHIFT_TILDE:     return sugar_binop(astp, "shr_unsafe");
-    case TK_AND:              return sugar_binop(astp, "op_and");
-    case TK_OR:               return sugar_binop(astp, "op_or");
-    case TK_XOR:              return sugar_binop(astp, "op_xor");
-    case TK_EQ:               return sugar_binop(astp, "eq");
-    case TK_NE:               return sugar_binop(astp, "ne");
-    case TK_LT:               return sugar_binop(astp, "lt");
-    case TK_LE:               return sugar_binop(astp, "le");
-    case TK_GE:               return sugar_binop(astp, "ge");
-    case TK_GT:               return sugar_binop(astp, "gt");
-    case TK_EQ_TILDE:         return sugar_binop(astp, "eq_unsafe");
-    case TK_NE_TILDE:         return sugar_binop(astp, "ne_unsafe");
-    case TK_LT_TILDE:         return sugar_binop(astp, "lt_unsafe");
-    case TK_LE_TILDE:         return sugar_binop(astp, "le_unsafe");
-    case TK_GE_TILDE:         return sugar_binop(astp, "ge_unsafe");
-    case TK_GT_TILDE:         return sugar_binop(astp, "gt_unsafe");
-    case TK_UNARY_MINUS:      return sugar_unop(astp, "neg");
-    case TK_UNARY_MINUS_TILDE:return sugar_unop(astp, "neg_unsafe");
-    case TK_NOT:              return sugar_unop(astp, "op_not");
+    case TK_REPEAT:              return sugar_else(ast, 2);
+    case TK_IFTYPE_SET:          return sugar_else(ast, 1);
+    case TK_TRY:                 return sugar_try(ast);
+    case TK_FOR:                 return sugar_for(options, astp);
+    case TK_WITH:                return sugar_with(options, astp);
+    case TK_CASE:                return sugar_case(options, ast);
+    case TK_ASSIGN:              return sugar_update(astp);
+    case TK_AS:                  return sugar_as(options, astp);
+    case TK_PLUS:                return sugar_binop(astp, "add", "add_partial");
+    case TK_MINUS:               return sugar_binop(astp, "sub", "sub_partial");
+    case TK_MULTIPLY:            return sugar_binop(astp, "mul", "mul_partial");
+    case TK_DIVIDE:              return sugar_binop(astp, "div", "div_partial");
+    case TK_MOD:                 return sugar_binop(astp, "mod", "mod_partial");
+    case TK_PLUS_TILDE:          return sugar_binop(astp, "add_unsafe", NULL);
+    case TK_MINUS_TILDE:         return sugar_binop(astp, "sub_unsafe", NULL);
+    case TK_MULTIPLY_TILDE:      return sugar_binop(astp, "mul_unsafe", NULL);
+    case TK_DIVIDE_TILDE:        return sugar_binop(astp, "div_unsafe", NULL);
+    case TK_MOD_TILDE:           return sugar_binop(astp, "mod_unsafe", NULL);
+    case TK_LSHIFT:              return sugar_binop(astp, "shl", NULL);
+    case TK_RSHIFT:              return sugar_binop(astp, "shr", NULL);
+    case TK_LSHIFT_TILDE:        return sugar_binop(astp, "shl_unsafe", NULL);
+    case TK_RSHIFT_TILDE:        return sugar_binop(astp, "shr_unsafe", NULL);
+    case TK_AND:                 return sugar_binop(astp, "op_and", NULL);
+    case TK_OR:                  return sugar_binop(astp, "op_or", NULL);
+    case TK_XOR:                 return sugar_binop(astp, "op_xor", NULL);
+    case TK_EQ:                  return sugar_binop(astp, "eq", NULL);
+    case TK_NE:                  return sugar_binop(astp, "ne", NULL);
+    case TK_LT:                  return sugar_binop(astp, "lt", NULL);
+    case TK_LE:                  return sugar_binop(astp, "le", NULL);
+    case TK_GE:                  return sugar_binop(astp, "ge", NULL);
+    case TK_GT:                  return sugar_binop(astp, "gt", NULL);
+    case TK_EQ_TILDE:            return sugar_binop(astp, "eq_unsafe", NULL);
+    case TK_NE_TILDE:            return sugar_binop(astp, "ne_unsafe", NULL);
+    case TK_LT_TILDE:            return sugar_binop(astp, "lt_unsafe", NULL);
+    case TK_LE_TILDE:            return sugar_binop(astp, "le_unsafe", NULL);
+    case TK_GE_TILDE:            return sugar_binop(astp, "ge_unsafe", NULL);
+    case TK_GT_TILDE:            return sugar_binop(astp, "gt_unsafe", NULL);
+    case TK_UNARY_MINUS:         return sugar_unop(astp, "neg");
+    case TK_UNARY_MINUS_TILDE:   return sugar_unop(astp, "neg_unsafe");
+    case TK_NOT:                 return sugar_unop(astp, "op_not");
     case TK_FFIDECL:
-    case TK_FFICALL:          return sugar_ffi(options, ast);
-    case TK_IFDEF:            return sugar_ifdef(options, ast);
-    case TK_USE:              return sugar_use(options, ast);
-    case TK_SEMI:             return sugar_semi(options, astp);
+    case TK_FFICALL:             return sugar_ffi(options, ast);
+    case TK_IFDEF:               return sugar_ifdef(options, ast);
+    case TK_USE:                 return sugar_use(options, ast);
+    case TK_SEMI:                return sugar_semi(options, astp);
     case TK_LAMBDATYPE:
-    case TK_BARELAMBDATYPE:   return sugar_lambdatype(options, astp);
-    case TK_BARELAMBDA:       return sugar_barelambda(options, ast);
-    case TK_LOCATION:         return sugar_location(options, astp);
-    default:                  return AST_OK;
+    case TK_BARELAMBDATYPE:      return sugar_lambdatype(options, astp);
+    case TK_BARELAMBDA:          return sugar_barelambda(options, ast);
+    case TK_LOCATION:            return sugar_location(options, astp);
+    default:                     return AST_OK;
   }
 }
