@@ -291,6 +291,7 @@ typedef struct pass_opt_t
   strlist_t* safe_packages;
   magic_package_t* magic_packages;
 
+  const char* argv0;
   const char* output;
   const char* bin_name;
   char* link_arch;

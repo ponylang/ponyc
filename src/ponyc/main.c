@@ -79,6 +79,7 @@ int main(int argc, char* argv[])
   opt.release = true;
   opt.output = ".";
   opt.ast_print_width = get_width();
+  opt.argv0 = argv[0];
 
   ponyc_opt_process_t exit_code;
   bool print_program_ast;

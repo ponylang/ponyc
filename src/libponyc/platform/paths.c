@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/stat.h>
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -212,10 +213,11 @@ char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size)
     return retstr;
 }
 
-bool get_compiler_exe_path(char* output_path)
+bool get_compiler_exe_path(char* output_path, const char* argv0)
 {
   bool success = false;
-  #ifdef PLATFORM_IS_WINDOWS
+  success = (argv0 == NULL) ? success : success; // hush compiler warning
+#ifdef PLATFORM_IS_WINDOWS
   // Specified size *includes* nul terminator
   GetModuleFileName(NULL, output_path, FILENAME_MAX);
   success = (GetLastError() == ERROR_SUCCESS);
@@ -226,7 +228,44 @@ bool get_compiler_exe_path(char* output_path)
 
   if(success)
     output_path[r] = '\0';
-#elif defined PLATFORM_IS_BSD && !defined PLATFORM_IS_OPENBSD
+#elif defined PLATFORM_IS_OPENBSD
+  if (argv0 != NULL && (*argv0 == '/' || *argv0 == '.'))
+  {
+    if (pony_realpath(argv0, output_path) != NULL)
+    {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  else {
+    char *env_path = getenv("PATH");
+    char *token, *string, *tofree;
+    char try_path[FILENAME_MAX];
+    struct stat sb;
+
+    if (env_path == NULL)
+    {
+      return false;
+    }
+    tofree = string = strdup(env_path);
+    while ((token = strsep(&string, ":")) != NULL)
+    {
+      snprintf(try_path, sizeof(try_path), "%s/%s", token, argv0);
+      if (access(try_path, X_OK) == 0 &&
+        stat(try_path, &sb) == 0 &&
+        (sb.st_mode & S_IFREG) == S_IFREG)
+      {
+        if (pony_realpath(try_path, output_path) != NULL)
+        {
+          success = true;
+          break;
+        }
+      }
+    }
+    free(tofree);
+  }
+#elif defined PLATFORM_IS_BSD
   int mib[4];
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
@@ -246,21 +285,15 @@ bool get_compiler_exe_path(char* output_path)
   {
     pony_realpath(exec_path, output_path);
   }
-#elif defined PLATFORM_IS_OPENBSD
-  // OpenBSD has no support for this, so we fake it
-  // For a package of pony, the binary lives in /usr/local/bin
-  char exec_path[FILENAME_MAX] = "/usr/local/bin";
-  pony_realpath(exec_path, output_path);
-  success = true;
 #else
 #  error Unsupported platform for exec_path()
 #endif
   return success;
 }
 
-bool get_compiler_exe_directory(char* output_path)
+bool get_compiler_exe_directory(char* output_path, const char* argv0)
 {
-  bool can_get_compiler_path = get_compiler_exe_path(output_path);
+  bool can_get_compiler_path = get_compiler_exe_path(output_path, argv0);
   if (can_get_compiler_path)
   {
     char *p = strrchr(output_path, PATH_SLASH);

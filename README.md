@@ -694,14 +694,14 @@ First, install the required dependencies:
 doas pkg_add gmake libexecinfo llvm pcre2
 ```
 
-This will build ponyc:
+This will build ponyc and compile helloworld:
 
 ```bash
-gmake
+gmake verbose=true default_pic=true bits=64
+./build/release/ponyc examples/helloworld
 ```
 
-It is highly recommended you use the OpenBSD package of pony
-instead of building it yourself.
+If you are on a 32-bit platform (e.g., armv7), change `bits=64` to `bits=32`.
 
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)

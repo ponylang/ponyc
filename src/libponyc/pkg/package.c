@@ -676,7 +676,7 @@ static bool add_safe(const char* path, pass_opt_t* opt)
 static bool add_exec_dir(pass_opt_t* opt)
 {
   char path[FILENAME_MAX];
-  bool success = get_compiler_exe_directory(path);
+  bool success = get_compiler_exe_directory(path, opt->argv0);
   errors_t* errors = opt->check.errors;
 
   if(!success)
