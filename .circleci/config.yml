@@ -166,14 +166,14 @@ jobs:
       - run: make test-ci config=release default_pic=true default_ssl=openssl_1.1.0
 
   # Jobs for building and testing with ponyc vendor lib/llvm
-  ubuntu-default:
+  lib-llvm-ubuntu-default:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
     steps:
       - checkout
       - run: *test-ci-lib-llvm
-  ubuntu-debug:
+  lib-llvm-ubuntu-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
@@ -181,7 +181,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=debug default_pic=true"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-release:
+  lib-llvm-ubuntu-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
@@ -189,7 +189,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=release default_pic=true"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-18.04-debug:
+  lib-llvm-ubuntu-18.04-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-18.04
         user: pony
@@ -197,7 +197,7 @@ jobs:
       - checkout
       - run: echo 'export CC=clang CXX=clang++ test_ci_params="config=debug default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-18.04-release:
+  lib-llvm-ubuntu-18.04-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-18.04
         user: pony
@@ -205,7 +205,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=release default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-openssl-110-debug:
+  lib-llvm-ubuntu-openssl-110-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl-110
         user: pony
@@ -213,7 +213,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=debug default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-openssl-110-release:
+  lib-llvm-ubuntu-openssl-110-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu-openssl-110
         user: pony
@@ -221,7 +221,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=release default_pic=true default_ssl=openssl_1.1.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-llvm-600-debug:
+  lib-llvm-ubuntu-llvm-600-debug:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
@@ -229,7 +229,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=debug default_pic=true llvm_proj=llvm-6.0.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  ubuntu-llvm-600-release:
+  lib-llvm-ubuntu-llvm-600-release:
     docker:
       - image: ponylang/ponyc-ci:ubuntu
         user: pony
@@ -237,7 +237,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=release default_pic=true llvm_proj=llvm-6.0.0"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  alpine-debug:
+  lib-llvm-alpine-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
@@ -245,7 +245,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=debug default_pic=true"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  alpine-release:
+  lib-llvm-alpine-release:
     docker:
       - image: ponylang/ponyc-ci:alpine
         user: pony
@@ -253,7 +253,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=release default_pic=true"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  centos7-debug:
+  lib-llvm-centos7-debug:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
@@ -261,7 +261,7 @@ jobs:
       - checkout
       - run: echo 'export test_ci_params="config=debug default_pic=true use=llvm_link_static"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
-  centos7-release:
+  lib-llvm-centos7-release:
     docker:
       - image: ponylang/ponyc-ci:centos7
         user: pony
@@ -270,6 +270,7 @@ jobs:
       - run: echo 'export test_ci_params="config=release default_pic=true use=llvm_link_static"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
 
+  # Jobs for building and testing with ponyc system installed cross-llvm
   cross-llvm-600-debug-arm:
     docker:
       - image: ponylang/ponyc-ci:cross-llvm-6.0.0-arm
@@ -704,16 +705,17 @@ workflows:
       - cross-llvm-391-release-aarch64
 
       # Jobs for building and testing with ponyc vendor lib/llvm
-      - ubuntu-llvm-600-debug
-      - ubuntu-llvm-600-release
-      - ubuntu-debug
-      - ubuntu-release
-      - ubuntu-18.04-debug
-      - ubuntu-18.04-release
-      - ubuntu-openssl-110-debug
-      - ubuntu-openssl-110-release
-      - centos7-debug
-      - centos7-release
+      - lib-llvm-ubuntu-default
+      - lib-llvm-ubuntu-llvm-600-debug
+      - lib-llvm-ubuntu-llvm-600-release
+      - lib-llvm-ubuntu-debug
+      - lib-llvm-ubuntu-release
+      - lib-llvm-ubuntu-18.04-debug
+      - lib-llvm-ubuntu-18.04-release
+      - lib-llvm-ubuntu-openssl-110-debug
+      - lib-llvm-ubuntu-openssl-110-release
+      - lib-llvm-centos7-debug
+      - lib-llvm-centos7-release
 
       # Alpine debug and release don't work because alpine linux
       # patches llvm to make it work with musl c library.
