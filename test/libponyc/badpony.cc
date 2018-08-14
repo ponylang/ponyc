@@ -47,7 +47,7 @@ TEST_F(BadPonyTest, ClassInOtherClassProvidesList)
     "  new create(env: Env) =>\n"
     "    None";
 
-  TEST_ERRORS_1(src, "can only provide traits and interfaces");
+  TEST_ERRORS_1(src, "invalid provides type. Can only be interfaces, traits and intersects of those.");
 }
 
 TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
