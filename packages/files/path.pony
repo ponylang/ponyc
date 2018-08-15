@@ -111,7 +111,7 @@ primitive Path
               s.delete(backtrack, -1)
 
               try
-                backtrack = s.rfind(sep())? + 1
+                backtrack = s.rfind(sep(), backtrack - 2)? + 1
               else
                 backtrack = vol.size().isize()
               end
