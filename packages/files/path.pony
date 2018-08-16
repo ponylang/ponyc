@@ -122,7 +122,7 @@ primitive Path
                 ifdef windows then
                   s.compare_sub("..\\", 3, backtrack) is Equal
                 else
-                  true
+                  false
                 end
               then
                 backtrack = -1
