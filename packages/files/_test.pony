@@ -178,17 +178,26 @@ class iso _TestPathClean is UnitTest
     let res2 = Path.clean("foo/./bar")
     let res3 = Path.clean("foo/../foo")
     let res4 = Path.clean("///foo///bar///base.ext")
+    let res5 = Path.clean("/foo/bar/baz/../..")
+    let res6 = Path.clean("/foo/bar/baz/..")
+    let res7 = Path.clean("/foo/bar/baz/../../qux")
 
     ifdef windows then
       h.assert_eq[String](res1, "\\foo\\bar")
       h.assert_eq[String](res2, "foo\\bar")
       h.assert_eq[String](res3, "foo")
       h.assert_eq[String](res4, "\\foo\\bar\\base.ext")
+      h.assert_eq[String](res5, "\\foo")
+      h.assert_eq[String](res6, "\\foo\\bar")
+      h.assert_eq[String](res7, "\\foo\\qux")
     else
       h.assert_eq[String](res1, "/foo/bar")
       h.assert_eq[String](res2, "foo/bar")
       h.assert_eq[String](res3, "foo")
       h.assert_eq[String](res4, "/foo/bar/base.ext")
+      h.assert_eq[String](res5, "/foo")
+      h.assert_eq[String](res6, "/foo/bar")
+      h.assert_eq[String](res7, "/foo/qux")
     end
 
 
@@ -835,4 +844,3 @@ class iso _TestFileReadMore is UnitTest
         "File errno is not EOF after reading past the last byte")
     end
     path.remove()
-
