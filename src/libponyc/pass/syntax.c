@@ -1157,6 +1157,9 @@ static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
   if(!check_members(opt, members, DEF_ACTOR))
     return AST_ERROR;
 
+  if(ast_id(provides) != TK_NONE && !check_provides_type(opt, provides, "provides"))
+    return AST_ERROR;
+
   return AST_OK;
 }
 
