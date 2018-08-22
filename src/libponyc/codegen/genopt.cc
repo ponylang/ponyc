@@ -1466,7 +1466,7 @@ bool target_is_bsd(char* t)
 {
   Triple triple = Triple(t);
 
-  return triple.isOSDragonFly() || triple.isOSFreeBSD();
+  return triple.isOSDragonFly() || triple.isOSFreeBSD() || triple.isOSOpenBSD();
 }
 
 bool target_is_freebsd(char* t)
@@ -1481,6 +1481,13 @@ bool target_is_dragonfly(char* t)
   Triple triple = Triple(t);
 
   return triple.isOSDragonFly();
+}
+
+bool target_is_openbsd(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSOpenBSD();
 }
 
 bool target_is_macosx(char* t)
@@ -1502,7 +1509,7 @@ bool target_is_posix(char* t)
   Triple triple = Triple(t);
 
   return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux()
-    || triple.isOSDragonFly();
+    || triple.isOSDragonFly() || triple.isOSOpenBSD();
 }
 
 bool target_is_x86(char* t)
