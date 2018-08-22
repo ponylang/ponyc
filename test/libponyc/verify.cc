@@ -643,7 +643,7 @@ TEST_F(VerifyTest, PartialSugaredBinaryOperatorCall)
   const char* src =
     "class val Bar\n"
     "  new val create() => None\n"
-    "  fun val add(other: Bar): Bar ? => error\n"
+    "  fun val add_partial(other: Bar): Bar ? => error\n"
 
     "primitive Foo\n"
     "  fun apply(): Bar ? =>\n"
