@@ -45,6 +45,23 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 
 Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.org/faq/#compiling) for additional information.
 
+Pony's prerequisites for CPU platforms are:
+
+- Full support for 64-bit platforms
+  - x86 and ARM CPUs only
+  - See platforms listed in the Circle-CI build list at
+    https://circleci.com/gh/ponylang/ponyc
+- Partial support for 32-bit platforms
+  - The `arm` and `armhf` architectures are tested via CI (Continuous
+    Integration testing)
+  - See platforms listed in the Circle-CI build list at
+    https://circleci.com/gh/ponylang/ponyc
+  - See also: GitHub issues
+    [#2836](https://github.com/ponylang/ponyc/issues/2836)
+    and
+    [#1576](https://github.com/ponylang/ponyc/issues/1576)
+    for more information.
+
 ## Using Docker
 
 Want to use the latest revision of Pony source, but don't want to build from source yourself? You can run the `ponylang/ponyc` Docker container, which is created from an automated build at each commit to master.
@@ -254,8 +271,6 @@ Pony requires LLVM version 3.9.1.
 There is experimental support for building with LLVM 4.0.1, 5.0.1 or 6.0.0, but this may result in decreased performance or crashes in generated applications.
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
-
-Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
 ## Building on Linux
 
