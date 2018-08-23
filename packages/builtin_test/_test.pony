@@ -72,7 +72,6 @@ actor Main is TestList
     test(_TestMulc)
     test(_TestSignedPartialArithmetic)
     test(_TestUnsignedPartialArithmetic)
-    test(_TestIntegerDivision)
     test(_TestNextPow2)
     test(_TestNumberConversionSaturation)
     test(_TestMaybePointer)
@@ -1776,29 +1775,6 @@ class iso _TestMulc is SafeArithmeticTest
       I128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc(-2))
     test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe,  true),
       I128(0x4000_0000_0000_0000_0000_0000_0000_0001).mulc(-2))
-
-class iso _TestIntegerDivision is UnitTest
-  fun name(): String => "builtin/IntegerDivision"
-
-  fun apply(h: TestHelper) =>
-    division_tests[U8](h)
-    division_tests[U16](h)
-    division_tests[U32](h)
-    division_tests[U64](h)
-    division_tests[U128](h)
-    division_tests[USize](h)
-    division_tests[ULong](h)
-    division_tests[I8](h)
-    division_tests[I16](h)
-    division_tests[I32](h)
-    division_tests[I64](h)
-    division_tests[I128](h)
-    division_tests[ISize](h)
-    division_tests[ILong](h)
-
-  fun division_tests[T: (Integer[T] val & Int)](h: TestHelper) =>
-    h.assert_eq[T](T(0), T(1)/T(0))
-    h.assert_eq[T](T(0), T.min_value()/T(-1))
 
 primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>
