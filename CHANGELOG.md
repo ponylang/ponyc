@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- [RFC 58] Add partial arithmetic for integer types ([PR #2865](https://github.com/ponylang/ponyc/pull/2865))
 - Added OpenBSD support. ([PR #2823](https://github.com/ponylang/ponyc/pull/2823))
 
 ### Changed
