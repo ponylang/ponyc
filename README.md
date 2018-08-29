@@ -162,6 +162,7 @@ wget https://copr-be.cloud.fedoraproject.org/results/ponylang/ponylang/pubkey.gp
 rpm --import pubkey.gpg
 zypper install ponyc
 ```
+
 ### Using Zypper for OpenSuSE Tumbleweed:
 
 ```bash
@@ -170,7 +171,6 @@ wget https://copr-be.cloud.fedoraproject.org/results/ponylang/ponylang/pubkey.gp
 rpm --import pubkey.gpg
 zypper install ponyc
 ```
-
 
 ### RPM and AVX2 Support
 
@@ -203,6 +203,31 @@ sudo apt-get -V install ponyc
 ### DEB and AVX2 Support
 
 By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
+### Linux Mint
+
+All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`trusty`, `xenial`, `bionic`) instead of the Linux Mint release.
+
+Install pre-requisites and add the correct `apt` repository:
+
+```bash
+sudo apt-get install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
+```
+
+```bash
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+source /etc/upstream-release/lsb-release
+sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian $DISTRIB_CODENAME main"
+sudo apt-get update
+sudo apt-get -V install ponyc
+```
+
+The same AVX2 support restrictions apply.
 
 ## Gentoo Linux
 
@@ -446,7 +471,7 @@ make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
-### Ubuntu Artful
+### Ubuntu Bionic and later
 
 ```bash
 sudo apt-get update
@@ -467,6 +492,16 @@ cd ~/ponyc/
 make default_pic=true
 ./build/release/ponyc examples/helloworld
 ./helloworld
+```
+
+### Linux Mint
+
+Instructions for Linux Mint are the same as the appropriate Ubuntu installation. However, an extra `llvm-3.9-dev` package is required for missing headers.
+
+After installing the `llvm` package by following the appropriate steps for Ubuntu Trusty (Linux Mint 17), Xenial (Linux Mint 18), or Bionic (Linux Mint 19), install the extra headers:
+
+```bash
+sudo apt-get install -y llvm-3.9-dev
 ```
 
 ### Fedora (25)
