@@ -12,7 +12,6 @@ trait _PartialArithmetic
     (let r: T, let overflow: Bool) = x.mulc(y)
     if overflow then error else r end
 
-
 primitive _UnsignedPartialArithmetic is _PartialArithmetic
   fun div_partial[T: _UnsignedInteger[T] val](x: T, y: T): T? =>
     if (y == T.from[U8](0)) then
@@ -34,7 +33,6 @@ primitive _UnsignedPartialArithmetic is _PartialArithmetic
     else
       (x /~ y, x %~ y)
     end
-
 
 primitive _SignedPartialArithmetic is _PartialArithmetic
 
@@ -58,7 +56,6 @@ primitive _SignedPartialArithmetic is _PartialArithmetic
     else
       (x/~y, x %~ y)
     end
-
 
   fun neg_partial[T: (_SignedInteger[T, U] val & Signed), U: _UnsignedInteger[U] val](x: T): T? =>
     if x == T.min_value() then
