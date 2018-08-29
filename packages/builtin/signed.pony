@@ -40,6 +40,24 @@ primitive I8 is _SignedInteger[I8, U8]
   fun mulc(y: I8): (I8, Bool) =>
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
+  fun add_partial(y: I8): I8 ? =>
+    _SignedPartialArithmetic.add_partial[I8](this, y)?
+
+  fun sub_partial(y: I8): I8 ? =>
+    _SignedPartialArithmetic.sub_partial[I8](this, y)?
+
+  fun mul_partial(y: I8): I8 ? =>
+    _SignedPartialArithmetic.mul_partial[I8](this, y)?
+
+  fun div_partial(y: I8): I8 ? =>
+    _SignedPartialArithmetic.div_partial[I8, U8](this, y)?
+
+  fun mod_partial(y: I8): I8 ? =>
+    _SignedPartialArithmetic.mod_partial[I8, U8](this, y)?
+
+  fun divmod_partial(y: I8): (I8, I8) ? =>
+    _SignedPartialArithmetic.divmod_partial[I8, U8](this, y)?
+
 primitive I16 is _SignedInteger[I16, U16]
   new create(value: I16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i16()
@@ -82,6 +100,25 @@ primitive I16 is _SignedInteger[I16, U16]
   fun mulc(y: I16): (I16, Bool) =>
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
+  fun add_partial(y: I16): I16 ? =>
+    _SignedPartialArithmetic.add_partial[I16](this, y)?
+
+  fun sub_partial(y: I16): I16 ? =>
+    _SignedPartialArithmetic.sub_partial[I16](this, y)?
+
+  fun mul_partial(y: I16): I16 ? =>
+    _SignedPartialArithmetic.mul_partial[I16](this, y)?
+
+  fun div_partial(y: I16): I16 ? =>
+    _SignedPartialArithmetic.div_partial[I16, U16](this, y)?
+
+  fun mod_partial(y: I16): I16 ? =>
+    _SignedPartialArithmetic.mod_partial[I16, U16](this, y)?
+
+  fun divmod_partial(y: I16): (I16, I16) ? =>
+    _SignedPartialArithmetic.divmod_partial[I16, U16](this, y)?
+
+
 primitive I32 is _SignedInteger[I32, U32]
   new create(value: I32) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i32()
@@ -123,6 +160,24 @@ primitive I32 is _SignedInteger[I32, U32]
 
   fun mulc(y: I32): (I32, Bool) =>
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
+
+  fun add_partial(y: I32): I32 ? =>
+    _SignedPartialArithmetic.add_partial[I32](this, y)?
+
+  fun sub_partial(y: I32): I32 ? =>
+    _SignedPartialArithmetic.sub_partial[I32](this, y)?
+
+  fun mul_partial(y: I32): I32 ? =>
+    _SignedPartialArithmetic.mul_partial[I32](this, y)?
+
+  fun div_partial(y: I32): I32 ? =>
+    _SignedPartialArithmetic.div_partial[I32, U32](this, y)?
+
+  fun mod_partial(y: I32): I32 ? =>
+    _SignedPartialArithmetic.mod_partial[I32, U32](this, y)?
+
+  fun divmod_partial(y: I32): (I32, I32) ? =>
+    _SignedPartialArithmetic.divmod_partial[I32, U32](this, y)?
 
 primitive I64 is _SignedInteger[I64, U64]
   new create(value: I64) => value
@@ -167,6 +222,23 @@ primitive I64 is _SignedInteger[I64, U64]
   fun mulc(y: I64): (I64, Bool) =>
     _SignedCheckedArithmetic._mulc[U64, I64](this, y)
 
+  fun add_partial(y: I64): I64 ? =>
+    _SignedPartialArithmetic.add_partial[I64](this, y)?
+
+  fun sub_partial(y: I64): I64 ? =>
+    _SignedPartialArithmetic.sub_partial[I64](this, y)?
+
+  fun mul_partial(y: I64): I64 ? =>
+    _SignedPartialArithmetic.mul_partial[I64](this, y)?
+
+  fun div_partial(y: I64): I64 ? =>
+    _SignedPartialArithmetic.div_partial[I64, U64](this, y)?
+
+  fun mod_partial(y: I64): I64 ? =>
+    _SignedPartialArithmetic.mod_partial[I64, U64](this, y)?
+
+  fun divmod_partial(y: I64): (I64, I64) ? =>
+    _SignedPartialArithmetic.divmod_partial[I64, U64](this, y)?
 
 primitive ILong is _SignedInteger[ILong, ULong]
   new create(value: ILong) => value
@@ -263,6 +335,24 @@ primitive ILong is _SignedInteger[ILong, ULong]
       _SignedCheckedArithmetic._mulc[ULong, ILong](this, y)
     end
 
+  fun add_partial(y: ILong): ILong ? =>
+    _SignedPartialArithmetic.add_partial[ILong](this, y)?
+
+  fun sub_partial(y: ILong): ILong ? =>
+    _SignedPartialArithmetic.sub_partial[ILong](this, y)?
+
+  fun mul_partial(y: ILong): ILong ? =>
+    _SignedPartialArithmetic.mul_partial[ILong](this, y)?
+
+  fun div_partial(y: ILong): ILong ? =>
+    _SignedPartialArithmetic.div_partial[ILong, ULong](this, y)?
+
+  fun mod_partial(y: ILong): ILong ? =>
+    _SignedPartialArithmetic.mod_partial[ILong, ULong](this, y)?
+
+  fun divmod_partial(y: ILong): (ILong, ILong) ? =>
+    _SignedPartialArithmetic.divmod_partial[ILong, ULong](this, y)?
+
 primitive ISize is _SignedInteger[ISize, USize]
   new create(value: ISize) => value
   new from[A: (Number & Real[A] val)](a: A) => a.isize()
@@ -356,6 +446,24 @@ primitive ISize is _SignedInteger[ISize, USize]
     else
       _SignedCheckedArithmetic._mulc[USize, ISize](this, y)
     end
+
+  fun add_partial(y: ISize): ISize ? =>
+    _SignedPartialArithmetic.add_partial[ISize](this, y)?
+
+  fun sub_partial(y: ISize): ISize ? =>
+    _SignedPartialArithmetic.sub_partial[ISize](this, y)?
+
+  fun mul_partial(y: ISize): ISize ? =>
+    _SignedPartialArithmetic.mul_partial[ISize](this, y)?
+
+  fun div_partial(y: ISize): ISize ? =>
+    _SignedPartialArithmetic.div_partial[ISize, USize](this, y)?
+
+  fun mod_partial(y: ISize): ISize ? =>
+    _SignedPartialArithmetic.mod_partial[ISize, USize](this, y)?
+
+  fun divmod_partial(y: ISize): (ISize, ISize) ? =>
+    _SignedPartialArithmetic.divmod_partial[ISize, USize](this, y)?
 
 primitive I128 is _SignedInteger[I128, U128]
   new create(value: I128) => value
@@ -546,6 +654,24 @@ primitive I128 is _SignedInteger[I128, U128]
     // the following implementation is more or less exactly was __muloti4 is
     // doing
     _SignedCheckedArithmetic._mulc[U128, I128](this, y)
+
+  fun add_partial(y: I128): I128 ? =>
+    _SignedPartialArithmetic.add_partial[I128](this, y)?
+
+  fun sub_partial(y: I128): I128 ? =>
+    _SignedPartialArithmetic.sub_partial[I128](this, y)?
+
+  fun mul_partial(y: I128): I128 ? =>
+    _SignedPartialArithmetic.mul_partial[I128](this, y)?
+
+  fun div_partial(y: I128): I128 ? =>
+    _SignedPartialArithmetic.div_partial[I128, U128](this, y)?
+
+  fun mod_partial(y: I128): I128 ? =>
+    _SignedPartialArithmetic.mod_partial[I128, U128](this, y)?
+
+  fun divmod_partial(y: I128): (I128, I128) ? =>
+    _SignedPartialArithmetic.divmod_partial[I128, U128](this, y)?
 
 type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
 

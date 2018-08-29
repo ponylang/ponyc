@@ -70,6 +70,8 @@ actor Main is TestList
     test(_TestAddc)
     test(_TestSubc)
     test(_TestMulc)
+    test(_TestSignedPartialArithmetic)
+    test(_TestUnsignedPartialArithmetic)
     test(_TestNextPow2)
     test(_TestNumberConversionSaturation)
     test(_TestMaybePointer)
@@ -1773,6 +1775,102 @@ class iso _TestMulc is SafeArithmeticTest
       I128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc(-2))
     test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe,  true),
       I128(0x4000_0000_0000_0000_0000_0000_0000_0001).mulc(-2))
+
+primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
+  fun apply(h: TestHelper)? =>
+    //addition
+    h.assert_error({()? => T.max_value() +? T(1) })
+    h.assert_eq[T](T.max_value(), T.max_value() +? T(0))
+
+    // subtraction
+    h.assert_error({()? => T.min_value() -? T(1) })
+    h.assert_eq[T](T(3), T(10) -? T(7))
+
+    // multiplication
+    h.assert_error({()? => T.max_value() *? T(2) })
+    h.assert_eq[T](T(30), T(10) *? T(3))
+
+    // division
+    h.assert_error({()? => T(1) /? T(0) })
+    h.assert_eq[T](T(5), T(10) /? T(2))
+
+    // modulo
+    h.assert_error({()? => T(2) %? T(0) })
+    h.assert_eq[T](T(1), T(11) %? T(2))
+
+    // divmod
+    h.assert_error({()? => T(3).divmod_partial(T(0))? })
+    (let divr, let modr) = T(11).divmod_partial(T(2))?
+    h.assert_eq[T](T(5), divr)
+    h.assert_eq[T](T(1), modr)
+
+primitive _UnsignedPartialArithmeticTests[T: (Integer[T] val & Unsigned)]
+  fun apply(h: TestHelper) =>
+    // division
+    h.assert_no_error({()? => T.min_value() /? T(-1) })
+
+    // modulo
+    h.assert_no_error({()? => T.min_value() %? T(-1) })
+
+    // divmod
+    h.assert_no_error({()? => T.min_value().divmod_partial(T(-1))? })
+
+primitive _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
+  fun apply(h: TestHelper) =>
+    // addition
+    h.assert_error({()? => T.min_value() +? T(-1) })
+
+    // subtraction
+    h.assert_error({()? => T.max_value() -? T(-1) })
+
+    // multiplication
+    h.assert_error({()? => T.min_value() *? T(-2) })
+
+    // division
+    h.assert_error({()? => T.min_value() /? T(-1) })
+
+    // modulo
+    h.assert_error({()? => T.min_value() %? T(-1) })
+
+    // divmod
+    h.assert_error({()? => T.min_value().divmod_partial(T(-1))? })
+
+class iso _TestSignedPartialArithmetic is UnitTest
+  fun name(): String => "builtin/PartialArithmetic/signed"
+
+  fun apply(h: TestHelper)? =>
+    _CommonPartialArithmeticTests[I8](h)?
+    _SignedPartialArithmeticTests[I8](h)
+    _CommonPartialArithmeticTests[I16](h)?
+    _SignedPartialArithmeticTests[I16](h)
+    _CommonPartialArithmeticTests[I32](h)?
+    _SignedPartialArithmeticTests[I32](h)
+    _CommonPartialArithmeticTests[I64](h)?
+    _SignedPartialArithmeticTests[I64](h)
+    _CommonPartialArithmeticTests[I128](h)?
+    _SignedPartialArithmeticTests[I128](h)
+    _CommonPartialArithmeticTests[ILong](h)?
+    _SignedPartialArithmeticTests[ILong](h)
+    _CommonPartialArithmeticTests[ISize](h)?
+    _SignedPartialArithmeticTests[ISize](h)
+
+class iso _TestUnsignedPartialArithmetic is UnitTest
+  fun name(): String => "builtin/PartialArithmetic/unsigned"
+  fun apply(h: TestHelper)? =>
+    _CommonPartialArithmeticTests[U8](h)?
+    _UnsignedPartialArithmeticTests[U8](h)
+    _CommonPartialArithmeticTests[U16](h)?
+    _UnsignedPartialArithmeticTests[U16](h)
+    _CommonPartialArithmeticTests[U32](h)?
+    _UnsignedPartialArithmeticTests[U32](h)
+    _CommonPartialArithmeticTests[U64](h)?
+    _UnsignedPartialArithmeticTests[U64](h)
+    _CommonPartialArithmeticTests[U128](h)?
+    _UnsignedPartialArithmeticTests[U128](h)
+    _CommonPartialArithmeticTests[ULong](h)?
+    _UnsignedPartialArithmeticTests[ULong](h)
+    _CommonPartialArithmeticTests[USize](h)?
+    _UnsignedPartialArithmeticTests[USize](h)
 
 class iso _TestNextPow2 is UnitTest
   """

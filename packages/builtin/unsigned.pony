@@ -43,6 +43,24 @@ primitive U8 is _UnsignedInteger[U8]
   fun mulc(y: U8): (U8, Bool) =>
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
+  fun add_partial(y: U8): U8 ? =>
+    _UnsignedPartialArithmetic.add_partial[U8](this, y)?
+
+  fun sub_partial(y: U8): U8 ? =>
+    _UnsignedPartialArithmetic.sub_partial[U8](this, y)?
+
+  fun mul_partial(y: U8): U8 ? =>
+    _UnsignedPartialArithmetic.mul_partial[U8](this, y)?
+
+  fun div_partial(y: U8): U8 ? =>
+    _UnsignedPartialArithmetic.div_partial[U8](this, y)?
+
+  fun mod_partial(y: U8): U8 ? =>
+    _UnsignedPartialArithmetic.mod_partial[U8](this, y)?
+
+  fun divmod_partial(y: U8): (U8, U8) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[U8](this, y)?
+
 primitive U16 is _UnsignedInteger[U16]
   new create(value: U16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u16()
@@ -88,6 +106,24 @@ primitive U16 is _UnsignedInteger[U16]
   fun mulc(y: U16): (U16, Bool) =>
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
+  fun add_partial(y: U16): U16 ? =>
+    _UnsignedPartialArithmetic.add_partial[U16](this, y)?
+
+  fun sub_partial(y: U16): U16 ? =>
+    _UnsignedPartialArithmetic.sub_partial[U16](this, y)?
+
+  fun mul_partial(y: U16): U16 ? =>
+    _UnsignedPartialArithmetic.mul_partial[U16](this, y)?
+
+  fun div_partial(y: U16): U16 ? =>
+    _UnsignedPartialArithmetic.div_partial[U16](this, y)?
+
+  fun mod_partial(y: U16): U16 ? =>
+    _UnsignedPartialArithmetic.mod_partial[U16](this, y)?
+
+  fun divmod_partial(y: U16): (U16, U16) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[U16](this, y)?
+
 primitive U32 is _UnsignedInteger[U32]
   new create(value: U32) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u32()
@@ -132,6 +168,24 @@ primitive U32 is _UnsignedInteger[U32]
 
   fun mulc(y: U32): (U32, Bool) =>
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
+
+  fun add_partial(y: U32): U32 ? =>
+    _UnsignedPartialArithmetic.add_partial[U32](this, y)?
+
+  fun sub_partial(y: U32): U32 ? =>
+    _UnsignedPartialArithmetic.sub_partial[U32](this, y)?
+
+  fun mul_partial(y: U32): U32 ? =>
+    _UnsignedPartialArithmetic.mul_partial[U32](this, y)?
+
+  fun div_partial(y: U32): U32 ? =>
+    _UnsignedPartialArithmetic.div_partial[U32](this, y)?
+
+  fun mod_partial(y: U32): U32 ? =>
+    _UnsignedPartialArithmetic.mod_partial[U32](this, y)?
+
+  fun divmod_partial(y: U32): (U32, U32) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[U32](this, y)?
 
 primitive U64 is _UnsignedInteger[U64]
   new create(value: U64) => value
@@ -184,6 +238,24 @@ primitive U64 is _UnsignedInteger[U64]
 
   fun mulc(y: U64): (U64, Bool) =>
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
+
+  fun add_partial(y: U64): U64 ? =>
+    _UnsignedPartialArithmetic.add_partial[U64](this, y)?
+
+  fun sub_partial(y: U64): U64 ? =>
+    _UnsignedPartialArithmetic.sub_partial[U64](this, y)?
+
+  fun mul_partial(y: U64): U64 ? =>
+    _UnsignedPartialArithmetic.mul_partial[U64](this, y)?
+
+  fun div_partial(y: U64): U64 ? =>
+    _UnsignedPartialArithmetic.div_partial[U64](this, y)?
+
+  fun mod_partial(y: U64): U64 ? =>
+    _UnsignedPartialArithmetic.mod_partial[U64](this, y)?
+
+  fun divmod_partial(y: U64): (U64, U64) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[U64](this, y)?
 
 primitive ULong is _UnsignedInteger[ULong]
   new create(value: ULong) => value
@@ -293,6 +365,24 @@ primitive ULong is _UnsignedInteger[ULong]
       @"llvm.umul.with.overflow.i64"[(ULong, Bool)](this, y)
     end
 
+  fun add_partial(y: ULong): ULong ? =>
+    _UnsignedPartialArithmetic.add_partial[ULong](this, y)?
+
+  fun sub_partial(y: ULong): ULong ? =>
+    _UnsignedPartialArithmetic.sub_partial[ULong](this, y)?
+
+  fun mul_partial(y: ULong): ULong ? =>
+    _UnsignedPartialArithmetic.mul_partial[ULong](this, y)?
+
+  fun div_partial(y: ULong): ULong ? =>
+    _UnsignedPartialArithmetic.div_partial[ULong](this, y)?
+
+  fun mod_partial(y: ULong): ULong ? =>
+    _UnsignedPartialArithmetic.mod_partial[ULong](this, y)?
+
+  fun divmod_partial(y: ULong): (ULong, ULong) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[ULong](this, y)?
+
 primitive USize is _UnsignedInteger[USize]
   new create(value: USize) => value
   new from[A: (Number & Real[A] val)](a: A) => a.usize()
@@ -393,6 +483,24 @@ primitive USize is _UnsignedInteger[USize]
     else
       @"llvm.umul.with.overflow.i64"[(USize, Bool)](this, y)
     end
+
+  fun add_partial(y: USize): USize ? =>
+    _UnsignedPartialArithmetic.add_partial[USize](this, y)?
+
+  fun sub_partial(y: USize): USize ? =>
+    _UnsignedPartialArithmetic.sub_partial[USize](this, y)?
+
+  fun mul_partial(y: USize): USize ? =>
+    _UnsignedPartialArithmetic.mul_partial[USize](this, y)?
+
+  fun div_partial(y: USize): USize ? =>
+    _UnsignedPartialArithmetic.div_partial[USize](this, y)?
+
+  fun mod_partial(y: USize): USize ? =>
+    _UnsignedPartialArithmetic.mod_partial[USize](this, y)?
+
+  fun divmod_partial(y: USize): (USize, USize) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[USize](this, y)?
 
 primitive U128 is _UnsignedInteger[U128]
   new create(value: U128) => value
@@ -648,5 +756,23 @@ primitive U128 is _UnsignedInteger[U128]
       let overflow = (this != 0) and ((result / this) != y)
       (result, overflow)
     end
+
+  fun add_partial(y: U128): U128 ? =>
+    _UnsignedPartialArithmetic.add_partial[U128](this, y)?
+
+  fun sub_partial(y: U128): U128 ? =>
+    _UnsignedPartialArithmetic.sub_partial[U128](this, y)?
+
+  fun mul_partial(y: U128): U128 ? =>
+    _UnsignedPartialArithmetic.mul_partial[U128](this, y)?
+
+  fun div_partial(y: U128): U128 ? =>
+    _UnsignedPartialArithmetic.div_partial[U128](this, y)?
+
+  fun mod_partial(y: U128): U128 ? =>
+    _UnsignedPartialArithmetic.mod_partial[U128](this, y)?
+
+  fun divmod_partial(y: U128): (U128, U128) ? =>
+    _UnsignedPartialArithmetic.divmod_partial[U128](this, y)?
 
 type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)

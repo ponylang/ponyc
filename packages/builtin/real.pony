@@ -233,6 +233,48 @@ trait val Integer[A: Integer[A] val] is Real[A]
     """
     this %~ y
 
+  fun add_partial(y: A): A ?
+    """
+    Add y to this number.
+
+    If the operation overflows this function errors.
+    """
+
+  fun sub_partial(y: A): A ?
+    """
+    Subtract y from this number.
+
+    If the operation overflows/underflows this function errors.
+    """
+
+  fun mul_partial(y: A): A ?
+    """
+    Multiply y with this number.
+
+    If the operation overflows this function errors.
+    """
+
+  fun div_partial(y: A): A ?
+    """
+    Divides this number by y.
+
+    If y is `0` this function errors.
+    """
+
+  fun mod_partial(y: A): A ?
+    """
+    Calculates the remainder of this number divided by y.
+
+    If y is `0` this function errors.
+    """
+
+  fun divmod_partial(y: A): (A, A) ?
+    """
+    Divides this number by y and calculates the remainder of the operation.
+
+    If y is `0` this function errors.
+    """
+
   fun neg_unsafe(): A =>
     """
     Unsafe operation.
@@ -350,12 +392,16 @@ trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
 
   fun clz_unsafe(): A
     """
+    Count leading zeroes.
+
     Unsafe operation.
     If this is 0, the result is undefined.
     """
 
   fun ctz_unsafe(): A
     """
+    Count trailing zeroes.
+
     Unsafe operation.
     If this is 0, the result is undefined.
     """
