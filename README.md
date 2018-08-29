@@ -471,7 +471,7 @@ make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
-### Ubuntu Bionic and later
+### Ubuntu Bionic
 
 ```bash
 sudo apt-get update
@@ -489,7 +489,7 @@ Build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true
+make default_pic=true default_ssl=openssl_1.1.0
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
