@@ -14,8 +14,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Added OpenBSD support. ([PR #2823](https://github.com/ponylang/ponyc/pull/2823))
-- Add SSL APLN support ([PR #2816](https://github.com/ponylang/ponyc/pull/2816))
-- Make dynamic scheduler scaling more robust and configurable ([PR #2801](https://github.com/ponylang/ponyc/pull/2801))
 - Added `set_up` method to `ponytest.UnitTest` as equivalent to existing `tear_down` method ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
 - Added `keep_line_breaks` argument to function `buffered.Reader.line` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
 
