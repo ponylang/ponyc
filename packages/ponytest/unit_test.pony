@@ -34,6 +34,13 @@ trait UnitTest
     """
     None
 
+  fun ref set_up(h: TestHelper) ? =>
+    """
+    Set up the testing environment before a test method is called.
+    Default is to do nothing.
+    """
+    None
+
   fun ref tear_down(h: TestHelper) =>
     """
     Tidy up after the test has completed.

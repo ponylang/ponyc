@@ -169,10 +169,11 @@ class Reader
     u8()?
     b
 
-  fun ref line(): String iso^ ? =>
+  fun ref line(keep_line_breaks: Bool = false): String iso^ ? =>
     """
-    Return a \n or \r\n terminated line as a string. The newline is not
-    included in the returned string, but it is removed from the network buffer.
+    Return a \n or \r\n terminated line as a string. By default the newline is not
+    included in the returned string, but it is removed from the buffer.
+    Set `keep_line_breaks` to `true` to keep the line breaks in the returned line.
     """
     let len = _search_length()?
 
@@ -199,8 +200,15 @@ class Reader
       _chunks.shift()?
     end
 
-    out.truncate(len -
-      if (len >= 2) and (out.at_offset(-2)? == '\r') then 2 else 1 end)
+    let trunc_len: USize =
+      if keep_line_breaks then
+        0
+      elseif (len >= 2) and (out.at_offset(-2)? == '\r') then
+        2
+      else
+        1
+      end
+    out.truncate(len - trunc_len)
 
     consume out
 

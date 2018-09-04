@@ -2,9 +2,12 @@ use "ponytest"
 use "collections"
 use "buffered"
 use "term"
+use "random"
+use "time"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
+
   new make() => None
 
   fun tag tests(test: PonyTest) =>
@@ -41,6 +44,10 @@ actor Main is TestList
     test(_TestFileWritevLarge)
     test(_TestFileFlush)
     test(_TestFileReadMore)
+    test(_TestFileLinesEmptyFile)
+    test(_TestFileLinesSingleLine)
+    test(_TestFileLinesMultiLine)
+    test(_TestFileLinesMovingCursor)
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
@@ -344,17 +351,15 @@ class iso _TestFileEOF is UnitTest
       let path = "tmp.eof"
       let filepath = FilePath(h.env.root as AmbientAuth, path)?
       with file = File(filepath) do
-        file.print("foobar")
+        file.write("foobar")
         file.sync()
         file.seek_start(0)
-        let line1 = file.line()?
+        let line1 = file.read_string(6)
         h.assert_eq[String]("foobar", consume line1)
-        try
-          let line2 = file.line()?
-          h.fail("Read beyond EOF without error!")
-        else
-          h.assert_true(file.errno() is FileEOF)
-        end
+
+        let line2 = file.read_string(1)
+        h.assert_eq[USize](line2.size(), 0, "Read beyond EOF without error!")
+        h.assert_true(file.errno() is FileEOF)
       end
       filepath.remove()
     else
@@ -372,8 +377,7 @@ class iso _TestFileCreate is UnitTest
         file.print("foobar")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.line()?
-        h.assert_eq[String]("foobar", consume line1)
+        h.assert_eq[String]("foobar", "".join(file2.lines()))
       end
       filepath.remove()
     else
@@ -394,7 +398,7 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
 
       // preparing the non-writable, but readable file
       with file = CreateFile(filepath) as File do
-        file.print(content)
+        file.write(content)
       end
 
       h.assert_true(filepath.chmod(mode))
@@ -403,8 +407,8 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
         h.assert_false(file2.valid())
         h.assert_is[FileErrNo](file2.errno(), FilePermissionDenied)
 
-        let line = file2.line()?
-        h.fail("read on invalid file succeeded")
+        let line = file2.read(6)
+        h.assert_eq[USize](0, line.size(), "read on invalid file succeeded")
       end
       mode.owner_read = true
       mode.owner_write = true // required on Windows to delete the file
@@ -526,11 +530,12 @@ class iso _TestFileOpen is UnitTest
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
-      with file2 = OpenFile(filepath) as File do
-        let line1 = file2.line()?
-        h.assert_eq[String]("foobar", consume line1)
+      try
+        let file2 = OpenFile(filepath) as File
+        h.assert_eq[String]("foobar", "".join(file2.lines()))
         h.assert_true(file2.valid())
         h.assert_false(file2.writeable)
+        file2.dispose()
       else
         h.fail("Failed read on opened file!")
       end
@@ -621,7 +626,7 @@ class iso _TestFileLongLine is UnitTest
         file.print(longline)
         file.sync()
         file.seek_start(0)
-        let line1 = file.line()?
+        let line1 = file.read_string(longline.size())
         h.assert_eq[String](longline, consume line1)
       end
       filepath.remove()
@@ -639,8 +644,8 @@ class iso _TestFileWrite is UnitTest
         file.write("foobar\n")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.line()?
-        h.assert_eq[String]("foobar", consume line1)
+        let line1 = file2.read_string(8)
+        h.assert_eq[String]("foobar\n", consume line1)
       end
       filepath.remove()
     else
@@ -662,10 +667,10 @@ class iso _TestFileWritev is UnitTest
         h.assert_true(file.writev(wb.done()))
       end
       with file2 = CreateFile(filepath) as File do
-        let fileline1 = file2.line()?
-        let fileline2 = file2.line()?
-        h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
-        h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
+        h.assert_eq[String](
+          "foobar barfoo",
+          " ".join(file2.lines())
+        )
       end
       filepath.remove()
     else
@@ -682,8 +687,7 @@ class iso _TestFileQueue is UnitTest
         file.queue("foobar\n")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.line()?
-        h.assert_eq[String]("foobar", consume line1)
+        h.assert_eq[String]("foobar", "".join(file2.lines()))
       end
       filepath.remove()
     else
@@ -705,10 +709,7 @@ class iso _TestFileQueuev is UnitTest
         file.queuev(wb.done())
       end
       with file2 = CreateFile(filepath) as File do
-        let fileline1 = file2.line()?
-        let fileline2 = file2.line()?
-        h.assert_eq[String](line1.split("\n")(0)?, consume fileline1)
-        h.assert_eq[String](line2.split("\n")(0)?, consume fileline2)
+        h.assert_eq[String]("foobar barfoo", " ".join(file2.lines()))
       end
       filepath.remove()
     else
@@ -746,15 +747,19 @@ class iso _TestFileMixedWriteQueue is UnitTest
         file.writev(consume writev_data)
       end
       with file2 = CreateFile(filepath) as File do
-        h.assert_eq[String](line3, file2.line()?)
-        h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line3, file2.line()?)
-        h.assert_eq[String](line4, file2.line()?)
-        h.assert_eq[String](line5.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line6.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line1.split("\n")(0)?, file2.line()?)
-        h.assert_eq[String](line2.split("\n")(0)?, file2.line()?)
+        h.assert_eq[String](
+          "".join([
+            line3 + "\n"
+            line5
+            line1
+            line3 + "\n"
+            line4 + "\n"
+            line5
+            line6
+            line1
+            line2
+          ].values()),
+          file2.read_string(256))
       end
       filepath.remove()
     else
@@ -779,14 +784,10 @@ class iso _TestFileWritevLarge is UnitTest
       end
       with file2 = CreateFile(filepath) as File do
         count = 0
-        while count < writev_batch_size do
-          let fileline1 = file2.line()?
-          h.assert_eq[String](count.string(), consume fileline1)
+        for line in file2.lines() do
+          h.assert_eq[String](count.string(), consume line)
           count = count + 1
           h.log(count.string())
-        end
-        try
-          h.fail("expected end of file, but got line: " + file2.line()?)
         end
       end
       filepath.remove()
@@ -814,7 +815,7 @@ class iso _TestFileFlush is UnitTest
 
         // Now expect to be able to see the data.
         with read_file = CreateFile(path) as File do
-          h.assert_eq[String]("foobar", read_file.line()?)
+          h.assert_eq[String]("foobar", "".join(read_file.lines()))
         end
       end
       path.remove()
@@ -844,3 +845,214 @@ class iso _TestFileReadMore is UnitTest
         "File errno is not EOF after reading past the last byte")
     end
     path.remove()
+
+class iso _TestFileLinesEmptyFile is UnitTest
+  var tmp_dir: (FilePath | None) = None
+
+  fun ref set_up(h: TestHelper) ? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "empty")?
+
+  fun ref tear_down(h: TestHelper) =>
+    try (tmp_dir as FilePath).remove() end
+
+  fun name(): String => "files/FileLines.empty"
+
+  fun ref apply(h: TestHelper) ? =>
+    let tmp_file = (tmp_dir as FilePath).join("empty")?
+    with file = CreateFile(tmp_file) as File do
+      file.write(Array[U8])
+    end
+
+    with f = OpenFile(tmp_file) as File do
+      let fl = FileLines(f)
+      var lines_returned: USize = 0
+      for _ in fl do
+        lines_returned = lines_returned + 1
+      end
+      h.assert_eq[USize](lines_returned, 0, "FileLines returned a line for an empty file")
+    end
+
+class iso _TestFileLinesSingleLine is UnitTest
+
+  let lines: Array[String] = [ as String:
+    "a"
+    "a\n"
+    "a\r\n"
+    "abcd"
+    "ABCD\n"
+    "ABCD\r\n"
+    String.from_array(recover val Array[U8].init('a', 255) end)
+    String.from_array(recover val Array[U8].init('a', 255) end) + "\n"
+    String.from_array(recover val Array[U8].init('a', 255) end) + "\r\n"
+    String.from_array(recover val Array[U8].init('b', 256) end)
+    String.from_array(recover val Array[U8].init('b', 256) end) + "\n"
+    String.from_array(recover val Array[U8].init('b', 256) end) + "\r\n"
+    String.from_array(recover val Array[U8].init('c', 257) end)
+    String.from_array(recover val Array[U8].init('c', 257) end) + "\n"
+    String.from_array(recover val Array[U8].init('c', 257) end) + "\r\n"
+    String.from_array(recover val Array[U8].init('d', 100_000) end)
+  ]
+
+  var tmp_dir: (FilePath | None) = None
+
+  fun ref set_up(h: TestHelper) ? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "single-line")?
+
+  fun ref tear_down(h: TestHelper) =>
+    try
+      (tmp_dir as FilePath).remove()
+    end
+
+  fun name(): String => "files/FileLines.single_line"
+
+  fun ref apply(h: TestHelper)? =>
+    var i: USize = 0
+    for line in lines.values() do
+      let tmp_file = (tmp_dir as FilePath).join("single-line-" + i.string())?
+      with file = CreateFile(tmp_file) as File do
+        h.assert_true(
+          file.write(line),
+          "could not write to file: " + tmp_file.path)
+      end
+
+      with file = OpenFile(tmp_file) as File do
+        let fl = FileLines(file)
+        var lines_returned: USize = 0
+        for read_line in fl do
+          let compare_line =
+            if line.contains("\r\n") then
+              line.substring(0, line.size().isize() - 2)
+            elseif line.contains("\n") then
+              line.substring(0, line.size().isize() -1)
+            else
+              line
+            end
+          h.assert_eq[String](consume read_line, compare_line)
+          lines_returned = lines_returned + 1
+        end
+        h.assert_eq[USize](lines_returned, 1,
+          "FileLines returned " + lines_returned.string() +
+          " for single line: '" + line + "'")
+        h.assert_eq[USize](file.position(), line.size(),
+          "FileLines advanced the file cursor to " + file.position().string() +
+          " though the line has " + line.size().string() + " bytes.")
+      end
+      i = i + 1
+    end
+
+class _TestFileLinesMultiLine is UnitTest
+  var tmp_dir: (FilePath | None) = None
+
+  let line_endings: Array[String] val = [ "\n"; "\r\n" ]
+  let file_contents: Array[(Array[String] val, USize)] val = [
+    (["a"; "b"], 2)
+    (["a"; ""; "b"], 3)
+    (["a"; "b"; ""], 2)
+    ([""; "b"; "c"], 3)
+    ([""; ""], 1)
+    ([""; " "], 2)
+    ([""; ""; ""], 2)
+    ([
+      String.from_array(recover val Array[U8].init('a', 254) end)
+      String.from_array(recover val Array[U8].init('a', 257) end)], 2)
+    ([
+      String.from_array(recover val Array[U8].init('b', 256) end)
+      ""
+      String.from_array(recover val Array[U8].init('c', 256) end)
+      ], 3)
+  ]
+
+  fun ref set_up(h: TestHelper) ? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "multi-line")?
+
+  fun ref tear_down(h: TestHelper) =>
+    try
+      (tmp_dir as FilePath).remove()
+    end
+
+  fun name(): String => "files/FileLines.multi_line"
+
+  fun ref apply(h: TestHelper)? =>
+    var i: USize = 0
+    for lines_and_count in file_contents.values() do
+      let lines = lines_and_count._1
+      for line_ending in line_endings.values() do
+        let tmp_file = (tmp_dir as FilePath).join("multi-line-" + i.string())?
+        let content = recover val line_ending.join(lines.values()) end
+
+        with file = CreateFile(tmp_file) as File do
+          h.assert_true(
+            file.write(content),
+            "could not write to file: " + tmp_file.path)
+        end
+
+        with file = OpenFile(tmp_file) as File do
+          let fl = FileLines(file)
+          var lines_returned: USize = 0
+          for read_line in fl do
+            lines_returned = lines_returned + 1
+          end
+          let expected_line_count = lines_and_count._2
+          h.assert_eq[USize](
+            lines_returned,
+            expected_line_count,
+            "FileLines returned " + lines_returned.string() + " (expected " +
+            expected_line_count.string() + ") lines for file
+            content:\n----\n" + content + "\n----\n")
+        end
+        i = i + 1
+      end
+    end
+
+class _TestFileLinesMovingCursor is UnitTest
+  var tmp_dir: (FilePath | None) = None
+
+  fun ref set_up(h: TestHelper) ? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "moving-cursor")?
+
+  fun ref tear_down(h: TestHelper) =>
+    try
+      (tmp_dir as FilePath).remove()
+    end
+
+  fun name(): String => "files/FileLines.moving_cursor"
+
+  fun ref apply(h: TestHelper)? =>
+    let tmp_file = (tmp_dir as FilePath).join("moving-cursor")?
+    let content = "a\nb\nc\nd"
+    with file = CreateFile(tmp_file) as File do
+      h.assert_true(
+        file.write(content),
+        "could not write to file: " + tmp_file.path)
+    end
+
+    with file = OpenFile(tmp_file) as File do
+      h.assert_eq[USize](file.position(), 0)
+      let fl1 = FileLines(file)
+      h.assert_eq[String](" ".join(fl1), "a b c d")
+      h.assert_eq[USize](file.position(), content.size())
+
+      file.seek_start(2)
+      let fl2 = FileLines(file)
+      h.assert_eq[String](" ".join(fl2), "b c d")
+      h.assert_eq[USize](file.position(), content.size())
+
+      file.seek_start(0)
+      let fl3 = FileLines(file)
+      file.seek_start(3)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "a")
+      h.assert_eq[USize](file.position(), 2)
+      file.seek_start(5)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "b")
+      h.assert_eq[USize](file.position(), 4)
+      file.seek_start(0)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "c")
+      h.assert_eq[USize](file.position(), 6)
+      file.seek_start(10)
+      h.assert_true(fl3.has_next())
+      h.assert_eq[String](fl3.next()?, "d")
+      h.assert_eq[USize](file.position(), 7)
+    end
