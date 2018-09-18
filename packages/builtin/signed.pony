@@ -40,6 +40,9 @@ primitive I8 is _SignedInteger[I8, U8]
   fun mulc(y: I8): (I8, Bool) =>
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
+  fun divc(y: I8): (I8, Bool) =>
+    _SignedPartialArithmetic.div_checked[I8, U8](this, y)
+
   fun add_partial(y: I8): I8 ? =>
     _SignedPartialArithmetic.add_partial[I8](this, y)?
 
@@ -99,6 +102,9 @@ primitive I16 is _SignedInteger[I16, U16]
 
   fun mulc(y: I16): (I16, Bool) =>
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
+
+  fun divc(y: I16): (I16, Bool) =>
+    _SignedPartialArithmetic.div_checked[I16, U16](this, y)
 
   fun add_partial(y: I16): I16 ? =>
     _SignedPartialArithmetic.add_partial[I16](this, y)?
@@ -161,6 +167,9 @@ primitive I32 is _SignedInteger[I32, U32]
   fun mulc(y: I32): (I32, Bool) =>
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
+  fun divc(y: I32): (I32, Bool) =>
+    _SignedPartialArithmetic.div_checked[I32, U32](this, y)
+
   fun add_partial(y: I32): I32 ? =>
     _SignedPartialArithmetic.add_partial[I32](this, y)?
 
@@ -221,6 +230,9 @@ primitive I64 is _SignedInteger[I64, U64]
 
   fun mulc(y: I64): (I64, Bool) =>
     _SignedCheckedArithmetic._mulc[U64, I64](this, y)
+
+  fun divc(y: I64): (I64, Bool) =>
+    _SignedPartialArithmetic.div_checked[I64, U64](this, y)
 
   fun add_partial(y: I64): I64 ? =>
     _SignedPartialArithmetic.add_partial[I64](this, y)?
@@ -335,6 +347,9 @@ primitive ILong is _SignedInteger[ILong, ULong]
       _SignedCheckedArithmetic._mulc[ULong, ILong](this, y)
     end
 
+  fun divc(y: ILong): (ILong, Bool) =>
+    _SignedPartialArithmetic.div_checked[ILong, ULong](this, y)
+
   fun add_partial(y: ILong): ILong ? =>
     _SignedPartialArithmetic.add_partial[ILong](this, y)?
 
@@ -446,6 +461,9 @@ primitive ISize is _SignedInteger[ISize, USize]
     else
       _SignedCheckedArithmetic._mulc[USize, ISize](this, y)
     end
+
+  fun divc(y: ISize): (ISize, Bool) =>
+    _SignedPartialArithmetic.div_checked[ISize, USize](this, y)
 
   fun add_partial(y: ISize): ISize ? =>
     _SignedPartialArithmetic.add_partial[ISize](this, y)?
@@ -654,6 +672,9 @@ primitive I128 is _SignedInteger[I128, U128]
     // the following implementation is more or less exactly was __muloti4 is
     // doing
     _SignedCheckedArithmetic._mulc[U128, I128](this, y)
+
+  fun divc(y: I128): (I128, Bool) =>
+    _SignedPartialArithmetic.div_checked[I128, U128](this, y)
 
   fun add_partial(y: I128): I128 ? =>
     _SignedPartialArithmetic.add_partial[I128](this, y)?

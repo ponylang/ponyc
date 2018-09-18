@@ -70,6 +70,7 @@ actor Main is TestList
     test(_TestAddc)
     test(_TestSubc)
     test(_TestMulc)
+    test(_TestDivc)
     test(_TestSignedPartialArithmetic)
     test(_TestUnsignedPartialArithmetic)
     test(_TestNextPow2)
@@ -1565,6 +1566,13 @@ trait iso SafeArithmeticTest is UnitTest
     h.assert_eq[A](expected._1, actual._1 where loc=loc)
     h.assert_eq[Bool](expected._2, actual._2 where loc=loc)
 
+  fun test_overflow[A: (Equatable[A] #read & Stringable #read)](
+    h: TestHelper,
+    actual: (A, Bool),
+    loc: SourceLoc = __loc)
+  =>
+    h.assert_eq[Bool](true, actual._2)
+
 class iso _TestAddc is SafeArithmeticTest
   """
   Test addc on various bit widths.
@@ -1775,6 +1783,63 @@ class iso _TestMulc is SafeArithmeticTest
       I128(0x4000_0000_0000_0000_0000_0000_0000_0000).mulc(-2))
     test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe,  true),
       I128(0x4000_0000_0000_0000_0000_0000_0000_0001).mulc(-2))
+
+class iso _TestDivc is SafeArithmeticTest
+  fun name(): String => "builtin/Divc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0x20, false), U8(0x40).divc(2))
+    test_overflow[U8](h, U8(0x40).divc(0))
+
+    test[U16](h, (0x20, false), U16(0x40).divc(2))
+    test_overflow[U16](h, U16(0x40).divc(0))
+
+    test[U32](h, (0x20, false), U32(0x40).divc(2))
+    test_overflow[U32](h, U32(0x40).divc(0))
+
+    test[U64](h, (0x20, false), U64(0x40).divc(2))
+    test_overflow[U64](h, U64(0x40).divc(0))
+
+    test[ULong](h, (0x20, false), ULong(0x40).divc(2))
+    test_overflow[ULong](h, ULong(0x40).divc(0))
+
+    test[USize](h, (0x20, false), USize(0x40).divc(2))
+    test_overflow[USize](h, USize(0x40).divc(0))
+
+    test[U128](h, (0x20, false), U128(0x40).divc(2))
+    test_overflow[U128](h, U128(0x40).divc(0))
+
+    test[I8](h, (0x20, false), I8(0x40).divc(2))
+    test_overflow[I8](h, I8(0x40).divc(0))
+    test_overflow[I8](h, I8.min_value().divc(I8(-1)))
+
+    test[I16](h, (0x20, false), I16(0x40).divc(2))
+    test_overflow[I16](h, I16(0x40).divc(0))
+    test_overflow[I16](h, I16.min_value().divc(I16(-1)))
+
+    test[I32](h, (0x20, false), I32(0x40).divc(2))
+    test_overflow[I32](h, I32(0x40).divc(0))
+    test_overflow[I32](h, I32.min_value().divc(I32(-1)))
+
+    test[I32](h, (0x20, false), I32(0x40).divc(2))
+    test_overflow[I32](h, I32(0x40).divc(0))
+    test_overflow[I32](h, I32.min_value().divc(I32(-1)))
+
+    test[I64](h, (0x20, false), I64(0x40).divc(2))
+    test_overflow[I64](h, I64(0x40).divc(0))
+    test_overflow[I64](h, I64.min_value().divc(I64(-1)))
+
+    test[ILong](h, (0x20, false), ILong(0x40).divc(2))
+    test_overflow[ILong](h, ILong(0x40).divc(0))
+    test_overflow[ILong](h, ILong.min_value().divc(ILong(-1)))
+
+    test[ISize](h, (0x20, false), ISize(0x40).divc(2))
+    test_overflow[ISize](h, ISize(0x40).divc(0))
+    test_overflow[ISize](h, ISize.min_value().divc(ISize(-1)))
+
+    test[I128](h, (0x20, false), I128(0x40).divc(2))
+    test_overflow[I128](h, I128(0x40).divc(0))
+    test_overflow[I128](h, I128.min_value().divc(I128(-1)))
 
 primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>
