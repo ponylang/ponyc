@@ -71,6 +71,7 @@ actor Main is TestList
     test(_TestSubc)
     test(_TestMulc)
     test(_TestDivc)
+    test(_TestModc)
     test(_TestSignedPartialArithmetic)
     test(_TestUnsignedPartialArithmetic)
     test(_TestNextPow2)
@@ -1840,6 +1841,80 @@ class iso _TestDivc is SafeArithmeticTest
     test[I128](h, (0x20, false), I128(0x40).divc(2))
     test_overflow[I128](h, I128(0x40).divc(0))
     test_overflow[I128](h, I128.min_value().divc(I128(-1)))
+
+class iso _TestModc is SafeArithmeticTest
+  fun name(): String => "builtin/Modc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0x01, false), U8(0x41).modc(2))
+    test_overflow[U8](h, U8(0x40).modc(0))
+
+    test[U16](h, (0x01, false), U16(0x41).modc(2))
+    test_overflow[U16](h, U16(0x40).modc(0))
+
+    test[U32](h, (0x01, false), U32(0x41).modc(2))
+    test_overflow[U32](h, U32(0x40).modc(0))
+
+    test[U64](h, (0x01, false), U64(0x41).modc(2))
+    test_overflow[U64](h, U64(0x40).modc(0))
+
+    test[U128](h, (0x01, false), U128(0x41).modc(2))
+    test_overflow[U128](h, U128(0x40).modc(0))
+
+    test[ULong](h, (0x01, false), ULong(0x41).modc(2))
+    test_overflow[ULong](h, ULong(0x40).modc(0))
+
+    test[USize](h, (0x01, false), USize(0x41).modc(2))
+    test_overflow[USize](h, USize(0x40).modc(0))
+
+    test[I8](h, (0x01, false), I8(0x41).modc(2))
+    test[I8](h, (-0x01, false), I8(-0x41).modc(2))
+    test[I8](h, (-0x02, false), I8(-0x41).modc(-3))
+    test_overflow[I8](h, I8(0x40).modc(0))
+    test_overflow[I8](h, I8(-0x40).modc(0))
+    test_overflow[I8](h, I8.min_value().modc(-1))
+
+    test[I16](h, (0x01, false), I16(0x41).modc(2))
+    test[I16](h, (-0x01, false), I16(-0x41).modc(2))
+    test[I16](h, (-0x02, false), I16(-0x41).modc(-3))
+    test_overflow[I16](h, I16(0x40).modc(0))
+    test_overflow[I16](h, I16(-0x40).modc(0))
+    test_overflow[I16](h, I16.min_value().modc(-1))
+
+    test[I32](h, (0x01, false), I32(0x41).modc(2))
+    test[I32](h, (-0x01, false), I32(-0x41).modc(2))
+    test[I32](h, (-0x02, false), I32(-0x41).modc(-3))
+    test_overflow[I32](h, I32(0x40).modc(0))
+    test_overflow[I32](h, I32(-0x40).modc(0))
+    test_overflow[I32](h, I32.min_value().modc(-1))
+
+    test[I64](h, (0x01, false), I64(0x41).modc(2))
+    test[I64](h, (-0x01, false), I64(-0x41).modc(2))
+    test[I64](h, (-0x02, false), I64(-0x41).modc(-3))
+    test_overflow[I64](h, I64(0x40).modc(0))
+    test_overflow[I64](h, I64(-0x40).modc(0))
+    test_overflow[I64](h, I64.min_value().modc(-1))
+
+    test[I128](h, (0x01, false), I128(0x41).modc(2))
+    test[I128](h, (-0x01, false), I128(-0x41).modc(2))
+    test[I128](h, (-0x02, false), I128(-0x41).modc(-3))
+    test_overflow[I128](h, I128(0x40).modc(0))
+    test_overflow[I128](h, I128(-0x40).modc(0))
+    test_overflow[I128](h, I128.min_value().modc(-1))
+
+    test[ILong](h, (0x01, false), ILong(0x41).modc(2))
+    test[ILong](h, (-0x01, false), ILong(-0x41).modc(2))
+    test[ILong](h, (-0x02, false), ILong(-0x41).modc(-3))
+    test_overflow[ILong](h, ILong(0x40).modc(0))
+    test_overflow[ILong](h, ILong(-0x40).modc(0))
+    test_overflow[ILong](h, ILong.min_value().modc(-1))
+
+    test[ISize](h, (0x01, false), ISize(0x41).modc(2))
+    test[ISize](h, (-0x01, false), ISize(-0x41).modc(2))
+    test[ISize](h, (-0x02, false), ISize(-0x41).modc(-3))
+    test_overflow[ISize](h, ISize(0x40).modc(0))
+    test_overflow[ISize](h, ISize(-0x40).modc(0))
+    test_overflow[ISize](h, ISize.min_value().modc(-1))
 
 primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>

@@ -46,6 +46,9 @@ primitive U8 is _UnsignedInteger[U8]
   fun divc(y: U8): (U8, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U8](this, y)
 
+  fun modc(y: U8): (U8, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[U8](this, y)
+
   fun add_partial(y: U8): U8 ? =>
     _UnsignedPartialArithmetic.add_partial[U8](this, y)?
 
@@ -112,6 +115,9 @@ primitive U16 is _UnsignedInteger[U16]
   fun divc(y: U16): (U16, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U16](this, y)
 
+  fun modc(y: U16): (U16, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[U16](this, y)
+
   fun add_partial(y: U16): U16 ? =>
     _UnsignedPartialArithmetic.add_partial[U16](this, y)?
 
@@ -177,6 +183,9 @@ primitive U32 is _UnsignedInteger[U32]
 
   fun divc(y: U32): (U32, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U32](this, y)
+
+  fun modc(y: U32): (U32, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[U32](this, y)
 
   fun add_partial(y: U32): U32 ? =>
     _UnsignedPartialArithmetic.add_partial[U32](this, y)?
@@ -250,6 +259,9 @@ primitive U64 is _UnsignedInteger[U64]
 
   fun divc(y: U64): (U64, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U64](this, y)
+
+  fun modc(y: U64): (U64, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[U64](this, y)
 
   fun add_partial(y: U64): U64 ? =>
     _UnsignedPartialArithmetic.add_partial[U64](this, y)?
@@ -380,6 +392,9 @@ primitive ULong is _UnsignedInteger[ULong]
   fun divc(y: ULong): (ULong, Bool) =>
     _UnsignedPartialArithmetic.div_checked[ULong](this, y)
 
+  fun modc(y: ULong): (ULong, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[ULong](this, y)
+
   fun add_partial(y: ULong): ULong ? =>
     _UnsignedPartialArithmetic.add_partial[ULong](this, y)?
 
@@ -501,6 +516,9 @@ primitive USize is _UnsignedInteger[USize]
 
   fun divc(y: USize): (USize, Bool) =>
     _UnsignedPartialArithmetic.div_checked[USize](this, y)
+
+  fun modc(y: USize): (USize, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[USize](this, y)
 
   fun add_partial(y: USize): USize ? =>
     _UnsignedPartialArithmetic.add_partial[USize](this, y)?
@@ -777,6 +795,9 @@ primitive U128 is _UnsignedInteger[U128]
 
   fun divc(y: U128): (U128, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U128](this, y)
+
+  fun modc(y: U128): (U128, Bool) =>
+    _UnsignedPartialArithmetic.mod_checked[U128](this, y)
 
   fun add_partial(y: U128): U128 ? =>
     _UnsignedPartialArithmetic.add_partial[U128](this, y)?
