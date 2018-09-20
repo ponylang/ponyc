@@ -212,7 +212,7 @@ ponyc-build-docs(){
   make CC="$CC1" CXX="$CXX1" docs-online
 
   echo "Uploading docs using mkdocs..."
-  git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.org"
+  git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.io"
   git fetch gh-token
   git reset gh-token/master
   pushd stdlib-docs
