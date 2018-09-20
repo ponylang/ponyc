@@ -45,7 +45,7 @@ Terminal=true
 Categories=Development;
 EOF
 
-  curl https://www.ponylang.org/images/logo.png -o ponyc.png
+  curl https://www.ponylang.io/images/logo.png -o ponyc.png
 
   curl https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -o linuxdeploy-x86_64.AppImage -J -L
   chmod +x linuxdeploy-x86_64.AppImage

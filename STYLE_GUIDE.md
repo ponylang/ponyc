@@ -440,7 +440,7 @@ end
   type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
 
   // OK
-  let url = URL.valid("https://www.ponylang.org/")
+  let url = URL.valid("https://www.ponylang.io/")
 
   // Not OK
   class JsonDoc

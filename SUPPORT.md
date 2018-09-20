@@ -23,6 +23,6 @@ The Pony community while small is helpful and inviting. We think you'll find int
 
 [mailing list]: https://pony.groups.io/g/user
 [IRC]: https://webchat.freenode.net/?channels=%23ponylang
-[FAQ]: https://www.ponylang.org/faq/
+[FAQ]: https://www.ponylang.io/faq/
 [issues]: https://github.com/ponylang/ponyc/issues
-[website community section]: https://www.ponylang.org/community/
+[website community section]: https://www.ponylang.io/community/

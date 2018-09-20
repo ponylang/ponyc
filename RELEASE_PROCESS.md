@@ -109,7 +109,7 @@ We do a blog post announcing each release. The release notes blog post should in
 
 Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
 
-[Examples of prior release posts](https://www.ponylang.org/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponylang.github.io/pull/284/files))
+[Examples of prior release posts](https://www.ponylang.io/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponylang.github.io/pull/284/files))
 
 ### Wait on Travis and Appveyor
 
@@ -178,7 +178,7 @@ Once the dockerhub images have been updated, visit the [Pony Playground](https:/
 
 ### Merge the release blog post PR for the ponylang website
 
-Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.org/blog/).
+Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.io/blog/).
 
 ### Inform #ponylang
 
