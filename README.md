@@ -5,7 +5,7 @@ Need help? Not to worry, we have you covered.
 We have a couple resources designed to help you learn, we suggest starting with the tutorial and from there, moving on to the Pony Patterns book. Additionally, standard library documentation is available online.
 
 * [Tutorial](http://tutorial.ponylang.io).
-* [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
+* [Pony Patterns](http://patterns.ponylang.io) cookbook is in progress
 * [Standard library docs](http://stdlib.ponylang.io/).
 * [Build Problems, see FAQ Compiling](https://www.ponylang.io/faq/#compiling).
 
