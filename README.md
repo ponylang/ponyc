@@ -19,7 +19,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 
 # Trying it online
 
-If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/).
+If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.io/).
 
 # Editor support
 

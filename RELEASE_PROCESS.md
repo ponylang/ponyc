@@ -174,7 +174,7 @@ Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/
 
 ### Verify that the Pony Playground updated to the new version
 
-Once the dockerhub images have been updated, visit the [Pony Playground](https://playground.ponylang.org/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
+Once the dockerhub images have been updated, visit the [Pony Playground](https://playground.ponylang.io/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
 
 ### Merge the release blog post PR for the ponylang website
 
