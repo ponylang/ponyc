@@ -158,12 +158,8 @@ case "${TRAVIS_OS_NAME}" in
       brew uninstall llvm@5
 
       # 6.0.x
-      # There is no llvm@6 package right now, so this will break once LLVM 7
-      # is released. Hopefully when they do that there will be a llvm@6 package
-      # at which point both `brew install llvm` and `brew uninstall llvm`
-      # should be updated to replace `llvm` with `llvm@6`
-      brew install llvm
-      brew link --overwrite --force llvm
+      brew install llvm@6
+      brew link --overwrite --force llvm@6
       ln -fs "$(which llvm-config)" llvmsym/llvm-config-6.0
       ln -fs "$(which clang++)" llvmsym/clang++-6.0
 
@@ -174,7 +170,7 @@ case "${TRAVIS_OS_NAME}" in
       osx-ponyc-test
 
       make clean
-      brew uninstall llvm
+      brew uninstall llvm@6
     fi
   ;;
 
