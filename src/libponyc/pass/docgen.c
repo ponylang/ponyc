@@ -621,35 +621,39 @@ static void doc_type_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
 }
 
 // Write the expression to the current type file.
-void doc_expression(docgen_t* docgen, ast_t* ast)
+void doc_expression(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
   FILE* fp = docgen->type_file;
   ast_t* child = ast_child(ast);
+  token_id token = ast_id(ast);
 
-  switch(ast_id(ast))
+  switch(token)
   {
     case TK_CALL:
-      while(child != NULL)
-      {
-        doc_expression(docgen, child);
-        child = ast_sibling(child);
-      }
-      fprintf(fp, "()");
-      break;
-
+    case TK_CHAIN:
+    case TK_DOT:
     case TK_SEQ:
       while(child != NULL)
       {
-        doc_expression(docgen, child);
+        doc_expression(docgen, docgen_opt, child);
         child = ast_sibling(child);
         if (child != NULL) {
-          fprintf(fp, "; ");
+          if (token == TK_CHAIN)
+            fprintf(fp, ".>");
+
+          if (token == TK_DOT)
+            fprintf(fp, ".");
+
+          if (token == TK_SEQ)
+            fprintf(fp, "; ");
         }
       }
+      if (token == TK_CALL)
+        fprintf(fp, "()");
       break;
 
     case TK_REFERENCE:
-      doc_expression(docgen, child);
+      doc_expression(docgen, docgen_opt, child);
       break;
 
     case TK_TYPE:
@@ -659,18 +663,7 @@ void doc_expression(docgen_t* docgen, ast_t* ast)
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      doc_type(docgen, ast, false);
-      break;
-
-    case TK_DOT:
-      while(child != NULL)
-      {
-        doc_expression(docgen, child);
-        child = ast_sibling(child);
-        if (child != NULL) {
-          fprintf(fp, ".");
-        }
-      }
+      doc_type(docgen, docgen_opt, ast, false, false);
       break;
 
     case TK_NONE:
@@ -690,7 +683,7 @@ void doc_expression(docgen_t* docgen, ast_t* ast)
       {
         if (ast_id(child) != TK_NONE) {
           fprintf(fp, " ");
-          doc_expression(docgen, child);
+          doc_expression(docgen, docgen_opt, child);
         }
         child = ast_sibling(child);
       }
@@ -732,7 +725,7 @@ static void code_block_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE) {
       fprintf(docgen->type_file, " = ");
-      doc_expression(docgen, def_val);
+      doc_expression(docgen, docgen_opt, def_val);
     }
   }
 
@@ -765,7 +758,7 @@ static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE) {
       fprintf(docgen->type_file, " = ");
-      doc_expression(docgen, def_val);
+      doc_expression(docgen, docgen_opt, def_val);
     }
 
     fprintf(docgen->type_file, "\n");
