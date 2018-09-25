@@ -254,6 +254,7 @@ char* token_print_escaped(token_t* token)
   return escaped;
 }
 
+
 const char* token_id_desc(token_id id)
 {
   switch(id)
