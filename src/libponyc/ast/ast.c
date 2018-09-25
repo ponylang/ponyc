@@ -721,7 +721,7 @@ const char* ast_get_print(ast_t* ast)
 
 char* ast_string_escape(ast_t* ast)
 {
-  assert(ast != NULL && ast_id(ast) == TK_STRING);
+  pony_assert(ast != NULL && ast_id(ast) == TK_STRING);
   return token_print_escaped(ast->t);
 }
 
