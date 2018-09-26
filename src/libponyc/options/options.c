@@ -166,8 +166,8 @@ static void usage(void)
     "    =name          Default is the compiler used to compile ponyc.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
-    "  --define, -D     Define which openssl version to use default is " PONY_DEFAULT_SSL "\n"
-    "    =openssl_1.1.0\n"
+    "  --define, -D     Define which openssl version to use.\n"
+    "    =openssl_1.1.0 Default is " PONY_DEFAULT_SSL ".\n"
     "    =openssl_0.9.0\n"
     ,
     "Debugging options:\n"
