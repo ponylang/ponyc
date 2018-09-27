@@ -17,6 +17,9 @@ primitive _UnsignedPartialArithmetic is _PartialArithmetic
   fun div_checked[T: _UnsignedInteger[T] val](x: T, y: T): (T, Bool) =>
     (x / y, (y == T.from[U8](0)))
 
+  fun mod_checked[T: _UnsignedInteger[T] val](x: T, y: T): (T, Bool) =>
+    (x % y, y == T.from[U8](0))
+
   fun div_partial[T: _UnsignedInteger[T] val](x: T, y: T): T? =>
     if (y == T.from[U8](0)) then
       error
@@ -42,6 +45,9 @@ primitive _SignedPartialArithmetic is _PartialArithmetic
 
   fun div_checked[T: (_SignedInteger[T, U] val & Signed), U: _UnsignedInteger[U] val](x: T, y: T): (T, Bool) =>
     (x / y, (y == T.from[I8](0)) or ((y == T.from[I8](I8(-1))) and (x == T.min_value())))
+
+  fun mod_checked[T: (_SignedInteger[T, U] val & Signed), U: _UnsignedInteger[U] val](x: T, y: T): (T, Bool) =>
+    (x % y, (y == T.from[I8](0)) or ((y == T.from[I8](I8(-1))) and (x == T.min_value())))
 
   fun div_partial[T: (_SignedInteger[T, U] val & Signed), U: _UnsignedInteger[U] val](x: T, y: T): T? =>
     if (y == T.from[I8](0)) or ((y == T.from[I8](I8(-1))) and (x == T.min_value())) then
