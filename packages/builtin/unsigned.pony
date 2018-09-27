@@ -43,6 +43,9 @@ primitive U8 is _UnsignedInteger[U8]
   fun mulc(y: U8): (U8, Bool) =>
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
+  fun divc(y: U8): (U8, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[U8](this, y)
+
   fun add_partial(y: U8): U8 ? =>
     _UnsignedPartialArithmetic.add_partial[U8](this, y)?
 
@@ -106,6 +109,9 @@ primitive U16 is _UnsignedInteger[U16]
   fun mulc(y: U16): (U16, Bool) =>
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
+  fun divc(y: U16): (U16, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[U16](this, y)
+
   fun add_partial(y: U16): U16 ? =>
     _UnsignedPartialArithmetic.add_partial[U16](this, y)?
 
@@ -168,6 +174,9 @@ primitive U32 is _UnsignedInteger[U32]
 
   fun mulc(y: U32): (U32, Bool) =>
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
+
+  fun divc(y: U32): (U32, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[U32](this, y)
 
   fun add_partial(y: U32): U32 ? =>
     _UnsignedPartialArithmetic.add_partial[U32](this, y)?
@@ -238,6 +247,9 @@ primitive U64 is _UnsignedInteger[U64]
 
   fun mulc(y: U64): (U64, Bool) =>
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
+
+  fun divc(y: U64): (U64, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[U64](this, y)
 
   fun add_partial(y: U64): U64 ? =>
     _UnsignedPartialArithmetic.add_partial[U64](this, y)?
@@ -365,6 +377,9 @@ primitive ULong is _UnsignedInteger[ULong]
       @"llvm.umul.with.overflow.i64"[(ULong, Bool)](this, y)
     end
 
+  fun divc(y: ULong): (ULong, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[ULong](this, y)
+
   fun add_partial(y: ULong): ULong ? =>
     _UnsignedPartialArithmetic.add_partial[ULong](this, y)?
 
@@ -483,6 +498,9 @@ primitive USize is _UnsignedInteger[USize]
     else
       @"llvm.umul.with.overflow.i64"[(USize, Bool)](this, y)
     end
+
+  fun divc(y: USize): (USize, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[USize](this, y)
 
   fun add_partial(y: USize): USize ? =>
     _UnsignedPartialArithmetic.add_partial[USize](this, y)?
@@ -756,6 +774,9 @@ primitive U128 is _UnsignedInteger[U128]
       let overflow = (this != 0) and ((result / this) != y)
       (result, overflow)
     end
+
+  fun divc(y: U128): (U128, Bool) =>
+    _UnsignedPartialArithmetic.div_checked[U128](this, y)
 
   fun add_partial(y: U128): U128 ? =>
     _UnsignedPartialArithmetic.add_partial[U128](this, y)?
