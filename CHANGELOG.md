@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add divc method to integer types ([PR #2882](https://github.com/ponylang/ponyc/pull/2882))
 - [RFC 58] Add partial arithmetic for integer types ([PR #2865](https://github.com/ponylang/ponyc/pull/2865))
 - Added OpenBSD support. ([PR #2823](https://github.com/ponylang/ponyc/pull/2823))
 - Added `set_up` method to `ponytest.UnitTest` as equivalent to existing `tear_down` method ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
