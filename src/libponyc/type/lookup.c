@@ -217,10 +217,17 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 
   ast_t* typeargs = ast_childidx(type, 2);
 
+  ast_t* orig_initial = orig;
   if(ast_id(find) == TK_FUN && ast_id(ast_child(find)) == TK_BOX)
     orig = downcast_iso_trn_receiver_to_ref(orig);
 
-  return deferred_reify_new(find, typeparams, typeargs, orig);
+  deferred_reification_t* reified = deferred_reify_new(find, typeparams, typeargs, orig);
+
+  // free if we made a copy of orig
+  if(orig != orig_initial)
+    ast_free(orig);
+
+  return reified;
 }
 
 static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
