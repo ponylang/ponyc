@@ -162,6 +162,10 @@ class iso _TestReader is UnitTest
     h.assert_eq[U128](b.u128_le()?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
     h.assert_eq[String](b.line()?, "hi")
+    try
+      b.read_until(0)?
+      h.fail("should fail reading until 0")
+    end
     h.assert_eq[String](b.line()?, "there")
 
     b.append(['h'; 'i'])
@@ -171,8 +175,11 @@ class iso _TestReader is UnitTest
       h.fail("shouldn't have a line")
     end
 
+    h.assert_eq[U8](b.u8()?, 'h')
+    h.assert_eq[U8](b.u8()?, 'i')
+
     b.append(['!'; '\n'])
-    h.assert_eq[String](b.line()?, "hi!")
+    h.assert_eq[String](b.line()?, "!")
 
     b.append(['s'; 't'; 'r'; '1'])
     try

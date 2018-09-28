@@ -63,8 +63,6 @@ class Reader
   """
   embed _chunks: List[(Array[U8] val, USize)] = _chunks.create()
   var _available: USize = 0
-  var _search_node: (ListNode[(Array[U8] val, USize)] | None) = None
-  var _search_len: USize = 0
 
   fun size(): USize =>
     """
@@ -768,29 +766,19 @@ class Reader
       error
     end
 
-    var node = if _search_len > 0 then
-      let prev = _search_node as ListNode[(Array[U8] val, USize)]
-
-      if not prev.has_next() then
-        error
-      end
-
-      prev.next() as ListNode[(Array[U8] val, USize)]
-    else
-      _chunks.head()?
-    end
+    var node = _chunks.head()?
+    var search_len: USize = 0
 
     while true do
       (var data, var offset) = node()?
 
       try
-        let len = (_search_len + data.find(byte, offset)? + 1) - offset
-        _search_node = None
-        _search_len = 0
+        let len = (search_len + data.find(byte, offset)? + 1) - offset
+        search_len = 0
         return len
       end
 
-      _search_len = _search_len + (data.size() - offset)
+      search_len = search_len + (data.size() - offset)
 
       if not node.has_next() then
         break
@@ -799,7 +787,6 @@ class Reader
       node = node.next() as ListNode[(Array[U8] val, USize)]
     end
 
-    _search_node = node
     error
 
   fun ref _search_length(): USize ? =>
