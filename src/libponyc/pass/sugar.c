@@ -1179,12 +1179,12 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_MINUS:               return sugar_binop(astp, "sub", "sub_partial");
     case TK_MULTIPLY:            return sugar_binop(astp, "mul", "mul_partial");
     case TK_DIVIDE:              return sugar_binop(astp, "div", "div_partial");
-    case TK_MOD:                 return sugar_binop(astp, "mod", "mod_partial");
+    case TK_REM:                 return sugar_binop(astp, "rem", "rem_partial");
     case TK_PLUS_TILDE:          return sugar_binop(astp, "add_unsafe", NULL);
     case TK_MINUS_TILDE:         return sugar_binop(astp, "sub_unsafe", NULL);
     case TK_MULTIPLY_TILDE:      return sugar_binop(astp, "mul_unsafe", NULL);
     case TK_DIVIDE_TILDE:        return sugar_binop(astp, "div_unsafe", NULL);
-    case TK_MOD_TILDE:           return sugar_binop(astp, "mod_unsafe", NULL);
+    case TK_REM_TILDE:           return sugar_binop(astp, "rem_unsafe", NULL);
     case TK_LSHIFT:              return sugar_binop(astp, "shl", NULL);
     case TK_RSHIFT:              return sugar_binop(astp, "shr", NULL);
     case TK_LSHIFT_TILDE:        return sugar_binop(astp, "shl_unsafe", NULL);

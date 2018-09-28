@@ -109,12 +109,12 @@ static bool is_expr_infix(token_id id)
     case TK_MINUS:
     case TK_MULTIPLY:
     case TK_DIVIDE:
-    case TK_MOD:
+    case TK_REM:
     case TK_PLUS_TILDE:
     case TK_MINUS_TILDE:
     case TK_MULTIPLY_TILDE:
     case TK_DIVIDE_TILDE:
-    case TK_MOD_TILDE:
+    case TK_REM_TILDE:
     case TK_LSHIFT:
     case TK_RSHIFT:
     case TK_LSHIFT_TILDE:

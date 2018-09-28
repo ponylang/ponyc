@@ -73,7 +73,7 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   return build_i(c->builder, l_value, r_value, "");
 }
 
-static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
+static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   const_binop const_f, const_binop const_ui, const_binop const_si,
   build_binop build_f, build_binop build_ui, build_binop build_si,
   bool safe)
@@ -97,7 +97,7 @@ static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
     long long r_const = LLVMConstIntGetSExtValue(r_value);
     if (r_const == 0)
     {
-      ast_error(c->opt->check.errors, right, "constant divide or mod by zero");
+      ast_error(c->opt->check.errors, right, "constant divide or rem by zero");
       return NULL;
     }
 
@@ -111,7 +111,7 @@ static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
       if(LLVMConstIntGetSExtValue(l_value) == min)
       {
         ast_error(c->opt->check.errors, ast_parent(left),
-          "constant divide or mod overflow");
+          "constant divide or rem overflow");
         return NULL;
       }
     }
@@ -647,14 +647,14 @@ LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divmod(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
+  return make_divrem(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
     LLVMConstSDiv, safe ? LLVMBuildFDiv : make_unsafe_fdiv,
     LLVMBuildUDiv, LLVMBuildSDiv, safe);
 }
 
-LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right, bool safe)
+LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divmod(c, left, right, LLVMConstFRem, LLVMConstURem,
+  return make_divrem(c, left, right, LLVMConstFRem, LLVMConstURem,
     LLVMConstSRem, safe ? LLVMBuildFRem : make_unsafe_frem,
     LLVMBuildURem, LLVMBuildSRem, safe);
 }
