@@ -31,6 +31,9 @@ primitive U8 is _UnsignedInteger[U8]
     @"llvm.cttz.i8"[U8](this, true)
 
   fun bitwidth(): U8 => 8
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: U8): U8 => if this < y then this else y end
   fun max(y: U8): U8 => if this > y then this else y end
 
@@ -100,6 +103,9 @@ primitive U16 is _UnsignedInteger[U16]
     @"llvm.cttz.i16"[U16](this, true)
 
   fun bitwidth(): U16 => 16
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: U16): U16 => if this < y then this else y end
   fun max(y: U16): U16 => if this > y then this else y end
 
@@ -169,6 +175,9 @@ primitive U32 is _UnsignedInteger[U32]
     @"llvm.cttz.i32"[U32](this, true)
 
   fun bitwidth(): U32 => 32
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: U32): U32 => if this < y then this else y end
   fun max(y: U32): U32 => if this > y then this else y end
 
@@ -238,6 +247,9 @@ primitive U64 is _UnsignedInteger[U64]
     @"llvm.cttz.i64"[U64](this, true)
 
   fun bitwidth(): U64 => 64
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: U64): U64 => if this < y then this else y end
   fun max(y: U64): U64 => if this > y then this else y end
 
@@ -358,6 +370,9 @@ primitive ULong is _UnsignedInteger[ULong]
     end
 
   fun bitwidth(): ULong => ifdef ilp32 or llp64 then 32 else 64 end
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: ULong): ULong => if this < y then this else y end
   fun max(y: ULong): ULong => if this > y then this else y end
 
@@ -490,6 +505,9 @@ primitive USize is _UnsignedInteger[USize]
     end
 
   fun bitwidth(): USize => ifdef ilp32 then 32 else 64 end
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: USize): USize => if this < y then this else y end
   fun max(y: USize): USize => if this > y then this else y end
 
@@ -571,6 +589,9 @@ primitive U128 is _UnsignedInteger[U128]
     @"llvm.cttz.i128"[U128](this, true)
 
   fun bitwidth(): U128 => 128
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: U128): U128 => if this < y then this else y end
   fun max(y: U128): U128 => if this > y then this else y end
 

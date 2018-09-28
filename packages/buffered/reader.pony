@@ -232,8 +232,31 @@ class Reader
     """
     Get a big-endian U16.
     """
-    if _available >= 2 then
-      (u8()?.u16() << 8) or u8()?.u16()
+    let num_bytes = U16(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef bigendian then
+            data.read_u16(offset)?
+          else
+            data.read_u16(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        (u8()?.u16() << 8) or u8()?.u16()
+      end
     else
       error
     end
@@ -242,8 +265,31 @@ class Reader
     """
     Get a little-endian U16.
     """
-    if _available >= 2 then
-      u8()?.u16() or (u8()?.u16() << 8)
+    let num_bytes = U16(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef littleendian then
+            data.read_u16(offset)?
+          else
+            data.read_u16(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        u8()?.u16() or (u8()?.u16() << 8)
+      end
     else
       error
     end
@@ -264,8 +310,32 @@ class Reader
     """
     Get a big-endian U32.
     """
-    if _available >= 4 then
-      (u16_be()?.u32() << 16) or u16_be()?.u32()
+    let num_bytes = U32(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef bigendian then
+            data.read_u32(offset)?
+          else
+            data.read_u32(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        (u8()?.u32() << 24) or (u8()?.u32() << 16) or
+          (u8()?.u32() << 8) or u8()?.u32()
+      end
     else
       error
     end
@@ -274,8 +344,32 @@ class Reader
     """
     Get a little-endian U32.
     """
-    if _available >= 4 then
-      u16_le()?.u32() or (u16_le()?.u32() << 16)
+    let num_bytes = U32(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef littleendian then
+            data.read_u32(offset)?
+          else
+            data.read_u32(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        u8()?.u32() or (u8()?.u32() << 8) or
+          (u8()?.u32() << 16) or (u8()?.u32() << 24)
+      end
     else
       error
     end
@@ -296,8 +390,34 @@ class Reader
     """
     Get a big-endian U64.
     """
-    if _available >= 8 then
-      (u32_be()?.u64() << 32) or u32_be()?.u64()
+    let num_bytes = U64(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef bigendian then
+            data.read_u64(offset)?
+          else
+            data.read_u64(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        (u8()?.u64() << 56) or (u8()?.u64() << 48) or
+          (u8()?.u64() << 40) or (u8()?.u64() << 32) or
+          (u8()?.u64() << 24) or (u8()?.u64() << 16) or
+          (u8()?.u64() << 8) or u8()?.u64()
+      end
     else
       error
     end
@@ -306,8 +426,34 @@ class Reader
     """
     Get a little-endian U64.
     """
-    if _available >= 8 then
-      u32_le()?.u64() or (u32_le()?.u64() << 32)
+    let num_bytes = U64(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef littleendian then
+            data.read_u64(offset)?
+          else
+            data.read_u64(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        u8()?.u64() or (u8()?.u64() << 8) or
+          (u8()?.u64() << 16) or (u8()?.u64() << 24) or
+          (u8()?.u64() << 32) or (u8()?.u64() << 40) or
+          (u8()?.u64() << 48) or (u8()?.u64() << 56)
+      end
     else
       error
     end
@@ -328,8 +474,38 @@ class Reader
     """
     Get a big-endian U128.
     """
-    if _available >= 16 then
-      (u64_be()?.u128() << 64) or u64_be()?.u128()
+    let num_bytes = U128(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef bigendian then
+            data.read_u128(offset)?
+          else
+            data.read_u128(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        (u8()?.u128() << 120) or (u8()?.u128() << 112) or
+          (u8()?.u128() << 104) or (u8()?.u128() << 96) or
+          (u8()?.u128() << 88) or (u8()?.u128() << 80) or
+          (u8()?.u128() << 72) or (u8()?.u128() << 64) or
+          (u8()?.u128() << 56) or (u8()?.u128() << 48) or
+          (u8()?.u128() << 40) or (u8()?.u128() << 32) or
+          (u8()?.u128() << 24) or (u8()?.u128() << 16) or
+          (u8()?.u128() << 8) or u8()?.u128()
+      end
     else
       error
     end
@@ -338,8 +514,38 @@ class Reader
     """
     Get a little-endian U128.
     """
-    if _available >= 16 then
-      u64_le()?.u128() or (u64_le()?.u128() << 64)
+    let num_bytes = U128(0).bytewidth()
+    if _available >= num_bytes then
+      let node = _chunks.head()?
+      (var data, var offset) = node()?
+      if (data.size() - offset) >= num_bytes then
+        let r =
+          ifdef littleendian then
+            data.read_u128(offset)?
+          else
+            data.read_u128(offset)?.bswap()
+          end
+
+        offset = offset + num_bytes
+        _available = _available - num_bytes
+
+        if offset < data.size() then
+          node()? = (data, offset)
+        else
+          _chunks.shift()?
+        end
+        r
+      else
+        // single array did not have all the bytes needed
+        u8()?.u128() or (u8()?.u128() << 8) or
+          (u8()?.u128() << 16) or (u8()?.u128() << 24) or
+          (u8()?.u128() << 32) or (u8()?.u128() << 40) or
+          (u8()?.u128() << 48) or (u8()?.u128() << 56) or
+          (u8()?.u128() << 64) or (u8()?.u128() << 72) or
+          (u8()?.u128() << 80) or (u8()?.u128() << 88) or
+          (u8()?.u128() << 96) or (u8()?.u128() << 104) or
+          (u8()?.u128() << 112) or (u8()?.u128() << 120)
+      end
     else
       error
     end

@@ -175,6 +175,12 @@ class Array[A] is Seq[A]
       _ptr = _ptr._realloc(_alloc)
     end
 
+  fun box _element_size(): USize =>
+    """
+    Element size in bytes for an element.
+    """
+    _ptr._element_size()
+
   fun ref compact() =>
     """
     Try to remove unused space, making it available for garbage collection. The
@@ -200,12 +206,128 @@ class Array[A] is Seq[A]
     reserve(len)
     _size = len
 
+  fun box read_u8[B: (A & Real[B] val & U8) = A](offset: USize): U8 ? =>
+    """
+    Reads a U8 from offset. This is only allowed for an array of U8s.
+    """
+    if offset < _size then
+      _ptr._offset(offset)._convert[U8]()._apply(0)
+    else
+      error
+    end
+
+  fun box read_u16[B: (A & Real[B] val & U8) = A](offset: USize): U16 ? =>
+    """
+    Reads a U16 from offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u16_bytes = U16(0).bytewidth()
+    if ((offset*bytes) + u16_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U16]()._apply(0)
+    else
+      error
+    end
+
+  fun box read_u32[B: (A & Real[B] val & U8) = A](offset: USize): U32 ? =>
+    """
+    Reads a U32 from offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u32_bytes = U32(0).bytewidth()
+    if ((offset*bytes) + u32_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U32]()._apply(0)
+    else
+      error
+    end
+
+  fun box read_u64[B: (A & Real[B] val & U8) = A](offset: USize): U64 ? =>
+    """
+    Reads a U64 from offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u64_bytes = U64(0).bytewidth()
+    if ((offset*bytes) + u64_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U64]()._apply(0)
+    else
+      error
+    end
+
+  fun box read_u128[B: (A & Real[B] val & U8) = A](offset: USize): U128 ? =>
+    """
+    Reads a U128 from offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u128_bytes = U128(0).bytewidth()
+    if ((offset*bytes) + u128_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U128]()._apply(0)
+    else
+      error
+    end
+
   fun apply(i: USize): this->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """
     if i < _size then
       _ptr._apply(i)
+    else
+      error
+    end
+
+  fun ref update_u8[B: (A & Real[B] val & U8) = A](offset: USize, value: U8): U8 ? =>
+    """
+    Write a U8 at offset. This is only allowed for an array of U8s.
+    """
+    if offset < _size then
+      _ptr._offset(offset)._convert[U8]()._update(0, value)
+    else
+      error
+    end
+
+  fun ref update_u16[B: (A & Real[B] val & U8) = A](offset: USize, value: U16): U16 ? =>
+    """
+    Write a U16 at offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u16_bytes = U16(0).bytewidth()
+    if ((offset*bytes) + u16_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U16]()._update(0, value)
+    else
+      error
+    end
+
+  fun ref update_u32[B: (A & Real[B] val & U8) = A](offset: USize, value: U32): U32 ? =>
+    """
+    Write a U32 at offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u32_bytes = U32(0).bytewidth()
+    if ((offset*bytes) + u32_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U32]()._update(0, value)
+    else
+      error
+    end
+
+  fun ref update_u64[B: (A & Real[B] val & U8) = A](offset: USize, value: U64): U64 ? =>
+    """
+    Write a U64 at offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u64_bytes = U64(0).bytewidth()
+    if ((offset*bytes) + u64_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U64]()._update(0, value)
+    else
+      error
+    end
+
+  fun ref update_u128[B: (A & Real[B] val & U8) = A](offset: USize, value: U128): U128 ? =>
+    """
+    Write a U128 at offset. This is only allowed for an array of U8s.
+    """
+    let bytes = _element_size()
+    let u128_bytes = U128(0).bytewidth()
+    if ((offset*bytes) + u128_bytes) <= (_size*bytes) then
+      _ptr._offset(offset)._convert[U128]()._update(0, value)
     else
       error
     end
@@ -333,6 +455,23 @@ class Array[A] is Seq[A]
 
     (consume left, consume this)
 
+  fun ref copy_from[B: (A & Real[B] val & U8) = A](
+    src: Array[U8] box,
+    src_idx: USize,
+    dst_idx: USize,
+    len: USize)
+  =>
+    """
+    Copy len elements from src(src_idx) to this(dst_idx).
+    Only works for Array[U8].
+    """
+    reserve(dst_idx + len)
+    src._ptr._offset(src_idx)._copy_to(_ptr._convert[U8]()._offset(dst_idx), len)
+
+    if _size < (dst_idx + len) then
+      _size = dst_idx + len
+    end
+
   fun copy_to(
     dst: Array[this->A!],
     src_idx: USize,
@@ -364,6 +503,51 @@ class Array[A] is Seq[A]
     Remove all elements from the array.
     """
     _size = 0
+
+  fun ref push_u8[B: (A & Real[B] val & U8) = A](value: U8) =>
+    """
+    Add a U8 to the end of the array. This is only allowed for an array of U8s.
+    """
+    let u8_bytes = U8(0).bytewidth()
+    reserve(_size + u8_bytes)
+    _ptr._offset(_size)._convert[U8]()._update(0, value)
+    _size = _size + u8_bytes
+
+  fun ref push_u16[B: (A & Real[B] val & U8) = A](value: U16) =>
+    """
+    Add a U16 to the end of the array. This is only allowed for an array of U8s.
+    """
+    let u16_bytes = U16(0).bytewidth()
+    reserve(_size + u16_bytes)
+    _ptr._offset(_size)._convert[U16]()._update(0, value)
+    _size = _size + u16_bytes
+
+  fun ref push_u32[B: (A & Real[B] val & U8) = A](value: U32) =>
+    """
+    Add a U32 to the end of the array. This is only allowed for an array of U8s.
+    """
+    let u32_bytes = U32(0).bytewidth()
+    reserve(_size + u32_bytes)
+    _ptr._offset(_size)._convert[U32]()._update(0, value)
+    _size = _size + u32_bytes
+
+  fun ref push_u64[B: (A & Real[B] val & U8) = A](value: U64) =>
+    """
+    Add a U64 to the end of the array. This is only allowed for an array of U8s.
+    """
+    let u64_bytes = U64(0).bytewidth()
+    reserve(_size + u64_bytes)
+    _ptr._offset(_size)._convert[U64]()._update(0, value)
+    _size = _size + u64_bytes
+
+  fun ref push_u128[B: (A & Real[B] val & U8) = A](value: U128) =>
+    """
+    Add a U128 to the end of the array. This is only allowed for an array of U8s.
+    """
+    let u128_bytes = U128(0).bytewidth()
+    reserve(_size + u128_bytes)
+    _ptr._offset(_size)._convert[U128]()._update(0, value)
+    _size = _size + u128_bytes
 
   fun ref push(value: A) =>
     """

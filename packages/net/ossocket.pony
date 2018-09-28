@@ -155,17 +155,7 @@ primitive _OSSocket
     end
 
   fun bytes4_to_u32(b: Array[U8]): U32 ? =>
-    ifdef littleendian then
-      (b(3)?.u32() << 24) or (b(2)?.u32() << 16) or (b(1)?.u32() << 8) or b(0)?.u32()
-    else
-      (b(0)?.u32() << 24) or (b(1)?.u32() << 16) or (b(2)?.u32() << 8) or b(3)?.u32()
-    end
+    b.read_u32(0)?
 
   fun u32_to_bytes4(option: U32): Array[U8] =>
-    ifdef littleendian then
-      [ (option and 0xFF).u8(); ((option >> 8) and 0xFF).u8()
-        ((option >> 16) and 0xFF).u8(); ((option >> 24) and 0xFF).u8() ]
-    else
-      [ ((option >> 24) and 0xFF).u8(); ((option >> 16) and 0xFF).u8()
-        ((option >> 8) and 0xFF).u8(); (option and 0xFF).u8() ]
-    end
+    Array[U8](4).>push_u32(option)

@@ -18,6 +18,72 @@ class iso _TestReader is UnitTest
   fun apply(h: TestHelper) ? =>
     let b = Reader
 
+    // The initial bytes are all spread across multiple arrays to
+    // test `else` condition when all data isn't in a single array
+    // when numeric types are being read
+    b.append(recover [as U8: 0x42] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xFE] end)
+    b.append(recover [as U8: 0xED] end)
+    b.append(recover [as U8: 0xFA] end)
+    b.append(recover [as U8: 0xCE] end)
+    b.append(recover [as U8: 0xCE] end)
+    b.append(recover [as U8: 0xFA] end)
+    b.append(recover [as U8: 0xED] end)
+    b.append(recover [as U8: 0xFE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xFE] end)
+    b.append(recover [as U8: 0xED] end)
+    b.append(recover [as U8: 0xFA] end)
+    b.append(recover [as U8: 0xCE] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xFE] end)
+    b.append(recover [as U8: 0xED] end)
+    b.append(recover [as U8: 0xFA] end)
+    b.append(recover [as U8: 0xCE] end)
+    b.append(recover [as U8: 0xCE] end)
+    b.append(recover [as U8: 0xFA] end)
+    b.append(recover [as U8: 0xED] end)
+    b.append(recover [as U8: 0xFE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xDE] end)
+    b.append(recover [as U8: 0xCE] end)
+    b.append(recover [as U8: 0xFA] end)
+    b.append(recover [as U8: 0xED] end)
+    b.append(recover [as U8: 0xFE] end)
+    b.append(recover [as U8: 0xEF] end)
+    b.append(recover [as U8: 0xBE] end)
+    b.append(recover [as U8: 0xAD] end)
+    b.append(recover [as U8: 0xDE] end)
+
+    // normal/contiguous data
     b.append([
       0x42
       0xDE; 0xAD
@@ -36,6 +102,9 @@ class iso _TestReader is UnitTest
     b.append(['r'; 'e'; '\r'; '\n'])
 
     // These expectations peek into the buffer without consuming bytes.
+    // The initial bytes are all spread across multiple arrays to
+    // test `else` condition when all data isn't in a single array
+    // when numeric types are being read
     h.assert_eq[U8](b.peek_u8()?, 0x42)
     h.assert_eq[U16](b.peek_u16_be(1)?, 0xDEAD)
     h.assert_eq[U16](b.peek_u16_le(3)?, 0xDEAD)
@@ -46,8 +115,40 @@ class iso _TestReader is UnitTest
     h.assert_eq[U128](b.peek_u128_be(29)?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
     h.assert_eq[U128](b.peek_u128_le(45)?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
-    h.assert_eq[U8](b.peek_u8(61)?, 'h')
-    h.assert_eq[U8](b.peek_u8(62)?, 'i')
+    // These expectations peek into the buffer without consuming bytes.
+    h.assert_eq[U8](b.peek_u8(61)?, 0x42)
+    h.assert_eq[U16](b.peek_u16_be(62)?, 0xDEAD)
+    h.assert_eq[U16](b.peek_u16_le(64)?, 0xDEAD)
+    h.assert_eq[U32](b.peek_u32_be(66)?, 0xDEADBEEF)
+    h.assert_eq[U32](b.peek_u32_le(70)?, 0xDEADBEEF)
+    h.assert_eq[U64](b.peek_u64_be(74)?, 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U64](b.peek_u64_le(82)?, 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.peek_u128_be(90)?,
+      0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.peek_u128_le(106)?,
+      0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+
+
+    h.assert_eq[U8](b.peek_u8(122)?, 'h')
+    h.assert_eq[U8](b.peek_u8(123)?, 'i')
+
+
+    // These expectations consume bytes from the head of the buffer.
+    // The initial bytes are all spread across multiple arrays to
+    // test `else` condition when all data isn't in a single array
+    // when numeric types are being read
+    h.assert_eq[U8](b.u8()?, 0x42)
+    h.assert_eq[U16](b.u16_be()?, 0xDEAD)
+    h.assert_eq[U16](b.u16_le()?, 0xDEAD)
+    h.assert_eq[U32](b.u32_be()?, 0xDEADBEEF)
+    h.assert_eq[U32](b.u32_le()?, 0xDEADBEEF)
+    h.assert_eq[U64](b.u64_be()?, 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U64](b.u64_le()?, 0xDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.u128_be()?,
+      0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+    h.assert_eq[U128](b.u128_le()?,
+      0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
+
 
     // These expectations consume bytes from the head of the buffer.
     h.assert_eq[U8](b.u8()?, 0x42)
