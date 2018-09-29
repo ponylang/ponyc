@@ -1,168 +1,214 @@
 use mut = "collections"
 
-type _MapCollisions[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
-  is Array[_MapLeaf[K, V, H]] val
+// TODO: tuple?
+class val _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  let key: K
+  let value: V
 
-type _MapLeaf[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
-  is (K, V)
+  new val create(k: K, v: V) =>
+    key = k
+    value = v
 
-type _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
-  is (_MapNode[K, V, H] | _MapCollisions[K, V, H] | _MapLeaf[K, V, H])
+  fun apply(k: K): (V | None) =>
+    if H.eq(k, key) then value end
 
-class val _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
-  let _entries: Array[_MapEntry[K, V, H]] val
-  let _nodemap: U32
-  let _datamap: U32
-  let _level: U8
+class val _MapCollisions[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  let bins: Array[Array[_MapEntry[K, V, H]] trn] trn =
+    [[]; []; []; []]
 
-  new val empty(l: U8) =>
-    _entries = recover val
-      match l
-      | 6 => Array[_MapEntry[K, V, H]](4)
-      else
-        Array[_MapEntry[K, V, H]]
+  fun val clone(): _MapCollisions[K, V, H] trn^ =>
+    let cs = recover trn _MapCollisions[K, V, H] end
+    try
+      for i in bins.keys() do
+        let x = recover bins(i)?.clone() end
+        cs.bins.push(consume x)
       end
     end
-    _nodemap = 0
-    _datamap = 0
-    _level = l
+    consume cs
 
-  new val create(es: Array[_MapEntry[K, V, H]] iso, nm: U32, dm: U32, l: U8) =>
-    _entries = consume es
-    _nodemap = nm
-    _datamap = dm
-    _level = l
-
-  fun val apply(hash: USize, key: K): V ? =>
-    let idx = _Bits.mask(hash, _level.usize_unsafe()).u32_unsafe()
-    let i = _compressed_index(_nodemap, _datamap, idx)
-    if i == -1 then error end
-    match _entries(i.usize_unsafe())?
-    | (_, let v: V) => v
-    | let sn: _MapNode[K, V, H] => sn(hash, key)?
-    | let cn: _MapCollisions[K, V, H] =>
-      for l in cn.values() do
-        if H.eq(l._1, key) then return l._2 end
-      end
-      error
+  fun apply(hash: U32, k: K): (V | None) ? =>
+    let idx = _Bits.mask32(hash, _Bits.collision_depth())
+    let bin = bins(idx.usize_unsafe())?
+    for node in bin.values() do
+      if H.eq(k, node.key) then return node.value end
     end
 
-  fun val update(
-    hash: USize,
-    leaf: _MapLeaf[K, V, H])
-    : (_MapNode[K, V, H], Bool) ?
-  =>
-    let idx = _Bits.mask(hash, _level.usize_unsafe()).u32_unsafe()
-    let i = _compressed_index(_nodemap, _datamap, idx)
-    if i == -1 then
-      let es = recover _entries.clone() end
-      let dm = _Bits.set_bit(_datamap, idx)
-      let i' = _compressed_index(_nodemap, dm, idx)
-      es.insert(i'.usize_unsafe(), leaf)?
-      (create(consume es, _nodemap, dm, _level), true)
-    elseif _Bits.has_bit(_nodemap, idx) then
-      if _level == 6 then
-        // insert into collision node
-        let es = recover _entries.clone() end
-        let cs = _entries(i.usize_unsafe())? as _MapCollisions[K, V, H]
-        let cs' = recover cs.clone() end
-        for (k, v) in cs.pairs() do
-          if H.eq(v._1, leaf._1) then
-          // update collision
-            cs'(k)? = leaf
-            es(i.usize_unsafe())? = consume cs'
-            return (create(consume es, _nodemap, _datamap, _level), false)
-          end
-        end
-        cs'.push(leaf)
-        es(i.usize_unsafe())? = consume cs'
-        (create(consume es, _nodemap, _datamap, _level), true)
-      else
-        // update sub-node
-        let sn = _entries(i.usize_unsafe())? as _MapNode[K, V, H]
-        let es = recover _entries.clone() end
-        (let sn', let u) = sn.update(hash, leaf)?
-        es(i.usize_unsafe())? = sn'
-        (create(consume es, _nodemap, _datamap, _level), u)
+  fun val remove(hash: U32, k: K): _MapCollisions[K, V, H] ? =>
+    let idx = _Bits.mask32(hash, _Bits.collision_depth())
+    let bin = bins(idx.usize_unsafe())?
+    for (i, node) in bin.pairs() do
+      if H.eq(k, node.key) then
+        let bin' = recover bin.clone() end
+        bin'.delete(i)?
+        let n = clone()
+        n.bins(idx.usize_unsafe())? = consume bin'
+        return consume n
       end
+    end
+    error
+
+  fun ref put_mut(hash: U32, entry: _MapEntry[K, V, H]): Bool ? =>
+    let idx = _Bits.mask32(hash, _Bits.collision_depth())
+    for i in mut.Range(0, bins(idx.usize_unsafe())?.size()) do
+      let e = bins(idx.usize_unsafe())?(i)?
+      if H.eq(entry.key, e.key) then
+        bins(idx.usize_unsafe())?.push(entry)
+        return false
+      end
+    end
+    bins(idx.usize_unsafe())?.push(entry)
+    true
+
+type _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val] is
+  ( _MapEntry[K, V, H]
+  | _MapCollisions[K, V, H]
+  | _MapSubNodes[K, V, H]
+  )
+
+class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
+  let nodes: Array[_MapNode[K, V, H]]
+  var node_map: U32
+  var data_map: U32
+
+  new iso create(ns: Array[_MapNode[K, V, H]] iso = [], nm: U32 = 0, dm: U32 = 0) =>
+    nodes = consume ns
+    node_map = nm
+    data_map = dm
+
+  fun val clone(): _MapSubNodes[K, V, H] iso^ =>
+    _MapSubNodes[K, V, H](recover nodes.clone() end, node_map, data_map)
+
+  fun compressed_idx(idx: U32): U32 =>
+    if not _Bits.check_bit(node_map or data_map, idx) then return -1 end
+    let msk = not (U32(-1) << idx)
+    if _Bits.check_bit(data_map, idx) then
+      return (data_map and msk).popcount()
+    end
+    data_map.popcount() + (node_map and msk).popcount()
+
+  fun apply(depth: U32, hash: U32, k: K): (V | None) ? =>
+    let idx = _Bits.mask32(hash, depth)
+    let c_idx = compressed_idx(idx)
+    if c_idx == -1 then return None end
+    match nodes(c_idx.usize_unsafe())?
+    | let entry: _MapEntry[K, V, H] box => entry(k)
+    | let sns: _MapSubNodes[K, V, H] box => sns(depth + 1, hash, k)?
+    | let cs: _MapCollisions[K, V, H] box => cs(hash, k)?
+    end
+
+  // TODO: compact on remove
+  fun val remove(depth: U32, hash: U32, k: K): _MapSubNodes[K, V, H] ? =>
+    let idx = _Bits.mask32(hash, depth)
+    let c_idx = compressed_idx(idx)
+
+    if c_idx == -1 then error end
+
+    let ns = recover nodes.clone() end
+    var nm = node_map
+    var dm = data_map
+
+    if _Bits.check_bit(data_map, idx) then
+      dm = _Bits.clear_bit(data_map, idx)
+      ns.delete(c_idx.usize_unsafe())?
     else
-      let old = _entries(i.usize_unsafe())? as _MapLeaf[K, V, H]
-      if H.eq(old._1, leaf._1) then
-        // update leaf
-        let es = recover _entries.clone() end
-        es(i.usize())? = leaf
-        (create(consume es, _nodemap, _datamap, _level), false)
-      elseif _level == 6 then
-        // create collision node
-        let cn = recover Array[_MapLeaf[K, V, H]](2) end
-        cn.push(old)
-        cn.push(leaf)
-        let es = recover _entries.clone() end
-        let dm = _Bits.clear_bit(_datamap, idx)
-        let nm = _Bits.set_bit(_nodemap, idx)
-        let i' = _compressed_index(nm, dm, idx)
-        es.delete(i.usize_unsafe())?
-        es.insert(i'.usize_unsafe(), consume cn)?
-        (create(consume es, nm, dm, _level), true)
-      else
-        // create new sub-node
-        var sn = empty(_level + 1)
-        (sn, _) = sn.update(H.hash(old._1), old)?
-        (sn, _) = sn.update(hash, leaf)?
-        let es = recover _entries.clone() end
-        let nm = _Bits.set_bit(_nodemap, idx)
-        let dm = _Bits.clear_bit(_datamap, idx)
-        let i' = _compressed_index(nm, dm, idx)
-        es.delete(i.usize_unsafe())?
-        es.insert(i'.usize_unsafe(), sn)?
-        (create(consume es, nm, dm, _level), true)
+      match nodes(c_idx.usize_unsafe())?
+      | let entry: _MapEntry[K, V, H] val => error
+      | let sns: _MapSubNodes[K, V, H] val =>
+        ns(c_idx.usize_unsafe())? = sns.remove(depth + 1, hash, k)?
+      | let cs: _MapCollisions[K, V, H] val =>
+        ns(c_idx.usize_unsafe())? = cs.remove(hash, k)?
       end
     end
 
-  fun val remove(hash: USize, key: K): _MapNode[K, V, H] ? =>
-    let idx = _Bits.mask(hash, _level.usize_unsafe()).u32_unsafe()
-    let i = _compressed_index(_nodemap, _datamap, idx)
-    if i == -1 then error end
-    if _Bits.has_bit(_datamap, idx) then
-      var es = recover _entries.clone() end
-      es.delete(i.usize())?
-      create(consume es, _nodemap, _Bits.clear_bit(_datamap, idx), _level)
-    else
-      if _level == 6 then
-        let es = recover _entries.clone() end
-        let cs = _entries(i.usize_unsafe())? as _MapCollisions[K, V, H]
-        let cs' = recover cs.clone() end
-        for (k, v) in cs.pairs() do
-          if H.eq(v._1, key) then
-            cs'.delete(k)?
-            es(i.usize_unsafe())? = consume cs'
-            return create(consume es, _nodemap, _datamap, _level)
-          end
-        end
+    _MapSubNodes[K, V, H](consume ns, nm, dm)
+
+  fun ref put_mut(depth: U32, hash: U32, k: K, v: V, dbg: Bool = false): Bool ? =>
+    let idx = _Bits.mask32(hash, depth)
+    var c_idx = compressed_idx(idx)
+
+    if c_idx == -1 then
+      data_map = _Bits.set_bit(data_map, idx)
+      c_idx = compressed_idx(idx)
+      nodes.insert(c_idx.usize_unsafe(), _MapEntry[K, V, H](k, v))?
+      return true
+    end
+
+    if _Bits.check_bit(node_map, idx) then
+      var insert = false
+      match nodes(c_idx.usize_unsafe())?
+      | let sn: _MapSubNodes[K, V, H] =>
+        let sn' = sn.clone()
+        insert = sn'.put_mut(depth + 1, hash, k, v, dbg)?
+        nodes(c_idx.usize_unsafe())? = consume sn'
+      | let cs: _MapCollisions[K, V, H] =>
+        let cs' = cs.clone()
+        insert = cs'.put_mut(hash, _MapEntry[K, V, H](k, v))?
+        nodes(c_idx.usize_unsafe())? = consume cs'
+      end
+      return insert
+    end
+
+    // Debug([_Bits.check_bit(data_map, idx)])
+
+    let entry0 = nodes(c_idx.usize_unsafe())? as _MapEntry[K, V, H]
+    if H.eq(k, entry0.key) then
+      nodes(c_idx.usize_unsafe())? = _MapEntry[K, V, H](k, v)
+      return false
+    end
+
+    if depth < (_Bits.collision_depth() - 1) then
+      let hash0 = H.hash(entry0.key).u32()
+      let idx0 = _Bits.mask32(hash0, depth + 1)
+      let sub_node = _MapSubNodes[K, V, H]([entry0], 0, _Bits.set_bit(0, idx0))
+      try
+
+        sub_node.put_mut(depth + 1, hash, k, v)?
+      else
+        sub_node.put_mut(depth + 1, hash, k, v, dbg)?
         error
-      else
-        var sn = _entries(i.usize_unsafe())? as _MapNode[K, V, H]
-        sn = sn.remove(hash, key)?
-        let es = recover _entries.clone() end
-        if (_nodemap.popcount() == 0) and (_datamap.popcount() == 1) then
-          for si in mut.Range[U32](0, 32) do
-            if _Bits.has_bit(_datamap, si) then
-              es(i.usize_unsafe())? = sn._entries(si.usize_unsafe())?
-              return create(consume es, _Bits.clear_bit(_nodemap, idx),
-                _Bits.set_bit(_datamap, idx), _level)
-            end
-          end
-        end
-        es(i.usize_unsafe())? = sn
-        create(consume es, _nodemap, _datamap, _level)
       end
+
+      nodes.delete(c_idx.usize_unsafe())?
+      data_map = _Bits.clear_bit(data_map, idx)
+      node_map = _Bits.set_bit(node_map, idx)
+      c_idx = compressed_idx(idx)
+      nodes.insert(c_idx.usize_unsafe(), consume sub_node)?
+    else
+      let sub_node = recover trn _MapCollisions[K, V, H] end
+      let hash0 = H.hash(entry0.key).u32()
+      let idx0 = _Bits.mask32(hash0, _Bits.collision_depth())
+      sub_node.put_mut(hash0, entry0)?
+      sub_node.bins(idx0.usize_unsafe())?.push(entry0)
+      let idx1 = _Bits.mask32(hash, _Bits.collision_depth())
+      sub_node.bins(idx1.usize_unsafe())?.push(_MapEntry[K, V, H](k, v))
+
+      nodes.delete(c_idx.usize_unsafe())?
+      data_map = _Bits.clear_bit(data_map, idx)
+      node_map = _Bits.set_bit(node_map, idx)
+      c_idx = compressed_idx(idx)
+      nodes.insert(c_idx.usize_unsafe(), consume sub_node)?
     end
+    true
 
-  fun _compressed_index(nm: U32, dm: U32, idx: U32): U32 =>
-    let msk = not(0xffff_ffff << idx)
-    let np = msk and nm
-    let dp = msk and dm
-    let i = (np + dp).popcount()
-    if _Bits.has_bit(nm, idx) or _Bits.has_bit(dm, idx) then i else -1 end
+  fun val put(depth: U32, hash: U32, k: K, v: V, dbg: Bool = false)
+    : (_MapSubNodes[K, V, H], Bool) ?
+  =>
+    let node = clone()
+    let r = node.put_mut(depth, hash, k, v, dbg)?
+    (consume node, r)
 
-  fun entries(): Array[_MapEntry[K, V, H]] val => _entries
+  fun val iter(): _MapIter[K, V, H] =>
+    object ref is _MapIter[K, V, H]
+      let node: _MapSubNodes[K, V, H] = this
+      var _idx: USize = 0
+
+      fun ref has_next(): Bool =>
+        _idx < node.nodes.size()
+
+      fun ref next(): (_MapEntry[K, V, H] | _MapIter[K, V, H]) ? =>
+        match node.nodes(_idx = _idx + 1)?
+        | let e: _MapEntry[K, V, H] => e
+        | let ns: _MapSubNodes[K, V, H] => ns.iter()
+        else error // TODO
+        end
+    end
