@@ -261,8 +261,11 @@ class Writer
     // into a single bigger array
     if data.size() <= 64 then
       match data
-      | let d: String => let a = d.array(); _current.copy_from(a, 0, _current.size(), a.size())
-      | let d: Array[U8] val => _current.copy_from(d, 0, _current.size(), d.size())
+      | let d: String =>
+         let a = d.array()
+         _current.copy_from(a, 0, _current.size(), a.size())
+      | let d: Array[U8] val =>
+         _current.copy_from(d, 0, _current.size(), d.size())
       end
       _size = _size + data.size()
     else

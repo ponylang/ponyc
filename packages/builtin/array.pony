@@ -222,7 +222,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u16_bytes = U16(0).bytewidth()
-    if ((offset*bytes) + u16_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u16_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U16]()._apply(0)
     else
       error
@@ -234,7 +234,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u32_bytes = U32(0).bytewidth()
-    if ((offset*bytes) + u32_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u32_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U32]()._apply(0)
     else
       error
@@ -246,7 +246,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u64_bytes = U64(0).bytewidth()
-    if ((offset*bytes) + u64_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u64_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U64]()._apply(0)
     else
       error
@@ -258,7 +258,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u128_bytes = U128(0).bytewidth()
-    if ((offset*bytes) + u128_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u128_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U128]()._apply(0)
     else
       error
@@ -290,7 +290,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u16_bytes = U16(0).bytewidth()
-    if ((offset*bytes) + u16_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u16_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U16]()._update(0, value)
     else
       error
@@ -302,7 +302,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u32_bytes = U32(0).bytewidth()
-    if ((offset*bytes) + u32_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u32_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U32]()._update(0, value)
     else
       error
@@ -314,7 +314,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u64_bytes = U64(0).bytewidth()
-    if ((offset*bytes) + u64_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u64_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U64]()._update(0, value)
     else
       error
@@ -326,7 +326,7 @@ class Array[A] is Seq[A]
     """
     let bytes = _element_size()
     let u128_bytes = U128(0).bytewidth()
-    if ((offset*bytes) + u128_bytes) <= (_size*bytes) then
+    if ((offset * bytes) + u128_bytes) <= (_size * bytes) then
       _ptr._offset(offset)._convert[U128]()._update(0, value)
     else
       error
