@@ -1,6 +1,5 @@
 use mut = "collections"
 
-// TODO: tuple?
 class val _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   let key: K
   let value: V
@@ -122,7 +121,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
     _MapSubNodes[K, V, H](consume ns, nm, dm)
 
-  fun ref put_mut(depth: U32, hash: U32, k: K, v: V, dbg: Bool = false): Bool ? =>
+  fun ref put_mut(depth: U32, hash: U32, k: K, v: V): Bool ? =>
     let idx = _Bits.mask32(hash, depth)
     var c_idx = compressed_idx(idx)
 
@@ -135,15 +134,16 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
     if _Bits.check_bit(node_map, idx) then
       var insert = false
-      match nodes(c_idx.usize_unsafe())?
-      | let sn: _MapSubNodes[K, V, H] =>
-        let sn' = sn.clone()
-        insert = sn'.put_mut(depth + 1, hash, k, v, dbg)?
-        nodes(c_idx.usize_unsafe())? = consume sn'
-      | let cs: _MapCollisions[K, V, H] =>
-        let cs' = cs.clone()
-        insert = cs'.put_mut(hash, _MapEntry[K, V, H](k, v))?
-        nodes(c_idx.usize_unsafe())? = consume cs'
+      if depth < (_Bits.collision_depth() - 1) then
+        let sn =
+          (nodes(c_idx.usize_unsafe())? as _MapSubNodes[K, V, H]).clone()
+        insert = sn.put_mut(depth + 1, hash, k, v)?
+        nodes(c_idx.usize_unsafe())? = consume sn
+      else
+        let cs =
+          (nodes(c_idx.usize_unsafe())? as _MapCollisions[K, V, H]).clone()
+        insert = cs.put_mut(hash, _MapEntry[K, V, H](k, v))?
+        nodes(c_idx.usize_unsafe())? = consume cs
       end
       return insert
     end
@@ -160,13 +160,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       let hash0 = H.hash(entry0.key).u32()
       let idx0 = _Bits.mask32(hash0, depth + 1)
       let sub_node = _MapSubNodes[K, V, H]([entry0], 0, _Bits.set_bit(0, idx0))
-      try
-
-        sub_node.put_mut(depth + 1, hash, k, v)?
-      else
-        sub_node.put_mut(depth + 1, hash, k, v, dbg)?
-        error
-      end
+      sub_node.put_mut(depth + 1, hash, k, v)?
 
       nodes.delete(c_idx.usize_unsafe())?
       data_map = _Bits.clear_bit(data_map, idx)
@@ -190,11 +184,11 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     end
     true
 
-  fun val put(depth: U32, hash: U32, k: K, v: V, dbg: Bool = false)
+  fun val put(depth: U32, hash: U32, k: K, v: V)
     : (_MapSubNodes[K, V, H], Bool) ?
   =>
     let node = clone()
-    let r = node.put_mut(depth, hash, k, v, dbg)?
+    let r = node.put_mut(depth, hash, k, v)?
     (consume node, r)
 
   fun val iter(): _MapIter[K, V, H] =>

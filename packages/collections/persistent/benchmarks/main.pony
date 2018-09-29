@@ -1,34 +1,79 @@
 use ".."
+use mut = "collections"
 use "ponybench"
 
-actor Main
+type K is String
+type V is U64
+
+actor Main is BenchmarkList
   new create(env: Env) =>
-    let bench = PonyBench(env)
+    PonyBench(env, this)
 
-    var map = Map[U64, U64]
-    map = map.update(0, 0)
+  fun tag benchmarks(bench: PonyBench) =>
+    for n in mut.Range(0, 14, 2) do
+      bench(MapApply(32 << n))
+    end
+    for n in mut.Range(0, 14, 2) do
+      bench(MapUpdate(32 << n))
+    end
+    for n in mut.Range(0, 14, 2) do
+      bench(MapIter(32 << n))
+    end
 
-    bench[Map[U64, U64]]("insert level 0", {() => map.update(1, 1) })
+class iso MapUpdate is MicroBenchmark
+  let _size: USize
+  let _map: Map[K, V]
 
-    bench[U64]("get level 0", {() => map(0) })
+  new iso create(size: USize) =>
+    _size = size
+    _map = GenMap(_size)
 
-    bench[Map[U64, U64]]("update level 0", {() => map.update(0, 1) })
+  fun name(): String =>
+    " ".join(["update size"; _size].values())
 
-    bench[Map[U64, U64]]("delete level 0", {() => map.remove(0) })
+  fun apply() =>
+    let m = _map.update(_size.string(), _size.u64())
+    DoNotOptimise[Map[K, V]](m)
+    DoNotOptimise.observe()
 
-    bench[Map[U64, U64]]("create sub-node", {() => map.update(32, 32) })
+class iso MapApply is MicroBenchmark
+  let _size: USize
+  let _map: Map[K, V]
 
-    // expand index 0 into 2 sub-nodes
-    map = map.update(32, 32)
+  new iso create(size: USize) =>
+    _size = size
+    _map = GenMap(_size)
 
-    bench[Map[U64, U64]]("remove sub-node", {() ? => map.remove(32) })
+  fun name(): String =>
+    " ".join(["apply size"; _size].values())
 
-    bench[Map[U64, U64]]("insert level 1", {() => map.update(1, 1) })
+  fun apply() ? =>
+    let x = _map("0")?
+    DoNotOptimise[V](x)
+    DoNotOptimise.observe()
 
-    bench[U64]("get level 1", {() => map(0) })
+class iso MapIter is MicroBenchmark
+  let _size: USize
+  let _map: Map[K, V]
 
-    bench[Map[U64, U64]]("update level 1", {() => map.update(0, 1) })
+  new iso create(size: USize) =>
+    _size = size
+    _map = GenMap(_size)
 
-    map = map.update(1, 1)
+  fun name(): String =>
+    " ".join(["apply size"; _size].values())
 
-    bench[Map[U64, U64]]("delete level 1", {() => map.remove(1) })
+  fun apply() ? =>
+    for i in mut.Range(0, _size) do
+      let x = _map(i.string())?
+      DoNotOptimise[V](x)
+    end
+    DoNotOptimise.observe()
+
+primitive GenMap
+  fun apply(size: USize): Map[K, V] =>
+    var m = Map[K, V]
+    for i in mut.Range(0, size) do
+      m = m(i.string()) = i.u64()
+    end
+    m
