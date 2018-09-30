@@ -1,6 +1,7 @@
 use "ponytest"
 use mut = "collections"
 use "random"
+use "time"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -268,6 +269,69 @@ class iso _TestMap is UnitTest
     let m10 = m9.remove("b")?.remove("d")?
     h.assert_error({() ? => m10("b")? })
     h.assert_error({() ? => m10("d")? })
+
+    gen_test(h)?
+
+  fun gen_test(h: TestHelper) ? =>
+    var a = Map[U64, U64]
+    let b = mut.Map[U64, U64]
+
+    let seed = Time.millis()
+    h.log("seed: " + seed.string())
+    let ops = gen_ops(500, seed)?
+    for op in ops.values() do
+      h.log(op.str())
+      let prev = a
+      a = op(a, b)?
+
+      var n: USize = 0
+      for (k, v) in a.pairs() do
+        n = n + 1
+        h.assert_eq[U64](b(k)?, v)
+      end
+      h.assert_eq[USize](n, a.size())
+    end
+
+  fun gen_ops(n: USize, seed: U64): Array[Op] ? =>
+    let rand = Rand(seed)
+    let ops = Array[Op](n)
+    let keys = Array[U64](n)
+    for v in mut.Range[U64](0, n.u64()) do
+      ops.push(
+        match rand.int[U64](3)
+        | 0 | 1 =>
+          // insert
+          let k = rand.u64()
+          keys.push(k)
+          MapUpdate(k, v)
+        | 2 =>
+          // update
+          if keys.size() == 0 then continue end
+          let k = keys(rand.int[USize](keys.size()))?
+          MapUpdate(k, v)
+        else error
+        end)
+    end
+    ops
+
+interface val Op
+  fun apply(a: Map[U64, U64], b: mut.Map[U64, U64]): Map[U64, U64] ?
+  fun str(): String
+
+class val MapUpdate
+  let k: U64
+  let v: U64
+
+  new val create(k': U64, v': U64) =>
+    k = k'
+    v = v'
+
+  fun apply(a: Map[U64, U64], b: mut.Map[U64, U64]): Map[U64, U64] =>
+    b.update(k, v)
+    a(k) = v
+
+  fun str(): String =>
+    "".join(["Update("; k; ", "; v; ")"].values())
 
 class iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map (persistent vs mutable)"
