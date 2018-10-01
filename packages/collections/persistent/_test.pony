@@ -270,15 +270,15 @@ class iso _TestMap is UnitTest
     h.assert_error({() ? => m10("b")? })
     h.assert_error({() ? => m10("d")? })
 
-    gen_test(h)?
+    var seed = Time.millis()
+    h.log("seed: " + seed.string())
+    gen_test(h, Rand(seed))?
 
-  fun gen_test(h: TestHelper) ? =>
+  fun gen_test(h: TestHelper, rand: Rand) ? =>
     var a = Map[U64, U64]
     let b = mut.Map[U64, U64]
 
-    let seed = Time.millis()
-    h.log("seed: " + seed.string())
-    let ops = gen_ops(500, seed)?
+    let ops = gen_ops(1000, rand)?
     for op in ops.values() do
       h.log(op.str())
       let prev = a
@@ -292,13 +292,13 @@ class iso _TestMap is UnitTest
       h.assert_eq[USize](n, a.size())
     end
 
-  fun gen_ops(n: USize, seed: U64): Array[Op] ? =>
-    let rand = Rand(seed)
+  fun gen_ops(n: USize, rand: Rand): Array[Op] ? =>
     let ops = Array[Op](n)
     let keys = Array[U64](n)
     for v in mut.Range[U64](0, n.u64()) do
+      let op_n = if keys.size() == 0 then 0 else rand.int[U64](4) end
       ops.push(
-        match rand.int[U64](3)
+        match op_n
         | 0 | 1 =>
           // insert
           let k = rand.u64()
@@ -306,9 +306,12 @@ class iso _TestMap is UnitTest
           MapUpdate(k, v)
         | 2 =>
           // update
-          if keys.size() == 0 then continue end
           let k = keys(rand.int[USize](keys.size()))?
           MapUpdate(k, v)
+        | 3 =>
+          // remove
+          let k = keys.delete(rand.int[USize](keys.size()))?
+          MapRemove(k)
         else error
         end)
     end
@@ -332,6 +335,19 @@ class val MapUpdate
 
   fun str(): String =>
     "".join(["Update("; k; ", "; v; ")"].values())
+
+class val MapRemove
+  let k: U64
+
+  new val create(k': U64) =>
+    k = k'
+
+  fun apply(a: Map[U64, U64], b: mut.Map[U64, U64]): Map[U64, U64] ? =>
+    b.remove(k)?
+    a.remove(k)?
+
+  fun str(): String =>
+    "".join(["Remove("; k; ")"].values())
 
 class iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map (persistent vs mutable)"

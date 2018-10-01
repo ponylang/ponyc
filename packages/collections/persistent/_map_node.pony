@@ -117,8 +117,19 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       match nodes(c_idx.usize_unsafe())?
       | let entry: _MapEntry[K, V, H] val => error
       | let sns: _MapSubNodes[K, V, H] val =>
-        ns.nodes(c_idx.usize_unsafe())? = sns.remove(depth + 1, hash, k)?
+        let sn = sns.remove(depth + 1, hash, k)?
+        if (sn.nodes.size() == 1) and (sn.data_map != 0) then
+          // compact
+          ns.node_map = _Bits.clear_bit(node_map, idx)
+          ns.data_map = _Bits.set_bit(data_map, idx)
+          ns.nodes.delete(c_idx.usize_unsafe())?
+          let c_idx' = ns.compressed_idx(idx)
+          ns.nodes.insert(c_idx'.usize_unsafe(), sn.nodes(0)?)?
+        else
+          ns.nodes(c_idx.usize_unsafe())? = sn
+        end
       | let cs: _MapCollisions[K, V, H] val =>
+        // TODO: compact
         ns.nodes(c_idx.usize_unsafe())? = cs.remove(hash, k)?
       end
     end
