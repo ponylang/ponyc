@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add ability to get iso array from an iso string. ([PR #2889](https://github.com/ponylang/ponyc/pull/2889))
 - Add modc method to integer types ([PR #2883](https://github.com/ponylang/ponyc/pull/2883))
 - Add divc method to integer types ([PR #2882](https://github.com/ponylang/ponyc/pull/2882))
 - [RFC 58] Add partial arithmetic for integer types ([PR #2865](https://github.com/ponylang/ponyc/pull/2865))
