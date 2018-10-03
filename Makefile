@@ -47,7 +47,7 @@ config ?= release
 arch ?= native
 tune ?= generic
 cpu ?= $(arch)
-fpu ?= 
+fpu ?=
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -680,12 +680,12 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.ll)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS) -Wno-override-module
@@ -868,8 +868,8 @@ endif
 ifeq ($(OSTYPE),linux)
 	$(SILENT)cp $(lib)/libponyrt-pic.a $(DESTDIR)$(ponydir)/lib/$(arch)
 endif
-ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(DESTDIR)$(ponydir)/lib
+ifneq ($(wildcard $(PONY_BUILD_DIR)/lib/$(arch)/libponyrt.bc),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/lib/$(arch)/libponyrt.bc $(DESTDIR)$(ponydir)/lib/$(arch)
 endif
 ifneq ($(wildcard $(lib)/libdtrace_probes.a),)
 	$(SILENT)cp $(lib)/libdtrace_probes.a $(DESTDIR)$(ponydir)/lib/$(arch)
