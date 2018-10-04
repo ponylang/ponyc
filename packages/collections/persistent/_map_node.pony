@@ -223,32 +223,29 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       return false
     end
 
-    if depth < (_Bits.collision_depth() - 1) then
-      let hash0 = H.hash(entry0.key).u32()
-      let idx0 = _Bits.mask32(hash0, depth + 1)
-      let sub_node = _MapSubNodes[K, V, H](1, 0, _Bits.set_bit(0, idx0))
-      sub_node.nodes.push(entry0)
-      sub_node.put_mut(depth + 1, hash, k, v)?
+    let sub_node: _MapNode[K, V, H] val =
+      if depth < (_Bits.collision_depth() - 1) then
+        let hash0 = H.hash(entry0.key).u32()
+        let idx0 = _Bits.mask32(hash0, depth + 1)
+        let sn = _MapSubNodes[K, V, H](1, 0, _Bits.set_bit(0, idx0))
+        sn.nodes.push(entry0)
+        sn.put_mut(depth + 1, hash, k, v)?
+        consume sn
+      else
+        let hash0 = H.hash(entry0.key).u32()
+        let idx0 = _Bits.mask32(hash0, _Bits.collision_depth())
+        let idx1 = _Bits.mask32(hash, _Bits.collision_depth())
+        let sn = _MapCollisions[K, V, H]
+        sn.bins(idx0.usize_unsafe())?.push(entry0)
+        sn.bins(idx1.usize_unsafe())?.push(_MapEntry[K, V, H](k, v))
+        consume sn
+      end
 
-      nodes.delete(c_idx.usize_unsafe())?
-      data_map = _Bits.clear_bit(data_map, idx)
-      node_map = _Bits.set_bit(node_map, idx)
-      c_idx = compressed_idx(idx)
-      nodes.insert(c_idx.usize_unsafe(), consume sub_node)?
-    else
-      let sub_node = _MapCollisions[K, V, H]
-      let hash0 = H.hash(entry0.key).u32()
-      let idx0 = _Bits.mask32(hash0, _Bits.collision_depth())
-      sub_node.bins(idx0.usize_unsafe())?.push(entry0)
-      let idx1 = _Bits.mask32(hash, _Bits.collision_depth())
-      sub_node.bins(idx1.usize_unsafe())?.push(_MapEntry[K, V, H](k, v))
-
-      nodes.delete(c_idx.usize_unsafe())?
-      data_map = _Bits.clear_bit(data_map, idx)
-      node_map = _Bits.set_bit(node_map, idx)
-      c_idx = compressed_idx(idx)
-      nodes.insert(c_idx.usize_unsafe(), consume sub_node)?
-    end
+    nodes.delete(c_idx.usize_unsafe())?
+    data_map = _Bits.clear_bit(data_map, idx)
+    node_map = _Bits.set_bit(node_map, idx)
+    c_idx = compressed_idx(idx)
+    nodes.insert(c_idx.usize_unsafe(), sub_node)?
     true
 
   fun val put(depth: U32, hash: U32, k: K, v: V)

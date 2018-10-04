@@ -10,13 +10,15 @@ actor Main is BenchmarkList
     PonyBench(env, this)
 
   fun tag benchmarks(bench: PonyBench) =>
-    for n in mut.Range(0, 14, 2) do
+    let max_shift: USize = 8
+
+    for n in mut.Range(0, max_shift + 1, 2) do
       bench(MapApply(32 << n))
     end
-    for n in mut.Range(0, 14, 2) do
+    for n in mut.Range(0, max_shift + 1, 2) do
       bench(MapUpdate(32 << n))
     end
-    for n in mut.Range(0, 14, 2) do
+    for n in mut.Range(0, max_shift + 1, 2) do
       bench(MapIter(32 << n))
     end
 
