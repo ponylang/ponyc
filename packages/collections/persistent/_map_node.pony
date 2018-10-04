@@ -11,16 +11,6 @@ class val _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   fun apply(k: K): (V | None) =>
     if H.eq(k, key) then value end
 
-  // fun _debug(): String iso^ =>
-  //   recover
-  //     String
-  //       .> append("(")
-  //       .> append(iftype K <: Stringable val then key.string() else "?" end)
-  //       .> append(", ")
-  //       .> append(iftype V <: Stringable val then value.string() else "?" end)
-  //       .> append(")")
-  //   end
-
 class val _MapCollisions[
   K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
@@ -99,11 +89,6 @@ class val _MapCollisions[
         e
     end
 
-  // fun _debug(): String iso^ =>
-  //   let strs = [as Stringable: "<"]
-  //   for bin in bins.values() do strs.push("[" + bin.size().string() + "]") end
-  //   " ".join(strs .> push(">") .values())
-
 type _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val] is
   ( _MapEntry[K, V, H]
   | _MapCollisions[K, V, H]
@@ -143,7 +128,6 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     | let cs: _MapCollisions[K, V, H] box => cs(hash, k)?
     end
 
-  // TODO: compact on remove
   fun val remove(depth: U32, hash: U32, k: K): _MapSubNodes[K, V, H] ? =>
     let idx = _Bits.mask32(hash, depth)
     let c_idx = compressed_idx(idx)
@@ -270,24 +254,3 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         | let cs: _MapCollisions[K, V, H] => cs.iter()
         end
     end
-
-  // fun val _debug_path(depth: U32, hash: U32) =>
-  //   let idx = _Bits.mask32(hash, depth)
-  //   let c_idx = compressed_idx(idx).usize()
-  //   let strs = [as Stringable: "{"]
-  //   for (i, node) in nodes.pairs() do
-  //     strs.push(
-  //       match node
-  //       | let e: _MapEntry[K, V, H] => e._debug()
-  //       | let ns: _MapSubNodes[K, V, H] =>
-  //         if i == c_idx then "**" else "{}" end
-  //       | let cs: _MapCollisions[K, V, H] =>
-  //         if i == c_idx then cs._debug() else "<>" end
-  //       end)
-  //   end
-  //   Debug(strs .> push("}"), " ")
-  //   try
-  //     match nodes(c_idx)?
-  //     | let ns: _MapSubNodes[K, V, H] => ns._debug_path(depth+1, hash)
-  //     end
-  //   end
