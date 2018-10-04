@@ -270,12 +270,12 @@ class iso _TestMap is UnitTest
     h.assert_error({() ? => m10("b")? })
     h.assert_error({() ? => m10("d")? })
 
-    var seed = Time.millis()
+    let seed = Time.millis()
     h.log("seed: " + seed.string())
     gen_test(h, Rand(seed))?
 
   fun gen_test(h: TestHelper, rand: Rand) ? =>
-    var a = Map[U64, U64]
+    var a = TestMap
     let b = mut.Map[U64, U64]
 
     let ops = gen_ops(1000, rand)?
@@ -317,8 +317,14 @@ class iso _TestMap is UnitTest
     end
     ops
 
+type TestMap is HashMap[U64, U64, CollisionHash]
+
+primitive CollisionHash is mut.HashFunction[U64]
+  fun hash(x: U64): USize => x.usize() % 100
+  fun eq(x: U64, y: U64): Bool => x == y
+
 interface val Op
-  fun apply(a: Map[U64, U64], b: mut.Map[U64, U64]): Map[U64, U64] ?
+  fun apply(a: TestMap, b: mut.Map[U64, U64]): TestMap ?
   fun str(): String
 
 class val MapUpdate
@@ -329,12 +335,12 @@ class val MapUpdate
     k = k'
     v = v'
 
-  fun apply(a: Map[U64, U64], b: mut.Map[U64, U64]): Map[U64, U64] =>
+  fun apply(a: TestMap, b: mut.Map[U64, U64]): TestMap =>
     b.update(k, v)
     a(k) = v
 
   fun str(): String =>
-    "".join(["Update("; k; ", "; v; ")"].values())
+    "".join(["Update("; k; "_"; CollisionHash.hash(k); ", "; v; ")"].values())
 
 class val MapRemove
   let k: U64
@@ -342,7 +348,7 @@ class val MapRemove
   new val create(k': U64) =>
     k = k'
 
-  fun apply(a: Map[U64, U64], b: mut.Map[U64, U64]): Map[U64, U64] ? =>
+  fun apply(a: TestMap, b: mut.Map[U64, U64]): TestMap ? =>
     b.remove(k)?
     a.remove(k)?
 

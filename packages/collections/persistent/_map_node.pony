@@ -11,6 +11,16 @@ class val _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   fun apply(k: K): (V | None) =>
     if H.eq(k, key) then value end
 
+  // fun _debug(): String iso^ =>
+  //   recover
+  //     String
+  //       .> append("(")
+  //       .> append(iftype K <: Stringable val then key.string() else "?" end)
+  //       .> append(", ")
+  //       .> append(iftype V <: Stringable val then value.string() else "?" end)
+  //       .> append(")")
+  //   end
+
 class val _MapCollisions[
   K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
@@ -24,8 +34,9 @@ class val _MapCollisions[
     let cs = recover trn _MapCollisions[K, V, H] end
     try
       for i in bins.keys() do
-        let x = recover bins(i)?.clone() end
-        cs.bins.push(consume x)
+        for e in bins(i)?.values() do
+          cs.bins(i)?.push(e)
+        end
       end
     end
     consume cs
@@ -51,17 +62,47 @@ class val _MapCollisions[
     end
     error
 
+  fun val pull_last(): _MapEntry[K, V, H] ? =>
+    for bin in bins.values() do
+      if bin.size() > 0 then return bin(0)? end
+    end
+    error
+
   fun ref put_mut(hash: U32, entry: _MapEntry[K, V, H]): Bool ? =>
     let idx = _Bits.mask32(hash, _Bits.collision_depth())
     for i in mut.Range(0, bins(idx.usize_unsafe())?.size()) do
       let e = bins(idx.usize_unsafe())?(i)?
       if H.eq(entry.key, e.key) then
-        bins(idx.usize_unsafe())?.push(entry)
+        bins(idx.usize_unsafe())?(i)? = entry
         return false
       end
     end
     bins(idx.usize_unsafe())?.push(entry)
     true
+
+  fun val iter(): _MapIter[K, V, H] =>
+    let stack = Array[Iterator[_MapEntry[K, V, H]]]
+    for bin in bins.values() do
+      if bin.size() > 0 then
+        stack.push(bin.values())
+      end
+    end
+
+    object ref is _MapIter[K, V, H]
+      fun ref has_next(): Bool =>
+        stack.size() > 0
+
+      fun ref next(): _MapEntry[K, V, H] ? =>
+        let iter = stack(0)?
+        let e = iter.next()?
+        if not iter.has_next() then stack.shift()? end
+        e
+    end
+
+  // fun _debug(): String iso^ =>
+  //   let strs = [as Stringable: "<"]
+  //   for bin in bins.values() do strs.push("[" + bin.size().string() + "]") end
+  //   " ".join(strs .> push(">") .values())
 
 type _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val] is
   ( _MapEntry[K, V, H]
@@ -129,8 +170,20 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
           ns.nodes(c_idx.usize_unsafe())? = sn
         end
       | let cs: _MapCollisions[K, V, H] val =>
-        // TODO: compact
-        ns.nodes(c_idx.usize_unsafe())? = cs.remove(hash, k)?
+        let sn = cs.remove(hash, k)?
+        var n: USize = 0
+        for bin in sn.bins.values() do n = n + bin.size() end
+        if n == 1 then
+          // compact
+          ns.node_map = _Bits.clear_bit(ns.node_map, idx)
+          ns.data_map = _Bits.set_bit(ns.data_map, idx)
+          ns.nodes.delete(c_idx.usize_unsafe())?
+          let c_idx' = ns.compressed_idx(idx)
+          sn.pull_last()?
+          ns.nodes.insert(c_idx'.usize_unsafe(), sn.pull_last()?)?
+        else
+          ns.nodes(c_idx.usize_unsafe())? = cs.remove(hash, k)?
+        end
       end
     end
     ns
@@ -162,7 +215,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       return insert
     end
 
-    // Debug([_Bits.check_bit(data_map, idx)])
+    // if not _Bits.check_bit(data_map, idx) then error end
 
     let entry0 = nodes(c_idx.usize_unsafe())? as _MapEntry[K, V, H]
     if H.eq(k, entry0.key) then
@@ -217,6 +270,27 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         match node.nodes(_idx = _idx + 1)?
         | let e: _MapEntry[K, V, H] => e
         | let ns: _MapSubNodes[K, V, H] => ns.iter()
-        else error // TODO
+        | let cs: _MapCollisions[K, V, H] => cs.iter()
         end
     end
+
+  // fun val _debug_path(depth: U32, hash: U32) =>
+  //   let idx = _Bits.mask32(hash, depth)
+  //   let c_idx = compressed_idx(idx).usize()
+  //   let strs = [as Stringable: "{"]
+  //   for (i, node) in nodes.pairs() do
+  //     strs.push(
+  //       match node
+  //       | let e: _MapEntry[K, V, H] => e._debug()
+  //       | let ns: _MapSubNodes[K, V, H] =>
+  //         if i == c_idx then "**" else "{}" end
+  //       | let cs: _MapCollisions[K, V, H] =>
+  //         if i == c_idx then cs._debug() else "<>" end
+  //       end)
+  //   end
+  //   Debug(strs .> push("}"), " ")
+  //   try
+  //     match nodes(c_idx)?
+  //     | let ns: _MapSubNodes[K, V, H] => ns._debug_path(depth+1, hash)
+  //     end
+  //   end
