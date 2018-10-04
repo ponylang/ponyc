@@ -58,7 +58,7 @@ class val _MapCollisions[
     end
     error
 
-  fun ref put_mut(hash: U32, entry: _MapEntry[K, V, H]): Bool ? =>
+  fun ref update_mut(hash: U32, entry: _MapEntry[K, V, H]): Bool ? =>
     let idx = _Bits.mask32(hash, _Bits.collision_depth())
     for i in mut.Range(0, bins(idx.usize_unsafe())?.size()) do
       let e = bins(idx.usize_unsafe())?(i)?
@@ -78,7 +78,7 @@ class val _MapCollisions[
       end
     end
 
-    object ref is _MapIter[K, V, H]
+    object ref
       fun ref has_next(): Bool =>
         stack.size() > 0
 
@@ -128,51 +128,14 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     | let cs: _MapCollisions[K, V, H] box => cs(hash, k)?
     end
 
-  fun val remove(depth: U32, hash: U32, k: K): _MapSubNodes[K, V, H] ? =>
-    let idx = _Bits.mask32(hash, depth)
-    let c_idx = compressed_idx(idx)
+  fun val update(depth: U32, hash: U32, k: K, v: V)
+    : (_MapSubNodes[K, V, H], Bool) ?
+  =>
+    let node = clone()
+    let r = node.update_mut(depth, hash, k, v)?
+    (consume node, r)
 
-    if c_idx == -1 then error end
-
-    let ns = clone()
-    if _Bits.check_bit(data_map, idx) then
-      ns.data_map = _Bits.clear_bit(data_map, idx)
-      ns.nodes.delete(c_idx.usize_unsafe())?
-    else
-      match nodes(c_idx.usize_unsafe())?
-      | let entry: _MapEntry[K, V, H] val => error
-      | let sns: _MapSubNodes[K, V, H] val =>
-        let sn = sns.remove(depth + 1, hash, k)?
-        if (sn.nodes.size() == 1) and (sn.data_map != 0) then
-          // compact
-          ns.node_map = _Bits.clear_bit(node_map, idx)
-          ns.data_map = _Bits.set_bit(data_map, idx)
-          ns.nodes.delete(c_idx.usize_unsafe())?
-          let c_idx' = ns.compressed_idx(idx)
-          ns.nodes.insert(c_idx'.usize_unsafe(), sn.nodes(0)?)?
-        else
-          ns.nodes(c_idx.usize_unsafe())? = sn
-        end
-      | let cs: _MapCollisions[K, V, H] val =>
-        let sn = cs.remove(hash, k)?
-        var n: USize = 0
-        for bin in sn.bins.values() do n = n + bin.size() end
-        if n == 1 then
-          // compact
-          ns.node_map = _Bits.clear_bit(ns.node_map, idx)
-          ns.data_map = _Bits.set_bit(ns.data_map, idx)
-          ns.nodes.delete(c_idx.usize_unsafe())?
-          let c_idx' = ns.compressed_idx(idx)
-          sn.pull_last()?
-          ns.nodes.insert(c_idx'.usize_unsafe(), sn.pull_last()?)?
-        else
-          ns.nodes(c_idx.usize_unsafe())? = cs.remove(hash, k)?
-        end
-      end
-    end
-    ns
-
-  fun ref put_mut(depth: U32, hash: U32, k: K, v: V): Bool ? =>
+  fun ref update_mut(depth: U32, hash: U32, k: K, v: V): Bool ? =>
     let idx = _Bits.mask32(hash, depth)
     var c_idx = compressed_idx(idx)
 
@@ -185,16 +148,15 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
     if _Bits.check_bit(node_map, idx) then
       var insert = false
+      let c_idx_u = c_idx.usize_unsafe()
       if depth < (_Bits.collision_depth() - 1) then
-        let sn =
-          (nodes(c_idx.usize_unsafe())? as _MapSubNodes[K, V, H]).clone()
-        insert = sn.put_mut(depth + 1, hash, k, v)?
-        nodes(c_idx.usize_unsafe())? = consume sn
+        let sn = (nodes(c_idx_u)? as _MapSubNodes[K, V, H]).clone()
+        insert = sn.update_mut(depth + 1, hash, k, v)?
+        nodes(c_idx_u)? = consume sn
       else
-        let cs =
-          (nodes(c_idx.usize_unsafe())? as _MapCollisions[K, V, H]).clone()
-        insert = cs.put_mut(hash, _MapEntry[K, V, H](k, v))?
-        nodes(c_idx.usize_unsafe())? = consume cs
+        let cs = (nodes(c_idx_u)? as _MapCollisions[K, V, H]).clone()
+        insert = cs.update_mut(hash, _MapEntry[K, V, H](k, v))?
+        nodes(c_idx_u)? = consume cs
       end
       return insert
     end
@@ -213,7 +175,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         let idx0 = _Bits.mask32(hash0, depth + 1)
         let sn = _MapSubNodes[K, V, H](1, 0, _Bits.set_bit(0, idx0))
         sn.nodes.push(entry0)
-        sn.put_mut(depth + 1, hash, k, v)?
+        sn.update_mut(depth + 1, hash, k, v)?
         consume sn
       else
         let hash0 = H.hash(entry0.key).u32()
@@ -232,15 +194,51 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     nodes.insert(c_idx.usize_unsafe(), sub_node)?
     true
 
-  fun val put(depth: U32, hash: U32, k: K, v: V)
-    : (_MapSubNodes[K, V, H], Bool) ?
-  =>
-    let node = clone()
-    let r = node.put_mut(depth, hash, k, v)?
-    (consume node, r)
+  fun val remove(depth: U32, hash: U32, k: K): _MapSubNodes[K, V, H] ? =>
+    let idx = _Bits.mask32(hash, depth)
+    var c_idx = compressed_idx(idx)
+
+    if c_idx == -1 then error end
+
+    let ns = clone()
+    if _Bits.check_bit(data_map, idx) then
+      ns.data_map = _Bits.clear_bit(data_map, idx)
+      ns.nodes.delete(c_idx.usize_unsafe())?
+    else
+      match nodes(c_idx.usize_unsafe())?
+      | let entry: _MapEntry[K, V, H] val => error
+      | let sns: _MapSubNodes[K, V, H] val =>
+        let sn = sns.remove(depth + 1, hash, k)?
+        if (sn.nodes.size() == 1) and (sn.data_map != 0) then
+          // compact
+          ns.node_map = _Bits.clear_bit(ns.node_map, idx)
+          ns.data_map = _Bits.set_bit(ns.data_map, idx)
+          ns.nodes.delete(c_idx.usize_unsafe())?
+          c_idx = ns.compressed_idx(idx)
+          ns.nodes.insert(c_idx.usize_unsafe(), sn.nodes(0)?)?
+        else
+          ns.nodes(c_idx.usize_unsafe())? = sn
+        end
+      | let cs: _MapCollisions[K, V, H] val =>
+        let sn = cs.remove(hash, k)?
+        var n: USize = 0
+        for bin in sn.bins.values() do n = n + bin.size() end
+        if n == 1 then
+          // compact
+          ns.node_map = _Bits.clear_bit(ns.node_map, idx)
+          ns.data_map = _Bits.set_bit(ns.data_map, idx)
+          ns.nodes.delete(c_idx.usize_unsafe())?
+          c_idx = ns.compressed_idx(idx)
+          ns.nodes.insert(c_idx.usize_unsafe(), sn.pull_last()?)?
+        else
+          ns.nodes(c_idx.usize_unsafe())? = cs.remove(hash, k)?
+        end
+      end
+    end
+    ns
 
   fun val iter(): _MapIter[K, V, H] =>
-    object ref is _MapIter[K, V, H]
+    object ref
       let node: _MapSubNodes[K, V, H] = this
       var _idx: USize = 0
 

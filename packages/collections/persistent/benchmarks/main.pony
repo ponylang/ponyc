@@ -10,48 +10,68 @@ actor Main is BenchmarkList
     PonyBench(env, this)
 
   fun tag benchmarks(bench: PonyBench) =>
-    let max_shift: USize = 8
+    let size: USize = 32 * 32
+    let ns = [as USize: 0; 4; 17; 21; 24; 30]
 
-    for n in mut.Range(0, max_shift + 1, 2) do
-      bench(MapApply(32 << n))
-    end
-    for n in mut.Range(0, max_shift + 1, 2) do
-      bench(MapUpdate(32 << n))
-    end
-    for n in mut.Range(0, max_shift + 1, 2) do
-      bench(MapIter(32 << n))
-    end
-
-class iso MapUpdate is MicroBenchmark
-  let _size: USize
-  let _map: Map[K, V]
-
-  new iso create(size: USize) =>
-    _size = size
-    _map = GenMap(_size)
-
-  fun name(): String =>
-    " ".join(["update size"; _size].values())
-
-  fun apply() =>
-    let m = _map.update(_size.string(), _size.u64())
-    DoNotOptimise[Map[K, V]](m)
-    DoNotOptimise.observe()
+    for n in ns.values() do bench(MapApply(size, n)) end
+    for n in ns.values() do bench(MapInsert(size, n)) end
+    for n in ns.values() do bench(MapUpdate(size, n)) end
+    bench(MapIter(32))
+    bench(MapIter(32 * 32))
+    bench(MapIter(32 * 32 * 32))
 
 class iso MapApply is MicroBenchmark
   let _size: USize
+  let _n: USize
   let _map: Map[K, V]
 
-  new iso create(size: USize) =>
+  new iso create(size: USize, n: USize) =>
     _size = size
+    _n = n
     _map = GenMap(_size)
 
   fun name(): String =>
-    " ".join(["apply size"; _size].values())
+    " ".join(["apply"; _n; "size"; _size].values())
 
   fun apply() ? =>
-    let x = _map("0")?
+    let x = _map(_n.string())?
     DoNotOptimise[V](x)
+    DoNotOptimise.observe()
+
+class iso MapInsert is MicroBenchmark
+  let _size: USize
+  let _n: USize
+  let _map: Map[K, V]
+
+  new iso create(size: USize, n: USize) =>
+    _size = size
+    _n = n
+    _map = try GenMap(size).remove(n.string())? else GenMap(0) end
+
+  fun name(): String =>
+    " ".join(["insert"; _n; "size"; _size].values())
+
+  fun apply() =>
+    let m = _map(_n.string()) = _n.u64()
+    DoNotOptimise[Map[K, V]](m)
+    DoNotOptimise.observe()
+
+class iso MapUpdate is MicroBenchmark
+  let _size: USize
+  let _n: USize
+  let _map: Map[K, V]
+
+  new iso create(size: USize, n: USize) =>
+    _size = size
+    _n = n
+    _map = GenMap(_size)
+
+  fun name(): String =>
+    " ".join(["update"; _n; "size"; _size].values())
+
+  fun apply() =>
+    let m = _map.update(_n.string(), -_n.u64())
+    DoNotOptimise[Map[K, V]](m)
     DoNotOptimise.observe()
 
 class iso MapIter is MicroBenchmark
@@ -63,7 +83,7 @@ class iso MapIter is MicroBenchmark
     _map = GenMap(_size)
 
   fun name(): String =>
-    " ".join(["apply size"; _size].values())
+    " ".join(["iter size"; _size].values())
 
   fun apply() ? =>
     for i in mut.Range(0, _size) do

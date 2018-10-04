@@ -64,7 +64,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     (let r, let insertion) =
       try
-        _root.put(0, H.hash(key).u32(), key, value)?
+        _root.update(0, H.hash(key).u32(), key, value)?
       else
         (_root, false) // should not occur
       end
