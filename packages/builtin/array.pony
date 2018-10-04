@@ -220,9 +220,8 @@ class Array[A] is Seq[A]
     """
     Reads a U16 from offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u16_bytes = U16(0).bytewidth()
-    if ((offset * bytes) + u16_bytes) <= (_size * bytes) then
+    if (offset + u16_bytes) <= _size then
       _ptr._offset(offset)._convert[U16]()._apply(0)
     else
       error
@@ -232,9 +231,8 @@ class Array[A] is Seq[A]
     """
     Reads a U32 from offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u32_bytes = U32(0).bytewidth()
-    if ((offset * bytes) + u32_bytes) <= (_size * bytes) then
+    if (offset + u32_bytes) <= _size then
       _ptr._offset(offset)._convert[U32]()._apply(0)
     else
       error
@@ -244,9 +242,8 @@ class Array[A] is Seq[A]
     """
     Reads a U64 from offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u64_bytes = U64(0).bytewidth()
-    if ((offset * bytes) + u64_bytes) <= (_size * bytes) then
+    if (offset + u64_bytes) <= _size then
       _ptr._offset(offset)._convert[U64]()._apply(0)
     else
       error
@@ -256,9 +253,8 @@ class Array[A] is Seq[A]
     """
     Reads a U128 from offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u128_bytes = U128(0).bytewidth()
-    if ((offset * bytes) + u128_bytes) <= (_size * bytes) then
+    if (offset + u128_bytes) <= _size then
       _ptr._offset(offset)._convert[U128]()._apply(0)
     else
       error
@@ -288,9 +284,8 @@ class Array[A] is Seq[A]
     """
     Write a U16 at offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u16_bytes = U16(0).bytewidth()
-    if ((offset * bytes) + u16_bytes) <= (_size * bytes) then
+    if (offset + u16_bytes) <= _size then
       _ptr._offset(offset)._convert[U16]()._update(0, value)
     else
       error
@@ -300,9 +295,8 @@ class Array[A] is Seq[A]
     """
     Write a U32 at offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u32_bytes = U32(0).bytewidth()
-    if ((offset * bytes) + u32_bytes) <= (_size * bytes) then
+    if (offset + u32_bytes) <= _size then
       _ptr._offset(offset)._convert[U32]()._update(0, value)
     else
       error
@@ -312,9 +306,8 @@ class Array[A] is Seq[A]
     """
     Write a U64 at offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u64_bytes = U64(0).bytewidth()
-    if ((offset * bytes) + u64_bytes) <= (_size * bytes) then
+    if (offset + u64_bytes) <= _size then
       _ptr._offset(offset)._convert[U64]()._update(0, value)
     else
       error
@@ -324,9 +317,8 @@ class Array[A] is Seq[A]
     """
     Write a U128 at offset. This is only allowed for an array of U8s.
     """
-    let bytes = _element_size()
     let u128_bytes = U128(0).bytewidth()
-    if ((offset * bytes) + u128_bytes) <= (_size * bytes) then
+    if (offset + u128_bytes) <= _size then
       _ptr._offset(offset)._convert[U128]()._update(0, value)
     else
       error
