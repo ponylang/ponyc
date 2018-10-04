@@ -278,7 +278,7 @@ class iso _TestMap is UnitTest
     var a = _Map
     let b = mut.Map[U64, U64]
 
-    let ops = gen_ops(1000, rand)?
+    let ops = gen_ops(300, rand)?
     for op in ops.values() do
       h.log(op.str())
       let prev = a
