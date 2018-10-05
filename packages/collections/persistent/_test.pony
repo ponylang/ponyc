@@ -272,7 +272,20 @@ class iso _TestMap is UnitTest
 
     let seed = Time.millis()
     h.log("seed: " + seed.string())
-    gen_test(h, Rand(seed))?
+    let rand = Rand(seed)
+
+    var map = Map[USize, None]
+    for n in mut.Range(0, 100) do
+      try
+        map(USize.max_value())?
+      else
+        h.fail()
+        return
+      end
+      map = map.update(rand.int[USize](USize.max_value() - 1), None)
+    end
+
+    gen_test(h, rand)?
 
   fun gen_test(h: TestHelper, rand: Rand) ? =>
     var a = _Map
