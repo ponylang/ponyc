@@ -1,6 +1,7 @@
 use "ponytest"
 use mut = "collections"
 use "random"
+use "time"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -268,6 +269,104 @@ class iso _TestMap is UnitTest
     let m10 = m9.remove("b")?.remove("d")?
     h.assert_error({() ? => m10("b")? })
     h.assert_error({() ? => m10("d")? })
+
+    let seed = Time.millis()
+    h.log("seed: " + seed.string())
+    let rand = Rand(seed)
+
+    var map = Map[USize, None]
+    for n in mut.Range(0, 100) do
+      try
+        map(USize.max_value())?
+      else
+        h.fail()
+        return
+      end
+      map = map.update(rand.int[USize](USize.max_value() - 1), None)
+    end
+
+    gen_test(h, rand)?
+
+  fun gen_test(h: TestHelper, rand: Rand) ? =>
+    var a = _Map
+    let b = mut.Map[U64, U64]
+
+    let ops = gen_ops(300, rand)?
+    for op in ops.values() do
+      h.log(op.str())
+      let prev = a
+      a = op(a, b)?
+
+      var n: USize = 0
+      for (k, v) in a.pairs() do
+        n = n + 1
+        h.assert_eq[U64](b(k)?, v)
+      end
+      h.assert_eq[USize](n, a.size())
+    end
+
+  fun gen_ops(n: USize, rand: Rand): Array[_TestOp] ? =>
+    let ops = Array[_TestOp](n)
+    let keys = Array[U64](n)
+    for v in mut.Range[U64](0, n.u64()) do
+      let op_n = if keys.size() == 0 then 0 else rand.int[U64](4) end
+      ops.push(
+        match op_n
+        | 0 | 1 =>
+          // insert
+          let k = rand.u64()
+          keys.push(k)
+          _OpMapUpdate(k, v)
+        | 2 =>
+          // update
+          let k = keys(rand.int[USize](keys.size()))?
+          _OpMapUpdate(k, v)
+        | 3 =>
+          // remove
+          let k = keys.delete(rand.int[USize](keys.size()))?
+          _OpMapRemove(k)
+        else error
+        end)
+    end
+    ops
+
+type _Map is HashMap[U64, U64, CollisionHash]
+
+primitive CollisionHash is mut.HashFunction[U64]
+  fun hash(x: U64): USize => x.usize() % 100
+  fun eq(x: U64, y: U64): Bool => x == y
+
+interface val _TestOp
+  fun apply(a: _Map, b: mut.Map[U64, U64]): _Map ?
+  fun str(): String
+
+class val _OpMapUpdate
+  let k: U64
+  let v: U64
+
+  new val create(k': U64, v': U64) =>
+    k = k'
+    v = v'
+
+  fun apply(a: _Map, b: mut.Map[U64, U64]): _Map =>
+    b.update(k, v)
+    a(k) = v
+
+  fun str(): String =>
+    "".join(["Update("; k; "_"; CollisionHash.hash(k); ", "; v; ")"].values())
+
+class val _OpMapRemove
+  let k: U64
+
+  new val create(k': U64) =>
+    k = k'
+
+  fun apply(a: _Map, b: mut.Map[U64, U64]): _Map ? =>
+    b.remove(k)?
+    a.remove(k)?
+
+  fun str(): String =>
+    "".join(["Remove("; k; ")"].values())
 
 class iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map (persistent vs mutable)"

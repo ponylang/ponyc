@@ -58,9 +58,15 @@ actor _TestRunner
     _ponytest._test_started(_id)
 
     try
-      _test(_helper)?
+      _test.set_up(_helper)?
+      try
+        _test(_helper)?
+      else
+        log("Test threw an error", false)
+        _pass = false
+      end
     else
-      log("Test threw an error", false)
+      log("Test threw an error during set_up", false)
       _pass = false
     end
 

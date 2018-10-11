@@ -81,7 +81,7 @@ LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
   return wrap(pd->createCompileUnit(lang, difile, producer,
     optimized ? true : false, flags, runtimever));
 #else
-  return wrap(pd->createCompileUnit(lang, file, dir, producer, optimized,
+  return wrap(pd->createCompileUnit(lang, file, dir, producer, optimized ? true : false,
     flags, runtimever, StringRef())); // use the defaults
 #endif
 }

@@ -676,7 +676,7 @@ static bool add_safe(const char* path, pass_opt_t* opt)
 static bool add_exec_dir(pass_opt_t* opt)
 {
   char path[FILENAME_MAX];
-  bool success = get_compiler_exe_directory(path);
+  bool success = get_compiler_exe_directory(path, opt->argv0);
   errors_t* errors = opt->check.errors;
 
   if(!success)
@@ -691,7 +691,27 @@ static bool add_exec_dir(pass_opt_t* opt)
 #ifdef PLATFORM_IS_WINDOWS
   success = add_relative_path(path, "..\\lib", opt);
 #else
-  success = add_relative_path(path, "../lib", opt);
+  const char* link_arch = opt->link_arch != NULL ? opt->link_arch
+                                              : PONY_ARCH;
+  size_t lib_len = 8 + strlen(link_arch);
+  char* lib_path = (char*)ponyint_pool_alloc_size(lib_len);
+  snprintf(lib_path, lib_len, "../lib/%s", link_arch);
+
+  success = add_relative_path(path, lib_path, opt);
+
+  ponyint_pool_free_size(lib_len, lib_path);
+
+  if(!success)
+    return false;
+
+  // for when run from build directory
+  lib_len = 5 + strlen(link_arch);
+  lib_path = (char*)ponyint_pool_alloc_size(lib_len);
+  snprintf(lib_path, lib_len, "lib/%s", link_arch);
+
+  success = add_relative_path(path, lib_path, opt);
+
+  ponyint_pool_free_size(lib_len, lib_path);
 #endif
 
   if(!success)

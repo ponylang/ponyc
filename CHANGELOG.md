@@ -6,12 +6,62 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix hash collision handling in persistent map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
+- Correctly handle modifier keys for TTY stdin on Windows ([PR #2892](https://github.com/ponylang/ponyc/pull/2892))
+- Fix installation of libponyrt.bc on Linux ([PR #2893](https://github.com/ponylang/ponyc/pull/2893))
+- Fix compilation warning on windows. ([PR #2877](https://github.com/ponylang/ponyc/pull/2877))
+- Fix building on Windows in a directory with spaces in its name ([PR #2879](https://github.com/ponylang/ponyc/pull/2879))
+- Fix losing data when reading from STDIN. ([PR #2872](https://github.com/ponylang/ponyc/pull/2872))
+- Fix validation of provides lists of object literals. ([PR #2860](https://github.com/ponylang/ponyc/pull/2860))
+- Fix `files/Path.clean()` not correctly handling multiple `..` ([PR #2862](https://github.com/ponylang/ponyc/pull/2862))
+- Fix skipped try-then clauses on return, break and continue statements ([PR #2853](https://github.com/ponylang/ponyc/pull/2853))
+- Fix performance and memory consumption issues with `files.FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
 
 ### Added
 
+- Add ability to get iso array from an iso string. ([PR #2889](https://github.com/ponylang/ponyc/pull/2889))
+- Add modc method to integer types ([PR #2883](https://github.com/ponylang/ponyc/pull/2883))
+- Add divc method to integer types ([PR #2882](https://github.com/ponylang/ponyc/pull/2882))
+- [RFC 58] Add partial arithmetic for integer types ([PR #2865](https://github.com/ponylang/ponyc/pull/2865))
+- Added OpenBSD support. ([PR #2823](https://github.com/ponylang/ponyc/pull/2823))
+- Added `set_up` method to `ponytest.UnitTest` as equivalent to existing `tear_down` method ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
+- Added `keep_line_breaks` argument to function `buffered.Reader.line` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
 
 ### Changed
 
+- Rename mod and related operators to rem ([PR #2888](https://github.com/ponylang/ponyc/pull/2888))
+- Improved CHAMP map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
+- Use RLIMIT_STACK's current limit for Pthreads stack size if it is sane ([PR #2852](https://github.com/ponylang/ponyc/pull/2852))
+- Remove `File.line` method in favor of using `FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
+
+## [0.24.4] - 2018-07-29
+
+### Fixed
+
+- Fix array and string trim_in_place allocation bounds check ([PR #2840](https://github.com/ponylang/ponyc/pull/2840))
+
+## [0.24.3] - 2018-07-24
+
+### Added
+
+- Nothing - this was purely to fix a problem in the previously release
+
+## [0.24.2] - 2018-07-24
+
+### Fixed
+
+- Fix `make arch=XXXXX` command to be able to correctly find libponyrt.
+
+## [0.24.1] - 2018-07-22
+
+### Fixed
+
+- Add libexecinfo to debug builds for BSD ([PR #2826](https://github.com/ponylang/ponyc/pull/2826))
+
+### Added
+
+- Add SSL APLN support ([PR #2816](https://github.com/ponylang/ponyc/pull/2816))
+- Make dynamic scheduler scaling more robust and configurable ([PR #2801](https://github.com/ponylang/ponyc/pull/2801))
 
 ## [0.24.0] - 2018-06-29
 
@@ -380,7 +430,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Alpine Linux compatibility for pony ([PR #1844](https://github.com/ponylang/ponyc/pull/1844))
-- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md)) 
+- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md))
    - Initial ([PR #1897](https://github.com/ponylang/ponyc/pull/1897)) implemented the full RFC and contained:
       - Enhanced Posix / GNU program argument syntax.
       - Commands and sub-commands.

@@ -236,7 +236,15 @@ actor Main
 
   fun val array(): Array[U8] val =>
     """
-    Returns an Array[U8] that that reuses the underlying data pointer.
+    Returns an Array[U8] that reuses the underlying data pointer.
+    """
+    recover
+      Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)
+    end
+
+  fun iso iso_array(): Array[U8] iso^ =>
+    """
+    Returns an Array[U8] iso that reuses the underlying data pointer.
     """
     recover
       Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)
@@ -360,7 +368,17 @@ actor Main
     _alloc = if last == _size then _alloc - offset else size' end
 
     _size = size'
-    _ptr = _ptr._offset(offset)
+
+    // if _alloc == 0 then we've trimmed all the memory originally allocated.
+    // if we do _ptr._offset, we will spill into memory not allocated/owned
+    // by this string and could potentially cause a segfault if we cross
+    // a pagemap boundary into a pagemap address that hasn't been allocated
+    // yet when `reserve` is called next.
+    if _alloc == 0 then
+      _ptr = Pointer[U8]
+    else
+      _ptr = _ptr._offset(offset)
+    end
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
     """

@@ -25,10 +25,10 @@
 #include <llvm-c/DebugInfo.h>
 #endif
 
+#include "llvm_config_end.h"
+
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
-
-#include "llvm_config_end.h"
 
 using namespace llvm;
 using namespace llvm::legacy;
@@ -1466,7 +1466,7 @@ bool target_is_bsd(char* t)
 {
   Triple triple = Triple(t);
 
-  return triple.isOSDragonFly() || triple.isOSFreeBSD();
+  return triple.isOSDragonFly() || triple.isOSFreeBSD() || triple.isOSOpenBSD();
 }
 
 bool target_is_freebsd(char* t)
@@ -1481,6 +1481,13 @@ bool target_is_dragonfly(char* t)
   Triple triple = Triple(t);
 
   return triple.isOSDragonFly();
+}
+
+bool target_is_openbsd(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSOpenBSD();
 }
 
 bool target_is_macosx(char* t)
@@ -1502,7 +1509,7 @@ bool target_is_posix(char* t)
   Triple triple = Triple(t);
 
   return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux()
-    || triple.isOSDragonFly();
+    || triple.isOSDragonFly() || triple.isOSOpenBSD();
 }
 
 bool target_is_x86(char* t)
@@ -1528,7 +1535,7 @@ bool target_is_arm(char* t)
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
 #endif
 
-  return !strcmp("arm", arch);
+  return (!strcmp("arm", arch) || !strcmp("aarch64", arch));
 }
 
 // This function is used to safeguard against potential oversights on the size

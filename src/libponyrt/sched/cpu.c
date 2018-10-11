@@ -26,7 +26,7 @@ static uint32_t* avail_cpu_list;
 static uint32_t avail_cpu_size;
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_MACOSX) || (defined(PLATFORM_IS_BSD) && !defined(PLATFORM_IS_OPENBSD))
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -38,6 +38,16 @@ static uint32_t property(const char* key)
   sysctlbyname(key, &value, &len, NULL, 0);
   return value;
 }
+#endif
+
+#if defined(PLATFORM_IS_OPENBSD)
+
+static uint32_t cpus_online(void)
+{
+  int value = (int) sysconf(_SC_NPROCESSORS_ONLN);
+  return value;
+}
+
 #endif
 
 static uint32_t hw_cpu_count;
@@ -137,8 +147,10 @@ void ponyint_cpu_init()
     i = cpu_add_mask_to_list(i, &hw_cpus);
     i = cpu_add_mask_to_list(i, &ht_cpus);
   }
-#elif defined(PLATFORM_IS_BSD)
+#elif defined(PLATFORM_IS_BSD) && !defined(PLATFORM_IS_OPENBSD)
   hw_cpu_count = property("hw.ncpu");
+#elif defined(PLATFORM_IS_OPENBSD)
+  hw_cpu_count = cpus_online();
 #elif defined(PLATFORM_IS_MACOSX)
   hw_cpu_count = property("hw.physicalcpu");
 #elif defined(PLATFORM_IS_WINDOWS)

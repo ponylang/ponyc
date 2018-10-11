@@ -134,6 +134,13 @@ class iso _TestBroadcast is UnitTest
 
     h.long_test(2_000_000_000) // 2 second timeout
 
+  fun ref timed_out(h: TestHelper) =>
+    h.log("""
+      This test may fail if you have a firewall (such as firewalld) running.
+      If it does, try re-running the tests with the firewall de-activated, or
+      exclude this test by passing the --exclude="net/Broadcast" option.
+    """)
+
 class _TestTCP is TCPListenNotify
   """
   Run a typical TCP test consisting of a single TCPListener that accepts a

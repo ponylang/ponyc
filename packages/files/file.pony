@@ -94,7 +94,6 @@ class File
   var _unsynced_data: Bool = false
   var _unsynced_metadata: Bool = false
   var _fd: I32
-  var _last_line_length: USize = 256
   var _errno: FileErrNo = FileOK
   embed _pending_writev: Array[(Pointer[U8] tag, USize)] = _pending_writev.create()
   var _pending_writev_total: USize = 0
@@ -223,76 +222,6 @@ class File
     """
     not (_fd == -1)
 
-  fun ref line(): String iso^ ? =>
-    """
-    Returns a line as a String. The newline is not included in the string. If
-    there is no more data, this raises an error. If there is a file error,
-    this raises an error.
-    """
-    if _fd == -1 then
-      error
-    end
-
-    let bytes_to_read: USize = 1
-    var offset: USize = 0
-    var len = _last_line_length
-    var result = recover String end
-    var done = false
-
-    while not done do
-      result.reserve(len)
-
-      let r =
-        (ifdef windows then
-          @_read(_fd, result.cpointer(offset), bytes_to_read.i32())
-        else
-          @read(_fd, result.cpointer(offset), bytes_to_read)
-        end)
-          .isize()
-
-      match r
-      | 0  => _errno = FileEOF
-      | -1 =>
-        _errno = _get_error()
-        error
-      else
-        // truncate at offset in order to adjust size of string after ffi call
-        // and to avoid scanning full array via recalc
-        result.truncate(offset + 1)
-      end
-
-      done = try
-        (_errno is FileEOF) or (result.at_offset(offset.isize())? == '\n')
-      else
-        true
-      end
-
-      if (not done) then
-        offset = offset + 1
-        if offset == len then
-          len = len * 2
-        end
-      end
-    end
-
-    if result.size() == 0 then
-      error
-    end
-
-    try
-      if result.at_offset(offset.isize())? == '\n' then
-        // can't rely on result.size because recalc might find an errant
-        // null terminator in the uninitialized memory.
-        result.truncate(offset)
-
-        if result.at_offset(-1)? == '\r' then
-          result.truncate(result.size() - 1)
-        end
-      end
-    end
-
-    _last_line_length = len
-    result
 
   fun ref read(len: USize): Array[U8] iso^ =>
     """
@@ -738,33 +667,3 @@ class File
         @close(_fd)
       end
     end
-
-class FileLines is Iterator[String]
-  """
-  Iterate over the lines in a file.
-  """
-  var _file: File
-  var _line: String = ""
-  var _next: Bool = false
-
-  new create(file: File) =>
-    _file = file
-
-    try
-      _line = file.line()?
-      _next = true
-    end
-
-  fun ref has_next(): Bool =>
-    _next
-
-  fun ref next(): String =>
-    let r = _line
-
-    try
-      _line = _file.line()?
-    else
-      _next = false
-    end
-
-    r

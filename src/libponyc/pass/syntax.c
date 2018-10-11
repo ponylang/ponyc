@@ -109,12 +109,12 @@ static bool is_expr_infix(token_id id)
     case TK_MINUS:
     case TK_MULTIPLY:
     case TK_DIVIDE:
-    case TK_MOD:
+    case TK_REM:
     case TK_PLUS_TILDE:
     case TK_MINUS_TILDE:
     case TK_MULTIPLY_TILDE:
     case TK_DIVIDE_TILDE:
-    case TK_MOD_TILDE:
+    case TK_REM_TILDE:
     case TK_LSHIFT:
     case TK_RSHIFT:
     case TK_LSHIFT_TILDE:
@@ -1155,6 +1155,9 @@ static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
   // Check for illegal members - even though object literals can be non-actors,
   // we use DEF_ACTOR because the permissions are close enough for our purposes.
   if(!check_members(opt, members, DEF_ACTOR))
+    return AST_ERROR;
+
+  if(ast_id(provides) != TK_NONE && !check_provides_type(opt, provides, "provides"))
     return AST_ERROR;
 
   return AST_OK;

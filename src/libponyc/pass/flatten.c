@@ -220,7 +220,7 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
       if(ast_id(def) != TK_TRAIT && ast_id(def) != TK_INTERFACE)
       {
         ast_error(opt->check.errors, error_at,
-          "can only provide traits and interfaces");
+          "invalid provides type. Can only be interfaces, traits and intersects of those.");
         ast_error_continue(opt->check.errors, provides_type,
           "invalid type here");
         return false;
@@ -235,7 +235,7 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
 
     default:
       ast_error(opt->check.errors, error_at,
-        "provides type may only be an intersect of traits and interfaces");
+        "invalid provides type. Can only be interfaces, traits and intersects of those.");
       ast_error_continue(opt->check.errors, provides_type, "invalid type here");
       return false;
   }

@@ -6,10 +6,10 @@ Need help? Not to worry, we have you covered.
 
 We have a couple resources designed to help you learn, we suggest starting with the tutorial and from there, moving on to the Pony Patterns book. Additionally, standard library documentation is available online.
 
-* [Tutorial](http://tutorial.ponylang.org).
-* [Pony Patterns](http://patterns.ponylang.org) cookbook is in progress
-* [Standard library docs](http://stdlib.ponylang.org/).
-* [Build Problems, see FAQ Compiling](https://www.ponylang.org/faq/#compiling).
+* [Tutorial](http://tutorial.ponylang.io).
+* [Pony Patterns](http://patterns.ponylang.io) cookbook is in progress
+* [Standard library docs](http://stdlib.ponylang.io/).
+* [Build Problems, see FAQ Compiling](https://www.ponylang.io/faq/#compiling).
 
 If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
@@ -21,7 +21,7 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 
 # Trying it online
 
-If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.org/).
+If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.io/).
 
 # Editor support
 
@@ -45,7 +45,24 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 
 # Installation
 
-Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.org/faq/#compiling) for additional information.
+Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.io/faq/#compiling) for additional information.
+
+Pony's prerequisites for CPU platforms are:
+
+- Full support for 64-bit platforms
+  - x86 and ARM CPUs only
+  - See platforms listed in the Circle-CI build list at
+    https://circleci.com/gh/ponylang/ponyc
+- Partial support for 32-bit platforms
+  - The `arm` and `armhf` architectures are tested via CI (Continuous
+    Integration testing)
+  - See platforms listed in the Circle-CI build list at
+    https://circleci.com/gh/ponylang/ponyc
+  - See also: GitHub issues
+    [#2836](https://github.com/ponylang/ponyc/issues/2836)
+    and
+    [#1576](https://github.com/ponylang/ponyc/issues/1576)
+    for more information.
 
 ## Using Docker
 
@@ -107,6 +124,18 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
+## Linux using an AppImage package (via Bintray)
+
+For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponylang-appimage](https://bintray.com/pony-language/ponylang-appimage)) as an AppImage.
+
+The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with with no conflicts.
+
+To install builds via AppImage, you need to go to Bintray and download the appropriate file for the version you want. After the file is downloaded, you need to make it executable using `chmod`.
+
+### DEB and AVX2 Support
+
+By default, the Pony AppImage package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
 ## Linux using an RPM package (via COPR)
 
 For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
@@ -135,6 +164,7 @@ wget https://copr-be.cloud.fedoraproject.org/results/ponylang/ponylang/pubkey.gp
 rpm --import pubkey.gpg
 zypper install ponyc
 ```
+
 ### Using Zypper for OpenSuSE Tumbleweed:
 
 ```bash
@@ -144,47 +174,62 @@ rpm --import pubkey.gpg
 zypper install ponyc
 ```
 
-
 ### RPM and AVX2 Support
 
 By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
 
-## Ubuntu Linux using a DEB package (via Launchpad PPA)
+## Ubuntu and Debian Linux using a DEB package (via Bintray)
 
-For Ubuntu Linux (Trusty, Xenial, Artful, Bionic, Cosmic), the `release` builds are packaged and available on Launchpad PPA ([ponylang/ponylang](https://launchpad.net/~ponylang/+archive/ubuntu/ponylang)).
+For Ubuntu and Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponylang-debian](https://bintray.com/pony-language/ponylang-debian)).
 
-To install builds via Apt:
+Install packages to allow `apt` to use a repository over HTTPS:
 
 ```bash
-add-apt-repository ppa:ponylang/ponylang
-apt-get update
-apt-get install ponyc
+sudo apt-get install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
 ```
 
-NOTE: For Trusty, you will need to manually compile/install `libpcre2` to use `regex` related functionality.
-
-### DEB and AVX2 Support
-
-By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
-
-## Debian Linux using a DEB package (via Bintray)
-
-For Debian Linux, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-debian](https://bintray.com/pony-language/ponyc-debian)).
-
-To install builds via Apt (and install Bintray's public key):
+Install builds via Apt (and install Ponylang's public key):
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "D401AB61 DBE1D0A2"
-echo "deb https://dl.bintray.com/pony-language/ponyc-debian pony-language main" | sudo tee -a /etc/apt/sources.list
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian  $(lsb_release -cs) main"
 sudo apt-get update
 sudo apt-get -V install ponyc
 ```
 
-You may need to install `ponyc` (current) instead of `ponyc-release` (deprecated).  And if you have issues with package authentication you may need to comment out the `deb` line in `/etc/apt/sources.list`, do an update, and uncomment it again.  Feel free to ask for help if you have any problems!
-
 ### DEB and AVX2 Support
 
 By default, the Pony DEB package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+
+### Linux Mint
+
+All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`trusty`, `xenial`, `bionic`) instead of the Linux Mint release.
+
+Install pre-requisites and add the correct `apt` repository:
+
+```bash
+sudo apt-get install \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
+```
+
+```bash
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+source /etc/upstream-release/lsb-release
+sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian $DISTRIB_CODENAME main"
+sudo apt-get update
+sudo apt-get -V install ponyc
+```
+
+The same AVX2 support restrictions apply.
 
 ## Gentoo Linux
 
@@ -233,9 +278,9 @@ brew install ponyc
 
 Windows users will need to install:
 
-- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
+- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the "Desktop Development for C++" workload, and the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -253,8 +298,6 @@ Pony requires LLVM version 3.9.1.
 There is experimental support for building with LLVM 4.0.1, 5.0.1 or 6.0.0, but this may result in decreased performance or crashes in generated applications.
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
-
-Compiling Pony is only possible on x86 and ARM (either 32 or 64 bits).
 
 ## Building on Linux
 
@@ -430,7 +473,7 @@ make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
-### Ubuntu Artful
+### Ubuntu Bionic
 
 ```bash
 sudo apt-get update
@@ -448,9 +491,19 @@ Build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true
+make default_pic=true default_ssl=openssl_1.1.0
 ./build/release/ponyc examples/helloworld
 ./helloworld
+```
+
+### Linux Mint
+
+Instructions for Linux Mint are the same as the appropriate Ubuntu installation. However, an extra `llvm-3.9-dev` package is required for missing headers.
+
+After installing the `llvm` package by following the appropriate steps for Ubuntu Trusty (Linux Mint 17), Xenial (Linux Mint 18), or Bionic (Linux Mint 19), install the extra headers:
+
+```bash
+sudo apt-get install -y llvm-3.9-dev
 ```
 
 ### Fedora (25)
@@ -686,6 +739,25 @@ gmake
 ./build/release/ponyc examples/helloworld
 ```
 
+## Building on OpenBSD
+
+OpenBSD has been tested on OpenBSD 6.4.
+
+First, install the required dependencies:
+
+```bash
+doas pkg_add gmake libexecinfo llvm pcre2
+```
+
+This will build ponyc and compile helloworld:
+
+```bash
+gmake verbose=true default_pic=true bits=64
+./build/release/ponyc examples/helloworld
+```
+
+If you are on a 32-bit platform (e.g., armv7), change `bits=64` to `bits=32`.
+
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
@@ -719,9 +791,9 @@ _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to bui
 
 Building on Windows requires the following:
 
-- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](http://landinghub.visualstudio.com/visual-cpp-build-tools)), and
+- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the "Desktop Development for C++" workload and the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
@@ -818,7 +890,6 @@ gcc -march=none
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
 
 
-
 ## Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
@@ -846,5 +917,4 @@ Support this project by becoming a sponsor. Your logo will show up here with a l
 <a href="https://opencollective.com/ponyc/sponsor/7/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/7/avatar.svg"></a>
 <a href="https://opencollective.com/ponyc/sponsor/8/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/8/avatar.svg"></a>
 <a href="https://opencollective.com/ponyc/sponsor/9/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/9/avatar.svg"></a>
-
 

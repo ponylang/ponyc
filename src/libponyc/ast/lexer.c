@@ -68,7 +68,7 @@ static const lextoken_t symbols[] =
   { "-~", TK_MINUS_TILDE },
   { "*~", TK_MULTIPLY_TILDE },
   { "/~", TK_DIVIDE_TILDE },
-  { "%~", TK_MOD_TILDE },
+  { "%~", TK_REM_TILDE },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
@@ -105,7 +105,7 @@ static const lextoken_t symbols[] =
   { "-", TK_MINUS },
   { "*", TK_MULTIPLY },
   { "/", TK_DIVIDE },
-  { "%", TK_MOD },
+  { "%", TK_REM },
   { "@", TK_AT },
 
   { "<", TK_LT },
@@ -1215,11 +1215,11 @@ static token_id newline_symbols(token_id raw_token, bool newline)
 
   switch(raw_token)
   {
-    case TK_LPAREN:      return TK_LPAREN_NEW;
-    case TK_LSQUARE:     return TK_LSQUARE_NEW;
-    case TK_MINUS:       return TK_MINUS_NEW;
-    case TK_MINUS_TILDE: return TK_MINUS_TILDE_NEW;
-    default:             return raw_token;
+    case TK_LPAREN:         return TK_LPAREN_NEW;
+    case TK_LSQUARE:        return TK_LSQUARE_NEW;
+    case TK_MINUS:          return TK_MINUS_NEW;
+    case TK_MINUS_TILDE:    return TK_MINUS_TILDE_NEW;
+    default:                return raw_token;
   }
 }
 

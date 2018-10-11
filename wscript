@@ -188,6 +188,7 @@ def build(ctx):
 
     llvmIncludes = []
     llvmLibs = []
+    llvmBuildMode = ''
     sslIncludes = []
 
     # download windows libraries needed for building
@@ -252,10 +253,19 @@ def build(ctx):
             ctx.env.LLVM_LLC = os.path.join(llvmDir, 'bin', 'llc.exe')
             llvmLibFiles = cmd_output([llvmConfig, '--libs'])
             import re
-            if ctx.options.llvm.startswith(('3.7', '3.8')):
-                llvmLibs = [re.sub(r'-l([^\\\/)]+)', r'\1', x) for x in llvmLibFiles.split(' ')]
+            llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)$', r'\1', x) for x in llvmLibFiles.split('.lib') if x]
+
+            llvmBuildMode = cmd_output([llvmConfig, '--build-mode'])
+            if llvmBuildMode == 'Release':
+                llvmBuildMode = 'LLVM_BUILD_MODE_Release'
+            elif llvmBuildMode == 'RelWithDebInfo':
+                llvmBuildMode = 'LLVM_BUILD_MODE_RelWithDebInfo'
+            elif llvmBuildMode == 'Debug':
+                llvmBuildMode = 'LLVM_BUILD_MODE_Debug'
             else:
-                llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)\.lib', r'\1', x) for x in llvmLibFiles.split(' ')]
+                print('Unknown llvm build-mode of {0}'.format(llvmBuildMode))
+                sys.exit(1)
+            llvmBuildMode = 'LLVM_BUILD_MODE={0}'.format(llvmBuildMode)
 
     # build targets:
 
@@ -293,7 +303,7 @@ def build(ctx):
         source    = ctx.path.ant_glob('src/libponyc/**/*.c') + \
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
-        defines   = [ 'PONY_ALWAYS_ASSERT' ],
+        defines   = [ 'PONY_ALWAYS_ASSERT', llvmBuildMode ],
         use       = [ 'blake2' ]
     )
 
@@ -303,6 +313,7 @@ def build(ctx):
         target   = 'libponyc.benchmarks',
         source   = ctx.path.ant_glob('benchmark/libponyc/**/*.cc'),
         includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        defines  = [ llvmBuildMode ],
         use      = [ 'libponyc', 'libgbenchmark' ],
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
@@ -353,7 +364,8 @@ def build(ctx):
         defines   = [
             'PONY_ALWAYS_ASSERT',
             'PONY_PACKAGES_DIR="' + packagesDir.replace('\\', '\\\\') + '"',
-            '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'
+            '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING',
+            llvmBuildMode
         ],
         use       = testcUses,
         lib       = testcLibs,
@@ -383,7 +395,7 @@ def test(ctx):
 
     ctx(
         features = 'seq',
-        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' -d -s --checktree --verify ../../packages/stdlib',
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d -s --checktree --verify ../../packages/stdlib',
         target   = stdlibTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )
@@ -391,7 +403,7 @@ def test(ctx):
     # grammar file
     ctx(
         features = 'seq',
-        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' --antlr > pony.g.new',
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" --antlr > pony.g.new',
         target   = 'pony.g.new',
     )
 

@@ -13,6 +13,7 @@
 #include "mutemap.h"
 
 #define PONY_SCHED_BATCH 100
+#define PONY_SCHED_BLOCK_THRESHOLD 1000000
 
 static DECLARE_THREAD_FN(run_thread);
 
@@ -33,7 +34,9 @@ typedef enum
 static uint64_t last_cd_tsc;
 static uint32_t scheduler_count;
 static uint32_t min_scheduler_count;
+static uint64_t scheduler_suspend_threshold;
 static PONY_ATOMIC(uint32_t) active_scheduler_count;
+static PONY_ATOMIC(uint32_t) active_scheduler_count_check;
 static scheduler_t* scheduler;
 static PONY_ATOMIC(bool) detect_quiescence;
 static bool use_yield;
@@ -59,6 +62,14 @@ static PONY_ATOMIC(bool) scheduler_count_changing;
 static uint32_t get_active_scheduler_count()
 {
    return atomic_load_explicit(&active_scheduler_count, memory_order_relaxed);
+}
+
+/**
+ * Gets the current active scheduler count check
+ */
+static uint32_t get_active_scheduler_count_check()
+{
+   return atomic_load_explicit(&active_scheduler_count_check, memory_order_relaxed);
 }
 
 /**
@@ -125,6 +136,15 @@ static void send_msg_all(uint32_t from, sched_msg_t msg, intptr_t arg)
     send_msg(from, i, msg, arg);
 }
 
+static void signal_suspended_threads(uint32_t sched_count, int32_t curr_sched_id)
+{
+  for(uint32_t i = 0; i < sched_count; i++)
+  {
+    if((int32_t)i != curr_sched_id)
+      ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
+  }
+}
+
 static void wake_suspended_threads(int32_t current_scheduler_id)
 {
   uint32_t current_active_scheduler_count = get_active_scheduler_count();
@@ -160,25 +180,29 @@ static void wake_suspended_threads(int32_t current_scheduler_id)
         memory_order_release);
 #endif
 
-      // send multiple signals to wake up all schedulers that should be awake
-      // this is somewhat wasteful, but, it's better than risking some
-      // schedulers never waking up. If a scheduler is already awake,
-      // the signal is disregarded
-      for(int j = 0; j < 3; j++)
-      {
-        for(uint32_t i = 0; i < current_active_scheduler_count; i++)
-        {
-          if((int32_t)i != current_scheduler_id)
-          {
-            ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
-          }
-        }
-      }
+      // send signals to all scheduler threads that should be awake
+      // this is somewhat wasteful if a scheduler thread is already awake
+      // NOTE: this intentionally allows for the case where some scheduler
+      // threads might miss the signal and not wake up. That is handled in
+      // the following while loop
+      signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
       // unlock mutex if using pthreads
       pthread_mutex_unlock(&sched_mut);
 #endif
+    }
+
+    // wait for sleeping threads to wake and update check variable
+    while (get_active_scheduler_count() != get_active_scheduler_count_check())
+    {
+      // send signals to all scheduler threads that should be awake
+      // this is somewhat wasteful if a scheduler thread is already awake
+      // but is necessary in case the signal to wake a thread was missed
+      // NOTE: this intentionally allows for the case where some scheduler
+      // threads might miss the signal and not wake up. That is handled in
+      // by a combination of the check variable and this while loop
+      signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
     }
   }
 }
@@ -418,8 +442,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
   // decrement active_scheduler_count so other schedulers know we're
   // sleeping
-  uint32_t sched_count = atomic_load_explicit(&active_scheduler_count,
-    memory_order_relaxed);
+  uint32_t sched_count = get_active_scheduler_count();
 
   // make sure the scheduler count didn't change
   // if it did, then another thread resumed and it may not be
@@ -429,6 +452,15 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
   atomic_store_explicit(&active_scheduler_count, sched_count - 1,
     memory_order_relaxed);
+
+  // decrement active_scheduler_count_check
+  uint32_t sched_count_check = get_active_scheduler_count_check();
+
+  atomic_store_explicit(&active_scheduler_count_check, sched_count_check - 1,
+    memory_order_relaxed);
+
+  // ensure main active scheduler count and check variable match
+  pony_assert(sched_count == sched_count_check);
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // unlock the bool that controls modifying the active scheduler count
@@ -493,61 +525,54 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
   // dtrace resume notification
   DTRACE1(THREAD_RESUME, (uintptr_t)sched);
 
-  // if we're scheduler 0 with noisy actors
-  // and we just pulled an actor off the inject queue
-  // or the ASIO is no longer noisy
-  // break to return the actor
-  if((sched->index == 0) && ((actor != NULL) || (!sched->asio_noisy)))
-  {
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // make sure active_scheduler_count == 1
-    while (
-      (current_active_scheduler_count = get_active_scheduler_count())
-        == 0)
+  // When using signals, need to acquire sched count changing variable
+  while (true)
+  {
+    // get the bool that controls modifying the active scheduler
+    // count variable if using signals
+    if(!atomic_exchange_explicit(&scheduler_count_changing, true,
+      memory_order_acquire))
     {
-      // get the bool that controls modifying the active scheduler
-      // count variable if using signals
-      if(!atomic_exchange_explicit(&scheduler_count_changing, true,
-        memory_order_acquire))
-      {
-        // in case the count changed between the while check and now
-        current_active_scheduler_count = get_active_scheduler_count();
-
-        // check active scheduler count is valid
-        pony_assert(current_active_scheduler_count <= 1);
-
-        if(current_active_scheduler_count == 0)
-        {
-          // set active_scheduler_count to 1
-          current_active_scheduler_count = 1;
-          atomic_store_explicit(&active_scheduler_count,
-            current_active_scheduler_count, memory_order_relaxed);
-        }
-        // unlock the bool that controls modifying the active scheduler count
-        // variable if using signals
-        atomic_store_explicit(&scheduler_count_changing, false,
-          memory_order_release);
-      }
-    }
-#else
-    // When using pthreads, no need to acquire mutex because we
-    // already acquired it earlier
-
-    // get active_scheduler_count
-    sched_count = atomic_load_explicit(&active_scheduler_count,
-      memory_order_relaxed);
-
-    // check active scheduler count is valid
-    pony_assert(sched_count <= 1);
-
-    // make sure active_scheduler_count == 1
-    if(sched_count == 0)
-    {
-      atomic_store_explicit(&active_scheduler_count, 1,
-        memory_order_relaxed);
-    }
 #endif
+      // get active_scheduler_count
+      sched_count = get_active_scheduler_count();
+
+      // make sure active_scheduler_count == 1 if it is 0
+      // and we're scheduler 0 with noisy actors
+      // and we just pulled an actor off the inject queue
+      // or the ASIO is no longer noisy
+      // and we broke out of the earlier loop before suspending
+      // to return the actor
+      if(sched_count == 0)
+      {
+        // set active_scheduler_count to 1
+        sched_count = 1;
+        atomic_store_explicit(&active_scheduler_count,
+          sched_count, memory_order_relaxed);
+      }
+
+      // increment active_scheduler_count_check
+      sched_count_check = get_active_scheduler_count_check();
+
+      atomic_store_explicit(&active_scheduler_count_check,
+        sched_count_check + 1, memory_order_relaxed);
+
+      // ensure main active scheduler count and check variable match
+//      pony_assert(sched_count == sched_count_check);
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+      // unlock the bool that controls modifying the active scheduler count
+      // variable if using signals
+      atomic_store_explicit(&scheduler_count_changing, false,
+        memory_order_release);
+
+      // break while loop
+      break;
+    }
   }
+#endif
+
   return actor;
 }
 
@@ -558,9 +583,12 @@ static pony_actor_t* perhaps_suspend_scheduler(
   // if we're the highest active scheduler thread
   // and there are more active schedulers than the minimum requested
   // and we're not terminating
+  // and active scheduler count matchs the check variable indicating all
+  // threads that should be awake are awake
   if ((current_active_scheduler_count > min_scheduler_count)
     && (sched == &scheduler[current_active_scheduler_count - 1])
     && (!sched->terminate)
+    && (current_active_scheduler_count == get_active_scheduler_count_check())
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     // try to acquire mutex if using pthreads
     && !pthread_mutex_trylock(&sched_mut)
@@ -684,7 +712,8 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    get any work. In the process of stealing from every other scheduler,
     //    we will have also tried getting work off the ASIO inject queue
     //    multiple times
-    // 4. We've been trying to steal for at least 1 million cycles.
+    // 4. We've been trying to steal for at least PONY_SCHED_BLOCK_THRESHOLD
+    //    cycles (currently 1000000).
     //    In many work stealing scenarios, we immediately get steal an actor.
     //    Sending a block/unblock pair in that scenario is very wasteful.
     //    Same applies to other "quick" steal scenarios.
@@ -693,6 +722,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    delay quiescence by a small amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
     uint32_t current_active_scheduler_count = get_active_scheduler_count();
+    uint64_t clocks_elapsed = tsc2 - tsc;
 
     if (!block_sent)
     {
@@ -704,17 +734,22 @@ static pony_actor_t* steal(scheduler_t* sched)
       {
         steal_attempts++;
       }
-      else if (((tsc2 - tsc) > 1000000) &&
+      else if ((clocks_elapsed > PONY_SCHED_BLOCK_THRESHOLD) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
-        // in case active scheduler count changed
-        current_active_scheduler_count = get_active_scheduler_count();
+        // only try and suspend if enough time has passed
+        if(clocks_elapsed > scheduler_suspend_threshold)
+        {
+          // in case active scheduler count changed
+          current_active_scheduler_count = get_active_scheduler_count();
 
-        actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
-          &block_sent, &steal_attempts, true);
-        if (actor != NULL)
-          break;
-        else if(!sched->asio_noisy)
+          actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
+            &block_sent, &steal_attempts, true);
+          if (actor != NULL)
+            break;
+        }
+
+        if(!sched->asio_noisy)
         {
           // Only send block messages if there are no noisy actors registered
           // with the ASIO thread
@@ -737,10 +772,14 @@ static pony_actor_t* steal(scheduler_t* sched)
       // active if the active_scheduler_count isn't larger than our index.
       pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
 
-      actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
-        &block_sent, &steal_attempts, false);
-      if (actor != NULL)
-        break;
+      // only try and suspend if enough time has passed
+      if(clocks_elapsed > scheduler_suspend_threshold)
+      {
+        actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
+          &block_sent, &steal_attempts, false);
+        if (actor != NULL)
+          break;
+      }
     }
 
     // if we're scheduler 0 and cycle detection is enabled
@@ -785,18 +824,34 @@ static void run(scheduler_t* sched)
 
   while(true)
   {
-    // if we're scheduler 0 and cycle detection is enabled
-    if(!ponyint_actor_getnoblock() && (sched->index == 0))
+    // if we're scheduler 0
+    if(sched->index == 0)
     {
-      // trigger cycle detector by sending it a message if it is time
-      uint64_t current_tsc = ponyint_cpu_tick();
-      if(ponyint_cycle_check_blocked(&sched->ctx, last_cd_tsc, current_tsc))
+      // if cycle detection is enabled
+      if(!ponyint_actor_getnoblock())
       {
-        last_cd_tsc = current_tsc;
+        // trigger cycle detector by sending it a message if it is time
+        uint64_t current_tsc = ponyint_cpu_tick();
+        if(ponyint_cycle_check_blocked(&sched->ctx, last_cd_tsc, current_tsc))
+        {
+          last_cd_tsc = current_tsc;
 
-        // cycle detector should now be on the queue
-        if(actor == NULL)
-          actor = pop_global(sched);
+          // cycle detector should now be on the queue
+          if(actor == NULL)
+            actor = pop_global(sched);
+        }
+      }
+
+      uint32_t current_active_scheduler_count = get_active_scheduler_count();
+      uint32_t current_active_scheduler_count_check = get_active_scheduler_count_check();
+
+      // if not all threads that should be awake are awake due to a missed signal
+      if(current_active_scheduler_count != current_active_scheduler_count_check)
+      {
+        // send signals to all scheduler threads that should be awake
+        // this is somewhat wasteful if a scheduler thread is already awake
+        // but is necessary in case the signal to wake a thread was missed
+        signal_suspended_threads(current_active_scheduler_count, sched->index);
       }
     }
 
@@ -925,11 +980,15 @@ static void ponyint_sched_shutdown()
 }
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
-  bool pinasio, uint32_t min_threads)
+  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold)
 {
   pony_register_thread();
 
   use_yield = !noyield;
+
+  // if thread suspend threshold is less then 1, then ensure it is 1
+  if(thread_suspend_threshold < 1)
+    thread_suspend_threshold = 1;
 
   // If no thread count is specified, use the available physical core count.
   if(threads == 0)
@@ -939,9 +998,16 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   if(min_threads > threads)
     min_threads = threads;
 
+  // convert to cycles for use with ponyint_cpu_tick()
+  // 1 second = 2000000000 cycles (approx.)
+  // based on same scale as ponyint_cpu_core_pause() uses
+  scheduler_suspend_threshold = thread_suspend_threshold * 1000000;
+
   scheduler_count = threads;
   min_scheduler_count = min_threads;
   atomic_store_explicit(&active_scheduler_count, scheduler_count,
+    memory_order_relaxed);
+  atomic_store_explicit(&active_scheduler_count_check, scheduler_count,
     memory_order_relaxed);
   scheduler = (scheduler_t*)ponyint_pool_alloc_size(
     scheduler_count * sizeof(scheduler_t));
@@ -1097,7 +1163,27 @@ void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id)
   // wake up threads if the current active count is 0
   // keep trying until successful to avoid deadlock
   while((current_active_scheduler_count = get_active_scheduler_count()) == 0)
+  {
     ponyint_sched_maybe_wakeup(current_scheduler_id);
+
+    current_active_scheduler_count = get_active_scheduler_count();
+
+    if(current_active_scheduler_count >= 1)
+    {
+      // wait for sleeping threads to wake and update check variable
+      // to ensure that we have at least one fully awake scheduler thread
+      while (get_active_scheduler_count() != get_active_scheduler_count_check())
+      {
+        // send signals to all scheduler threads that should be awake
+        // this is somewhat wasteful if a scheduler thread is already awake
+        // but is necessary in case the signal to wake a thread was missed
+        // NOTE: this intentionally allows for the case where some scheduler
+        // threads might miss the signal and not wake up. That is handled in
+        // by a combination of the check variable and this while loop
+        signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
+      }
+    }
+  }
 }
 
 // Maybe wake up a scheduler thread if possible
@@ -1136,18 +1222,13 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
       memory_order_release);
 #endif
 
-    // send multiple signals to wake up all schedulers that should be awake
-    // this is somewhat wasteful, but, it's better than risking some
-    // schedulers never waking up. If a scheduler is already awake,
-    // the signal is disregarded
-    for(int j = 0; j < 3; j++)
-    {
-      for(uint32_t i = 0; i < current_active_scheduler_count; i++)
-      {
-        if((int32_t)i != current_scheduler_id)
-          ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
-      }
-    }
+    // send signals to all scheduler threads that should be awake
+    // this is somewhat wasteful if a scheduler thread is already awake
+    // NOTE: this intentionally allows for the case where some scheduler
+    // threads might miss the signal and not wake up. That is handled as
+    // part of the beginning of the `run` loop and the while loop in
+    // ponyint_sched_maybe_wakeup_if_all_asleep
+    signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     // unlock mutex if using pthreads
