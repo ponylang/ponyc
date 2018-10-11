@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Rename mod and related operators to rem ([PR #2888](https://github.com/ponylang/ponyc/pull/2888))
 - Improved CHAMP map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
 - Use RLIMIT_STACK's current limit for Pthreads stack size if it is sane ([PR #2852](https://github.com/ponylang/ponyc/pull/2852))
 - Remove `File.line` method in favor of using `FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
