@@ -1,5 +1,6 @@
 [![Backers on Open Collective](https://opencollective.com/ponyc/backers/badge.svg)](#backers)
  [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors) 
+
 # Getting help
 
 Need help? Not to worry, we have you covered.
@@ -22,6 +23,34 @@ Think you've found a bug? Check your understanding first by writing the mailing 
 # Trying it online
 
 If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.io/).
+
+# Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+<a href="graphs/contributors"><img src="https://opencollective.com/ponyc/contributors.svg?width=890&button=false" /></a>
+
+
+# Backers
+
+Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/ponyc#backer)]
+
+<a href="https://opencollective.com/ponyc#backers" target="_blank"><img src="https://opencollective.com/ponyc/backers.svg?width=890"></a>
+
+
+# Sponsors
+
+Support this project by becoming a sponsor. Your logo will show up here with a link to your website. [[Become a sponsor](https://opencollective.com/ponyc#sponsor)]
+
+<a href="https://opencollective.com/ponyc/sponsor/0/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/0/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/1/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/1/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/2/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/2/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/3/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/3/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/4/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/4/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/5/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/5/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/6/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/6/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/7/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/7/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/8/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/8/avatar.svg"></a>
+<a href="https://opencollective.com/ponyc/sponsor/9/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/9/avatar.svg"></a>
 
 # Editor support
 
@@ -888,33 +917,3 @@ gcc -march=none
 ```
 
 This will result in an error message plus a listing off all architecture types acceptable on your platform.
-
-
-## Contributors
-
-This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
-<a href="graphs/contributors"><img src="https://opencollective.com/ponyc/contributors.svg?width=890&button=false" /></a>
-
-
-## Backers
-
-Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/ponyc#backer)]
-
-<a href="https://opencollective.com/ponyc#backers" target="_blank"><img src="https://opencollective.com/ponyc/backers.svg?width=890"></a>
-
-
-## Sponsors
-
-Support this project by becoming a sponsor. Your logo will show up here with a link to your website. [[Become a sponsor](https://opencollective.com/ponyc#sponsor)]
-
-<a href="https://opencollective.com/ponyc/sponsor/0/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/0/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/1/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/1/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/2/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/2/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/3/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/3/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/4/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/4/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/5/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/5/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/6/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/6/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/7/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/7/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/8/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/8/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/9/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/9/avatar.svg"></a>
-
