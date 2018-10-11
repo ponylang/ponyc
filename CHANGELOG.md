@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix hash collision handling in persistent map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
 - Correctly handle modifier keys for TTY stdin on Windows ([PR #2892](https://github.com/ponylang/ponyc/pull/2892))
 - Fix installation of libponyrt.bc on Linux ([PR #2893](https://github.com/ponylang/ponyc/pull/2893))
 - Fix compilation warning on windows. ([PR #2877](https://github.com/ponylang/ponyc/pull/2877))
@@ -28,7 +29,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
--  Use RLIMIT_STACK's current limit for Pthreads stack size if it is sane ([PR #2852](https://github.com/ponylang/ponyc/pull/2852))
+- Improved CHAMP map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
+- Use RLIMIT_STACK's current limit for Pthreads stack size if it is sane ([PR #2852](https://github.com/ponylang/ponyc/pull/2852))
 - Remove `File.line` method in favor of using `FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
 
 ## [0.24.4] - 2018-07-29
@@ -427,7 +429,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Alpine Linux compatibility for pony ([PR #1844](https://github.com/ponylang/ponyc/pull/1844))
-- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md)) 
+- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md))
    - Initial ([PR #1897](https://github.com/ponylang/ponyc/pull/1897)) implemented the full RFC and contained:
       - Enhanced Posix / GNU program argument syntax.
       - Commands and sub-commands.
