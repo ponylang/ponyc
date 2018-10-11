@@ -124,13 +124,13 @@ typedef struct compile_t
   const char* str_sub;
   const char* str_mul;
   const char* str_div;
-  const char* str_mod;
+  const char* str_rem;
   const char* str_neg;
   const char* str_add_unsafe;
   const char* str_sub_unsafe;
   const char* str_mul_unsafe;
   const char* str_div_unsafe;
-  const char* str_mod_unsafe;
+  const char* str_rem_unsafe;
   const char* str_neg_unsafe;
   const char* str_and;
   const char* str_or;

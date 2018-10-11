@@ -46,8 +46,8 @@ primitive U8 is _UnsignedInteger[U8]
   fun divc(y: U8): (U8, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U8](this, y)
 
-  fun modc(y: U8): (U8, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[U8](this, y)
+  fun remc(y: U8): (U8, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[U8](this, y)
 
   fun add_partial(y: U8): U8 ? =>
     _UnsignedPartialArithmetic.add_partial[U8](this, y)?
@@ -61,11 +61,11 @@ primitive U8 is _UnsignedInteger[U8]
   fun div_partial(y: U8): U8 ? =>
     _UnsignedPartialArithmetic.div_partial[U8](this, y)?
 
-  fun mod_partial(y: U8): U8 ? =>
-    _UnsignedPartialArithmetic.mod_partial[U8](this, y)?
+  fun rem_partial(y: U8): U8 ? =>
+    _UnsignedPartialArithmetic.rem_partial[U8](this, y)?
 
-  fun divmod_partial(y: U8): (U8, U8) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[U8](this, y)?
+  fun divrem_partial(y: U8): (U8, U8) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[U8](this, y)?
 
 primitive U16 is _UnsignedInteger[U16]
   new create(value: U16) => value
@@ -115,8 +115,8 @@ primitive U16 is _UnsignedInteger[U16]
   fun divc(y: U16): (U16, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U16](this, y)
 
-  fun modc(y: U16): (U16, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[U16](this, y)
+  fun remc(y: U16): (U16, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[U16](this, y)
 
   fun add_partial(y: U16): U16 ? =>
     _UnsignedPartialArithmetic.add_partial[U16](this, y)?
@@ -130,11 +130,11 @@ primitive U16 is _UnsignedInteger[U16]
   fun div_partial(y: U16): U16 ? =>
     _UnsignedPartialArithmetic.div_partial[U16](this, y)?
 
-  fun mod_partial(y: U16): U16 ? =>
-    _UnsignedPartialArithmetic.mod_partial[U16](this, y)?
+  fun rem_partial(y: U16): U16 ? =>
+    _UnsignedPartialArithmetic.rem_partial[U16](this, y)?
 
-  fun divmod_partial(y: U16): (U16, U16) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[U16](this, y)?
+  fun divrem_partial(y: U16): (U16, U16) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[U16](this, y)?
 
 primitive U32 is _UnsignedInteger[U32]
   new create(value: U32) => value
@@ -184,8 +184,8 @@ primitive U32 is _UnsignedInteger[U32]
   fun divc(y: U32): (U32, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U32](this, y)
 
-  fun modc(y: U32): (U32, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[U32](this, y)
+  fun remc(y: U32): (U32, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[U32](this, y)
 
   fun add_partial(y: U32): U32 ? =>
     _UnsignedPartialArithmetic.add_partial[U32](this, y)?
@@ -199,11 +199,11 @@ primitive U32 is _UnsignedInteger[U32]
   fun div_partial(y: U32): U32 ? =>
     _UnsignedPartialArithmetic.div_partial[U32](this, y)?
 
-  fun mod_partial(y: U32): U32 ? =>
-    _UnsignedPartialArithmetic.mod_partial[U32](this, y)?
+  fun rem_partial(y: U32): U32 ? =>
+    _UnsignedPartialArithmetic.rem_partial[U32](this, y)?
 
-  fun divmod_partial(y: U32): (U32, U32) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[U32](this, y)?
+  fun divrem_partial(y: U32): (U32, U32) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[U32](this, y)?
 
 primitive U64 is _UnsignedInteger[U64]
   new create(value: U64) => value
@@ -260,8 +260,8 @@ primitive U64 is _UnsignedInteger[U64]
   fun divc(y: U64): (U64, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U64](this, y)
 
-  fun modc(y: U64): (U64, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[U64](this, y)
+  fun remc(y: U64): (U64, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[U64](this, y)
 
   fun add_partial(y: U64): U64 ? =>
     _UnsignedPartialArithmetic.add_partial[U64](this, y)?
@@ -275,11 +275,11 @@ primitive U64 is _UnsignedInteger[U64]
   fun div_partial(y: U64): U64 ? =>
     _UnsignedPartialArithmetic.div_partial[U64](this, y)?
 
-  fun mod_partial(y: U64): U64 ? =>
-    _UnsignedPartialArithmetic.mod_partial[U64](this, y)?
+  fun rem_partial(y: U64): U64 ? =>
+    _UnsignedPartialArithmetic.rem_partial[U64](this, y)?
 
-  fun divmod_partial(y: U64): (U64, U64) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[U64](this, y)?
+  fun divrem_partial(y: U64): (U64, U64) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[U64](this, y)?
 
 primitive ULong is _UnsignedInteger[ULong]
   new create(value: ULong) => value
@@ -392,8 +392,8 @@ primitive ULong is _UnsignedInteger[ULong]
   fun divc(y: ULong): (ULong, Bool) =>
     _UnsignedPartialArithmetic.div_checked[ULong](this, y)
 
-  fun modc(y: ULong): (ULong, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[ULong](this, y)
+  fun remc(y: ULong): (ULong, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[ULong](this, y)
 
   fun add_partial(y: ULong): ULong ? =>
     _UnsignedPartialArithmetic.add_partial[ULong](this, y)?
@@ -407,11 +407,11 @@ primitive ULong is _UnsignedInteger[ULong]
   fun div_partial(y: ULong): ULong ? =>
     _UnsignedPartialArithmetic.div_partial[ULong](this, y)?
 
-  fun mod_partial(y: ULong): ULong ? =>
-    _UnsignedPartialArithmetic.mod_partial[ULong](this, y)?
+  fun rem_partial(y: ULong): ULong ? =>
+    _UnsignedPartialArithmetic.rem_partial[ULong](this, y)?
 
-  fun divmod_partial(y: ULong): (ULong, ULong) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[ULong](this, y)?
+  fun divrem_partial(y: ULong): (ULong, ULong) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[ULong](this, y)?
 
 primitive USize is _UnsignedInteger[USize]
   new create(value: USize) => value
@@ -517,8 +517,8 @@ primitive USize is _UnsignedInteger[USize]
   fun divc(y: USize): (USize, Bool) =>
     _UnsignedPartialArithmetic.div_checked[USize](this, y)
 
-  fun modc(y: USize): (USize, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[USize](this, y)
+  fun remc(y: USize): (USize, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[USize](this, y)
 
   fun add_partial(y: USize): USize ? =>
     _UnsignedPartialArithmetic.add_partial[USize](this, y)?
@@ -532,11 +532,11 @@ primitive USize is _UnsignedInteger[USize]
   fun div_partial(y: USize): USize ? =>
     _UnsignedPartialArithmetic.div_partial[USize](this, y)?
 
-  fun mod_partial(y: USize): USize ? =>
-    _UnsignedPartialArithmetic.mod_partial[USize](this, y)?
+  fun rem_partial(y: USize): USize ? =>
+    _UnsignedPartialArithmetic.rem_partial[USize](this, y)?
 
-  fun divmod_partial(y: USize): (USize, USize) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[USize](this, y)?
+  fun divrem_partial(y: USize): (USize, USize) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[USize](this, y)?
 
 primitive U128 is _UnsignedInteger[U128]
   new create(value: U128) => value
@@ -619,7 +619,7 @@ primitive U128 is _UnsignedInteger[U128]
       (hi.u128() << 64) or lo.u128()
     end
 
-  fun divmod(y: U128): (U128, U128) =>
+  fun divrem(y: U128): (U128, U128) =>
     ifdef native128 then
       (this / y, this % y)
     else
@@ -653,15 +653,15 @@ primitive U128 is _UnsignedInteger[U128]
     ifdef native128 then
       this / y
     else
-      (let q, let r) = divmod(y)
+      (let q, let r) = divrem(y)
       q
     end
 
-  fun mod(y: U128): U128 =>
+  fun rem(y: U128): U128 =>
     ifdef native128 then
       this % y
     else
-      (let q, let r) = divmod(y)
+      (let q, let r) = divrem(y)
       r
     end
 
@@ -676,7 +676,7 @@ primitive U128 is _UnsignedInteger[U128]
       this * y
     end
 
-  fun divmod_unsafe(y: U128): (U128, U128) =>
+  fun divrem_unsafe(y: U128): (U128, U128) =>
     """
     Unsafe operation.
     If y is 0, the result is undefined.
@@ -685,7 +685,7 @@ primitive U128 is _UnsignedInteger[U128]
     ifdef native128 then
       (this *~ y, this /~ y)
     else
-      divmod(y)
+      divrem(y)
     end
 
   fun div_unsafe(y: U128): U128 =>
@@ -700,7 +700,7 @@ primitive U128 is _UnsignedInteger[U128]
       this / y
     end
 
-  fun mod_unsafe(y: U128): U128 =>
+  fun rem_unsafe(y: U128): U128 =>
     """
     Unsafe operation.
     If y is 0, the result is undefined.
@@ -796,8 +796,8 @@ primitive U128 is _UnsignedInteger[U128]
   fun divc(y: U128): (U128, Bool) =>
     _UnsignedPartialArithmetic.div_checked[U128](this, y)
 
-  fun modc(y: U128): (U128, Bool) =>
-    _UnsignedPartialArithmetic.mod_checked[U128](this, y)
+  fun remc(y: U128): (U128, Bool) =>
+    _UnsignedPartialArithmetic.rem_checked[U128](this, y)
 
   fun add_partial(y: U128): U128 ? =>
     _UnsignedPartialArithmetic.add_partial[U128](this, y)?
@@ -811,10 +811,10 @@ primitive U128 is _UnsignedInteger[U128]
   fun div_partial(y: U128): U128 ? =>
     _UnsignedPartialArithmetic.div_partial[U128](this, y)?
 
-  fun mod_partial(y: U128): U128 ? =>
-    _UnsignedPartialArithmetic.mod_partial[U128](this, y)?
+  fun rem_partial(y: U128): U128 ? =>
+    _UnsignedPartialArithmetic.rem_partial[U128](this, y)?
 
-  fun divmod_partial(y: U128): (U128, U128) ? =>
-    _UnsignedPartialArithmetic.divmod_partial[U128](this, y)?
+  fun divrem_partial(y: U128): (U128, U128) ? =>
+    _UnsignedPartialArithmetic.divrem_partial[U128](this, y)?
 
 type Unsigned is (U8 | U16 | U32 | U64 | U128 | ULong | USize)

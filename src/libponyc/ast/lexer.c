@@ -68,7 +68,7 @@ static const lextoken_t symbols[] =
   { "-~", TK_MINUS_TILDE },
   { "*~", TK_MULTIPLY_TILDE },
   { "/~", TK_DIVIDE_TILDE },
-  { "%~", TK_MOD_TILDE },
+  { "%~", TK_REM_TILDE },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
@@ -105,7 +105,7 @@ static const lextoken_t symbols[] =
   { "-", TK_MINUS },
   { "*", TK_MULTIPLY },
   { "/", TK_DIVIDE },
-  { "%", TK_MOD },
+  { "%", TK_REM },
   { "@", TK_AT },
 
   { "<", TK_LT },

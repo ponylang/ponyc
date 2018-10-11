@@ -1241,7 +1241,7 @@ TEST_F(SugarTest, Divide)
 }
 
 
-TEST_F(SugarTest, Mod)
+TEST_F(SugarTest, Rem)
 {
   const char* short_form =
     "class Foo\n"
@@ -1254,7 +1254,7 @@ TEST_F(SugarTest, Mod)
     "class ref Foo\n"
     "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
-    "    1.mod(2)";
+    "    1.rem(2)";
 
   TEST_EQUIV(short_form, full_form);
 }
