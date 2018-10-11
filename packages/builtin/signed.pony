@@ -28,6 +28,8 @@ primitive I8 is _SignedInteger[I8, U8]
 
   fun bitwidth(): U8 => 8
 
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: I8): I8 => if this < y then this else y end
   fun max(y: I8): I8 => if this > y then this else y end
 
@@ -93,6 +95,8 @@ primitive I16 is _SignedInteger[I16, U16]
     @"llvm.cttz.i16"[U16](this, true)
 
   fun bitwidth(): U16 => 16
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
 
   fun min(y: I16): I16 => if this < y then this else y end
   fun max(y: I16): I16 => if this > y then this else y end
@@ -161,6 +165,8 @@ primitive I32 is _SignedInteger[I32, U32]
 
   fun bitwidth(): U32 => 32
 
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: I32): I32 => if this < y then this else y end
   fun max(y: I32): I32 => if this > y then this else y end
 
@@ -226,6 +232,8 @@ primitive I64 is _SignedInteger[I64, U64]
     @"llvm.cttz.i64"[U64](this, true)
 
   fun bitwidth(): U64 => 64
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
 
   fun min(y: I64): I64 => if this < y then this else y end
   fun max(y: I64): I64 => if this > y then this else y end
@@ -334,6 +342,9 @@ primitive ILong is _SignedInteger[ILong, ULong]
     end
 
   fun bitwidth(): ULong => ifdef ilp32 or llp64 then 32 else 64 end
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: ILong): ILong => if this < y then this else y end
   fun max(y: ILong): ILong => if this > y then this else y end
   fun hash(): USize => ulong().hash()
@@ -453,6 +464,9 @@ primitive ISize is _SignedInteger[ISize, USize]
     end
 
   fun bitwidth(): USize => ifdef ilp32 then 32 else 64 end
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: ISize): ISize => if this < y then this else y end
   fun max(y: ISize): ISize => if this > y then this else y end
 
@@ -530,6 +544,9 @@ primitive I128 is _SignedInteger[I128, U128]
     @"llvm.cttz.i128"[U128](this, true)
 
   fun bitwidth(): U128 => 128
+
+  fun bytewidth(): USize => bitwidth().usize() / 8
+
   fun min(y: I128): I128 => if this < y then this else y end
   fun max(y: I128): I128 => if this > y then this else y end
   fun hash(): USize => u128().hash()

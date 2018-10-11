@@ -360,6 +360,8 @@ trait val _SignedInteger[A: _SignedInteger[A, B] val,
 
   fun bitwidth(): B
 
+  fun bytewidth(): USize
+
   fun string(): String iso^ =>
     _ToString._u64(abs().u64(), i64() < 0)
 
@@ -420,6 +422,8 @@ trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
     """
 
   fun bitwidth(): A
+
+  fun bytewidth(): USize
 
   fun string(): String iso^ =>
     _ToString._u64(u64(), false)

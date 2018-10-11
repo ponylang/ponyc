@@ -752,7 +752,7 @@ class iso _TestFileMixedWriteQueue is UnitTest
             line3 + "\n"
             line5
             line1
-            line3 + "\n"
+            line3
             line4 + "\n"
             line5
             line6
