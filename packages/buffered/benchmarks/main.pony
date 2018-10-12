@@ -8,11 +8,8 @@ actor Main is BenchmarkList
 
   fun tag benchmarks(bench: PonyBench) =>
     bench(_ReaderU8)
-    bench(_ReaderU8Samples)
     bench(_ReaderU16LE)
-    bench(_ReaderU16LESamples)
     bench(_ReaderU16LESplit)
-    bench(_ReaderU16LESplitSamples)
     bench(_ReaderU16BE)
     bench(_ReaderU16BESplit)
     bench(_ReaderU32LE)
@@ -55,28 +52,6 @@ class iso _ReaderU8 is MicroBenchmark
     DoNotOptimise[U8](_d.u8()?)
     DoNotOptimise.observe()
 
-class iso _ReaderU8Samples is MicroBenchmark
-  // Benchmark reading U8
-  let _d: Reader = _d.create()
-  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
-
-  fun name(): String =>
-    "_ReaderU8Samples"
-
-  fun config(): BenchConfig =>
-    // run for 1_000_000 samples of 1 iteration each
-    BenchConfig(1_000_000, 1)
-
-  fun ref before() =>
-    if _d.size() < 2 then
-      _d.clear()
-      _d.append(_b)
-    end
-
-  fun ref apply()? =>
-    DoNotOptimise[U8](_d.u8()?)
-    DoNotOptimise.observe()
-
 class iso _ReaderU16LE is MicroBenchmark
   // Benchmark reading Little Endian U16
   let _d: Reader = _d.create()
@@ -86,28 +61,6 @@ class iso _ReaderU16LE is MicroBenchmark
     "_ReaderU16LE"
 
   fun ref before_iteration() =>
-    if _d.size() < 2 then
-      _d.clear()
-      _d.append(_b)
-    end
-
-  fun ref apply()? =>
-    DoNotOptimise[U16](_d.u16_le()?)
-    DoNotOptimise.observe()
-
-class iso _ReaderU16LESamples is MicroBenchmark
-  // Benchmark reading Little Endian U16
-  let _d: Reader = _d.create()
-  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
-
-  fun name(): String =>
-    "_ReaderU16LESamples"
-
-  fun config(): BenchConfig =>
-    // run for 1_000_000 samples of 1 iteration each
-    BenchConfig(1_000_000, 1)
-
-  fun ref before() =>
     if _d.size() < 2 then
       _d.clear()
       _d.append(_b)
@@ -131,35 +84,6 @@ class iso _ReaderU16LESplit is MicroBenchmark
     "_ReaderU16LESplit"
 
   fun ref before_iteration() =>
-    while _d.size() < 2 do
-      _d.clear()
-      for a in _a.values() do
-        _d.append(a)
-      end
-    end
-
-  fun ref apply()? =>
-    DoNotOptimise[U16](_d.u16_le()?)
-    DoNotOptimise.observe()
-
-class iso _ReaderU16LESplitSamples is MicroBenchmark
-  // Benchmark reading split Little Endian U16
-  let _d: Reader = _d.create()
-  let _a: Array[Array[U8] val] = _a.create()
-
-  new iso create() =>
-    while _a.size() < 2 do
-      _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-  fun name(): String =>
-    "_ReaderU16LESplitSamples"
-
-  fun config(): BenchConfig =>
-    // run for 1_000_000 samples of 1 iteration each
-    BenchConfig(1_000_000, 1)
-
-  fun ref before() =>
     while _d.size() < 2 do
       _d.clear()
       for a in _a.values() do
