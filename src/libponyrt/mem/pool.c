@@ -1052,5 +1052,9 @@ size_t ponyint_pool_adjust_size(size_t size)
   if((size & POOL_ALIGN_MASK) != 0)
     size = (size & ~POOL_ALIGN_MASK) + POOL_ALIGN;
 
+  // we've overflowed the `size_t` datatype
+  if(size == 0)
+    size = size - 1;
+
   return size;
 }
