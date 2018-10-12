@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix invalid allocation bug in runtime that allows for segfaults ([PR #2896](https://github.com/ponylang/ponyc/pull/2896))
 - `buffered` performance improvements and bug fix ([PR #2890](https://github.com/ponylang/ponyc/pull/2890))
 - Fix hash collision handling in persistent map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
 - Correctly handle modifier keys for TTY stdin on Windows ([PR #2892](https://github.com/ponylang/ponyc/pull/2892))
