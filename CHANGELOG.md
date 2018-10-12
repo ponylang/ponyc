@@ -35,6 +35,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improved CHAMP map ([PR #2894](https://github.com/ponylang/ponyc/pull/2894))
 - Use RLIMIT_STACK's current limit for Pthreads stack size if it is sane ([PR #2852](https://github.com/ponylang/ponyc/pull/2852))
 - Remove `File.line` method in favor of using `FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
+- Use the `RLIMIT_STACK` resource to set the Pthread stack size for Pony scheduler threads for non-Windows OSes ([PR #2852](https://github.com/ponylang/ponyc/pull/2852))
 
 ## [0.24.4] - 2018-07-29
 
