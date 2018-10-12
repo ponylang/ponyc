@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `files/Path.clean()` not correctly handling multiple `..` ([PR #2862](https://github.com/ponylang/ponyc/pull/2862))
 - Fix skipped try-then clauses on return, break and continue statements ([PR #2853](https://github.com/ponylang/ponyc/pull/2853))
 - Fix performance and memory consumption issues with `files.FileLines` ([PR #2707](https://github.com/ponylang/ponyc/pull/2707))
+- Fix ASIO one shot lost notifications problem ([PR #2897](https://github.com/ponylang/ponyc/pull/2897))
 
 ### Added
 
