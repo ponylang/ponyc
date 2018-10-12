@@ -272,15 +272,27 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         }
       }
 
+      // if we had a valid event of some type that needs to be sent
+      // to an actor
       if(flags != 0)
       {
-        if (!(flags & ASIO_DESTROYED) && !(flags & ASIO_DISPOSABLE))
+        // if this event hasn't been destroyed
+        // to avoid a race condition if destroyed events
+        // are resubscribed
+        if (!(ev->flags & ASIO_DESTROYED))
         {
+          // if this flag should auto resubscribe due to one shot and
+          // it received a non-WRITE event then resubscribe for writes
           if(ev->auto_resub && !(flags & ASIO_WRITE))
             pony_asio_event_resubscribe_write(ev);
+
+          // if this flag should auto resubscribe due to one shot and
+          // it received a non-READ event then resubscribe for reads
           if(ev->auto_resub && !(flags & ASIO_READ))
             pony_asio_event_resubscribe_read(ev);
         }
+
+        // send the event to the actor
         pony_asio_event_send(ev, flags, count);
       }
     }
