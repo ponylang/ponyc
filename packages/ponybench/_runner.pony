@@ -134,7 +134,6 @@ actor _RunAsync is _Runner
     end
 
   be _after_done_cont(e: U64) =>
-    @printf[I32](("Done iterations: " + _n.string() + ", total time: " + _a.string() + "\n").cstring())
     _aggregator.complete(_name, _a)
 
   be _fail() =>
