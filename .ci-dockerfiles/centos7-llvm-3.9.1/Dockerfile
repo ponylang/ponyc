@@ -8,6 +8,7 @@ RUN yum install -y \
     git \
     gcc-c++ \
     make \
+    file \
     openssl-devel \
     pcre2-devel \
     zlib-devel \
