@@ -116,7 +116,7 @@ Additionally, any breaking changes that require end users to change their code s
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
 
 * [Travis CI](https://travis-ci.org/ponylang/ponyc/builds) (confirm that the Travis jobs for the `release` branch ran successfully)
-* [AppImage](https://bintray.com/pony-language/ponylang-appimage/ponyc)
+* [AppImage](https://bintray.com/pony-language/ponyc-appimage/ponyc)
 * [Debian](https://bintray.com/pony-language/ponylang-debian/ponyc)
 
 The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
