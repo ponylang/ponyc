@@ -639,9 +639,8 @@ static bool catch_up_provides(pass_opt_t* opt, ast_t* provides)
       return false;
 
     ast_t* def = (ast_t*)ast_data(child);
-    pony_assert(def != NULL);
 
-    if(!ast_passes_type(&def, opt, PASS_EXPR))
+    if(def != NULL && !ast_passes_type(&def, opt, PASS_EXPR))
       return false;
 
     child = ast_sibling(child);

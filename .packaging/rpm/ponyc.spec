@@ -58,7 +58,7 @@ Requires:  binutils-gold
 Compiler for the pony programming language.
 
 Pony is an open-source, actor-model, capabilities-secure, high performance programming language
-http://www.ponylang.org
+http://www.ponylang.io
 
 %global debug_package %{nil}
 

@@ -253,10 +253,7 @@ def build(ctx):
             ctx.env.LLVM_LLC = os.path.join(llvmDir, 'bin', 'llc.exe')
             llvmLibFiles = cmd_output([llvmConfig, '--libs'])
             import re
-            if ctx.options.llvm.startswith(('3.7', '3.8')):
-                llvmLibs = [re.sub(r'-l([^\\\/)]+)', r'\1', x) for x in llvmLibFiles.split(' ')]
-            else:
-                llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)\.lib', r'\1', x) for x in llvmLibFiles.split(' ')]
+            llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)$', r'\1', x) for x in llvmLibFiles.split('.lib') if x]
 
             llvmBuildMode = cmd_output([llvmConfig, '--build-mode'])
             if llvmBuildMode == 'Release':
@@ -398,7 +395,7 @@ def test(ctx):
 
     ctx(
         features = 'seq',
-        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' -d -s --checktree --verify ../../packages/stdlib',
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d -s --checktree --verify ../../packages/stdlib',
         target   = stdlibTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )
@@ -406,7 +403,7 @@ def test(ctx):
     # grammar file
     ctx(
         features = 'seq',
-        rule     = os.path.join(ctx.bldnode.abspath(), 'ponyc') + ' --antlr > pony.g.new',
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" --antlr > pony.g.new',
         target   = 'pony.g.new',
     )
 

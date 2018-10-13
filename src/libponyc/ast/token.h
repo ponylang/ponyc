@@ -58,8 +58,8 @@ typedef enum token_id
   TK_MULTIPLY_TILDE,
   TK_DIVIDE,
   TK_DIVIDE_TILDE,
-  TK_MOD,
-  TK_MOD_TILDE,
+  TK_REM,
+  TK_REM_TILDE,
   TK_AT,
   TK_AT_LBRACE,
 

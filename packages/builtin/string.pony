@@ -236,7 +236,15 @@ actor Main
 
   fun val array(): Array[U8] val =>
     """
-    Returns an Array[U8] that that reuses the underlying data pointer.
+    Returns an Array[U8] that reuses the underlying data pointer.
+    """
+    recover
+      Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)
+    end
+
+  fun iso iso_array(): Array[U8] iso^ =>
+    """
+    Returns an Array[U8] iso that reuses the underlying data pointer.
     """
     recover
       Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)

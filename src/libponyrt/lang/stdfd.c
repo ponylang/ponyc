@@ -212,6 +212,10 @@ static bool add_input_record(char* buffer, size_t space, size_t *len,
           &rec->Event.KeyEvent.uChar.UnicodeChar, 1, out, 4,
           NULL, NULL);
       }
+      else
+      {
+        return true;
+      }
     }
   }
 

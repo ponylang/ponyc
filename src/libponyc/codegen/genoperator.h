@@ -14,7 +14,7 @@ LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe);
 
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe);
 
-LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right, bool safe);
+LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe);
 
 LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe);
 

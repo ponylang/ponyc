@@ -8,6 +8,49 @@ set -o nounset
 # include various build commands
 . .travis_commands.bash
 
+# when running a vagrant build of ponyc
+if [[ "${VAGRANT_ENV}" != "" ]]
+then
+  set -x
+
+  case "${VAGRANT_ENV}" in
+
+    "freebsd11-x86_64")
+      date
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony ponylang/ponyc-ci:cross-llvm-3.9.1-freebsd11-x86_64 make arch=x86-64 config=${config} verbose=1 CC=clang CXX=clang++ CFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" CXXFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" LDFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/ -L/opt/cross-freebsd-11/usr/local/llvm39/lib" OSTYPE=bsd use="llvm_link_static" CROSS_SYSROOT=/opt/cross-freebsd-11 -j$(nproc)
+      date
+      download_vagrant
+      qemu-system-x86_64 --version
+      date
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/ponyc --version"
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/libponyc.tests"
+      date
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/libponyrt.tests"
+      date
+      sudo vagrant ssh -c "cd /vagrant && PONYPATH=.:${PONYPATH} ./build/${config}/ponyc -d -s --checktree --verify packages/stdlib"
+      sudo vagrant ssh -c "cd /vagrant && ./stdlib --sequential && rm ./stdlib"
+      date
+      sudo vagrant ssh -c "cd /vagrant && PONYPATH=.:${PONYPATH} ./build/${config}/ponyc --checktree --verify packages/stdlib"
+      sudo vagrant ssh -c "cd /vagrant && ./stdlib --sequential && rm ./stdlib"
+      date
+      sudo vagrant ssh -c "cd /vagrant && PONYPATH=.:${PONYPATH} find examples/*/* -name '*.pony' -print | xargs -n 1 dirname  | sort -u | grep -v ffi- | xargs -n 1 -I {} ./build/${config}/ponyc -d -s --checktree -o {} {}"
+      date
+      sudo vagrant ssh -c "cd /vagrant && ./build/${config}/ponyc --antlr > pony.g.new"
+      sudo vagrant ssh -c "cd /vagrant && diff pony.g pony.g.new"
+      sudo vagrant ssh -c "cd /vagrant && rm pony.g.new"
+      date
+    ;;
+
+    *)
+      echo "ERROR: An unrecognized vagrant environment was found! VAGRANT_ENV: ${VAGRANT_ENV}"
+      exit 1
+    ;;
+
+  esac
+                                                                                                                        68,1          Bot
+  exit
+fi
+
 case "${TRAVIS_OS_NAME}" in
   "linux")
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
@@ -57,7 +100,7 @@ case "${TRAVIS_OS_NAME}" in
       download_pcre
       set_linux_compiler
       build_appimage "$(cat VERSION)"
-      ponyc-kickoff-copr-ppa
+      ponyc-kickoff-copr
       ponyc-build-packages
       ponyc-build-docs
     fi
@@ -115,12 +158,8 @@ case "${TRAVIS_OS_NAME}" in
       brew uninstall llvm@5
 
       # 6.0.x
-      # There is no llvm@6 package right now, so this will break once LLVM 7
-      # is released. Hopefully when they do that there will be a llvm@6 package
-      # at which point both `brew install llvm` and `brew uninstall llvm`
-      # should be updated to replace `llvm` with `llvm@6`
-      brew install llvm
-      brew link --overwrite --force llvm
+      brew install llvm@6
+      brew link --overwrite --force llvm@6
       ln -fs "$(which llvm-config)" llvmsym/llvm-config-6.0
       ln -fs "$(which clang++)" llvmsym/clang++-6.0
 
@@ -131,7 +170,7 @@ case "${TRAVIS_OS_NAME}" in
       osx-ponyc-test
 
       make clean
-      brew uninstall llvm
+      brew uninstall llvm@6
     fi
   ;;
 

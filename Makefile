@@ -31,6 +31,11 @@ else
     OSTYPE = bsd
     CXX = c++
   endif
+
+  ifeq ($(UNAME_S),OpenBSD)
+    OSTYPE = bsd
+    CXX = c++
+  endif
 endif
 
 ifdef LTO_PLUGIN
@@ -42,7 +47,7 @@ config ?= release
 arch ?= native
 tune ?= generic
 cpu ?= $(arch)
-fpu ?= 
+fpu ?=
 bits ?= $(shell getconf LONG_BIT)
 
 ifndef verbose
@@ -423,8 +428,8 @@ endif
 # (2) the linker flags necessary to link against the prebuilt libraries
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
-llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC))
-llvm.include.dir := $(shell $(LLVM_CONFIG) --includedir $(LLVM_LINK_STATIC))
+llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
+llvm.include.dir := $(CROSS_SYSROOT)$(shell $(LLVM_CONFIG) --includedir $(LLVM_LINK_STATIC))
 include.paths := $(shell echo | $(CC) -v -E - 2>&1)
 ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
 # LLVM include directory is not in the existing paths;
@@ -489,7 +494,7 @@ libgbenchmark.include := -isystem lib/gbenchmark/include/
 libblake2.include := -isystem lib/blake2/
 
 ifneq (,$(filter $(OSTYPE), osx bsd))
-  libponyrt.include += -I /usr/local/include
+  libponyrt.include += -I $(CROSS_SYSROOT)/usr/local/include
 endif
 
 # target specific build options
@@ -675,12 +680,12 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.ll)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS) -Wno-override-module
@@ -730,7 +735,7 @@ define CONFIGURE_LINKER
 
   $(eval $(call CONFIGURE_LINKER_WHOLE,$(1)))
   $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
-  linkcmd += $(libs) -L /usr/local/lib $($(1).linkoptions)
+  linkcmd += $(libs) -L $(CROSS_SYSROOT)/usr/local/lib $($(1).linkoptions)
 endef
 
 define PREPARE
@@ -863,8 +868,8 @@ endif
 ifeq ($(OSTYPE),linux)
 	$(SILENT)cp $(lib)/libponyrt-pic.a $(DESTDIR)$(ponydir)/lib/$(arch)
 endif
-ifneq ($(wildcard $(PONY_BUILD_DIR)/libponyrt.bc),)
-	$(SILENT)cp $(PONY_BUILD_DIR)/libponyrt.bc $(DESTDIR)$(ponydir)/lib
+ifneq ($(wildcard $(PONY_BUILD_DIR)/lib/$(arch)/libponyrt.bc),)
+	$(SILENT)cp $(PONY_BUILD_DIR)/lib/$(arch)/libponyrt.bc $(DESTDIR)$(ponydir)/lib/$(arch)
 endif
 ifneq ($(wildcard $(lib)/libdtrace_probes.a),)
 	$(SILENT)cp $(lib)/libdtrace_probes.a $(DESTDIR)$(ponydir)/lib/$(arch)

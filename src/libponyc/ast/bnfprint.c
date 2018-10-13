@@ -11,7 +11,7 @@
 /** This file contains the BNF printer, which prints out the Pony BNF in human
  * readable and ANTLR file form. This is intended as a form of documentation,
  * as well as allowing us to use ANTLR to check for grammar errors (such as
- * ambiguities). Since the printed gramamr is generated from the actual parse
+ * ambiguities). Since the printed grammar is generated from the actual parse
  * macros we are guaranteed that it is accurate and up to date.
  *
  * We generate a BNF tree structure from the parser source. To do this we

@@ -124,8 +124,8 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
     *value = gen_mul(c, left, right, true);
   else if((name == c->str_div) && native128)
     *value = gen_div(c, left, right, true);
-  else if((name == c->str_mod) && native128)
-    *value = gen_mod(c, left, right, true);
+  else if((name == c->str_rem) && native128)
+    *value = gen_rem(c, left, right, true);
   else if(name == c->str_neg)
     *value = gen_neg(c, left, true);
   else if(name == c->str_add_unsafe)
@@ -136,8 +136,8 @@ static bool special_case_operator(compile_t* c, ast_t* ast,
     *value = gen_mul(c, left, right, false);
   else if((name == c->str_div_unsafe) && native128)
     *value = gen_div(c, left, right, false);
-  else if((name == c->str_mod_unsafe) && native128)
-    *value = gen_mod(c, left, right, false);
+  else if((name == c->str_rem_unsafe) && native128)
+    *value = gen_rem(c, left, right, false);
   else if(name == c->str_neg_unsafe)
     *value = gen_neg(c, left, false);
   else if((name == c->str_and) && short_circuit)

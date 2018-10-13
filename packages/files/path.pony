@@ -111,7 +111,7 @@ primitive Path
               s.delete(backtrack, -1)
 
               try
-                backtrack = s.rfind(sep())? + 1
+                backtrack = s.rfind(sep(), backtrack - 2)? + 1
               else
                 backtrack = vol.size().isize()
               end
@@ -122,7 +122,7 @@ primitive Path
                 ifdef windows then
                   s.compare_sub("..\\", 3, backtrack) is Equal
                 else
-                  true
+                  false
                 end
               then
                 backtrack = -1
