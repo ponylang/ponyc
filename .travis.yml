@@ -437,13 +437,8 @@ notifications:
   irc:
     channels:
       - "chat.freenode.net#ponylang"
-    on_success: always
-    on_failure: always
-  email:
-    recipients:
-      - sean@monkeysnatchbanana.com
-    on_success: always
-    on_failure: always
+    on_success: change
+    on_failure: change
 
 deploy:
   - provider: bintray
