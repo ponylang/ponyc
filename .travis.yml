@@ -431,12 +431,17 @@ rvm:
   - 2.2.3
 
 script:
-  - bsh .travis_script.bash
+  - bash .travis_script.bash
 
 notifications:
   irc:
     channels:
       - "chat.freenode.net#ponylang"
+    on_success: always
+    on_failure: always
+  email:
+    recipients:
+      - sean@monkeysnatchbanana.com
     on_success: always
     on_failure: always
 
