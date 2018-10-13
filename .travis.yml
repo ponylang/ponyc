@@ -431,14 +431,14 @@ rvm:
   - 2.2.3
 
 script:
-  - bash .travis_script.bash
+  - bsh .travis_script.bash
 
 notifications:
   irc:
     channels:
       - "chat.freenode.net#ponylang"
-    on_success: change
-    on_failure: change
+    on_success: always
+    on_failure: always
 
 deploy:
   - provider: bintray
