@@ -151,7 +151,7 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 ### Docker and AVX2 Support
 
-By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+By default, the Pony Docker image is compiled without support for [AVX CPU instructions](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions). For optimal performance on modern hardware, you should build your Pony installation from source.
 
 ## Linux using an AppImage package (via Bintray)
 
