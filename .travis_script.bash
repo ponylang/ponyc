@@ -56,6 +56,9 @@ case "${TRAVIS_OS_NAME}" in
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
     if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
     then
+      # verify docs build first
+      ponyc-build-docs
+      # now the packaging
       "ponyc-build-debs-$RELEASE_DEBS" master
       exit
     fi
@@ -103,6 +106,7 @@ case "${TRAVIS_OS_NAME}" in
       ponyc-kickoff-copr
       ponyc-build-packages
       ponyc-build-docs
+      ponyc-upload-docs
     fi
   ;;
 

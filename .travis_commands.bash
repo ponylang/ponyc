@@ -210,7 +210,9 @@ ponyc-build-docs(){
 
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs-online
+}
 
+ponyc-upload-docs(){
   echo "Uploading docs using mkdocs..."
   git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.io"
   git fetch gh-token
