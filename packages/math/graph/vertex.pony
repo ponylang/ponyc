@@ -1,10 +1,16 @@
 
-class Vertex[Value: Any val]
-  var _value: Value
+class Vertex[A]
+  """
+  A vertex of a graph
+  """
+  var _item: (A | None)
   
-  new create(value: Value) =>
-    _value = value
+  new create(item: (A | None)) =>
+    _item = consume item
     
-  fun get(): Value => _value
-
-  fun ref set(value: Value) => _value = value
+  fun apply(): this->A ?  =>
+    """
+    Return the item, if we have one, otherwise raise an error.
+    """
+    _item as this->A
+    
