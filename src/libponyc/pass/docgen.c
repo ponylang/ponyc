@@ -1377,7 +1377,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.index_file, "markdown_extensions:\n");
     fprintf(docgen.index_file, "- markdown.extensions.toc:\n");
     fprintf(docgen.index_file, "    permalink: true\n");
-    fprintf(docgen.index_file, "pages:\n");
+    fprintf(docgen.index_file, "nav:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
     doc_packages(&docgen, &docgen_opt, program);
