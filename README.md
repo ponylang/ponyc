@@ -322,9 +322,19 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-Pony requires LLVM version 3.9.1.
+When building ponyc from sources the LLVM on your system installed is used by default. Optionally, you may also build ponyc with LLVM from [sources](#build-llvm-from-source). In either case the supported version of LLVM is 3.9.1 with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
 
-There is experimental support for building with LLVM 4.0.1, 5.0.1 or 6.0.0, but this may result in decreased performance or crashes in generated applications.
+## Building ponyc using LLVM sources:
+
+### Prerequisites:
+
+- git >= 2.17, other versions may work but this is what has been tested.
+
+### Instructions:
+
+To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_proj=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_proj=llvm-6.0.0`.
+
+Typically you only need to build the LLVM sources once so the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
@@ -350,7 +360,7 @@ To build ponyc and compile and helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl='openssl_1.1.0'
+make default_pic=true default_ssl=openssl_1.1.0
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
