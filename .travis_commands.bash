@@ -208,6 +208,7 @@ ponyc-build-docs(){
   echo "Installing mkdocs and offical theme..."
   sudo apt-get update
   sudo pip install --upgrade pip
+  sudo pip install mkdocs
   sudo -H pip install mkdocs-ponylang
 
   echo "Building ponyc docs..."
