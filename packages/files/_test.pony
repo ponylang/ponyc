@@ -23,6 +23,7 @@ actor Main is TestList
     test(_TestPathBase)
     test(_TestPathExt)
     test(_TestPathVolume)
+    test(_TestPathRoot)
     test(_TestFileEOF)
     test(_TestFileOpenError)
     test(_TestFileCreate)
@@ -342,6 +343,15 @@ class iso _TestPathVolume is UnitTest
       h.assert_eq[String](res1, "")
       h.assert_eq[String](res2, "")
     end
+
+
+class iso _TestPathRoot is UnitTest
+  fun name(): String => "files/Path.root"
+  fun apply(h: TestHelper) =>
+    let res1 = Path.abs("/")
+    let res2 = Path.abs("/foo/../")
+    h.assert_eq[String](res1, "/")
+    h.assert_eq[String](res2, "/")
 
 
 class iso _TestFileEOF is UnitTest
