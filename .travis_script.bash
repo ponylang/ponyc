@@ -53,6 +53,10 @@ fi
 
 case "${TRAVIS_OS_NAME}" in
   "linux")
+
+    # temp - build docs
+    ponyc-build-docs
+
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
     if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
     then
