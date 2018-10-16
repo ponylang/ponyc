@@ -23,7 +23,9 @@ actor Main is TestList
     test(_TestPathBase)
     test(_TestPathExt)
     test(_TestPathVolume)
+  ifdef not windows then
     test(_TestPathRoot)
+  end
     test(_TestFileEOF)
     test(_TestFileOpenError)
     test(_TestFileCreate)
