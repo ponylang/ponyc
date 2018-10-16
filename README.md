@@ -225,7 +225,7 @@ sudo apt-get install \
 Install builds via Apt (and install Ponylang's public key):
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys E04F0923 B3B48BDA
 sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian  $(lsb_release -cs) main"
 sudo apt-get update
 sudo apt-get -V install ponyc
@@ -251,7 +251,7 @@ sudo apt-get install \
 ```
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys E04F0923 B3B48BDA
 source /etc/upstream-release/lsb-release
 sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian $DISTRIB_CODENAME main"
 sudo apt-get update
