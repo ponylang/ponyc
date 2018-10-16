@@ -1,7 +1,7 @@
 
 class Edge
- var _source: Vertex[Value: Any val]
- var _destination: Vertext[Value: Any val]
+ var _source: Vertex
+ var _destination: Vertex
  
  new create(src: Vertex, dst: Vertex) =>
   _source = src
