@@ -54,6 +54,8 @@ fi
 case "${TRAVIS_OS_NAME}" in
   "linux")
     # setting a global python version for all subsequent executions.
+    # this could break the release machinery, so we might need to remove this, if it does.
+    # but we have this here to test stuff out on master
     pyenv global 3.6
 
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
