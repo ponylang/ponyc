@@ -207,9 +207,8 @@ ponyc-build-packages(){
 ponyc-build-docs(){
   echo "Installing mkdocs and offical theme..."
   pip3 install --user mkdocs-ponylang
-  mkdocs --help
-  #echo "Building ponyc docs..."
-  #make CC="$CC1" CXX="$CXX1" docs-online
+  echo "Building ponyc docs..."
+  make CC="$CC1" CXX="$CXX1" docs-online
 }
 
 ponyc-upload-docs(){

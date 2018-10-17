@@ -53,9 +53,8 @@ fi
 
 case "${TRAVIS_OS_NAME}" in
   "linux")
-
-    # just for testing the docs building
-    ponyc-build-docs
+    # setting a global python version for all subsequent executions.
+    pyenv global 3.6
 
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
     if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]

@@ -430,9 +430,6 @@ matrix:
 rvm:
   - 2.2.3
 
-install:
-  - pyenv global 3.6
-
 script:
   - bash .travis_script.bash
 
