@@ -206,10 +206,7 @@ ponyc-build-packages(){
 
 ponyc-build-docs(){
   echo "Installing mkdocs and offical theme..."
-  sudo add-apt-repository -y ppa:fkrull/deadsnakes-python2.7
-  sudo apt-get update
-  sudo apt-get -y --allow-unauthenticated install python2.7
-  sudo pip install mkdocs-ponylang
+  pip3 install --user mkdocs-ponylang
 
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs-online
