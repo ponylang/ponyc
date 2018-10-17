@@ -211,6 +211,7 @@ ponyc-build-docs(){
   echo "virtualenv"
   sudo -H pip install virtualenv
   sudo python -m virtualenv mkdocsenv
+  source bin/activate
   echo "mkdocs"
   sudo -H pip install -U mkdocs
   sudo -H pip install mkdocs-ponylang
