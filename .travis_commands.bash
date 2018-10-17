@@ -206,14 +206,9 @@ ponyc-build-packages(){
 
 ponyc-build-docs(){
   echo "Installing mkdocs and offical theme..."
+  sudo add-apt-repository -y ppa:fkrull/deadsnakes-python2.7
   sudo apt-get update
-  pip install --upgrade pip
-  echo "virtualenv"
-  pip install virtualenv
-  python -m virtualenv mkdocsenv
-  source bin/activate
-  echo "mkdocs"
-  pip install -U mkdocs
+  sudo apt-get -y install python2.7
   pip install mkdocs-ponylang
 
   echo "Building ponyc docs..."
