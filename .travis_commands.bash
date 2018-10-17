@@ -209,7 +209,7 @@ ponyc-build-docs(){
   sudo add-apt-repository -y ppa:fkrull/deadsnakes-python2.7
   sudo apt-get update
   sudo apt-get -y install python2.7
-  pip install mkdocs-ponylang
+  sudo pip install mkdocs-ponylang
 
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs-online
