@@ -207,14 +207,14 @@ ponyc-build-packages(){
 ponyc-build-docs(){
   echo "Installing mkdocs and offical theme..."
   sudo apt-get update
-  sudo -H pip install --upgrade pip
+  pip install --upgrade pip
   echo "virtualenv"
-  sudo -H pip install virtualenv
-  sudo python -m virtualenv mkdocsenv
+  pip install virtualenv
+  python -m virtualenv mkdocsenv
   source bin/activate
   echo "mkdocs"
-  sudo -H pip install -U mkdocs
-  sudo -H pip install mkdocs-ponylang
+  pip install -U mkdocs
+  pip install mkdocs-ponylang
 
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs-online
