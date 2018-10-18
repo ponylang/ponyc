@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Add before/after iteration hooks to ponybench ([PR #2898](https://github.com/ponylang/ponyc/pull/2898))
 
 ## [0.25.0] - 2018-10-13
 
