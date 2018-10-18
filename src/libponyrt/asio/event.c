@@ -68,6 +68,14 @@ PONY_API int pony_asio_event_fd(asio_event_t* ev)
   return ev->fd;
 }
 
+PONY_API bool pony_asio_event_get_disposable(asio_event_t* ev)
+{
+  if(ev == NULL)
+    return false;
+
+  return (ev->flags & ASIO_DISPOSABLE) != 0;
+}
+
 PONY_API bool pony_asio_event_get_writeable(asio_event_t* ev)
 {
   if(ev == NULL)
