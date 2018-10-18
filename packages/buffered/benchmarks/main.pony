@@ -37,38 +37,38 @@ actor Main is BenchmarkList
 class iso _ReaderU8 is MicroBenchmark
   // Benchmark reading U8
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU8"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U8](_d.u8()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU16LE is MicroBenchmark
   // Benchmark reading Little Endian U16
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU16LE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U16](_d.u16_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU16LESplit is MicroBenchmark
   // Benchmark reading split Little Endian U16
@@ -76,44 +76,42 @@ class iso _ReaderU16LESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 2 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU16LESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 2 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U16](_d.u16_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU16BE is MicroBenchmark
   // Benchmark reading Big Endian U16
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU16BE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U16](_d.u16_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU16BESplit is MicroBenchmark
   // Benchmark reading split Big Endian U16
@@ -121,44 +119,42 @@ class iso _ReaderU16BESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 2 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU16BESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 2 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U16](_d.u16_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU32LE is MicroBenchmark
   // Benchmark reading Little Endian U32
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU32LE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U32](_d.u32_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU32LESplit is MicroBenchmark
   // Benchmark reading split Little Endian U32
@@ -166,44 +162,42 @@ class iso _ReaderU32LESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 4 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU32LESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 4 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U32](_d.u32_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU32BE is MicroBenchmark
   // Benchmark reading Big Endian U32
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU32BE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U32](_d.u32_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU32BESplit is MicroBenchmark
   // Benchmark reading split Big Endian U32
@@ -211,44 +205,42 @@ class iso _ReaderU32BESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 4 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU32BESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 4 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U32](_d.u32_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU64LE is MicroBenchmark
   // Benchmark reading Little Endian U64
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU64LE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U64](_d.u64_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU64LESplit is MicroBenchmark
   // Benchmark reading split Little Endian U64
@@ -256,44 +248,42 @@ class iso _ReaderU64LESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 8 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU64LESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 8 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U64](_d.u64_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU64BE is MicroBenchmark
   // Benchmark reading Big Endian U64
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU64BE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U64](_d.u64_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU64BESplit is MicroBenchmark
   // Benchmark reading split Big Endian U64
@@ -301,44 +291,42 @@ class iso _ReaderU64BESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 8 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU64BESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 8 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U64](_d.u64_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU128LE is MicroBenchmark
   // Benchmark reading Little Endian U128
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU128LE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U128](_d.u128_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU128LESplit is MicroBenchmark
   // Benchmark reading split Little Endian U128
@@ -346,44 +334,42 @@ class iso _ReaderU128LESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 16 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU128LESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 16 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U128](_d.u128_le()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _ReaderU128BE is MicroBenchmark
   // Benchmark reading Big Endian U128
   let _d: Reader = _d.create()
-
-  new iso create() =>
-    _d.append(recover Array[U8].>undefined(10485760) end)
+  let _b: Array[U8] val = recover Array[U8].>undefined(10485760) end
 
   fun name(): String =>
     "_ReaderU128BE"
 
+  fun ref before_iteration() =>
+    if _d.size() < 2 then
+      _d.clear()
+      _d.append(_b)
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U128](_d.u128_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      _d.append(recover Array[U8].>undefined(10485760) end)
-    end
 
 class iso _ReaderU128BESplit is MicroBenchmark
   // Benchmark reading split Big Endian U128
@@ -391,26 +377,24 @@ class iso _ReaderU128BESplit is MicroBenchmark
   let _a: Array[Array[U8] val] = _a.create()
 
   new iso create() =>
-    while _a.size() < 65536 do
+    while _a.size() < 16 do
       _a.push(recover Array[U8].>undefined(1) end)
-    end
-
-    for b in _a.values() do
-      _d.append(b)
     end
 
   fun name(): String =>
     "_ReaderU128BESplit"
 
+  fun ref before_iteration() =>
+    while _d.size() < 16 do
+      _d.clear()
+      for a in _a.values() do
+        _d.append(a)
+      end
+    end
+
   fun ref apply()? =>
     DoNotOptimise[U128](_d.u128_be()?)
     DoNotOptimise.observe()
-    if _d.size() < 128 then
-      _d.clear()
-      for b in _a.values() do
-        _d.append(b)
-      end
-    end
 
 class iso _WriterU8 is MicroBenchmark
   // Benchmark writing U8
@@ -420,14 +404,16 @@ class iso _WriterU8 is MicroBenchmark
   fun name(): String =>
     "_WriterU8"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u8(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u8(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU16LE is MicroBenchmark
   // Benchmark writing Little Endian U16
@@ -437,14 +423,16 @@ class iso _WriterU16LE is MicroBenchmark
   fun name(): String =>
     "_WriterU16LE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u16_le(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u16_le(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU16BE is MicroBenchmark
   // Benchmark writing Big Endian U16
@@ -454,14 +442,16 @@ class iso _WriterU16BE is MicroBenchmark
   fun name(): String =>
     "_WriterU16BE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u16_be(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u16_be(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU32LE is MicroBenchmark
   // Benchmark writing Little Endian U32
@@ -471,14 +461,16 @@ class iso _WriterU32LE is MicroBenchmark
   fun name(): String =>
     "_WriterU32LE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u32_le(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u32_le(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU32BE is MicroBenchmark
   // Benchmark writing Big Endian U32
@@ -488,14 +480,16 @@ class iso _WriterU32BE is MicroBenchmark
   fun name(): String =>
     "_WriterU32BE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u32_be(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u32_be(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU64LE is MicroBenchmark
   // Benchmark writing Little Endian U64
@@ -505,14 +499,16 @@ class iso _WriterU64LE is MicroBenchmark
   fun name(): String =>
     "_WriterU64LE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u64_le(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u64_le(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU64BE is MicroBenchmark
   // Benchmark writing Big Endian U64
@@ -522,14 +518,16 @@ class iso _WriterU64BE is MicroBenchmark
   fun name(): String =>
     "_WriterU64BE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u64_be(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u64_be(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU128LE is MicroBenchmark
   // Benchmark writing Little Endian U128
@@ -539,14 +537,16 @@ class iso _WriterU128LE is MicroBenchmark
   fun name(): String =>
     "_WriterU128LE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u128_le(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u128_le(_i))
+    DoNotOptimise.observe()
 
 class iso _WriterU128BE is MicroBenchmark
   // Benchmark writing Big Endian U128
@@ -556,11 +556,13 @@ class iso _WriterU128BE is MicroBenchmark
   fun name(): String =>
     "_WriterU128BE"
 
-  fun ref apply() =>
-    DoNotOptimise[None](_d.u128_be(_i))
-    DoNotOptimise.observe()
+  fun ref before_iteration() =>
     _i = _i + 1
     if _d.size() > 10485760 then
       _d.done()
       _d.reserve_current(10485760)
     end
+
+  fun ref apply() =>
+    DoNotOptimise[None](_d.u128_be(_i))
+    DoNotOptimise.observe()
