@@ -82,6 +82,10 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec);
  */
 PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev);
 
+/** Get whether the event id disposable or not
+ */
+PONY_API bool pony_asio_event_get_disposable(asio_event_t* ev);
+
 /** Get whether FD is writeable or not
  */
 PONY_API bool pony_asio_event_get_writeable(asio_event_t* ev);
