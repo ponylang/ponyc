@@ -155,7 +155,7 @@ By default, the Pony Docker image is compiled without support for [AVX CPU instr
 
 ## Linux using an AppImage package (via Bintray)
 
-For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponylang-appimage](https://bintray.com/pony-language/ponylang-appimage)) as an AppImage.
+For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-appimage/ponyc](https://bintray.com/pony-language/ponyc-appimage/ponyc)) as an AppImage.
 
 The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with with no conflicts.
 
