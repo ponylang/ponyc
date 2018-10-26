@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix scheduler thread wakeup bug ([PR #2926](https://github.com/ponylang/ponyc/pull/2926))
 - Correct README.md link to AppImage packaging location ([PR #2927](https://github.com/ponylang/ponyc/pull/2927))
 
 ### Added
