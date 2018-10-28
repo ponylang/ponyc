@@ -157,7 +157,7 @@ By default, the Pony Docker image is compiled without support for [AVX CPU instr
 
 For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-appimage/ponyc](https://bintray.com/pony-language/ponyc-appimage/ponyc)) as an AppImage.
 
-The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with with no conflicts.
+The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with no conflicts.
 
 To install builds via AppImage, you need to go to Bintray and download the appropriate file for the version you want. After the file is downloaded, you need to make it executable using `chmod`.
 
@@ -322,7 +322,7 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-When building ponyc from sources the LLVM on your system installed is used by default. Optionally, you may also build ponyc with LLVM from [sources](#build-llvm-from-source). In either case the supported version of LLVM is 3.9.1 with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
+When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#build-llvm-from-source). In either case the supported version of LLVM is 3.9.1, with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
 
 ## Building ponyc using LLVM sources:
 
@@ -334,13 +334,13 @@ When building ponyc from sources the LLVM on your system installed is used by de
 
 To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_proj=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_proj=llvm-6.0.0`.
 
-Typically you only need to build the LLVM sources once so the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
+Typically you only need to build the LLVM sources once, as the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
 
-NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
+NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
 ## Building on Linux
 
-Get Pony-Sources from Github (More Information about Set Up Git https://help.github.com/articles/set-up-git/ ):
+Get the pony source from GitHub (For information on setting up Git, see https://help.github.com/articles/set-up-git/):
 ```bash
 sudo apt install git
 git clone git://github.com/ponylang/ponyc
@@ -356,7 +356,7 @@ Install pony dependencies:
 pacman -S llvm make ncurses openssl pcre2 zlib
 ```
 
-To build ponyc and compile and helloworld:
+To build ponyc and compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
@@ -424,7 +424,7 @@ make default_pic=true
 
 ### Ubuntu Trusty
 
-Add the LLVM apt report to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
+Add the LLVM apt repo to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
 
 ```
 deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
@@ -705,7 +705,7 @@ make default_pic=true
 
 You need to have the development versions of the following installed:
 
-* 3.9.1
+* LLVM 3.9.1
 * zlib
 * ncurses
 * pcre2
@@ -902,7 +902,7 @@ Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode
 ponyc --runtimebc
 ```
 
-This functionnality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If your're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
+This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 
 ## VirtualBox
 
@@ -926,4 +926,4 @@ To get a complete list of acceptable architecture names, use the gcc command:
 gcc -march=none
 ```
 
-This will result in an error message plus a listing off all architecture types acceptable on your platform.
+This will result in an error message plus a listing of all architecture types acceptable on your platform.
