@@ -391,7 +391,8 @@ static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
         char* tqfn = write_tqfn(target, NULL, &link_len);
 
         // Links are of the form: [text](target)
-        fprintf(docgen->type_file, "[%s](%s)", ast_nice_name(id), tqfn);
+        // mkdocs requires the full filename for creating proper links
+        fprintf(docgen->type_file, "[%s](%s.md)", ast_nice_name(id), tqfn);
         ponyint_pool_free_size(link_len, tqfn);
 
         doc_type_list(docgen, docgen_opt, tparams, "\\[", ", ", "\\]", true, false);
@@ -1133,7 +1134,7 @@ static void doc_package_home(docgen_t* docgen,
   fprintf(docgen->index_file, "  - Package: \"%s.md\"\n", tqfn);
 
   // Add reference to package to home file
-  fprintf(docgen->home_file, "* [%s](%s)\n", package_qualified_name(package),
+  fprintf(docgen->home_file, "* [%s](%s.md)\n", package_qualified_name(package),
     tqfn);
 
   // Now we can write the actual documentation for the package
@@ -1377,7 +1378,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.index_file, "markdown_extensions:\n");
     fprintf(docgen.index_file, "- markdown.extensions.toc:\n");
     fprintf(docgen.index_file, "    permalink: true\n");
-    fprintf(docgen.index_file, "pages:\n");
+    fprintf(docgen.index_file, "nav:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
     doc_packages(&docgen, &docgen_opt, program);
