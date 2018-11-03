@@ -625,6 +625,8 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   parser->errors = errors;
   parser->trace_enable = trace;
 
+  const size_t error_count = errors_get_count(errors);
+
   // Parse given start rule
   builder_fn_t build_fn;
   ast_t* ast = start(parser, &build_fn, expected);
@@ -644,7 +646,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
     ast = NULL;
   }
 
-  if(errors_get_count(errors) > 0)
+  if(errors_get_count(errors) > error_count)
   {
     ast_free(ast);
     ast = NULL;
