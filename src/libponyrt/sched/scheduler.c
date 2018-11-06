@@ -447,8 +447,13 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
   // make sure the scheduler count didn't change
   // if it did, then another thread resumed and it may not be
   // appropriate for us to suspend any longer, so don't suspend
-  if(sched_count != current_active_scheduler_count)
+  if(sched_count != current_active_scheduler_count) {
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+    atomic_store_explicit(&scheduler_count_changing, false,
+      memory_order_release);
+#endif
     return actor;
+  }
 
   atomic_store_explicit(&active_scheduler_count, sched_count - 1,
     memory_order_relaxed);
@@ -559,7 +564,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
         sched_count_check + 1, memory_order_relaxed);
 
       // ensure main active scheduler count and check variable match
-//      pony_assert(sched_count == sched_count_check);
+      // pony_assert(sched_count == sched_count_check);
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
       // unlock the bool that controls modifying the active scheduler count

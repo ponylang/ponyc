@@ -66,11 +66,12 @@ actor Main is TestList
     test(_TestArraySwapElements)
     test(_TestArrayChop)
     test(_TestMath128)
-    test(_TestDivMod)
+    test(_TestRem)
     test(_TestAddc)
     test(_TestSubc)
     test(_TestMulc)
     test(_TestDivc)
+    test(_TestRemc)
     test(_TestSignedPartialArithmetic)
     test(_TestUnsignedPartialArithmetic)
     test(_TestNextPow2)
@@ -1528,11 +1529,11 @@ class iso _TestMath128 is UnitTest
     h.assert_eq[I128](-5, -13 % -8)
     h.assert_eq[I128](-28, -40_000_000_028 % -10_000_000_000)
 
-class iso _TestDivMod is UnitTest
+class iso _TestRem is UnitTest
   """
-  Test divmod on various bit widths.
+  Test rem on various bit widths.
   """
-  fun name(): String => "builtin/DivMod"
+  fun name(): String => "builtin/Rem"
 
   fun apply(h: TestHelper) =>
     h.assert_eq[I8](5, 13 % 8)
@@ -1841,6 +1842,80 @@ class iso _TestDivc is SafeArithmeticTest
     test_overflow[I128](h, I128(0x40).divc(0))
     test_overflow[I128](h, I128.min_value().divc(I128(-1)))
 
+class iso _TestRemc is SafeArithmeticTest
+  fun name(): String => "builtin/Remc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0x01, false), U8(0x41).remc(2))
+    test_overflow[U8](h, U8(0x40).remc(0))
+
+    test[U16](h, (0x01, false), U16(0x41).remc(2))
+    test_overflow[U16](h, U16(0x40).remc(0))
+
+    test[U32](h, (0x01, false), U32(0x41).remc(2))
+    test_overflow[U32](h, U32(0x40).remc(0))
+
+    test[U64](h, (0x01, false), U64(0x41).remc(2))
+    test_overflow[U64](h, U64(0x40).remc(0))
+
+    test[U128](h, (0x01, false), U128(0x41).remc(2))
+    test_overflow[U128](h, U128(0x40).remc(0))
+
+    test[ULong](h, (0x01, false), ULong(0x41).remc(2))
+    test_overflow[ULong](h, ULong(0x40).remc(0))
+
+    test[USize](h, (0x01, false), USize(0x41).remc(2))
+    test_overflow[USize](h, USize(0x40).remc(0))
+
+    test[I8](h, (0x01, false), I8(0x41).remc(2))
+    test[I8](h, (-0x01, false), I8(-0x41).remc(2))
+    test[I8](h, (-0x02, false), I8(-0x41).remc(-3))
+    test_overflow[I8](h, I8(0x40).remc(0))
+    test_overflow[I8](h, I8(-0x40).remc(0))
+    test_overflow[I8](h, I8.min_value().remc(-1))
+
+    test[I16](h, (0x01, false), I16(0x41).remc(2))
+    test[I16](h, (-0x01, false), I16(-0x41).remc(2))
+    test[I16](h, (-0x02, false), I16(-0x41).remc(-3))
+    test_overflow[I16](h, I16(0x40).remc(0))
+    test_overflow[I16](h, I16(-0x40).remc(0))
+    test_overflow[I16](h, I16.min_value().remc(-1))
+
+    test[I32](h, (0x01, false), I32(0x41).remc(2))
+    test[I32](h, (-0x01, false), I32(-0x41).remc(2))
+    test[I32](h, (-0x02, false), I32(-0x41).remc(-3))
+    test_overflow[I32](h, I32(0x40).remc(0))
+    test_overflow[I32](h, I32(-0x40).remc(0))
+    test_overflow[I32](h, I32.min_value().remc(-1))
+
+    test[I64](h, (0x01, false), I64(0x41).remc(2))
+    test[I64](h, (-0x01, false), I64(-0x41).remc(2))
+    test[I64](h, (-0x02, false), I64(-0x41).remc(-3))
+    test_overflow[I64](h, I64(0x40).remc(0))
+    test_overflow[I64](h, I64(-0x40).remc(0))
+    test_overflow[I64](h, I64.min_value().remc(-1))
+
+    test[I128](h, (0x01, false), I128(0x41).remc(2))
+    test[I128](h, (-0x01, false), I128(-0x41).remc(2))
+    test[I128](h, (-0x02, false), I128(-0x41).remc(-3))
+    test_overflow[I128](h, I128(0x40).remc(0))
+    test_overflow[I128](h, I128(-0x40).remc(0))
+    test_overflow[I128](h, I128.min_value().remc(-1))
+
+    test[ILong](h, (0x01, false), ILong(0x41).remc(2))
+    test[ILong](h, (-0x01, false), ILong(-0x41).remc(2))
+    test[ILong](h, (-0x02, false), ILong(-0x41).remc(-3))
+    test_overflow[ILong](h, ILong(0x40).remc(0))
+    test_overflow[ILong](h, ILong(-0x40).remc(0))
+    test_overflow[ILong](h, ILong.min_value().remc(-1))
+
+    test[ISize](h, (0x01, false), ISize(0x41).remc(2))
+    test[ISize](h, (-0x01, false), ISize(-0x41).remc(2))
+    test[ISize](h, (-0x02, false), ISize(-0x41).remc(-3))
+    test_overflow[ISize](h, ISize(0x40).remc(0))
+    test_overflow[ISize](h, ISize(-0x40).remc(0))
+    test_overflow[ISize](h, ISize.min_value().remc(-1))
+
 primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>
     //addition
@@ -1859,26 +1934,26 @@ primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
     h.assert_error({()? => T(1) /? T(0) })
     h.assert_eq[T](T(5), T(10) /? T(2))
 
-    // modulo
+    // remulo
     h.assert_error({()? => T(2) %? T(0) })
     h.assert_eq[T](T(1), T(11) %? T(2))
 
-    // divmod
-    h.assert_error({()? => T(3).divmod_partial(T(0))? })
-    (let divr, let modr) = T(11).divmod_partial(T(2))?
+    // divrem
+    h.assert_error({()? => T(3).divrem_partial(T(0))? })
+    (let divr, let remr) = T(11).divrem_partial(T(2))?
     h.assert_eq[T](T(5), divr)
-    h.assert_eq[T](T(1), modr)
+    h.assert_eq[T](T(1), remr)
 
 primitive _UnsignedPartialArithmeticTests[T: (Integer[T] val & Unsigned)]
   fun apply(h: TestHelper) =>
     // division
     h.assert_no_error({()? => T.min_value() /? T(-1) })
 
-    // modulo
+    // remainder
     h.assert_no_error({()? => T.min_value() %? T(-1) })
 
-    // divmod
-    h.assert_no_error({()? => T.min_value().divmod_partial(T(-1))? })
+    // divrem
+    h.assert_no_error({()? => T.min_value().divrem_partial(T(-1))? })
 
 primitive _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
   fun apply(h: TestHelper) =>
@@ -1894,11 +1969,11 @@ primitive _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
     // division
     h.assert_error({()? => T.min_value() /? T(-1) })
 
-    // modulo
+    // remainder
     h.assert_error({()? => T.min_value() %? T(-1) })
 
-    // divmod
-    h.assert_error({()? => T.min_value().divmod_partial(T(-1))? })
+    // divrem
+    h.assert_error({()? => T.min_value().divrem_partial(T(-1))? })
 
 class iso _TestSignedPartialArithmetic is UnitTest
   fun name(): String => "builtin/PartialArithmetic/signed"

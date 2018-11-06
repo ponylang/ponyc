@@ -22,15 +22,6 @@ typedef struct asio_event_t
   bool noisy;           /* prevents termination? */
   uint64_t nsec;        /* nanoseconds for timers */
 
-#ifdef PLATFORM_IS_LINUX
-  // automagically resubscribe to an event on an FD when another event is
-  // on the same FD is triggered
-  // This is only needed on linux where an event firing on an FD that has
-  // ONESHOT enabled will clear all events for the FD and not only the
-  // event that was fired.
-  bool auto_resub;      /* automagically resubscribe? */
-#endif
-
   bool readable;        /* is fd readable? */
   bool writeable;       /* is fd writeable? */
 #ifdef PLATFORM_IS_WINDOWS
@@ -90,6 +81,10 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec);
  *  notifications for I/O events on the corresponding resource.
  */
 PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev);
+
+/** Get whether the event id disposable or not
+ */
+PONY_API bool pony_asio_event_get_disposable(asio_event_t* ev);
 
 /** Get whether FD is writeable or not
  */

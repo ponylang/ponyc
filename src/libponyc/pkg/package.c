@@ -961,6 +961,20 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
         qualified_name = stringtab_consume(q_name, len);
       }
     }
+
+    // we are loading the package specified as program dir
+    if(from == program)
+    {
+      // construct the qualified name from the basename of the full path
+      const char* basepath = strrchr(full_path, '/');
+      if(basepath == NULL)
+      {
+        basepath = full_path;
+      } else {
+        basepath = basepath + 1;
+      }
+      qualified_name = basepath;
+    }
   }
 
   ast_t* package = ast_get(program, full_path, NULL);

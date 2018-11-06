@@ -21,15 +21,20 @@ actor _RunSync is _Runner
     apply()
 
   be apply() =>
-    _bench.before()
-    _gc_next_behavior()
-    _run_iteration()
+    try
+      _bench.before()?
+      _gc_next_behavior()
+      _run_iteration()
+    else
+      _fail()
+    end
 
   be _run_iteration(n: U64 = 0, a: U64 = 0) =>
     if n == _aggregator.iterations then
       _complete(a)
     else
       try
+        _bench.before_iteration()?
         let s =
           ifdef x86 then
             Time.perf_begin()
@@ -43,6 +48,7 @@ actor _RunSync is _Runner
           else
             Time.nanos()
           end
+         _bench.after_iteration()?
         _run_iteration(n + 1, a + (e - s))
       else
         _fail()
@@ -50,8 +56,12 @@ actor _RunSync is _Runner
     end
 
   be _complete(t: U64) =>
-    _bench.after()
-    _aggregator.complete(_name, t)
+    try
+      _bench.after()?
+      _aggregator.complete(_name, t)
+    else
+      _fail()
+    end
 
   be _fail() =>
     _ponybench._fail(_name)
@@ -69,11 +79,15 @@ actor _RunAsync is _Runner
   var _a: U64 = 0
 
   embed _before_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_apply_cont() end)
-  embed _bench_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_run_iteration() end)
+    AsyncBenchContinue._create(this, recover this~_before_done_cont() end)
+  embed _before_iteration_cont: AsyncBenchContinue =
+    AsyncBenchContinue._create(this, recover this~_before_iteration_done_cont() end)
+  embed _iteration_cont: AsyncBenchContinue =
+    AsyncBenchContinue._create(this, recover this~_iteration_done_cont() end)
+  embed _after_iteration_cont: AsyncBenchContinue =
+    AsyncBenchContinue._create(this, recover this~_after_iteration_done_cont() end)
   embed _after_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_complete_cont() end)
+    AsyncBenchContinue._create(this, recover this~_after_done_cont() end)
 
   new create(
     ponybench: PonyBench,
@@ -89,33 +103,37 @@ actor _RunAsync is _Runner
   be apply() =>
     _bench.before(_before_cont)
 
-  be _apply_cont(e: U64) =>
+  be _before_done_cont(e: U64) =>
     _n = 0
     _a = 0
     _start_time = 0
-    _gc_next_behavior()
-    _run_iteration(0)
+    _bench.before_iteration(_before_iteration_cont)
 
-  be _run_iteration(e: U64) =>
-    if _start_time > 0 then
-      _a = _a + (e - _start_time)
-    end
-    if _n == _aggregator.iterations then
-      _complete()
+  be _before_iteration_done_cont(e: U64) =>
+    _run_iteration()
+
+  be _run_iteration() =>
+    try
+      _n = _n + 1
+      _gc_next_behavior()
+      _start_time = Time.nanos()
+      _bench(_iteration_cont)?
     else
-      try
-        _n = _n + 1
-        _start_time = Time.nanos()
-        _bench(_bench_cont)?
-      else
-        _fail()
-      end
+      _fail()
     end
 
-  be _complete() =>
-    _bench.after(_after_cont)
+  be _iteration_done_cont(e: U64) =>
+    _a = _a + (e - _start_time)
+    _bench.after_iteration(_after_iteration_cont)
 
-  be _complete_cont(e: U64) =>
+  be _after_iteration_done_cont(e: U64) =>
+    if _n == _aggregator.iterations then
+      _bench.after(_after_cont)
+    else
+      _bench.before_iteration(_before_iteration_cont)
+    end
+
+  be _after_done_cont(e: U64) =>
     _aggregator.complete(_name, _a)
 
   be _fail() =>

@@ -174,7 +174,7 @@ primitive Path
     end
 
     try
-      if is_sep(s(s.size()-1)?) then
+      if is_sep(s(s.size()-1)?) and (s.size() > 1) then
         s.delete(-1, sep().size())
       end
     end

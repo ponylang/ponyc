@@ -132,13 +132,13 @@ static void init_runtime(compile_t* c)
   c->str_sub = stringtab("sub");
   c->str_mul = stringtab("mul");
   c->str_div = stringtab("div");
-  c->str_mod = stringtab("mod");
+  c->str_rem = stringtab("rem");
   c->str_neg = stringtab("neg");
   c->str_add_unsafe = stringtab("add_unsafe");
   c->str_sub_unsafe = stringtab("sub_unsafe");
   c->str_mul_unsafe = stringtab("mul_unsafe");
   c->str_div_unsafe = stringtab("div_unsafe");
-  c->str_mod_unsafe = stringtab("mod_unsafe");
+  c->str_rem_unsafe = stringtab("rem_unsafe");
   c->str_neg_unsafe = stringtab("neg_unsafe");
   c->str_and = stringtab("op_and");
   c->str_or = stringtab("op_or");
@@ -829,7 +829,7 @@ bool codegen_pass_init(pass_opt_t* opt)
   }
 
   opt->triple = triple;
-  
+
   if(opt->cpu != NULL)
     opt->cpu = LLVMCreateMessage(opt->cpu);
   else

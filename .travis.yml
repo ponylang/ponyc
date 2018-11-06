@@ -434,11 +434,12 @@ script:
   - bash .travis_script.bash
 
 notifications:
-  email:
-    on_success: always
-    on_failure: always
-    recipients:
-    - buildbot@lists.ponylang.org
+  email: false
+  irc:
+    channels:
+      - "chat.freenode.net#ponylang"
+    on_success: change
+    on_failure: change
 
 deploy:
   - provider: bintray

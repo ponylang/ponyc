@@ -142,8 +142,8 @@ trait val Real[A: Real[A] val] is
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y
   fun div(y: A): A => this / y
-  fun divmod(y: A): (A, A) => (this / y, this % y)
-  fun mod(y: A): A => this % y
+  fun divrem(y: A): (A, A) => (this / y, this % y)
+  fun rem(y: A): A => this % y
   fun neg(): A => -this
 
   fun eq(y: box->A): Bool => this == y
@@ -217,16 +217,20 @@ trait val Integer[A: Integer[A] val] is Real[A]
     """
     this /~ y
 
-  fun divmod_unsafe(y: A): (A, A) =>
+  fun divrem_unsafe(y: A): (A, A) =>
     """
+    Calculates the quotient of this number and `y` and the remainder.
+
     Unsafe operation.
     If y is 0, the result is undefined.
     If the operation overflows, the result is undefined.
     """
     (this /~ y, this %~ y)
 
-  fun mod_unsafe(y: A): A =>
+  fun rem_unsafe(y: A): A =>
     """
+    Calculates the remainder of this number divided by `y`.
+
     Unsafe operation.
     If y is 0, the result is undefined.
     If the operation overflows, the result is undefined.
@@ -261,14 +265,14 @@ trait val Integer[A: Integer[A] val] is Real[A]
     If y is `0` this function errors.
     """
 
-  fun mod_partial(y: A): A ?
+  fun rem_partial(y: A): A ?
     """
     Calculates the remainder of this number divided by y.
 
     If y is `0` this function errors.
     """
 
-  fun divmod_partial(y: A): (A, A) ?
+  fun divrem_partial(y: A): (A, A) ?
     """
     Divides this number by y and calculates the remainder of the operation.
 
@@ -297,6 +301,10 @@ trait val Integer[A: Integer[A] val] is Real[A]
   fun divc(y: A): (A, Bool)
     """
     Divide this integer by `y` and return the result and a flag indicating overflow or division by zero.
+    """
+  fun remc(y: A): (A, Bool)
+    """
+    Calculated the ramainder of this number dividec by y and return the result and a flag indicating division by zero or overflow.
     """
 
   fun op_and(y: A): A => this and y
@@ -351,6 +359,8 @@ trait val _SignedInteger[A: _SignedInteger[A, B] val,
     """
 
   fun bitwidth(): B
+
+  fun bytewidth(): USize
 
   fun string(): String iso^ =>
     _ToString._u64(abs().u64(), i64() < 0)
@@ -413,6 +423,8 @@ trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
 
   fun bitwidth(): A
 
+  fun bytewidth(): USize
+
   fun string(): String iso^ =>
     _ToString._u64(u64(), false)
 
@@ -463,7 +475,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     """
     this /~ y
 
-  fun divmod_unsafe(y: A): (A, A) =>
+  fun divrem_unsafe(y: A): (A, A) =>
     """
     Unsafe operation.
     If any input or output of the operation is +/- infinity or NaN, the result
@@ -472,7 +484,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     """
     (this /~ y, this %~ y)
 
-  fun mod_unsafe(y: A): A =>
+  fun rem_unsafe(y: A): A =>
     """
     Unsafe operation.
     If any input or output of the operation is +/- infinity or NaN, the result

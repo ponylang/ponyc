@@ -35,14 +35,14 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       end
   ```
   """
-  let _root: _MapNode[K, V, H]
+  let _root: _MapSubNodes[K, V, H]
   let _size: USize
 
   new val create() =>
-    _root = _MapNode[K, V, H].empty(0)
+    _root = _MapSubNodes[K, V, H]
     _size = 0
 
-  new val _create(r: _MapNode[K, V, H], s: USize) =>
+  new val _create(r: _MapSubNodes[K, V, H], s: USize) =>
     _root = r
     _size = s
 
@@ -50,7 +50,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     Attempt to get the value corresponding to k.
     """
-    _root(H.hash(k), k)?
+    _root(0, H.hash(k).u32(), k)? as V
 
   fun val size(): USize =>
     """
@@ -64,7 +64,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     (let r, let insertion) =
       try
-        _root.update(H.hash(key), (key, value))?
+        _root.update(0, H.hash(key).u32(), key, value)?
       else
         (_root, false) // should not occur
       end
@@ -75,7 +75,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     Try to remove the provided key from the Map.
     """
-    _create(_root.remove(H.hash(k), k)?, _size - 1)
+    _create(_root.remove(0, H.hash(k).u32(), k)?, _size - 1)
 
   fun val get_or_else(k: K, alt: val->V): val->V =>
     """
@@ -83,20 +83,20 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     return the provided alternate value.
     """
     try
-      apply(k)?
+      match _root(0, H.hash(k).u32(), k)?
+      | let v: V => v
+      else alt
+      end
     else
-      alt
+      alt // should not occur
     end
 
   fun val contains(k: K): Bool =>
     """
     Check whether the node contains the provided key.
     """
-    try
-      apply(k)?
-      true
-    else
-      false
+    try _root(0, H.hash(k).u32(), k)? isnt None
+    else false // should not occur
     end
 
   fun val concat(iter: Iterator[(val->K, val->V)]): HashMap[K, V, H] =>
@@ -115,7 +115,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
   fun val pairs(): MapPairs[K, V, H] => MapPairs[K, V, H](this)
 
-  fun _root_node(): _MapNode[K, V, H] => _root
+  fun _root_node(): _MapSubNodes[K, V, H] => _root
 
 class MapKeys[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   embed _pairs: MapPairs[K, V, H]
@@ -135,62 +135,25 @@ class MapValues[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
   fun ref next(): val->V ? => _pairs.next()?._2
 
+interface _MapIter[K: Any #share, V: Any #share, H: mut.HashFunction[K] val] is
+  Iterator[(_MapEntry[K, V, H] | _MapIter[K, V, H])]
+
 class MapPairs[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
-  embed _path: Array[_MapNode[K, V, H]]
-  embed _idxs: Array[USize]
-  var _i: USize = 0
-  let _size: USize
-  var _ci: USize = 0
+  embed _stack: Array[_MapIter[K, V, H]] = []
 
   new create(m: HashMap[K, V, H]) =>
-    _size = m.size()
-    _path = Array[_MapNode[K, V, H]]
-    _path.push(m._root_node())
-    _idxs = Array[USize]
-    _idxs.push(0)
+    _stack.push(m._root_node().iter())
 
-  fun has_next(): Bool => _i < _size
+  fun has_next(): Bool =>
+    _stack.size() > 0
 
-  fun ref next(): (K, val->V) ? =>
-    (let n, let i) = _cur()?
-    if i >= n.entries().size() then
-      _backup()?
-      return next()?
-    end
-    match n.entries()(i)?
-    | let l: _MapLeaf[K, V, H] =>
-      _inc_i()?
-      _i = _i + 1
-      l
-    | let sn: _MapNode[K, V, H] =>
-      _push(sn)
+  fun ref next(): (K, V) ? =>
+    let iter = _stack(_stack.size() - 1)?
+    let x = iter.next()?
+    if not iter.has_next() then _stack.pop()? end
+    match x
+    | let e: _MapEntry[K, V, H] => (e.key, e.value)
+    | let i: _MapIter[K, V, H] =>
+      _stack.push(i)
       next()?
-    | let cs: _MapCollisions[K, V, H] =>
-      if _ci < cs.size() then
-        let l = cs(_ci)?
-        _ci = _ci + 1
-        _i = _i + 1
-        l
-      else
-        _ci = 0
-        _inc_i()?
-        next()?
-      end
     end
-
-  fun ref _push(n: _MapNode[K, V, H]) =>
-    _path.push(n)
-    _idxs.push(0)
-
-  fun ref _backup() ? =>
-    _path.pop()?
-    _idxs.pop()?
-    _inc_i()?
-
-  fun ref _inc_i() ? =>
-    let i = _idxs.size() - 1
-    _idxs(i)? = _idxs(i)? + 1
-
-  fun _cur(): (_MapNode[K, V, H], USize) ? =>
-    let i = _idxs.size() - 1
-    (_path(i)?, _idxs(i)?)

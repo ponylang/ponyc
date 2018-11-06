@@ -59,7 +59,7 @@ static const lit_op_info_t _operator_fns[] =
   { "sub", 1, true, false },
   { "mul", 1, true, false },
   { "div", 1, true, false },
-  { "mod", 1, true, false },
+  { "rem", 1, true, false },
   { "neg", 0, true, true },
   { "shl", 1, true, false },
   { "shr", 1, true, false },

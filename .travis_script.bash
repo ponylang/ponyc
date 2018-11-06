@@ -53,9 +53,17 @@ fi
 
 case "${TRAVIS_OS_NAME}" in
   "linux")
+    # setting a global python version for all subsequent executions.
+    # this could break the release machinery, so we might need to remove this, if it does.
+    # but we have this here to test stuff out on master
+    pyenv global 3.6
+
     # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
     if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
     then
+      # verify docs build first
+      ponyc-build-docs
+      # now the packaging
       "ponyc-build-debs-$RELEASE_DEBS" master
       exit
     fi
@@ -103,6 +111,7 @@ case "${TRAVIS_OS_NAME}" in
       ponyc-kickoff-copr
       ponyc-build-packages
       ponyc-build-docs
+      ponyc-upload-docs
     fi
   ;;
 
