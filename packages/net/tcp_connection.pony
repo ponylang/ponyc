@@ -7,6 +7,7 @@ use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_resubscribe_read[None](event: AsioEventID)
 use @pony_asio_event_resubscribe_write[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
+use @pony_asio_event_get_disposable[Bool](event: AsioEventID)
 use @pony_asio_event_set_writeable[None](event: AsioEventID, writeable: Bool)
 use @pony_asio_event_set_readable[None](event: AsioEventID, readable: Bool)
 
@@ -495,8 +496,15 @@ actor TCPConnection
             _notify_connecting()
           end
         else
-          // We're already connected, unsubscribe the event and close.
-          @pony_asio_event_unsubscribe(event)
+          // There is a possibility that a non-Windows system has
+          // already unsubscribed this event already.  (Windows might
+          // be vulnerable to this race, too, I'm not sure.) It's a
+          // bug to do a second time.  Look at the disposable status
+          // of the event (not the flags that this behavior's args!)
+          // to see if it's ok to unsubscribe.
+          if not @pony_asio_event_get_disposable(event) then
+            @pony_asio_event_unsubscribe(event)
+          end
           @pony_os_socket_close[None](fd)
           _try_shutdown()
         end
