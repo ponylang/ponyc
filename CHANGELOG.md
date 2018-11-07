@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix unsafe cases in capability subtyping implementation ([PR #2660](https://github.com/ponylang/ponyc/pull/2660))
 - Fix race condition with socket close event from peer ([PR #2923](https://github.com/ponylang/ponyc/pull/2923))
 - Link to libexecinfo on BSD always, not just in a debug compiler ([PR #2916](https://github.com/ponylang/ponyc/pull/2916))
 - Install libdtrace_probes.a into the right directory on FreeBSD ([PR #2919](https://github.com/ponylang/ponyc/pull/2919))
