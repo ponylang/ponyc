@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Install libdtrace_probes.a into the right directory on FreeBSD ([PR #2919](https://github.com/ponylang/ponyc/pull/2919))
 - Fix scheduler thread wakeup bug ([PR #2926](https://github.com/ponylang/ponyc/pull/2926))
 - Correct README.md link to AppImage packaging location ([PR #2927](https://github.com/ponylang/ponyc/pull/2927))
+- Fix unsoundness when replacing `this` viewpoint in method calls. ([PR #2503](https://github.com/ponylang/ponyc/pull/2503))
 
 ### Added
 
