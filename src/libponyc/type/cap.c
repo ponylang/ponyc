@@ -70,7 +70,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       return false;
   }
 
-  if((sub == super) || (super == TK_TAG))
+  if(super == TK_TAG)
     return true;
 
   // Every possible instantiation of sub must be a subtype of every possible
@@ -80,6 +80,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
     case TK_ISO:
       switch(super)
       {
+        case TK_ISO:
         case TK_TRN:
         case TK_REF:
         case TK_VAL:
@@ -98,6 +99,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
     case TK_TRN:
       switch(super)
       {
+        case TK_TRN:
         case TK_REF:
         case TK_VAL:
         case TK_BOX:
@@ -113,6 +115,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
     case TK_REF:
       switch(super)
       {
+        case TK_REF:
         case TK_BOX:
           return true;
 
@@ -123,6 +126,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
     case TK_VAL:
       switch(super)
       {
+        case TK_VAL:
         case TK_BOX:
         case TK_CAP_SHARE: // {val, tag}
           return true;
@@ -131,6 +135,7 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
       }
       break;
 
+    case TK_BOX:
     case TK_CAP_READ: // {ref, val, box}
       switch(super)
       {
@@ -250,7 +255,8 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
   //
   // If both rcaps are generic/set capabilities, use the following rule:
   // every instantiation of the super rcap must be a supertype of some
-  // instantiation of the sub rcap.
+  // instantiation of the sub rcap (but not necessarily the same instantiation
+  // of the sub rcap).
   switch(sub)
   {
     case TK_ISO:
@@ -428,6 +434,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_READ:
+        case TK_CAP_SHARE:
         case TK_CAP_ALIAS:
           return true;
 
@@ -436,21 +443,10 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
       break;
 
     case TK_CAP_READ:
-      switch(right_cap)
-      {
-        case TK_BOX:
-        case TK_CAP_ALIAS:
-          return true;
-
-        default: {}
-      }
-      break;
-
     case TK_CAP_ALIAS:
       switch(right_cap)
       {
         case TK_BOX:
-        case TK_CAP_READ:
           return true;
 
         default: {}
@@ -466,7 +462,6 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
         case TK_VAL:
         case TK_BOX:
         case TK_CAP_SHARE:
-        case TK_CAP_ALIAS:
           return true;
 
         default: {}
