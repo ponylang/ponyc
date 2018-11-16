@@ -1,4 +1,4 @@
-primitive I8 is _SignedInteger[I8, U8]
+primitive I8 is SignedInteger[I8, U8]
   new create(value: I8) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i8()
 
@@ -66,7 +66,7 @@ primitive I8 is _SignedInteger[I8, U8]
   fun divrem_partial(y: I8): (I8, I8) ? =>
     _SignedPartialArithmetic.divrem_partial[I8, U8](this, y)?
 
-primitive I16 is _SignedInteger[I16, U16]
+primitive I16 is SignedInteger[I16, U16]
   new create(value: I16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i16()
 
@@ -135,7 +135,7 @@ primitive I16 is _SignedInteger[I16, U16]
     _SignedPartialArithmetic.divrem_partial[I16, U16](this, y)?
 
 
-primitive I32 is _SignedInteger[I32, U32]
+primitive I32 is SignedInteger[I32, U32]
   new create(value: I32) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i32()
 
@@ -203,7 +203,7 @@ primitive I32 is _SignedInteger[I32, U32]
   fun divrem_partial(y: I32): (I32, I32) ? =>
     _SignedPartialArithmetic.divrem_partial[I32, U32](this, y)?
 
-primitive I64 is _SignedInteger[I64, U64]
+primitive I64 is SignedInteger[I64, U64]
   new create(value: I64) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i64()
 
@@ -272,7 +272,7 @@ primitive I64 is _SignedInteger[I64, U64]
   fun divrem_partial(y: I64): (I64, I64) ? =>
     _SignedPartialArithmetic.divrem_partial[I64, U64](this, y)?
 
-primitive ILong is _SignedInteger[ILong, ULong]
+primitive ILong is SignedInteger[ILong, ULong]
   new create(value: ILong) => value
   new from[A: (Number & Real[A] val)](a: A) => a.ilong()
 
@@ -394,7 +394,7 @@ primitive ILong is _SignedInteger[ILong, ULong]
   fun divrem_partial(y: ILong): (ILong, ILong) ? =>
     _SignedPartialArithmetic.divrem_partial[ILong, ULong](this, y)?
 
-primitive ISize is _SignedInteger[ISize, USize]
+primitive ISize is SignedInteger[ISize, USize]
   new create(value: ISize) => value
   new from[A: (Number & Real[A] val)](a: A) => a.isize()
 
@@ -515,7 +515,7 @@ primitive ISize is _SignedInteger[ISize, USize]
   fun divrem_partial(y: ISize): (ISize, ISize) ? =>
     _SignedPartialArithmetic.divrem_partial[ISize, USize](this, y)?
 
-primitive I128 is _SignedInteger[I128, U128]
+primitive I128 is SignedInteger[I128, U128]
   new create(value: I128) => value
   new from[A: (Number & Real[A] val)](a: A) => a.i128()
 
@@ -736,7 +736,7 @@ type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
 
 
 primitive _SignedCheckedArithmetic
-  fun _mulc[U: _UnsignedInteger[U] val, T: (Signed & _SignedInteger[T, U] val)](x: T, y: T): (T, Bool) =>
+  fun _mulc[U: UnsignedInteger[U] val, T: (Signed & SignedInteger[T, U] val)](x: T, y: T): (T, Bool) =>
     """
     basically exactly what the runtime functions __muloti4, mulodi4 etc. are doing
     and roughly as fast as these.
