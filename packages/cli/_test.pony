@@ -26,6 +26,7 @@ actor Main is TestList
     test(_TestChat)
     test(_TestMustBeLeaf)
     test(_TestHelp)
+    test(_TestHelpMultipleArgs)
 
 class iso _TestMinimal is UnitTest
   fun name(): String => "ponycli/minimal"
@@ -512,6 +513,17 @@ class iso _TestHelp is UnitTest
     let help = ch.help_string()
     h.log(help)
     h.assert_true(help.contains("Address of the server"))
+
+class iso _TestHelpMultipleArgs is UnitTest
+  fun name(): String => "ponycli/help-multiple-args"
+
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.simple_cli_spec()?
+
+    let help = cs.help_string()
+    h.log(help)
+    h.assert_true(
+      help.contains("simple <words> <argz>"))
 
 primitive _Fixtures
   fun bools_cli_spec(): CommandSpec box ? =>
