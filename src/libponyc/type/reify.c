@@ -505,13 +505,13 @@ static void deferred_reification_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void deferred_reification_serialise(pony_ctx_t* ctx, void* object,
-  void* buf, size_t offset, int mutability)
+  void* buf, uint64_t offset, int mutability)
 {
   (void)mutability;
 
   deferred_reification_t* d = (deferred_reification_t*)object;
   deferred_reification_t* dst =
-    (deferred_reification_t*)((uintptr_t)buf + offset);
+    (deferred_reification_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->ast = (ast_t*)pony_serialise_offset(ctx, d->ast);
   dst->type_typeparams = (ast_t*)pony_serialise_offset(ctx, d->type_typeparams);
@@ -542,6 +542,8 @@ static void deferred_reification_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t deferred_reification_pony =
 {
+  0,
+  0,
   0,
   sizeof(deferred_reification_t),
   0,

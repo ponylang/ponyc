@@ -35,6 +35,11 @@ with open('VERSION') as v:
     except:
         pass
 
+# build ponyc version md5
+import hashlib
+temp_md5 = hashlib.md5(VERSION).hexdigest()
+VERSION_FORMATTED_MD5 = "0x" + ",0x".join([temp_md5[i:i+2] for i in range(0, len(temp_md5), 2)])
+
 # source and build directories
 top = '.'
 out = 'build'
@@ -78,6 +83,7 @@ def init(ctx):
 def configure(ctx):
     ctx.env.append_value('DEFINES', [
         'PONY_VERSION="' + VERSION + '"',
+        'PONY_VERSION_FORMATTED_MD5=' + VERSION_FORMATTED_MD5,
         'PONY_USE_BIGINT',
     ])
 

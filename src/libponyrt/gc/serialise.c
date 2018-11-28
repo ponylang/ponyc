@@ -20,13 +20,14 @@ PONY_EXTERN_C_BEGIN
 
 static size_t desc_table_size = 0;
 static pony_type_t** desc_table = NULL;
+static desc_offset_lookup_fn desc_table_offset_lookup_fn = NULL;
 
 PONY_EXTERN_C_END
 
 struct serialise_t
 {
   uintptr_t key;
-  uintptr_t value;
+  uint64_t value;
   pony_type_t* t;
   int mutability;
   bool block;
@@ -75,26 +76,27 @@ static void custom_deserialise(pony_ctx_t* ctx)
   {
     if (s->t != NULL && s->t->custom_deserialise != NULL)
     {
-      s->t->custom_deserialise((void *)(s->value),
+      s->t->custom_deserialise((void *)((uintptr_t)s->value),
         (void*)((uintptr_t)ctx->serialise_buffer + s->key + s->t->size));
     }
   }
 }
 
-bool ponyint_serialise_setup(pony_type_t** table, size_t table_size)
+bool ponyint_serialise_setup(pony_type_t** table, size_t table_size,
+  desc_offset_lookup_fn desc_table_offset_lookup)
 {
-#ifndef PONY_NDEBUG
-  for(uint32_t i = 0; i < table_size; i++)
-  {
-    if(table[i] != NULL)
-      pony_assert(table[i]->id == i);
-  }
-#endif
-
   desc_table = table;
   desc_table_size = table_size;
+  desc_table_offset_lookup_fn = desc_table_offset_lookup;
 
   return true;
+}
+
+static pony_type_t* get_descriptor(uint64_t type_id)
+{
+  uint32_t offset = desc_table_offset_lookup_fn(type_id);
+  pony_assert(offset < desc_table_size);
+  return desc_table[offset];
 }
 
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -186,10 +188,17 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
   if(s != NULL)
   {
     if(s->block || (s->t != NULL && s->t->serialise != NULL))
-      return s->value;
+      return (uintptr_t)s->value;
     else
       return ALL_BITS;
   }
+
+  // TODO: FIND OUT WHEN/HOW THIS CAN HAPPEN!!!!!!
+  // If not possible normally, make this into an error/assert!
+  // If possible, figure out how to handle 64 bit type_id's and return types
+  // since the pointers are no longer able to hold the type_id + high bit
+  // twiddles.
+  // See TODO in pony_deserialise_offset for related issue
 
   // If we are not in the map, we are an untraced primitive. Return the type id
   // with the high bit set.
@@ -244,6 +253,9 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   // primitive, or an unserialised field in an opaque object.
   if((offset & HIGH_BIT) != 0)
   {
+    // TODO: NOTE: this section needs changing because uintptr_t can't safely
+    // hold u64 + high bit twiddles
+    // See TODO in pony_serialise_offset for related issue
     offset &= ~HIGH_BIT;
 
     if(offset > desc_table_size)
@@ -263,13 +275,17 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k, &index);
 
   if(s != NULL)
-    return (void*)s->value;
+    return (void*)((uintptr_t)s->value);
 
   // If we haven't been passed a type descriptor, read one.
   if(t == NULL)
   {
     // Make sure we have space to read a type id.
+#ifdef PLATFORM_IS_ILP32
     if((offset + sizeof(uintptr_t)) > ctx->serialise_size)
+#else
+    if((offset + sizeof(uint64_t)) > ctx->serialise_size)
+#endif
     {
       serialise_cleanup(ctx);
       ctx->serialise_throw();
@@ -277,8 +293,14 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
     }
 
     // Turn the type id into a descriptor pointer.
-    uintptr_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
-    t = desc_table[id];
+#ifdef PLATFORM_IS_ILP32
+    // TODO: remove this ifdef once serialisation of 64 bit type_id's works for
+    //       32 bit platforms
+    uint64_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
+#else
+    uint64_t id = *(uint64_t*)((uintptr_t)ctx->serialise_buffer + offset);
+#endif
+    t = get_descriptor(id);
   }
 
   // If it's a primitive, return the global instance.
@@ -348,7 +370,7 @@ PONY_API void* pony_deserialise_raw(pony_ctx_t* ctx, uintptr_t offset,
   serialise_t* s = ponyint_serialise_get(&ctx->serialise, &k, &index);
 
   if(s != NULL)
-    return (void*)s->value;
+    return (void*)((uintptr_t)s->value);
 
   void* object = ds_fn((void*)((uintptr_t)ctx->serialise_buffer + offset),
     ctx->serialise_size - offset);

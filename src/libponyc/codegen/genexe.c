@@ -49,16 +49,18 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
     boolean = c->i8;
 
   LLVMTypeRef desc_ptr_ptr = LLVMPointerType(c->descriptor_ptr, 0);
+  LLVMValueRef desc_table_lookup_fn = c->desc_table_offset_lookup_fn;
 
-  uint32_t desc_table_size = reach_max_type_id(c->reach);
+  uint32_t desc_table_size = reach_total_num_types(c->reach);
 
-  LLVMTypeRef f_params[4];
+  LLVMTypeRef f_params[5];
   f_params[0] = boolean;
   f_params[1] = boolean;
   f_params[2] = desc_ptr_ptr;
   f_params[3] = c->intptr;
+  f_params[4] = c->descriptor_offset_lookup_fn;
 
-  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 4,
+  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 5,
     false);
 
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -87,6 +89,10 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
   field = LLVMBuildStructGEP(c->builder, lfi_object, 3, "");
   LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
     field);
+
+  field = LLVMBuildStructGEP(c->builder, lfi_object, 4, "");
+  LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, desc_table_lookup_fn,
+    c->descriptor_offset_lookup_fn, ""), field);
 
   return LLVMBuildBitCast(c->builder, lfi_object, c->void_ptr, "");
 }

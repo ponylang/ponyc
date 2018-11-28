@@ -3,11 +3,8 @@
 
 #include <platform.h>
 
-static const unsigned char the_key[16] = {
-  0xFE, 0x09, 0xD3, 0x22, 0x6B, 0x9C, 0x10, 0x8A,
-  0xE1, 0x35, 0x72, 0xB5, 0xCC, 0x3F, 0x92, 0x9F
-};
-
+// Use the MD5 of the current pony version for the key
+static const unsigned char the_key[16] = { PONY_VERSION_FORMATTED_MD5 };
 
 #ifdef PLATFORM_IS_ILP32
 
@@ -64,6 +61,7 @@ static uint32_t halfsiphash24(const unsigned char* key, const char* in,
 
   return v0 ^ v1 ^ v2 ^ v3;
 }
+
 #endif
 
 #define ROTL64(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
@@ -135,6 +133,11 @@ PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 PONY_API uint64_t ponyint_hash_block64(const void* p, size_t len)
 {
   return siphash24(the_key, (const char*)p, len);
+}
+
+uint64_t ponyint_hash_str64(const char* str)
+{
+  return siphash24(the_key, str, strlen(str));
 }
 
 size_t ponyint_hash_str(const char* str)

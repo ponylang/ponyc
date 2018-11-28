@@ -118,18 +118,21 @@ void stringtab_done()
 }
 
 static void string_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)ctx;
   (void)mutability;
 
   const char* string = (const char*)object;
 
-  memcpy((void*)((uintptr_t)buf + offset), object, strlen(string) + 1);
+  memcpy((void*)((uintptr_t)buf + (uintptr_t)offset), object,
+    strlen(string) + 1);
 }
 
 static __pony_thread_local struct _pony_type_t string_pony =
 {
+  0,
+  0,
   0,
   0,
   0,
@@ -191,12 +194,12 @@ static void strlist_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void strlist_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   strlist_t* list = (strlist_t*)object;
-  strlist_t* dst = (strlist_t*)((uintptr_t)buf + offset);
+  strlist_t* dst = (strlist_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->contents.data = (void*)pony_serialise_offset(ctx, list->contents.data);
   dst->contents.next = (list_t*)pony_serialise_offset(ctx, list->contents.next);
@@ -215,6 +218,8 @@ static void strlist_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t strlist_pony =
 {
+  0,
+  0,
   0,
   sizeof(strlist_t),
   0,

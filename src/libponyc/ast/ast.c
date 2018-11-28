@@ -1954,12 +1954,12 @@ static void ast_signature_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void ast_signature_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   ast_t* ast = (ast_t*)object;
-  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
+  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->t = (token_signature_t*)pony_serialise_offset(ctx, ast->t);
   dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
@@ -1977,6 +1977,8 @@ static void ast_signature_serialise(pony_ctx_t* ctx, void* object, void* buf,
 
 static pony_type_t ast_signature_pony =
 {
+  0,
+  0,
   0,
   sizeof(ast_signature_t),
   0,
@@ -2030,12 +2032,12 @@ static void ast_nominal_pkg_id_signature_serialise_trace(pony_ctx_t* ctx,
 }
 
 static void ast_nominal_pkg_id_signature_serialise(pony_ctx_t* ctx,
-  void* object, void* buf, size_t offset, int mutability)
+  void* object, void* buf, uint64_t offset, int mutability)
 {
   (void)mutability;
 
   ast_t* ast = (ast_t*)object;
-  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
+  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   ast_t* def = (ast_t*)ast_data(ast_parent(ast));
   pony_assert(def != NULL);
@@ -2055,6 +2057,8 @@ static void ast_nominal_pkg_id_signature_serialise(pony_ctx_t* ctx,
 
 static pony_type_t ast_nominal_pkg_id_signature_pony =
 {
+  0,
+  0,
   0,
   sizeof(ast_signature_t),
   0,
@@ -2276,12 +2280,12 @@ static void ast_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void ast_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   ast_t* ast = (ast_t*)object;
-  ast_t* dst = (ast_t*)((uintptr_t)buf + offset);
+  ast_t* dst = (ast_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->t = (token_t*)pony_serialise_offset(ctx, ast->t);
   ast_serialise_data(ctx, ast, dst);
@@ -2317,6 +2321,8 @@ static void ast_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t ast_pony =
 {
+  0,
+  0,
   0,
   sizeof(ast_t),
   0,

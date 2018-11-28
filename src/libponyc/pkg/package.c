@@ -1370,12 +1370,13 @@ static void package_signature_serialise_trace(pony_ctx_t* ctx,
 
 
 static void package_signature_serialise(pony_ctx_t* ctx, void* object,
-  void* buf, size_t offset, int mutability)
+  void* buf, uint64_t offset, int mutability)
 {
   (void)mutability;
 
   package_t* package = (package_t*)object;
-  package_signature_t* dst = (package_signature_t*)((uintptr_t)buf + offset);
+  package_signature_t* dst = (package_signature_t*)((uintptr_t)buf +
+    (uintptr_t)offset);
 
   dst->filename = (const char*)pony_serialise_offset(ctx,
     (char*)package->filename);
@@ -1386,6 +1387,8 @@ static void package_signature_serialise(pony_ctx_t* ctx, void* object,
 
 static pony_type_t package_dep_signature_pony =
 {
+  0,
+  0,
   0,
   sizeof(package_signature_t),
   0,
@@ -1414,6 +1417,8 @@ pony_type_t* package_dep_signature_pony_type()
 
 static pony_type_t package_signature_pony =
 {
+  0,
+  0,
   0,
   sizeof(package_signature_t),
   0,
@@ -1469,13 +1474,13 @@ static void package_group_signature_serialise_trace(pony_ctx_t* ctx,
 
 
 static void package_group_signature_serialise(pony_ctx_t* ctx, void* object,
-  void* buf, size_t offset, int mutability)
+  void* buf, uint64_t offset, int mutability)
 {
   (void)ctx;
   (void)mutability;
 
   package_group_t* group = (package_group_t*)object;
-  package_group_t* dst = (package_group_t*)((uintptr_t)buf + offset);
+  package_group_t* dst = (package_group_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   if(group->signature != NULL)
   {
@@ -1491,6 +1496,8 @@ static void package_group_signature_serialise(pony_ctx_t* ctx, void* object,
 
 static pony_type_t package_group_dep_signature_pony =
 {
+  0,
+  0,
   0,
   sizeof(const char*),
   0,
@@ -1519,6 +1526,8 @@ pony_type_t* package_group_dep_signature_pony_type()
 
 static pony_type_t package_group_signature_pony =
 {
+  0,
+  0,
   0,
   sizeof(const char*),
   0,
@@ -1617,12 +1626,12 @@ static void package_serialise_trace(pony_ctx_t* ctx, void* object)
 
 
 static void package_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   package_t* package = (package_t*)object;
-  package_t* dst = (package_t*)((uintptr_t)buf + offset);
+  package_t* dst = (package_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->path = (const char*)pony_serialise_offset(ctx, (char*)package->path);
   dst->qualified_name = (const char*)pony_serialise_offset(ctx,
@@ -1668,6 +1677,8 @@ static void package_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t package_pony =
 {
   0,
+  0,
+  0,
   sizeof(package_t),
   0,
   0,
@@ -1705,13 +1716,13 @@ static void package_group_serialise_trace(pony_ctx_t* ctx, void* object)
 
 
 static void package_group_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)ctx;
   (void)mutability;
 
   package_group_t* group = (package_group_t*)object;
-  package_group_t* dst = (package_group_t*)((uintptr_t)buf + offset);
+  package_group_t* dst = (package_group_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   uintptr_t ptr_offset = pony_serialise_offset(ctx, group->signature);
   dst->signature = (char*)ptr_offset;
@@ -1739,6 +1750,8 @@ static void package_group_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t package_group_pony =
 {
+  0,
+  0,
   0,
   sizeof(package_group_t),
   0,

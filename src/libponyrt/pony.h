@@ -82,7 +82,7 @@ typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
  * A serialise function must not raise errors.
  */
 typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
-  size_t offset, int m);
+  uint64_t offset, int m);
 
 /** Serialise Space function.
  *
@@ -132,7 +132,9 @@ typedef void (*pony_partial_fn)(void* data);
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
 {
-  uint32_t id;
+  uint64_t id;
+  uint16_t is_bits;
+  uint16_t numeric_size;
   uint32_t size;
   uint32_t field_count;
   uint32_t field_offset;
@@ -150,6 +152,12 @@ typedef const struct _pony_type_t
   void* fields;
   void* vtable;
 } pony_type_t;
+
+/** Desc table lookup function.
+ *
+ * A function to convert `type_id`s to offsets in the desc table
+ */
+typedef uint32_t (*desc_offset_lookup_fn)(uint64_t type_id);
 
 /** Language feature initialiser.
  *
@@ -177,6 +185,9 @@ typedef struct pony_language_features_init_t
 
   /// The total size of the descriptor_table array.
   size_t descriptor_table_size;
+
+  /// The function to translate `type_id`s to offsets in the desc_table
+  desc_offset_lookup_fn desc_table_offset_lookup;
 } pony_language_features_init_t;
 
 /** Padding for actor types.

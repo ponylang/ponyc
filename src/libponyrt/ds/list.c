@@ -192,10 +192,10 @@ void ponyint_list_serialise_trace(pony_ctx_t* ctx, void* object,
 }
 
 void ponyint_list_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset)
+  uint64_t offset)
 {
   list_t* list = (list_t*)object;
-  list_t* dst = (list_t*)((uintptr_t)buf + offset);
+  list_t* dst = (list_t*)((uintptr_t)((uintptr_t)buf + offset));
 
   dst->data = (void*)pony_serialise_offset(ctx, list->data);
   dst->next = (list_t*)pony_serialise_offset(ctx, list->next);

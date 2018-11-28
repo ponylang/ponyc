@@ -358,12 +358,12 @@ static void program_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void program_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   program_t* program = (program_t*)object;
-  program_t* dst = (program_t*)((uintptr_t)buf + offset);
+  program_t* dst = (program_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->package_groups = (package_group_list_t*)pony_serialise_offset(ctx,
     program->package_groups);
@@ -412,6 +412,8 @@ static void program_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t program_pony =
 {
+  0,
+  0,
   0,
   sizeof(program_t),
   0,

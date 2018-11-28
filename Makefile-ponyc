@@ -65,6 +65,15 @@ endif
 version_str = "$(tag) [$(config)]\ncompiled with: llvm $(llvm_version) \
   -- "$(compiler_version)
 
+# build ponyc version md5
+ifneq (,$(filter $(OSTYPE), osx bsd))
+  TAG_MD5_CMD = md5 | sed 's/./&,0x/30;s/./&,0x/28;s/./&,0x/26;s/./&,0x/24;s/./&,0x/22;s/./&,0x/20;s/./&,0x/18;s/./&,0x/16;s/./&,0x/14;s/./&,0x/12;s/./&,0x/10;s/./&,0x/8;s/./&,0x/6;s/./&,0x/4;s/./&,0x/2;s/^/0x/'
+else
+  TAG_MD5_CMD = md5sum | sed 's/  -$$//' | sed 's/./&,0x/30;s/./&,0x/28;s/./&,0x/26;s/./&,0x/24;s/./&,0x/22;s/./&,0x/20;s/./&,0x/18;s/./&,0x/16;s/./&,0x/14;s/./&,0x/12;s/./&,0x/10;s/./&,0x/8;s/./&,0x/6;s/./&,0x/4;s/./&,0x/2;s/^/0x/'
+endif
+
+tag_formatted_md5 := $(shell echo $(tag) | $(TAG_MD5_CMD))
+
 # package_name, _version, and _iteration can be overridden by Travis or AppVeyor
 package_base_version ?= $(tag)
 package_iteration ?= "1"
@@ -116,6 +125,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DBUILD_COMPILER=\"$(compiler_version)\" \
   -DPONY_BUILD_CONFIG=\"$(config)\" \
   -DPONY_VERSION_STR=\"$(version_str)\" \
+  -DPONY_VERSION_FORMATTED_MD5=$(tag_formatted_md5) \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 LL_FLAGS = -mcpu=$(cpu)

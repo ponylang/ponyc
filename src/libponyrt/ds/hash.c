@@ -563,10 +563,10 @@ void ponyint_hashmap_serialise_trace(pony_ctx_t* ctx, void* object,
 }
 
 void ponyint_hashmap_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset)
+  uint64_t offset)
 {
   hashmap_t* map = (hashmap_t*)object;
-  hashmap_t* dst = (hashmap_t*)((uintptr_t)buf + offset);
+  hashmap_t* dst = (hashmap_t*)((uintptr_t)((uintptr_t)buf + offset));
 
   uintptr_t bitmap_offset = pony_serialise_offset(ctx, map->item_bitmap);
 

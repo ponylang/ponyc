@@ -183,7 +183,8 @@ PONY_API bool pony_start(bool library, int* exit_code,
 
     if(language_init.init_serialisation &&
       !ponyint_serialise_setup(language_init.descriptor_table,
-        language_init.descriptor_table_size))
+        language_init.descriptor_table_size,
+        language_init.desc_table_offset_lookup))
     {
       atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
       return false;

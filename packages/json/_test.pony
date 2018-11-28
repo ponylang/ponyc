@@ -552,8 +552,9 @@ class iso _TestPrintObject is UnitTest
     obj.data("a") = true
     obj.data("b") = I64(3)
     let s = doc.string("  ", true)
-    h.assert_true((s == "{\n  \"a\": true,\n  \"b\": 3\n}") or
-      (s == "{\n  \"b\": false,\n  \"a\": true\n}"))
+    h.assert_true((s == "{\n  \"a\": true,\n  \"b\": 3\n}")
+      or (s == "{\n  \"b\": 3,\n  \"a\": true\n}")
+      or (s == "{\n  \"b\": false,\n  \"a\": true\n}"))
 
     // We don't test with more fields in the object because we don't know what
     // order they will be printed in

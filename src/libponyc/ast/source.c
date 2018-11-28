@@ -87,12 +87,12 @@ static void source_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void source_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   source_t* source = (source_t*)object;
-  source_t* dst = (source_t*)((uintptr_t)buf + offset);
+  source_t* dst = (source_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->file = (const char*)pony_serialise_offset(ctx, (char*)source->file);
   dst->m = (char*)pony_serialise_offset(ctx, source->m);
@@ -110,6 +110,8 @@ static void source_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t source_pony =
 {
+  0,
+  0,
   0,
   sizeof(source_t),
   0,

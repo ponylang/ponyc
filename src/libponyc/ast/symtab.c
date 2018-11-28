@@ -352,12 +352,12 @@ static void symbol_serialise_trace(pony_ctx_t* ctx, void* object)
 }
 
 static void symbol_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
+  uint64_t offset, int mutability)
 {
   (void)mutability;
 
   symbol_t* sym = (symbol_t*)object;
-  symbol_t* dst = (symbol_t*)((uintptr_t)buf + offset);
+  symbol_t* dst = (symbol_t*)((uintptr_t)buf + (uintptr_t)offset);
 
   dst->name = (const char*)pony_serialise_offset(ctx, (char*)sym->name);
   dst->def = (ast_t*)pony_serialise_offset(ctx, sym->def);
@@ -377,6 +377,8 @@ static void symbol_deserialise(pony_ctx_t* ctx, void* object)
 
 static pony_type_t symbol_pony =
 {
+  0,
+  0,
   0,
   sizeof(symbol_t),
   0,

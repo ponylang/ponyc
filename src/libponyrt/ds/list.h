@@ -47,7 +47,7 @@ void ponyint_list_serialise_trace(pony_ctx_t* ctx, void* object,
   pony_type_t* list_type, pony_type_t* elem_type);
 
 void ponyint_list_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset);
+  uint64_t offset);
 
 void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   pony_type_t* list_type, pony_type_t* elem_type);
@@ -76,7 +76,7 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   DECLARE_LIST(name, name_t, type) \
   void name##_serialise_trace(pony_ctx_t* ctx, void* object); \
   void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
-    size_t offset, int mutability); \
+    uint64_t offset, int mutability); \
   void name##_deserialise(pony_ctx_t* ctx, void* object); \
   const pony_type_t* name##_pony_type(); \
 
@@ -152,7 +152,7 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     ponyint_list_serialise_trace(ctx, object, name##_pony_type(), elem_type); \
   } \
   void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
-    size_t offset, int mutability) \
+    uint64_t offset, int mutability) \
   { \
     (void)mutability; \
     ponyint_list_serialise(ctx, object, buf, offset); \
@@ -163,6 +163,8 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   } \
   static pony_type_t name##_pony = \
   { \
+    0, \
+    0, \
     0, \
     sizeof(name_t), \
     0, \

@@ -203,6 +203,13 @@ static void init_runtime(compile_t* c)
   c->msg_ptr = LLVMPointerType(c->msg_type, 0);
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
+  // descriptor_offset_lookup
+  // uint32_t (*)(i64)
+  params[0] = c->i64;
+  c->descriptor_offset_lookup_type = LLVMFunctionType(c->i32, params, 1, false);
+  c->descriptor_offset_lookup_fn =
+    LLVMPointerType(c->descriptor_offset_lookup_type, 0);
+
   // trace
   // void (*)(i8*, __object*)
   params[0] = c->void_ptr;
@@ -211,11 +218,11 @@ static void init_runtime(compile_t* c)
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
   // serialise
-  // void (*)(i8*, __object*, i8*, intptr, i32)
+  // void (*)(i8*, __object*, i8*, i64, i32)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   params[2] = c->void_ptr;
-  params[3] = c->intptr;
+  params[3] = c->i64;
   params[4] = c->i32;
   c->serialise_type = LLVMFunctionType(c->void_type, params, 5, false);
   c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
