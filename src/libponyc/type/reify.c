@@ -543,9 +543,8 @@ static void deferred_reification_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t deferred_reification_pony =
 {
   0,
-  0,
-  0,
   sizeof(deferred_reification_t),
+  0,
   0,
   0,
   NULL,

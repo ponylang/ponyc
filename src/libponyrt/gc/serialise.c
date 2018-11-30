@@ -85,6 +85,14 @@ static void custom_deserialise(pony_ctx_t* ctx)
 bool ponyint_serialise_setup(pony_type_t** table, size_t table_size,
   desc_offset_lookup_fn desc_table_offset_lookup)
 {
+#ifndef PONY_NDEBUG
+  for(uint32_t i = 0; i < table_size; i++)
+  {
+    if(table[i] != NULL)
+      pony_assert(table[i]->id == i);
+  }
+#endif
+
   desc_table = table;
   desc_table_size = table_size;
   desc_table_offset_lookup_fn = desc_table_offset_lookup;
@@ -92,9 +100,9 @@ bool ponyint_serialise_setup(pony_type_t** table, size_t table_size,
   return true;
 }
 
-static pony_type_t* get_descriptor(uint64_t type_id)
+static pony_type_t* get_descriptor(uint64_t serialise_id)
 {
-  uint32_t offset = desc_table_offset_lookup_fn(type_id);
+  uint32_t offset = desc_table_offset_lookup_fn(serialise_id);
   pony_assert(offset < desc_table_size);
   return desc_table[offset];
 }
@@ -195,15 +203,15 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
 
   // TODO: FIND OUT WHEN/HOW THIS CAN HAPPEN!!!!!!
   // If not possible normally, make this into an error/assert!
-  // If possible, figure out how to handle 64 bit type_id's and return types
-  // since the pointers are no longer able to hold the type_id + high bit
+  // If possible, figure out how to handle 64 bit serialise_id's and return types
+  // since the pointers are no longer able to hold the serialise_id + high bit
   // twiddles.
   // See TODO in pony_deserialise_offset for related issue
 
-  // If we are not in the map, we are an untraced primitive. Return the type id
-  // with the high bit set.
+  // If we are not in the map, we are an untraced primitive. Return the
+  // serialise id with the high bit set.
   pony_type_t* t = *(pony_type_t**)p;
-  return (size_t)t->id | HIGH_BIT;
+  return (size_t)t->serialise_id | HIGH_BIT;
 }
 
 PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -280,7 +288,7 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
   // If we haven't been passed a type descriptor, read one.
   if(t == NULL)
   {
-    // Make sure we have space to read a type id.
+    // Make sure we have space to read a serialise id.
 #ifdef PLATFORM_IS_ILP32
     if((offset + sizeof(uintptr_t)) > ctx->serialise_size)
 #else
@@ -292,9 +300,9 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
       abort();
     }
 
-    // Turn the type id into a descriptor pointer.
+    // Turn the serialise id into a descriptor pointer.
 #ifdef PLATFORM_IS_ILP32
-    // TODO: remove this ifdef once serialisation of 64 bit type_id's works for
+    // TODO: remove this ifdef once serialisation of 64 bit serialise_id's works for
     //       32 bit platforms
     uint64_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
 #else

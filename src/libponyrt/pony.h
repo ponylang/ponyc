@@ -132,10 +132,9 @@ typedef void (*pony_partial_fn)(void* data);
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
 {
-  uint64_t id;
-  uint16_t is_bits;
-  uint16_t numeric_size;
+  uint32_t id;
   uint32_t size;
+  uint64_t serialise_id;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
@@ -155,9 +154,9 @@ typedef const struct _pony_type_t
 
 /** Desc table lookup function.
  *
- * A function to convert `type_id`s to offsets in the desc table
+ * A function to convert `serialise_id`s to offsets in the desc table
  */
-typedef uint32_t (*desc_offset_lookup_fn)(uint64_t type_id);
+typedef uint32_t (*desc_offset_lookup_fn)(uint64_t serialise_id);
 
 /** Language feature initialiser.
  *

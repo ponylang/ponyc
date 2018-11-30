@@ -888,9 +888,8 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 static pony_type_t cycle_type =
 {
   0,
-  0,
-  0,
   sizeof(detector_t),
+  0,
   0,
   0,
   NULL,

@@ -821,7 +821,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef offset_addr = LLVMBuildInBoundsGEP(c->builder, addr, &offset, 1,
     "");
 
-  genserialise_typeid(c, t, offset_addr);
+  genserialise_serialiseid(c, t, offset_addr);
 
   // Don't serialise our contents if we are opaque.
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
@@ -942,7 +942,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, c_t->structure_ptr,
     "");
-  gendeserialise_typeid(c, c_t, object);
+  gendeserialise_serialiseid(c, c_t, object);
 
   // Deserialise the array contents.
   LLVMValueRef alloc = field_value(c, object, 2);
@@ -1065,7 +1065,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef offset_addr = LLVMBuildInBoundsGEP(c->builder, addr, &offset, 1,
     "");
 
-  genserialise_typeid(c, t, offset_addr);
+  genserialise_serialiseid(c, t, offset_addr);
 
   // Don't serialise our contents if we are opaque.
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
@@ -1129,7 +1129,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, c_t->structure_ptr,
     "");
-  gendeserialise_typeid(c, c_t, object);
+  gendeserialise_serialiseid(c, c_t, object);
 
   // Deserialise the string contents.
   LLVMValueRef alloc = field_value(c, object, 2);

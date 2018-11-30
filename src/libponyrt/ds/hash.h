@@ -222,9 +222,8 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   static pony_type_t name##_pony = \
   { \
     0, \
-    0, \
-    0, \
     sizeof(name_t), \
+    0, \
     0, \
     0, \
     NULL, \

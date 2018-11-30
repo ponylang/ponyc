@@ -136,7 +136,6 @@ static __pony_thread_local struct _pony_type_t string_pony =
   0,
   0,
   0,
-  0,
   NULL,
   NULL,
   NULL,
@@ -219,9 +218,8 @@ static void strlist_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t strlist_pony =
 {
   0,
-  0,
-  0,
   sizeof(strlist_t),
+  0,
   0,
   0,
   NULL,

@@ -413,9 +413,8 @@ static void program_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t program_pony =
 {
   0,
-  0,
-  0,
   sizeof(program_t),
+  0,
   0,
   0,
   NULL,

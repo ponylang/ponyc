@@ -20,7 +20,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   {
     case TK_PRIMITIVE:
     {
-      genserialise_typeid(c, t, offset);
+      genserialise_serialiseid(c, t, offset);
 
       if(c_t->primitive != NULL)
       {
@@ -37,7 +37,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
     case TK_CLASS:
     {
-      genserialise_typeid(c, t, offset);
+      genserialise_serialiseid(c, t, offset);
       extra++;
       break;
     }
@@ -45,7 +45,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   case TK_ACTOR:
     {
       // Skip the actor pad.
-      genserialise_typeid(c, t, offset);
+      genserialise_serialiseid(c, t, offset);
       extra += 2;
       break;
     }
@@ -55,7 +55,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
       // Get the tuple primitive type.
       if(LLVMTypeOf(object) == c_t->structure_ptr)
       {
-        genserialise_typeid(c, t, offset);
+        genserialise_serialiseid(c, t, offset);
         object = LLVMBuildStructGEP(c->builder, object, 1, "");
         LLVMValueRef size = LLVMConstInt(c->intptr,
           LLVMOffsetOfElement(c->target_data, structure, 1), false);
@@ -102,21 +102,21 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   }
 }
 
-void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset)
+void genserialise_serialiseid(compile_t* c, reach_type_t* t, LLVMValueRef offset)
 {
-  // Write the type id instead of the descriptor.
+  // Write the serialise id instead of the descriptor.
   if(target_is_ilp32(c->opt->triple))
   {
     // TODO: fix this and make 32 bit platforms properly serialise 64 bit
-    //       type_ids
-    LLVMValueRef value = LLVMConstInt(c->intptr, t->type_id, false);
+    //       serialise_ids
+    LLVMValueRef value = LLVMConstInt(c->intptr, t->serialise_id, false);
     LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
       LLVMPointerType(c->intptr, 0), "");
     LLVMBuildStore(c->builder, value, loc);
   }
   else
   {
-    LLVMValueRef value = LLVMConstInt(c->i64, t->type_id, false);
+    LLVMValueRef value = LLVMConstInt(c->i64, t->serialise_id, false);
     LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
       LLVMPointerType(c->i64, 0), "");
     LLVMBuildStore(c->builder, value, loc);
@@ -150,7 +150,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
     LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, obj,
       ((compile_type_t*)sub->c_type)->instance, "");
     LLVMBuildCondBr(c->builder, test, post_block, next_block);
-    LLVMValueRef value = LLVMConstInt(c->i64, sub->type_id, false);
+    LLVMValueRef value = LLVMConstInt(c->i64, sub->serialise_id, false);
     LLVMAddIncoming(phi, &value, &current_block, 1);
     LLVMPositionBuilderAtEnd(c->builder, next_block);
     sub = next;
@@ -159,7 +159,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
   }
 
   LLVMBuildBr(c->builder, post_block);
-  LLVMValueRef value = LLVMConstInt(c->i64, sub->type_id, false);
+  LLVMValueRef value = LLVMConstInt(c->i64, sub->serialise_id, false);
   LLVMAddIncoming(phi, &value, &current_block, 1);
 
   LLVMMoveBasicBlockAfter(post_block, current_block);
@@ -186,12 +186,12 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
       LLVMPointerType(c_t->mem_type, 0), "");
     LLVMBuildStore(c->builder, value, loc);
   } else if(t->bare_method != NULL) {
-    // Bare object, either write the type id directly if it is a concrete object
-    // or compute the type id based on the object value and write it if it isn't.
+    // Bare object, either write the serialise id directly if it is a concrete object
+    // or compute the serialise id based on the object value and write it if it isn't.
     switch(t->underlying)
     {
       case TK_PRIMITIVE:
-        genserialise_typeid(c, t, offset);
+        genserialise_serialiseid(c, t, offset);
         break;
 
       case TK_INTERFACE:
@@ -260,7 +260,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     case TK_PRIMITIVE:
     case TK_CLASS:
     {
-      gendeserialise_typeid(c, c_t, object);
+      gendeserialise_serialiseid(c, c_t, object);
       extra++;
       break;
     }
@@ -268,7 +268,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     case TK_ACTOR:
     {
       // Skip the actor pad.
-      gendeserialise_typeid(c, c_t, object);
+      gendeserialise_serialiseid(c, c_t, object);
       extra += 2;
       break;
     }
@@ -278,7 +278,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
       // Get the tuple primitive type.
       if(LLVMTypeOf(object) == c_t->structure_ptr)
       {
-        gendeserialise_typeid(c, c_t, object);
+        gendeserialise_serialiseid(c, c_t, object);
         object = LLVMBuildStructGEP(c->builder, object, 1, "");
       }
       break;
@@ -295,20 +295,20 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   }
 }
 
-void gendeserialise_typeid(compile_t* c, compile_type_t* t, LLVMValueRef object)
+void gendeserialise_serialiseid(compile_t* c, compile_type_t* t, LLVMValueRef object)
 {
-  // Write the descriptor instead of the type id.
+  // Write the descriptor instead of the serialise id.
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, object, 0, "");
   LLVMBuildStore(c->builder, t->desc, desc_ptr);
 }
 
 static void deserialise_bare_interface(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef type_id = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef serialise_id = LLVMBuildLoad(c->builder, ptr, "");
 
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i32, 0, false);
-  args[1] = LLVMBuildPtrToInt(c->builder, type_id, c->intptr, "");
+  args[1] = LLVMBuildPtrToInt(c->builder, serialise_id, c->i64, "");
 
   LLVMValueRef desc = LLVMBuildInBoundsGEP(c->builder, c->desc_table, args, 2,
     "");

@@ -51,7 +51,7 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
   LLVMTypeRef desc_ptr_ptr = LLVMPointerType(c->descriptor_ptr, 0);
   LLVMValueRef desc_table_lookup_fn = c->desc_table_offset_lookup_fn;
 
-  uint32_t desc_table_size = reach_total_num_types(c->reach);
+  uint32_t desc_table_size = reach_max_type_id(c->reach);
 
   LLVMTypeRef f_params[5];
   f_params[0] = boolean;

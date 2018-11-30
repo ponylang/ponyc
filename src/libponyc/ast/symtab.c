@@ -378,9 +378,8 @@ static void symbol_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t symbol_pony =
 {
   0,
-  0,
-  0,
   sizeof(symbol_t),
+  0,
   0,
   0,
   NULL,

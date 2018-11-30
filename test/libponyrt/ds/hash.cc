@@ -69,9 +69,8 @@ static void hash_elem_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t hash_elem_pony =
 {
   0,
-  0,
-  0,
   sizeof(hash_elem_t),
+  0,
   0,
   0,
   NULL,

@@ -111,9 +111,8 @@ static void source_deserialise(pony_ctx_t* ctx, void* object)
 static pony_type_t source_pony =
 {
   0,
-  0,
-  0,
   sizeof(source_t),
+  0,
   0,
   0,
   NULL,

@@ -9,10 +9,6 @@
 
 PONY_EXTERN_C_BEGIN
 
-#define IS_BOXED_BIT 0x1
-#define IS_NUMERIC_BIT 0x2
-#define IS_TUPLE_BIT 0x4
-
 typedef struct reach_method_t reach_method_t;
 typedef struct reach_method_name_t reach_method_name_t;
 typedef struct reach_field_t reach_field_t;
@@ -101,12 +97,11 @@ struct reach_type_t
   reach_method_names_t methods;
   reach_method_t* bare_method;
   reach_type_cache_t subtypes;
-  uint64_t type_id;
+  uint32_t type_id;
   uint32_t vtable_size;
+  uint64_t serialise_id;
   bool can_be_boxed;
   bool is_trait;
-  uint16_t is_bits;
-  uint32_t desc_table_offset;
 
   uint32_t field_count;
   reach_field_t* fields;
@@ -151,7 +146,7 @@ reach_method_name_t* reach_method_name(reach_type_t* t,
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name);
 
-uint32_t reach_total_num_types(reach_t* r);
+uint32_t reach_max_type_id(reach_t* r);
 
 void reach_dump(reach_t* r);
 

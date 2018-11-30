@@ -280,7 +280,7 @@ static LLVMValueRef assign_union_to_tuple(compile_t* c, LLVMTypeRef l_type,
     pony_assert(sub->underlying == TK_TUPLETYPE);
 
     LLVMBasicBlockRef sub_block = codegen_block(c, "assign_union_tuple_sub");
-    LLVMAddCase(type_switch, LLVMConstInt(c->i64, sub->type_id, false),
+    LLVMAddCase(type_switch, LLVMConstInt(c->i32, sub->type_id, false),
       sub_block);
     LLVMPositionBuilderAtEnd(c->builder, sub_block);
 
