@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- [RFC 60] Add binary heaps ([PR #2950](https://github.com/ponylang/ponyc/pull/2950))
 - Make _SignedInteger and _UnsignedInteger public ([PR #2939](https://github.com/ponylang/ponyc/pull/2939))
 
 ### Changed
