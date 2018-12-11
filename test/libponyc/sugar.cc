@@ -555,11 +555,17 @@ TEST_F(SugarTest, FunctionNoReturnBody)
 
 TEST_F(SugarTest, FunctionParamMustBeId)
 {
-  const char* good =
+  const char* good1 =
     "trait Foo\n"
     "  fun foo(x: U64) => 3";
 
-  TEST_COMPILE(good);
+  TEST_COMPILE(good1);
+
+  const char* good2 =
+    "trait Foo\n"
+    "  fun foo(_: U64) => 3";
+
+  TEST_COMPILE(good2);
 
   const char* bad1 =
     "trait Foo\n"
@@ -569,15 +575,9 @@ TEST_F(SugarTest, FunctionParamMustBeId)
 
   const char* bad2 =
     "trait Foo\n"
-    "  fun foo(_: U64) => 3";
-
-  TEST_ERROR(bad2);
-
-  const char* bad3 =
-    "trait Foo\n"
     "  fun foo($: U64) => 3";
 
-  TEST_ERROR(bad3);
+  TEST_ERROR(bad2);
 }
 
 
