@@ -31,8 +31,8 @@ class iso _TestStdinStdout is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
-      let args: Array[String] val = [ "cat" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["cat"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
@@ -62,8 +62,8 @@ class iso _TestStderr is UnitTest
       "cat: file_does_not_exist: No such file or directory\n", 1, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
-      let args: Array[String] val = [ "cat"; "file_does_not_exist" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["cat"; "file_does_not_exist"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
       _pm  = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
@@ -100,8 +100,8 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
       let path =
         FilePath(h.env.root as AmbientAuth, "/bin/date",
           recover val FileCaps .> all() .> unset(FileExec) end)?
-      let args: Array[String] val = [ "date" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["date"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
@@ -199,8 +199,8 @@ class iso _TestExpect is UnitTest
 
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/echo")?
-      let args: Array[String] val = [ "echo"; "hello there!" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["echo"; "hello there!"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
@@ -227,13 +227,13 @@ class iso _TestWritevOrdering is UnitTest
       _ProcessClient(11, "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
-      let args: Array[String] val = [ "cat" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["cat"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, args, vars)
-      let params: Array[String] val = [ "one"; "two"; "three" ]
+      let params: Array[String] val = ["one"; "two"; "three"]
 
       pm.writev(params)
       pm.done_writing()  // closing stdin allows "cat" to terminate
@@ -258,13 +258,13 @@ class iso _TestPrintvOrdering is UnitTest
       _ProcessClient(14, "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
-      let args: Array[String] val = [ "cat" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["cat"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, args, vars)
-      let params: Array[String] val = [ "one"; "two"; "three" ]
+      let params: Array[String] val = ["one"; "two"; "three"]
 
       pm.printv(params)
       pm.done_writing()  // closing stdin allows "cat" to terminate
@@ -293,8 +293,8 @@ class iso _TestStdinWriteBuf is UnitTest
       "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
-      let args: Array[String] val = [ "cat" ]
-      let vars: Array[String] val = [ "HOME=/"; "PATH=/bin" ]
+      let args: Array[String] val = ["cat"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
       let auth = h.env.root as AmbientAuth

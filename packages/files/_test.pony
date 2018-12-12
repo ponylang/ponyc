@@ -955,7 +955,7 @@ class iso _TestFileLinesSingleLine is UnitTest
 class _TestFileLinesMultiLine is UnitTest
   var tmp_dir: (FilePath | None) = None
 
-  let line_endings: Array[String] val = [ "\n"; "\r\n" ]
+  let line_endings: Array[String] val = ["\n"; "\r\n"]
   let file_contents: Array[(Array[String] val, USize)] val = [
     (["a"; "b"], 2)
     (["a"; ""; "b"], 3)
