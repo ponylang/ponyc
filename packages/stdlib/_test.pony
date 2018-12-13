@@ -15,6 +15,7 @@ All tests can be run by compiling and running packages/stdlib.
 // generate docs for it, etc.
 use "ponytest"
 use assert = "assert"
+use backpressure= "backpressure"
 use base64 = "encode/base64"
 use buffered = "buffered"
 use builtin_test = "builtin_test"
