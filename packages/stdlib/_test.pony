@@ -71,18 +71,21 @@ actor Main is TestList
     end
 
     ini.Main.make().tests(test)
+    itertools.Main.make().tests(test)
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
-    promises.Main.make().tests(test)
 
     ifdef posix then
       // The process package currently only supports posix
       process.Main.make().tests(test)
     end
 
+    promises.Main.make().tests(test)
+    random.Main.make().tests(test)
     regex.Main.make().tests(test)
+    serialise.Main.make().tests(test)
 
     ifdef not windows then
       // The signals tests currently abort the process on Windows, so ignore
@@ -90,8 +93,5 @@ actor Main is TestList
       signals.Main.make().tests(test)
     end
 
-    random.Main.make().tests(test)
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
-    itertools.Main.make().tests(test)
-    serialise.Main.make().tests(test)
