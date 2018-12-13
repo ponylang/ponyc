@@ -90,6 +90,7 @@ actor Main is TestList
       signals.Main.make().tests(test)
     end
 
+    random.Main.make().tests(test)
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
     itertools.Main.make().tests(test)
