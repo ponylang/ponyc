@@ -12,7 +12,7 @@ debug configured, pass the `-d` flag to `ponyc` when compiling e.g.:
 ```pony
 actor Main
   new create(env: Env) =>
-    Debug.out("This will only bee seen when configured for debug info")
+    Debug.out("This will only be seen when configured for debug info")
     env.out.print("This will always be seen")
 ```
 """
