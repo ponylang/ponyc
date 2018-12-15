@@ -146,6 +146,9 @@ trait val Real[A: Real[A] val] is
   fun rem(y: A): A => this % y
   fun neg(): A => -this
 
+  fun fld(y: A): A
+  fun mod(y: A): A
+
   fun eq(y: box->A): Bool => this == y
   fun ne(y: box->A): Bool => this != y
   fun lt(y: box->A): Bool => this < y
@@ -279,6 +282,10 @@ trait val Integer[A: Integer[A] val] is Real[A]
     If y is `0` this function errors.
     """
 
+  fun fld_partial(y: A): A ?
+
+  fun mod_partial(y: A): A ?
+
   fun neg_unsafe(): A =>
     """
     Unsafe operation.
@@ -306,6 +313,8 @@ trait val Integer[A: Integer[A] val] is Real[A]
     """
     Calculated the ramainder of this number dividec by y and return the result and a flag indicating division by zero or overflow.
     """
+  fun fldc(y: A): (A, Bool)
+  fun modc(y: A): (A, Bool)
 
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
@@ -370,6 +379,15 @@ trait val UnsignedInteger[A: UnsignedInteger[A] val] is Integer[A]
 
   fun shl(y: A): A => this << y
   fun shr(y: A): A => this >> y
+
+  // both fld and mod behave the same as div and rem for unsigned integers
+  fun fld(y: A): A => this / y
+  fun fldc(y: A): (A, Bool) => this.divc(y)
+  fun fld_partial(y: A): A ? => this.div_partial(y)?
+
+  fun mod(y: A): A => this % y
+  fun modc(y: A): (A, Bool) => this.remc(y)
+  fun mod_partial(y: A): A ? => this.rem_partial(y)?
 
   fun shl_unsafe(y: A): A =>
     """
