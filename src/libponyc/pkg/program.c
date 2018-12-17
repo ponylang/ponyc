@@ -148,14 +148,38 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options)
 {
   (void)name;
+  char resolved[FILENAME_MAX];
+  char composite[FILENAME_MAX];
 
-  const char* libpath = quoted_locator(options, use, locator);
+  if(is_path_absolute(locator)) {
+    if(strlen(locator) > FILENAME_MAX)
+      return false;
+
+    strcpy(resolved, locator);
+  } else {
+    // resolve path relative to pkg path
+    ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
+    const char* pkg_path = package_path(pkg_ast);
+
+    if(strlen(pkg_path) + strlen(locator) >= FILENAME_MAX)
+      return false;
+
+    path_cat(pkg_path, locator, composite);
+
+    if(pony_realpath(composite, resolved) != resolved) {
+      errorf(options->check.errors, package_filename(pkg_ast),
+             "resolve \"path:%s\": %s", locator, strerror(errno));
+      return false;
+    }
+  }
+
+  const char* libpath = quoted_locator(options, use, resolved);
 
   if(libpath == NULL)
     return false;
 
-  ast_t* p = ast_nearest(use, TK_PROGRAM);
-  program_t* prog = (program_t*)ast_data(p);
+  ast_t* prog_ast = ast_nearest(use, TK_PROGRAM);
+  program_t* prog = (program_t*)ast_data(prog_ast);
   pony_assert(prog->lib_args == NULL); // Not yet built args
 
   if(strlist_find(prog->libpaths, libpath) != NULL) // Ignore duplicate
