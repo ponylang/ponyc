@@ -1422,18 +1422,12 @@ actor Main
         break
       end
 
-      let new_value: A = if minus then
-        (value * base') - digit
+      value = if minus then
+        (value *? base') -? digit
       else
-        (value * base') + digit
+        (value *? base') +? digit
       end
 
-      if (new_value / base') != value then
-        // Overflow
-        error
-      end
-
-      value = new_value
       had_digit = true
       index = index + 1
     end
