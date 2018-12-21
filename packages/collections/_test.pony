@@ -203,6 +203,15 @@ class iso _TestMapUpsert is UnitTest
     h.assert_eq[U64](2, x3.upsert(5, 1, f')?)
     h.assert_ne[USize](expected_initial_size, x3.space())
 
+    let x4: Map[I32, I64] = Map[I32,I64]
+    let i = {(x: I64, y: I64): I64 => x - y }
+    x4.upsert(2, 4, i)?
+    h.assert_eq[I64](4, x4(2)?)
+    x4.upsert(2, 4, i)?
+    h.assert_eq[I64](0, x4(2)?)
+    x4.upsert(2, 4, i)?
+    h.assert_eq[I64](-4, x4(2)?)
+
 class iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
 
