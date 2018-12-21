@@ -79,21 +79,22 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Combines a provided value with the current value for the provided key
     using the provided function. If the provided key has not been added to
-    the map yet, it sets its value to the provided value.
+    the map yet, it sets its value to the provided value and ignores the
+    provided function.
 
     As a simple example, say we had a map with I64 values and we wanted to
     add 4 to the current value for key "test", which let's say is currently 2.
     We call
 
-    m.upsert("test", 4, {(x, y) => x - y })
+    m.upsert("test", 4, {(current, provided) => current + provided })
 
-    This changes the value associated with "test" to -2.
+    This changes the value associated with "test" to 6.
 
     If we have not yet added the key "new-key" to the map and we call
 
-    m.upsert("new-key", 4, {(x, y) => x - y })
+    m.upsert("new-key", 4, {(current, provided) => current + provided })
 
-    then "new-key" is added to the map with a value of -4.
+    then "new-key" is added to the map with a value of 4.
 
     Returns the value that we set the key to
     """
