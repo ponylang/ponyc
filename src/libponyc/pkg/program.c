@@ -148,8 +148,7 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options)
 {
   (void)name;
-  char resolved[FILENAME_MAX];
-  char composite[FILENAME_MAX];
+  char absolute[FILENAME_MAX];
 
   ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
   const char* pkg_path = package_path(pkg_ast);
@@ -158,22 +157,16 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
     if(strlen(locator) > FILENAME_MAX)
       return false;
 
-    strcpy(composite, locator);
+    strcpy(absolute, locator);
   } else {
     // resolve path relative to pkg path
     if(strlen(pkg_path) + strlen(locator) >= FILENAME_MAX)
       return false;
 
-    path_cat(pkg_path, locator, composite);
+    path_cat(pkg_path, locator, absolute);
   }
 
-  if(pony_realpath(composite, resolved) != resolved) {
-    errorf(options->check.errors, package_filename(pkg_ast),
-           "\"path:%s\": %s", locator, strerror(errno));
-    return false;
-  }
-
-  const char* libpath = quoted_locator(options, use, resolved);
+  const char* libpath = quoted_locator(options, use, absolute);
 
   if(libpath == NULL)
     return false;
