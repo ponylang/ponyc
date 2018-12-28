@@ -375,8 +375,16 @@ static void make_debug_prototype(compile_t* c, reach_type_t* t)
   if(t->underlying != TK_TUPLETYPE)
   {
     c_t->di_type_embed = c_t->di_type;
+#if PONY_LLVM >= 700
+    uint64_t size_bytes = LLVMABISizeOfType(c->target_data, c_t->mem_type);
+    uint32_t align_bytes = LLVMABIAlignmentOfType(c->target_data, c_t->mem_type);
+
+    c_t->di_type = LLVMDIBuilderCreatePointerType(c->di, c_t->di_type_embed,
+      size_bytes * 8, align_bytes * 8, 0, 0, 0);
+#else
     c_t->di_type = LLVMDIBuilderCreatePointerType(c->di, c_t->di_type_embed, 0,
       0);
+#endif
   }
 }
 
@@ -629,7 +637,11 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
 {
   const char* name;
   char buf[32];
+#if PONY_LLVM >= 700
+  LLVMDIFlags flags = LLVMDIFlagZero;
+#else
   unsigned flags = 0;
+#endif
   uint64_t offset = 0;
   ast_t* ast;
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -642,7 +654,11 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
     name = ast_name(ast_child(ast));
 
     if(is_name_private(name))
+#if PONY_LLVM >= 700
+      flags = (LLVMDIFlags)(flags | LLVMDIFlagPrivate);
+#else
       flags |= DW_FLAG_Private;
+#endif
 
     uint32_t extra = 0;
 
@@ -676,8 +692,14 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
   uint64_t size = LLVMABISizeOfType(c->target_data, type);
   uint64_t align = LLVMABIAlignmentOfType(c->target_data, type);
 
+#if PONY_LLVM >= 700
+  return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, strlen(name),
+    c_t->di_file, (unsigned)ast_line(ast), 8 * size, (uint32_t)(8 * align),
+    8 * offset, flags, di_type);
+#else
   return LLVMDIBuilderCreateMemberType(c->di, c->di_unit, name, c_t->di_file,
     (unsigned)ast_line(ast), 8 * size, 8 * align, 8 * offset, flags, di_type);
+#endif
 }
 
 static void make_debug_fields(compile_t* c, reach_type_t* t)
@@ -714,9 +736,16 @@ static void make_debug_fields(compile_t* c, reach_type_t* t)
     align = LLVMABIAlignmentOfType(c->target_data, type);
   }
 
+#if PONY_LLVM >= 700
+  LLVMMetadataRef di_type = LLVMDIBuilderCreateStructType(c->di, c->di_unit,
+    t->name, strlen(t->name), c_t->di_file, (unsigned) ast_line(t->ast),
+    8 * size, (uint32_t)(8 * align), LLVMDIFlagZero, 0, &fields, t->field_count,
+    0, 0, t->name, strlen(t->name));
+#else
   LLVMMetadataRef di_type = LLVMDIBuilderCreateStructType(c->di, c->di_unit,
     t->name, c_t->di_file, (unsigned) ast_line(t->ast), 8 * size, 8 * align,
     fields);
+#endif
 
   if(t->underlying != TK_TUPLETYPE)
   {

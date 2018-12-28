@@ -263,8 +263,16 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   LLVMMetadataRef file = codegen_difile(c);
   LLVMMetadataRef scope = codegen_discope(c);
 
+#if PONY_LLVM >= 700
+  uint32_t align_bytes = LLVMABIAlignmentOfType(c->target_data, c_t->mem_type);
+
+  LLVMMetadataRef info = LLVMDIBuilderCreateAutoVariable(c->di, scope,
+    name, strlen(name), file, (unsigned)ast_line(ast), c_t->di_type,
+    true, LLVMDIFlagZero, align_bytes * 8);
+#else
   LLVMMetadataRef info = LLVMDIBuilderCreateAutoVariable(c->di, scope, name,
     file, (unsigned)ast_line(ast), c_t->di_type);
+#endif
 
   LLVMMetadataRef expr = LLVMDIBuilderCreateExpression(c->di, NULL, 0);
 

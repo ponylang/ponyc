@@ -9,6 +9,11 @@
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
 #include <llvm/ExecutionEngine/Orc/LambdaResolver.h>
+#if PONY_LLVM >= 700
+#  include <llvm/ExecutionEngine/Orc/Core.h>
+#  include <llvm/ExecutionEngine/Orc/NullResolver.h>
+#  include <llvm/ADT/STLExtras.h>
+#endif
 #if PONY_LLVM >= 500
 #  include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #else
@@ -20,7 +25,13 @@
 
 namespace orc = llvm::orc;
 
-#if PONY_LLVM >= 500
+#if PONY_LLVM >= 700
+using ExecutionSession = orc::ExecutionSession;
+using LinkingLayerType = orc::RTDyldObjectLinkingLayer;
+using CompileLayerType = orc::IRCompileLayer<LinkingLayerType,
+  orc::SimpleCompiler>;
+using ModuleHandleType = orc::VModuleKey;
+#elif PONY_LLVM >= 500
 using LinkingLayerType = orc::RTDyldObjectLinkingLayer;
 using CompileLayerType = orc::IRCompileLayer<LinkingLayerType,
   orc::SimpleCompiler>;
@@ -70,6 +81,39 @@ static void* find_symbol(llvm::Module& module, CompileLayerType& compile_layer,
 #endif
 }
 
+#if PONY_LLVM >= 700
+// copied from LLVM
+// unittests/ExecutionEngine/Orc/RTDyldObjectLinkingLayer2Test.cpp
+class MemoryManagerWrapper : public llvm::SectionMemoryManager
+{
+public:
+  MemoryManagerWrapper(bool &DebugSeen) : DebugSeen(DebugSeen) {}
+
+  uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+    unsigned SectionID, llvm::StringRef SectionName,
+    bool IsReadOnly) override
+  {
+    if (SectionName == ".debug_str")
+      DebugSeen = true;
+    return llvm::SectionMemoryManager::allocateDataSection(
+        Size, Alignment, SectionID, SectionName, IsReadOnly);
+  }
+
+private:
+  bool &DebugSeen;
+};
+
+template <typename Local, typename External>
+std::unique_ptr<orc::LambdaResolver<Local, External>>
+pi_createLambdaResolver(Local local, External external)
+{
+  return llvm::make_unique<orc::LambdaResolver<Local, External>>(
+    std::move(local), std::move(external));
+}
+
+static ModuleHandleType next_module_handle = 0;
+#endif
+
 bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   size_t symbol_count)
 {
@@ -91,18 +135,42 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   // ownership to that shared_ptr. Use an empty deleter so that the module
   // doesn't get freed when the shared_ptr is destroyed.
   auto noop_deleter = [](void* p){ (void)p; };
+
+#if PONY_LLVM >= 700
+  std::unique_ptr<llvm::Module> module = llvm::make_unique<llvm::Module>(
+    std::move(llvm::unwrap(c->module)), std::move(noop_deleter));
+#else
   std::shared_ptr<llvm::Module> module{llvm::unwrap(c->module), noop_deleter};
+#endif
 
   auto machine = reinterpret_cast<llvm::TargetMachine*>(c->machine);
 
   auto mem_mgr = std::make_shared<llvm::SectionMemoryManager>();
 
+#if PONY_LLVM >= 700
+  bool debug_section_seen = false;
+  auto mm = std::make_shared<MemoryManagerWrapper>(debug_section_seen);
+  ExecutionSession execution_session;
+  LinkingLayerType linking_layer(execution_session, [&mm](ModuleHandleType)
+  {
+    return LinkingLayerType::Resources
+    {
+      mm, pi_createLambdaResolver([](llvm::StringRef name), )
+    };
+  });
+#else
   LinkingLayerType linking_layer{
 #if PONY_LLVM >= 500
     [&mem_mgr]{ return mem_mgr; }
 #endif
   };
+#endif
+
+#if PONY_LLVM >= 700
+  CompileLayerType compile_layer(linking_layer, orc::SimpleCompiler(*machine));
+#else
   CompileLayerType compile_layer{linking_layer, orc::SimpleCompiler{*machine}};
+#endif
 
   auto local_lookup = [&compile_layer](llvm::StringRef name)
   {
