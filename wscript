@@ -50,13 +50,13 @@ MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
     '3.9.1',
-    '5.0.1',
-    '6.0.0'
+    '6.0.1',
+    '7.0.1'
 ]
 
-WINDOWS_LIBS_TAG = "v1.7.0"
-LIBRESSL_VERSION = "2.6.4"
-PCRE2_VERSION = "10.31"
+LIBRESSL_VERSION = "2.9.0"
+PCRE2_VERSION = "10.32"
+WINDOWS_LIBS_TAG = "v1.8.1"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
