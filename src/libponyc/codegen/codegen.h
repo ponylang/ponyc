@@ -20,8 +20,12 @@
 PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
+
+#if PONY_LLVM < 700
 char* LLVMGetHostCPUName();
 char* LLVMGetHostCPUFeatures();
+#endif
+
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
 void LLVMSetNoSignedWrap(LLVMValueRef inst);
