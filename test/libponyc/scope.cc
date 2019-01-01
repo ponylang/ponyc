@@ -166,6 +166,18 @@ TEST_F(ScopeTest, TypeParam)
 }
 
 
+TEST_F(ScopeTest, HigherKindedTypeParam)
+{
+  const char* src = "actor A fun foo[F[_]() => None";
+
+  TEST_COMPILE(src);
+
+  ast_t* foo = lookup_member("A", "foo");
+  ASSERT_ID(TK_FUN, foo);
+  ASSERT_ID(TK_HIGHERKINDEDTYPEPARAM, lookup_in(foo, "F"));
+  ASSERT_EQ(1, ref_count(package, "F"));
+}
+
 TEST_F(ScopeTest, Local)
 {
   const char* src = "actor A fun foo() => var bar: U32 = 3";
