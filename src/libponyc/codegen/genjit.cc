@@ -143,15 +143,15 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
 
   CompileLayerType compile_layer(linking_layer, orc::SimpleCompiler(*machine));
 
-  auto local_lookup = [&compile_layer](const std::string & name)
-  {
-    return compile_layer.findSymbol(name, false);
-  };
+  // auto local_lookup = [&compile_layer](const std::string & name)
+  // {
+  //   return compile_layer.findSymbol(name, false);
+  // };
 
-  auto external_lookup = [&mem_mgr](const std::string & name)
-  {
-    return mem_mgr->findSymbol(name);
-  };
+  // auto external_lookup = [&mem_mgr](const std::string & name)
+  // {
+  //   return mem_mgr->findSymbol(name);
+  // };
 
   std::unique_ptr<llvm::Module> module(llvm::unwrap(c->module));
   ModuleHandleType handle = exec_session.allocateVModule();
