@@ -168,7 +168,7 @@ TEST_F(ScopeTest, TypeParam)
 
 TEST_F(ScopeTest, HigherKindedTypeParam)
 {
-  const char* src = "actor A fun foo[F[_]() => None";
+  const char* src = "actor A fun foo[F[_]]() => None";
 
   TEST_COMPILE(src);
 
