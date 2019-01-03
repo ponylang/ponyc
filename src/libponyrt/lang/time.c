@@ -83,12 +83,19 @@ PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
   tm_to_date(&tm, (int)nsec, date);
 }
 
-void format_invalid_parameter_handler(const wchar_t* /*expression*/,
-  const wchar_t* /*function*/,
-  const wchar_t* /*file*/,
-  unsigned int /*line*/,
-  uintptr_t /*p_reserved*/)
+void format_invalid_parameter_handler(const wchar_t* expression,
+  const wchar_t* function,
+  const wchar_t* file,
+  unsigned int line,
+  uintptr_t p_reserved)
 {
+  // Cast all parameters to void to silence unused parameter warning
+  (void) expression;
+  (void) function;
+  (void) file;
+  (void) line;
+  (void) p_reserved;
+
   // Throw a pony error
   pony_error();
 }
