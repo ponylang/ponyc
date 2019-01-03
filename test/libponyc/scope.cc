@@ -166,7 +166,7 @@ TEST_F(ScopeTest, TypeParam)
 }
 
 
-TEST_F(ScopeTest, HigherKindedTypeParam)
+TEST_F(ScopeTest, HigherKindedTypeParamMethod)
 {
   const char* src = "actor A fun foo[F[_]]() => None";
 
