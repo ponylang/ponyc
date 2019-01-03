@@ -122,12 +122,18 @@ DEF(typearg);
   RULE("type argument", type, typeargliteral, typeargconst);
   DONE();
 
+// UNDERSCORE
+DEF(underscore);
+    TOKEN("_", TK_UNDERSCORE);
+    DONE();
+
+
 // LSQUARE UNDERSCORE {COMMA UNDERSCORE} RSQUARE
 DEF(unboundtypeargs);
     AST_NODE(TK_TYPEARGS);
     SKIP(NULL, TK_LSQUARE);
-    TOKEN("underscore", TK_UNDERSCORE);
-    WHILE(TK_COMMA, TOKEN("underscore", TK_UNDERSCORE));
+    RULE("underscore", underscore);
+    WHILE(TK_COMMA, RULE("underscore", underscore));
     TERMINATE("higher kinded type arguments", TK_RSQUARE);
     DONE();
 
