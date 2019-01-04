@@ -124,13 +124,13 @@ DEF(typearg);
 
 // UNDERSCORE
 DEF(underscore);
-    TOKEN("_", TK_UNDERSCORE);
+    TOKEN("_", TK_ID);
     DONE();
 
 
 // LSQUARE UNDERSCORE {COMMA UNDERSCORE} RSQUARE
 DEF(unboundtypeargs);
-    AST_NODE(TK_TYPEARGS);
+    AST_NODE(TK_HIGHERKINDEDTYPEARGS);
     SKIP(NULL, TK_LSQUARE);
     RULE("underscore", underscore);
     WHILE(TK_COMMA, RULE("underscore", underscore));
