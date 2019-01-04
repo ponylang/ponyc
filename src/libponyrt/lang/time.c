@@ -127,14 +127,14 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
     #ifdef PLATFORM_IS_WINDOWS
       _invalid_parameter_handler old_handler, new_handler;
       new_handler = format_invalid_parameter_handler;
-      old_handler = _set_invalid_parameter_handler(new_handler);
+      old_handler = _set_thread_local_invalid_parameter_handler(new_handler);
     #endif
 
     r = strftime(buffer, len, fmt, &tm);
 
     // Reset the invalid parameter handler
     #ifdef PLATFORM_IS_WINDOWS
-      _set_invalid_parameter_handler(old_handler);
+      _set_thread_local_invalid_parameter_handler(old_handler);
     #endif
 
     len <<= 1;
