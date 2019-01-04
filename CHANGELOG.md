@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix silent crash with incorrect time formats in Windows ([PR #2971](https://github.com/ponylang/ponyc/pull/2971))
 - Add whitespace between multiple args on cli help output ([PR #2942](https://github.com/ponylang/ponyc/pull/2942))
 - Fix unsafe cases in capability subtyping implementation ([PR #2660](https://github.com/ponylang/ponyc/pull/2660))
 - Fix race condition with socket close event from peer ([PR #2923](https://github.com/ponylang/ponyc/pull/2923))
@@ -22,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Fix silent crash with incorrect time formats in Windows ([PR #2971](https://github.com/ponylang/ponyc/pull/2971))
 - Add before/after iteration hooks to ponybench ([PR #2898](https://github.com/ponylang/ponyc/pull/2898))
 
 ## [0.25.0] - 2018-10-13
