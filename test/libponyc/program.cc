@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 #include <ast/ast.h>
+#include <ast/symtab.h>
 #include <pkg/program.h>
+#include <pkg/package.h>
 
 
 class ProgramTest : public testing::Test
@@ -189,15 +191,21 @@ TEST(ProgramTest, BadLibName)
 }
 
 
-TEST(ProgramTest, LibPaths)
+TEST(ProgramTest, LibPathsRelative)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
+  ast_scope(prog);
 
   pass_opt_t opt;
   pass_opt_init(&opt);
 
-  ASSERT_TRUE(use_path(prog, "foo", NULL, &opt));
+  // create a fake package
+  ast_t* pkg = create_package(prog, "/foo", "foo", &opt);
+  ASSERT_NE((void*)NULL, pkg);
+
+  // pretend we issue a use "path:..." from within that package
+  ASSERT_TRUE(use_path(pkg, "bar", NULL, &opt));
 
   program_lib_build_args(prog, &opt, "static", "dynamic", "", "", "", "");
 
@@ -205,7 +213,35 @@ TEST(ProgramTest, LibPaths)
   errors_print(opt.check.errors);
   pass_opt_done(&opt);
 
-  const char* expect = "static\"foo\" dynamic\"foo\" ";
+  const char* expect = "static\"/foo/bar\" dynamic\"/foo/bar\" ";
+  ASSERT_STREQ(expect, program_lib_args(prog));
+
+  ast_free(prog);
+}
+
+TEST(ProgramTest, LibPathsAbsolute)
+{
+  ast_t* prog = ast_blank(TK_PROGRAM);
+  ASSERT_NE((void*)NULL, prog);
+  ast_scope(prog);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  // create a fake package
+  ast_t* pkg = create_package(prog, "/foo", "foo", &opt);
+  ASSERT_NE((void*)NULL, pkg);
+
+  // pretend we issue a use "path:..." from within that package
+  ASSERT_TRUE(use_path(pkg, "/bar", NULL, &opt));
+
+  program_lib_build_args(prog, &opt, "static", "dynamic", "", "", "", "");
+
+  ASSERT_EQ(errors_get_count(opt.check.errors), 0);
+  errors_print(opt.check.errors);
+  pass_opt_done(&opt);
+
+  const char* expect = "static\"/bar\" dynamic\"/bar\" ";
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
