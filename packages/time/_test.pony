@@ -37,3 +37,12 @@ class iso _TestPosixDate is UnitTest
     h.assert_eq[I64](1, PosixDate(-1, 1_000_000_000).time())
     // negative nanoseconds cannot not affect time
     h.assert_eq[I64](1, PosixDate(1, -1_000_000_000).time())
+
+    // Windows should throw error when %L is in format string
+    ifdef windows then
+      h.assert_error({() ? =>
+        (let seconds, let nanos) = Time.now()
+        let d = PosixDate(seconds, nanos)
+        d.format("%Y-%m-%d %H:%M:%S.%L")?
+      })
+    end

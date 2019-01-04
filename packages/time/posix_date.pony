@@ -37,13 +37,13 @@ class PosixDate
     """
     @ponyint_gmtime[None](this, time(), nsec)
 
-  fun format(fmt: String): String =>
+  fun format(fmt: String): String ? =>
     """
     Format the time as for strftime.
     """
     recover
       String.from_cstring(@ponyint_formattime[Pointer[U8]](this,
-        fmt.cstring()))
+        fmt.cstring())?)
     end
 
   fun _negative_to_zero(value: I64): I64 =>
