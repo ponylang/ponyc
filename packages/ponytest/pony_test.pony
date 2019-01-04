@@ -275,6 +275,7 @@ actor PonyTest
     _env = env
     _process_opts()
     _groups.push(("", _SimultaneousGroup))
+    @ponyint_assert_disable_popups[None]()
     list.tests(this)
     _all_tests_applied()
 

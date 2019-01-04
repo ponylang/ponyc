@@ -20,6 +20,8 @@ PONY_EXTERN_C_BEGIN
 void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   const char* func);
 
+void ponyint_assert_disable_popups();
+
 PONY_EXTERN_C_END
 
 #endif
