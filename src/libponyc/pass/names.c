@@ -174,13 +174,6 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
   AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
   pony_assert(ast_id(package) == TK_NONE);
 
-  if(ast_id(typeargs) != TK_NONE)
-  {
-    ast_error(opt->check.errors, typeargs,
-      "can't qualify a type parameter with type arguments");
-    return false;
-  }
-
   if(ast_id(ast) == TK_NOMINAL) {
     ast_t* module = ast_nearest(ast, TK_MODULE);
     if(module && ast_get(module, ast_name(id), 0)) {
