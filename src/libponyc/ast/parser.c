@@ -125,6 +125,8 @@ DEF(typearg);
 // UNDERSCORE
 DEF(underscore);
     TOKEN("_", TK_ID);
+    IF(TK_COLON, RULE("type constraint", type));
+    IF(TK_ASSIGN, RULE("default type argument", typearg));
     DONE();
 
 
