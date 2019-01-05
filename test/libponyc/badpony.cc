@@ -69,6 +69,19 @@ TEST_F(BadPonyTest, TypeParamMissingForTypeInProvidesList)
   TEST_ERRORS_1(src, "not enough type arguments");
 }
 
+TEST_F(BadPonyTest, HKTMustBeReturnedReified)
+{
+  const char* src =
+    "trait Foo[F[_]]\n"
+    "  fun f[A](): F // F has not been exhaustively parameterized and thus cannot be reified. Should be F[A]\n"
+
+    "actor Main\n"
+    "new create(env: Env) => None";
+
+
+  TEST_ERRORS_1(src, "not enough type arguments");
+}
+
 TEST_F(BadPonyTest, TupleIndexIsZero)
 {
   // From issue #397
