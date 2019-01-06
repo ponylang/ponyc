@@ -213,7 +213,11 @@ TEST(ProgramTest, LibPathsRelative)
   errors_print(opt.check.errors);
   pass_opt_done(&opt);
 
+#ifdef PLATFORM_IS_WINDOWS
+  const char* expect = "static\"/foo\\bar\" dynamic\"/foo\\bar\" ";
+#else
   const char* expect = "static\"/foo/bar\" dynamic\"/foo/bar\" ";
+#endif
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
