@@ -109,7 +109,6 @@ static const lextoken_t symbols[] =
   { "%%", TK_MOD },
   { "%", TK_REM },
   { "@", TK_AT },
-  { "_", TK_UNDERSCORE },
 
   { "<", TK_LT },
   { ">", TK_GT },
@@ -259,6 +258,7 @@ static const lextoken_t abstract[] =
   { "branch", TK_LITERALBRANCH },
   { "opliteral", TK_OPERATORLITERAL },
 
+  { "_", TK_UNDERSCORE },
   { "typeparams", TK_TYPEPARAMS },
   { "higherkindedtypeparam", TK_HIGHERKINDEDTYPEPARAM },
   { "higherkindedtypeargs", TK_HIGHERKINDEDTYPEARGS},

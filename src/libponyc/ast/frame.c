@@ -121,7 +121,7 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       {
         case TK_TYPEPARAM:
         {
-          AST_GET_CHILDREN(parent, id, constraint, def_type);
+          AST_GET_CHILDREN(parent, id, unbounded_type_params, constraint, def_type);
 
           if(constraint == ast)
           {

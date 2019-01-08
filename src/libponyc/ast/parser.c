@@ -124,15 +124,14 @@ DEF(typearg);
 
 // UNDERSCORE
 DEF(underscore);
+    AST_NODE(TK_UNBOUNDTYPEPARAM);
     TOKEN("_", TK_ID);
     IF(TK_COLON, RULE("type constraint", type));
     IF(TK_ASSIGN, RULE("default type argument", typearg));
     DONE();
 
-
 // LSQUARE UNDERSCORE {COMMA UNDERSCORE} RSQUARE
 DEF(unboundtypeargs);
-    AST_NODE(TK_HIGHERKINDEDTYPEARGS);
     SKIP(NULL, TK_LSQUARE);
     RULE("underscore", underscore);
     WHILE(TK_COMMA, RULE("underscore", underscore));
@@ -143,7 +142,7 @@ DEF(unboundtypeargs);
 DEF(typeparam);
   AST_NODE(TK_TYPEPARAM);
   TOKEN("name", TK_ID);
-  OPT_NO_DFLT RULE("higher kinded type arguments", unboundtypeargs);
+  OPT RULE("higher kinded type arguments", unboundtypeargs);
   IF(TK_COLON, RULE("type constraint", type));
   IF(TK_ASSIGN, RULE("default type argument", typearg));
   DONE();

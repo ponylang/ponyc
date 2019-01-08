@@ -40,6 +40,20 @@ TEST_F(ParseEntityTest, ActorMinimal)
 }
 
 
+TEST_F(ParseEntityTest, ActorMinimalGeneric)
+{
+  const char* src = "actor Foo[A]";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(ParseEntityTest, ActorMinimalHKT)
+{
+  const char* src = "actor Foo[F[_]]";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(ParseEntityTest, ActorCApi)
 {
   const char* src = "actor @ Foo";

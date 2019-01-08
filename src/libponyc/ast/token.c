@@ -177,6 +177,9 @@ const char* token_print(token_t* token)
       return token->printed;
     }
 
+    case TK_UNDERSCORE:
+      return "_";
+
     case TK_LEX_ERROR:
       return "LEX_ERROR";
 
