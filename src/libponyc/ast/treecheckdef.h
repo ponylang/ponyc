@@ -85,9 +85,20 @@ RULE(method,
 
 RULE(type_params, ONE_OR_MORE(type_param), TK_TYPEPARAMS);
 
+RULE(unboundtypeparam,
+  CHILD(id)
+  CHILD(type, none)   // Constraint
+  CHILD(type, none),  // Default
+  TK_UNBOUNDTYPEPARAM);
+
+RULE(unboundtypeparams,
+  ONE_OR_MORE(unboundtypeparam),
+  TK_UNBOUNDTYPEPARAMS);
+
 RULE(type_param,
   HAS_DATA // Original typeparam definition
   CHILD(id)
+  CHILD(unboundtypeparams, none)
   CHILD(type, none)   // Constraint
   CHILD(type, none),  // Default
   TK_TYPEPARAM);
