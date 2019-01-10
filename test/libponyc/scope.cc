@@ -174,7 +174,7 @@ TEST_F(ScopeTest, HigherKindedTypeParamMethod)
 
   ast_t* foo = lookup_member("A", "foo");
   ASSERT_ID(TK_FUN, foo);
-  ASSERT_ID(TK_HIGHERKINDEDTYPEPARAM, lookup_in(foo, "F"));
+  ASSERT_ID(TK_TYPEPARAM, lookup_in(foo, "F"));
   ASSERT_EQ(1, ref_count(package, "F"));
 }
 

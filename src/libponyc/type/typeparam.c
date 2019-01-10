@@ -334,8 +334,8 @@ static token_id cap_from_constraint(ast_t* type)
       return cap_from_constraint(typeparam_constraint(type));
 
     // TODO: fix this!
-    case TK_HIGHERKINDEDTYPEARGS:
-       return TK_CAP_ANY;
+    case TK_UNBOUNDTYPEPARAM:
+      return cap_from_constraint(typeparam_constraint(type));
 
     default: {}
   }
