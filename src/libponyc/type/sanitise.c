@@ -9,7 +9,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
   pony_assert(orig_param != NULL);
 
   // Get original type parameter info
-  AST_GET_CHILDREN(orig_param, id, constraint, deflt);
+  AST_GET_CHILDREN(orig_param, id, unbound_type_params, constraint, deflt);
   const char* name = ast_name(id);
 
   constraint = sanitise_type(constraint);
@@ -21,6 +21,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
     BUILD(new_param, orig_param,
       NODE(TK_TYPEPARAM,
         ID(name)
+        TREE(unbound_type_params)
         TREE(constraint)
         NONE));
 

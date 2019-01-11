@@ -261,6 +261,8 @@ static const lextoken_t abstract[] =
   { "_", TK_UNDERSCORE },
   { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },
+  { "unboundtypeparams", TK_UNBOUNDTYPEPARAMS },
+  { "unboundtypeparam", TK_UNBOUNDTYPEPARAM },
   { "valueformalparam", TK_VALUEFORMALPARAM },
   { "params", TK_PARAMS },
   { "param", TK_PARAM },

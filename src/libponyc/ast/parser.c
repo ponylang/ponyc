@@ -133,7 +133,7 @@ DEF(underscore);
 // LSQUARE UNDERSCORE {COMMA UNDERSCORE} RSQUARE
 DEF(unboundtypeparams);
     AST_NODE(TK_UNBOUNDTYPEPARAMS);
-    SKIP(NULL, TK_LSQUARE);
+    SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
     RULE("underscore", underscore);
     WHILE(TK_COMMA, RULE("underscore", underscore));
     TERMINATE("higher kinded type arguments", TK_RSQUARE);
