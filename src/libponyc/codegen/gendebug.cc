@@ -223,6 +223,7 @@ LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
     static_cast<uint32_t>(align_bits)));
 }
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef d,
   LLVMMetadataRef file, LLVMMetadataRef param_types)
 {
@@ -251,6 +252,7 @@ LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef d,
     elem_types ? DINodeArray(unwrap<MDTuple>(elem_types)) : nullptr));
 #endif
 }
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateReplaceableStruct(LLVMDIBuilderRef d,
   const char* name, LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line)

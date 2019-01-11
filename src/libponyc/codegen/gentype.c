@@ -362,8 +362,14 @@ static void make_debug_basic(compile_t* c, reach_type_t* t)
     encoding = DW_ATE_unsigned;
   }
 
+#if PONY_LLVM >= 700
+  (void)align;
+  c_t->di_type = LLVMDIBuilderCreateBasicType(c->di, t->name, strlen(t->name),
+    8 * size, encoding);
+#else
   c_t->di_type = LLVMDIBuilderCreateBasicType(c->di, t->name,
     8 * size, 8 * align, encoding);
+#endif
 }
 
 static void make_debug_prototype(compile_t* c, reach_type_t* t)
