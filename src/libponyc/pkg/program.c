@@ -149,23 +149,14 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
 {
   (void)name;
   char absolute[FILENAME_MAX];
+  const char* prefix = NULL;
 
-  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
-  const char* pkg_path = package_path(pkg_ast);
-
-  if(is_path_absolute(locator)) {
-    if(strlen(locator) > FILENAME_MAX)
-      return false;
-
-    strcpy(absolute, locator);
-  } else {
-    // resolve path relative to pkg path
-    if(strlen(pkg_path) + strlen(locator) >= FILENAME_MAX)
-      return false;
-
-    path_cat(pkg_path, locator, absolute);
+  if(!is_path_absolute(locator)) {
+    ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
+    prefix = package_path(pkg_ast);
   }
 
+  path_cat(prefix, locator, absolute);
   const char* libpath = quoted_locator(options, use, absolute);
 
   if(libpath == NULL)
