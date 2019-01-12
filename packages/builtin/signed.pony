@@ -873,8 +873,19 @@ primitive _SignedArithmetic
       div_res
     end
 
+  fun fld_unsafe[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
+    let div_res = x /~ y
+    if ((x xor y) < T.from[U8](0)) and ((div_res *~ y) != x) then
+      div_res - T.from[U8](1)
+    else
+      div_res
+    end
+
   fun mod[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
     x - (fld[T, U](x, y) * y)
+
+  fun mod_unsafe[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
+    x -~ (fld_unsafe[T, U](x, y) *~ y)
 
 
 primitive _SignedCheckedArithmetic
