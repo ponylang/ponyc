@@ -282,8 +282,6 @@ else
   $(error "Uknown llvm build-mode of $(llvm_build_mode)", aborting)
 endif
 
-
-
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
 ifeq (,$(LLVM_LINK_STATIC))
@@ -433,17 +431,7 @@ endif
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
 llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
-llvm.include.dir := $(CROSS_SYSROOT)$(shell $(LLVM_CONFIG) --includedir $(LLVM_LINK_STATIC))
-include.paths := $(shell echo | $(CC) -v -E - 2>&1)
-ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
-# LLVM include directory is not in the existing paths;
-# put it at the top of the system list
-llvm.include := -isystem $(llvm.include.dir)
-else
-# LLVM include directory is already on the existing paths;
-# do nothing
-llvm.include :=
-endif
+llvm.include := $(CROSS_SYSROOT)$(shell sh -c "$(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC) | grep -oE -- '(^| )-I\s*\S+' | sed 's/^\s*-I\s*/-isystem /g'")
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
