@@ -74,7 +74,7 @@ public:
   VModuleKey addModule(std::unique_ptr<Module> module)
   {
     VModuleKey key = _es.allocateVModule();
-    _compile_layer.addModule(key, std::move(module));
+    llvm::cantFail(_compile_layer.addModule(key, std::move(module)));
     return key;
   }
 
