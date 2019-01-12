@@ -183,13 +183,13 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
 
   c_m->di_file = c_t->di_file;
 
+#if PONY_LLVM >= 700
+  LLVMMetadataRef subroutine = LLVMDIBuilderCreateSubroutineType(c->di,
+    c_m->di_file, md, (unsigned int)count, LLVMDIFlagZero);
+#else
   LLVMMetadataRef type_array = LLVMDIBuilderGetOrCreateTypeArray(c->di,
     md, count);
 
-#if PONY_LLVM >= 700
-  LLVMMetadataRef subroutine = LLVMDIBuilderCreateSubroutineType(c->di,
-    c_m->di_file, &type_array, (unsigned)count, LLVMDIFlagZero);
-#else
   LLVMMetadataRef subroutine = LLVMDIBuilderCreateSubroutineType(c->di,
     c_m->di_file, type_array);
 #endif
