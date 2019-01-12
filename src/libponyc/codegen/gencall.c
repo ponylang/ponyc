@@ -1404,6 +1404,14 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 {
   LLVMValueRef func = LLVMMemcpy(c->module, target_is_ilp32(c->opt->triple));
 
+#if PONY_LLVM >= 700
+  LLVMValueRef args[4];
+  args[0] = dst;
+  args[1] = src;
+  args[2] = n;
+  args[3] = LLVMConstInt(c->i1, 0, false);
+  LLVMBuildCall(c->builder, func, args, 4, "");
+#else
   LLVMValueRef args[5];
   args[0] = dst;
   args[1] = src;
@@ -1411,6 +1419,7 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   args[3] = LLVMConstInt(c->i32, 1, false);
   args[4] = LLVMConstInt(c->i1, 0, false);
   LLVMBuildCall(c->builder, func, args, 5, "");
+#endif
 }
 
 void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
