@@ -74,6 +74,7 @@ public:
   VModuleKey addModule(std::unique_ptr<Module> module)
   {
     VModuleKey key = _es.allocateVModule();
+    cantFail(_compile_layer.addModule(key, std::move(module)));
     llvm::cantFail(_compile_layer.addModule(key, std::move(module)));
     return key;
   }
@@ -83,8 +84,8 @@ public:
     std::string mangled;
     raw_string_ostream mangled_stream(mangled);
     Mangler::getNameWithPrefix(mangled_stream, name, _dl);
-    JITSymbol symbol = _compile_layer.findSymbol(mangled_stream.str(), true);
-    return symbol.getAddress().get();
+    JITSymbol symbol = _compile_layer.findSymbol(mangled_stream.str(), false);
+    return cantFail(symbol.getAddress());
   }
 };
 
@@ -108,6 +109,12 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   PonyJIT jit;
   jit.addModule(std::unique_ptr<Module>(unwrap(c->module)));
   c->module = nullptr;
+
+  if (jit.error)
+  {
+    errorf(c->opt->check.errors, nullptr, "LLVM ORC JIT Error");
+    return false;
+  }
 
   for (size_t i = 0; i < symbol_count; i++)
   {
