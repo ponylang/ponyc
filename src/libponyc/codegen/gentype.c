@@ -710,21 +710,6 @@ static LLVMMetadataRef make_debug_field(compile_t* c, reach_type_t* t,
 
 static void make_debug_fields(compile_t* c, reach_type_t* t)
 {
-  LLVMMetadataRef fields = NULL;
-
-  if(t->field_count > 0)
-  {
-    size_t buf_size = t->field_count * sizeof(LLVMMetadataRef);
-    LLVMMetadataRef* data = (LLVMMetadataRef*)ponyint_pool_alloc_size(
-      buf_size);
-
-    for(uint32_t i = 0; i < t->field_count; i++)
-      data[i] = make_debug_field(c, t, i);
-
-    fields = LLVMDIBuilderGetOrCreateArray(c->di, data, t->field_count);
-    ponyint_pool_free_size(buf_size, data);
-  }
-
   LLVMTypeRef type;
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -743,11 +728,42 @@ static void make_debug_fields(compile_t* c, reach_type_t* t)
   }
 
 #if PONY_LLVM >= 700
+  LLVMMetadataRef* fields = nullptr;
+  size_t buf_size = 0;
+  if (t->field_count > 0)
+  {
+    buf_size = t->field_count * sizeof(LLVMMetadataRef);
+    fields = (LLVMMetadataRef*)ponyint_pool_alloc_size(buf_size);
+
+    for(uint32_t i = 0; i < t->field_count; i++)
+      fields[i] = make_debug_field(c, t, i);
+  }
+
   LLVMMetadataRef di_type = LLVMDIBuilderCreateStructType(c->di, c->di_unit,
     t->name, strlen(t->name), c_t->di_file, (unsigned) ast_line(t->ast),
-    8 * size, (uint32_t)(8 * align), LLVMDIFlagZero, 0, &fields, t->field_count,
+    8 * size, (uint32_t)(8 * align), LLVMDIFlagZero, 0, fields, t->field_count,
     0, 0, t->name, strlen(t->name));
+
+  if (t->field_count > 0)
+  {
+    ponyint_pool_free_size(buf_size, fields);
+  }
 #else
+  LLVMMetadataRef fields = NULL;
+
+  if(t->field_count > 0)
+  {
+    size_t buf_size = t->field_count * sizeof(LLVMMetadataRef);
+    LLVMMetadataRef* data = (LLVMMetadataRef*)ponyint_pool_alloc_size(
+      buf_size);
+
+    for(uint32_t i = 0; i < t->field_count; i++)
+      data[i] = make_debug_field(c, t, i);
+
+    fields = LLVMDIBuilderGetOrCreateArray(c->di, data, t->field_count);
+    ponyint_pool_free_size(buf_size, data);
+  }
+
   LLVMMetadataRef di_type = LLVMDIBuilderCreateStructType(c->di, c->di_unit,
     t->name, c_t->di_file, (unsigned) ast_line(t->ast), 8 * size, 8 * align,
     fields);
