@@ -44,6 +44,7 @@ If you are looking for an answer "right now", we suggest you give our IRC channe
 
 * [Mailing list](mailto:pony+user@groups.io).
 * [IRC](https://webchat.freenode.net/?channels=%23ponylang).
+* [Slack](https://www.ponylang.io/get-slack-invite)
 
 Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
 * [Open an issue](https://github.com/ponylang/ponyc/issues)
