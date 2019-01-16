@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- libponyc: resolve relative paths in use "path:..." statements ([PR #2964](https://github.com/ponylang/ponyc/pull/2964))
 - Fix silent crash with incorrect time formats in Windows ([PR #2971](https://github.com/ponylang/ponyc/pull/2971))
 - Add whitespace between multiple args on cli help output ([PR #2942](https://github.com/ponylang/ponyc/pull/2942))
 - Fix unsafe cases in capability subtyping implementation ([PR #2660](https://github.com/ponylang/ponyc/pull/2660))
