@@ -560,7 +560,7 @@ static const char* create_package_symbol(ast_t* program, const char* filename)
 
 
 // Create a package AST, set up its state and add it to the given program
-static ast_t* create_package(ast_t* program, const char* name,
+ast_t* create_package(ast_t* program, const char* name,
   const char* qualified_name, pass_opt_t* opt)
 {
   ast_t* package = ast_blank(TK_PACKAGE);

@@ -86,6 +86,14 @@ ast_t* program_load(const char* path, pass_opt_t* opt);
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt);
 
 /**
+ * Create a package AST, set up its state and add it to the given program.
+ * used by package_load. Should not be used elsewhere but for setting up fake
+ * package for testing.
+ */
+ast_t* create_package(ast_t* program, const char* name,
+  const char* qualified_name, pass_opt_t* opt);
+
+/**
  * Free the package_t that is set as the ast_data of a package node.
  */
 void package_free(package_t* package);
