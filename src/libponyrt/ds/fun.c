@@ -29,6 +29,18 @@ static uint32_t halfsiphash24(const unsigned char* key, const unsigned char* in,
   uint32_t k1 = *(uint32_t*)(key + 4);
   uint32_t b = (uint32_t)len << 24;
 
+  // Reference implementations that don't agree:
+  // https://github.com/yoursunny/hsip-bf/blob/master/examples/halfsiphash/halfsiphash-reference.c#L77-L78
+  // https://github.com/kpdemetriou/siphash-cffi/blob/master/sources/halfsiphash.c#L77-L78
+  //
+  // * Those two disagree with Pony's on the inital values for v0 & v1:
+  // both use k0/k1 as-is.
+  //
+  // * Those two disagree with each other on the details of finalization.
+  //
+  // So let's leave this as-is.  If we really must match a half siphash-2-4
+  // reference implementation, we'll choose that impl later.
+
   uint32_t v0 = k0 ^ 0x736f6d65;
   uint32_t v1 = k1 ^ 0x646f7261;
   uint32_t v2 = k0 ^ 0x6c796765;
