@@ -264,7 +264,7 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
   pony_assert(ast_id(type_param) == TK_TYPEPARAM);
   pony_assert(chain != NULL);
 
-  ast_t* constraint = ast_childidx(type_param, 1);
+  ast_t* constraint = ast_childidx(type_param, 2);
   pony_assert(constraint != NULL);
 
   // If the constraint is not a subtype of (Real[A] & Number) then there are no

@@ -507,7 +507,7 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   ast_t* def = (ast_t*)ast_data(typeparamref);
-  ast_t* constraint = ast_childidx(def, 1);
+  ast_t* constraint = ast_childidx(def, 2);
   astlist_t* def_list = astlist_push(NULL, def);
 
   while(ast_id(constraint) == TK_TYPEPARAMREF)

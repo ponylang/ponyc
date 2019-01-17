@@ -176,7 +176,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
     {
       ast_t* def = (ast_t*)ast_data(ast);
       pony_assert(ast_id(def) == TK_TYPEPARAM);
-      find_possible_element_types(opt, ast_childidx(def, 1), list);
+      find_possible_element_types(opt, ast_childidx(def, 2), list);
       return;
     }
 
@@ -217,7 +217,7 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
     {
       ast_t* def = (ast_t*)ast_data(ast);
       pony_assert(ast_id(def) == TK_TYPEPARAM);
-      find_possible_iterator_element_types(opt, ast_childidx(def, 1), list);
+      find_possible_iterator_element_types(opt, ast_childidx(def, 2), list);
       return;
     }
 

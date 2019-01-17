@@ -304,7 +304,7 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
 
 static ast_result_t sugar_typeparam(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, constraint);
+  AST_GET_CHILDREN(ast, id, unbound_type_param, constraint);
 
   if(ast_id(constraint) == TK_NONE)
   {

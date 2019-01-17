@@ -163,7 +163,7 @@ bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
 
   while(typeparam != NULL)
   {
-    ast_t* defarg = ast_childidx(typeparam, 2);
+    ast_t* defarg = ast_childidx(typeparam, 3);
 
     if(ast_id(defarg) == TK_NONE)
       break;
@@ -424,7 +424,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
     }
 
     // Reify the constraint.
-    ast_t* constraint = ast_childidx(typeparam, 1);
+    ast_t* constraint = ast_childidx(typeparam, 2);
     ast_t* r_constraint = reify(constraint, typeparams, typeargs, opt,
       true);
 
