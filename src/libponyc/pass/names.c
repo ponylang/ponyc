@@ -171,7 +171,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, package, id, unbounded_type_params, typeargs, cap, ephemeral);
+  AST_GET_CHILDREN(ast, package, id, typeargs, cap, ephemeral);
   pony_assert(ast_id(package) == TK_NONE);
 
   if(ast_id(ast) == TK_NOMINAL) {

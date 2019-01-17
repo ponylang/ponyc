@@ -521,7 +521,7 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
     }
 
     def_list = astlist_push(def_list, constraint_def);
-    constraint = ast_childidx(constraint_def, 1);
+    constraint = ast_childidx(constraint_def, 2);
   }
 
   astlist_free(def_list);

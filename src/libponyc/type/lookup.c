@@ -236,7 +236,7 @@ static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
   ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
   ast_t* def = (ast_t*)ast_data(type);
-  ast_t* constraint = ast_childidx(def, 1);
+  ast_t* constraint = ast_childidx(def, 2);
   ast_t* constraint_def = (ast_t*)ast_data(constraint);
 
   if(def == constraint_def)
