@@ -276,10 +276,12 @@ ifeq (Release,$(llvm_build_mode))
   LLVM_BUILD_MODE=LLVM_BUILD_MODE_Release
 else ifeq (RelWithDebInfo,$(llvm_build_mode))
   LLVM_BUILD_MODE=LLVM_BUILD_MODE_RelWithDebInfo
+else ifeq (MinSizeRel,$(llvm_build_mode))
+  LLVM_BUILD_MODE=LLVM_BUILD_MODE_MinSizeRel
 else ifeq (Debug,$(llvm_build_mode))
   LLVM_BUILD_MODE=LLVM_BUILD_MODE_Debug
 else
-  $(error "Uknown llvm build-mode of $(llvm_build_mode)", aborting)
+  $(error "Unknown llvm build-mode of $(llvm_build_mode)", aborting)
 endif
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)

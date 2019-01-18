@@ -260,6 +260,8 @@ def build(ctx):
                 llvmBuildMode = 'LLVM_BUILD_MODE_Release'
             elif llvmBuildMode == 'RelWithDebInfo':
                 llvmBuildMode = 'LLVM_BUILD_MODE_RelWithDebInfo'
+            elif llvmBuildMode == 'MinSizeRel':
+                llvmBuildMode = 'LLVM_BUILD_MODE_MinSizeRel'
             elif llvmBuildMode == 'Debug':
                 llvmBuildMode = 'LLVM_BUILD_MODE_Debug'
             else:
