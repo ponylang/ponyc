@@ -75,7 +75,6 @@ public:
   {
     VModuleKey key = _es.allocateVModule();
     cantFail(_compile_layer.addModule(key, std::move(module)));
-    llvm::cantFail(_compile_layer.addModule(key, std::move(module)));
     return key;
   }
 
