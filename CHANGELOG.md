@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix signed/unsigned conversion bug in siphash24 implementation ([PR #2979](https://github.com/ponylang/ponyc/pull/2979))
 - Fixes for telemetry.stp script ([PR #2983](https://github.com/ponylang/ponyc/pull/2983))
 - libponyc: resolve relative paths in use "path:..." statements ([PR #2964](https://github.com/ponylang/ponyc/pull/2964))
 - Fix silent crash with incorrect time formats in Windows ([PR #2971](https://github.com/ponylang/ponyc/pull/2971))
