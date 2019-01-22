@@ -253,6 +253,7 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
       return sym.toRuntimeDyldSymbol();
 
     return llvm::RuntimeDyld::SymbolInfo{nullptr};
+#endif
   };
 
   auto external_lookup = [
@@ -289,7 +290,6 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   std::vector<decltype(module)> module_set{module};
   auto handle = compile_layer.addModuleSet(std::move(module_set), mem_mgr,
     std::move(resolver));
-#endif
 #endif
 
   llvm::Mangler mangler{};

@@ -56,7 +56,7 @@ LLVM_VERSIONS = [
 
 LIBRESSL_VERSION = "2.9.0"
 PCRE2_VERSION = "10.32"
-WINDOWS_LIBS_TAG = "v1.8.1"
+WINDOWS_LIBS_TAG = "v1.8.2"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
