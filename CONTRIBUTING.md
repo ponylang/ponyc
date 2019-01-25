@@ -52,12 +52,12 @@ Here is the basic GitHub workflow:
 Some things to note that aren't immediately obvious to folks just starting out:
 
 1. Your fork doesn't automatically stay up to date with change in the main repo.
-2. Any changes you make on your branch that you used for the PR will automatically appear in the PR so if you have more than 1 PR, be sure to always create different braches for them.
-3. Weird things happen with commit history if you dont create your PR branches off of master so always make sure you have the master branch checked out before creating a branch for a PR
+2. Any changes you make on your branch that you used for the PR will automatically appear in the PR so if you have more than 1 PR, be sure to always create different branches for them.
+3. Weird things happen with commit history if you don't create your PR branches off of master so always make sure you have the master branch checked out before creating a branch for a PR
 
-If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [IRC](https://webchat.freenode.net/?channels=%23ponylang) or the [pony developer mailing list](https://pony.groups.io/g/dev) for assistance.
+If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [IRC](https://webchat.freenode.net/?channels=%23ponylang), [Slack](https://www.ponylang.io/get-slack-invite) or the [pony developer mailing list](https://pony.groups.io/g/dev) for assistance.
 
-You can get help using GitHub via [the official documentation](https://help.github.com/). Some hightlights include:
+You can get help using GitHub via [the official documentation](https://help.github.com/). Some highlights include:
 
 - [Fork A Repo](https://help.github.com/articles/fork-a-repo/)
 - [Creating a pull request](https://help.github.com/articles/creating-a-pull-request/)

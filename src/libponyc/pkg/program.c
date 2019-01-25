@@ -148,14 +148,22 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options)
 {
   (void)name;
+  char absolute[FILENAME_MAX];
+  const char* prefix = NULL;
 
-  const char* libpath = quoted_locator(options, use, locator);
+  if(!is_path_absolute(locator)) {
+    ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
+    prefix = package_path(pkg_ast);
+  }
+
+  path_cat(prefix, locator, absolute);
+  const char* libpath = quoted_locator(options, use, absolute);
 
   if(libpath == NULL)
     return false;
 
-  ast_t* p = ast_nearest(use, TK_PROGRAM);
-  program_t* prog = (program_t*)ast_data(p);
+  ast_t* prog_ast = ast_nearest(use, TK_PROGRAM);
+  program_t* prog = (program_t*)ast_data(prog_ast);
   pony_assert(prog->lib_args == NULL); // Not yet built args
 
   if(strlist_find(prog->libpaths, libpath) != NULL) // Ignore duplicate

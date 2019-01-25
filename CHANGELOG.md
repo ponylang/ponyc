@@ -2,6 +2,33 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.26.0] - 2019-01-25
+
+### Fixed
+
+- Fix signed/unsigned conversion bug in siphash24 implementation ([PR #2979](https://github.com/ponylang/ponyc/pull/2979))
+- Fixes for telemetry.stp script ([PR #2983](https://github.com/ponylang/ponyc/pull/2983))
+- libponyc: resolve relative paths in use "path:..." statements ([PR #2964](https://github.com/ponylang/ponyc/pull/2964))
+- Fix silent crash with incorrect time formats in Windows ([PR #2971](https://github.com/ponylang/ponyc/pull/2971))
+- Add whitespace between multiple args on cli help output ([PR #2942](https://github.com/ponylang/ponyc/pull/2942))
+- Fix unsafe cases in capability subtyping implementation ([PR #2660](https://github.com/ponylang/ponyc/pull/2660))
+- Fix race condition with socket close event from peer ([PR #2923](https://github.com/ponylang/ponyc/pull/2923))
+- Link to libexecinfo on BSD always, not just in a debug compiler ([PR #2916](https://github.com/ponylang/ponyc/pull/2916))
+- Install libdtrace_probes.a into the right directory on FreeBSD ([PR #2919](https://github.com/ponylang/ponyc/pull/2919))
+- Fix scheduler thread wakeup bug ([PR #2926](https://github.com/ponylang/ponyc/pull/2926))
+- Correct README.md link to AppImage packaging location ([PR #2927](https://github.com/ponylang/ponyc/pull/2927))
+- Fix unsoundness when replacing `this` viewpoint in method calls. ([PR #2503](https://github.com/ponylang/ponyc/pull/2503))
+
+### Added
+
+- [RFC 60] Add binary heaps ([PR #2950](https://github.com/ponylang/ponyc/pull/2950))
+- Make _SignedInteger and _UnsignedInteger public ([PR #2939](https://github.com/ponylang/ponyc/pull/2939))
+
+### Changed
+
+- Fix silent crash with incorrect time formats in Windows ([PR #2971](https://github.com/ponylang/ponyc/pull/2971))
+- Add before/after iteration hooks to ponybench ([PR #2898](https://github.com/ponylang/ponyc/pull/2898))
+
 ## [0.25.0] - 2018-10-13
 
 ### Fixed

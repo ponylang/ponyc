@@ -1,35 +1,35 @@
 """
 # JSON Package
 
-The `json` package provides the [JsonDoc](json-JsonDoc) class both as a container for a JSON
-document and as means of parsing from and writing to [String](builtin-String).
+The `json` package provides the [JsonDoc](json-JsonDoc.md) class both as a container for a JSON
+document and as means of parsing from and writing to [String](builtin-String.md).
 
 ## JSON Representation
 
 JSON is represented in Pony as the following types:
 
-* object - [JsonObject](json-JsonObject)
-* array  - [JsonArray](json-JsonArray)
-* string - [String](builtin-String)
-* integer - [I64](builtin-I64)
-* float   - [F64](builtin-F64)
-* boolean - [Bool](builtin-Bool)
-* null    - [None](builtin-None)
+* object - [JsonObject](json-JsonObject.md)
+* array  - [JsonArray](json-JsonArray.md)
+* string - [String](builtin-String.md)
+* integer - [I64](builtin-I64.md)
+* float   - [F64](builtin-F64.md)
+* boolean - [Bool](builtin-Bool.md)
+* null    - [None](builtin-None.md)
 
 The collection types JsonObject and JsonArray can contain any other JSON
 structures arbitrarily nested.
 
-[JsonType](json-JsonType) is used to subsume all possible JSON types. It can
+[JsonType](json-JsonType.md) is used to subsume all possible JSON types. It can
 also be used to describe everything that can be serialized using this package.
 
 ## Parsing JSON
 
 For getting JSON from a String into proper Pony data structures,
-[JsonDoc.parse](json-JsonDoc#parse) needs to be used. This will populate the
-public field `JsonDoc.data`, which is [None](builtin-None), if [parse](json-JsonDoc#parse) has
+[JsonDoc.parse](json-JsonDoc.md#parse) needs to be used. This will populate the
+public field `JsonDoc.data`, which is [None](builtin-None.md), if [parse](json-JsonDoc.md#parse) has
 not been called yet.
 
-Every call to [parse](json-JsonDoc#parse) overwrites the `data` field, so one
+Every call to [parse](json-JsonDoc.md#parse) overwrites the `data` field, so one
 JsonDoc instance can be used to parse multiple JSON Strings one by one.
 
 ```pony
@@ -49,7 +49,7 @@ let last: Bool        = array.data(2)? as Bool
 
 ### Sending JSON
 
-[JsonDoc](json-JsonDoc) has the `ref` reference capability, which means it is
+[JsonDoc](json-JsonDoc.md) has the `ref` reference capability, which means it is
 not sendable by default. If you need to send it to another actor you need to
 recover it to a sendable reference capability (either `val` or `iso`). For the
 sake of simplicity it is recommended to do the parsing already in the recover
@@ -72,8 +72,8 @@ receiving side in order to be able to properly access the json structures in
 
 ## Writing JSON
 
-JSON is written using the [JsonDoc.string](json-JsonDoc#string) method. This
-will serialize the contents of the `data` field to [String](builtin-String).
+JSON is written using the [JsonDoc.string](json-JsonDoc.md#string) method. This
+will serialize the contents of the `data` field to [String](builtin-String.md).
 
 ```pony
 // building up the JSON data structure

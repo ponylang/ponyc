@@ -1,4 +1,4 @@
-primitive U8 is _UnsignedInteger[U8]
+primitive U8 is UnsignedInteger[U8]
   new create(value: U8) => value
   new from[B: (Number & Real[B] val)](a: B) => a.u8()
 
@@ -70,7 +70,7 @@ primitive U8 is _UnsignedInteger[U8]
   fun divrem_partial(y: U8): (U8, U8) ? =>
     _UnsignedPartialArithmetic.divrem_partial[U8](this, y)?
 
-primitive U16 is _UnsignedInteger[U16]
+primitive U16 is UnsignedInteger[U16]
   new create(value: U16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u16()
 
@@ -142,7 +142,7 @@ primitive U16 is _UnsignedInteger[U16]
   fun divrem_partial(y: U16): (U16, U16) ? =>
     _UnsignedPartialArithmetic.divrem_partial[U16](this, y)?
 
-primitive U32 is _UnsignedInteger[U32]
+primitive U32 is UnsignedInteger[U32]
   new create(value: U32) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u32()
 
@@ -214,7 +214,7 @@ primitive U32 is _UnsignedInteger[U32]
   fun divrem_partial(y: U32): (U32, U32) ? =>
     _UnsignedPartialArithmetic.divrem_partial[U32](this, y)?
 
-primitive U64 is _UnsignedInteger[U64]
+primitive U64 is UnsignedInteger[U64]
   new create(value: U64) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u64()
 
@@ -293,7 +293,7 @@ primitive U64 is _UnsignedInteger[U64]
   fun divrem_partial(y: U64): (U64, U64) ? =>
     _UnsignedPartialArithmetic.divrem_partial[U64](this, y)?
 
-primitive ULong is _UnsignedInteger[ULong]
+primitive ULong is UnsignedInteger[ULong]
   new create(value: ULong) => value
   new from[A: (Number & Real[A] val)](a: A) => a.ulong()
 
@@ -428,7 +428,7 @@ primitive ULong is _UnsignedInteger[ULong]
   fun divrem_partial(y: ULong): (ULong, ULong) ? =>
     _UnsignedPartialArithmetic.divrem_partial[ULong](this, y)?
 
-primitive USize is _UnsignedInteger[USize]
+primitive USize is UnsignedInteger[USize]
   new create(value: USize) => value
   new from[A: (Number & Real[A] val)](a: A) => a.usize()
 
@@ -556,7 +556,7 @@ primitive USize is _UnsignedInteger[USize]
   fun divrem_partial(y: USize): (USize, USize) ? =>
     _UnsignedPartialArithmetic.divrem_partial[USize](this, y)?
 
-primitive U128 is _UnsignedInteger[U128]
+primitive U128 is UnsignedInteger[U128]
   new create(value: U128) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u128()
 

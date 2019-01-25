@@ -149,8 +149,10 @@ class CommandSpec
     """
     let s = _name.clone()
     s.append(" ")
-    for a in _args.values() do
+    let args_iter = _args.values()
+    for a in args_iter do
       s.append(a.help_string())
+      if args_iter.has_next() then s.append(" ") end
     end
     s
 

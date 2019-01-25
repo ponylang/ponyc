@@ -4,7 +4,7 @@
 # Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
-<a href="graphs/contributors"><img src="https://opencollective.com/ponyc/contributors.svg?width=890&button=false" /></a>
+<a href="https://github.com/ponylang/ponyc/graphs/contributors"><img src="https://opencollective.com/ponyc/contributors.svg?width=890&button=false" /></a>
 
 
 # Backers
@@ -44,6 +44,7 @@ If you are looking for an answer "right now", we suggest you give our IRC channe
 
 * [Mailing list](mailto:pony+user@groups.io).
 * [IRC](https://webchat.freenode.net/?channels=%23ponylang).
+* [Slack](https://www.ponylang.io/get-slack-invite)
 
 Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
 * [Open an issue](https://github.com/ponylang/ponyc/issues)
@@ -151,13 +152,13 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 ### Docker and AVX2 Support
 
-By default, the Pony Docker image is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
+By default, the Pony Docker image is compiled without support for [AVX CPU instructions](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions). For optimal performance on modern hardware, you should build your Pony installation from source.
 
 ## Linux using an AppImage package (via Bintray)
 
-For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponylang-appimage](https://bintray.com/pony-language/ponylang-appimage)) as an AppImage.
+For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-appimage/ponyc](https://bintray.com/pony-language/ponyc-appimage/ponyc)) as an AppImage.
 
-The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with with no conflicts.
+The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with no conflicts.
 
 To install builds via AppImage, you need to go to Bintray and download the appropriate file for the version you want. After the file is downloaded, you need to make it executable using `chmod`.
 
@@ -225,7 +226,7 @@ sudo apt-get install \
 Install builds via Apt (and install Ponylang's public key):
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys E04F0923 B3B48BDA
 sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian  $(lsb_release -cs) main"
 sudo apt-get update
 sudo apt-get -V install ponyc
@@ -251,7 +252,7 @@ sudo apt-get install \
 ```
 
 ```bash
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "E04F0923 B3B48BDA"
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys E04F0923 B3B48BDA
 source /etc/upstream-release/lsb-release
 sudo add-apt-repository "deb https://dl.bintray.com/pony-language/ponylang-debian $DISTRIB_CODENAME main"
 sudo apt-get update
@@ -309,7 +310,9 @@ Windows users will need to install:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the "Desktop Development for C++" workload, and the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017, install the "Desktop Development with C++" workload.
+  - If using Visual C++ Build Tools 2017, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
+  - If using Visual Studio 2017 or Visual C++ Build Tools 2017, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -322,15 +325,25 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-Pony requires LLVM version 3.9.1.
+When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#build-llvm-from-source). In either case the supported version of LLVM is 3.9.1, with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
 
-There is experimental support for building with LLVM 4.0.1, 5.0.1 or 6.0.0, but this may result in decreased performance or crashes in generated applications.
+## Building ponyc using LLVM sources:
 
-NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is diabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
+### Prerequisites:
+
+- git >= 2.17, other versions may work but this is what has been tested.
+
+### Instructions:
+
+To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_proj=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_proj=llvm-6.0.0`.
+
+Typically you only need to build the LLVM sources once, as the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
+
+NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
 ## Building on Linux
 
-Get Pony-Sources from Github (More Information about Set Up Git https://help.github.com/articles/set-up-git/ ):
+Get the pony source from GitHub (For information on setting up Git, see https://help.github.com/articles/set-up-git/):
 ```bash
 sudo apt install git
 git clone git://github.com/ponylang/ponyc
@@ -346,11 +359,11 @@ Install pony dependencies:
 pacman -S llvm make ncurses openssl pcre2 zlib
 ```
 
-To build ponyc and compile and helloworld:
+To build ponyc and compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl='openssl_1.1.0'
+make default_pic=true default_ssl=openssl_1.1.0
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -414,7 +427,7 @@ make default_pic=true
 
 ### Ubuntu Trusty
 
-Add the LLVM apt report to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
+Add the LLVM apt repo to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
 
 ```
 deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
@@ -695,7 +708,7 @@ make default_pic=true
 
 You need to have the development versions of the following installed:
 
-* 3.9.1
+* LLVM 3.9.1
 * zlib
 * ncurses
 * pcre2
@@ -822,7 +835,9 @@ Building on Windows requires the following:
 
 - Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017 or the Visual C++ Build Tools 2017, install the "Desktop Development for C++" workload and the latest `Windows 10 SDK (10.x.x.x) for Desktop` from the Visual Studio installer.
+  - If using Visual Studio 2017, install the "Desktop Development with C++" workload.
+  - If using Visual C++ Build Tools 2017, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
+  - If using Visual Studio 2017 or Visual C++ Build Tools 2017, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
@@ -892,7 +907,7 @@ Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode
 ponyc --runtimebc
 ```
 
-This functionnality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If your're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
+This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 
 ## VirtualBox
 
@@ -916,4 +931,4 @@ To get a complete list of acceptable architecture names, use the gcc command:
 gcc -march=none
 ```
 
-This will result in an error message plus a listing off all architecture types acceptable on your platform.
+This will result in an error message plus a listing of all architecture types acceptable on your platform.

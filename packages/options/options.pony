@@ -3,6 +3,10 @@
 
 The Options package provides support for parsing command line arguments.
 
+## Deprectation warning
+
+This package is deprecated and will be removed in a future release. Use the [cli](cli--index.md) package instead.
+
 ## Example program
 ```pony
 use "options"

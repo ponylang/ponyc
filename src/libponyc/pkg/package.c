@@ -560,7 +560,7 @@ static const char* create_package_symbol(ast_t* program, const char* filename)
 
 
 // Create a package AST, set up its state and add it to the given program
-static ast_t* create_package(ast_t* program, const char* name,
+ast_t* create_package(ast_t* program, const char* name,
   const char* qualified_name, pass_opt_t* opt)
 {
   ast_t* package = ast_blank(TK_PACKAGE);
@@ -960,6 +960,20 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
         q_name[len - 1] = '\0';
         qualified_name = stringtab_consume(q_name, len);
       }
+    }
+
+    // we are loading the package specified as program dir
+    if(from == program)
+    {
+      // construct the qualified name from the basename of the full path
+      const char* basepath = strrchr(full_path, '/');
+      if(basepath == NULL)
+      {
+        basepath = full_path;
+      } else {
+        basepath = basepath + 1;
+      }
+      qualified_name = basepath;
     }
   }
 

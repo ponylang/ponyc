@@ -4,7 +4,7 @@ Looking for help with Pony? Awesome. We are here to help. Before you open an iss
 
 ## Should I open an issue?
 
-We ask you to refrain from opening GitHub issues for non-actionable items. We use GitHub issues to track bugs and other problems that can be resolved. If you are not sure how to code a particular problem, how to decipher an error message, wondering about a benchmark, or anything of that sort, please use the [mailing list][mailing list] or [IRC][IRC].
+We ask you to refrain from opening GitHub issues for non-actionable items. We use GitHub issues to track bugs and other problems that can be resolved. If you are not sure how to code a particular problem, how to decipher an error message, wondering about a benchmark, or anything of that sort, please use the [mailing list][mailing list], [slack][slack] or [IRC][IRC].
 
 ## How to get help
 
@@ -12,6 +12,7 @@ You have a couple of different options on how you can get help from the Pony com
 
 * [Mailing list][mailing list].
 * [IRC][IRC].
+* [Slack][slack].
 
 Many folks encounter the same issues or have the same questions, be sure to give the [frequently asked questions][FAQ] section of this website a read.
 
@@ -24,5 +25,6 @@ The Pony community while small is helpful and inviting. We think you'll find int
 [mailing list]: https://pony.groups.io/g/user
 [IRC]: https://webchat.freenode.net/?channels=%23ponylang
 [FAQ]: https://www.ponylang.io/faq/
+[slack]: https://www.ponylang.io/get-slack-invite
 [issues]: https://github.com/ponylang/ponyc/issues
 [website community section]: https://www.ponylang.io/community/

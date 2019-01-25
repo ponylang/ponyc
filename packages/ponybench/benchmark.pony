@@ -13,17 +13,17 @@ trait iso MicroBenchmark
   and `after` methods respectively. The `before` method runs before a sample
   of benchmarks and `after` runs after the all iterations in the sample have
   completed. If your benchmark requires setup and/or teardown to occur beween
-  each iteration of the benchmark, then you must set the configuration of the
-  benchmark to have `max_iterations = 1`. It should be noted that a larger
-  `sample_size` may be necessary in this scenario for statistically
-  significant results.
+  each iteration of the benchmark, then you can use `before_iteration` and
+  `after_iteration` methods respectively that run before/after each iteration.
   """
   fun box name(): String
   fun box config(): BenchConfig => BenchConfig
   fun box overhead(): MicroBenchmark^ => OverheadBenchmark
-  fun ref before() => None
+  fun ref before() ? => None
+  fun ref before_iteration() ? => None
   fun ref apply() ?
-  fun ref after() => None
+  fun ref after() ? => None
+  fun ref after_iteration() ? => None
 
 trait iso AsyncMicroBenchmark
   """
@@ -34,16 +34,17 @@ trait iso AsyncMicroBenchmark
   `before` method runs before a sample of benchmarks and `after` runs after
   the all iterations in the sample have completed. If your benchmark requires
   setup and/or teardown to occur beween each iteration of the benchmark, then
-  you must set the configuration of the benchmark to have `max_iterations = 1`.
-  It should be noted that a larger `sample_size` may be necessary in this
-  scenario for statistically significant results.
+  you can use `before_iteration` and `after_iteration` methods respectively
+  that run before/after each iteration.
   """
   fun box name(): String
   fun box config(): BenchConfig => BenchConfig
   fun box overhead(): AsyncMicroBenchmark^ => AsyncOverheadBenchmark
   fun ref before(c: AsyncBenchContinue) => c.complete()
+  fun ref before_iteration(c: AsyncBenchContinue) => c.complete()
   fun ref apply(c: AsyncBenchContinue) ?
   fun ref after(c: AsyncBenchContinue) => c.complete()
+  fun ref after_iteration(c: AsyncBenchContinue) => c.complete()
 
 interface tag BenchmarkList
   fun tag benchmarks(bench: PonyBench)

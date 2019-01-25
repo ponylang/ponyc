@@ -320,8 +320,8 @@ trait val Integer[A: Integer[A] val] is Real[A]
 
   fun bswap(): A
 
-trait val _SignedInteger[A: _SignedInteger[A, B] val,
-    B: _UnsignedInteger[B] val] is Integer[A]
+trait val SignedInteger[A: SignedInteger[A, B] val,
+    B: UnsignedInteger[B] val] is Integer[A]
   fun abs(): B
 
   fun shl(y: B): A => this << y
@@ -365,7 +365,7 @@ trait val _SignedInteger[A: _SignedInteger[A, B] val,
   fun string(): String iso^ =>
     _ToString._u64(abs().u64(), i64() < 0)
 
-trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
+trait val UnsignedInteger[A: UnsignedInteger[A] val] is Integer[A]
   fun abs(): A
 
   fun shl(y: A): A => this << y

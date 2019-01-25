@@ -63,8 +63,10 @@ probe process.mark("gc-start")
 
 probe process.mark("gc-end")
 {
-    time_in_gc[$arg1, "gc"] = gettimeofday_us() - tmp_ts[$arg1, "gc"];
-    delete tmp_ts[$arg1, "gc"];
+    if (tmp_ts[$arg1, "gc"] > 0) {
+        time_in_gc[$arg1, "gc"] += gettimeofday_us() - tmp_ts[$arg1, "gc"];
+        delete tmp_ts[$arg1, "gc"];
+    }
 }
 
 probe process.mark("gc-send-start")
@@ -74,8 +76,10 @@ probe process.mark("gc-send-start")
 
 probe process.mark("gc-send-end")
 {
-    time_in_gc[$arg1, "gc_send"] = gettimeofday_us() - tmp_ts[$arg1, "gc_send"];
-    delete tmp_ts[$arg1, "gc_send"];
+    if (tmp_ts[$arg1, "gc_send"] > 0) {
+        time_in_gc[$arg1, "gc_send"] += gettimeofday_us() - tmp_ts[$arg1, "gc_send"];
+        delete tmp_ts[$arg1, "gc_send"];
+    }
 }
 
 probe process.mark("gc-recv-start")
@@ -85,14 +89,16 @@ probe process.mark("gc-recv-start")
 
 probe process.mark("gc-recv-end")
 {
-    time_in_gc[$arg1, "gc_recv"] = gettimeofday_us() - tmp_ts[$arg1, "gc_recv"];
-    delete tmp_ts[$arg1, "gc_recv"];
+    if (tmp_ts[$arg1, "gc_recv"]) {
+        time_in_gc[$arg1, "gc_recv"] += gettimeofday_us() - tmp_ts[$arg1, "gc_recv"];
+        delete tmp_ts[$arg1, "gc_recv"];
+    }
 }
 
 probe process.mark("heap-alloc")
 {
     alloc[$arg1, "heap"] ++;
-    alloc[$arg1, "size"] = alloc[$arg1, "size"] + $arg2;
+    alloc[$arg1, "size"] += $arg2;
 }
 
 probe process.mark("actor-alloc")

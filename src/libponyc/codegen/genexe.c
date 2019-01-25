@@ -348,7 +348,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
   const char* lexecinfo =
 #if (defined(PLATFORM_IS_LINUX) && !defined(__GLIBC__)) || \
-    (defined(PLATFORM_IS_BSD) && defined(DEBUG))
+    defined(PLATFORM_IS_BSD)
    "-lexecinfo";
 #else
     "";

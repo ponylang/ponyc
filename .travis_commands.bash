@@ -206,11 +206,12 @@ ponyc-build-packages(){
 
 ponyc-build-docs(){
   echo "Installing mkdocs and offical theme..."
-  sudo -H pip install mkdocs-ponylang
-
+  pip3 install --user mkdocs-ponylang
   echo "Building ponyc docs..."
   make CC="$CC1" CXX="$CXX1" docs-online
+}
 
+ponyc-upload-docs(){
   echo "Uploading docs using mkdocs..."
   git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.io"
   git fetch gh-token

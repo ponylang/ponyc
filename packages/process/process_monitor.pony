@@ -26,16 +26,13 @@ actor Main
     try
       let path = FilePath(env.root as AmbientAuth, "/bin/cat")?
       // define the arguments; first arg is always the binary name
-      let args: Array[String] iso = recover Array[String](1) end
-      args.push("cat")
+      let args: Array[String] val = ["cat"]
       // define the environment variable for the execution
-      let vars: Array[String] iso = recover Array[String](2) end
-      vars.push("HOME=/")
-      vars.push("PATH=/bin")
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
       // create a ProcessMonitor and spawn the child process
       let auth = env.root as AmbientAuth
       let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
-      path, consume args, consume vars)
+      path, args, vars)
       // write to STDIN of the child process
       pm.write("one, two, three")
       pm.done_writing() // closing stdin allows cat to terminate

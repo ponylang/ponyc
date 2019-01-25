@@ -22,19 +22,31 @@ static const unsigned char the_key[16] = {
   } while (0)
 
 
-static uint32_t halfsiphash24(const unsigned char* key, const char* in,
+static uint32_t halfsiphash24(const unsigned char* key, const unsigned char* in,
   size_t len)
 {
   uint32_t k0 = *(uint32_t*)(key);
   uint32_t k1 = *(uint32_t*)(key + 4);
   uint32_t b = (uint32_t)len << 24;
 
+  // Reference implementations that don't agree:
+  // https://github.com/yoursunny/hsip-bf/blob/master/examples/halfsiphash/halfsiphash-reference.c#L77-L78
+  // https://github.com/kpdemetriou/siphash-cffi/blob/master/sources/halfsiphash.c#L77-L78
+  //
+  // * Those two disagree with Pony's on the inital values for v0 & v1:
+  // both use k0/k1 as-is.
+  //
+  // * Those two disagree with each other on the details of finalization.
+  //
+  // So let's leave this as-is.  If we really must match a half siphash-2-4
+  // reference implementation, we'll choose that impl later.
+
   uint32_t v0 = k0 ^ 0x736f6d65;
   uint32_t v1 = k1 ^ 0x646f7261;
   uint32_t v2 = k0 ^ 0x6c796765;
   uint32_t v3 = k1 ^ 0x74656462;
 
-  const char* end = (in + len) - (len % 4);
+  const unsigned char* end = (in + len) - (len % 4);
 
   for (; in != end; in += 4)
   {
@@ -77,7 +89,7 @@ static uint32_t halfsiphash24(const unsigned char* key, const char* in,
   } while(0)
 
 
-static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
+static uint64_t siphash24(const unsigned char* key, const unsigned char* in, size_t len)
 {
   uint64_t k0 = *(uint64_t*)(key);
   uint64_t k1 = *(uint64_t*)(key + 8);
@@ -88,7 +100,7 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
   uint64_t v2 = k0 ^ 0x6c7967656e657261ULL;
   uint64_t v3 = k1 ^ 0x7465646279746573ULL;
 
-  const char* end = (in + len) - (len % 8);
+  const unsigned char* end = (in + len) - (len % 8);
 
   for(; in != end; in += 8)
   {
@@ -126,23 +138,23 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
 PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 {
 #ifdef PLATFORM_IS_ILP32
-  return halfsiphash24(the_key, (const char*)p, len);
+  return halfsiphash24(the_key, (const unsigned char*)p, len);
 #else
-  return siphash24(the_key, (const char*)p, len);
+  return siphash24(the_key, (const unsigned char*)p, len);
 #endif
 }
 
 PONY_API uint64_t ponyint_hash_block64(const void* p, size_t len)
 {
-  return siphash24(the_key, (const char*)p, len);
+  return siphash24(the_key, (const unsigned char*)p, len);
 }
 
 size_t ponyint_hash_str(const char* str)
 {
 #ifdef PLATFORM_IS_ILP32
-  return halfsiphash24(the_key, str, strlen(str));
+  return halfsiphash24(the_key, (const unsigned char *)str, strlen(str));
 #else
-  return siphash24(the_key, str, strlen(str));
+  return siphash24(the_key, (const unsigned char *)str, strlen(str));
 #endif
 }
 
