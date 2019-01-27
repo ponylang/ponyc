@@ -1,541 +1,289 @@
 language: c
-
 branches:
   only:
-    - master
-    - release
-
+  - master
+  - release
 dist: trusty
 sudo: required
-
 services:
-  - docker
-
-# NOTE: This holds fedora COPR API related variables. Unfortunately, the values expire every 180 days.
-# As a result, we have to remember to visit https://copr.fedorainfracloud.org/api/ and generate a new token
-# and then run the following to update variables and replace the "secure" value.
-# travis encrypt COPR_LOGIN=VALUE COPR_TOKEN=VALUE --org -r ponylang/ponyc
+- docker
 env:
   global:
-    - secure: "iARfP1hIHukdK7u9mNNtbyfZVWMO/mnqQiEPTGnQyDBWykIFAe8fHnOhU+Wc982dJoWDcS1rR1UMZl++SRtzDgg6qmBqWou8Dqxv/kmmVTHy8mCx6xbG443ihRXo8AGW1SyQVWuOVMosDugMAqjRC1kX99IVrPNSkTgC+XjikzjCq75Ay89LMtA0lzT2kf2ijdthbVi/e1MkwLSBgcyr3QCbVGFadzavxDfULCslhmuhqd+q8f+bbsL5FZF07ZnKJCtxx+WjeNLfgK0GWH3Ds9CJM0JcBqn2Lg65oT8ywJ7Xk5WbJFvgqHO8gHmo7iyVuFF81ZyKKun/yIL7v8P4pSAkO+3L4Er9+Wcg4sddG6UkC5b5PTrvdgdVT3YVVxEWa1sTwlBbb6a0eDQ0HPmG/BJwqJTbwPYdMaUmx4kKN5sfaMpqcxLH732JUdC4ty0nmeBqWPlnQzsyM5IoW5gi3mS5ITYEr3I1c3MRtI+FJbFstij8IlNGJJqZSvM7CATkX6PWfiXoQDKXMn5o4Dd0kstNE5oV5N3KVjXvRfQsLE3pqp1wCCcsc8kOS4QAaJ2nVPArgS9XNUa5UGtqjpP+f3HbZun8FwCjPdzKBP8tAnXVOAzhmcI9fp9UajJaK03xyk6dVEy81V9wLDyU2zj61vC46aj6ejmIeYkZrSExPWg="
-    - CROSS_ARCH=
-    - VAGRANT_ENV=
-    - RELEASE_CONFIG=no
-    - RELEASE_DEBS=
-    - CC1=gcc
-    - CXX1=g++
-    - ICC1=gcc-6
-    - ICXX1=g++-6
-
+  - secure: iARfP1hIHukdK7u9mNNtbyfZVWMO/mnqQiEPTGnQyDBWykIFAe8fHnOhU+Wc982dJoWDcS1rR1UMZl++SRtzDgg6qmBqWou8Dqxv/kmmVTHy8mCx6xbG443ihRXo8AGW1SyQVWuOVMosDugMAqjRC1kX99IVrPNSkTgC+XjikzjCq75Ay89LMtA0lzT2kf2ijdthbVi/e1MkwLSBgcyr3QCbVGFadzavxDfULCslhmuhqd+q8f+bbsL5FZF07ZnKJCtxx+WjeNLfgK0GWH3Ds9CJM0JcBqn2Lg65oT8ywJ7Xk5WbJFvgqHO8gHmo7iyVuFF81ZyKKun/yIL7v8P4pSAkO+3L4Er9+Wcg4sddG6UkC5b5PTrvdgdVT3YVVxEWa1sTwlBbb6a0eDQ0HPmG/BJwqJTbwPYdMaUmx4kKN5sfaMpqcxLH732JUdC4ty0nmeBqWPlnQzsyM5IoW5gi3mS5ITYEr3I1c3MRtI+FJbFstij8IlNGJJqZSvM7CATkX6PWfiXoQDKXMn5o4Dd0kstNE5oV5N3KVjXvRfQsLE3pqp1wCCcsc8kOS4QAaJ2nVPArgS9XNUa5UGtqjpP+f3HbZun8FwCjPdzKBP8tAnXVOAzhmcI9fp9UajJaK03xyk6dVEy81V9wLDyU2zj61vC46aj6ejmIeYkZrSExPWg=
+  - CROSS_ARCH=
+  - VAGRANT_ENV=
+  - RELEASE_CONFIG=no
+  - RELEASE_DEBS=
+  - CC1=gcc
+  - CXX1=g++
+  - ICC1=gcc-6
+  - ICXX1=g++-6
 matrix:
   include:
-
-    - os: osx
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - RELEASE_CONFIG=yes
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-
-    - os: linux
-      env:
-        - RELEASE_CONFIG=yes
-        - RELEASE_DEBS=ubuntu
-
-    - os: linux
-      env:
-        - RELEASE_CONFIG=yes
-        - RELEASE_DEBS=debian
-
-    # freebsd11
-    - os: linux
-      env:
-        - VAGRANT_ENV=freebsd11-x86_64
-        - config=debug
-
-    - os: linux
-      env:
-        - VAGRANT_ENV=freebsd11-x86_64
-        - config=release
-
-    # i686
-    - os: linux
-      env:
-        - DOCKER_ARCH=i686
-        - CROSS_ARCH=i686
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_BITS=32
-        - CROSS_TRIPLE=i686-unknown-linux-gnu
-        - CROSS_LINKER='gcc-6 -m32'
-        - CROSS_CC=gcc-6
-        - CROSS_CXX=g++-6
-        - CROSS_TUNE=generic
-
-    - os: linux
-      env:
-        - DOCKER_ARCH=i686
-        - CROSS_ARCH=i686
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_BITS=32
-        - CROSS_TRIPLE=i686-unknown-linux-gnu
-        - CROSS_LINKER='gcc-6 -m32'
-        - CROSS_CC=gcc-6
-        - CROSS_CXX=g++-6
-        - CROSS_TUNE=generic
-
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="4.0.1"
-#        - LLVM_CONFIG="llvm-config-4.0"
-#        - config=debug
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="4.0.1"
-#        - LLVM_CONFIG="llvm-config-4.0"
-#        - config=release
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="5.0.1"
-#        - LLVM_CONFIG="llvm-config-5.0"
-#        - config=debug
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="5.0.1"
-#        - LLVM_CONFIG="llvm-config-5.0"
-#        - config=release
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="6.0.0"
-#        - LLVM_CONFIG="llvm-config-6.0"
-#        - config=debug
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="6.0.0"
-#        - LLVM_CONFIG="llvm-config-6.0"
-#        - config=release
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-
-     # aarch64
-    - os: linux
-      env:
-        - DOCKER_ARCH=aarch64
-        - CROSS_ARCH=armv8-a
-        - LLVM_VERSION="6.0.0"
-        - LLVM_CONFIG="llvm-config-6.0"
-        - config=debug
-        - CROSS_CFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_BITS=64
-        - CROSS_TRIPLE=aarch64-unknown-linux-gnu
-        - CROSS_LINKER=aarch64-linux-gnu-gcc
-        - CROSS_CC=aarch64-linux-gnu-gcc
-        - CROSS_CXX=aarch64-linux-gnu-g++
-        - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
-        - CROSS_TUNE=cortex-a53
-
-    - os: linux
-      env:
-        - DOCKER_ARCH=aarch64
-        - CROSS_ARCH=armv8-a
-        - LLVM_VERSION="6.0.0"
-        - LLVM_CONFIG="llvm-config-6.0"
-        - config=release
-        - CROSS_CFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_BITS=64
-        - CROSS_TRIPLE=aarch64-unknown-linux-gnu
-        - CROSS_LINKER=aarch64-linux-gnu-gcc
-        - CROSS_CC=aarch64-linux-gnu-gcc
-        - CROSS_CXX=aarch64-linux-gnu-g++
-        - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
-        - CROSS_TUNE=cortex-a53
-
+  - os: osx
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-6
+    env:
+    - RELEASE_CONFIG=yes
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
+    - config=release
+  - os: linux
+    env:
+    - RELEASE_CONFIG=yes
+    - RELEASE_DEBS=ubuntu
+  - os: linux
+    env:
+    - RELEASE_CONFIG=yes
+    - RELEASE_DEBS=debian
+  - os: linux
+    env:
+    - VAGRANT_ENV=freebsd11-x86_64
+    - config=debug
+  - os: linux
+    env:
+    - VAGRANT_ENV=freebsd11-x86_64
+    - config=release
+  - os: linux
+    env:
+    - DOCKER_ARCH=i686
+    - CROSS_ARCH=i686
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
+    - config=debug
+    - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_BITS=32
+    - CROSS_TRIPLE=i686-unknown-linux-gnu
+    - CROSS_LINKER='gcc-6 -m32'
+    - CROSS_CC=gcc-6
+    - CROSS_CXX=g++-6
+    - CROSS_TUNE=generic
+  - os: linux
+    env:
+    - DOCKER_ARCH=i686
+    - CROSS_ARCH=i686
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
+    - config=release
+    - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_BITS=32
+    - CROSS_TRIPLE=i686-unknown-linux-gnu
+    - CROSS_LINKER='gcc-6 -m32'
+    - CROSS_CC=gcc-6
+    - CROSS_CXX=g++-6
+    - CROSS_TUNE=generic
+  - os: linux
+    env:
+    - DOCKER_ARCH=aarch64
+    - CROSS_ARCH=armv8-a
+    - LLVM_VERSION="6.0.0"
+    - LLVM_CONFIG="llvm-config-6.0"
+    - config=debug
+    - CROSS_CFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_BITS=64
+    - CROSS_TRIPLE=aarch64-unknown-linux-gnu
+    - CROSS_LINKER=aarch64-linux-gnu-gcc
+    - CROSS_CC=aarch64-linux-gnu-gcc
+    - CROSS_CXX=aarch64-linux-gnu-g++
+    - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
+    - CROSS_TUNE=cortex-a53
+  - os: linux
+    env:
+    - DOCKER_ARCH=aarch64
+    - CROSS_ARCH=armv8-a
+    - LLVM_VERSION="6.0.0"
+    - LLVM_CONFIG="llvm-config-6.0"
+    - config=release
+    - CROSS_CFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_BITS=64
+    - CROSS_TRIPLE=aarch64-unknown-linux-gnu
+    - CROSS_LINKER=aarch64-linux-gnu-gcc
+    - CROSS_CC=aarch64-linux-gnu-gcc
+    - CROSS_CXX=aarch64-linux-gnu-g++
+    - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
+    - CROSS_TUNE=cortex-a53
   allow_failures:
-
-    # freebsd11
-    - os: linux
-      env:
-        - VAGRANT_ENV=freebsd11-x86_64
-        - config=debug
-
-    - os: linux
-      env:
-        - VAGRANT_ENV=freebsd11-x86_64
-        - config=release
-
-    # i686
-    - os: linux
-      env:
-        - DOCKER_ARCH=i686
-        - CROSS_ARCH=i686
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=debug
-        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_BITS=32
-        - CROSS_TRIPLE=i686-unknown-linux-gnu
-        - CROSS_LINKER='gcc-6 -m32'
-        - CROSS_CC=gcc-6
-        - CROSS_CXX=g++-6
-        - CROSS_TUNE=generic
-
-    - os: linux
-      env:
-        - DOCKER_ARCH=i686
-        - CROSS_ARCH=i686
-        - LLVM_VERSION="3.9.1"
-        - LLVM_CONFIG="llvm-config-3.9"
-        - config=release
-        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-        - CROSS_BITS=32
-        - CROSS_TRIPLE=i686-unknown-linux-gnu
-        - CROSS_LINKER='gcc-6 -m32'
-        - CROSS_CC=gcc-6
-        - CROSS_CXX=g++-6
-        - CROSS_TUNE=generic
-
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="4.0.1"
-#        - LLVM_CONFIG="llvm-config-4.0"
-#        - config=debug
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="4.0.1"
-#        - LLVM_CONFIG="llvm-config-4.0"
-#        - config=release
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="5.0.1"
-#        - LLVM_CONFIG="llvm-config-5.0"
-#        - config=debug
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="5.0.1"
-#        - LLVM_CONFIG="llvm-config-5.0"
-#        - config=release
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="6.0.0"
-#        - LLVM_CONFIG="llvm-config-6.0"
-#        - config=debug
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-#
-#    - os: linux
-#      env:
-#        - DOCKER_ARCH=i686
-#        - CROSS_ARCH=i686
-#        - LLVM_VERSION="6.0.0"
-#        - LLVM_CONFIG="llvm-config-6.0"
-#        - config=release
-#        - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
-#        - CROSS_BITS=32
-#        - CROSS_TRIPLE=i686-unknown-linux-gnu
-#        - CROSS_LINKER='gcc-6 -m32'
-#        - CROSS_CC=gcc-6
-#        - CROSS_CXX=g++-6
-#        - CROSS_TUNE=generic
-
-     # aarch64
-    - os: linux
-      env:
-        - DOCKER_ARCH=aarch64
-        - CROSS_ARCH=armv8-a
-        - LLVM_VERSION="6.0.0"
-        - LLVM_CONFIG="llvm-config-6.0"
-        - config=debug
-        - CROSS_CFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_BITS=64
-        - CROSS_TRIPLE=aarch64-unknown-linux-gnu
-        - CROSS_LINKER=aarch64-linux-gnu-gcc
-        - CROSS_CC=aarch64-linux-gnu-gcc
-        - CROSS_CXX=aarch64-linux-gnu-g++
-        - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
-        - CROSS_TUNE=cortex-a53
-
-    - os: linux
-      env:
-        - DOCKER_ARCH=aarch64
-        - CROSS_ARCH=armv8-a
-        - LLVM_VERSION="6.0.0"
-        - LLVM_CONFIG="llvm-config-6.0"
-        - config=release
-        - CROSS_CFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
-        - CROSS_BITS=64
-        - CROSS_TRIPLE=aarch64-unknown-linux-gnu
-        - CROSS_LINKER=aarch64-linux-gnu-gcc
-        - CROSS_CC=aarch64-linux-gnu-gcc
-        - CROSS_CXX=aarch64-linux-gnu-g++
-        - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
-        - CROSS_TUNE=cortex-a53
-
+  - os: linux
+    env:
+    - VAGRANT_ENV=freebsd11-x86_64
+    - config=debug
+  - os: linux
+    env:
+    - VAGRANT_ENV=freebsd11-x86_64
+    - config=release
+  - os: linux
+    env:
+    - DOCKER_ARCH=i686
+    - CROSS_ARCH=i686
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
+    - config=debug
+    - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_BITS=32
+    - CROSS_TRIPLE=i686-unknown-linux-gnu
+    - CROSS_LINKER='gcc-6 -m32'
+    - CROSS_CC=gcc-6
+    - CROSS_CXX=g++-6
+    - CROSS_TUNE=generic
+  - os: linux
+    env:
+    - DOCKER_ARCH=i686
+    - CROSS_ARCH=i686
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
+    - config=release
+    - CROSS_CFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-m32 -idirafter /usr/cross/include/'
+    - CROSS_BITS=32
+    - CROSS_TRIPLE=i686-unknown-linux-gnu
+    - CROSS_LINKER='gcc-6 -m32'
+    - CROSS_CC=gcc-6
+    - CROSS_CXX=g++-6
+    - CROSS_TUNE=generic
+  - os: linux
+    env:
+    - DOCKER_ARCH=aarch64
+    - CROSS_ARCH=armv8-a
+    - LLVM_VERSION="6.0.0"
+    - LLVM_CONFIG="llvm-config-6.0"
+    - config=debug
+    - CROSS_CFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_BITS=64
+    - CROSS_TRIPLE=aarch64-unknown-linux-gnu
+    - CROSS_LINKER=aarch64-linux-gnu-gcc
+    - CROSS_CC=aarch64-linux-gnu-gcc
+    - CROSS_CXX=aarch64-linux-gnu-g++
+    - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
+    - CROSS_TUNE=cortex-a53
+  - os: linux
+    env:
+    - DOCKER_ARCH=aarch64
+    - CROSS_ARCH=armv8-a
+    - LLVM_VERSION="6.0.0"
+    - LLVM_CONFIG="llvm-config-6.0"
+    - config=release
+    - CROSS_CFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_CXXFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_LDFLAGS='-idirafter /usr/cross/include/'
+    - CROSS_BITS=64
+    - CROSS_TRIPLE=aarch64-unknown-linux-gnu
+    - CROSS_LINKER=aarch64-linux-gnu-gcc
+    - CROSS_CC=aarch64-linux-gnu-gcc
+    - CROSS_CXX=aarch64-linux-gnu-g++
+    - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
+    - CROSS_TUNE=cortex-a53
 rvm:
-  - 2.2.3
-
+- 2.2.3
 script:
-  - bash .travis_script.bash
-
+- bash .travis_script.bash
 notifications:
   email: false
   irc:
     channels:
-      - "chat.freenode.net#ponylang"
+    - chat.freenode.net#ponylang
     on_success: change
     on_failure: change
-
+  slack:
+    secure: CAqeschgzqE4QS6QU3Xh8pau7L7HteIVUjU6kW3hZyi6AAeciHSlYBVe7KNz1lZ10oUESHMVQureexT/lGZkhmuknq8sARMoC3XiczpHl2vaWZQmP/k/LxQu57Eavd3KBA6j1FXllgqvDj3bgIbanflvTV6IWygO/MMTGkAa2KM02iWajVN4pYAdfFu7dYPITP+JcdmazrQIxbqLYdQ295knLR/RP2ZEwsLYWdo46oO6sEhMTfnXe6nwbBG9Ce2UC1Ge1fnWGm3UY2WA3XAL1wDRz8fMOjuV9/1w7Kltbs1z4Xx9kaFuY3DlvEcP/9qGp6Mzyyz3CobFENGUM/hnoQqr4aEDcm2/3Wk4aSxs6x1GOeg1gMEGFm+s6o5VKq9QbBrnOhdODVtxiwFnBHVOSoqwUEnUaozQtwrZ3d4/XnYU+Kux99/+G5bNOCexWgeTt1g42szIW0qB3RwW7O2nd9hJp9TuJjL4J5McollqPry4T288Zo+p0dVbniELjHUQuOvwVe5bNuwd9Tcof6IHbyFfMSIApsT4dOuiCTWfQVbbm+mflbmwsLkTcn9MnznLZokJv5dtdGm2C9jOoWXA7fL7tobwJsCpkJb6Fu4vJxGELUB7ptQ7ONz9QhZA+w+SBJ7xpCjZPDURJOBbd32E25i3MEeEceJQe2hbTJEikbg=
+    on_success: change
+    on_failure: change
 deploy:
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_source.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && -z $RELEASE_DEBS"
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_appimage.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && -z $RELEASE_DEBS"
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_trusty.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_xenial.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_artful.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_bionic.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_jessie.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == debian"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_stretch.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == debian"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
-  - provider: bintray
-    user: pony-buildbot-2
-    file: /home/travis/build/ponylang/ponyc/bintray_debian_buster.json
-    skip_cleanup: true
-    on:
-      branch: release
-      condition: "$RELEASE_CONFIG == yes && $RELEASE_DEBS == debian"
-
-    key:
-      secure: "GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8="
-
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_source.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && -z $RELEASE_DEBS
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_appimage.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && -z $RELEASE_DEBS
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_trusty.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_xenial.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_artful.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_bionic.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_jessie.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == debian
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_stretch.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == debian
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
+- provider: bintray
+  user: pony-buildbot-2
+  file: /home/travis/build/ponylang/ponyc/bintray_debian_buster.json
+  skip_cleanup: true
+  on:
+    branch: release
+    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == debian
+  key:
+    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
