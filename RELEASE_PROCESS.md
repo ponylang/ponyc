@@ -100,6 +100,10 @@ Leave a comment on the GitHub issue for this release letting @stefantalpalaru kn
 
 There's no real Nix release. However, @kamilchm is maintaining Nix Pony packages. Drop him a note on the GitHub issue so he is aware of the release.
 
+### "Kick off" the FreeBSD ports update
+
+There's no FreeBSD release that happens. However, @myfreeweb is maintaining the FreeBSD port. Drop a note on the GitHub issue so they are aware of the release.
+
 ### Update the GitHub issue as needed
 
 At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew".
