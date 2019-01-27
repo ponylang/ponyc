@@ -8,21 +8,29 @@ RUN apt-get update \
  && apt-get install -y \
   apt-transport-https \
   ca-certificates \
+  curl \
   dirmngr \
+  git \
   gnupg \
  && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "47E4F8DEE04F0923" \
  && echo deb https://dl.bintray.com/pony-language/ponylang-debian ${FROM_VERSION} main | tee -a /etc/apt/sources.list \
  && apt-get install -y wget \
- && echo "deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.9 main" >> /etc/apt/sources.list \
- && echo "deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.9 main" >> /etc/apt/sources.list \
- && wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | apt-key add - \
  && apt-get update \
  && apt-get install -y \
   devscripts \
   build-essential \
   lintian \
   debhelper \
-  equivs
+  equivs \
+ && curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash \
+ && apt-get install -y git-lfs \
+ && git lfs clone -I "clang+llvm-3.9.1-x86_64-linux-gnu-debian8.tar.xz" https://github.com/ponylang/ponyc-llvm-dependencies.git \
+ && cd ponyc-llvm-dependencies \
+ && tar -xf "clang+llvm-3.9.1-x86_64-linux-gnu-debian8.tar.xz" \
+ && cd clang+llvm* \
+ && mkdir /tmp/llvm \
+ && cp -r ./* /tmp/llvm/ \
+ && ln -s "/tmp/llvm/bin/llvm-config" "/usr/local/bin/llvm-config-3.9"
 
 WORKDIR /home/pony
 
