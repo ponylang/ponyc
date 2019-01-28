@@ -85,6 +85,10 @@ void ponyint_actor_setoverloaded(pony_actor_t* actor);
 
 void ponyint_actor_unsetoverloaded(pony_actor_t* actor);
 
+PONY_API void pony_apply_backpressure();
+
+PONY_API void pony_release_backpressure();
+
 void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to);
 
 bool ponyint_triggers_muting(pony_actor_t* actor);
