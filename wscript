@@ -45,7 +45,7 @@ CONFIGS = [
     'debug'
 ]
 
-MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
+MSVC_VERSIONS = [ '15.9', '15.8', '15.7', '15.6', '15.4', '15.0', '14.0' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
