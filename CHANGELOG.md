@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Correctly specify linkage on Windows for runtime library backpressure functions. ([PR #2989](https://github.com/ponylang/ponyc/pull/2989))
 
 ### Added
 
