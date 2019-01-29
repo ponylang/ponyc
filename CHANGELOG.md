@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Update Windows build system to handle the latest Visual Studio 2017 version ([PR #2992](https://github.com/ponylang/ponyc/pull/2992))
 
 ### Changed
 
