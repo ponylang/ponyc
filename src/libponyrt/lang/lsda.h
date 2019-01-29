@@ -1,5 +1,5 @@
-#ifndef LANG_LSDA_H
-#define LANG_LSDA_H
+#ifndef lang_lsda_h
+#define lang_lsda_h
 
 #include <platform.h>
 
