@@ -145,3 +145,57 @@ class _ProcessPosix is _Process
     else
       -1
     end
+
+class _ProcessWindows is _Process
+  let hProcess: USize
+
+  new create(
+    path: String,
+    args: Array[String] val,
+    vars: Array[String] val,
+    stdin: _Pipe,
+    stdout: _Pipe,
+    stderr: _Pipe)
+  =>
+    ifdef windows then
+      hProcess = @ponyint_win_process_create[USize](
+          path.cstring(),
+          _make_cmdline(args).cstring(),
+          _make_environ(vars).cpointer(),
+          stdin.far_fd, stdout.far_fd, stderr.far_fd)
+    else
+      compile_error "unsupported platform"
+    end
+
+  fun tag _make_cmdline(args: Array[String] val): String =>
+    var cmdline: String = ""
+    for arg in args.values() do
+      cmdline = cmdline + arg + " "
+    end
+    cmdline
+
+  fun tag _make_environ(vars: Array[String] val): Array[U8] =>
+    var size: USize = 0
+    for varr in vars.values() do
+      size = size + varr.size() + 1 // name=value\0
+    end
+    size = size + 1 // last \0
+    var environ = Array[U8](size)
+    for varr in vars.values() do
+      environ.append(varr)
+      environ.push(0)
+    end
+    environ.push(0)
+    environ
+
+  fun kill() =>
+    if hProcess != 0 then
+      @ponyint_win_process_kill[I32](hProcess)
+    end
+
+  fun ref wait(): I32 =>
+    if hProcess != 0 then
+      @ponyint_win_process_wait[I32](hProcess)
+    else
+      -1
+    end

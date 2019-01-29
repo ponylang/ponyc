@@ -25,11 +25,13 @@ primitive _ONONBLOCK
     elseif linux then 2048
     else compile_error "no O_NONBLOCK" end
 
+// The pipe has been ended.
 primitive _ERRORBROKENPIPE
   fun apply(): I32 =>
     ifdef windows then 109
     else compile_error "no ERROR_BROKEN_PIPE" end
 
+// The pipe is being closed.
 primitive _ERRORNODATA
   fun apply(): I32 =>
     ifdef windows then 232
@@ -87,6 +89,16 @@ class _Pipe
       _set_fd(near_fd, _FDCLOEXEC())?
       _set_fd(far_fd, _FDCLOEXEC())?
       _set_fl(near_fd, _ONONBLOCK())? // and non-blocking on parent side of pipe
+
+    elseif windows then
+      near_fd = 0
+      far_fd = 0
+      // create the pipe and set one handle to not inherit. That needs
+      // to be done with the knowledge of which way this pipe goes.
+      if @ponyint_win_pipe_create[U32](addressof near_fd, addressof far_fd,
+          _outgoing) == 0 then
+        error
+      end
     else
       compile_error "unsupported platform"
     end
@@ -109,6 +121,7 @@ class _Pipe
       event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
       close_far()
     end
+    close_far()
 
   fun ref close_far() =>
     """
@@ -120,31 +133,83 @@ class _Pipe
       far_fd = -1
     end
 
-  fun ref read(read_buf: Array[U8] iso, read_len: USize):
+  fun ref read(read_buf: Array[U8] iso, offset: USize):
     (Array[U8] iso^, ISize, I32)
   =>
     ifdef posix then
       let len =
-        @read[ISize](near_fd, read_buf.cpointer().usize() + read_len,
-          read_buf.size() - read_len)
+        @read[ISize](near_fd, read_buf.cpointer().usize() + offset,
+          read_buf.size() - offset)
       if len == -1 then // OS signals write error
         (consume read_buf, len, @pony_os_errno())
       else
         (consume read_buf, len, 0)
       end
-    else
-      compile_error "unsupported platform"
+    else // windows
+      let hnd: USize = @_get_osfhandle[USize](near_fd)
+      var bytes_to_read: U32 = (read_buf.size() - offset).u32()
+      // Peek ahead to see if there is anything to read, return if not
+      var bytes_avail: U32 = 0
+      let okp = @PeekNamedPipe[Bool](hnd, USize(0), bytes_to_read, USize(0),
+          addressof bytes_avail, USize(0))
+      let winerrp = @GetLastError[I32]()
+      if not okp then
+        if (winerrp == _ERRORBROKENPIPE()) or (winerrp == _ERRORNODATA()) then
+          return (consume read_buf, 0, 0) // Pipe is done & ready to close.
+        else
+          // Some other error, map to invalid arg
+          return (consume read_buf, -1, _EINVAL())
+        end
+      elseif bytes_avail == 0 then
+        return (consume read_buf, -1, _EAGAIN())
+      end
+      if bytes_to_read > bytes_avail then
+        bytes_to_read = bytes_avail
+      end
+      // Read up to the bytes available
+      var bytes_read: U32 = 0
+      let ok = @ReadFile[Bool](hnd, read_buf.cpointer().usize() + offset,
+          bytes_to_read, addressof bytes_read, USize(0))
+      let winerr = @GetLastError[I32]()
+      if not ok then
+        if (winerr == _ERRORBROKENPIPE()) or (winerr == _ERRORNODATA()) then
+          (consume read_buf, 0, 0) // Pipe is done & ready to close.
+        else
+          (consume read_buf, -1, _EINVAL()) // Some other error, map to invalid arg
+        end
+      else
+        // We know bytes_to_read is > 0, and can assume bytes_read is as well
+        (consume read_buf, bytes_read.isize(), 0) // buffer back, bytes read, no error
+      end
     end
 
   fun ref write(data: ByteSeq box, offset: USize): (ISize, I32) =>
-    let len = @write[ISize](
-      near_fd,
-      data.cpointer().usize() + offset,
-      data.size() - offset)
-    if len == -1 then // OS signals write error
-      (len, @pony_os_errno())
-    else
-      (len, 0)
+    ifdef posix then
+      let len = @write[ISize](
+          near_fd, data.cpointer().usize() + offset, data.size() - offset)
+      if len == -1 then // OS signals write error
+        (len, @pony_os_errno())
+      else
+        (len, 0)
+      end
+    else // windows
+      let hnd: USize = @_get_osfhandle[USize](near_fd)
+      let bytes_to_write: U32 = (data.size() - offset).u32()
+      var bytes_written: U32 = 0
+      let ok = @WriteFile[Bool](hnd, data.cpointer().usize() + offset,
+          bytes_to_write, addressof bytes_written, USize(0))
+      let winerr = @GetLastError[I32]()
+      if not ok then
+        if (winerr == _ERRORBROKENPIPE()) or (winerr == _ERRORNODATA()) then
+          (0, 0) // Pipe is done & ready to close.
+        else
+          (-1, _EINVAL()) // Some other error, map to invalid arg
+        end
+      elseif bytes_written == 0 then
+        (-1, _EAGAIN())
+      else
+        (bytes_written.isize(), 0)
+      end
     end
 
   fun ref is_closed(): Bool =>
