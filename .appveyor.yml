@@ -85,9 +85,4 @@ deploy:
 test_script:
   - cd C:\projects\ponyc
   - python -x waf test --config %configuration% --llvm %llvm%
-  - if %errorlevel% neq 0 exit /b %errorlevel%
-  - setlocal enabledelayedexpansion
-  - for %%i in (circle commandline counter echo files gups_basic gups_opt helloworld ifdef lambda mailbox mandelbrot message-ubench mixed n-body net overload ponybench printargs producer-consumer readline ring spreader timers under_pressure yield) do (
-  - build\%configuration%-llvm-%llvm%\ponyc.exe examples\%%i
-  - if !errorlevel! neq 0 exit /b !errorlevel!
-  - )
+  - "setlocal enabledelayedexpansion\nfor %%i in (circle commandline counter echo files gups_basic gups_opt helloworld ifdef lambda mailbox mandelbrot message-ubench mixed n-body net overload ponybench printargs producer-consumer readline ring spreader timers under_pressure yield) do (\n  build\\%configuration%-llvm-%llvm%\\ponyc.exe examples\\%%i\n  if !errorlevel! neq 0 exit /b !errorlevel!\n)"
