@@ -466,6 +466,9 @@ def examples(ctx):
     )
 
     def build_examples(ctx):
+        if ctx.variant.startswith('debug'):
+            return
+
         import os
         import os.path
 
