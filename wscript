@@ -472,11 +472,18 @@ def examples(ctx):
         buildDir = ctx.bldnode.abspath()
         ponyc = os.path.join(buildDir, 'ponyc')
 
+        program_ffi_lib = os.path.join('examples', 'ffi-callbacks', 'ffi-callbacks.lib')
+        if os.path.isfile(program_ffi_lib):
+            os.remove(program_ffi_lib)
+        program_ffi_lib = os.path.join('examples', 'ffi-struct', 'ffi-struct.lib')
+        if os.path.isfile(program_ffi_lib):
+            os.remove(program_ffi_lib)
+
         for path in os.listdir('examples'):
             dirname = os.path.join('examples', path)
             if os.path.isdir(dirname) and any(f.endswith('.pony') for f in os.listdir(dirname)):
-                os.chdir(os.path.join(buildDir, '..', '..', 'examples'))
-                returncode = subprocess.call([ponyc, path])
+                os.chdir(os.path.join(buildDir, '..', '..', dirname))
+                returncode = subprocess.call([ponyc, '.'])
                 if returncode != 0:
                     print(path + ' failed to build!')
                     sys.exit(1)
