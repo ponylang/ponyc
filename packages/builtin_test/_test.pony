@@ -1691,6 +1691,41 @@ class iso _TestMod is UnitTest
     // mod_unsafe
     h.assert_eq[T](5, T(13) %%~ 8, "[" + type_name + "] 13 %%~ 8")
 
+  fun test_mod_float[T: (FloatingPoint[T] val & Float)](h: TestHelper, type_name: String) =>
+    let m1 = T(-1)
+    let inf = T.max_value() * T.max_value()
+    let minf = inf.copysign(m1)
+    let mnan = T(1.0) % T(0.0)
+    let nan = mnan.copysign(inf)
+
+    // special cases - 0
+    h.assert_eq[T](mnan, T(1.5) %% T(0.0), "[" + type_name + "] 1.5 %% 0.0")
+    h.assert_eq[T](mnan, T(-1.5) %% T(0.0), "[" + type_name + "] -1.5 %% 0.0")
+    h.assert_eq[T](T(0.0), T(0.0) %% T(1.5), "[" + type_name + "] 0.0 %% 1.5")
+
+    // with nan
+    h.assert_eq[T](nan, nan %% T(1.5), "[" + type_name + "] NaN %% 1.5")
+    h.assert_eq[T](nan, T(1.5) %% nan, "[" + type_name + "] 1.5 %% NaN")
+
+    // with inf
+    h.assert_eq[String](mnan.string(), (inf %% T(1.5)).string(), "[" + type_name + "] inf %% 1.5")
+    h.assert_eq[String](mnan.string(), (inf %% T(-1.5)).string(), "[" + type_name + "] inf %% -1.5")
+    h.assert_eq[T](T(1.5), T(1.5) %% inf, "[" + type_name + "] 1.5 %% inf")
+    h.assert_eq[String](mnan.string(), (minf %% T(1.5)).string(), "[" + type_name + "] -inf %% 1.5")
+    h.assert_eq[String](mnan.string(), (minf %% T(-1.5)).string(), "[" + type_name + "] -inf %% -1.5")
+    h.assert_eq[String](minf.string(), (T(1.5) %% minf).string(), "[" + type_name + "] 1.5 %% -inf")
+
+    h.assert_eq[T](T(7.0), T(15.0) %% T(8.0), "[" + type_name + "] 15.0 %% 8.0")
+    h.assert_eq[T](T(1.0), T(-15.0) %% T(8.0), "[" + type_name + "] -15.0 %% 8.0")
+    h.assert_eq[T](T(-1.0), T(15.0) %% T(-8.0), "[" + type_name + "] 15.0 %% -8.0")
+    h.assert_eq[T](T(-7.0), T(-15.0) %% T(-8.0), "[" + type_name + "] -15.0 %% -8.0")
+
+    // mod_unsafe
+    h.assert_eq[T](T(7.0), T(15.0) %%~ T(8.0), "[" + type_name + "] 15.0 %%~ 8.0")
+    h.assert_eq[T](T(1.0), T(-15.0) %%~ T(8.0), "[" + type_name + "] -15.0 %%~ 8.0")
+    h.assert_eq[T](T(-1.0), T(15.0) %%~ T(-8.0), "[" + type_name + "] 15.0 %%~ -8.0")
+    h.assert_eq[T](T(-7.0), T(-15.0) %%~ T(-8.0), "[" + type_name + "] -15.0 %%~ -8.0")
+
   fun apply(h: TestHelper) =>
     test_mod_signed[I8](h, "I8")
     test_mod_signed[I16](h, "I16")
@@ -1707,6 +1742,8 @@ class iso _TestMod is UnitTest
     test_mod_unsigned[ULong](h, "ULong")
     test_mod_unsigned[U128](h, "U128")
 
+    test_mod_float[F32](h, "F32")
+    test_mod_float[F64](h, "F64")
 
 trait iso SafeArithmeticTest is UnitTest
   fun test[A: (Equatable[A] #read & Stringable #read)](

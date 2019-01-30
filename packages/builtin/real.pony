@@ -560,6 +560,14 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     """
     this /~ y
 
+  fun fld_unsafe(y: A): A
+    """
+    Unsafe operation.
+    If any input or output of the operation is +/- infinity or NaN, the result
+    is undefined.
+    The operation isn't required to fully comply to IEEE 754 semantics.
+    """
+
   fun divrem_unsafe(y: A): (A, A) =>
     """
     Unsafe operation.
@@ -577,6 +585,14 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     The operation isn't required to fully comply to IEEE 754 semantics.
     """
     this %~ y
+
+  fun mod_unsafe(y: A): A
+    """
+    Unsafe operation.
+    If any input or output of the operation is +/- infinity or NaN, the result
+    is undefined.
+    The operation isn't required to fully comply to IEEE 754 semantics.
+    """
 
   fun neg_unsafe(): A =>
     """

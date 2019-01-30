@@ -91,8 +91,21 @@ primitive F32 is FloatingPoint[F32]
   fun fld(y: F32): F32 =>
     (this / y).floor()
 
+  fun fld_unsafe(y: F32): F32 =>
+    (this /~ y).floor()
+
   fun mod(y: F32): F32 =>
-    let r = this.rem(y)
+    let r = this % y
+    if r == F32(0.0) then
+      r.copysign(y)
+    elseif (r > 0) xor (y > 0) then
+      r + y
+    else
+      r
+    end
+
+  fun mod_unsafe(y: F32): F32 =>
+    let r = this %~ y
     if r == F32(0.0) then
       r.copysign(y)
     elseif (r > 0) xor (y > 0) then
@@ -295,8 +308,21 @@ primitive F64 is FloatingPoint[F64]
   fun fld(y: F64): F64 =>
     (this / y).floor()
 
+  fun fld_unsafe(y: F64): F64 =>
+    (this /~ y).floor()
+
   fun mod(y: F64): F64 =>
     let r = this.rem(y)
+    if r == F64(0.0) then
+      r.copysign(y)
+    elseif (r > 0) xor (y > 0) then
+      r + y
+    else
+      r
+    end
+
+  fun mod_unsafe(y: F64): F64 =>
+    let r = this %~ y
     if r == F64(0.0) then
       r.copysign(y)
     elseif (r > 0) xor (y > 0) then
