@@ -84,4 +84,4 @@ deploy:
 
 test_script:
   - cd C:\projects\ponyc
-  - python -x waf test --config %configuration% --llvm %llvm%
+  - python -x waf test examples --config %configuration% --llvm %llvm%
