@@ -36,8 +36,14 @@ primitive I8 is SignedInteger[I8, U8]
   fun fld(y: I8): I8 =>
     _SignedArithmetic.fld[I8, U8](this, y)
 
+  fun fld_unsafe(y: I8): I8 =>
+    _SignedUnsafeArithmetic.fld_unsafe[I8, U8](this, y)
+
   fun mod(y: I8): I8 =>
     _SignedArithmetic.mod[I8, U8](this, y)
+
+  fun mod_unsafe(y: I8): I8 =>
+    _SignedUnsafeArithmetic.mod_unsafe[I8, U8](this, y)
 
   fun addc(y: I8): (I8, Bool) =>
     @"llvm.sadd.with.overflow.i8"[(I8, Bool)](this, y)
@@ -49,16 +55,16 @@ primitive I8 is SignedInteger[I8, U8]
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
   fun divc(y: I8): (I8, Bool) =>
-    _SignedPartialArithmetic.div_checked[I8, U8](this, y)
+    _SignedCheckedArithmetic.div_checked[I8, U8](this, y)
 
   fun remc(y: I8): (I8, Bool) =>
-    _SignedPartialArithmetic.rem_checked[I8, U8](this, y)
+    _SignedCheckedArithmetic.rem_checked[I8, U8](this, y)
 
   fun fldc(y: I8): (I8, Bool) =>
-    _SignedPartialArithmetic.fld_checked[I8, U8](this, y)
+    _SignedCheckedArithmetic.fld_checked[I8, U8](this, y)
 
   fun modc(y: I8): (I8, Bool) =>
-    _SignedPartialArithmetic.mod_checked[I8, U8](this, y)
+    _SignedCheckedArithmetic.mod_checked[I8, U8](this, y)
 
   fun add_partial(y: I8): I8 ? =>
     _SignedPartialArithmetic.add_partial[I8](this, y)?
@@ -122,8 +128,14 @@ primitive I16 is SignedInteger[I16, U16]
   fun fld(y: I16): I16 =>
     _SignedArithmetic.fld[I16, U16](this, y)
 
+  fun fld_unsafe(y: I16): I16 =>
+    _SignedUnsafeArithmetic.fld_unsafe[I16, U16](this, y)
+
   fun mod(y: I16): I16 =>
     _SignedArithmetic.mod[I16, U16](this, y)
+
+  fun mod_unsafe(y: I16): I16 =>
+    _SignedUnsafeArithmetic.mod_unsafe[I16, U16](this, y)
 
   fun addc(y: I16): (I16, Bool) =>
     @"llvm.sadd.with.overflow.i16"[(I16, Bool)](this, y)
@@ -135,16 +147,16 @@ primitive I16 is SignedInteger[I16, U16]
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
   fun divc(y: I16): (I16, Bool) =>
-    _SignedPartialArithmetic.div_checked[I16, U16](this, y)
+    _SignedCheckedArithmetic.div_checked[I16, U16](this, y)
 
   fun remc(y: I16): (I16, Bool) =>
-    _SignedPartialArithmetic.rem_checked[I16, U16](this, y)
+    _SignedCheckedArithmetic.rem_checked[I16, U16](this, y)
 
   fun fldc(y: I16): (I16, Bool) =>
-    _SignedPartialArithmetic.fld_checked[I16, U16](this, y)
+    _SignedCheckedArithmetic.fld_checked[I16, U16](this, y)
 
   fun modc(y: I16): (I16, Bool) =>
-    _SignedPartialArithmetic.mod_checked[I16, U16](this, y)
+    _SignedCheckedArithmetic.mod_checked[I16, U16](this, y)
 
   fun add_partial(y: I16): I16 ? =>
     _SignedPartialArithmetic.add_partial[I16](this, y)?
@@ -209,8 +221,14 @@ primitive I32 is SignedInteger[I32, U32]
   fun fld(y: I32): I32 =>
     _SignedArithmetic.fld[I32, U32](this, y)
 
+  fun fld_unsafe(y: I32): I32 =>
+    _SignedUnsafeArithmetic.fld_unsafe[I32, U32](this, y)
+
   fun mod(y: I32): I32 =>
     _SignedArithmetic.mod[I32, U32](this, y)
+
+  fun mod_unsafe(y: I32): I32 =>
+    _SignedUnsafeArithmetic.mod_unsafe[I32, U32](this, y)
 
   fun addc(y: I32): (I32, Bool) =>
     @"llvm.sadd.with.overflow.i32"[(I32, Bool)](this, y)
@@ -222,16 +240,16 @@ primitive I32 is SignedInteger[I32, U32]
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
   fun divc(y: I32): (I32, Bool) =>
-    _SignedPartialArithmetic.div_checked[I32, U32](this, y)
+    _SignedCheckedArithmetic.div_checked[I32, U32](this, y)
 
   fun remc(y: I32): (I32, Bool) =>
-    _SignedPartialArithmetic.rem_checked[I32, U32](this, y)
+    _SignedCheckedArithmetic.rem_checked[I32, U32](this, y)
 
   fun fldc(y: I32): (I32, Bool) =>
-    _SignedPartialArithmetic.fld_checked[I32, U32](this, y)
+    _SignedCheckedArithmetic.fld_checked[I32, U32](this, y)
 
   fun modc(y: I32): (I32, Bool) =>
-    _SignedPartialArithmetic.mod_checked[I32, U32](this, y)
+    _SignedCheckedArithmetic.mod_checked[I32, U32](this, y)
 
   fun add_partial(y: I32): I32 ? =>
     _SignedPartialArithmetic.add_partial[I32](this, y)?
@@ -295,8 +313,14 @@ primitive I64 is SignedInteger[I64, U64]
   fun fld(y: I64): I64 =>
     _SignedArithmetic.fld[I64, U64](this, y)
 
+  fun fld_unsafe(y: I64): I64 =>
+    _SignedUnsafeArithmetic.fld_unsafe[I64, U64](this, y)
+
   fun mod(y: I64): I64 =>
     _SignedArithmetic.mod[I64, U64](this, y)
+
+  fun mod_unsafe(y: I64): I64 =>
+    _SignedUnsafeArithmetic.mod_unsafe[I64, U64](this, y)
 
   fun hash(): USize => u64().hash()
 
@@ -307,19 +331,19 @@ primitive I64 is SignedInteger[I64, U64]
     @"llvm.ssub.with.overflow.i64"[(I64, Bool)](this, y)
 
   fun mulc(y: I64): (I64, Bool) =>
-    _SignedCheckedArithmetic._mulc[U64, I64](this, y)
+    _SignedCheckedArithmetic._mul_checked[U64, I64](this, y)
 
   fun divc(y: I64): (I64, Bool) =>
-    _SignedPartialArithmetic.div_checked[I64, U64](this, y)
+    _SignedCheckedArithmetic.div_checked[I64, U64](this, y)
 
   fun remc(y: I64): (I64, Bool) =>
-    _SignedPartialArithmetic.rem_checked[I64, U64](this, y)
+    _SignedCheckedArithmetic.rem_checked[I64, U64](this, y)
 
   fun fldc(y: I64): (I64, Bool) =>
-    _SignedPartialArithmetic.fld_checked[I64, U64](this, y)
+    _SignedCheckedArithmetic.fld_checked[I64, U64](this, y)
 
   fun modc(y: I64): (I64, Bool) =>
-    _SignedPartialArithmetic.mod_checked[I64, U64](this, y)
+    _SignedCheckedArithmetic.mod_checked[I64, U64](this, y)
 
   fun add_partial(y: I64): I64 ? =>
     _SignedPartialArithmetic.add_partial[I64](this, y)?
@@ -424,8 +448,14 @@ primitive ILong is SignedInteger[ILong, ULong]
   fun fld(y: ILong): ILong =>
     _SignedArithmetic.fld[ILong, ULong](this, y)
 
+  fun fld_unsafe(y: ILong): ILong =>
+    _SignedUnsafeArithmetic.fld_unsafe[ILong, ULong](this, y)
+
   fun mod(y: ILong): ILong =>
     _SignedArithmetic.mod[ILong, ULong](this, y)
+
+  fun mod_unsafe(y: ILong): ILong =>
+    _SignedUnsafeArithmetic.mod_unsafe[ILong, ULong](this, y)
 
   fun hash(): USize => ulong().hash()
 
@@ -447,20 +477,20 @@ primitive ILong is SignedInteger[ILong, ULong]
     ifdef ilp32 or llp64 then
       @"llvm.smul.with.overflow.i32"[(ILong, Bool)](this, y)
     else
-      _SignedCheckedArithmetic._mulc[ULong, ILong](this, y)
+      _SignedCheckedArithmetic._mul_checked[ULong, ILong](this, y)
     end
 
   fun divc(y: ILong): (ILong, Bool) =>
-    _SignedPartialArithmetic.div_checked[ILong, ULong](this, y)
+    _SignedCheckedArithmetic.div_checked[ILong, ULong](this, y)
 
   fun remc(y: ILong): (ILong, Bool) =>
-    _SignedPartialArithmetic.rem_checked[ILong, ULong](this, y)
+    _SignedCheckedArithmetic.rem_checked[ILong, ULong](this, y)
 
   fun fldc(y: ILong): (ILong, Bool) =>
-    _SignedPartialArithmetic.fld_checked[ILong, ULong](this, y)
+    _SignedCheckedArithmetic.fld_checked[ILong, ULong](this, y)
 
   fun modc(y: ILong): (ILong, Bool) =>
-    _SignedPartialArithmetic.mod_checked[ILong, ULong](this, y)
+    _SignedCheckedArithmetic.mod_checked[ILong, ULong](this, y)
 
   fun add_partial(y: ILong): ILong ? =>
     _SignedPartialArithmetic.add_partial[ILong](this, y)?
@@ -565,8 +595,14 @@ primitive ISize is SignedInteger[ISize, USize]
   fun fld(y: ISize): ISize =>
     _SignedArithmetic.fld[ISize, USize](this, y)
 
+  fun fld_unsafe(y: ISize): ISize =>
+    _SignedUnsafeArithmetic.fld_unsafe[ISize, USize](this, y)
+
   fun mod(y: ISize): ISize =>
     _SignedArithmetic.mod[ISize, USize](this, y)
+
+  fun mod_unsafe(y: ISize): ISize =>
+    _SignedUnsafeArithmetic.mod_unsafe[ISize, USize](this, y)
 
   fun addc(y: ISize): (ISize, Bool) =>
     ifdef ilp32 then
@@ -586,20 +622,20 @@ primitive ISize is SignedInteger[ISize, USize]
     ifdef ilp32 then
       @"llvm.smul.with.overflow.i32"[(ISize, Bool)](this, y)
     else
-      _SignedCheckedArithmetic._mulc[USize, ISize](this, y)
+      _SignedCheckedArithmetic._mul_checked[USize, ISize](this, y)
     end
 
   fun divc(y: ISize): (ISize, Bool) =>
-    _SignedPartialArithmetic.div_checked[ISize, USize](this, y)
+    _SignedCheckedArithmetic.div_checked[ISize, USize](this, y)
 
   fun remc(y: ISize): (ISize, Bool) =>
-    _SignedPartialArithmetic.rem_checked[ISize, USize](this, y)
+    _SignedCheckedArithmetic.rem_checked[ISize, USize](this, y)
 
   fun fldc(y: ISize): (ISize, Bool) =>
-    _SignedPartialArithmetic.fld_checked[ISize, USize](this, y)
+    _SignedCheckedArithmetic.fld_checked[ISize, USize](this, y)
 
   fun modc(y: ISize): (ISize, Bool) =>
-    _SignedPartialArithmetic.mod_checked[ISize, USize](this, y)
+    _SignedCheckedArithmetic.mod_checked[ISize, USize](this, y)
 
   fun add_partial(y: ISize): ISize ? =>
     _SignedPartialArithmetic.add_partial[ISize](this, y)?
@@ -662,8 +698,14 @@ primitive I128 is SignedInteger[I128, U128]
 
   fun fld(y: I128): I128 => _SignedArithmetic.fld[I128, U128](this, y)
 
+  fun fld_unsafe(y: I128): I128 =>
+    _SignedUnsafeArithmetic.fld_unsafe[I128, U128](this, y)
+
   fun mod(y: I128): I128 =>
     _SignedArithmetic.mod[I128, U128](this, y)
+
+  fun mod_unsafe(y: I128): I128 =>
+    _SignedUnsafeArithmetic.mod_unsafe[I128, U128](this, y)
 
   fun hash(): USize => u128().hash()
   fun hash64(): U64 => u128().hash64()
@@ -822,19 +864,19 @@ primitive I128 is SignedInteger[I128, U128]
     // See this bug for reference:
     // the following implementation is more or less exactly was __muloti4 is
     // doing
-    _SignedCheckedArithmetic._mulc[U128, I128](this, y)
+    _SignedCheckedArithmetic._mul_checked[U128, I128](this, y)
 
   fun divc(y: I128): (I128, Bool) =>
-    _SignedPartialArithmetic.div_checked[I128, U128](this, y)
+    _SignedCheckedArithmetic.div_checked[I128, U128](this, y)
 
   fun remc(y: I128): (I128, Bool) =>
-    _SignedPartialArithmetic.rem_checked[I128, U128](this, y)
+    _SignedCheckedArithmetic.rem_checked[I128, U128](this, y)
 
   fun fldc(y: I128): (I128, Bool) =>
-    _SignedPartialArithmetic.fld_checked[I128, U128](this, y)
+    _SignedCheckedArithmetic.fld_checked[I128, U128](this, y)
 
   fun modc(y: I128): (I128, Bool) =>
-    _SignedPartialArithmetic.mod_checked[I128, U128](this, y)
+    _SignedCheckedArithmetic.mod_checked[I128, U128](this, y)
 
   fun add_partial(y: I128): I128 ? =>
     _SignedPartialArithmetic.add_partial[I128](this, y)?
@@ -863,64 +905,6 @@ primitive I128 is SignedInteger[I128, U128]
 type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)
 
 
-primitive _SignedArithmetic
-  // TODO: add unsafe versions of fld and mod to use in partial versions
-  fun fld[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
-    let div_res = x / y
-    if ((x xor y) < T.from[U8](0)) and ((div_res * y) != x) then
-      div_res - T.from[U8](1)
-    else
-      div_res
-    end
-
-  fun fld_unsafe[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
-    let div_res = x /~ y
-    if ((x xor y) < T.from[U8](0)) and ((div_res *~ y) != x) then
-      div_res - T.from[U8](1)
-    else
-      div_res
-    end
-
-  fun mod[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
-    x - (fld[T, U](x, y) * y)
-
-  fun mod_unsafe[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
-    x -~ (fld_unsafe[T, U](x, y) *~ y)
-
-
-primitive _SignedCheckedArithmetic
-  fun _mulc[U: UnsignedInteger[U] val, T: (Signed & SignedInteger[T, U] val)](x: T, y: T): (T, Bool) =>
-    """
-    basically exactly what the runtime functions __muloti4, mulodi4 etc. are doing
-    and roughly as fast as these.
-
-    Additionally on (at least some) 32 bit systems, the runtime function for checked 64 bit integer addition __mulodi4 is not available.
-    So we shouldn't use: `@"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)`
-
-    Also see https://bugs.llvm.org/show_bug.cgi?id=14469
-
-    That's basically why we rolled our own.
-    """
-    let result = x * y
-    if x == T.min_value() then
-      return (result, (y != T.from[I8](0)) and (y != T.from[I8](1)))
-    end
-    if y == T.min_value() then
-      return (result, (x != T.from[I8](0)) and (x != T.from[I8](1)))
-    end
-    let x_neg = x >> (x.bitwidth() - U.from[U8](1))
-    let x_abs = (x xor x_neg) - x_neg
-    let y_neg = y >> (x.bitwidth() - U.from[U8](1))
-    let y_abs = (y xor y_neg) - y_neg
-
-    if ((x_abs < T.from[I8](2)) or (y_abs < T.from[I8](2))) then
-      return (result, false)
-    end
-    if (x_neg == y_neg) then
-      (result, (x_abs > (T.max_value() / y_abs)))
-    else
-      (result, (x_abs > (T.min_value() / -y_abs)))
-    end
 
 
 

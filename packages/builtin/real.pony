@@ -141,13 +141,33 @@ trait val Real[A: Real[A] val] is
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y
-  fun div(y: A): A => this / y
+  fun div(y: A): A =>
+    """
+    Integer division, rounded towards zero.
+    """
+    this / y
+
   fun divrem(y: A): (A, A) => (this / y, this % y)
-  fun rem(y: A): A => this % y
+  fun rem(y: A): A =>
+    """
+    Calculate the remainder after integer division, rounded towards zero (`div`).
+
+    The result has the sign of the dividend.
+    """
+    this % y
+
   fun neg(): A => -this
 
   fun fld(y: A): A
+    """
+    Floored integer division, rounded towards negative infinity.
+    """
   fun mod(y: A): A
+    """
+    Calculate the modulo after floored integer division, rounded towards negative infinity (`fld`).
+
+    The result has the sign of the divisor.
+    """
 
   fun eq(y: box->A): Bool => this == y
   fun ne(y: box->A): Bool => this != y
@@ -214,6 +234,8 @@ trait val Integer[A: Integer[A] val] is Real[A]
 
   fun div_unsafe(y: A): A =>
     """
+    Integer division, rounded towards zero.
+
     Unsafe operation.
     If y is 0, the result is undefined.
     If the operation overflows, the result is undefined.
@@ -240,6 +262,27 @@ trait val Integer[A: Integer[A] val] is Real[A]
     """
     this %~ y
 
+  fun fld_unsafe(y: A): A
+    """
+    Floored division, rounded towards negative infinity,
+    as opposed to `div` which rounds towards zero.
+
+    *Unsafe Operation*
+
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+
+  fun mod_unsafe(y: A): A
+    """
+    Calculates the modulo of this number after floored division by `y`.
+
+    *Unsafe Operation.*
+
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+
   fun add_partial(y: A): A ?
     """
     Add y to this number.
@@ -263,28 +306,40 @@ trait val Integer[A: Integer[A] val] is Real[A]
 
   fun div_partial(y: A): A ?
     """
-    Divides this number by y.
+    Divides this number by `y`, rounds the result towards zero.
 
-    If y is `0` this function errors.
+    If y is `0` or the operation overflows, this function errors.
     """
 
   fun rem_partial(y: A): A ?
     """
     Calculates the remainder of this number divided by y.
+    The result has the sign of the dividend.
 
-    If y is `0` this function errors.
+    If y is `0` or the operation overflows, this function errors.
     """
 
   fun divrem_partial(y: A): (A, A) ?
     """
     Divides this number by y and calculates the remainder of the operation.
 
-    If y is `0` this function errors.
+    If y is `0` or the operation overflows, this function errors.
     """
 
   fun fld_partial(y: A): A ?
+    """
+    Floored integer division, rounded towards negative infinity.
+
+    If y is `0` or the operation overflows, this function errors
+    """
 
   fun mod_partial(y: A): A ?
+    """
+    Calculates the modulo of this number and `y` after floored division (`fld`).
+    The result has the sign of the divisor.
+
+    If y is `0` or the operation overflows, this function errors.
+    """
 
   fun neg_unsafe(): A =>
     """
@@ -311,10 +366,20 @@ trait val Integer[A: Integer[A] val] is Real[A]
     """
   fun remc(y: A): (A, Bool)
     """
-    Calculated the ramainder of this number dividec by y and return the result and a flag indicating division by zero or overflow.
+    Calculate the remainder of this number divided by `y` and return the result and a flag indicating division by zero or overflow.
+
+    The result will have the sign of the dividend.
     """
   fun fldc(y: A): (A, Bool)
+    """
+    Divide this integer by `y` and return the result, rounded towards negative infinity and a flag indicating overflow or division by zero.
+    """
   fun modc(y: A): (A, Bool)
+    """
+    Calculate the modulo of this number after floored division by `y` and return the result and a flag indicating division by zero or overflow.
+
+    The result will have the sign of the divisor.
+    """
 
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
@@ -384,10 +449,12 @@ trait val UnsignedInteger[A: UnsignedInteger[A] val] is Integer[A]
   fun fld(y: A): A => this / y
   fun fldc(y: A): (A, Bool) => this.divc(y)
   fun fld_partial(y: A): A ? => this.div_partial(y)?
+  fun fld_unsafe(y: A): A => this.div_unsafe(y)
 
   fun mod(y: A): A => this % y
   fun modc(y: A): (A, Bool) => this.remc(y)
   fun mod_partial(y: A): A ? => this.rem_partial(y)?
+  fun mod_unsafe(y: A): A => this.rem_unsafe(y)
 
   fun shl_unsafe(y: A): A =>
     """
