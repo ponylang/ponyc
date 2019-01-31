@@ -286,7 +286,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   snprintf(ld_cmd, ld_len,
     "%s -execute -no_pie -arch %.*s "
-    "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
+    "-macosx_version_min 10.12 -o %s %s %s %s -lSystem",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt
     );
