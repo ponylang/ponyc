@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix linker library version error on MacOS when installed via Homebrew ([PR #2998](https://github.com/ponylang/ponyc/pull/2998))
 - Correctly specify linkage on Windows for runtime library backpressure functions. ([PR #2989](https://github.com/ponylang/ponyc/pull/2989))
 
 ### Added
@@ -14,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Fix linker library version error on MacOS when installed via Homebrew ([PR #2998](https://github.com/ponylang/ponyc/pull/2998))
 
 ## [0.26.0] - 2019-01-25
 
