@@ -539,7 +539,7 @@ void gendesc_table_lookup(compile_t* c)
   codegen_finishfun(c);
 
   c->desc_table_offset_lookup_fn = make_desc_ptr(desc_lkp_fn,
-    c->descriptor_offset_lookup_type);
+    c->descriptor_offset_lookup_fn);
 }
 
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
