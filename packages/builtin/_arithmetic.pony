@@ -42,7 +42,6 @@ primitive _UnsignedCheckedArithmetic
 
 
 primitive _SignedCheckedArithmetic
-
   fun _mul_checked[U: UnsignedInteger[U] val, T: (Signed & SignedInteger[T, U] val)](x: T, y: T): (T, Bool) =>
     """
     basically exactly what the runtime functions __muloti4, mulodi4 etc. are doing
@@ -104,7 +103,6 @@ trait _PartialArithmetic
     if overflow then error else r end
 
 primitive _UnsignedPartialArithmetic is _PartialArithmetic
-
   fun div_partial[T: UnsignedInteger[T] val](x: T, y: T): T? =>
     if (y == T.from[U8](0)) then
       error
@@ -141,7 +139,6 @@ primitive _UnsignedPartialArithmetic is _PartialArithmetic
     end
 
 primitive _SignedPartialArithmetic is _PartialArithmetic
-
   fun div_partial[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T? =>
     if (y == T.from[I8](0)) or ((y == T.from[I8](I8(-1))) and (x == T.min_value())) then
       error
