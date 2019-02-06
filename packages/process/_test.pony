@@ -3,7 +3,6 @@ use "backpressure"
 use "capsicum"
 use "collections"
 use "files"
-use "itertools"
 use "time"
 
 actor Main is TestList
@@ -11,35 +10,82 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestFileExecCapabilityIsRequired)
-    test(_TestNonExecutablePathResultsInExecveError)
     test(_TestStdinStdout)
     test(_TestStderr)
+    test(_TestFileExecCapabilityIsRequired)
+    test(_TestNonExecutablePathResultsInExecveError)
     test(_TestExpect)
     test(_TestWritevOrdering)
     test(_TestPrintvOrdering)
     test(_TestStdinWriteBuf)
 
-primitive CatPath
-  fun apply(): String =>
-    ifdef windows then "C:\\Windows\\System32\\find.exe"
-    else "/bin/cat" end
+class iso _TestStdinStdout is UnitTest
+  fun name(): String =>
+    "process/STDIN-STDOUT"
 
-primitive CatArgs
-  fun apply(): Array[String] val =>
-    ifdef windows then
-      ["find"; "/v"; "\"\""]
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun apply(h: TestHelper) =>
+    let size: USize = 15 // length of "one, two, three" string
+    let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
+      let args: Array[String] val = ["cat"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let auth = h.env.root as AmbientAuth
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      pm.write("one, two, three")
+      pm.done_writing()  // closing stdin allows "cat" to terminate
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
     else
-      ["cat"]
+      h.fail("Could not create FilePath!")
     end
 
-primitive EchoPath
-  fun apply(): String =>
-    ifdef windows then
-      "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c echo ..."
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestStderr is UnitTest
+  var _pm: (ProcessMonitor | None) = None
+
+  fun name(): String =>
+    "process/STDERR"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient(0,
+      "cat: file_does_not_exist: No such file or directory\n", 1, h)
+    try
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
+      let args: Array[String] val = ["cat"; "file_does_not_exist"]
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let auth = h.env.root as AmbientAuth
+      _pm  = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      if _pm isnt None then // write to STDIN of the child process
+        let pm = _pm as ProcessMonitor
+        pm.done_writing() // closing stdin
+        h.dispose_when_done(pm)
+      end
+      h.long_test(30_000_000_000)
     else
-      "/bin/echo"
+      h.fail("Could not create FilePath!")
     end
+
+  fun timed_out(h: TestHelper) =>
+    try
+      if _pm isnt None then // kill the child process and cleanup fd
+        (_pm as ProcessMonitor).dispose()
+      end
+    else
+      h.fail("Error disposing of forked process in STDIN-WriteBuf test")
+    end
+    h.complete(false)
 
 class iso _TestFileExecCapabilityIsRequired is UnitTest
   fun name(): String =>
@@ -52,9 +98,9 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h)
     try
       let path =
-        FilePath(h.env.root as AmbientAuth, CatPath(),
+        FilePath(h.env.root as AmbientAuth, "/bin/date",
           recover val FileCaps .> all() .> unset(FileExec) end)?
-      let args: Array[String] val = ["dontcare"]
+      let args: Array[String] val = ["date"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -118,78 +164,6 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
         _path.remove()
     end end
 
-class iso _TestStdinStdout is UnitTest
-  fun name(): String =>
-    "process/STDIN-STDOUT"
-
-  fun exclusion_group(): String =>
-    "process-monitor"
-
-  fun apply(h: TestHelper) =>
-    let input = "one, two, three"
-    let size: USize = input.size() + ifdef windows then 2 else 0 end
-    let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
-    try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
-      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
-
-      let auth = h.env.root as AmbientAuth
-      let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
-      pm.write(input)
-      pm.done_writing()  // closing stdin allows "cat" to terminate
-      h.dispose_when_done(pm)
-      h.long_test(30_000_000_000)
-    else
-      h.fail("Could not create FilePath!")
-    end
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
-class iso _TestStderr is UnitTest
-  var _pm: (ProcessMonitor | None) = None
-
-  fun name(): String =>
-    "process/STDERR"
-
-  fun exclusion_group(): String =>
-    "process-monitor"
-
-  fun ref apply(h: TestHelper) =>
-    let errmsg =
-      ifdef windows then
-        "FIND: Invalid switch\r\n"
-      else
-        "cat: file_does_not_exist: No such file or directory\n"
-      end
-    let exit_code: I32 = ifdef windows then 2 else 1 end
-    let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
-    try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = ifdef windows then
-        ["find"; "/q"]
-      else
-        ["cat"; "file_does_not_exist"]
-      end
-      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
-
-      let auth = h.env.root as AmbientAuth
-      _pm  = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
-      if _pm isnt None then // write to STDIN of the child process
-        let pm = _pm as ProcessMonitor
-        pm.done_writing() // closing stdin
-        h.dispose_when_done(pm)
-      end
-      h.long_test(30_000_000_000)
-    else
-      h.fail("Could not create FilePath!")
-    end
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
 class iso _TestExpect is UnitTest
   fun name(): String =>
     "process/Expect"
@@ -218,23 +192,14 @@ class iso _TestExpect is UnitTest
 
         fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
           _h.assert_eq[I32](child_exit_code, 0)
-          let expected: Array[String] val = ifdef windows then
-            ["he"; "llo "; "ca"; "rl \r"]
-          else
-            ["he"; "llo "; "th"; "ere!"]
-          end
-          _h.assert_array_eq[String](_out, expected)
+          _h.assert_array_eq[String](_out, ["he"; "llo "; "th"; "ere!"])
           _h.complete(true)
       end
     end
 
     try
-      let path = FilePath(h.env.root as AmbientAuth, EchoPath())?
-      let args: Array[String] val = ifdef windows then
-        ["cmd"; "/c"; "echo"; "hello carl"]
-      else
-        ["echo"; "hello there!"]
-      end
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/echo")?
+      let args: Array[String] val = ["echo"; "hello there!"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -258,11 +223,11 @@ class iso _TestWritevOrdering is UnitTest
     "process-monitor"
 
   fun apply(h: TestHelper) =>
-    let expected: USize = ifdef windows then 13 else 11 end
-    let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
+    let notifier: ProcessNotify iso =
+      _ProcessClient(11, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
+      let args: Array[String] val = ["cat"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -289,11 +254,11 @@ class iso _TestPrintvOrdering is UnitTest
     "process-monitor"
 
   fun apply(h: TestHelper) =>
-    let expected: USize = ifdef windows then 17 else 14 end
-    let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
+    let notifier: ProcessNotify iso =
+      _ProcessClient(14, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
+      let args: Array[String] val = ["cat"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -327,8 +292,8 @@ class iso _TestStdinWriteBuf is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 2,
       "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, "/bin/cat")?
+      let args: Array[String] val = ["cat"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
@@ -396,7 +361,7 @@ class _ProcessClient is ProcessNotify
     if (_first_data == 0) then
       _first_data = Time.nanos()
     end
-    _d_stdout_chars = _d_stdout_chars + data.size()
+    _d_stdout_chars = _d_stdout_chars + (consume data).size()
     _h.log("\tReceived so far: " + _d_stdout_chars.string() + " bytes")
     _h.log("\tExpecting: " + _out.string() + " bytes")
     if _out == _d_stdout_chars then
@@ -408,7 +373,6 @@ class _ProcessClient is ProcessNotify
     """
     Called when new data is received on STDERR of the forked process
     """
-    _h.log("\tReceived from stderr: " + data.size().string() + " bytes")
     _d_stderr.append(consume data)
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
@@ -435,7 +399,7 @@ class _ProcessClient is ProcessNotify
     let last_data: U64 = Time.nanos()
     _h.log("dispose: child exit code: " + child_exit_code.string())
     _h.log("dispose: stdout: " + _d_stdout_chars.string() + " bytes")
-    _h.log("dispose: stderr: '" + _d_stderr + "'")
+    _h.log("dispose: stderr: " + _d_stderr)
     if (_first_data > 0) then
       _h.log("dispose: received first data after: \t" + (_first_data - _created).string()
         + " ns")
@@ -446,7 +410,8 @@ class _ProcessClient is ProcessNotify
       + " ns")
 
     _h.assert_eq[USize](_out, _d_stdout_chars)
-    _h.assert_eq[USize](_err.size(), _d_stderr.size())
     _h.assert_eq[String box](_err, _d_stderr)
     _h.assert_eq[I32](_exit_code, child_exit_code)
     _h.complete(true)
+
+

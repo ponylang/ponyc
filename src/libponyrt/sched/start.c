@@ -6,7 +6,6 @@
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
 #include "../gc/serialise.h"
-#include "../lang/process.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
 #include "ponyassert.h"

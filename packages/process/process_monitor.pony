@@ -87,7 +87,6 @@ Document waitpid behaviour (stops world)
 use "backpressure"
 use "collections"
 use "files"
-use "debug"
 use "time"
 
 primitive ExecveError
@@ -128,16 +127,11 @@ actor ProcessMonitor
   var _read_buf: Array[U8] iso = recover Array[U8] .> undefined(_max_size) end
   var _read_len: USize = 0
   var _expect: USize = 0
+
   embed _pending: List[(ByteSeq, USize)] = _pending.create()
-
-  var _stdin_writeable: Bool = true
-  var _stdout_readable: Bool = true  // TODO: written, but never read
-  var _stderr_readable: Bool = true  // TODO: written, but never read
-
   var _done_writing: Bool = false
 
   var _closed: Bool = false
-  var _timers: (Timers tag | None) = None  // For windows only
 
   new create(
     auth: ProcessMonitorAuth,
@@ -189,28 +183,12 @@ actor ProcessMonitor
     try
       ifdef posix then
         _child = _ProcessPosix.create(filepath.path, args, vars, _stdin, _stdout, _stderr)?
-      elseif windows then
-        _child = _ProcessWindows.create(filepath.path, args, vars, _stdin, _stdout, _stderr)
       else
         compile_error "unsupported platform"
       end
       _stdin.begin(this, true)
       _stdout.begin(this, false)
       _stderr.begin(this, false)
-
-      ifdef windows then
-        let timers = Timers
-        let pm: ProcessMonitor tag = this
-        let tn =
-          object iso is TimerNotify
-            fun ref apply(timer: Timer, count: U64): Bool =>
-              pm.timer_notify()
-              true
-          end
-        let timer = Timer(consume tn, 10_000_000, 100_000_000)
-        timers(consume timer)
-        _timers = timers
-      end
     else
       _notifier.failed(this, ForkError)
       return
@@ -222,8 +200,8 @@ actor ProcessMonitor
     Print some bytes and append a newline.
     """
     if not _done_writing then
-      _stdin_writeable = _write_final(data)
-      _stdin_writeable = _write_final("\n")
+      _write_final(data)
+      _write_final("\n")
     end
 
   be write(data: ByteSeq) =>
@@ -231,7 +209,7 @@ actor ProcessMonitor
     Write to STDIN of the child process.
     """
     if not _done_writing then
-      _stdin_writeable = _write_final(data)
+      _write_final(data)
     end
 
   be printv(data: ByteSeqIter) =>
@@ -239,8 +217,8 @@ actor ProcessMonitor
     Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
-      _stdin_writeable = _write_final(bytes)
-      _stdin_writeable = _write_final("\n")
+      _write_final(bytes)
+      _write_final("\n")
     end
 
   be writev(data: ByteSeqIter) =>
@@ -248,15 +226,14 @@ actor ProcessMonitor
     Write an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
-      _stdin_writeable = _write_final(bytes)
+      _write_final(bytes)
     end
 
   be done_writing() =>
     """
-    Set the _done_writing flag to true. If the _pending is empty we can
-    close the _stdin_write file descriptor.
+    Set the _done_writing flag to true. If _pending is empty we can close the
+    _stdin pipe.
     """
-    Debug("done_writing")
     _done_writing = true
     Backpressure.release(_backpressure_auth)
     if _pending.size() == 0 then
@@ -286,47 +263,23 @@ actor ProcessMonitor
     match event
     | _stdin.event =>
       if AsioEvent.writeable(flags) then
-        Debug("event: stdin(" + event.usize().string() + ") Writable")
-        _stdin_writeable = _pending_writes()
+        _pending_writes()
       elseif AsioEvent.disposable(flags) then
-        Debug("event: stdin(" + event.usize().string() + ") Disposable")
         _stdin.dispose()
-      else
-        Debug("event: stdin(" + event.usize().string() + ") " + flags.string())
       end
     | _stdout.event =>
       if AsioEvent.readable(flags) then
-        Debug("event: stdout(" + event.usize().string() + ") Readable")
-        _stdout_readable = _pending_reads(_stdout)
+        _pending_reads(_stdout)
       elseif AsioEvent.disposable(flags) then
-        Debug("event: stdout(" + event.usize().string() + ") Disposable")
         _stdout.dispose()
-      else
-        Debug("event: stdout(" + event.usize().string() + ") " + flags.string())
       end
     | _stderr.event =>
       if AsioEvent.readable(flags) then
-        Debug("event: stderr(" + event.usize().string() + ") Readable")
-        _stderr_readable = _pending_reads(_stderr)
+        _pending_reads(_stderr)
       elseif AsioEvent.disposable(flags) then
-        Debug("event: stderr(" + event.usize().string() + ") Disposable")
         _stderr.dispose()
-      else
-        Debug("event: stderr(" + event.usize().string() + ") " + flags.string())
       end
     end
-    _try_shutdown()
-
-  be timer_notify() =>
-    """
-    Windows IO polling timer has fired
-    """
-    Debug("timer_notify:: stdin")
-    _stdin_writeable = _pending_writes() // try writes
-    Debug("timer_notify:: stdout")
-    _stdout_readable = _pending_reads(_stdout)
-    Debug("timer_notify:: stderr")
-    _stderr_readable = _pending_reads(_stderr)
     _try_shutdown()
 
   fun ref _close() =>
@@ -334,14 +287,10 @@ actor ProcessMonitor
     Close all pipes and wait for the child process to exit.
     """
     if not _closed then
-      Debug("_close::")
       _closed = true
       _stdin.close()
       _stdout.close()
       _stderr.close()
-      _stdin_writeable = false
-      _stdout_readable = false
-      _stderr_readable = false
       let exit_code = _child.wait()
       if exit_code < 0 then
         // An error waiting for pid
@@ -349,9 +298,6 @@ actor ProcessMonitor
       else
         // process child exit code
         _notifier.dispose(this, exit_code)
-      end
-      match _timers
-      | let t: Timers => t.dispose()
       end
     end
 
@@ -366,7 +312,7 @@ actor ProcessMonitor
        _close()
     end
 
-  fun ref _pending_reads(pipe: _Pipe): Bool =>
+  fun ref _pending_reads(pipe: _Pipe) =>
     """
     Read from stdout or stderr while data is available. If we read 4 kb of
     data, send ourself a resume message and stop reading, to avoid starving
@@ -374,27 +320,22 @@ actor ProcessMonitor
     It's safe to use the same buffer for stdout and stderr because of
     causal messaging. Events get processed one _after_ another.
     """
-    Debug("_pending_reads:: near_fd:" + pipe.near_fd.string() + " _closed:" + _closed.string() + " pipe.closed:" + pipe.is_closed().string() + " _read_len:" + _read_len.string())
-    if pipe.is_closed() then return false end
+    if pipe.is_closed() then return end
     var sum: USize = 0
     while true do
       (_read_buf, let len, let errno) = pipe.read(_read_buf = recover Array[U8] end, _read_len)
 
       let next = _read_buf.space()
-      Debug("  read done: len:" + len.string() + " errno:" + errno.string() + " next:" + next.string())
       match len
       | -1 =>
         if (errno == _EAGAIN()) then
-          Debug("  read -1 & EAGAIN, going to try again later")
-          return true // nothing to read right now, try again later
+          return // nothing to read right now, try again later
         end
-        Debug("  read -1, not EAGAIN, pipe must have errored")
         pipe.close()
-        return false
+        return
       | 0  =>
-        Debug("  read 0, pipe must be closed")
         pipe.close()
-        return false
+        return
       end
 
       _read_len = _read_len + len.usize()
@@ -417,12 +358,10 @@ actor ProcessMonitor
       sum = sum + len.usize()
       if sum > (1 << 12) then
         // If we've read 4 kb, yield and read again later.
-        Debug("  read a bunch: going to read again. got:" + sum.string())
         _read_again(pipe.near_fd)
-        return true
+        return
       end
     end
-    true
 
   fun ref _read_buf_size() =>
     if _expect > 0 then
@@ -435,19 +374,18 @@ actor ProcessMonitor
     """
     Resume reading on file descriptor.
     """
-    Debug("_read_again:: near_fd:" + near_fd.string())
     match near_fd
-    | _stdout.near_fd => _stdout_readable = _pending_reads(_stdout)
-    | _stderr.near_fd => _stderr_readable = _pending_reads(_stderr)
+    | _stdout.near_fd => _pending_reads(_stdout)
+    | _stderr.near_fd => _pending_reads(_stderr)
     end
 
-  fun ref _write_final(data: ByteSeq): Bool =>
+  fun ref _write_final(data: ByteSeq) =>
     """
-    Write as much as possible to the fd. Return false if not
-    everything was written.
+    Write as much as possible to the pipe if it is open and there are no
+    pending writes. Save everything unwritten into _pending and apply
+    backpressure.
     """
-    Debug("_write_final:: bytes:" + data.size().string() + " _closed:" + _closed.string() + " stdin.closed:" + _stdin.is_closed().string() + " stdin_writable:" + _stdin_writeable.string())
-    if (not _closed) and not _stdin.is_closed() and _stdin_writeable then
+    if (not _closed) and not _stdin.is_closed() and (_pending.size() == 0) then
       // Send as much data as possible.
       (let len, let errno) = _stdin.write(data, 0)
 
@@ -456,35 +394,29 @@ actor ProcessMonitor
           // Resource temporarily unavailable, send data later.
           _pending.push((data, 0))
           Backpressure.apply(_backpressure_auth)
-          return false
         else
           // notify caller, close fd and bail out
           _notifier.failed(this, WriteError)
           _stdin.close_near()
-          return false
         end
       elseif len.usize() < data.size() then
         // Send any remaining data later.
         _pending.push((data, len.usize()))
         Backpressure.apply(_backpressure_auth)
-        return false
       end
-      return true
     else
       // Send later, when the pipe is available for writing.
       _pending.push((data, 0))
       Backpressure.apply(_backpressure_auth)
-      return false
     end
 
-  fun ref _pending_writes(): Bool =>
+  fun ref _pending_writes() =>
     """
-    Send pending data. If any data can't be sent, keep it and mark fd as not
-    writeable. Once set to false the _stdin_writeable flag can only be cleared
-    here by processing the pending writes. If the _done_writing flag is set we
-    close the _stdin_write fd once we've processed pending writes.
+    Send any pending data. If any data can't be sent, keep it in _pending.
+    Once _pending is non-empty, direct writes will get queued there,
+    and they can only be written here. If the _done_writing flag is set, close
+    the pipe once we've processed pending writes.
     """
-    Debug("_pending_writes:: _closed:" + _closed.string() + " stdin.closed:" + _stdin.is_closed().string() + " stdin_writable:" + _stdin_writeable.string() + " pending.size:" + _pending.size().string())
     while (not _closed) and not _stdin.is_closed() and (_pending.size() > 0) do
       try
         let node = _pending.head()?
@@ -496,17 +428,19 @@ actor ProcessMonitor
         if len == -1 then // OS signals write error
           if errno == _EAGAIN() then
             // Resource temporarily unavailable, send data later.
-            return false
+            return
           else
             // Close fd and bail out.
-            return false
+            _notifier.failed(this, WriteError)
+            _stdin.close_near()
+            return
           end
         elseif (len.usize() + offset) < data.size() then
           // Send remaining data later.
           node()? = (data, offset + len.usize())
-          return false
+          return
         else
-          // This chunk has been fully sent.
+          // This pending chunk has been fully sent.
           _pending.shift()?
           if (_pending.size() == 0) then
             Backpressure.release(_backpressure_auth)
@@ -519,7 +453,6 @@ actor ProcessMonitor
       else
         // handle error
         _notifier.failed(this, WriteError)
-        return false
+        return
       end
     end
-    true
