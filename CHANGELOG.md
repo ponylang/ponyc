@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- [RFC 61] Add Modulo Operator (and floored division) ([PR #2997](https://github.com/ponylang/ponyc/pull/2997))
 - Update Windows build system to handle the latest Visual Studio 2017 version ([PR #2992](https://github.com/ponylang/ponyc/pull/2992))
 
 ### Changed
