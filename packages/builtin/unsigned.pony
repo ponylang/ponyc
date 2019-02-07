@@ -47,10 +47,10 @@ primitive U8 is UnsignedInteger[U8]
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
   fun divc(y: U8): (U8, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[U8](this, y)
+    _UnsignedCheckedArithmetic.div_checked[U8](this, y)
 
   fun remc(y: U8): (U8, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[U8](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[U8](this, y)
 
   fun add_partial(y: U8): U8 ? =>
     _UnsignedPartialArithmetic.add_partial[U8](this, y)?
@@ -119,10 +119,10 @@ primitive U16 is UnsignedInteger[U16]
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
   fun divc(y: U16): (U16, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[U16](this, y)
+    _UnsignedCheckedArithmetic.div_checked[U16](this, y)
 
   fun remc(y: U16): (U16, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[U16](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[U16](this, y)
 
   fun add_partial(y: U16): U16 ? =>
     _UnsignedPartialArithmetic.add_partial[U16](this, y)?
@@ -191,10 +191,10 @@ primitive U32 is UnsignedInteger[U32]
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
 
   fun divc(y: U32): (U32, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[U32](this, y)
+    _UnsignedCheckedArithmetic.div_checked[U32](this, y)
 
   fun remc(y: U32): (U32, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[U32](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[U32](this, y)
 
   fun add_partial(y: U32): U32 ? =>
     _UnsignedPartialArithmetic.add_partial[U32](this, y)?
@@ -270,10 +270,10 @@ primitive U64 is UnsignedInteger[U64]
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
 
   fun divc(y: U64): (U64, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[U64](this, y)
+    _UnsignedCheckedArithmetic.div_checked[U64](this, y)
 
   fun remc(y: U64): (U64, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[U64](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[U64](this, y)
 
   fun add_partial(y: U64): U64 ? =>
     _UnsignedPartialArithmetic.add_partial[U64](this, y)?
@@ -405,10 +405,10 @@ primitive ULong is UnsignedInteger[ULong]
     end
 
   fun divc(y: ULong): (ULong, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[ULong](this, y)
+    _UnsignedCheckedArithmetic.div_checked[ULong](this, y)
 
   fun remc(y: ULong): (ULong, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[ULong](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[ULong](this, y)
 
   fun add_partial(y: ULong): ULong ? =>
     _UnsignedPartialArithmetic.add_partial[ULong](this, y)?
@@ -533,10 +533,10 @@ primitive USize is UnsignedInteger[USize]
     end
 
   fun divc(y: USize): (USize, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[USize](this, y)
+    _UnsignedCheckedArithmetic.div_checked[USize](this, y)
 
   fun remc(y: USize): (USize, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[USize](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[USize](this, y)
 
   fun add_partial(y: USize): USize ? =>
     _UnsignedPartialArithmetic.add_partial[USize](this, y)?
@@ -815,10 +815,10 @@ primitive U128 is UnsignedInteger[U128]
     end
 
   fun divc(y: U128): (U128, Bool) =>
-    _UnsignedPartialArithmetic.div_checked[U128](this, y)
+    _UnsignedCheckedArithmetic.div_checked[U128](this, y)
 
   fun remc(y: U128): (U128, Bool) =>
-    _UnsignedPartialArithmetic.rem_checked[U128](this, y)
+    _UnsignedCheckedArithmetic.rem_checked[U128](this, y)
 
   fun add_partial(y: U128): U128 ? =>
     _UnsignedPartialArithmetic.add_partial[U128](this, y)?
