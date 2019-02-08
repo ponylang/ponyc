@@ -250,6 +250,9 @@ class val TestHelper
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal.
+
+    The type parameter of this function is the type parameter of the
+    elements in both ReadSeqs.
     """
     var ok = true
 
@@ -292,6 +295,9 @@ class val TestHelper
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
+
+    The type parameter of this function is the type parameter of the
+    elements in both ReadSeqs.
     """
     try
       let missing = Array[box->A]
@@ -344,6 +350,9 @@ class val TestHelper
     """
     Generate a printable string of the contents of the given readseq to use in
     error messages.
+
+    The type parameter of this function is the type parameter of the
+    elements in the ReadSeq.
     """
     "[len=" + array.size().string() + ": " + ", ".join(array.values()) + "]"
 
