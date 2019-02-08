@@ -250,6 +250,17 @@ class val TestHelper
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal.
+
+    The type parameter of this function is the type parameter of the
+    elements in both ReadSeqs. For instance, when comparing two `Array[U8]`,
+    you should call this method as follows:
+    
+    ```pony
+    fun apply(h: TestHelper) =>
+      let a: Array[U8] = [1; 2; 3]
+      let b: Array[U8] = [1; 2; 3]
+      h.assert_array_eq[U8](a, b)
+    ```
     """
     var ok = true
 
@@ -292,6 +303,17 @@ class val TestHelper
   =>
     """
     Assert that the contents of the 2 given ReadSeqs are equal ignoring order.
+
+    The type parameter of this function is the type parameter of the
+    elements in both ReadSeqs. For instance, when comparing two `Array[U8]`,
+    you should call this method as follows:
+    
+    ```pony
+    fun apply(h: TestHelper) =>
+      let a: Array[U8] = [1; 2; 3]
+      let b: Array[U8] = [1; 3; 2]
+      h.assert_array_eq_unordered[U8](a, b)
+    ```
     """
     try
       let missing = Array[box->A]
@@ -344,6 +366,9 @@ class val TestHelper
     """
     Generate a printable string of the contents of the given readseq to use in
     error messages.
+
+    The type parameter of this function is the type parameter of the
+    elements in the ReadSeq.
     """
     "[len=" + array.size().string() + ": " + ", ".join(array.values()) + "]"
 
