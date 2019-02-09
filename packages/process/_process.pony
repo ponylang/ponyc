@@ -50,12 +50,19 @@ class _ProcessNone is _Process
 class _ProcessPosix is _Process
   let pid: I32
 
-  new create(path: String, args: Array[String] val, vars: Array[String] val, stdin: _Pipe, stdout: _Pipe, stderr: _Pipe) ? =>
-    // prepare argp and envp ahead of fork() as it's not safe
-    // to allocate in the child after fork() was called.
+  new create(
+    path: String,
+    args: Array[String] val,
+    vars: Array[String] val,
+    stdin: _Pipe,
+    stdout: _Pipe,
+    stderr: _Pipe) ?
+  =>
+    // Prepare argp and envp ahead of fork() as it's not safe to allocate in
+    // the child after fork() is called.
     let argp = _make_argv(args)
     let envp = _make_argv(vars)
-    // fork child process
+    // Fork the child process, handling errors and the child fork case.
     pid = @fork[I32]()
     match pid
     | -1 => error
@@ -97,7 +104,7 @@ class _ProcessPosix is _Process
       @_exit[None](I32(-1))
     end
 
-  fun _dup2(oldfd: U32, newfd: U32) =>
+  fun tag _dup2(oldfd: U32, newfd: U32) =>
     """
     Creates a copy of the file descriptor oldfd using the file
     descriptor number specified in newfd. If the file descriptor newfd
@@ -137,7 +144,7 @@ class _ProcessPosix is _Process
       if @waitpid[I32](pid, addressof wstatus, options) < 0 then
         -1
       else
-        // extract the process exit code
+        // Extract the process exit code.
         (wstatus >> 8) and 0xff
       end
     else

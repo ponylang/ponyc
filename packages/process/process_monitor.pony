@@ -113,7 +113,8 @@ type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
 
 actor ProcessMonitor
   """
-  Fork+execs / creates a child process and monitors it. Notifies a client about STDOUT / STDERR events.
+  Fork+execs / creates a child process and monitors it. Notifies a client about
+  STDOUT / STDERR events.
   """
   let _notifier: ProcessNotify
   let _backpressure_auth: BackpressureAuth
@@ -142,9 +143,9 @@ actor ProcessMonitor
     vars: Array[String] val)
   =>
     """
-    Create infrastructure to communicate with a forked child process
-    and register the asio events. Fork child process and notify our
-    user about incoming data via the notifier.
+    Create infrastructure to communicate with a forked child process and
+    register the asio events. Fork child process and notify our user about
+    incoming data via the notifier.
     """
     _backpressure_auth = backpressure_auth
     _notifier = consume notifier
@@ -182,7 +183,8 @@ actor ProcessMonitor
 
     try
       ifdef posix then
-        _child = _ProcessPosix.create(filepath.path, args, vars, _stdin, _stdout, _stderr)?
+        _child = _ProcessPosix.create(
+          filepath.path, args, vars, _stdin, _stdout, _stderr)?
       else
         compile_error "unsupported platform"
       end
@@ -323,7 +325,8 @@ actor ProcessMonitor
     if pipe.is_closed() then return end
     var sum: USize = 0
     while true do
-      (_read_buf, let len, let errno) = pipe.read(_read_buf = recover Array[U8] end, _read_len)
+      (_read_buf, let len, let errno) =
+        pipe.read(_read_buf = recover Array[U8] end, _read_len)
 
       let next = _read_buf.space()
       match len

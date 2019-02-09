@@ -100,7 +100,9 @@ class _Pipe
       far_fd = -1
     end
 
-  fun ref read(read_buf: Array[U8] iso, read_len: USize): (Array[U8] iso^, ISize, I32) =>
+  fun ref read(read_buf: Array[U8] iso, read_len: USize):
+    (Array[U8] iso^, ISize, I32)
+  =>
     ifdef posix then
       let len =
         @read[ISize](near_fd, read_buf.cpointer().usize() + read_len,
@@ -115,7 +117,10 @@ class _Pipe
     end
 
   fun ref write(data: ByteSeq box, offset: USize): (ISize, I32) =>
-    let len = @write[ISize](near_fd, data.cpointer().usize() + offset, data.size() - offset)
+    let len = @write[ISize](
+      near_fd,
+      data.cpointer().usize() + offset,
+      data.size() - offset)
     if len == -1 then // OS signals write error
       (len, @pony_os_errno())
     else
@@ -129,11 +134,11 @@ class _Pipe
     """
     Close the near end of the pipe--the end that this process is using
     directly. Also handle unsubscribing the asio event (if there was one). File
-    descriptors should always be closed _after_ unsubscribing its
-    event, otherwise there is the possibility of reusing the file
-    descriptor in another thread and then unsubscribing the reused
-    file descriptor here!  Unsubscribing and closing the file
-    descriptor should be treated as one operation.
+    descriptors should always be closed _after_ unsubscribing its event,
+    otherwise there is the possibility of reusing the file descriptor in
+    another thread and then unsubscribing the reused file descriptor here!
+    Unsubscribing and closing the file descriptor should be treated as one
+    operation.
     """
     if near_fd != -1 then
       if event isnt AsioEvent.none() then
