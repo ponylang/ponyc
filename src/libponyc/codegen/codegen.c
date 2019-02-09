@@ -796,6 +796,12 @@ bool codegen_pass_init(pass_opt_t* opt)
 #else
     triple = LLVMGetDefaultTargetTriple();
 #endif
+
+#if PONY_LLVM >= 700
+    char* normalized = LLVMNormalizeTargetTriple(triple);
+    free(triple);
+    triple = normalized;
+#endif
   }
 
   if(opt->features != NULL)
