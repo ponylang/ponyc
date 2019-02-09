@@ -49,9 +49,9 @@ MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
+    '7.0.1',
     '3.9.1',
-    '6.0.1',
-    '7.0.1'
+    '6.0.1'
 ]
 
 LIBRESSL_VERSION = "2.9.0"
