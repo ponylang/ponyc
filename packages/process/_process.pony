@@ -1,3 +1,4 @@
+use "signals"
 use @pony_os_errno[I32]()
 
 primitive _STDINFILENO
@@ -8,12 +9,6 @@ primitive _STDOUTFILENO
 
 primitive _STDERRFILENO
   fun apply(): U32 => 2
-
-primitive _SIGKILL
-  fun apply(): I32 => 9
-
-primitive _SIGTERM
-  fun apply(): I32 => 15
 
 // Operation not permitted
 primitive _EPERM
@@ -125,14 +120,14 @@ class _ProcessPosix is _Process
     """
     if pid > 0 then
       // Try a graceful termination
-      if @kill[I32](pid, _SIGTERM()) < 0 then
+      if @kill[I32](pid, Sig.term()) < 0 then
         match @pony_os_errno()
         | _EINVAL() => None // Invalid argument, shouldn't happen but
                             // tryinng SIGKILL isn't likely to help.
         | _ESRCH() => None  // No such process, child has terminated
         else
           // Couldn't SIGTERM, as a last resort SIGKILL
-          @kill[I32](pid, _SIGKILL())
+          @kill[I32](pid, Sig.kill())
         end
       end
     end

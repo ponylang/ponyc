@@ -170,9 +170,9 @@ actor ProcessMonitor
     end
 
     try
-      _stdin = _Pipe(true)?
-      _stdout = _Pipe(false)?
-      _stderr = _Pipe(false)?
+      _stdin = _Pipe.outgoing()?
+      _stdout = _Pipe.incoming()?
+      _stderr = _Pipe.incoming()?
     else
       _stdin.close()
       _stdout.close()
@@ -188,9 +188,9 @@ actor ProcessMonitor
       else
         compile_error "unsupported platform"
       end
-      _stdin.begin(this, true)
-      _stdout.begin(this, false)
-      _stderr.begin(this, false)
+      _stdin.begin(this)
+      _stdout.begin(this)
+      _stderr.begin(this)
     else
       _notifier.failed(this, ForkError)
       return

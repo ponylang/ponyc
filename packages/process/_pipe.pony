@@ -36,26 +36,46 @@ primitive _ERRORNODATA
     else compile_error "no ERROR_NO_DATA" end
 
 class _Pipe
-  var near_fd: U32
-  var far_fd: U32
+  """
+  A pipe is a unidirectional data channel that can be used for interprocess
+  communication. Outgoing pipes are written to by this process, incoming pipes
+  are read from by this process.
+  """
+  let _outgoing: Bool
+  var near_fd: U32 = -1
+  var far_fd: U32 = -1
   var event: AsioEventID = AsioEvent.none()
 
   new none() =>
-    near_fd = -1
-    far_fd = -1
-
-  new create(outgoing: Bool) ? =>
     """
-    Creates a pipe, an unidirectional data channel that can be used for
-    interprocess communication. Outgoing pipes are written to by this process,
-    incoming pipes are read from by this process.
+    Creates a nil pipe for use as a placeholder.
+    """
+    _outgoing = true
+
+  new outgoing() ? =>
+    """
+    Creates an outgoing pipe.
+    """
+    _outgoing = true
+    _create()?
+
+  new incoming() ? =>
+    """
+    Creates an incoming pipe.
+    """
+    _outgoing = false
+    _create()?
+
+  fun ref _create() ? =>
+    """
+    Do the actual system object creation for the pipe.
     """
     ifdef posix then
       var fds = (U32(0), U32(0))
       if @pipe[I32](addressof fds) < 0 then
         error
       end
-      if outgoing then
+      if _outgoing then
         near_fd = fds._2
         far_fd = fds._1
       else
@@ -79,13 +99,13 @@ class _Pipe
     let result = @fcntl[I32](fd, _FSETFL(), flags)
     if result < 0 then error end
 
-  fun ref begin(owner: AsioEventNotify, outgoing: Bool) =>
+  fun ref begin(owner: AsioEventNotify) =>
     """
     Prepare the pipe for read or write, and listening, after the far end has
     been handed to the other process.
     """
     ifdef posix then
-      let flags = if outgoing then AsioEvent.write() else AsioEvent.read() end
+      let flags = if _outgoing then AsioEvent.write() else AsioEvent.read() end
       event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
       close_far()
     end
