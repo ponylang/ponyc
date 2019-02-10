@@ -43,9 +43,15 @@ static void name_param(compile_t* c, reach_type_t* t, reach_method_t* m,
       c_m->di_method, name, index + 1, c_m->di_file,
       (unsigned)ast_line(m->fun->ast), c_t->di_type);
   } else {
+#if PONY_LLVM >= 700
+    info = LLVMDIBuilderCreateParameterVariable(c->di, c_m->di_method,
+      name, strlen(name), index + 1, c_m->di_file,
+      (unsigned)ast_line(m->fun->ast), c_t->di_type, false, LLVMDIFlagZero);
+#else
     info = LLVMDIBuilderCreateParameterVariable(c->di,
       c_m->di_method, name, index + 1, c_m->di_file,
       (unsigned)ast_line(m->fun->ast), c_t->di_type);
+#endif
   }
 
   LLVMMetadataRef expr = LLVMDIBuilderCreateExpression(c->di, NULL, 0);
@@ -177,11 +183,16 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
 
   c_m->di_file = c_t->di_file;
 
+#if PONY_LLVM >= 700
+  LLVMMetadataRef subroutine = LLVMDIBuilderCreateSubroutineType(c->di,
+    c_m->di_file, md, (unsigned int)count, LLVMDIFlagZero);
+#else
   LLVMMetadataRef type_array = LLVMDIBuilderGetOrCreateTypeArray(c->di,
     md, count);
 
   LLVMMetadataRef subroutine = LLVMDIBuilderCreateSubroutineType(c->di,
     c_m->di_file, type_array);
+#endif
 
   LLVMMetadataRef scope;
 

@@ -49,14 +49,14 @@ MSVC_VERSIONS = [ '15.9', '15.8', '15.7', '15.6', '15.4', '15.0', '14.0' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
+    '7.0.1',
     '3.9.1',
-    '5.0.1',
-    '6.0.0'
+    '6.0.1'
 ]
 
-WINDOWS_LIBS_TAG = "v1.7.0"
-LIBRESSL_VERSION = "2.6.4"
-PCRE2_VERSION = "10.31"
+LIBRESSL_VERSION = "2.9.0"
+PCRE2_VERSION = "10.32"
+WINDOWS_LIBS_TAG = "v1.8.2"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
@@ -258,6 +258,8 @@ def build(ctx):
                 llvmBuildMode = 'LLVM_BUILD_MODE_Release'
             elif llvmBuildMode == 'RelWithDebInfo':
                 llvmBuildMode = 'LLVM_BUILD_MODE_RelWithDebInfo'
+            elif llvmBuildMode == 'MinSizeRel':
+                llvmBuildMode = 'LLVM_BUILD_MODE_MinSizeRel'
             elif llvmBuildMode == 'Debug':
                 llvmBuildMode = 'LLVM_BUILD_MODE_Debug'
             else:

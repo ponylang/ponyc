@@ -1399,6 +1399,12 @@ static void optimise(compile_t* c, bool pony_specific)
       pmb.OptLevel = 0;
   }
 
+#if PONY_LLVM >= 700
+  // LLVM 7 has a bug where running MergeFunctions more than once causes an
+  // assert fail saying "Invalid RAUW on key of ValueMap". We can avoid that
+  // by setting to false before populating lpm, after mpm was already populated.
+  pmb.MergeFunctions = false;
+#endif
   pmb.populateLTOPassManager(lpm);
 
   // There is a problem with optimised debug info in certain cases. This is

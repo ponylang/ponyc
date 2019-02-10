@@ -10,7 +10,8 @@
 // Valid LLVM_BULD_MODE's must match corresponding names in Makefile-ponyc
 #define LLVM_BUILD_MODE_Release 1
 #define LLVM_BUILD_MODE_RelWithDebInfo 2
-#define LLVM_BUILD_MODE_Debug 3
+#define LLVM_BUILD_MODE_MinSizeRel 3
+#define LLVM_BUILD_MODE_Debug 4
 
 #ifdef _MSC_VER
 #  pragma warning(push)
@@ -43,7 +44,7 @@
 // Undefine NDEBUG so we can define for release modes
 #  undef NDEBUG
 
-#if ((LLVM_BUILD_MODE == LLVM_BUILD_MODE_Release) || (LLVM_BUILD_MODE == LLVM_BUILD_MODE_RelWithDebInfo))
+#if ((LLVM_BUILD_MODE == LLVM_BUILD_MODE_Release) || (LLVM_BUILD_MODE == LLVM_BUILD_MODE_RelWithDebInfo) || (LLVM_BUILD_MODE == LLVM_BUILD_MODE_MinSizeRel))
    // Define NDEBUG for release builds
 #  define NDEBUG
 #elif LLVM_BUILD_MODE == LLVM_BUILD_MODE_Debug

@@ -228,6 +228,8 @@ endif
 ifndef LLVM_CONFIG
   ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
     LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
+  else ifneq (,$(shell which llvm-config-7.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-7.0
   else ifneq (,$(shell which llvm-config-6.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-6.0
   else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
@@ -274,13 +276,13 @@ ifeq (Release,$(llvm_build_mode))
   LLVM_BUILD_MODE=LLVM_BUILD_MODE_Release
 else ifeq (RelWithDebInfo,$(llvm_build_mode))
   LLVM_BUILD_MODE=LLVM_BUILD_MODE_RelWithDebInfo
+else ifeq (MinSizeRel,$(llvm_build_mode))
+  LLVM_BUILD_MODE=LLVM_BUILD_MODE_MinSizeRel
 else ifeq (Debug,$(llvm_build_mode))
   LLVM_BUILD_MODE=LLVM_BUILD_MODE_Debug
 else
-  $(error "Uknown llvm build-mode of $(llvm_build_mode)", aborting)
+  $(error "Unknown llvm build-mode of $(llvm_build_mode)", aborting)
 endif
-
-
 
 llvm_version := $(shell $(LLVM_CONFIG) --version)
 
@@ -312,6 +314,8 @@ else ifeq ($(llvm_version),6.0.0)
   $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
 else ifeq ($(llvm_version),6.0.1)
   $(warning WARNING: LLVM 6 support is experimental and may result in decreased performance or crashes)
+else ifeq ($(llvm_version),7.0.1)
+  $(warning WARNING: LLVM 7 support is experimental and may result in decreased performance or crashes)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
   $(warning Please use LLVM 3.9.1)
@@ -429,17 +433,7 @@ endif
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
 llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
-llvm.include.dir := $(CROSS_SYSROOT)$(shell $(LLVM_CONFIG) --includedir $(LLVM_LINK_STATIC))
-include.paths := $(shell echo | $(CC) -v -E - 2>&1)
-ifeq (,$(findstring $(llvm.include.dir),$(include.paths)))
-# LLVM include directory is not in the existing paths;
-# put it at the top of the system list
-llvm.include := -isystem $(llvm.include.dir)
-else
-# LLVM include directory is already on the existing paths;
-# do nothing
-llvm.include :=
-endif
+llvm.include := $(CROSS_SYSROOT)$(shell sh -c "$(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC) | grep -oE -- '(^| )-I\s*\S+' | sed 's/^\s*-I\s*/-isystem /g'")
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
@@ -680,12 +674,12 @@ define CONFIGURE_COMPILER
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.bc)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS)
   endif
-  
+
   ifeq ($(suffix $(1)),.ll)
     compiler := $(CC)
     flags := $(ALL_CFLAGS) $(CFLAGS) -Wno-override-module
