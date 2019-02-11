@@ -117,8 +117,27 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_BUILD_CONFIG=\"$(config)\" \
   -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
-ALL_CXXFLAGS = -std=gnu++11 -fno-rtti -fabi-version=6
+ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 LL_FLAGS = -mcpu=$(cpu)
+
+# If we're using gcc < 5.1, we have to use a workaround for a name mangling bug
+# with variadic templates that we use in our code that interfaces with LLVM.
+ifneq (,$(shell $(CC) -v 2>&1 | grep 'gcc version'))
+  # compiler is gcc
+  GCC_VERSION = $(shell $(CC) -v 2>&1 | grep -o 'gcc version [0-9].[0-9]' | cut -f3 -d' ')
+  ifeq ("1",$(shell expr `echo $(GCC_VERSION) | cut -f1 -d.` == 5))
+    # compiler is gcc 5.x
+    ifeq ("1",$(shell expr `echo $(GCC_VERSION) | cut -f2 -d.` \< 1))
+      # compiler is gcc < 5.1
+      ALL_CXXFLAGS += -fabi-version=6
+    endif
+  else
+    ifeq ("1",$(shell expr `echo $(GCC_VERSION) | cut -f1 -d.` \< 5))
+      # compiler is gcc < 5
+      ALL_CXXFLAGS += -fabi-version=6
+    endif
+  endif
+endif
 
 # Determine pointer size in bits.
 BITS := $(bits)
