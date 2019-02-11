@@ -1547,7 +1547,7 @@ static void optimise(compile_t* c, bool pony_specific)
   TargetMachine* machine = reinterpret_cast<TargetMachine*>(c->machine);
 
   auto opt_level = PassBuilder::OptimizationLevel::O3;
-  bool debug_log = true;
+  bool debug_log = false; // enable this for very verbose logging of LLVM passes
 
   // There is a problem with optimised debug info in certain cases. This is
   // due to unknown bugs in the way ponyc is generating debug info. When they
