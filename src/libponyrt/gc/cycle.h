@@ -1,5 +1,5 @@
-#ifndef cycle_h
-#define cycle_h
+#ifndef gc_cycle_h
+#define gc_cycle_h
 
 #include "gc.h"
 #include "../pony.h"

@@ -1,5 +1,5 @@
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef options_options_h
+#define options_options_h
 
 #include <stdint.h>
 

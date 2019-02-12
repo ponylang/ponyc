@@ -1,5 +1,5 @@
-#ifndef messageq_h
-#define messageq_h
+#ifndef actor_messageq_h
+#define actor_messageq_h
 
 #include "../pony.h"
 
@@ -44,7 +44,7 @@ pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
 
 bool ponyint_thread_messageq_push(messageq_t* q,
   pony_msg_t* first, pony_msg_t* last
-#ifdef USE_DYNAMIC_TRACE 
+#ifdef USE_DYNAMIC_TRACE
   , uintptr_t from_thread, uintptr_t to_thread
 #endif
   );

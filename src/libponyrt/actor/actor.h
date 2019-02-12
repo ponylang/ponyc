@@ -1,5 +1,5 @@
-#ifndef actor_h
-#define actor_h
+#ifndef actor_actor_h
+#define actor_actor_h
 
 #include "messageq.h"
 #include "../gc/gc.h"

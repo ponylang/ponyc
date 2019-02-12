@@ -1,5 +1,5 @@
-#ifndef PLATFORM_ALLOC_H
-#define PLATFORM_ALLOC_H
+#ifndef mem_alloc_h
+#define mem_alloc_h
 
 /**
  * Allocates memory in the virtual address space.
