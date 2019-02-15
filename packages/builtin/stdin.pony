@@ -24,12 +24,6 @@ interface InputNotify
     """
     None
 
-interface tag DisposableActor
-  """
-  An interface used to asynchronously dispose of an actor.
-  """
-  be dispose()
-
 interface tag InputStream
   """
   Asynchronous access to some input stream.
