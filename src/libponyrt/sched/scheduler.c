@@ -1248,18 +1248,15 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
 //
 // overloaded receiving actor => [sending actors]
 //
-// - A given actor will only existing as a sending actor in the map for
-//   a given scheduler.
+// - A given actor can exist as a sending actor in the map for
+//   more than one scheduler.
 // - Receiving actors can exist as a mute map key in the mute map of more
 //   than one scheduler
 //
-// Because muted sending actors only exist in a single scheduler's mute map
-// and because they aren't scheduled when they are muted, any manipulation
-// that we do on their state (for example incrementing or decrementing their
-// mute count) is thread safe as only a single scheduler thread will be
-// accessing the information.
+// returns true if it incremented `mute_map_count`
 
-void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv)
+bool ponyint_sched_add_mutemap(pony_ctx_t* ctx, pony_actor_t* sender,
+  pony_actor_t* recv)
 {
   pony_assert(sender != recv);
   scheduler_t* sched = ctx->scheduler;
@@ -1278,13 +1275,14 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   pony_actor_t* r = ponyint_muteset_get(&mref->value, sender, &index2);
   if(r == NULL)
   {
-    // This is safe because an actor can only ever be in a single scheduler's
-    // mutemap
     ponyint_muteset_putindex(&mref->value, sender, index2);
-    size_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
-    muted++;
-    atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
+
+    // This is safe because it's a single atomic operation
+    atomic_fetch_add_explicit(&sender->mute_map_count, 1, memory_order_relaxed);
+
+    return true;
   }
+  return false;
 }
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
@@ -1309,46 +1307,39 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
-    actorstack_t* needs_unmuting = NULL;
 
     // Find and collect any actors that need to be unmuted
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
-      // This is safe because an actor can only ever be in a single scheduler's
-      // mutemap
-      size_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
-      pony_assert(muted_count > 0);
-      muted_count--;
-      atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
+      // This is safe because it's a single atomic operation
+      size_t mute_map_count = atomic_fetch_sub_explicit(&muted->mute_map_count,
+        1, memory_order_relaxed);
+      pony_assert(mute_map_count >= 1);
+      (void)mute_map_count;
 
-      if (muted_count == 0)
+      // clear extra throttled message sent because the actor was removed from a
+      // mute_map
+      atomic_store_explicit(&muted->extra_throttled_msgs_sent, 0,
+        memory_order_relaxed);
+
+      // maybe unmute the actor
+      if(ponyint_maybe_unmute_actor(muted))
       {
-        needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
+        // if we unmuted the actor
+
+        // TODO: we don't want to reschedule if our queue is empty.
+        // That's wasteful.
+        ponyint_sched_add(ctx, muted);
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
+        actors_rescheduled++;
+
+        // tell other scheduler threads that we unmuted the actor
+        ponyint_sched_start_global_unmute(ctx->scheduler->index, muted);
       }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
     ponyint_muteref_free(mref);
-
-    // Unmute any actors that need to be unmuted
-    pony_actor_t* to_unmute;
-
-    while(needs_unmuting != NULL)
-    {
-      needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
-
-      if(!has_flag(to_unmute, FLAG_UNSCHEDULED))
-      {
-        ponyint_unmute_actor(to_unmute);
-        // TODO: we don't want to reschedule if our queue is empty.
-        // That's wasteful.
-        ponyint_sched_add(ctx, to_unmute);
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
-        actors_rescheduled++;
-      }
-
-      ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
-    }
   }
 
   return actors_rescheduled > 0;

@@ -241,12 +241,17 @@ static bool maybe_mute(pony_actor_t* actor)
   // a behavior can lead to race conditions that might result in a
   // deadlock.
   // Given that actor's are not run when they are muted, then when we
-  // started out batch, actor->muted would have been 0. If any of our
-  // message sends would result in the actor being muted, that value will
-  // have changed to greater than 0.
+  // started our batch, batch size would have been greater then 0.
+  // If any of our message sends would result in the actor sending to a
+  // muted/overloaded/under pressure receiver, the actor->mute_map_count
+  // will have been incremented or the actor->extra_throttled_msgs_sent
+  // would have been incremented. Both of these throttle the batch size
+  // to be smaller and smaller until it reaches 0.
   //
-  // We will then set the actor to "muted". Once set, any actor sending
-  // a message to it will be also be muted unless said sender is marked
+  // We will then set the actor to "muted" once the batch size gets
+  // throttled to 0. Once set, any actor sending a message to it will
+  // also have its batch size throttled smaller until it is also muted
+  // when its batch size reaches 0 unless said sender is marked
   // as overloaded.
   //
   // The key points here is that:
@@ -254,23 +259,62 @@ static bool maybe_mute(pony_actor_t* actor)
   //   a behavior.
   //   2. We should bail out from running the actor and return false so that
   //   it won't be rescheduled.
-  if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
+  size_t mute_map_count = atomic_load_explicit(&actor->mute_map_count,
+    memory_order_relaxed);
+  uint16_t extra_throttled_msgs_sent = atomic_load_explicit(
+    &actor->extra_throttled_msgs_sent, memory_order_relaxed);
+
+  // reset extra_throttled_msgs_sent if mute_map_count == 0
+  if((mute_map_count == 0) && (extra_throttled_msgs_sent != 0))
   {
+    extra_throttled_msgs_sent = 0;
+    atomic_store_explicit(&actor->extra_throttled_msgs_sent,
+      extra_throttled_msgs_sent, memory_order_relaxed);
+  }
+
+  size_t new_batch = PONY_ACTOR_DEFAULT_BATCH >> (mute_map_count +
+    extra_throttled_msgs_sent);
+
+  if(new_batch == 0)
+  {
+    // there is a race condition that exists where another thread might
+    // change the `mute_map_count` and/or the `extra_throttled_msgs_sent`
+    // since we've read them to calculate our batch size. We assume that
+    // hasn't happened and mute the actor and deal with that edge case
+    // after.
     ponyint_mute_actor(actor);
-    return true;
+
+    // ensure we should actually be muted and our batch size didn't grow
+    // due to the race condition that exists in relation to multiple
+    // scheduler threads modifying `mute_map_count` and
+    // `extra_throttled_msgs_sent` concurrently
+    new_batch = PONY_ACTOR_DEFAULT_BATCH >> (atomic_load_explicit(
+      &actor->mute_map_count, memory_order_relaxed) + atomic_load_explicit(
+      &actor->extra_throttled_msgs_sent, memory_order_relaxed));
+
+    if(new_batch == 0)
+      return true;
+    else
+    {
+      // unmute because we shouldn't be muted due to our batch size growing
+      ponyint_unmute_actor(actor);
+      return false;
+    }
   }
 
   return false;
 }
 
-static bool batch_limit_reached(pony_actor_t* actor, bool polling)
+static bool batch_limit_reached(pony_actor_t* actor, bool polling, size_t batch)
 {
-  if(!has_flag(actor, FLAG_OVERLOADED) && !polling)
+  if(!has_flag(actor, FLAG_OVERLOADED)
+    && !polling && (batch == PONY_ACTOR_DEFAULT_BATCH))
   {
-    // If we hit our batch size, consider this actor to be overloaded
-    // only if we're not polling from C code.
+    // If we hit the default batch size, consider this actor to be overloaded
+    // only if we're not polling from C code. This is to ensure throttled
+    // actors are not accidentally marked as overloaded.
     // Overloaded actors are allowed to send to other overloaded actors
-    // and to muted actors without being muted themselves.
+    // and to muted actors without being muted or throttled themselves.
     ponyint_actor_setoverloaded(actor);
   }
 
@@ -282,6 +326,45 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
   size_t batch = PONY_ACTOR_DEFAULT_BATCH;
+
+  // if actor is overloaded or under pressure, double batch size
+  // if actor sent too many messages to muted/overloaded actors,
+  // throttle batch size based on mute_map_count/extra_throttled_msgs_sent
+  if(has_flag(actor, FLAG_OVERLOADED | FLAG_UNDER_PRESSURE))
+    batch = batch << 1;
+  else
+    batch = batch >> (atomic_load_explicit(&actor->extra_throttled_msgs_sent,
+                       memory_order_relaxed)
+                     + atomic_load_explicit(&actor->mute_map_count,
+                         memory_order_relaxed));
+
+  // if batch is 0, we should be muted
+  if(batch == 0)
+  {
+    // there is a race condition that exists where another thread might
+    // change the `mute_map_count` and/or the `extra_throttled_msgs_sent`
+    // since we've read them to calculate our batch size. We assume that
+    // hasn't happened and mute the actor and deal with that edge case
+    // after.
+    ponyint_mute_actor(actor);
+
+    // ensure we should actually be muted and our batch size didn't grow
+    // due to the race condition that exists in relation to multiple
+    // scheduler threads modifying `mute_map_count` and
+    // `extra_throttled_msgs_sent` concurrently
+    batch = PONY_ACTOR_DEFAULT_BATCH >> (atomic_load_explicit(
+      &actor->mute_map_count, memory_order_relaxed) + atomic_load_explicit(
+      &actor->extra_throttled_msgs_sent, memory_order_relaxed));
+
+    if(batch == 0)
+      return false;
+    else
+      // unmute because we shouldn't be muted due to our batch size growing
+      ponyint_unmute_actor(actor);
+  }
+
+  // ensure batch > 0
+  pony_assert(batch);
 
   pony_msg_t* msg;
   size_t app = 0;
@@ -308,7 +391,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // if we've reached our batch limit
       // or if we're polling where we want to stop after one app message
       if(app == batch || polling)
-        return batch_limit_reached(actor, polling);
+        return batch_limit_reached(actor, polling, batch);
     }
   }
 #endif
@@ -335,7 +418,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // if we've reached our batch limit
       // or if we're polling where we want to stop after one app message
       if(app == batch || polling)
-        return batch_limit_reached(actor, polling);
+        return batch_limit_reached(actor, polling, batch);
     }
 
     // Stop handling a batch if we reach the head we found when we were
@@ -349,13 +432,15 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   pony_assert(app < batch);
   pony_assert(!ponyint_is_muted(actor));
 
-  if(has_flag(actor, FLAG_OVERLOADED))
+  if(has_flag(actor, FLAG_OVERLOADED) && (app < PONY_ACTOR_DEFAULT_BATCH))
   {
-    // if we were overloaded and didn't process a full batch, set ourselves as
+    // if we were overloaded and didn't process a full batch and we processed
+    // less than the default batch amount, set ourselves as
     // no longer overloaded. Once this is done:
-    // 1- sending to this actor is no longer grounds for an actor being muted
-    // 2- this actor can no longer send to other actors free from muting should
-    //    the receiver be overloaded or muted
+    // 1- sending to this actor is no longer grounds for an actor being muted or
+    //    throttled
+    // 2- this actor can no longer send to other actors free from muting or
+    //    throttling should the receiver be overloaded or muted
     ponyint_actor_unsetoverloaded(actor);
   }
 
@@ -573,7 +658,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   }
 
   if(has_app_msg)
-    ponyint_maybe_mute(ctx, to);
+    ponyint_maybe_throttle(ctx, to);
 
   if(ponyint_actor_messageq_push(&to->q, first, last
 #ifdef USE_DYNAMIC_TRACE
@@ -612,7 +697,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   }
 
   if(has_app_msg)
-    ponyint_maybe_mute(ctx, to);
+    ponyint_maybe_throttle(ctx, to);
 
   if(ponyint_actor_messageq_push_single(&to->q, first, last
 #ifdef USE_DYNAMIC_TRACE
@@ -629,22 +714,30 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   }
 }
 
-void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
+void ponyint_maybe_throttle(pony_ctx_t* ctx, pony_actor_t* to)
 {
   if(ctx->current != NULL)
   {
-    // only mute a sender IF:
+    // only throttle a sender IF:
     // 1. the receiver is overloaded/under pressure/muted
     // AND
     // 2. the sender isn't overloaded or under pressure
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if(ponyint_triggers_muting(to) &&
-       !has_flag(ctx->current, FLAG_OVERLOADED) &&
-       !has_flag(ctx->current, FLAG_UNDER_PRESSURE) &&
+    //
+    // throttling will eventually result in muting
+    if(ponyint_triggers_throttling(to) &&
+       !has_flag(ctx->current, FLAG_OVERLOADED | FLAG_UNDER_PRESSURE) &&
        ctx->current != to)
     {
-      ponyint_sched_mute(ctx, ctx->current, to);
+      if(!ponyint_sched_add_mutemap(ctx, ctx->current, to))
+      {
+        // if mute_map_count wasn't incremented, keep track of it in the extra
+        // throttling msg sent variable
+        // This is safe because it's a single atomic operation
+        atomic_fetch_add_explicit(&ctx->current->mute_map_count, 1,
+          memory_order_relaxed);
+      }
     }
   }
 }
@@ -828,10 +921,9 @@ PONY_API void pony_release_backpressure()
     ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
 }
 
-bool ponyint_triggers_muting(pony_actor_t* actor)
+bool ponyint_triggers_throttling(pony_actor_t* actor)
 {
-  return has_flag(actor, FLAG_OVERLOADED) ||
-    has_flag(actor, FLAG_UNDER_PRESSURE) ||
+  return has_flag(actor, FLAG_OVERLOADED | FLAG_UNDER_PRESSURE) ||
     ponyint_is_muted(actor);
 }
 
@@ -868,21 +960,51 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 
 bool ponyint_is_muted(pony_actor_t* actor)
 {
-  return (atomic_fetch_add_explicit(&actor->is_muted, 0, memory_order_relaxed) > 0);
+  return
+    (atomic_fetch_add_explicit(&actor->is_muted, 0, memory_order_relaxed) > 0);
 }
 
-void ponyint_mute_actor(pony_actor_t* actor)
+bool ponyint_mute_actor(pony_actor_t* actor)
 {
-   uint8_t is_muted = atomic_load_explicit(&actor->is_muted, memory_order_relaxed);
-   pony_assert(is_muted == 0);
-   is_muted++;
-   atomic_store_explicit(&actor->is_muted, is_muted, memory_order_relaxed);
+  uint8_t was_muted = atomic_exchange_explicit(&actor->is_muted, 1,
+    memory_order_relaxed);
 
+  // if old value was 0 then we muted the actor; otherwise it was already muted
+  return was_muted == 0;
 }
 
-void ponyint_unmute_actor(pony_actor_t* actor)
+bool ponyint_unmute_actor(pony_actor_t* actor)
 {
-  uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
-  pony_assert(is_muted == 1);
-  (void)is_muted;
+  uint8_t was_muted = atomic_exchange_explicit(&actor->is_muted, 0,
+    memory_order_relaxed);
+
+  // clear extra throttled message sent
+  atomic_store_explicit(&actor->extra_throttled_msgs_sent, 0,
+    memory_order_relaxed);
+
+  // if old value was 1 then we unmuted the actor; otherwise it was already
+  // unmuted
+  return was_muted == 1;
+}
+
+bool ponyint_maybe_unmute_actor(pony_actor_t* actor)
+{
+  // only unmute if it is actually muted currently and not just throttled
+  if(ponyint_is_muted(actor))
+  {
+    // check if the muted/throttled actor should no longer be muted
+    if(!has_flag(actor, FLAG_UNSCHEDULED))
+    {
+      size_t batch = PONY_ACTOR_DEFAULT_BATCH >> (atomic_load_explicit(
+        &actor->mute_map_count, memory_order_relaxed) + atomic_load_explicit(
+        &actor->extra_throttled_msgs_sent, memory_order_relaxed));
+
+      // unmute if new batch would be greater than 0
+      if(batch)
+        return ponyint_unmute_actor(actor);
+    }
+  }
+
+  // didn't unmute the actor
+  return false;
 }
