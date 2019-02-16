@@ -12,7 +12,6 @@
 #include <string.h>
 #include "mutemap.h"
 
-#define PONY_SCHED_BATCH 100
 #define PONY_SCHED_BLOCK_THRESHOLD 1000000
 
 static DECLARE_THREAD_FN(run_thread);
@@ -895,7 +894,7 @@ static void run(scheduler_t* sched)
       ponyint_sched_maybe_wakeup(sched->index);
 
     // Run the current actor and get the next actor.
-    bool reschedule = ponyint_actor_run(&sched->ctx, actor, PONY_SCHED_BATCH);
+    bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)
@@ -1282,7 +1281,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
     // This is safe because an actor can only ever be in a single scheduler's
     // mutemap
     ponyint_muteset_putindex(&mref->value, sender, index2);
-    uint64_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
+    size_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
     muted++;
     atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
   }
@@ -1317,7 +1316,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     {
       // This is safe because an actor can only ever be in a single scheduler's
       // mutemap
-      uint64_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
+      size_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
       pony_assert(muted_count > 0);
       muted_count--;
       atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
