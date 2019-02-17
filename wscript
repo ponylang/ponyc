@@ -399,22 +399,23 @@ def test(ctx):
 
     ctx(
         features = 'seq',
-        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d -s --checktree --verify -b ' + stdlibDebugBinary + ' ../../packages/stdlib',
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d --checktree --verify -b ' + stdlibDebugBinary + ' ../../packages/stdlib',
         target   = stdlibDebugTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )
 
-    stdlibReleaseBinary = 'stdlib-release'
-    stdlibReleaseTarget = stdlibReleaseBinary
-    if os_is('win32'):
-        stdlibReleaseTarget = 'stdlib-release.exe'
+    if not ctx.variant.startswith('debug'):
+        stdlibReleaseBinary = 'stdlib-release'
+        stdlibReleaseTarget = stdlibReleaseBinary
+        if os_is('win32'):
+            stdlibReleaseTarget = 'stdlib-release.exe'
 
-    ctx(
-        features = 'seq',
-        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -s --checktree --verify -b ' + stdlibReleaseBinary + ' ../../packages/stdlib',
-        target   = stdlibReleaseTarget,
-        source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
-    )
+        ctx(
+            features = 'seq',
+            rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -s --checktree --verify -b ' + stdlibReleaseBinary + ' ../../packages/stdlib',
+            target   = stdlibReleaseTarget,
+            source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
+        )
 
     # grammar file
     ctx(
@@ -453,12 +454,13 @@ def test(ctx):
         if returncode == 0:
             passed = passed + 1
 
-        total = total + 1
-        stdlib = os.path.join(buildDir, 'stdlib-release')
-        print(stdlib)
-        returncode = subprocess.call([ stdlib, '--sequential' ])
-        if returncode == 0:
-            passed = passed + 1
+        if not ctx.variant.startswith('debug'):
+            total = total + 1
+            stdlib = os.path.join(buildDir, 'stdlib-release')
+            print(stdlib)
+            returncode = subprocess.call([ stdlib, '--sequential' ])
+            if returncode == 0:
+                passed = passed + 1
 
         total = total + 1
         ponyg = os.path.join(sourceDir, 'pony.g')
