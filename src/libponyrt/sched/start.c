@@ -138,7 +138,11 @@ PONY_API int pony_init(int argc, char** argv)
   argc = parse_opts(argc, argv, &opt);
 
   if (opt.version) {
-    printf("%s\n", PONY_VERSION_STR);
+#ifdef _MSC_VER
+        printf("%s %d\n", PONY_VERSION_STR, _MSC_VER);
+#else
+        printf("%s\n", PONY_VERSION_STR);
+#endif
     exit(0);
   }
 

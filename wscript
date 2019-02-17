@@ -392,14 +392,27 @@ def test(ctx):
     import os
 
     # stdlib tests
-    stdlibTarget = 'stdlib'
+    stdlibDebugBinary = 'stdlib-debug'
+    stdlibDebugTarget = stdlibDebugBinary
     if os_is('win32'):
-        stdlibTarget = 'stdlib.exe'
+        stdlibDebugTarget = 'stdlib-debug.exe'
 
     ctx(
         features = 'seq',
-        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d -s --checktree --verify ../../packages/stdlib',
-        target   = stdlibTarget,
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d -s --checktree --verify -b ' + stdlibDebugBinary + ' ../../packages/stdlib',
+        target   = stdlibDebugTarget,
+        source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
+    )
+
+    stdlibReleaseBinary = 'stdlib-release'
+    stdlibReleaseTarget = stdlibReleaseBinary
+    if os_is('win32'):
+        stdlibReleaseTarget = 'stdlib-release.exe'
+
+    ctx(
+        features = 'seq',
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -s --checktree --verify -b ' + stdlibReleaseBinary + ' ../../packages/stdlib',
+        target   = stdlibReleaseTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )
 
@@ -413,6 +426,9 @@ def test(ctx):
     def run_tests(ctx):
         buildDir = ctx.bldnode.abspath()
         sourceDir = ctx.srcnode.abspath()
+
+        ponyc = os.path.join(buildDir, 'ponyc')
+        subprocess.call([ ponyc, '--version' ])
 
         total = 0
         passed = 0
@@ -431,24 +447,33 @@ def test(ctx):
             passed = passed + 1
 
         total = total + 1
-        stdlib = os.path.join(buildDir, 'stdlib')
+        stdlib = os.path.join(buildDir, 'stdlib-debug')
         print(stdlib)
         returncode = subprocess.call([ stdlib, '--sequential' ])
         if returncode == 0:
             passed = passed + 1
 
-        print('')
-        print('{0} test suites; {1} passed; {2} failed'.format(total, passed, total - passed))
-        if passed < total:
-            sys.exit(1)
+        total = total + 1
+        stdlib = os.path.join(buildDir, 'stdlib-release')
+        print(stdlib)
+        returncode = subprocess.call([ stdlib, '--sequential' ])
+        if returncode == 0:
+            passed = passed + 1
 
+        total = total + 1
         ponyg = os.path.join(sourceDir, 'pony.g')
         ponygNew = os.path.join(buildDir, 'pony.g.new')
         with open(ponyg, 'r') as pg:
             with open(ponygNew, 'r') as pgn:
                 if pg.read() != pgn.read():
-                    print('grammar files differ')
-                    sys.exit(1)
+                    print('Generated grammar file differs from baseline')
+                else:
+                    passed = passed + 1
+
+        print('')
+        print('{0} test suites; {1} passed; {2} failed'.format(total, passed, total - passed))
+        if passed < total:
+            sys.exit(1)
 
     ctx.add_post_fun(run_tests)
 
