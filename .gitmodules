@@ -1,4 +1,4 @@
 [submodule "lib/llvm/src"]
 	path = lib/llvm/src
-	url = https://github.com/ponylang/llvm.git
-	branch = release_39
+	url = https://github.com/llvm/llvm-project
+	branch = release/3.9.x

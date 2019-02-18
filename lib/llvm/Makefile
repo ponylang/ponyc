@@ -6,7 +6,8 @@
 # A valid target is:
 #   clean
 #   distclean
-#   llvm-6.0.0
+#   llvm-7.x
+#   llvm-6.x
 #   llvm-3.9.1
 #   llvm-default
 #   llvm-current
@@ -23,63 +24,102 @@
 # successful.
 #
 # Based on [yurydelendik wasmllvm](https://gist.github.com/yurydelendik/4eeff8248aeb14ce763e)
+#
 
 ROOT_DIR := $(shell pwd)
-LLVM_URL := https://github.com/ponylang/llvm.git
+LLVM_URL := https://github.com/llvm/llvm-project.git
 
 ifeq (,$(MAKECMDGOALS))
   MAKECMDGOALS := llvm-default
 endif
 
-#$(warning MAKECMDGOALS=$(MAKECMDGOALS))
+$(warning "lib/llvm/Makefile MAKECMDGOALS=$(MAKECMDGOALS)")
 
 ifeq ($(MAKECMDGOALS),rebuild)
-  LLVM_PROJ := llvm-current
+  LLVM_TARGET := llvm-current
   GET_LLVM_SRC_TARGET := get-nothing
   LLVM_SRC_DEPTH :=
   LLVM_BRANCH :=
-else ifeq ($(MAKECMDGOALS),clean)
-  # Nothing to init
-else ifeq ($(MAKECMDGOALS),distclean)
-  # Nothing to init
-else ifeq ($(MAKECMDGOALS),llvm-6.0.0)
-  LLVM_PROJ := llvm-6.0.0
-  GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_PROJ)
+else ifeq ($(MAKECMDGOALS),llvm-7.x)
+  LLVM_TARGET := llvm-7.x
+  GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
   LLVM_SRC_DEPTH := --depth=1
-  LLVM_BRANCH := -b release_60
+  LLVM_BRANCH := -b release/7.x
+else ifeq ($(MAKECMDGOALS),llvm-6.x)
+  LLVM_TARGET := llvm-6.x
+  GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
+  LLVM_SRC_DEPTH := --depth=1
+  LLVM_BRANCH := -b release/6.x
 else ifeq ($(MAKECMDGOALS),llvm-3.9.1)
-  LLVM_PROJ := llvm-3.9.1
-  GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_PROJ)
+  LLVM_TARGET := llvm-3.9.1
+  GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
   LLVM_SRC_DEPTH := --depth=1
-  LLVM_BRANCH := -b release_39
+  LLVM_BRANCH := -b release/3.9.x
 else ifeq ($(MAKECMDGOALS),llvm-current)
-  LLVM_PROJ := llvm-current
+  LLVM_TARGET := llvm-current
   GET_LLVM_SRC_TARGET := get-nothing
   LLVM_SRC_DEPTH :=
   LLVM_BRANCH :=
 else ifeq ($(MAKECMDGOALS),llvm-default)
-  LLVM_PROJ := llvm-default
+  $(warning llvm-default.....)
+  LLVM_TARGET := llvm-default
   GET_LLVM_SRC_TARGET := get-default-llvm-src
   LLVM_SRC_DEPTH := --depth=1
   LLVM_URL :=
   LLVM_BRANCH :=
-else
-  $(error Uknown target '$(MAKECMDGOALS)', someone did not pass a goal)
+else ifeq ($(MAKECMDGOALS),buildit)
+  $(warning "lib/llvm/Makefile buildit LLVM_TARGET=$(LLVM_TARGET)")
+  $(warning "lib/llvm/Makefile buildit LLVM_SRC_DIR=$(LLVM_SRC_DIR)")
+  $(warning "lib/llvm/Makefile buildit LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)")
+  # Nothing to init
+else ifeq ($(MAKECMDGOALS),installit)
+  # Nothing to init
+  $(warning "lib/llvm/Makefile installit LLVM_TARGET=$(LLVM_TARGET)")
+  $(warning "lib/llvm/Makefile installit LLVM_SRC_DIR=$(LLVM_SRC_DIR)")
+  $(warning "lib/llvm/Makefile installit LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)")
+else ifeq ($(MAKECMDGOALS),generateit)
+  $(warning "lib/llvm/Makefile generateit LLVM_TARGET=$(LLVM_TARGET)")
+  $(warning "lib/llvm/Makefile generateit LLVM_SRC_DIR=$(LLVM_SRC_DIR)")
+  $(warning "lib/llvm/Makefile generateit LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)")
+  # Nothing to init
+else ifeq ($(MAKECMDGOALS),clean)
+  # Nothing to init
+else ifeq ($(MAKECMDGOALS),distclean)
+  # Nothing to init
+#else
+#  $(error Uknown target '$(MAKECMDGOALS)', someone did not pass a goal)
 endif
 
 LLVM_SRC_DIR := $(ROOT_DIR)/src
 LLVM_BUILD_DIR := $(ROOT_DIR)/build
+LLVM_INSTALL_DIR := $(ROOT_DIR)/dist
 
 LLVM_BUILD_ENGINE := "Unix Makefiles"
 LLVM_BUILD_TYPE := Release
-LLVM_INSTALL_DIR := $(ROOT_DIR)/dist
 
 LLVM_LINKER := bfd
-ifeq (llvm-3.9.1,$(LLVM_PROJ))
-  # 3.9.1 doesn't supprot -DLLVM_USE_LINKER so make it empty to supress a warning
-  LLVM_USE_LINKER=
+#ifeq (llvm-3.9.1,$(LLVM_TARGET))
+#  # 3.9.1 doesn't supprot -DLLVM_USE_LINKER so make it empty to supress a warning
+#  LLVM_USE_LINKER :=
+#else
+#  LLVM_USE_LINKER := -DLLVM_USE_LINKER=$(LLVM_LINKER)
+#endif
+LLVM_USE_LINKER := -DLLVM_USE_LINKER=$(LLVM_LINKER)
+
+$(warning "lib/llvm/Makefile: LLVM_PROJECT_LIST=$(LLVM_PROJECT_LIST)")
+ifeq ($(LLVM_PROJECT_LIST),all)
+  PROJECT_LIST = clang;clang-tools-extra;libcxx;libcxxabi;libunwind;compiler-rt;lld;lldb;polly;debuginfo-tests
+else ifneq ($(LLVM_PROJECT_LIST),)
+  PROJECT_LIST = $(LLVM_PROJECT_LIST)
 else
-  LLVM_USE_LINKER=-DLLVM_USE_LINKER=$(LLVM_LINKER)
+  PROJECT_LIST =
+endif
+$(warning "lib/llvm/Makefile: PROJECT_LIST=$(PROJECT_LIST)")
+
+ifneq ($(PROJECT_LIST),)
+  LLVM_ENABLE_PROJECTS := -DLLVM_ENABLE_PROJECTS="$(PROJECT_LIST)"
+else
+  LLVM_ENABLE_PROJECTS :=
 endif
 
 ifeq ($(LLVM_BUILD_ENGINE),Ninja)
@@ -94,23 +134,69 @@ ifneq (,$(verbose))
   VERBOSE_CMAKE := -DCMAKE_VERBOSE_MAKEFILE=true
 endif
 
-$(LLVM_PROJ): built-llvm-$(LLVM_PROJ)
+$(LLVM_TARGET): installed-llvm-$(LLVM_TARGET)
+	@echo "hi installed $(LLVM_TARGET)"
 
 .PHONY: rebuild
 rebuild: clean-built-installed
-	@echo building $(LLVM_PROJ) `git -C src log -1 --pretty="format:hash=%h ref=%d subject=%s"`
+	make installed-llvm-$(LLVM_TARGET) LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+
+.PHONY: buildit
+buildit:
+	@echo building $(LLVM_TARGET) `git -C src log -1 --pretty="format:hash=%h ref=%d subject='%s'"`
 	$(MAKE) -C $(LLVM_BUILD_DIR)
-	touch built-llvm-$(LLVM_PROJ)
-	@echo installing $(LLVM_PROJ)
+	touch built-llvm-$(LLVM_TARGET)
+
+.PHONY: installit
+installit:
+	@echo installing $(LLVM_TARGET)
 	$(MAKE) -C $(LLVM_BUILD_DIR) install
-	touch installed-llvm-$(LLVM_PROJ)
+	touch installed-llvm-$(LLVM_TARGET)
+
+.PHONY: generateit
+generateit:
+	@echo generate $(LLVM_TARGET) `git -C src log -1 --pretty="format:hash=%h ref=%d"`
+	mkdir -p $(LLVM_BUILD_DIR)
+	cd $(LLVM_BUILD_DIR); cmake -G $(LLVM_BUILD_ENGINE) $(VERBOSE_CMAKE) $(LLVM_USE_LINKER) $(LLVM_ENABLE_PROJECTS) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(LLVM_BUILD_TYPE) $(LLVM_SRC_DIR)/llvm
+	touch $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
+
+$(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET): $(GET_LLVM_SRC_TARGET)
+	make generateit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+
+ifeq ($(MAKE),ninja)
+built-llvm-$(LLVM_TARGET): $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
+	make buildit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+else
+built-llvm-$(LLVM_TARGET): $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
+	$(MAKE) buildit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+endif
+
+installed-llvm-$(LLVM_TARGET): built-llvm-$(LLVM_TARGET)
+	make installit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+
+.PHONY: get-nothing
+get-nothing: clean
+
+get-default-llvm-src:
+	@echo get-default-llvm-src
+	rm -rf $(LLVM_SRC_DIR)
+	mkdir $(LLVM_SRC_DIR)
+	git submodule update --init $(LLVM_SRC_DEPTH)
+	touch get-default-llvm-src
+
+get-llvm-src-$(LLVM_TARGET):
+	@echo get-llvm-src-$(LLVM_TARGET)
+	rm -rf $(LLVM_SRC_DIR)
+	mkdir $(LLVM_SRC_DIR)
+	git clone $(LLVM_BRANCH) $(LLVM_SRC_DEPTH) $(LLVM_URL) $(LLVM_SRC_DIR)
+	touch get-llvm-src-$(LLVM_TARGET)
 
 .PHONY: clean
 clean: clean-except-get
 
 .PHONY: distclean
 distclean: clean-except-get
-	rm -rf $(LLVM_SRC_DIR)
+	rm -rf $(LLVM_SRC_DIR)/* $(LLVM_SRC_DIR)/.*
 	rm -f get-*
 
 .PHONY: clean-except-get
@@ -120,30 +206,3 @@ clean-except-get: clean-built-installed
 .PHONY: clean-built-installed
 clean-built-installed:
 	rm -f built-* installed-*
-
-built-llvm-$(LLVM_PROJ): $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_PROJ)
-	$(MAKE) rebuild
-
-$(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_PROJ): $(GET_LLVM_SRC_TARGET)
-	@echo generate $(LLVM_PROJ) `git -C src log -1 --pretty="format:hash=%h ref=%d subject=%s"`
-	mkdir -p $(LLVM_BUILD_DIR)
-	cd $(LLVM_BUILD_DIR); cmake -G $(LLVM_BUILD_ENGINE) $(VERBOSE_CMAKE) $(LLVM_USE_LINKER) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(LLVM_BUILD_TYPE) $(LLVM_SRC_DIR)
-	touch $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_PROJ)
-
-get-nothing: clean
-
-get-default-llvm-src:
-	@echo get-default-llvm-src
-	$(MAKE) clean
-	rm -rf $(LLVM_SRC_DIR)
-	mkdir $(LLVM_SRC_DIR)
-	git submodule init
-	git submodule update $(LLVM_SRC_DEPTH)
-	touch get-default-llvm-src
-
-get-llvm-src-$(LLVM_PROJ):
-	@echo get-llvm-src-$(LLVM_PROJ)
-	$(MAKE) clean
-	rm -rf $(LLVM_SRC_DIR)
-	git clone $(LLVM_BRANCH) $(LLVM_SRC_DEPTH) $(LLVM_URL) $(LLVM_SRC_DIR)
-	touch get-llvm-src-$(LLVM_PROJ)
