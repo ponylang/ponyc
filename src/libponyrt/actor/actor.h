@@ -39,7 +39,7 @@ typedef struct pony_actor_t
   PONY_ATOMIC(uint8_t) flags;
   PONY_ATOMIC(uint8_t) is_muted;
   PONY_ATOMIC(uint16_t) extra_throttled_msgs_sent;
-  PONY_ATOMIC(size_t) mute_map_count;
+  PONY_ATOMIC(uint32_t) mute_map_count;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
@@ -81,6 +81,8 @@ void ponyint_actor_setsystem(pony_actor_t* actor);
 void ponyint_actor_setnoblock(bool state);
 
 bool ponyint_actor_getnoblock();
+
+void ponyint_actor_setmsgstilmute(size_t msgs_til_mute);
 
 void ponyint_actor_setoverloaded(pony_actor_t* actor);
 

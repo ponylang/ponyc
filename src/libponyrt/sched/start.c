@@ -28,6 +28,7 @@ typedef struct options_t
   uint32_t cd_detect_interval;
   size_t gc_initial;
   double gc_factor;
+  size_t msgs_til_mute;
   bool noyield;
   bool noblock;
   bool nopin;
@@ -57,6 +58,7 @@ enum
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
+  OPT_MSGSTILMUTE,
   OPT_NOYIELD,
   OPT_NOBLOCK,
   OPT_PIN,
@@ -72,6 +74,7 @@ static opt_arg_t args[] =
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
+  {"ponymsgstilmute", 0, OPT_ARG_REQUIRED, OPT_MSGSTILMUTE},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
@@ -97,6 +100,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
+      case OPT_MSGSTILMUTE: opt->msgs_til_mute = atoi(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_PIN: opt->nopin = false; break;
@@ -153,6 +157,7 @@ PONY_API int pony_init(int argc, char** argv)
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);
   ponyint_actor_setnoblock(opt.noblock);
+  ponyint_actor_setmsgstilmute(opt.msgs_til_mute);
 
   pony_exitcode(0);
 

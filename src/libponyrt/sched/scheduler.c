@@ -1312,7 +1312,7 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
       // This is safe because it's a single atomic operation
-      size_t mute_map_count = atomic_fetch_sub_explicit(&muted->mute_map_count,
+      uint32_t mute_map_count = atomic_fetch_sub_explicit(&muted->mute_map_count,
         1, memory_order_relaxed);
       pony_assert(mute_map_count >= 1);
       (void)mute_map_count;
