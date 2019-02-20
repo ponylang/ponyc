@@ -1,4 +1,5 @@
 use "signals"
+use "files"
 use @pony_os_errno[I32]()
 
 primitive _STDINFILENO
@@ -34,6 +35,16 @@ primitive _EAGAIN
 primitive _EINVAL
   fun apply(): I32 => 22
 
+primitive _EXOSERR
+  fun apply(): I32 => 71
+
+// For handling errors between @fork and @execve
+primitive _StepChdir
+  fun apply(): U8 => 1
+
+primitive _StepExecve
+  fun apply(): U8 => 2
+
 interface _Process
   fun kill()
   fun ref wait(): I32
@@ -49,6 +60,8 @@ class _ProcessPosix is _Process
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
+    wdir: (FilePath | None),
+    err: _Pipe,
     stdin: _Pipe,
     stdout: _Pipe,
     stderr: _Pipe) ?
@@ -61,7 +74,7 @@ class _ProcessPosix is _Process
     pid = @fork[I32]()
     match pid
     | -1 => error
-    | 0 => _child_fork(path, argp, envp, stdin, stdout, stderr)
+    | 0 => _child_fork(path, argp, envp, wdir, err, stdin, stdout, stderr)
     end
 
   fun tag _make_argv(args: Array[String] box): Array[Pointer[U8] tag] =>
@@ -80,7 +93,8 @@ class _ProcessPosix is _Process
     path: String,
     argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag],
-    stdin: _Pipe, stdout: _Pipe, stderr: _Pipe)
+    wdir: (FilePath | None),
+    err: _Pipe, stdin: _Pipe, stdout: _Pipe, stderr: _Pipe)
   =>
     """
     We are now in the child process. We redirect STDIN, STDOUT and STDERR
@@ -93,10 +107,30 @@ class _ProcessPosix is _Process
     _dup2(stdin.far_fd, _STDINFILENO())   // redirect stdin
     _dup2(stdout.far_fd, _STDOUTFILENO()) // redirect stdout
     _dup2(stderr.far_fd, _STDERRFILENO()) // redirect stderr
+
+    var step: U8 = _StepChdir()
+    var errno: I32 = 0
+
+    match wdir
+    | let d: FilePath =>
+      let dir: Pointer[U8] tag = d.path.cstring()
+      if 0 > @chdir[I32](dir) then
+        errno = @pony_os_errno()
+        @write[ISize](err.far_fd, addressof errno, USize(4))
+        @write[ISize](err.far_fd, addressof step, USize(1))        
+        @_exit[None](_EXOSERR())
+      end
+    | None => None
+    end
+
+    step = _StepExecve()
     if 0 > @execve[I32](path.cstring(), argp.cpointer(),
       envp.cpointer())
     then
-      @_exit[None](I32(-1))
+      errno = @pony_os_errno()
+      @write[ISize](err.far_fd, addressof errno, USize(4))
+      @write[ISize](err.far_fd, addressof step, USize(1))
+      @_exit[None](_EXOSERR())
     end
 
   fun tag _dup2(oldfd: U32, newfd: U32) =>
