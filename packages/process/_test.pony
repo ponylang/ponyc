@@ -19,6 +19,9 @@ actor Main is TestList
     test(_TestWritevOrdering)
     test(_TestPrintvOrdering)
     test(_TestStdinWriteBuf)
+    test(_TestChdir)
+    test(_TestBadChdir)
+    test(_TestBadExec)
 
 primitive CatPath
   fun apply(): String =>
@@ -366,6 +369,84 @@ class iso _TestStdinWriteBuf is UnitTest
     end
     h.complete(false)
 
+class _TestChdir is UnitTest
+  fun name(): String =>
+    "process/Chdir"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let parent = Path.dir(Path.cwd())
+    // expect path length + \n
+    let notifier: ProcessNotify iso = _ProcessClient(parent.size() + 1, "", 0, h)
+    try
+      let auth = h.env.root as AmbientAuth
+
+      let path = FilePath(auth, "/bin/pwd")?
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("pwd")
+      let vars: Array[String] iso = recover Array[String](0) end
+
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path,
+          consume args, consume vars, FilePath(auth, parent)?)
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+class _TestBadChdir is UnitTest
+  fun name(): String =>
+    "process/BadChdir"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let badpath = Path.random(10)
+    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
+    try
+      let auth = h.env.root as AmbientAuth
+
+      let path = FilePath(auth, "/bin/pwd")?
+      let args: Array[String] iso = recover Array[String](1) end
+      args.push("pwd")
+      let vars: Array[String] iso = recover Array[String](0) end
+
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path,
+          consume args, consume vars, FilePath(auth, badpath)?)
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+class _TestBadExec is UnitTest
+  fun name(): String =>
+    "process/BadExec"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
+    try
+      let auth = h.env.root as AmbientAuth
+      let path = FilePath(auth, "./_test.sh")?
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path, [], [])
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
@@ -428,6 +509,8 @@ class _ProcessClient is ProcessNotify
     | KillError => _h.fail("ProcessError: KillError")
     | Unsupported => _h.fail("ProcessError: Unsupported")
     | CapError => _h.complete(true) // used in _TestFileExec
+    | (PreExecError, _StepChdir(), _EXOSERR()) => _h.complete(true)
+    | (PreExecError, _StepExecve(), _EXOSERR()) => _h.complete(true)
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>

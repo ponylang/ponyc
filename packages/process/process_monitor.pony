@@ -97,6 +97,7 @@ primitive WriteError
 primitive KillError   // Not thrown at this time
 primitive Unsupported // we throw this on non POSIX systems
 primitive CapError
+primitive PreExecError
 
 type ProcessError is
   ( ExecveError
@@ -107,6 +108,7 @@ type ProcessError is
   | WaitpidError
   | WriteError
   | CapError
+  | (PreExecError, U8, I32)
   )
 
 type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
@@ -122,6 +124,7 @@ actor ProcessMonitor
   var _stdin: _Pipe = _Pipe.none()
   var _stdout: _Pipe = _Pipe.none()
   var _stderr: _Pipe = _Pipe.none()
+  var _err: _Pipe = _Pipe.none()
   var _child: _Process = _ProcessNone
 
   let _max_size: USize = 4096
@@ -141,7 +144,8 @@ actor ProcessMonitor
     notifier: ProcessNotify iso,
     filepath: FilePath,
     args: Array[String] val,
-    vars: Array[String] val)
+    vars: Array[String] val,
+    wdir: (FilePath | None) = None)
   =>
     """
     Create infrastructure to communicate with a forked child process and
@@ -174,10 +178,12 @@ actor ProcessMonitor
       _stdin = _Pipe.outgoing()?
       _stdout = _Pipe.incoming()?
       _stderr = _Pipe.incoming()?
+      _err = _Pipe.incoming()?
     else
       _stdin.close()
       _stdout.close()
       _stderr.close()
+      _err.close()
       _notifier.failed(this, PipeError)
       return
     end
@@ -185,13 +191,14 @@ actor ProcessMonitor
     try
       ifdef posix then
         _child = _ProcessPosix.create(
-          filepath.path, args, vars, _stdin, _stdout, _stderr)?
+          filepath.path, args, vars, wdir, _err, _stdin, _stdout, _stderr)?
       elseif windows then
         _child = _ProcessWindows.create(
           filepath.path, args, vars, _stdin, _stdout, _stderr)
       else
         compile_error "unsupported platform"
       end
+      _err.begin(this)
       _stdin.begin(this)
       _stdout.begin(this)
       _stderr.begin(this)
@@ -300,6 +307,12 @@ actor ProcessMonitor
       elseif AsioEvent.disposable(flags) then
         _stderr.dispose()
       end
+    | _err.event =>
+      if AsioEvent.readable(flags) then
+        _pending_reads(_err)
+      elseif AsioEvent.disposable(flags) then
+        _err.dispose()
+      end
     end
     _try_shutdown()
 
@@ -384,6 +397,10 @@ actor ProcessMonitor
         end
       | _stderr.near_fd =>
         _notifier.stderr(this, consume data)
+      | _err.near_fd =>
+        let child_errno: I32 = try data.read_u32(0)?.i32() else -1 end
+        let step: U8 = try data.read_u8(4)? else -1 end
+        _notifier.failed(this, (PreExecError, step, child_errno))
       end
 
       _read_len = 0
