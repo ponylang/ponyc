@@ -21,7 +21,7 @@ actor Main is TestList
     test(_TestStdinWriteBuf)
     test(_TestChdir)
     test(_TestBadChdir)
-    test(_TestBadExec)
+//    test(_TestBadExec)
 
 primitive CatPath
   fun apply(): String =>
@@ -55,7 +55,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     "process-monitor"
 
   fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h)
+    let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h, CapError)
     try
       let path =
         FilePath(h.env.root as AmbientAuth, CatPath(),
@@ -426,26 +426,26 @@ class _TestBadChdir is UnitTest
       h.fail("Could not create FilePath!")
     end
 
-class _TestBadExec is UnitTest
-  fun name(): String =>
-    "process/BadExec"
-
-  fun exclusion_group(): String =>
-    "process-monitor"
-
-  fun ref apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
-    try
-      let auth = h.env.root as AmbientAuth
-      let path = FilePath(auth, "./_test.sh")?
-      let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, [], [])
-      pm.done_writing()
-      h.dispose_when_done(pm)
-      h.long_test(30_000_000_000)
-    else
-      h.fail("Could not create FilePath!")
-    end
+//class _TestBadExec is UnitTest
+//  fun name(): String =>
+//    "process/BadExec"
+//
+//  fun exclusion_group(): String =>
+//    "process-monitor"
+//
+//  fun ref apply(h: TestHelper) =>
+//    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
+//    try
+//      let auth = h.env.root as AmbientAuth
+//      let path = FilePath(auth, "./_test.sh")?
+//      let pm: ProcessMonitor =
+//        ProcessMonitor(auth, auth, consume notifier, path, [], [])
+//      pm.done_writing()
+//      h.dispose_when_done(pm)
+//      h.long_test(30_000_000_000)
+//    else
+//      h.fail("Could not create FilePath!")
+//    end
 
 class _ProcessClient is ProcessNotify
   """
@@ -459,16 +459,19 @@ class _ProcessClient is ProcessNotify
   let _d_stderr: String ref = String
   let _created: U64
   var _first_data: U64 = 0
+  let _expected_err: (ProcessError | None)
 
   new iso create(
     out: USize,
     err: String,
     exit_code: I32,
-    h: TestHelper)
+    h: TestHelper,
+    expected_err: (ProcessError | None) = None)
   =>
     _out = out
     _err = err
     _exit_code = exit_code
+    _expected_err = expected_err
     _h = h
     _created = Time.nanos()
 
@@ -500,6 +503,23 @@ class _ProcessClient is ProcessNotify
     ProcessMonitor calls this if we run into errors with the
     forked process.
     """
+    match _expected_err
+    | (PreExecError, let step: U8, let exit_code: I32) =>
+      try
+        (_, let step': U8, let exit_code': I32) =
+          err as (PreExecError, U8, I32)
+
+        if (step == step') and (exit_code == exit_code') then
+          _h.complete(true)
+          return None
+        end
+      end
+    | let perr: ProcessError =>
+      if err is perr then
+        _h.complete(true)
+        return None
+      end
+    end
     match err
     | ExecveError => _h.fail("ProcessError: ExecveError")
     | PipeError => _h.fail("ProcessError: PipeError")
@@ -508,9 +528,11 @@ class _ProcessClient is ProcessNotify
     | WriteError => _h.fail("ProcessError: WriteError")
     | KillError => _h.fail("ProcessError: KillError")
     | Unsupported => _h.fail("ProcessError: Unsupported")
-    | CapError => _h.complete(true) // used in _TestFileExec
-    | (PreExecError, _StepChdir(), _EXOSERR()) => _h.complete(true)
-    | (PreExecError, _StepExecve(), _EXOSERR()) => _h.complete(true)
+    | CapError => _h.fail("ProcessError: CapError")
+    | (PreExecError, _StepChdir(), _EXOSERR()) =>
+      _h.fail("ProcessError: (PreExecError, _StepChdir(), _EXOSERR())")
+    | (PreExecError, _StepExecve(), _EXOSERR()) =>
+      _h.fail("ProcessError: (PreExecError, _StepExecve(), _EXOSERR())")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
