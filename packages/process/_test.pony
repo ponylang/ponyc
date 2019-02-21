@@ -21,7 +21,7 @@ actor Main is TestList
     test(_TestStdinWriteBuf)
     test(_TestChdir)
     test(_TestBadChdir)
-//    test(_TestBadExec)
+    test(_TestBadExec)
 
 primitive CatPath
   fun apply(): String =>
@@ -426,26 +426,31 @@ class _TestBadChdir is UnitTest
       h.fail("Could not create FilePath!")
     end
 
-//class _TestBadExec is UnitTest
-//  fun name(): String =>
-//    "process/BadExec"
-//
-//  fun exclusion_group(): String =>
-//    "process-monitor"
-//
-//  fun ref apply(h: TestHelper) =>
-//    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
-//    try
-//      let auth = h.env.root as AmbientAuth
-//      let path = FilePath(auth, "./_test.sh")?
-//      let pm: ProcessMonitor =
-//        ProcessMonitor(auth, auth, consume notifier, path, [], [])
-//      pm.done_writing()
-//      h.dispose_when_done(pm)
-//      h.long_test(30_000_000_000)
-//    else
-//      h.fail("Could not create FilePath!")
-//    end
+class _TestBadExec is UnitTest
+  fun name(): String =>
+    "process/BadExec"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
+    try
+      let auth = h.env.root as AmbientAuth
+      let path = FilePath(auth, "./_test.sh")?
+      try
+        if not File(path).chmod(FileMode.>exec()) then error end
+      else
+        h.fail("Unable to ensure _test.sh is executable")
+      end
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path, [], [])
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
 
 class _ProcessClient is ProcessNotify
   """
