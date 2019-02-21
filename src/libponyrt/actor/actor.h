@@ -38,6 +38,7 @@ typedef struct pony_actor_t
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
   size_t muted; // 4/8 bytes
+  uint32_t msgs_since_gc; // 4 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
   gc_t gc; // 48/88 bytes
