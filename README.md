@@ -335,7 +335,7 @@ When building ponyc from sources the LLVM installed on your system is used by de
 
 ### Instructions:
 
-To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_proj=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_proj=llvm-6.0.0`.
+To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_target=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_target=llvm-6.0.0`.
 
 Typically you only need to build the LLVM sources once, as the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
 
