@@ -317,7 +317,6 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling, size_t batch)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
-  pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
   size_t batch = PONY_ACTOR_DEFAULT_BATCH;
 
@@ -351,9 +350,17 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // unmute because we shouldn't be muted due to our batch size growing
       ponyint_unmute_actor(actor);
   }
+  else
+  {
+    if(ponyint_is_muted(actor))
+      // unmute because we shouldn't be muted due to our batch size growing
+      ponyint_unmute_actor(actor);
+  }
 
   // ensure batch > 0
   pony_assert(batch);
+
+  pony_assert(!ponyint_is_muted(actor));
 
   pony_msg_t* msg;
   size_t app = 0;

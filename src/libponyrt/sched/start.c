@@ -140,6 +140,7 @@ PONY_API int pony_init(int argc, char** argv)
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
   opt.nopin = true;
+  opt.msgs_til_mute = 10;
 
   argc = parse_opts(argc, argv, &opt);
 
