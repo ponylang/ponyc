@@ -24,6 +24,10 @@ pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
 
 static bool actor_noblock = false;
 
+#define MUTE_MAP_COUNT_BITS 0xFFFFFFFF
+#define EXTRA_THROTTLED_MSGS_SENT_BITS 0x7FFFFFFF00000000
+#define EXTRA_THROTTLED_MSGS_SENT_SHIFT 32
+#define MUTED_BIT 0x8000000000000000
 #define PONY_ACTOR_MUTING_MSGS_NO_SCALING 32 - __pony_clz(PONY_ACTOR_DEFAULT_BATCH)
 
 // default actor throttle factor to ensure muting occurs after 10 msgs sent
@@ -239,16 +243,25 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 }
 
 // calculate throttling adjusted batch size
-static size_t throttled_batch_size(pony_actor_t* actor)
+static size_t throttled_batch_size(uint64_t throttle_mute_bitfield)
 {
-  return PONY_ACTOR_DEFAULT_BATCH >> (size_t)((atomic_load_explicit(
-    &actor->mute_map_count, memory_order_relaxed) + atomic_load_explicit(
-    &actor->extra_throttled_msgs_sent, memory_order_relaxed)) *
-    actor_throttlefactor);
+  uint32_t mute_map_count = throttle_mute_bitfield & MUTE_MAP_COUNT_BITS;
+  uint32_t extra_throttled_msgs_sent = (uint32_t)((throttle_mute_bitfield &
+    EXTRA_THROTTLED_MSGS_SENT_BITS) >> EXTRA_THROTTLED_MSGS_SENT_SHIFT);
+
+  return PONY_ACTOR_DEFAULT_BATCH >> (size_t)((mute_map_count +
+    extra_throttled_msgs_sent) * actor_throttlefactor);
 }
 
-// return true if mute occurs
-static bool maybe_mute(pony_actor_t* actor)
+// check if an actor is muted
+static bool is_muted(pony_actor_t* actor)
+{
+  return atomic_load_explicit(&actor->throttle_mute_bitfield,
+    memory_order_relaxed) > MUTED_BIT;
+}
+
+// return new batch size; if it's 0, we muted
+static size_t maybe_mute(pony_actor_t* actor)
 {
   // if we become muted as a result of handling a message, bail out now.
   // we aren't set to "muted" at this point. setting to muted during a
@@ -273,30 +286,32 @@ static bool maybe_mute(pony_actor_t* actor)
   //   a behavior.
   //   2. We should bail out from running the actor and return false so that
   //   it won't be rescheduled.
-  if(throttled_batch_size(actor) == 0)
+
+  uint64_t throttle_mute_bitfield = atomic_load_explicit(
+    &actor->throttle_mute_bitfield, memory_order_relaxed);
+
+  size_t new_batch = 0;
+
+  do
   {
-    // there is a race condition that exists where another thread might
-    // change the `mute_map_count` and/or the `extra_throttled_msgs_sent`
-    // since we've read them to calculate our batch size. We assume that
-    // hasn't happened and mute the actor and deal with that edge case
-    // after.
-    ponyint_mute_actor(actor);
+    // if we're already muted our batch must be 0
+    if(throttle_mute_bitfield > MUTED_BIT)
+      return 0;
 
-    // ensure we should actually be muted and our batch size didn't grow
-    // due to the race condition that exists in relation to multiple
-    // scheduler threads modifying `mute_map_count` and
-    // `extra_throttled_msgs_sent` concurrently
-    if(throttled_batch_size(actor) == 0)
-      return true;
-    else
-    {
-      // unmute because we shouldn't be muted due to our batch size growing
-      ponyint_unmute_actor(actor);
-      return false;
-    }
+    new_batch = throttled_batch_size(throttle_mute_bitfield);
+
+    if(new_batch > 0)
+      return new_batch;
+
   }
+  while(!atomic_compare_exchange_weak_explicit(&actor->throttle_mute_bitfield,
+    &throttle_mute_bitfield, throttle_mute_bitfield | MUTED_BIT,
+    memory_order_relaxed, memory_order_relaxed));
 
-  return false;
+  // we successfully muted the actor
+  // new_batch == 0
+  pony_assert(new_batch == 0);
+  return new_batch;
 }
 
 static bool batch_limit_reached(pony_actor_t* actor, bool polling, size_t batch)
@@ -326,41 +341,19 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   if(has_flag(actor, FLAG_OVERLOADED | FLAG_UNDER_PRESSURE))
     batch = PONY_ACTOR_DEFAULT_BATCH << 1;
   else
-    batch = throttled_batch_size(actor);
-
-  // if batch is 0, we should be muted
-  if(batch == 0)
   {
-    // there is a race condition that exists where another thread might
-    // change the `mute_map_count` and/or the `extra_throttled_msgs_sent`
-    // since we've read them to calculate our batch size. We assume that
-    // hasn't happened and mute the actor and deal with that edge case
-    // after.
-    ponyint_mute_actor(actor);
+    // get batch size and mute if we should have been muted
+    batch = maybe_mute(actor);
 
-    // ensure we should actually be muted and our batch size didn't grow
-    // due to the race condition that exists in relation to multiple
-    // scheduler threads modifying `mute_map_count` and
-    // `extra_throttled_msgs_sent` concurrently
-    batch = throttled_batch_size(actor);
-
+    // if batch is 0, we were muted
     if(batch == 0)
       return false;
-    else
-      // unmute because we shouldn't be muted due to our batch size growing
-      ponyint_unmute_actor(actor);
-  }
-  else
-  {
-    if(ponyint_is_muted(actor))
-      // unmute because we shouldn't be muted due to our batch size growing
-      ponyint_unmute_actor(actor);
   }
 
   // ensure batch > 0
   pony_assert(batch);
 
-  pony_assert(!ponyint_is_muted(actor));
+  pony_assert(!is_muted(actor));
 
   pony_msg_t* msg;
   size_t app = 0;
@@ -380,8 +373,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       app++;
       try_gc(ctx, actor);
 
-      // maybe mute actor
-      if(maybe_mute(actor))
+      // maybe mute actor; returns 0 if mute occurs
+      if(maybe_mute(actor) == 0)
         return false;
 
       // if we've reached our batch limit
@@ -407,8 +400,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       app++;
       try_gc(ctx, actor);
 
-      // maybe mute actor; returns true if mute occurs
-      if(maybe_mute(actor))
+      // maybe mute actor; returns 0 if mute occurs
+      if(maybe_mute(actor) == 0)
         return false;
 
       // if we've reached our batch limit
@@ -426,7 +419,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
-  pony_assert(!ponyint_is_muted(actor));
+  pony_assert(!is_muted(actor));
 
   if(has_flag(actor, FLAG_OVERLOADED) && (app < PONY_ACTOR_DEFAULT_BATCH))
   {
@@ -675,7 +668,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 #endif
     ))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !is_muted(to))
     {
       ponyint_sched_add(ctx, to);
     }
@@ -714,12 +707,32 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 #endif
     ))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+    if(!has_flag(to, FLAG_UNSCHEDULED) && !is_muted(to))
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
       ponyint_sched_add(ctx, to);
     }
+  }
+}
+
+static void increment_throttle_bitmap(pony_actor_t* actor, bool mute_map_added)
+{
+  // ensure we're not muted since a muted actor should never be scheduled
+  pony_assert(!is_muted(actor));
+
+  if(mute_map_added)
+    // increment mute_map_count section of bitfield
+    atomic_fetch_add_explicit(&actor->throttle_mute_bitfield, 1,
+      memory_order_relaxed);
+  else
+  {
+    // increment extra_throttled_msgs_sent section of bitfield
+    uint64_t oldval = atomic_fetch_add_explicit(&actor->throttle_mute_bitfield,
+      (((uint64_t)MUTE_MAP_COUNT_BITS) + 1), memory_order_relaxed);
+
+    (void)oldval;
+    pony_assert(oldval > 0);
   }
 }
 
@@ -739,14 +752,8 @@ void ponyint_maybe_throttle(pony_ctx_t* ctx, pony_actor_t* to)
        !has_flag(ctx->current, FLAG_OVERLOADED | FLAG_UNDER_PRESSURE) &&
        ctx->current != to)
     {
-      if(!ponyint_sched_add_mutemap(ctx, ctx->current, to))
-      {
-        // if mute_map_count wasn't incremented, keep track of it in the extra
-        // throttling msg sent variable
-        // This is safe because it's a single atomic operation
-        atomic_fetch_add_explicit(&ctx->current->extra_throttled_msgs_sent, 1,
-          memory_order_relaxed);
-      }
+      increment_throttle_bitmap(ctx->current,
+        ponyint_sched_add_mutemap(ctx, ctx->current, to));
     }
   }
 }
@@ -859,7 +866,7 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
 
 PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!has_flag(actor, FLAG_UNSCHEDULED) || ponyint_is_muted(actor))
+  if(!has_flag(actor, FLAG_UNSCHEDULED) || is_muted(actor))
     return;
 
   unset_flag(actor, FLAG_UNSCHEDULED);
@@ -933,7 +940,7 @@ PONY_API void pony_release_backpressure()
 bool ponyint_triggers_throttling(pony_actor_t* actor)
 {
   return has_flag(actor, FLAG_OVERLOADED | FLAG_UNDER_PRESSURE) ||
-    ponyint_is_muted(actor);
+    is_muted(actor);
 }
 
 //
@@ -956,9 +963,9 @@ bool ponyint_triggers_throttling(pony_actor_t* actor)
 // additional messages and the sender won't be muted. As this is a transient
 // situtation that should be shortly rectified, there's no harm done.
 //
-// Our handling of atomic operations in `ponyint_is_muted` and
-// `ponyint_unmute_actor` are to assure that rule #1 isn't violated.
-// We have far more relaxed usage of atomics in `ponyint_mute_actor` given the
+// Our handling of atomic operations in `is_muted` and
+// `ponyint_maybe_unmute_actor` are to assure that rule #1 isn't violated.
+// We have far more relaxed usage of atomics in `maybe_mute` given the
 // far more relaxed rule #2.
 //
 // An actor's `is_muted` field is effectly a `bool` value. However, by using a
@@ -967,49 +974,51 @@ bool ponyint_triggers_throttling(pony_actor_t* actor)
 // called (at least once per message send), efficiency is of primary
 // importance.
 
-bool ponyint_is_muted(pony_actor_t* actor)
-{
-  return
-    (atomic_fetch_add_explicit(&actor->is_muted, 0, memory_order_relaxed) > 0);
-}
-
-bool ponyint_mute_actor(pony_actor_t* actor)
-{
-  uint8_t was_muted = atomic_exchange_explicit(&actor->is_muted, 1,
-    memory_order_relaxed);
-
-  // if old value was 0 then we muted the actor; otherwise it was already muted
-  return was_muted == 0;
-}
-
-bool ponyint_unmute_actor(pony_actor_t* actor)
-{
-  uint8_t was_muted = atomic_exchange_explicit(&actor->is_muted, 0,
-    memory_order_relaxed);
-
-  // clear extra throttled message sent
-  atomic_store_explicit(&actor->extra_throttled_msgs_sent, 0,
-    memory_order_relaxed);
-
-  // if old value was 1 then we unmuted the actor; otherwise it was already
-  // unmuted
-  return was_muted == 1;
-}
-
+// handles bookkeeping in the throttle_mute_bitfield
+// returns whether the actor was unmuted or not
 bool ponyint_maybe_unmute_actor(pony_actor_t* actor)
 {
-  // only unmute if it is actually muted currently and not just throttled
-  if(ponyint_is_muted(actor))
-  {
-    // check if the muted/throttled actor should no longer be muted
-    if(!has_flag(actor, FLAG_UNSCHEDULED))
-    {
-      // unmute if new batch would be greater than 0
-      if(throttled_batch_size(actor))
-        return ponyint_unmute_actor(actor);
-    }
-  }
+  uint64_t throttle_mute_bitfield = atomic_load_explicit(
+    &actor->throttle_mute_bitfield, memory_order_relaxed);
 
-  // didn't unmute the actor
-  return false;
+  bool needs_unmuting = false;
+
+  uint32_t mute_map_count = 0;
+  uint64_t new_throttle_mute_bitfield = 0;
+  uint64_t old_muted_bit = 0;
+
+  do
+  {
+    // get current muted bit
+    old_muted_bit = throttle_mute_bitfield & MUTED_BIT;
+
+    // get and decrement mute_map_count because the actor was removed from a
+    // mute map
+    mute_map_count = throttle_mute_bitfield & MUTE_MAP_COUNT_BITS;
+    if(mute_map_count >= 1)
+      mute_map_count--;
+
+    // check if we should be unmuted or not based on throttled batch size
+    // we implicitly change extra_throttled_msgs_set = 0 by only using
+    // mute_map_count and if we're current muted
+    if((throttled_batch_size(mute_map_count) > 0) && (old_muted_bit > 0))
+      needs_unmuting = true;
+    else
+      needs_unmuting = false;
+
+    // figure out new bitfield value depending on whether unmuting or not
+    if(needs_unmuting)
+      // new value has extra_throttled_msgs_sent = 0 and muted_bit = 0
+      new_throttle_mute_bitfield = mute_map_count;
+    else
+      // new value has extra_throttled_msgs_sent = 0 and muted_bit = old_muted_bit
+      new_throttle_mute_bitfield = mute_map_count | old_muted_bit;
+  }
+  while(!atomic_compare_exchange_weak_explicit(&actor->throttle_mute_bitfield,
+    &throttle_mute_bitfield, new_throttle_mute_bitfield,
+    memory_order_relaxed, memory_order_relaxed));
+
+  // we successfully updated the bitfield; needs_unmuting holds the bool of
+  // whether we unmuted or not
+  return needs_unmuting;
 }

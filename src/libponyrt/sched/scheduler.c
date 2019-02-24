@@ -1277,9 +1277,6 @@ bool ponyint_sched_add_mutemap(pony_ctx_t* ctx, pony_actor_t* sender,
   {
     ponyint_muteset_putindex(&mref->value, sender, index2);
 
-    // This is safe because it's a single atomic operation
-    atomic_fetch_add_explicit(&sender->mute_map_count, 1, memory_order_relaxed);
-
     return true;
   }
   return false;
@@ -1311,27 +1308,20 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     // Find and collect any actors that need to be unmuted
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
     {
-      // This is safe because it's a single atomic operation
-      uint32_t mute_map_count = atomic_fetch_sub_explicit(&muted->mute_map_count,
-        1, memory_order_relaxed);
-      pony_assert(mute_map_count >= 1);
-      (void)mute_map_count;
-
-      // clear extra throttled message sent because the actor was removed from a
-      // mute_map
-      atomic_store_explicit(&muted->extra_throttled_msgs_sent, 0,
-        memory_order_relaxed);
-
-      // maybe unmute the actor
+      // maybe unmute the actor; this will take care of updating the bitfield
       if(ponyint_maybe_unmute_actor(muted))
       {
         // if we unmuted the actor
 
-        // TODO: we don't want to reschedule if our queue is empty.
-        // That's wasteful.
-        ponyint_sched_add(ctx, muted);
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
-        actors_rescheduled++;
+        // check if the actor should be rescheduled
+        if(!has_flag(actor, FLAG_UNSCHEDULED))
+        {
+          // TODO: we don't want to reschedule if our queue is empty.
+          // That's wasteful.
+          ponyint_sched_add(ctx, muted);
+          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
+          actors_rescheduled++;
+        }
 
         // tell other scheduler threads that we unmuted the actor
         ponyint_sched_start_global_unmute(ctx->scheduler->index, muted);
