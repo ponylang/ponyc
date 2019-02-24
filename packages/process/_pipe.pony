@@ -119,7 +119,6 @@ class _Pipe
     ifdef posix then
       let flags = if _outgoing then AsioEvent.write() else AsioEvent.read() end
       event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
-      close_far()
     end
     close_far()
 
@@ -161,6 +160,7 @@ class _Pipe
           return (consume read_buf, -1, _EINVAL())
         end
       elseif bytes_avail == 0 then
+        // Peeked ok, but nothing to read. Return and try again later.
         return (consume read_buf, -1, _EAGAIN())
       end
       if bytes_to_read > bytes_avail then
