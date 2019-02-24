@@ -58,7 +58,7 @@ enum
   OPT_GCFACTOR,
   OPT_NOYIELD,
   OPT_NOBLOCK,
-  OPT_NOPIN,
+  OPT_PIN,
   OPT_PINASIO,
   OPT_VERSION
 };
@@ -73,7 +73,7 @@ static opt_arg_t args[] =
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
-  {"ponynopin", 0, OPT_ARG_NONE, OPT_NOPIN},
+  {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 
@@ -98,7 +98,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
-      case OPT_NOPIN: opt->nopin = true; break;
+      case OPT_PIN: opt->nopin = false; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_VERSION: opt->version = true; break;
 
@@ -134,6 +134,7 @@ PONY_API int pony_init(int argc, char** argv)
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
+  opt.nopin = true;
 
   argc = parse_opts(argc, argv, &opt);
 
