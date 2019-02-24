@@ -213,10 +213,11 @@ static void usage(void)
     "                   point value. Defaults to 2.0.\n"
     "  --ponynoyield    Do not yield the CPU when no work is available.\n"
     "  --ponynoblock    Do not send block messages to the cycle detector.\n"
-    "  --ponynopin      Do not pin scheduler threads or the ASIO thread, even\n"
-    "                   if --ponypinasio is set.\n"
+    "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n"
+    "                   can also be pinned if `--ponypinasio` is set.\n"
     "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n"
-    "                   threads are pinned to CPUs.\n"
+    "                   threads are pinned to CPUs. Requires `--ponypin` to\n"
+    "                   be set to have any effect.\n"
     "  --ponyversion    Print the version of the compiler and exit.\n"
     );
 }
