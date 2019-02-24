@@ -196,7 +196,8 @@ clean: clean-except-get
 
 .PHONY: distclean
 distclean: clean-except-get
-	rm -rf $(LLVM_SRC_DIR)/* $(LLVM_SRC_DIR)/.*
+	rm -rf $(LLVM_SRC_DIR)
+	mkdir $(LLVM_SRC_DIR)
 	rm -f get-*
 
 .PHONY: clean-except-get
