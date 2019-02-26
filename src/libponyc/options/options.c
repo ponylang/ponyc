@@ -319,7 +319,11 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
     switch(id)
     {
       case OPT_VERSION:
+#ifdef _MSC_VER
+        printf("%s %d\n", PONY_VERSION_STR, _MSC_VER);
+#else
         printf("%s\n", PONY_VERSION_STR);
+#endif
         printf("Defaults: pic=%s ssl=%s\n", opt->pic ? "true" : "false",
             PONY_DEFAULT_SSL);
         return EXIT_0;

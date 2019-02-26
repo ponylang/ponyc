@@ -306,7 +306,7 @@ public:
           // hoisting loads (see #2303, #2061, #1592).
           // TODO: figure out the real reason LLVM 4 and 5 produce bad code
           // when hoisting stack allocated loads.
-#if PONY_LLVM >= 400 && !defined(_MSC_VER)
+#if PONY_LLVM >= 400
           // fall through
 #else
           break;
