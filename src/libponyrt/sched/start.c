@@ -130,7 +130,7 @@ PONY_API int pony_init(int argc, char** argv)
   memset(&opt, 0, sizeof(options_t));
 
   // Defaults.
-  opt.min_threads = 1;
+  opt.min_threads = 0;
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
