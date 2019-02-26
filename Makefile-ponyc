@@ -435,7 +435,43 @@ endif
 # (3) a list of include directories for a set of libraries
 # (4) a list of the libraries to link against
 llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
-llvm.include := $(CROSS_SYSROOT)$(shell sh -c "$(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC) | grep -oE -- '(^| )-I\s*\S+' | sed 's/^\s*-I\s*/-isystem /g'")
+
+# Get cflags using llvm-config
+llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC)
+llvm.cflags := $(shell sh -c "$(llvm.get_cflags)")
+
+# Get include dirs using grep & sed to extract "-I x/xx" entries
+llvm.get_include_dirs := "echo '$(llvm.cflags)' | grep -oE -- '(^| )-I\s*\S+' | sed 's/^\s*-I\s*//'"
+llvm.include_dirs := $(shell sh -c $(llvm.get_include_dirs))
+
+# Get the compiler output of verbose "-v" and preprocess, "-E" parameters which
+# contains the search paths.
+verbose_preprocess_string := $(shell echo | $(CC) -v -E - 2>&1)
+
+# We must escape any double quotes, ", and any hash, #, characters.
+quoteDblQuote := $(subst ",\",$(verbose_preprocess_string))
+quoted_verbose_preprocess_string := $(subst \#,\\\#,$(quoteDblQuote))
+
+# Now use a sed command line to extract the search paths from the
+# quoted verbose preprocess string
+get_search_paths := sed 's/\(.*\)search starts here:\(.*\)End of search list.\(.*\)/\2/'
+search_paths := $(shell echo "$(quoted_verbose_preprocess_string)" | $(get_search_paths))
+#$(warning search_paths="$(search_paths)")
+
+# Note: $(search_paths) is padded with a space on front and back so
+# that when we iterate the ${inc_dir} variable is guaranteed to have
+# a space at the beginning and end making finding a match easy. If
+# there is no match we output the ${inc_dir}.
+loopit :=									\
+	for inc_dir in $(llvm.include_dirs); do					\
+		if ! echo " $(search_paths) " | grep -q " $${inc_dir} "; then	\
+			echo "-isystem $(CROSS_SYSROOT)$${inc_dir}";		\
+		fi								\
+	done
+
+llvm.include = $(shell $(loopit))
+#$(warning llvm.include=$(llvm.include))
+
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
