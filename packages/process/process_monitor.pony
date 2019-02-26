@@ -133,6 +133,7 @@ actor ProcessMonitor
   var _done_writing: Bool = false
 
   var _closed: Bool = false
+  var _timers: (Timers tag | None) = None  // For windows only
 
   new create(
     auth: ProcessMonitorAuth,
@@ -185,12 +186,30 @@ actor ProcessMonitor
       ifdef posix then
         _child = _ProcessPosix.create(
           filepath.path, args, vars, _stdin, _stdout, _stderr)?
+      elseif windows then
+        _child = _ProcessWindows.create(
+          filepath.path, args, vars, _stdin, _stdout, _stderr)
       else
         compile_error "unsupported platform"
       end
       _stdin.begin(this)
       _stdout.begin(this)
       _stderr.begin(this)
+
+      // Asio is not wired up for Windows, so use a timer for now.
+      ifdef windows then
+        let timers = Timers
+        let pm: ProcessMonitor tag = this
+        let tn =
+          object iso is TimerNotify
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              pm.timer_notify()
+              true
+          end
+        let timer = Timer(consume tn, 50_000_000, 10_000_000)
+        timers(consume timer)
+        _timers = timers
+      end
     else
       _notifier.failed(this, ForkError)
       return
@@ -284,6 +303,15 @@ actor ProcessMonitor
     end
     _try_shutdown()
 
+  be timer_notify() =>
+    """
+    Windows IO polling timer has fired
+    """
+    _pending_writes() // try writes
+    _pending_reads(_stdout)
+    _pending_reads(_stderr)
+    _try_shutdown()
+
   fun ref _close() =>
     """
     Close all pipes and wait for the child process to exit.
@@ -300,6 +328,9 @@ actor ProcessMonitor
       else
         // process child exit code
         _notifier.dispose(this, exit_code)
+      end
+      match _timers
+      | let t: Timers => t.dispose()
       end
     end
 
@@ -398,7 +429,7 @@ actor ProcessMonitor
           _pending.push((data, 0))
           Backpressure.apply(_backpressure_auth)
         else
-          // notify caller, close fd and bail out
+          // Notify caller of error, close fd and done.
           _notifier.failed(this, WriteError)
           _stdin.close_near()
         end
@@ -433,7 +464,7 @@ actor ProcessMonitor
             // Resource temporarily unavailable, send data later.
             return
           else
-            // Close fd and bail out.
+            // Close pipe and bail out.
             _notifier.failed(this, WriteError)
             _stdin.close_near()
             return
