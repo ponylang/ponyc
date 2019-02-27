@@ -302,15 +302,7 @@ public:
         }
 
         case Instruction::Load:
-          // This is a workaround for a problem with LLVM 4 & 5 on *nix when
-          // hoisting loads (see #2303, #2061, #1592).
-          // TODO: figure out the real reason LLVM 4 and 5 produce bad code
-          // when hoisting stack allocated loads.
-#if PONY_LLVM >= 400
-          // fall through
-#else
           break;
-#endif
 
         case Instruction::Store:
         {

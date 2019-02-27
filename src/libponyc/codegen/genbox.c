@@ -27,16 +27,7 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
 
   // Store the primitive in element 1.
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
-  LLVMValueRef store = LLVMBuildStore(c->builder, value, value_ptr);
-
-  const char* box_name = genname_box(t->name);
-  LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
-#if PONY_LLVM >= 400
-  tbaa_tag(c, metadata, store);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-#endif
+  LLVMBuildStore(c->builder, value, value_ptr);
 
   return this_ptr;
 }
@@ -61,15 +52,6 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
 
   LLVMValueRef value = LLVMBuildLoad(c->builder, value_ptr, "");
-
-  const char* box_name = genname_box(t->name);
-  LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
-#if PONY_LLVM >= 400
-  tbaa_tag(c, metadata, value);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(value, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-#endif
 
   return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }

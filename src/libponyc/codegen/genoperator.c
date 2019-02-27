@@ -345,7 +345,7 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
 }
 
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
-  LLVMValueRef r_value, ast_t* p_type, ast_t* l_type, ast_t* r_type)
+  LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
 {
   reach_type_t* t = reach_type(c->reach, l_type);
   pony_assert(t != NULL);
@@ -360,18 +360,7 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
     return NULL;
 
   // Store to the field.
-  LLVMValueRef store = LLVMBuildStore(c->builder, r_value, l_value);
-  LLVMValueRef metadata = tbaa_metadata_for_type(c, p_type);
-
-#if PONY_LLVM >= 400
-  tbaa_tag(c, metadata, result);
-  tbaa_tag(c, metadata, store);
-#else
-  const char id[] = "tbaa";
-  unsigned md_kind = LLVMGetMDKindID(id, sizeof(id) - 1);
-  LLVMSetMetadata(result, md_kind, metadata);
-  LLVMSetMetadata(store, md_kind, metadata);
-#endif
+  LLVMBuildStore(c->builder, r_value, l_value);
 
   return gen_assign_cast(c, c_t->use_type, result, l_type);
 }
@@ -467,8 +456,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       ast_t* p_type = deferred_reify(reify, ast_type(ast_child(left)), c->opt);
       ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
 
-      LLVMValueRef ret = assign_field(c, l_value, r_value, p_type, l_type,
-        r_type);
+      LLVMValueRef ret = assign_field(c, l_value, r_value, l_type, r_type);
 
       ast_free_unattached(p_type);
       ast_free_unattached(l_type);
@@ -482,8 +470,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       ast_t* p_type = deferred_reify(reify, ast_type(ast_child(left)), c->opt);
       ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
 
-      LLVMValueRef r = assign_field(c, l_value, r_value, p_type, l_type,
-        r_type);
+      LLVMValueRef r = assign_field(c, l_value, r_value, l_type, r_type);
 
       ast_free_unattached(p_type);
       ast_free_unattached(l_type);

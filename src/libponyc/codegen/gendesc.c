@@ -69,15 +69,6 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
 
-  const char* box_name = genname_box(t->name);
-  LLVMValueRef metadata = tbaa_metadata_for_box_type(c, box_name);
-#if PONY_LLVM >= 400
-  tbaa_tag(c, metadata, primitive);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(primitive, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-#endif
-
   primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
@@ -489,13 +480,6 @@ static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
 {
   LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, desc, index, "");
   LLVMValueRef field = LLVMBuildLoad(c->builder, ptr, "");
-#if PONY_LLVM >= 400
-  tbaa_tag(c, c->tbaa_descriptor, field);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1),
-    c->tbaa_descriptor);
-#endif
   return field;
 }
 
@@ -503,12 +487,6 @@ LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
 {
   LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, object, 0, "");
   LLVMValueRef desc = LLVMBuildLoad(c->builder, ptr, "");
-#if PONY_LLVM >= 400
-  tbaa_tag(c, c->tbaa_descptr, desc);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(desc, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
-#endif
   return desc;
 }
 
@@ -542,12 +520,6 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef desc, size_t colour)
 
   LLVMValueRef func_ptr = LLVMBuildInBoundsGEP(c->builder, vtable, gep, 2, "");
   LLVMValueRef fun = LLVMBuildLoad(c->builder, func_ptr, "");
-#if PONY_LLVM >= 400
-  tbaa_tag(c, c->tbaa_descriptor, fun);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(fun, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descriptor);
-#endif
   return fun;
 }
 
@@ -578,13 +550,6 @@ LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
   LLVMValueRef field_desc = LLVMBuildInBoundsGEP(c->builder, fields, gep, 2,
     "");
   LLVMValueRef field_info = LLVMBuildLoad(c->builder, field_desc, "");
-#if PONY_LLVM >= 400
-  tbaa_tag(c, c->tbaa_descriptor, field_info);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(field_info, LLVMGetMDKindID(id, sizeof(id) - 1),
-    c->tbaa_descriptor);
-#endif
   return field_info;
 }
 
@@ -668,14 +633,6 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 
   LLVMValueRef index = LLVMBuildInBoundsGEP(c->builder, bitmap, args, 2, "");
   index = LLVMBuildLoad(c->builder, index, "");
-
-#if PONY_LLVM >= 400
-  tbaa_tag(c, c->tbaa_descriptor, index);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(index, LLVMGetMDKindID(id, sizeof(id) - 1),
-    c->tbaa_descriptor);
-#endif
 
   LLVMValueRef has_trait = LLVMBuildAnd(c->builder, index, mask, "");
   has_trait = LLVMBuildICmp(c->builder, LLVMIntNE, has_trait,

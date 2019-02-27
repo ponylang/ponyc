@@ -112,17 +112,6 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
 
   field = LLVMBuildLoad(c->builder, field, "");
 
-  type = deferred_reify(reify, ast_type(left), c->opt);
-  LLVMValueRef metadata = tbaa_metadata_for_type(c, type);
-  ast_free_unattached(type);
-
-#if PONY_LLVM >= 400
-  tbaa_tag(c, metadata, field);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(field, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-#endif
-
   return gen_assign_cast(c, c_t->use_type, field, t->ast_cap);
 }
 
