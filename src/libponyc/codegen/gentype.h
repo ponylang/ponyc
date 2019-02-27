@@ -6,24 +6,6 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct tbaa_metadata_t
-{
-  const char* name;
-  LLVMValueRef metadata;
-} tbaa_metadata_t;
-
-DECLARE_HASHMAP(tbaa_metadatas, tbaa_metadatas_t, tbaa_metadata_t);
-
-tbaa_metadatas_t* tbaa_metadatas_new();
-
-void tbaa_metadatas_free(tbaa_metadatas_t* tbaa_metadatas);
-
-LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type);
-
-LLVMValueRef tbaa_metadata_for_box_type(compile_t* c, const char* box_name);
-
-void tbaa_tag(compile_t* c, LLVMValueRef metadata, LLVMValueRef instr);
-
 void get_fieldinfo(ast_t* l_type, ast_t* right, ast_t** l_def,
   ast_t** field, uint32_t* index);
 

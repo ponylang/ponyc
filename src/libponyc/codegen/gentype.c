@@ -24,117 +24,6 @@
 #include <llvm-c/DebugInfo.h>
 #endif
 
-static size_t tbaa_metadata_hash(tbaa_metadata_t* a)
-{
-  return ponyint_hash_ptr(a->name);
-}
-
-static bool tbaa_metadata_cmp(tbaa_metadata_t* a, tbaa_metadata_t* b)
-{
-  return a->name == b->name;
-}
-
-static void tbaa_metadata_free(tbaa_metadata_t* a)
-{
-  POOL_FREE(tbaa_metadata_t, a);
-}
-
-DEFINE_HASHMAP(tbaa_metadatas, tbaa_metadatas_t, tbaa_metadata_t,
-  tbaa_metadata_hash, tbaa_metadata_cmp, tbaa_metadata_free);
-
-tbaa_metadatas_t* tbaa_metadatas_new()
-{
-  tbaa_metadatas_t* tbaa_mds = POOL_ALLOC(tbaa_metadatas_t);
-  tbaa_metadatas_init(tbaa_mds, 64);
-  return tbaa_mds;
-}
-
-void tbaa_metadatas_free(tbaa_metadatas_t* tbaa_mds)
-{
-  tbaa_metadatas_destroy(tbaa_mds);
-  POOL_FREE(tbaa_metadatas_t, tbaa_mds);
-}
-
-LLVMValueRef tbaa_metadata_for_type(compile_t* c, ast_t* type)
-{
-  pony_assert(ast_id(type) == TK_NOMINAL);
-
-  const char* name = genname_type_and_cap(type);
-  tbaa_metadata_t k;
-  k.name = name;
-  size_t index = HASHMAP_UNKNOWN;
-  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k, &index);
-  if(md != NULL)
-    return md->metadata;
-
-  md = POOL_ALLOC(tbaa_metadata_t);
-  md->name = name;
-  // didn't find it in the map but index is where we can put the
-  // new one without another search
-  tbaa_metadatas_putindex(c->tbaa_mds, md, index);
-
-  LLVMValueRef params[3];
-  params[0] = LLVMMDStringInContext(c->context, name, (unsigned)strlen(name));
-
-  token_id cap = cap_single(type);
-  switch(cap)
-  {
-    case TK_TRN:
-    case TK_REF:
-    {
-      ast_t* tcap = ast_childidx(type, 3);
-      ast_setid(tcap, TK_BOX);
-      params[1] = tbaa_metadata_for_type(c, type);
-      ast_setid(tcap, cap);
-      break;
-    }
-    default:
-      params[1] = c->tbaa_root;
-      break;
-  }
-
-  md->metadata = LLVMMDNodeInContext(c->context, params, 2);
-  return md->metadata;
-}
-
-LLVMValueRef tbaa_metadata_for_box_type(compile_t* c, const char* box_name)
-{
-  tbaa_metadata_t k;
-  k.name = box_name;
-  size_t index = HASHMAP_UNKNOWN;
-  tbaa_metadata_t* md = tbaa_metadatas_get(c->tbaa_mds, &k, &index);
-  if(md != NULL)
-    return md->metadata;
-
-  md = POOL_ALLOC(tbaa_metadata_t);
-  md->name = box_name;
-  // didn't find it in the map but index is where we can put the
-  // new one without another search
-  tbaa_metadatas_putindex(c->tbaa_mds, md, index);
-
-  LLVMValueRef params[2];
-  params[0] = LLVMMDStringInContext(c->context, box_name,
-    (unsigned)strlen(box_name));
-  params[1] = c->tbaa_root;
-
-  md->metadata = LLVMMDNodeInContext(c->context, params, 2);
-  return md->metadata;
-}
-
-void tbaa_tag(compile_t* c, LLVMValueRef metadata, LLVMValueRef instr)
-{
-  const char id[] = "tbaa";
-  unsigned md_kind = LLVMGetMDKindID(id, sizeof(id) - 1);
-
-  LLVMValueRef params[3];
-  params[0] = metadata;
-  params[1] = metadata;
-  params[2] = LLVMConstInt(c->i32, 0, false);
-
-  LLVMValueRef tag = LLVMMDNodeInContext(c->context, params, 3);
-  LLVMSetMetadata(instr, md_kind, tag);
-}
-
 void get_fieldinfo(ast_t* l_type, ast_t* right, ast_t** l_def,
   ast_t** field, uint32_t* index)
 {
@@ -145,34 +34,6 @@ void get_fieldinfo(ast_t* l_type, ast_t* right, ast_t** l_def,
   *l_def = d;
   *field = f;
   *index = i;
-}
-
-static LLVMValueRef make_tbaa_root(LLVMContextRef ctx)
-{
-  const char str[] = "Pony TBAA";
-  LLVMValueRef mdstr = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
-  return LLVMMDNodeInContext(ctx, &mdstr, 1);
-}
-
-static LLVMValueRef make_tbaa_descriptor(LLVMContextRef ctx, LLVMValueRef root)
-{
-  const char str[] = "Type descriptor";
-  LLVMValueRef params[3];
-  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
-  params[1] = root;
-#if PONY_LLVM < 400
-  params[2] = LLVMConstInt(LLVMInt64TypeInContext(ctx), 1, false);
-#endif
-  return LLVMMDNodeInContext(ctx, params, PONY_LLVM < 400 ? 3 : 2);
-}
-
-static LLVMValueRef make_tbaa_descptr(LLVMContextRef ctx, LLVMValueRef root)
-{
-  const char str[] = "Descriptor pointer";
-  LLVMValueRef params[2];
-  params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
-  params[1] = root;
-  return LLVMMDNodeInContext(ctx, params, 2);
 }
 
 static void compile_type_free(void* p)
@@ -919,11 +780,6 @@ bool gentypes(compile_t* c)
     c->trait_bitmap_size = ((c->reach->trait_type_count + 31) & ~31) >> 5;
   else
     c->trait_bitmap_size = ((c->reach->trait_type_count + 63) & ~63) >> 6;
-
-  c->tbaa_root = make_tbaa_root(c->context);
-
-  c->tbaa_descriptor = make_tbaa_descriptor(c->context, c->tbaa_root);
-  c->tbaa_descptr = make_tbaa_descptr(c->context, c->tbaa_root);
 
   allocate_compile_types(c);
   genprim_builtins(c);

@@ -697,7 +697,6 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
   c->frame = NULL;
 
   c->reach = reach_new();
-  c->tbaa_mds = tbaa_metadatas_new();
 
   // This gets a real value once the instance of None has been generated.
   c->none_instance = NULL;
@@ -956,7 +955,6 @@ void codegen_cleanup(compile_t* c)
   LLVMContextDispose(c->context);
   LLVMDisposeTargetData(c->target_data);
   LLVMDisposeTargetMachine(c->machine);
-  tbaa_metadatas_free(c->tbaa_mds);
   genned_strings_destroy(&c->strings);
   ffi_decls_destroy(&c->ffi_decls);
   reach_free(c->reach);
