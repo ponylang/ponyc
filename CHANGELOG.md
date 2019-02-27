@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change `--ponyminthreads` default to `0` ([PR #3020](https://github.com/ponylang/ponyc/pull/3020))
 - Change default to disable pinning of scheduler threads to CPU cores ([PR #3024](https://github.com/ponylang/ponyc/pull/3024))
 - Fix linker library version error on MacOS when installed via Homebrew ([PR #2998](https://github.com/ponylang/ponyc/pull/2998))
 
