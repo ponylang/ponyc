@@ -89,9 +89,7 @@ LLVMMetadataRef LLVMDIBuilderCreateArtificialVariable(LLVMDIBuilderRef d,
 LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
   const char* name, uint64_t size_bits, uint64_t align_bits,
   unsigned encoding);
-#endif
 
-#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
   LLVMMetadataRef elem_type, uint64_t size_bits, uint64_t align_bits);
 #endif
@@ -137,8 +135,10 @@ LLVMValueRef LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
   LLVMValueRef value, LLVMMetadataRef info, LLVMMetadataRef expr,
   unsigned line, unsigned col, LLVMMetadataRef scope, LLVMBasicBlockRef block);
 
+#if PONY_LLVM < 900
 void LLVMSetCurrentDebugLocation2(LLVMBuilderRef b,
   unsigned line, unsigned col, LLVMMetadataRef scope);
+#endif
 
 PONY_EXTERN_C_END
 

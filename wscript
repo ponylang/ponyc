@@ -49,14 +49,14 @@ MSVC_VERSIONS = [ '16.3', '16.2', '16.1', '16.0', '15.9', '15.8', '15.7', '15.6'
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
-    '7.0.1',
-    '6.0.1',
-    '3.9.1'
+    '7.1.0',
+    '8.0.1',
+    '9.0.0'
 ]
 
-LIBRESSL_VERSION = "2.9.0"
-PCRE2_VERSION = "10.32"
-WINDOWS_LIBS_TAG = "v1.8.2"
+LIBRESSL_VERSION = "3.0.0"
+PCRE2_VERSION = "10.33"
+WINDOWS_LIBS_TAG = "v1.9.0"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
@@ -254,13 +254,13 @@ def build(ctx):
             llvmLibs = [re.sub(r'.*[\\\/]([^\\\/)]+)$', r'\1', x) for x in llvmLibFiles.split('.lib') if x]
 
             llvmBuildMode = cmd_output([llvmConfig, '--build-mode'])
-            if llvmBuildMode == 'Release':
+            if llvmBuildMode.upper() == 'RELEASE':
                 llvmBuildMode = 'LLVM_BUILD_MODE_Release'
-            elif llvmBuildMode == 'RelWithDebInfo':
+            elif llvmBuildMode.upper() == 'RELWITHDEBINFO':
                 llvmBuildMode = 'LLVM_BUILD_MODE_RelWithDebInfo'
-            elif llvmBuildMode == 'MinSizeRel':
+            elif llvmBuildMode.upper() == 'MINSIZEREL':
                 llvmBuildMode = 'LLVM_BUILD_MODE_MinSizeRel'
-            elif llvmBuildMode == 'Debug':
+            elif llvmBuildMode.upper() == 'DEBUG':
                 llvmBuildMode = 'LLVM_BUILD_MODE_Debug'
             else:
                 print('Unknown llvm build-mode of {0}'.format(llvmBuildMode))
@@ -268,9 +268,6 @@ def build(ctx):
             llvmBuildMode = 'LLVM_BUILD_MODE={0}'.format(llvmBuildMode)
 
     # build targets:
-
-    if ctx.options.llvm.startswith('4') or ctx.options.llvm.startswith('5') or ctx.options.llvm.startswith('6'):
-        print('WARNING: LLVM 4, 5 and 6 support is experimental and may result in decreased performance or crashes')
 
     # gtest
     ctx(
