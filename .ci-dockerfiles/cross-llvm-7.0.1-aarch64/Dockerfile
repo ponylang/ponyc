@@ -1,4 +1,4 @@
-FROM ponylang/ponyc-ci:llvm-4.0.1
+FROM ponylang/ponyc-ci:llvm-7.0.1
 
 ARG CROSS_TRIPLE=aarch64-unknown-linux-gnu
 ARG CROSS_CC=aarch64-linux-gnu-gcc
