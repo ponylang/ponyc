@@ -1,7 +1,7 @@
 # Build image
 
 ```bash
-docker build -t ponylang/ponyc-ci:cross-llvm-4.0.1-armhf .
+docker build -t ponylang/ponyc-ci:cross-llvm-7.0.1-arm .
 ```
 
 # Run image to test
@@ -9,7 +9,7 @@ docker build -t ponylang/ponyc-ci:cross-llvm-4.0.1-armhf .
 Will get you a bash shell in the image to try cloning Pony into where you can test a build to make sure everything will work before pushing:
 
 ```bash
-docker run --name ponyc-ci-cross-llvm-401-armhf --user pony --rm -i -t ponylang/ponyc-ci:cross-llvm-4.0.1-armhf bash
+docker run --name ponyc-ci-cross-llvm-701-arm --user pony --rm -i -t ponylang/ponyc-ci:cross-llvm-7.0.1-arm bash
 ```
 
 # Run CircleCI jobs locally
@@ -18,8 +18,8 @@ Use the [CircleCI CLI](https://circleci.com/docs/2.0/local-cli/) to run the CI j
 from the ponyc project root:
 
 ```bash
-circleci build --job cross-llvm-401-armhf-debug
-circleci build --job cross-llvm-401-armhf-release
+circleci build --job cross-llvm-701-arm-debug
+circleci build --job cross-llvm-701-arm-release
 ```
 
 # Push to dockerhub
@@ -27,5 +27,5 @@ circleci build --job cross-llvm-401-armhf-release
 You'll need credentials for the ponylang dockerhub account. Talk to @jemc or @seantallen for access
 
 ```bash
-docker push ponylang/ponyc-ci:cross-llvm-4.0.1-armhf
+docker push ponylang/ponyc-ci:cross-llvm-7.0.1-arm
 ```
