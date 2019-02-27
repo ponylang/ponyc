@@ -85,9 +85,11 @@ LLVMMetadataRef LLVMDIBuilderCreateArtificialVariable(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, unsigned arg,
   LLVMMetadataRef file, unsigned line, LLVMMetadataRef type);
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
   const char* name, uint64_t size_bits, uint64_t align_bits,
   unsigned encoding);
+#endif
 
 #if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
