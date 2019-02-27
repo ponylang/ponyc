@@ -151,35 +151,24 @@ case "${TRAVIS_OS_NAME}" in
       make clean
       brew uninstall llvm@3.9
 
-      # 5.0.x
-      brew install llvm@5
-      brew link --overwrite --force llvm@5
-      ln -fs "$(which llvm-config)" llvmsym/llvm-config-5.0
-      ln -fs "$(which clang++)" llvmsym/clang++-5.0
+      # 7.0.x
+      ## THIS WILL BREAK WHEN LLVM 8 is added to brew
+      ## because it will be llvm package and old llvm 7
+      ## will become llm@7
+      export PATH=/usr/local/opt/llvm/bin:$PATH
+      brew install llvm
+      ln -fs "$(which llvm-config)" llvmsym/llvm-config-7.0
+      ln -fs "$(which clang++)" llvmsym/clang++-7.0
+      ln -fs "$(which clang)" llvmsym/clang-7.0
 
-      export CC1=clang-5.0
-      export CXX1=clang++-5.0
-      echo "Running LLVM 5.0 config=release build..."
+      export CC1=clang-7.0
+      export CXX1=clang++-7.0
+      echo "Running LLVM 7.0 config=release build..."
       export config=release
       osx-ponyc-test
 
       make clean
-      brew uninstall llvm@5
-
-      # 6.0.x
-      brew install llvm@6
-      brew link --overwrite --force llvm@6
-      ln -fs "$(which llvm-config)" llvmsym/llvm-config-6.0
-      ln -fs "$(which clang++)" llvmsym/clang++-6.0
-
-      export CC1=clang-6.0
-      export CXX1=clang++-6.0
-      echo "Running LLVM 6.0 config=release build..."
-      export config=release
-      osx-ponyc-test
-
-      make clean
-      brew uninstall llvm@6
+      brew uninstall llvm
     fi
   ;;
 
