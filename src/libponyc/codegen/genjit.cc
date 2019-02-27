@@ -11,6 +11,7 @@
 #  include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #  include <llvm/ExecutionEngine/Orc/Core.h>
 #  include <llvm/ExecutionEngine/Orc/Legacy.h>
+#  include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #  include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
 #  include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #  include <llvm/IR/DataLayout.h>
@@ -21,6 +22,67 @@
 
 using namespace llvm;
 using namespace llvm::orc;
+
+#if PONY_LLVM >= 800
+
+class PonyJIT
+{
+  ExecutionSession _es;
+  RTDyldObjectLinkingLayer _obj_layer;
+  IRCompileLayer _compile_layer;
+
+  DataLayout _dl;
+  MangleAndInterner _mangle;
+  ThreadSafeContext _ctx;
+
+public:
+  PonyJIT(JITTargetMachineBuilder jtmb, DataLayout dl) :
+    _es(),
+    _obj_layer(_es, []() { return llvm::make_unique<SectionMemoryManager>();}),
+    _compile_layer(_es, _obj_layer, ConcurrentIRCompiler(std::move(jtmb))),
+    _dl(std::move(dl)),
+    _mangle(_es, _dl),
+    _ctx(llvm::make_unique<LLVMContext>())
+  {
+    _es.getMainJITDylib().setGenerator(
+      cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(_dl)));
+  }
+
+  static Expected<std::unique_ptr<PonyJIT>> create()
+  {
+    auto jtmb = JITTargetMachineBuilder::detectHost();
+    if (!jtmb)
+      return jtmb.takeError();
+
+    auto dl = jtmb->getDefaultDataLayoutForTarget();
+    if (!dl)
+      return dl.takeError();
+
+    return llvm::make_unique<PonyJIT>(std::move(*jtmb), std::move(*dl));
+  }
+
+  Error addModule(std::unique_ptr<Module> module)
+  {
+    return _compile_layer.add(_es.getMainJITDylib(),
+      ThreadSafeModule(std::move(module), _ctx));
+  }
+
+  Expected<JITEvaluatedSymbol> lookup(StringRef name)
+  {
+    return _es.lookup({&_es.getMainJITDylib()}, _mangle(name.str()));
+  }
+
+  JITTargetAddress getSymbolAddress(const char* name)
+  {
+    auto symbol = lookup(name);
+    if (!symbol)
+      return 0;
+
+    return symbol->getAddress();
+  }
+};
+
+#else
 
 class PonyJIT
 {
@@ -87,6 +149,7 @@ public:
     return cantFail(symbol.getAddress());
   }
 };
+#endif
 
 bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   size_t symbol_count)
@@ -105,8 +168,20 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   if (LLVMVerifyModule(c->module, LLVMReturnStatusAction, NULL) != 0)
     return false;
 
-  PonyJIT jit;
-  jit.addModule(std::unique_ptr<Module>(unwrap(c->module)));
+#if PONY_LLVM >= 800
+  auto jit = cantFail(PonyJIT::create());
+
+  auto err = jit->addModule(std::unique_ptr<Module>(unwrap(c->module)));
+  if (err)
+  {
+    errorf(c->opt->check.errors, nullptr, "LLVM ORC JIT Error");
+    return false;
+  }
+  c->module = nullptr;
+
+#else
+  auto jit = llvm::make_unique<PonyJIT>();
+  jit->addModule(std::unique_ptr<Module>(unwrap<Module>(c->module)));
   c->module = nullptr;
 
   if (jit.error)
@@ -114,10 +189,11 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
     errorf(c->opt->check.errors, nullptr, "LLVM ORC JIT Error");
     return false;
   }
+#endif
 
   for (size_t i = 0; i < symbol_count; i++)
   {
-    void* address = (void*)jit.getSymbolAddress(symbols[i].name);
+    void* address = (void*)jit->getSymbolAddress(symbols[i].name);
     if (address == nullptr)
       return false;
 
@@ -125,7 +201,7 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
   }
 
   auto main = reinterpret_cast<int(*)(int, const char**, const char**)>(
-    jit.getSymbolAddress("main")
+    jit->getSymbolAddress("main")
   );
 
   if (main == nullptr)

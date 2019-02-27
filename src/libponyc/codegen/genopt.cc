@@ -427,7 +427,11 @@ public:
         continue;
       }
 
+#if PONY_LLVM >= 800
+      Instruction* term = bb->getTerminator();
+#else
       TerminatorInst* term = bb->getTerminator();
+#endif
       unsigned count = term->getNumSuccessors();
 
       for(unsigned i = 0; i < count; i++)

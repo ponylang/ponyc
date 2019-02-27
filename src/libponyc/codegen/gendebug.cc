@@ -137,21 +137,25 @@ LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
   DIBuilder* pd = unwrap(d);
   Function* f = unwrap<Function>(func);
 
-#if PONY_LLVM >= 400
+#if PONY_LLVM >= 800
+  DISubprogram::DISPFlags sp_flags = DISubprogram::toSPFlags(false, true,
+    optimized ? true : false);
+
+  DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
+    name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
+    0, 0, nullptr, DINode::FlagZero, sp_flags, nullptr, nullptr);
+#elif PONY_LLVM >= 400
   DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
     name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
     false, true, 0, 0, 0, nullptr, DINode::FlagZero, optimized ? true : false);
-
-  f->setSubprogram(di_method);
-  return wrap(di_method);
 #else
   DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
     name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
     false, true, 0, 0, 0, 0, optimized);
+#endif
 
   f->setSubprogram(di_method);
   return wrap(di_method);
-#endif
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef d,
