@@ -9,9 +9,9 @@ branches:
 
 environment:
   matrix:
-  - llvm: 3.9.1
-  - llvm: 6.0.1
   - llvm: 7.0.1
+  - llvm: 6.0.1
+  - llvm: 3.9.1
 
 configuration:
   - release
