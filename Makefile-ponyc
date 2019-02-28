@@ -232,6 +232,8 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-7.0
   else ifneq (,$(shell which llvm-config-6.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-6.0
+  else ifneq (,$(shell which llvm-config60 2> /dev/null))
+    LLVM_CONFIG = llvm-config60
   else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
     LLVM_CONFIG = llvm-config-3.9
   else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
