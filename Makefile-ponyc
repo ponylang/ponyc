@@ -304,16 +304,12 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifeq ($(llvm_version),3.9.1)
-else ifeq ($(llvm_version),4.0.1)
-else ifeq ($(llvm_version),5.0.0)
-else ifeq ($(llvm_version),5.0.1)
-else ifeq ($(llvm_version),6.0.0)
+else ifeq ($(llvm_version),5.0.2)
 else ifeq ($(llvm_version),6.0.1)
 else ifeq ($(llvm_version),7.0.1)
-else ifeq ($(llvm_version),7.1.0)
 else
   $(warning WARNING: Unsupported LLVM version: $(llvm_version))
-  $(warning Please use LLVM 3.9.1, 4.0.1, 5.0.0, 5.0.1, 6.0.0, 6.0.1, 7.0.1, or 7.1.0)
+  $(warning Please use LLVM 3.9.1, 5.0.2, 6.0.1, 7.0.1)
 endif
 
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"
