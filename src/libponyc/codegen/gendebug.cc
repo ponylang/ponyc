@@ -214,6 +214,7 @@ LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
 }
 #endif
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
   LLVMMetadataRef elem_type, uint64_t size_bits, uint64_t align_bits)
 {
@@ -222,6 +223,7 @@ LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
   return wrap(pd->createPointerType(unwrap<DIType>(elem_type), size_bits,
     static_cast<uint32_t>(align_bits)));
 }
+#endif
 
 #if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef d,
