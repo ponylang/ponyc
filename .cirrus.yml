@@ -3,7 +3,8 @@ freebsd_instance:
 
 test_task:
   install_script:
-    - sudo pkg install -y gmake pcre2 libunwind llvm60 git
+    - pkg update
+    - pkg install -y gmake pcre2 libunwind llvm60 git
   env:
     matrix:
       CONFIG: debug
