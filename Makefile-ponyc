@@ -429,23 +429,34 @@ llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $
 
 # Get cflags using llvm-config
 llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC)
+#$(warning llvm.get_cflags="$(llvm.get_cflags)")
 llvm.cflags := $(shell sh -c "$(llvm.get_cflags)")
+#$(warning llvm.cflags="$(llvm.cflags)")
 
-# Get include dirs using grep & sed to extract "-I x/xx" entries
-llvm.get_include_dirs := "echo '$(llvm.cflags)' | grep -oE -- '(^| )-I\s*\S+' | sed 's/^\s*-I\s*//'"
-llvm.include_dirs := $(shell sh -c $(llvm.get_include_dirs))
+# Get include dirs using grep & sed to extract "-I<dir>" and "-isystem<dir>" entries
+# that can occur anywhere in the string and <dir> may have a leading spaces, but the
+# regex assumes a directory does NOT contain spaces.
+# Note: [:space:] is used for greater portability.
+llvm.get_include_dirs := echo '$(llvm.cflags)' | grep -oE -- '(^-I[[:space:]]*| -I[[:space:]]*|^-isystem[[:space:]]*| -isystem[[:space:]]*)[^[:space:]]+' | sed -E 's/^[[:space:]]*(-I[[:space:]]*|-isystem[[:space:]]*)//'
+#$(warning llvm.get_include_dirs="$(llvm.get_include_dirs)")
+llvm.include_dirs := $(shell sh -c "$(llvm.get_include_dirs)")
+#$(warning llvm.include_dirs="$(llvm.include_dirs)")
 
 # Get the compiler output of verbose "-v" and preprocess, "-E" parameters which
 # contains the search paths.
 verbose_preprocess_string := $(shell echo | $(CC) -v -E - 2>&1)
+#$(warning verbose_preprocess_string="$(verbose_preprocess_string)")
 
 # We must escape any double quotes, ", and any hash, #, characters.
 quoteDblQuote := $(subst ",\",$(verbose_preprocess_string))
+#$(warning quoteDblQuote="$(quoteDblQuote)")
 quoted_verbose_preprocess_string := $(subst \#,\\\#,$(quoteDblQuote))
+#$(warning quoted_verbose_preprocess_string="$(quoted_verbose_preprocess_string)")
 
 # Now use a sed command line to extract the search paths from the
 # quoted verbose preprocess string
 get_search_paths := sed 's/\(.*\)search starts here:\(.*\)End of search list.\(.*\)/\2/'
+#$(warning get_search_paths="$(get_search_paths)")
 search_paths := $(shell echo "$(quoted_verbose_preprocess_string)" | $(get_search_paths))
 #$(warning search_paths="$(search_paths)")
 
@@ -460,8 +471,9 @@ loopit :=									\
 		fi								\
 	done
 
+#$(warning loopit="$(loopit)")
 llvm.include = $(shell $(loopit))
-#$(warning llvm.include=$(llvm.include))
+#$(warning llvm.include="$(llvm.include)")
 
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
