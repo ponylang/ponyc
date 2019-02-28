@@ -52,36 +52,36 @@ jobs:
       - run: make all config=release default_pic=true -j3
       - run: make test-ci config=release default_pic=true
 
-  llvm-600-debug:
+  llvm-601-debug:
     docker:
-      - image: ponylang/ponyc-ci:llvm-6.0.0
+      - image: ponylang/ponyc-ci:llvm-6.0.1
         user: pony
     steps:
       - checkout
       - run: make all config=debug default_pic=true -j3
       - run: make test-ci config=debug default_pic=true
 
-  llvm-600-release:
+  llvm-601-release:
     docker:
-      - image: ponylang/ponyc-ci:llvm-6.0.0
+      - image: ponylang/ponyc-ci:llvm-6.0.1
         user: pony
     steps:
       - checkout
       - run: make all config=release default_pic=true -j3
       - run: make test-ci config=release default_pic=true
 
-  llvm-501-debug:
+  llvm-502-debug:
     docker:
-      - image: ponylang/ponyc-ci:llvm-5.0.1
+      - image: ponylang/ponyc-ci:llvm-5.0.2
         user: pony
     steps:
       - checkout
       - run: make all config=debug default_pic=true -j3
       - run: make test-ci config=debug default_pic=true
 
-  llvm-501-release:
+  llvm-502-release:
     docker:
-      - image: ponylang/ponyc-ci:llvm-5.0.1
+      - image: ponylang/ponyc-ci:llvm-5.0.2
         user: pony
     steps:
       - checkout
@@ -666,10 +666,10 @@ workflows:
       # Run jobs building and testing with the system installed llvm
       - llvm-701-debug
       - llvm-701-release
-      - llvm-600-debug
-      - llvm-600-release
-      - llvm-501-debug
-      - llvm-501-release
+      - llvm-601-debug
+      - llvm-601-release
+      - llvm-502-debug
+      - llvm-502-release
       - llvm-391-debug
       - llvm-391-release
       - openssl-110
