@@ -31,6 +31,7 @@ skip_commits:
     - '**/Dockerfile'
     - LICENSE
     - Makefile
+    - Makefile-ponyc
     - release.bash
     - '**/*.md'
     - '**/*.txt'
