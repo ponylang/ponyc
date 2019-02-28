@@ -3,11 +3,11 @@ freebsd_instance:
 
 test_task:
   install_script:
-    - sudo pkg install -y gmake pcre2 libunwind llvm60 git
+    - sudo pkg install -y gmake pcre2 libunwind llvm60 llvm60-devel git
   env:
     matrix:
       CONFIG: debug
       CONFIG: release
   test_script:
-    - gmake all config=$CONFIG -j3
-    - gmake test-ci config=$CONFIG
+    - gmake all config=$CONFIG -j3 default_ssl=openssl_1.1.0
+    - gmake test-ci config=$CONFIG default_ssl=openssl_1.1.0
