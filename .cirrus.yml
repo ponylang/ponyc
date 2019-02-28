@@ -1,0 +1,13 @@
+freebsd_instance:
+  image: freebsd-12-0-release-amd64
+
+test_task:
+  install_script:
+    - sudo pkg install -y gmake pcre2 libunwind llvm60 git
+  env:
+    matrix:
+      CONFIG: debug
+      CONFIG: release
+  test_script:
+    - gmake all config=$CONFIG -j3
+    - gmake test-ci config=$CONFIG
