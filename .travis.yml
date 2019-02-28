@@ -49,14 +49,6 @@ matrix:
     - RELEASE_DEBS=debian
   - os: linux
     env:
-    - VAGRANT_ENV=freebsd11-x86_64
-    - config=debug
-  - os: linux
-    env:
-    - VAGRANT_ENV=freebsd11-x86_64
-    - config=release
-  - os: linux
-    env:
     - DOCKER_ARCH=i686
     - CROSS_ARCH=i686
     - LLVM_VERSION="3.9.1"
@@ -122,14 +114,6 @@ matrix:
     - QEMU_RUNNER='qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc'
     - CROSS_TUNE=cortex-a53
   allow_failures:
-  - os: linux
-    env:
-    - VAGRANT_ENV=freebsd11-x86_64
-    - config=debug
-  - os: linux
-    env:
-    - VAGRANT_ENV=freebsd11-x86_64
-    - config=release
   - os: linux
     env:
     - DOCKER_ARCH=i686

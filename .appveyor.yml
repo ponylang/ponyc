@@ -21,6 +21,7 @@ skip_commits:
   files:
     - .bintray.sh
     - .circleci/config.yml
+    - .cirrus.yml
     - .gitattributes
     - .gitignore
     - .gitmodules
