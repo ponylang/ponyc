@@ -1,4 +1,4 @@
-1# Build image
+# Build image
 
 ```bash
 docker build -t ponylang/ponyc-ci:llvm-6.0.1 .
