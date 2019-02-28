@@ -760,16 +760,12 @@ gmake
 
 First, install the required dependencies:
 
-* FreeBSD 11 for amd64 (64-bit).  It is extremely difficult to
-coordinate the LLVM version, operating system support for atomics, and
-Pony to work in harmony on FreeBSD 10 or earlier.  (See additional
-info below that mentions problems with 32-bit executable support.)
-
+* Pony is currently supported on FreeBSD12 for amd64 (64-bit) using LLVM 7
 * The following packages, with their installation commands:
 
 ```bash
 sudo pkg install gmake
-sudo pkg install llvm38
+sudo pkg install llvm70
 sudo pkg install pcre2
 sudo pkg install libunwind
 ```
