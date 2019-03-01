@@ -134,7 +134,7 @@ For AppImage, the versions look something like:
 
 `0.3.1`
 
-* [Appveyor](https://ci.appveyor.com/project/ponylang/ponyc/history) (confirm that Appveyor jobs ran successfully for at least the LLVM 3.9.1/Release job)
+* [Appveyor](https://ci.appveyor.com/project/ponylang/ponyc/history) (confirm that Appveyor jobs ran successfully for at least the LLVM/Release job)
 * [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
 For windows, the versions look something like:
