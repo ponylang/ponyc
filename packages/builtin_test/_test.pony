@@ -242,12 +242,68 @@ class iso _TestStringToFloat is UnitTest
   """
   fun name(): String => "builtin/String.float"
 
-  fun apply(h: TestHelper) =>
-    h.assert_eq[F32](4.125, "4.125".f32())
-    h.assert_eq[F64](4.125, "4.125".f64())
+  fun apply(h: TestHelper) ? =>
+    h.assert_eq[F32](4.125, "4.125".f32()?)
+    h.assert_eq[F64](4.125, "4.125".f64()?)
 
-    h.assert_eq[F32](-4.125e-3, "-4.125e-3".f32())
-    h.assert_eq[F64](-4.125e-3, "-4.125e-3".f64())
+    h.assert_eq[F32](-4.125e-3, "-4.125e-3".f32()?)
+    h.assert_eq[F64](-4.125e-3, "-4.125e-3".f64()?)
+
+    h.assert_eq[F32](1.0, "+1.".f32()?)
+    h.assert_eq[F64](1.0, "1.".f64()?)
+
+    // decimal floating-point expression
+    h.assert_eq[F64](1.0, "1".f64()?)
+    h.assert_eq[F32](1.0, "1".f32()?)
+    h.assert_eq[F64](-1234567890.23e2, "-1234567890.23e+2".f64()?)
+    h.assert_eq[F32](-1234567890.23e2, "-1234567890.23e+2".f32()?)
+    h.assert_eq[F64](-1234567890.23e-2, "-1234567890.23E-2".f64()?)
+    h.assert_eq[F32](-1234567890.23e-2, "-1234567890.23E-2".f32()?)
+    h.assert_eq[F64](1234567890.23e2, " +1234567890.23e2".f64()?)
+    h.assert_eq[F32](1234567890.23e2, " +1234567890.23e2".f32()?)
+
+    // binary floating-point expressions
+    h.assert_eq[F64](16.0, "0x10".f64()?)
+    h.assert_eq[F32](16.0, "0X10".f32()?)
+    h.assert_eq[F64](13.9375, "0XD.F".f64()?)
+    h.assert_eq[F32](892.0, "0XD.FP+6".f32()?)
+    h.assert_eq[F64](4.015625, "0X10.10p-2".f64()?)
+
+    // not a number
+    h.assert_true("NaN".f32()?.nan())
+    h.assert_true("+nAn".f64()?.nan())
+    h.assert_true(" -nan".f64()?.nan())
+    h.assert_true("NaN(123)".f64()?.nan()) // nan-boxing ftw
+    h.assert_true("NaN(123)".f32()?.nan()) // nan-boxing ftw
+
+    // infinity
+    h.assert_no_error({() ? =>
+      h.assert_true("Inf".f64()?.infinite())
+    }, "Inf")
+    h.assert_no_error({() ? =>
+      h.assert_true("\t-infinity".f32()?.infinite())
+    }, "\t-infinity")
+    h.assert_no_error({() ? =>
+      h.assert_true("+INFINITY".f64()?.infinite())
+    }, "+INFINITY")
+
+
+    let invalid_float_strings: Array[String] = [
+      ""
+      "a"
+      "1.."
+      "a.1"
+      "~!@#$%^&*()"
+      "1.18973e+4932" // overflow
+      "1.18973e-4932" // underflow
+      "1.12232e+4ABC" // trailing characters
+      "0x"
+      "Infinityi"
+      ]
+    for invalid_float in invalid_float_strings.values() do
+      h.assert_error({() ? => invalid_float.f32()? }, invalid_float + " did not fail for .f32()")
+      h.assert_error({() ? => invalid_float.f64()? }, invalid_float + " did not fail for .f64()")
+    end
 
 class iso _TestStringToU8 is UnitTest
   """
