@@ -4,21 +4,28 @@
 # first.
 #
 # The default target of this makefile builds llvm defined by the submodule,
-# which is currently llvm-3.9.1. You may also build lvm-6.0.0 by using
-# llvm_proj=llvm-6.0.0. In addition, if you specify llvm_proj=llvm-current
+# which is currently llvm-3.9.1. You may also build lvm-7.x by using
+# llvm_target=llvm-7.x. In addition, if you specify llvm_target=llvm-current
 # then lib/llvm/src will not be altered but will be built.
 #
 # In the future compiling lib/llvm will be incorporated into Makefile
 # and Makefile-lib-llvm will be removed.
 
+config ?= release
+
 root_dir := $(shell pwd)
 llvm_dir := $(root_dir)/lib/llvm
-llvm_proj :=
+llvm_target :=
+
+ifneq ($(llvm_proj),)
+	$(error "llvm_proj is not named llvm_target")
+endif
 
 pony_lib_llvm := $(llvm_dir)
 llvm_config := $(pony_lib_llvm)/dist/bin/llvm-config
-llvm_build_type := LLVM_BUID_TYPE=Debug
+llvm_build_type := Release
 new_path := $(pony_lib_llvm)/dist/bin:$(PATH)
+llvm_project_list :=
 
 pony_targets := libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
@@ -26,34 +33,35 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKECMDGOALS) $(MAKEFLAGS)
 
+.PHONY: $(llvm_config)
 $(llvm_config):
-	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) $(llvm_proj)
+	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) $(llvm_target) LLVM_PROJECT_LIST="$(llvm_project_list)"
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild
 rebuild: clean
 	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_CONFIG=$(llvm_config) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKEFLAGS)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild-test
 rebuild-test: clean
 	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_CONFIG=$(llvm_config) test $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) test $(MAKEFLAGS)
 
 # Rebuild and then run some tests as passed in the command line parameter gtest_filter.
 # Note, the clean is needed otherwise the rebuild of llvm won't be linked.
 #
 # For example:
 #  $ time CC=clang CXX=clang++ make -j10 -f Makefile-lib-llvm \
-#  verbose=1 config=debug default_pic=true default_ssl=openssl_1.1.0 llvm_proj=llvm-current rebuild-some-tests \
+#  verbose=1 config=debug default_pic=true default_ssl=openssl_1.1.0 llvm_target=llvm-current rebuild-some-tests \
 #  gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering 2>&1 | tee clang-rebuild-some-tests.txt
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
-	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_CONFIG=$(llvm_config) $(MAKEFLAGS)
+	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) rebuild
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKEFLAGS)
 	@$(MAKE) -f Makefile-lib-llvm some-tests
 
 # Run the some passing gtest_filter on command line, for example:
@@ -65,7 +73,7 @@ some-tests:
 # Clean just ponyc
 .PHONY: clean
 clean:
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc clean
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) clean
 
 # Clean ponyc and lib/llvm
 .PHONY: clean-all
@@ -95,10 +103,17 @@ help:
 	@echo '                       where Name is one of:'
 	@echo '                         openssl_0.9.0 (default)'
 	@echo '                         openssl_1.1.0'
-	@echo '  llvm_proj=Proj       Make llvm where Proj is one of:'
+	@echo '  llvm_target=Target   Make llvm where Target is one of:'
 	@echo '                         llvm-3.9.1 (default if not specified)'
-	@echo '                         llvm-6.0.0'
+	@echo '                         llvm-6.x'
+	@echo '                         llvm-7.x'
 	@echo '                         llvm-current'
+	@echo '                         llvm-default'
+	@echo '  LLVM_BUILD_TYPE=x    Build type with x='
+	@echo '                         Release (default)'
+	@echo '                         Debug'
+	@echo '                         RelWithDebInfo'
+	@echo '                         MinSizeRel'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'

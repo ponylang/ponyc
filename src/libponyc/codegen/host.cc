@@ -47,6 +47,7 @@ TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
 
+#if PONY_LLVM < 700
 char* LLVMGetHostCPUName()
 {
   return strdup(sys::getHostCPUName().str().c_str());
@@ -110,6 +111,7 @@ char* LLVMGetHostCPUFeatures()
 
   return buf;
 }
+#endif
 
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {

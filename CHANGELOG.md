@@ -2,6 +2,30 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.27.0] - 2019-03-01
+
+### Fixed
+
+- Fix default arguments not being displayed correctly in generated docs ([PR #3018](https://github.com/ponylang/ponyc/pull/3018))
+- Fix linker library version error on MacOS when installed via Homebrew ([PR #2998](https://github.com/ponylang/ponyc/pull/2998))
+- Correctly specify linkage on Windows for runtime library backpressure functions. ([PR #2989](https://github.com/ponylang/ponyc/pull/2989))
+- Reject Pointer and MaybePointer from being embedded ([PR #3006](https://github.com/ponylang/ponyc/pull/3006))
+
+### Added
+
+- Add FreeBSD 12 with LLVM 7 as supported platform ([PR #3039](https://github.com/ponylang/ponyc/pull/3039))
+- Windows implementation of Process and Pipe. ([PR #3019](https://github.com/ponylang/ponyc/pull/3019))
+- LLVM 7.0.1 compatibility ([PR #2976](https://github.com/ponylang/ponyc/pull/2976))
+- [RFC 61] Add Modulo Operator (and floored division) ([PR #2997](https://github.com/ponylang/ponyc/pull/2997))
+- Update Windows build system to handle the latest Visual Studio 2017 version ([PR #2992](https://github.com/ponylang/ponyc/pull/2992))
+
+### Changed
+
+- make String.f32() and String.f64() partial ([PR #3043](https://github.com/ponylang/ponyc/pull/3043))
+- Change `--ponyminthreads` default to `0` ([PR #3020](https://github.com/ponylang/ponyc/pull/3020))
+- Change default to disable pinning of scheduler threads to CPU cores ([PR #3024](https://github.com/ponylang/ponyc/pull/3024))
+- Fix linker library version error on MacOS when installed via Homebrew ([PR #2998](https://github.com/ponylang/ponyc/pull/2998))
+
 ## [0.26.0] - 2019-01-25
 
 ### Fixed

@@ -9,9 +9,7 @@ branches:
 
 environment:
   matrix:
-  - llvm: 3.9.1
-  - llvm: 5.0.1
-  - llvm: 6.0.0
+  - llvm: 7.0.1
 
 configuration:
   - release
@@ -22,7 +20,9 @@ skip_tags: true
 skip_commits:
   files:
     - .bintray.sh
+    - .ci-dockerfiles/*
     - .circleci/config.yml
+    - .cirrus.yml
     - .gitattributes
     - .gitignore
     - .gitmodules
@@ -33,6 +33,7 @@ skip_commits:
     - '**/Dockerfile'
     - LICENSE
     - Makefile
+    - Makefile-ponyc
     - release.bash
     - '**/*.md'
     - '**/*.txt'
@@ -78,10 +79,10 @@ deploy:
     package: ponyc
     on:
         branch: release
-        llvm: 3.9.1
+        llvm: 7.0.1
         configuration: release
     publish: true
 
 test_script:
   - cd C:\projects\ponyc
-  - python -x waf test --config %configuration% --llvm %llvm%
+  - python -x waf test examples --config %configuration% --llvm %llvm%

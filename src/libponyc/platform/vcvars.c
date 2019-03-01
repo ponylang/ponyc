@@ -23,20 +23,20 @@ typedef struct vsinfo_t
 static const vsinfo_t vs_infos[] =
 {
   { // VS2017 full install & Visual C++ Build Tools 2017
-    "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7", 
-    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64" 
+    "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
+    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64"
   },
   { // VS2015 full install
-    "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7", 
-    "14.0", NULL, "VC\\bin\\amd64\\", "VC\\lib\\amd64" 
+    "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
+    "14.0", NULL, "VC\\bin\\amd64\\", "VC\\lib\\amd64"
   },
   { // Visual C++ Build Tools 2015
-    "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VC7", 
-    "14.0", NULL, "bin\\amd64\\", "lib\\amd64" 
+    "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VC7",
+    "14.0", NULL, "bin\\amd64\\", "lib\\amd64"
   },
   { // VS2015 fallback
-    "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\14.0", 
-    "InstallDir", NULL, "..\\..\\VC\\bin\\amd64\\", "..\\..\\VC\\lib\\amd64" 
+    "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\14.0",
+    "InstallDir", NULL, "..\\..\\VC\\bin\\amd64\\", "..\\..\\VC\\lib\\amd64"
   },
   {
     NULL
@@ -141,12 +141,12 @@ static bool find_registry_value(char *path, char *name, search_t* p)
       (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) == ERROR_SUCCESS)
   {
     DWORD size = MAX_PATH;
-    success = RegGetValue(key, NULL, name, RRF_RT_REG_SZ, 
+    success = RegGetValue(key, NULL, name, RRF_RT_REG_SZ,
       NULL, p->path, &size) == ERROR_SUCCESS;
   }
 
   RegCloseKey(key);
-  return success;  
+  return success;
 }
 
 static uint64_t get_version(const char* str)
@@ -158,7 +158,7 @@ static uint64_t get_version(const char* str)
 
   while (*token != NULL && !isdigit(*token))
     token++;
-  
+
   if (*token != NULL)
   {
     char *dot;
@@ -262,10 +262,10 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   return true;
 }
 
-static bool find_executable(const char* path, const char* name, 
+static bool find_executable(const char* path, const char* name,
   char* dest, bool recurse, errors_t* errors)
 {
-  TCHAR full_path[MAX_PATH + 1]; 
+  TCHAR full_path[MAX_PATH + 1];
   TCHAR best_path[MAX_PATH + 1];
   strcpy(full_path, path);
   strcat(full_path, name);
@@ -296,11 +296,11 @@ static bool find_executable(const char* path, const char* name,
         strncat(full_path, entry, MAX_PATH - strlen(full_path));
         if ((GetFileAttributes(full_path) != FILE_ATTRIBUTE_DIRECTORY))
           continue;
-        
+
         uint64_t ver = get_version(entry);
         if (ver == 0)
           continue;
-        
+
         if (ver > best_version)
         {
           best_version = ver;
@@ -319,23 +319,99 @@ static bool find_executable(const char* path, const char* name,
   return false;
 }
 
-static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars, errors_t* errors)
+static bool find_executables(compile_t *c, const vsinfo_t *info, vcvars_t *vcvars,
+  TCHAR *install_path, TCHAR *link_path, TCHAR *lib_path, errors_t *errors)
 {
-  search_t vs;
+  strncat(install_path, info->search_path, MAX_PATH - strlen(install_path));
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    fprintf(stderr, "searching for %s .. \\%s and \\%s\n",
+      install_path, link_path, lib_path);
 
+  if (find_executable(install_path, link_path, vcvars->link, true, errors))
+  {
+    strncpy(install_path, vcvars->link, MAX_PATH);
+    size_t ver_index = strlen(vcvars->link) - strlen(link_path);
+    install_path[ver_index] = 0;
+
+    if (find_executable(install_path, lib_path, vcvars->ar, false, errors))
+    {
+      strncpy(vcvars->msvcrt, install_path, MAX_PATH);
+      strncat(vcvars->msvcrt, info->lib_path,
+        MAX_PATH - strlen(vcvars->msvcrt));
+
+      if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+      {
+        fprintf(stderr, "linker:  %s\n", vcvars->link);
+        fprintf(stderr, "libtool: %s\n", vcvars->ar);
+        fprintf(stderr, "libdir:  %s\n", vcvars->msvcrt);
+      }
+
+      return true;
+    }
+  }
+  return false;
+}
+
+static const TCHAR* VSWHERE_PATH =
+  "\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest\"";
+
+static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
+  errors_t *errors)
+{
   TCHAR link_path[MAX_PATH + 1];
   TCHAR lib_path[MAX_PATH + 1];
-
   const vsinfo_t* info;
+
+  // try using vswhere to find Visual Studio
+  if (c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    fprintf(stderr, "detecting Visual Studio via %s\n", VSWHERE_PATH);
+
+  TCHAR buffer[MAX_PATH * 2];
+  FILE *output;
+  if ((output = _popen(VSWHERE_PATH, "rt")) != NULL)
+  {
+    while (fgets(buffer, MAX_PATH * 2, output))
+    {
+      size_t len;
+      if (strncmp("installationPath", buffer, 16) == 0
+        && (len = strlen(buffer)) > 18)
+      {
+        // strip newlines, add a slash if necessary
+        while (len > 0 && buffer[len - 1] == '\n')
+          buffer[--len] = 0;
+        if (buffer[len - 1] != '\\' && len + 2 < (MAX_PATH * 2))
+        {
+          buffer[len] = '\\';
+          buffer[len + 1] = 0;
+        }
+
+        strncpy(link_path, vs_infos[0].bin_path, MAX_PATH);
+        strncat(link_path, "link.exe", MAX_PATH - strlen(link_path));
+        strncpy(lib_path, vs_infos[0].bin_path, MAX_PATH);
+        strncat(lib_path, "lib.exe", MAX_PATH - strlen(lib_path));
+
+        if (find_executables(c, &vs_infos[0], vcvars, buffer + 18, link_path,
+          lib_path, errors))
+        {
+          _pclose(output);
+          return true;
+        }
+      }
+    }
+    _pclose(output);
+  }
+
+  // try using registry keys
+  search_t vs;
   for (info = vs_infos; info->version != NULL; info++)
   {
-    if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-      fprintf(stderr, "searching for VS in registry: %s\\%s\n", 
+    if (c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+      fprintf(stderr, "searching for VS in registry: %s\\%s\n",
         info->reg_path, info->reg_key);
 
     if (!find_registry_value(info->reg_path, info->reg_key, &vs))
       continue;
-    
+
     strncpy(link_path, info->bin_path, MAX_PATH);
     strncat(link_path, "link.exe", MAX_PATH - strlen(link_path));
     strncpy(lib_path, info->bin_path, MAX_PATH);
@@ -344,44 +420,21 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars, errors_t* err
     // VS2017 may have multiple VC++ installs; search for the latest one
     if (info->search_path != NULL)
     {
-      strncat(vs.path, info->search_path, MAX_PATH - strlen(vs.path));
-      if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-        fprintf(stderr, "searching for %s .. \\%s and \\%s\n", 
-          vs.path, link_path, lib_path);
-
-      if (find_executable(vs.path, link_path, vcvars->link, true, errors))
+      if (find_executables(c, info, vcvars, vs.path, link_path, lib_path,
+        errors))
       {
-        strncpy(vs.path, vcvars->link, MAX_PATH);
-        size_t ver_index = strlen(vcvars->link) - strlen(link_path);
-        strncpy(vs.version, vs.path + ver_index, MAX_PATH);
-        vs.path[ver_index] = 0;
-        
-        if (find_executable(vs.path, lib_path, vcvars->ar, false, errors))
-        {
-          strncpy(vcvars->msvcrt, vs.path, MAX_PATH);
-          strncat(vcvars->msvcrt, info->lib_path, 
-            MAX_PATH - strlen(vcvars->msvcrt));
-          
-          if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-          {
-            fprintf(stderr, "linker:  %s\n", vcvars->link);
-            fprintf(stderr, "libtool: %s\n", vcvars->ar);
-            fprintf(stderr, "libdir:  %s\n", vcvars->msvcrt);
-          }
-
-          return true;
-        }
+        return true;
       }
     }
     else // VS2015 has one place for VC++
-    {      
+    {
       if (find_executable(vs.path, link_path, vcvars->link, false, errors) &&
           find_executable(vs.path, lib_path, vcvars->ar, false, errors))
       {
         strncpy(vs.version, info->version, MAX_VER_LEN);
 
         strncpy(vcvars->msvcrt, vs.path, MAX_PATH);
-        strncat(vcvars->msvcrt, info->lib_path, 
+        strncat(vcvars->msvcrt, info->lib_path,
           MAX_PATH - strlen(vcvars->msvcrt));
 
         if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -395,7 +448,7 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars, errors_t* err
       }
     }
   }
-  
+
   errorf(errors, NULL, "unable to locate a Microsoft link.exe; please "
     "install Visual Studio 2015 or later: https://www.visualstudio.com/");
   return false;

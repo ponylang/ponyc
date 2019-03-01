@@ -286,7 +286,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   snprintf(ld_cmd, ld_len,
     "%s -execute -no_pie -arch %.*s "
-    "-macosx_version_min 10.8 -o %s %s %s %s -lSystem",
+    "-macosx_version_min 10.12 -o %s %s %s %s -lSystem",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt
     );
@@ -456,9 +456,10 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
     fprintf(stderr, "%s\n", ld_cmd);
 
-  if (system(ld_cmd) == -1)
+  int result = system(ld_cmd);
+  if (result != 0)
   {
-    errorf(errors, NULL, "unable to link: %s", ld_cmd);
+    errorf(errors, NULL, "unable to link: %s: %d", ld_cmd, result);
     ponyint_pool_free_size(ld_len, ld_cmd);
     return false;
   }

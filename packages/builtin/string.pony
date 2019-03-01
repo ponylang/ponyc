@@ -1,8 +1,10 @@
 use @memcmp[I32](dst: Pointer[U8] box, src: Pointer[U8] box, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
-use @strtof[F32](nptr: Pointer[U8] box, endptr: USize)
-use @strtod[F64](nptr: Pointer[U8] box, endptr: USize)
+use @strtof[F32](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
+use @strtod[F64](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
+use @pony_os_clear_errno[None]()
+use @pony_os_errno[I32]()
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
@@ -1478,22 +1480,70 @@ actor Main
     // No base specified, default to decimal
     (10, 0)
 
-  fun f32(offset: ISize = 0): F32 =>
-    let index = offset_to_index(offset)
+  fun f32(offset: ISize = 0): F32 ? =>
+    """
+    Convert this string starting at the given offset
+    to a 32-bit floating point number ([F32](builtin-F32.md)).
 
+    This method errors if this string cannot be parsed to a float,
+    if the result would over- or underflow,
+    the offset exceeds the size of this string or
+    there are leftover characters in the string after conversion.
+
+    Examples:
+
+    ```pony
+    "1.5".f32()? == F32(1.5)
+    "1.19208e-07".f32()? == F32(1.19208e-07)
+    "NaN".f32()?.nan() == true
+    ```
+    """
+    let index = offset_to_index(offset)
     if index < _size then
-      @strtof(_ptr._offset(index), 0)
+      @pony_os_clear_errno()
+      var endp: Pointer[U8] box = Pointer[U8]
+      let res = @strtof(_ptr._offset(index), addressof endp)
+      let errno: I32 = @pony_os_errno()
+      if (errno != 0) or (endp != _ptr._offset(_size)) then
+        error
+      else
+        res
+      end
     else
-      F32(0)
+      error
     end
 
-  fun f64(offset: ISize = 0): F64 =>
-    let index = offset_to_index(offset)
+  fun f64(offset: ISize = 0): F64 ? =>
+    """
+    Convert this string starting at the given offset
+    to a 64-bit floating point number ([F64](builtin-F64.md)).
 
+    This method errors if this string cannot be parsed to a float,
+    if the result would over- or underflow,
+    the offset exceeds the size of this string or
+    there are leftover characters in the string after conversion.
+
+    Examples:
+
+    ```pony
+    "1.5".f64()? == F64(1.5)
+    "1.19208e-07".f64()? == F64(1.19208e-07)
+    "Inf".f64()?.infinite() == true
+    ```
+    """
+    let index = offset_to_index(offset)
     if index < _size then
-      @strtod(_ptr._offset(index), 0)
+      @pony_os_clear_errno()
+      var endp: Pointer[U8] box = Pointer[U8]
+      let res = @strtod(_ptr._offset(index), addressof endp)
+      let errno: I32 = @pony_os_errno()
+      if (errno != 0) or (endp != _ptr._offset(_size)) then
+        error
+      else
+        res
+      end
     else
-      F64(0)
+      error
     end
 
   fun hash(): USize =>

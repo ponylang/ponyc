@@ -340,14 +340,7 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
     return;
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
-  LLVMValueRef store = LLVMBuildStore(c->builder,
-    ((compile_type_t*)t->c_type)->desc, desc_ptr);
-#if PONY_LLVM >= 400
-  tbaa_tag(c, c->tbaa_descptr, store);
-#else
-  const char id[] = "tbaa";
-  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), c->tbaa_descptr);
-#endif
+  LLVMBuildStore(c->builder, ((compile_type_t*)t->c_type)->desc, desc_ptr);
 }
 
 // This function builds a stack of indices such that for an AST nested in an
@@ -1404,6 +1397,14 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 {
   LLVMValueRef func = LLVMMemcpy(c->module, target_is_ilp32(c->opt->triple));
 
+#if PONY_LLVM >= 700
+  LLVMValueRef args[4];
+  args[0] = dst;
+  args[1] = src;
+  args[2] = n;
+  args[3] = LLVMConstInt(c->i1, 0, false);
+  LLVMBuildCall(c->builder, func, args, 4, "");
+#else
   LLVMValueRef args[5];
   args[0] = dst;
   args[1] = src;
@@ -1411,6 +1412,7 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   args[3] = LLVMConstInt(c->i32, 1, false);
   args[4] = LLVMConstInt(c->i1, 0, false);
   LLVMBuildCall(c->builder, func, args, 5, "");
+#endif
 }
 
 void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
@@ -1418,6 +1420,14 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 {
   LLVMValueRef func = LLVMMemmove(c->module, target_is_ilp32(c->opt->triple));
 
+#if PONY_LLVM >= 700
+  LLVMValueRef args[5];
+  args[0] = dst;
+  args[1] = src;
+  args[2] = n;
+  args[3] = LLVMConstInt(c->i1, 0, false);
+  LLVMBuildCall(c->builder, func, args, 4, "");
+#else
   LLVMValueRef args[5];
   args[0] = dst;
   args[1] = src;
@@ -1425,6 +1435,7 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   args[3] = LLVMConstInt(c->i32, 1, false);
   args[4] = LLVMConstInt(c->i1, 0, false);
   LLVMBuildCall(c->builder, func, args, 5, "");
+#endif
 }
 
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)

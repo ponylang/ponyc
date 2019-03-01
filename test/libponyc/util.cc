@@ -115,7 +115,9 @@ static const char* const _builtin =
   "  fun ref has_next(): Bool\n"
   "  fun ref next(): A ?\n"
   "primitive DoNotOptimise\n"
-  "  fun apply[A](obj: A) => compile_intrinsic";
+  "  fun apply[A](obj: A) => compile_intrinsic\n"
+  "struct MaybePointer[A]\n"
+  "  new create(that: A) => compile_intrinsic\n";
 
 
 // Check whether the 2 given ASTs are identical

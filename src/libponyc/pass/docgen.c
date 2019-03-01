@@ -650,14 +650,14 @@ static void code_block_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
     {
-      switch(ast_id(def_val))
+      switch(ast_id(ast_child(def_val)))
       {
         case TK_STRING:
-          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = \"%s\"", ast_get_print(ast_child(def_val)));
           break;
 
         default:
-          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = %s", ast_get_print(ast_child(def_val)));
           break;
       }
     }
@@ -692,14 +692,14 @@ static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
     {
-      switch(ast_id(def_val))
+      switch(ast_id(ast_child(def_val)))
       {
         case TK_STRING:
-          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = \"%s\"", ast_get_print(ast_child(def_val)));
           break;
 
         default:
-          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = %s", ast_get_print(ast_child(def_val)));
           break;
       }
     }

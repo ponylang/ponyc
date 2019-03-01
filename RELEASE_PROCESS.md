@@ -10,6 +10,7 @@ In order to do a release, you absolutely must have:
 * The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 * Access to the ponylang twitter account
 * Accounts on reddit/hacker news/lobste.rs/ponylang irc for posting release notes
+* An account on the [Pony slack](https://ponylang.io/get-slack-invite)
 
 While not strictly required, your life will be made much easier if you:
 
@@ -99,6 +100,10 @@ Leave a comment on the GitHub issue for this release letting @stefantalpalaru kn
 
 There's no real Nix release. However, @kamilchm is maintaining Nix Pony packages. Drop him a note on the GitHub issue so he is aware of the release.
 
+### "Kick off" the FreeBSD ports update
+
+There's no FreeBSD release that happens. However, @myfreeweb is maintaining the FreeBSD port. Drop a note on the GitHub issue so they are aware of the release.
+
 ### Update the GitHub issue as needed
 
 At this point we are basically waiting on Travis, Appveyor and Homebrew. As each finishes, leave a note on the GitHub issue for this release letting everyone know where we stand status wise. For example: "Release 0.3.1 is now available via Homebrew".
@@ -160,7 +165,7 @@ curl -sL https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula
 
 If the formulae has been successfully updated, you'll see the new download url in the output of the command. If it hasn't, you'll see the old url.
 
-Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform IRC and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and IRC.
+Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform IRC, Slack, and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user, Slack, and IRC.
 
 ### Wait on Docker images to be built
 
@@ -183,6 +188,12 @@ Once all the release steps have been confirmed as successful, merge the PR you c
 ### Inform #ponylang
 
 Once Travis, Appveyor and Homebrew are all finished, drop a note in the #ponylang IRC channel (on freenode) letting everyone know that the release is out and include a link the release blog post. ([example](https://irclog.whitequark.org/ponylang/2018-05-26#22183154;))
+
+If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
+
+### Inform the Pony Slack
+
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the #general channel of the Pony Slack letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 

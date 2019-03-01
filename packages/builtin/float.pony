@@ -88,6 +88,32 @@ primitive F32 is FloatingPoint[F32]
   fun min(y: F32): F32 => if this < y then this else y end
   fun max(y: F32): F32 => if this > y then this else y end
 
+  fun fld(y: F32): F32 =>
+    (this / y).floor()
+
+  fun fld_unsafe(y: F32): F32 =>
+    (this /~ y).floor()
+
+  fun mod(y: F32): F32 =>
+    let r = this % y
+    if r == F32(0.0) then
+      r.copysign(y)
+    elseif (r > 0) xor (y > 0) then
+      r + y
+    else
+      r
+    end
+
+  fun mod_unsafe(y: F32): F32 =>
+    let r = this %~ y
+    if r == F32(0.0) then
+      r.copysign(y)
+    elseif (r > 0) xor (y > 0) then
+      r + y
+    else
+      r
+    end
+
   fun finite(): Bool =>
     """
     Check whether this number is finite, ie not +/-infinity and not NaN.
@@ -278,6 +304,32 @@ primitive F64 is FloatingPoint[F64]
 
   fun min(y: F64): F64 => if this < y then this else y end
   fun max(y: F64): F64 => if this > y then this else y end
+
+  fun fld(y: F64): F64 =>
+    (this / y).floor()
+
+  fun fld_unsafe(y: F64): F64 =>
+    (this /~ y).floor()
+
+  fun mod(y: F64): F64 =>
+    let r = this.rem(y)
+    if r == F64(0.0) then
+      r.copysign(y)
+    elseif (r > 0) xor (y > 0) then
+      r + y
+    else
+      r
+    end
+
+  fun mod_unsafe(y: F64): F64 =>
+    let r = this %~ y
+    if r == F64(0.0) then
+      r.copysign(y)
+    elseif (r > 0) xor (y > 0) then
+      r + y
+    else
+      r
+    end
 
   fun finite(): Bool =>
     """

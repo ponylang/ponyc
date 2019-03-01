@@ -20,8 +20,12 @@
 PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
+
+#if PONY_LLVM < 700
 char* LLVMGetHostCPUName();
 char* LLVMGetHostCPUFeatures();
+#endif
+
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
 void LLVMSetNoSignedWrap(LLVMValueRef inst);
@@ -61,8 +65,6 @@ DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
 typedef struct ffi_decl_t ffi_decl_t;
 DECLARE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t);
 
-typedef struct tbaa_metadatas_t tbaa_metadatas_t;
-
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;
@@ -88,7 +90,6 @@ typedef struct compile_t
 {
   pass_opt_t* opt;
   reach_t* reach;
-  tbaa_metadatas_t* tbaa_mds;
   genned_strings_t strings;
   ffi_decls_t ffi_decls;
   const char* filename;
@@ -174,11 +175,6 @@ typedef struct compile_t
   LLVMBuilderRef builder;
   LLVMDIBuilderRef di;
   LLVMMetadataRef di_unit;
-  LLVMValueRef tbaa_root;
-#if LLVM_PONY < 400
-  LLVMValueRef tbaa_descriptor;
-  LLVMValueRef tbaa_descptr;
-#endif
   LLVMValueRef none_instance;
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;

@@ -325,7 +325,7 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#build-llvm-from-source). In either case the supported version of LLVM is 3.9.1, with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
+When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#building-ponyc-using-llvm-sources). In either case the supported version of LLVM is 3.9.1, with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
 
 ## Building ponyc using LLVM sources:
 
@@ -335,7 +335,7 @@ When building ponyc from sources the LLVM installed on your system is used by de
 
 ### Instructions:
 
-To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_proj=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_proj=llvm-6.0.0`.
+To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of the examples below. For instance on Ubuntu the standard command line is simply `make`, to build ponyc using LLVM from sources the command line is `make -f Makefile-lib-llvm`. Alternatively you can create a symlink from Makefile to Makefile-lib-llvm, `ln -sf Makefile-lib-llvm Makefile`, and no changes would be needed to the commands. You can specify `llvm_target=llvm-6.0.0` on the command line and those sources will be used. For example `make -f Makefile-lib-llvm llvm_target=llvm-6.0.0`.
 
 Typically you only need to build the LLVM sources once, as the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
 
@@ -739,37 +739,26 @@ make
 
 ## Building on DragonFly
 
-Dragonfly has been tested on 64-bit X86 DragonFly 4.8.
+Pony previously worked on DragonFly, however, at this time, while it builds, it doesn't pass all tests. If you'd be interested in getting Pony working on DragonFly, have at it. You'll need the following dependencies:
 
 First, install the required dependencies:
 
 ```bash
 sudo pkg install gmake
-sudo pkg install llvm38
+sudo pkg install llvm60
 sudo pkg install pcre2
-```
-
-This will build ponyc and compile helloworld:
-
-```bash
-gmake
-./build/release/ponyc examples/helloworld
 ```
 
 ## Building on FreeBSD
 
 First, install the required dependencies:
 
-* FreeBSD 11 for amd64 (64-bit).  It is extremely difficult to
-coordinate the LLVM version, operating system support for atomics, and
-Pony to work in harmony on FreeBSD 10 or earlier.  (See additional
-info below that mentions problems with 32-bit executable support.)
-
+* Pony is currently supported on FreeBSD12 for amd64 (64-bit) using LLVM 7
 * The following packages, with their installation commands:
 
 ```bash
 sudo pkg install gmake
-sudo pkg install llvm38
+sudo pkg install llvm70
 sudo pkg install pcre2
 sudo pkg install libunwind
 ```

@@ -45,18 +45,18 @@ CONFIGS = [
     'debug'
 ]
 
-MSVC_VERSIONS = [ '15.6', '15.4', '15.0', '14.0' ]
+MSVC_VERSIONS = [ '15.9', '15.8', '15.7', '15.6', '15.4', '15.0', '14.0' ]
 
 # keep these in sync with the list in .appveyor.yml
 LLVM_VERSIONS = [
-    '3.9.1',
-    '5.0.1',
-    '6.0.0'
+    '7.0.1',
+    '6.0.1',
+    '3.9.1'
 ]
 
-WINDOWS_LIBS_TAG = "v1.7.0"
-LIBRESSL_VERSION = "2.6.4"
-PCRE2_VERSION = "10.31"
+LIBRESSL_VERSION = "2.9.0"
+PCRE2_VERSION = "10.32"
+WINDOWS_LIBS_TAG = "v1.8.2"
 
 # Adds an option for specifying debug or release mode.
 def options(ctx):
@@ -68,7 +68,7 @@ def options(ctx):
 # that set their "variant", i.e. build directory, to the debug or release config.
 def init(ctx):
     from waflib.Build import BuildContext, CleanContext, InstallContext, UninstallContext
-    for c in (BuildContext, CleanContext, InstallContext, UninstallContext, testContext):
+    for c in (BuildContext, CleanContext, InstallContext, UninstallContext, testContext, examplesContext):
         name = c.__name__.replace('Context','').lower()
         class tmp(c):
             cmd = name
@@ -92,8 +92,6 @@ def configure(ctx):
         base_env.MSVC_TARGETS = [ 'x64' ]
         ctx.load('msvc')
 
-        base_env.CC_SRC_F = '/Tp' # force C++ for all files
-        base_env.CXX_SRC_F = '/Tp'
         base_env.append_value('DEFINES', [
             '_CRT_SECURE_NO_WARNINGS', '_MBCS',
             'PLATFORM_TOOLS_VERSION=%d0' % base_env.MSVC_VERSION,
@@ -163,7 +161,7 @@ def configure(ctx):
                 'PONY_BUILD_CONFIG="release"'
             ])
             msvcReleaseFlags = [
-                '/EHsc', '/MP', '/GS', '/TC', '/W3', '/Gy', '/Zc:wchar_t',
+                '/EHsc', '/MP', '/GS', '/W3', '/Gy', '/Zc:wchar_t',
                 '/Gm-', '/O2', '/Zc:inline', '/fp:precise', '/GF', '/WX',
                 '/Zc:forScope', '/Gd', '/Oi', '/MD', '/FS'
             ]
@@ -260,6 +258,8 @@ def build(ctx):
                 llvmBuildMode = 'LLVM_BUILD_MODE_Release'
             elif llvmBuildMode == 'RelWithDebInfo':
                 llvmBuildMode = 'LLVM_BUILD_MODE_RelWithDebInfo'
+            elif llvmBuildMode == 'MinSizeRel':
+                llvmBuildMode = 'LLVM_BUILD_MODE_MinSizeRel'
             elif llvmBuildMode == 'Debug':
                 llvmBuildMode = 'LLVM_BUILD_MODE_Debug'
             else:
@@ -296,6 +296,37 @@ def build(ctx):
         source   = ctx.path.ant_glob('lib/blake2/*.c'),
     )
 
+    # libponyrt
+    ctx(
+        features = 'c cxx cxxstlib seq',
+        target   = 'libponyrt',
+        source   = ctx.path.ant_glob('src/libponyrt/**/*.c') + \
+                   ctx.path.ant_glob('src/libponyrt/**/*.ll'),
+        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes,
+        cflags   = [ '/TP' ]
+    )
+
+    # libponyrt.benchmarks
+    ctx(
+        features = 'cxx cxxprogram seq',
+        target   = 'libponyrt.benchmarks',
+        source   = ctx.path.ant_glob('benchmark/libponyrt/**/*.cc'),
+        includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
+        use      = [ 'libponyrt', 'libgbenchmark' ],
+        lib      = ctx.env.PONYC_EXTRA_LIBS
+    )
+
+    # libponyrt.tests
+    ctx(
+        features  = 'c cxx cxxprogram seq',
+        target    = 'libponyrt.tests',
+        source    = ctx.path.ant_glob('test/libponyrt/**/*.cc'),
+        includes  = [ 'src/common', 'src/libponyrt', 'lib/gtest' ],
+        defines   = [ '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING' ],
+        use       = [ 'gtest', 'libponyrt' ],
+        lib       = ctx.env.PONYC_EXTRA_LIBS
+    )
+
     # libponyc
     ctx(
         features  = 'c cxx cxxstlib seq',
@@ -304,6 +335,7 @@ def build(ctx):
                     ctx.path.ant_glob('src/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'lib/blake2' ] + llvmIncludes + sslIncludes,
         defines   = [ 'PONY_ALWAYS_ASSERT', llvmBuildMode ],
+        cflags    = [ '/TP' ],
         use       = [ 'blake2' ]
     )
 
@@ -318,37 +350,7 @@ def build(ctx):
         lib      = ctx.env.PONYC_EXTRA_LIBS
     )
 
-    # libponyrt
-    ctx(
-        features = 'c cxx cxxstlib seq',
-        target   = 'libponyrt',
-        source   = ctx.path.ant_glob('src/libponyrt/**/*.c') + \
-                   ctx.path.ant_glob('src/libponyrt/**/*.ll'),
-        includes = [ 'src/common', 'src/libponyrt' ] + sslIncludes
-    )
-
-    # libponyrt.benchmarks
-    ctx(
-        features = 'cxx cxxprogram seq',
-        target   = 'libponyrt.benchmarks',
-        source   = ctx.path.ant_glob('benchmark/libponyrt/**/*.cc'),
-        includes = [ 'lib/gbenchmark/include', 'src/common', 'src/libponyrt' ],
-        use      = [ 'libponyrt', 'libgbenchmark' ],
-        lib      = ctx.env.PONYC_EXTRA_LIBS
-    )
-
-    # ponyc
-    ctx(
-        features  = 'c cxx cxxprogram seq',
-        target    = 'ponyc',
-        source    = ctx.path.ant_glob('src/ponyc/**/*.c'),
-        includes  = [ 'src/common' ],
-        defines   = [ 'PONY_ALWAYS_ASSERT' ],
-        use       = [ 'libponyc', 'libponyrt' ],
-        lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
-    )
-
-    # testc
+    # libponyc.tests
     testcUses = [ 'gtest', 'libponyc', 'libponyrt' ]
     testcLibs = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
     if os_is('win32'):
@@ -357,7 +359,7 @@ def build(ctx):
 
     ctx(
         features  = 'c cxx cxxprogram seq',
-        target    = 'testc',
+        target    = 'libponyc.tests',
         source    = ctx.path.ant_glob('test/libponyc/**/*.cc'),
         includes  = [ 'src/common', 'src/libponyc', 'src/libponyrt',
                       'lib/gtest' ] + llvmIncludes,
@@ -372,15 +374,16 @@ def build(ctx):
         linkflags = [ '/INCREMENTAL:NO' ]
     )
 
-    # testrt
+    # ponyc
     ctx(
         features  = 'c cxx cxxprogram seq',
-        target    = 'testrt',
-        source    = ctx.path.ant_glob('test/libponyrt/**/*.cc'),
-        includes  = [ 'src/common', 'src/libponyrt', 'lib/gtest' ],
-        defines   = [ '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING' ],
-        use       = [ 'gtest', 'libponyrt' ],
-        lib       = ctx.env.PONYC_EXTRA_LIBS
+        target    = 'ponyc',
+        source    = ctx.path.ant_glob('src/ponyc/**/*.c'),
+        includes  = [ 'src/common' ],
+        defines   = [ 'PONY_ALWAYS_ASSERT' ],
+        cflags    = [ '/TP' ],
+        use       = [ 'libponyc', 'libponyrt' ],
+        lib       = llvmLibs + ctx.env.PONYC_EXTRA_LIBS
     )
 
 
@@ -389,16 +392,30 @@ def test(ctx):
     import os
 
     # stdlib tests
-    stdlibTarget = 'stdlib'
+    stdlibDebugBinary = 'stdlib-debug'
+    stdlibDebugTarget = stdlibDebugBinary
     if os_is('win32'):
-        stdlibTarget = 'stdlib.exe'
+        stdlibDebugTarget = 'stdlib-debug.exe'
 
     ctx(
         features = 'seq',
-        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d -s --checktree --verify ../../packages/stdlib',
-        target   = stdlibTarget,
+        rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -d --checktree --verify -b ' + stdlibDebugBinary + ' ../../packages/stdlib',
+        target   = stdlibDebugTarget,
         source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
     )
+
+    if not ctx.variant.startswith('debug'):
+        stdlibReleaseBinary = 'stdlib-release'
+        stdlibReleaseTarget = stdlibReleaseBinary
+        if os_is('win32'):
+            stdlibReleaseTarget = 'stdlib-release.exe'
+
+        ctx(
+            features = 'seq',
+            rule     = '"' + os.path.join(ctx.bldnode.abspath(), 'ponyc') + '" -s --checktree --verify -b ' + stdlibReleaseBinary + ' ../../packages/stdlib',
+            target   = stdlibReleaseTarget,
+            source   = ctx.bldnode.ant_glob('ponyc*') + ctx.path.ant_glob('packages/**/*.pony'),
+        )
 
     # grammar file
     ctx(
@@ -411,43 +428,100 @@ def test(ctx):
         buildDir = ctx.bldnode.abspath()
         sourceDir = ctx.srcnode.abspath()
 
+        ponyc = os.path.join(buildDir, 'ponyc')
+        subprocess.call([ ponyc, '--version' ])
+
         total = 0
         passed = 0
 
         total = total + 1
-        testc = os.path.join(buildDir, 'testc')
+        testc = os.path.join(buildDir, 'libponyc.tests')
         returncode = subprocess.call([ testc ])
         if returncode == 0:
             passed = passed + 1
 
         total = total + 1
-        testrt = os.path.join(buildDir, 'testrt')
+        testrt = os.path.join(buildDir, 'libponyrt.tests')
         print(testrt)
         returncode = subprocess.call([ testrt ])
         if returncode == 0:
             passed = passed + 1
 
         total = total + 1
-        stdlib = os.path.join(buildDir, 'stdlib')
+        stdlib = os.path.join(buildDir, 'stdlib-debug')
         print(stdlib)
         returncode = subprocess.call([ stdlib, '--sequential' ])
         if returncode == 0:
             passed = passed + 1
+
+        if not ctx.variant.startswith('debug'):
+            total = total + 1
+            stdlib = os.path.join(buildDir, 'stdlib-release')
+            print(stdlib)
+            returncode = subprocess.call([ stdlib, '--sequential' ])
+            if returncode == 0:
+                passed = passed + 1
+
+        total = total + 1
+        ponyg = os.path.join(sourceDir, 'pony.g')
+        ponygNew = os.path.join(buildDir, 'pony.g.new')
+        with open(ponyg, 'r') as pg:
+            with open(ponygNew, 'r') as pgn:
+                if pg.read() != pgn.read():
+                    print('Generated grammar file differs from baseline')
+                else:
+                    passed = passed + 1
 
         print('')
         print('{0} test suites; {1} passed; {2} failed'.format(total, passed, total - passed))
         if passed < total:
             sys.exit(1)
 
-        ponyg = os.path.join(sourceDir, 'pony.g')
-        ponygNew = os.path.join(buildDir, 'pony.g.new')
-        with open(ponyg, 'r') as pg:
-            with open(ponygNew, 'r') as pgn:
-                if pg.read() != pgn.read():
-                    print('Grammar files differ')
-                    sys.exit(1)
-
     ctx.add_post_fun(run_tests)
+
+
+# this command builds the example programs
+def examples(ctx):
+    ctx(
+        features = 'c cxxstlib seq',
+        target   = 'ffi-callbacks',
+        source   = 'examples/ffi-callbacks/callbacks.c'
+    )
+
+    ctx(
+        features = 'c cxxstlib seq',
+        target   = 'ffi-struct',
+        source   = 'examples/ffi-struct/struct.c'
+    )
+
+    def build_examples(ctx):
+        if ctx.variant.startswith('debug'):
+            return
+
+        import os
+        import os.path
+
+        buildDir = ctx.bldnode.abspath()
+        ponyc = os.path.join(buildDir, 'ponyc')
+
+        program_ffi_lib = os.path.join('examples', 'ffi-callbacks', 'ffi-callbacks.lib')
+        if os.path.isfile(program_ffi_lib):
+            os.remove(program_ffi_lib)
+        program_ffi_lib = os.path.join('examples', 'ffi-struct', 'ffi-struct.lib')
+        if os.path.isfile(program_ffi_lib):
+            os.remove(program_ffi_lib)
+
+        for path in os.listdir('examples'):
+            dirname = os.path.join('examples', path)
+            if os.path.isdir(dirname) and any(f.endswith('.pony') for f in os.listdir(dirname)):
+                os.chdir(os.path.join(buildDir, '..', '..', dirname))
+                returncode = subprocess.call([ponyc, '.'])
+                if returncode != 0:
+                    print(path + ' failed to build!')
+                    sys.exit(1)
+                os.chdir(os.path.join(buildDir, '..', '..'))
+
+    ctx.add_post_fun(build_examples)
 
 
 # subclass the build context for the test command,
@@ -456,3 +530,6 @@ from waflib.Build import BuildContext
 class testContext(BuildContext):
     cmd = 'test'
     fun = 'test'
+class examplesContext(BuildContext):
+    cmd = 'examples'
+    fun = 'examples'

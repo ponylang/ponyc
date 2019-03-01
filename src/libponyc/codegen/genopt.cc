@@ -302,15 +302,7 @@ public:
         }
 
         case Instruction::Load:
-          // This is a workaround for a problem with LLVM 4 & 5 on *nix when
-          // hoisting loads (see #2303, #2061, #1592).
-          // TODO: figure out the real reason LLVM 4 and 5 produce bad code
-          // when hoisting stack allocated loads.
-#if PONY_LLVM >= 400 && !defined(_MSC_VER)
-          // fall through
-#else
           break;
-#endif
 
         case Instruction::Store:
         {
@@ -1399,6 +1391,12 @@ static void optimise(compile_t* c, bool pony_specific)
       pmb.OptLevel = 0;
   }
 
+#if PONY_LLVM >= 700
+  // LLVM 7 has a bug where running MergeFunctions more than once causes an
+  // assert fail saying "Invalid RAUW on key of ValueMap". We can avoid that
+  // by setting to false before populating lpm, after mpm was already populated.
+  pmb.MergeFunctions = false;
+#endif
   pmb.populateLTOPassManager(lpm);
 
   // There is a problem with optimised debug info in certain cases. This is

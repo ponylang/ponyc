@@ -31,6 +31,7 @@ using namespace llvm;
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIBuilder, LLVMDIBuilderRef);
 #endif
 
+#if PONY_LLVM < 700
 void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef md_old,
   LLVMMetadataRef md_new)
 {
@@ -38,6 +39,7 @@ void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef md_old,
   node->replaceAllUsesWith(unwrap<Metadata>(md_new));
   MDNode::deleteTemporary(node);
 }
+#endif
 
 LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m)
 {
@@ -116,6 +118,7 @@ LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d,
 #endif
 }
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line, unsigned col)
 {
@@ -124,6 +127,7 @@ LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   return wrap(pd->createLexicalBlock(
     unwrap<DILocalScope>(scope), unwrap<DIFile>(file), line, col));
 }
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, const char* linkage,
@@ -194,6 +198,7 @@ LLVMMetadataRef LLVMDIBuilderCreateArtificialVariable(LLVMDIBuilderRef d,
     true, DINode::FlagArtificial));
 }
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
   const char* name, uint64_t size_bits, uint64_t align_bits,
   unsigned encoding)
@@ -207,7 +212,9 @@ LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
   return wrap(pd->createBasicType(name, size_bits, align_bits, encoding));
 #endif
 }
+#endif
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
   LLVMMetadataRef elem_type, uint64_t size_bits, uint64_t align_bits)
 {
@@ -216,7 +223,9 @@ LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
   return wrap(pd->createPointerType(unwrap<DIType>(elem_type), size_bits,
     static_cast<uint32_t>(align_bits)));
 }
+#endif
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef d,
   LLVMMetadataRef file, LLVMMetadataRef param_types)
 {
@@ -245,6 +254,7 @@ LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef d,
     elem_types ? DINodeArray(unwrap<MDTuple>(elem_types)) : nullptr));
 #endif
 }
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateReplaceableStruct(LLVMDIBuilderRef d,
   const char* name, LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line)
@@ -284,6 +294,7 @@ LLVMMetadataRef LLVMDIBuilderCreateArrayType(LLVMDIBuilderRef d,
     unwrap<DIType>(elem_type), DINodeArray(unwrap<MDTuple>(subscripts))));
 }
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderGetOrCreateArray(LLVMDIBuilderRef d,
   LLVMMetadataRef* data, size_t length)
 {
@@ -312,6 +323,7 @@ LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef d,
   DIBuilder* pd = unwrap(d);
   return wrap(pd->createExpression(ArrayRef<int64_t>(addr, length)));
 }
+#endif
 
 LLVMValueRef LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
   LLVMValueRef value, LLVMMetadataRef info, LLVMMetadataRef expr,

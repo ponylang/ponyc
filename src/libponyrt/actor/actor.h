@@ -1,5 +1,5 @@
-#ifndef actor_h
-#define actor_h
+#ifndef actor_actor_h
+#define actor_actor_h
 
 #include "messageq.h"
 #include "../gc/gc.h"
@@ -84,6 +84,10 @@ bool ponyint_actor_getnoblock();
 void ponyint_actor_setoverloaded(pony_actor_t* actor);
 
 void ponyint_actor_unsetoverloaded(pony_actor_t* actor);
+
+PONY_API void pony_apply_backpressure();
+
+PONY_API void pony_release_backpressure();
 
 void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to);
 

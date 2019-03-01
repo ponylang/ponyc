@@ -28,6 +28,11 @@ PONY_API int pony_os_eexist()
   return EEXIST;
 }
 
+PONY_API void pony_os_clear_errno()
+{
+  errno = 0;
+}
+
 PONY_API int pony_os_errno()
 {
   return errno;

@@ -304,6 +304,29 @@ TEST_F(LexerTest, MinusAfterBlockComment)
   DO(test(src));
 }
 
+TEST_F(LexerTest, Rem)
+{
+  const char* src = "%";
+  expect(1, 1, TK_REM, "%");
+  expect(1, 2, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, Mod)
+{
+  const char* src = "%%";
+  expect(1, 1, TK_MOD, "%%");
+  expect(1, 3, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+TEST_F(LexerTest, ModTilde)
+{
+  const char* src = "%%~";
+  expect(1, 1, TK_MOD_TILDE, "%%~");
+  expect(1, 4, TK_EOF, "EOF");
+  DO(test(src));
+}
 
 // Strings
 

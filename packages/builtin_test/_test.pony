@@ -67,11 +67,15 @@ actor Main is TestList
     test(_TestArrayChop)
     test(_TestMath128)
     test(_TestRem)
+    test(_TestMod)
+    test(_TestFld)
     test(_TestAddc)
     test(_TestSubc)
     test(_TestMulc)
     test(_TestDivc)
+    test(_TestFldc)
     test(_TestRemc)
+    test(_TestModc)
     test(_TestSignedPartialArithmetic)
     test(_TestUnsignedPartialArithmetic)
     test(_TestNextPow2)
@@ -238,12 +242,68 @@ class iso _TestStringToFloat is UnitTest
   """
   fun name(): String => "builtin/String.float"
 
-  fun apply(h: TestHelper) =>
-    h.assert_eq[F32](4.125, "4.125".f32())
-    h.assert_eq[F64](4.125, "4.125".f64())
+  fun apply(h: TestHelper) ? =>
+    h.assert_eq[F32](4.125, "4.125".f32()?)
+    h.assert_eq[F64](4.125, "4.125".f64()?)
 
-    h.assert_eq[F32](-4.125e-3, "-4.125e-3".f32())
-    h.assert_eq[F64](-4.125e-3, "-4.125e-3".f64())
+    h.assert_eq[F32](-4.125e-3, "-4.125e-3".f32()?)
+    h.assert_eq[F64](-4.125e-3, "-4.125e-3".f64()?)
+
+    h.assert_eq[F32](1.0, "+1.".f32()?)
+    h.assert_eq[F64](1.0, "1.".f64()?)
+
+    // decimal floating-point expression
+    h.assert_eq[F64](1.0, "1".f64()?)
+    h.assert_eq[F32](1.0, "1".f32()?)
+    h.assert_eq[F64](-1234567890.23e2, "-1234567890.23e+2".f64()?)
+    h.assert_eq[F32](-1234567890.23e2, "-1234567890.23e+2".f32()?)
+    h.assert_eq[F64](-1234567890.23e-2, "-1234567890.23E-2".f64()?)
+    h.assert_eq[F32](-1234567890.23e-2, "-1234567890.23E-2".f32()?)
+    h.assert_eq[F64](1234567890.23e2, " +1234567890.23e2".f64()?)
+    h.assert_eq[F32](1234567890.23e2, " +1234567890.23e2".f32()?)
+
+    // binary floating-point expressions
+    h.assert_eq[F64](16.0, "0x10".f64()?)
+    h.assert_eq[F32](16.0, "0X10".f32()?)
+    h.assert_eq[F64](13.9375, "0XD.F".f64()?)
+    h.assert_eq[F32](892.0, "0XD.FP+6".f32()?)
+    h.assert_eq[F64](4.015625, "0X10.10p-2".f64()?)
+
+    // not a number
+    h.assert_true("NaN".f32()?.nan())
+    h.assert_true("+nAn".f64()?.nan())
+    h.assert_true(" -nan".f64()?.nan())
+    h.assert_true("NaN(123)".f64()?.nan()) // nan-boxing ftw
+    h.assert_true("NaN(123)".f32()?.nan()) // nan-boxing ftw
+
+    // infinity
+    h.assert_no_error({() ? =>
+      h.assert_true("Inf".f64()?.infinite())
+    }, "Inf")
+    h.assert_no_error({() ? =>
+      h.assert_true("\t-infinity".f32()?.infinite())
+    }, "\t-infinity")
+    h.assert_no_error({() ? =>
+      h.assert_true("+INFINITY".f64()?.infinite())
+    }, "+INFINITY")
+
+
+    let invalid_float_strings: Array[String] = [
+      ""
+      "a"
+      "1.."
+      "a.1"
+      "~!@#$%^&*()"
+      "1.18973e+4932" // overflow
+      "1.18973e-4932" // underflow
+      "1.12232e+4ABC" // trailing characters
+      "0x"
+      "Infinityi"
+      ]
+    for invalid_float in invalid_float_strings.values() do
+      h.assert_error({() ? => invalid_float.f32()? }, invalid_float + " did not fail for .f32()")
+      h.assert_error({() ? => invalid_float.f64()? }, invalid_float + " did not fail for .f64()")
+    end
 
 class iso _TestStringToU8 is UnitTest
   """
@@ -1488,6 +1548,7 @@ class iso _TestMath128 is UnitTest
     var uzero = U128(0)
     var izero = I128(0)
 
+    // division
     h.assert_eq[U128](0, 100 / uzero)
     h.assert_eq[U128](2, 8 / 4)
     h.assert_eq[U128](1_000_000, 1_000_000_000_000 / 1_000_000)
@@ -1512,6 +1573,7 @@ class iso _TestMath128 is UnitTest
     h.assert_eq[I128](10_000_000_000,
       -100_000_000_000_000_000_000 / -10_000_000_000)
 
+    // remainder
     h.assert_eq[U128](0, 100 % uzero)
     h.assert_eq[U128](5, 13 % 8)
     h.assert_eq[U128](28, 40_000_000_028 % 10_000_000_000)
@@ -1529,33 +1591,215 @@ class iso _TestMath128 is UnitTest
     h.assert_eq[I128](-5, -13 % -8)
     h.assert_eq[I128](-28, -40_000_000_028 % -10_000_000_000)
 
+    // floored division
+    h.assert_eq[U128](0, U128(100).fld(uzero))
+    h.assert_eq[U128](2, U128(8).fld(4))
+    h.assert_eq[U128](1_000_000, U128(1_000_000_000_000).fld(1_000_000))
+    h.assert_eq[U128](10_000_000_000,
+      U128(100_000_000_000_000_000_000).fld(10_000_000_000))
+
+    h.assert_eq[I128](0, I128(100).fld(izero))
+    h.assert_eq[I128](2, I128(8).fld(4))
+    h.assert_eq[I128](1_000_000, I128(1_000_000_000_000).fld(1_000_000))
+    h.assert_eq[I128](10_000_000_000,
+      I128(100_000_000_000_000_000_000).fld(10_000_000_000))
+
+    h.assert_eq[I128](0, I128(-100).fld(izero))
+    h.assert_eq[I128](-2, I128(-8).fld(4))
+    h.assert_eq[I128](-1_000_000, I128(-1_000_000_000_000).fld(1_000_000))
+    h.assert_eq[I128](-10_000_000_000,
+      I128(-100_000_000_000_000_000_000).fld(10_000_000_000))
+
+    h.assert_eq[I128](0, I128(-100).fld(-izero))
+    h.assert_eq[I128](2, I128(-8).fld(-4))
+    h.assert_eq[I128](1_000_000, I128(-1_000_000_000_000).fld(-1_000_000))
+    h.assert_eq[I128](10_000_000_000,
+      I128(-100_000_000_000_000_000_000).fld(-10_000_000_000))
+
+    // modulo
+    h.assert_eq[U128](0, U128(100) %% uzero)
+    h.assert_eq[U128](5, U128(13) %% 8)
+    h.assert_eq[U128](28, U128(40_000_000_028) %% 10_000_000_000)
+
+    h.assert_eq[I128](0, I128(100) %% izero)
+    h.assert_eq[I128](5, I128(13) %% 8)
+    h.assert_eq[I128](28, I128(40_000_000_028) %% 10_000_000_000)
+
+    h.assert_eq[I128](3, I128(-13) %% 8)
+    h.assert_eq[I128](9999999972, I128(-40_000_000_028) %% 10_000_000_000)
+
+    h.assert_eq[I128](-3, I128(13) %% -8)
+    h.assert_eq[I128](-9999999972, I128(40_000_000_028) %% -10_000_000_000)
+
+    h.assert_eq[I128](-5, I128(-13) %% -8)
+    h.assert_eq[I128](-28, I128(-40_000_000_028) %% -10_000_000_000)
+
 class iso _TestRem is UnitTest
   """
   Test rem on various bit widths.
   """
   fun name(): String => "builtin/Rem"
 
+  fun test_rem_signed[T: (Integer[T] val & Signed)](h: TestHelper) =>
+    // special cases
+    h.assert_eq[T](0, T(13) % T(0))
+    h.assert_eq[T](0, T.min_value() % -1)
+
+    h.assert_eq[T](5, T(13) % 8)
+    h.assert_eq[T](-5, T(-13) % 8)
+    h.assert_eq[T](5, T(13) % -8)
+    h.assert_eq[T](-5, T(-13) % -8)
+
+  fun test_rem_unsigned[T: (Integer[T] val & Unsigned)](h: TestHelper) =>
+    h.assert_eq[T](0, T(13) % T(0))
+    h.assert_eq[T](5, T(13) % 8)
+
   fun apply(h: TestHelper) =>
-    h.assert_eq[I8](5, 13 % 8)
-    h.assert_eq[I8](-5, -13 % 8)
-    h.assert_eq[I8](5, 13 % -8)
-    h.assert_eq[I8](-5, -13 % -8)
+    test_rem_signed[I8](h)
+    test_rem_signed[I16](h)
+    test_rem_signed[I32](h)
+    test_rem_signed[I64](h)
+    test_rem_signed[ISize](h)
+    test_rem_signed[ILong](h)
+    test_rem_signed[I128](h)
 
-    h.assert_eq[I16](5, 13 % 8)
-    h.assert_eq[I16](-5, -13 % 8)
-    h.assert_eq[I16](5, 13 % -8)
-    h.assert_eq[I16](-5, -13 % -8)
+    test_rem_unsigned[U8](h)
+    test_rem_unsigned[U16](h)
+    test_rem_unsigned[U32](h)
+    test_rem_unsigned[U64](h)
+    test_rem_unsigned[USize](h)
+    test_rem_unsigned[ULong](h)
+    test_rem_unsigned[U128](h)
 
-    h.assert_eq[I32](5, 13 % 8)
-    h.assert_eq[I32](-5, -13 % 8)
-    h.assert_eq[I32](5, 13 % -8)
-    h.assert_eq[I32](-5, -13 % -8)
+class iso _TestFld is UnitTest
+  fun name(): String => "builtin/Fld"
 
-    h.assert_eq[I64](5, 13 % 8)
-    h.assert_eq[I64](-5, -13 % 8)
-    h.assert_eq[I64](5, 13 % -8)
-    h.assert_eq[I64](-5, -13 % -8)
+  fun test_fld_signed[T: (Integer[T] val & Signed)](h: TestHelper, type_name: String) =>
+    h.assert_eq[T](0, T(11).fld(T(0)), "[" + type_name + "] 11 fld 0")
+    h.assert_eq[T](0, T(-11).fld(T(0)), "[" + type_name + "] -11 fld 0")
+    h.assert_eq[T](0, T(0).fld(T(11)), "[" + type_name + "] 0 fld 11")
+    h.assert_eq[T](0, T(0).fld(T(-11)), "[" + type_name + "] 0 fld -11")
+    h.assert_eq[T](0, T.min_value().fld(T(-1)), "[" + type_name + "] MIN fld -1")
 
+    h.assert_eq[T](-2, T(-12).fld(T(8)), "[" + type_name + "] -12 fld 8")
+    h.assert_eq[T](-2, T(12).fld(T(-8)), "[" + type_name + "] 12 fld -8")
+    h.assert_eq[T](1, T(12).fld(T(8)), "[" + type_name + "] 12 fld 8")
+
+    // fld_unsafe
+    h.assert_eq[T](1, T(13).fld_unsafe(T(8)), "[" + type_name + "] 13 fld_unsafe 8")
+    h.assert_eq[T](-2, T(-13).fld_unsafe(T(8)), "[" + type_name + "] -13 fld_unsafe 8")
+    h.assert_eq[T](-2, T(13).fld_unsafe(T(-8)), "[" + type_name + "] 13 fld_unsafe -8")
+    h.assert_eq[T](1, T(-13).fld_unsafe(T(-8)), "[" + type_name + "] -13 fld_unsafe 8")
+
+  fun test_fld_unsigned[T: (Integer[T] val & Unsigned)](h: TestHelper, type_name: String) =>
+    h.assert_eq[T](0, T(11).fld(T(0)), "[" + type_name + "] 11 fld 0")
+    h.assert_eq[T](0, T(0).fld(T(11)), "[" + type_name + "] 0 fld 11")
+
+    h.assert_eq[T](1, T(12).fld(T(8)), "[" + type_name + "] 12 fld 8")
+
+    // fld_unsafe
+    h.assert_eq[T](1, T(13).fld_unsafe(T(8)), "[" + type_name + "] 13 fld_unsafe 8")
+
+  fun apply(h: TestHelper) =>
+    test_fld_signed[I8](h, "I8")
+    test_fld_signed[I16](h, "I16")
+    test_fld_signed[I32](h, "I32")
+    test_fld_signed[I64](h, "I64")
+    test_fld_signed[ILong](h, "ILong")
+    test_fld_signed[ISize](h, "ISize")
+    test_fld_signed[I128](h, "I128")
+
+    test_fld_unsigned[U8](h, "U8")
+    test_fld_unsigned[U16](h, "U16")
+    test_fld_unsigned[U32](h, "U32")
+    test_fld_unsigned[U64](h, "U64")
+    test_fld_unsigned[ULong](h, "ULong")
+    test_fld_unsigned[USize](h, "USize")
+    test_fld_unsigned[U128](h, "U128")
+
+class iso _TestMod is UnitTest
+  fun name(): String => "builtin/Mod"
+
+  fun test_mod_signed[T: (Integer[T] val & Signed)](h: TestHelper, type_name: String) =>
+    // mod
+    // special cases
+    h.assert_eq[T](0, T(13) %% T(0), "[" + type_name + "] 13 %% 0")
+    h.assert_eq[T](0, T(-13) %% T(0), "[" + type_name + "] -13 %% 0")
+    h.assert_eq[T](0, T(0) %% T(-13), "[" + type_name + "] 0 %% -13")
+    h.assert_eq[T](0, T.min_value() %% -1, "[" + type_name + "] MIN %% -1")
+
+    h.assert_eq[T](5, T(13) %% 8, "[" + type_name + "] 13 %% 8")
+    h.assert_eq[T](3, T(-13) %% 8, "[" + type_name + "] -13 %% 8")
+    h.assert_eq[T](-3, T(13) %% -8, "[" + type_name + "] 13 %% -8")
+    h.assert_eq[T](-5, T(-13) %% -8, "[" + type_name + "] -13 %% -8")
+
+    // mod_unsafe
+    h.assert_eq[T](5, T(13) %%~ 8, "[" + type_name + "] 13 %%~ 8")
+    h.assert_eq[T](3, T(-13) %%~ 8, "[" + type_name + "] -13 %%~ 8")
+    h.assert_eq[T](-3, T(13) %%~ -8, "[" + type_name + "] 13 %%~ -8")
+    h.assert_eq[T](-5, T(-13) %%~ -8, "[" + type_name + "] -13 %%~ -8")
+
+  fun test_mod_unsigned[T: (Integer[T] val & Unsigned)](h: TestHelper, type_name: String) =>
+    h.assert_eq[T](0, T(13) %% T(0), "[" + type_name + "] 13 %% 0")
+    h.assert_eq[T](0, T(0) %% T(13), "[" + type_name + "] 0 %% 13")
+    h.assert_eq[T](5, T(13) %% T(8), "[" + type_name + "] 13 %% 8")
+
+    // mod_unsafe
+    h.assert_eq[T](5, T(13) %%~ 8, "[" + type_name + "] 13 %%~ 8")
+
+  fun test_mod_float[T: (FloatingPoint[T] val & Float)](h: TestHelper, type_name: String) =>
+    let m1 = T(-1)
+    let inf = T.max_value() * T.max_value()
+    let minf = inf.copysign(m1)
+    let mnan = T(1.0) % T(0.0)
+    let nan = mnan.copysign(inf)
+
+    // special cases - 0
+    h.assert_eq[T](mnan, T(1.5) %% T(0.0), "[" + type_name + "] 1.5 %% 0.0")
+    h.assert_eq[T](mnan, T(-1.5) %% T(0.0), "[" + type_name + "] -1.5 %% 0.0")
+    h.assert_eq[T](T(0.0), T(0.0) %% T(1.5), "[" + type_name + "] 0.0 %% 1.5")
+
+    // with nan
+    h.assert_eq[T](nan, nan %% T(1.5), "[" + type_name + "] NaN %% 1.5")
+    h.assert_eq[T](nan, T(1.5) %% nan, "[" + type_name + "] 1.5 %% NaN")
+
+    // with inf
+    h.assert_eq[String](mnan.string(), (inf %% T(1.5)).string(), "[" + type_name + "] inf %% 1.5")
+    h.assert_eq[String](mnan.string(), (inf %% T(-1.5)).string(), "[" + type_name + "] inf %% -1.5")
+    h.assert_eq[T](T(1.5), T(1.5) %% inf, "[" + type_name + "] 1.5 %% inf")
+    h.assert_eq[String](mnan.string(), (minf %% T(1.5)).string(), "[" + type_name + "] -inf %% 1.5")
+    h.assert_eq[String](mnan.string(), (minf %% T(-1.5)).string(), "[" + type_name + "] -inf %% -1.5")
+    h.assert_eq[String](minf.string(), (T(1.5) %% minf).string(), "[" + type_name + "] 1.5 %% -inf")
+
+    h.assert_eq[T](T(7.0), T(15.0) %% T(8.0), "[" + type_name + "] 15.0 %% 8.0")
+    h.assert_eq[T](T(1.0), T(-15.0) %% T(8.0), "[" + type_name + "] -15.0 %% 8.0")
+    h.assert_eq[T](T(-1.0), T(15.0) %% T(-8.0), "[" + type_name + "] 15.0 %% -8.0")
+    h.assert_eq[T](T(-7.0), T(-15.0) %% T(-8.0), "[" + type_name + "] -15.0 %% -8.0")
+
+    // mod_unsafe
+    h.assert_eq[T](T(7.0), T(15.0) %%~ T(8.0), "[" + type_name + "] 15.0 %%~ 8.0")
+    h.assert_eq[T](T(1.0), T(-15.0) %%~ T(8.0), "[" + type_name + "] -15.0 %%~ 8.0")
+    h.assert_eq[T](T(-1.0), T(15.0) %%~ T(-8.0), "[" + type_name + "] 15.0 %%~ -8.0")
+    h.assert_eq[T](T(-7.0), T(-15.0) %%~ T(-8.0), "[" + type_name + "] -15.0 %%~ -8.0")
+
+  fun apply(h: TestHelper) =>
+    test_mod_signed[I8](h, "I8")
+    test_mod_signed[I16](h, "I16")
+    test_mod_signed[I32](h, "I32")
+    test_mod_signed[I64](h, "I64")
+    test_mod_signed[ISize](h, "ISize")
+    test_mod_signed[ILong](h, "ILong")
+    test_mod_signed[I128](h, "I128")
+
+    test_mod_unsigned[U8](h, "U8")
+    test_mod_unsigned[U16](h, "U16")
+    test_mod_unsigned[U32](h, "U32")
+    test_mod_unsigned[USize](h, "USize")
+    test_mod_unsigned[ULong](h, "ULong")
+    test_mod_unsigned[U128](h, "U128")
+
+    test_mod_float[F32](h, "F32")
+    test_mod_float[F64](h, "F64")
 
 trait iso SafeArithmeticTest is UnitTest
   fun test[A: (Equatable[A] #read & Stringable #read)](
@@ -1842,6 +2086,63 @@ class iso _TestDivc is SafeArithmeticTest
     test_overflow[I128](h, I128(0x40).divc(0))
     test_overflow[I128](h, I128.min_value().divc(I128(-1)))
 
+class iso _TestFldc is SafeArithmeticTest
+  fun name(): String => "builtin/Fldc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0x20, false), U8(0x40).fldc(2))
+    test_overflow[U8](h, U8(0x40).fldc(0))
+
+    test[U16](h, (0x20, false), U16(0x40).fldc(2))
+    test_overflow[U16](h, U16(0x40).fldc(0))
+
+    test[U32](h, (0x20, false), U32(0x40).fldc(2))
+    test_overflow[U32](h, U32(0x40).fldc(0))
+
+    test[U64](h, (0x20, false), U64(0x40).fldc(2))
+    test_overflow[U64](h, U64(0x40).fldc(0))
+
+    test[ULong](h, (0x20, false), ULong(0x40).fldc(2))
+    test_overflow[ULong](h, ULong(0x40).fldc(0))
+
+    test[USize](h, (0x20, false), USize(0x40).fldc(2))
+    test_overflow[USize](h, USize(0x40).fldc(0))
+
+    test[U128](h, (0x20, false), U128(0x40).fldc(2))
+    test_overflow[U128](h, U128(0x40).fldc(0))
+
+    test[I8](h, (0x20, false), I8(0x40).fldc(2))
+    test_overflow[I8](h, I8(0x40).fldc(0))
+    test_overflow[I8](h, I8.min_value().fldc(I8(-1)))
+
+    test[I16](h, (0x20, false), I16(0x40).fldc(2))
+    test_overflow[I16](h, I16(0x40).fldc(0))
+    test_overflow[I16](h, I16.min_value().fldc(I16(-1)))
+
+    test[I32](h, (0x20, false), I32(0x40).fldc(2))
+    test_overflow[I32](h, I32(0x40).fldc(0))
+    test_overflow[I32](h, I32.min_value().fldc(I32(-1)))
+
+    test[I32](h, (0x20, false), I32(0x40).fldc(2))
+    test_overflow[I32](h, I32(0x40).fldc(0))
+    test_overflow[I32](h, I32.min_value().fldc(I32(-1)))
+
+    test[I64](h, (0x20, false), I64(0x40).fldc(2))
+    test_overflow[I64](h, I64(0x40).fldc(0))
+    test_overflow[I64](h, I64.min_value().fldc(I64(-1)))
+
+    test[ILong](h, (0x20, false), ILong(0x40).fldc(2))
+    test_overflow[ILong](h, ILong(0x40).fldc(0))
+    test_overflow[ILong](h, ILong.min_value().fldc(ILong(-1)))
+
+    test[ISize](h, (0x20, false), ISize(0x40).fldc(2))
+    test_overflow[ISize](h, ISize(0x40).fldc(0))
+    test_overflow[ISize](h, ISize.min_value().fldc(ISize(-1)))
+
+    test[I128](h, (0x20, false), I128(0x40).fldc(2))
+    test_overflow[I128](h, I128(0x40).fldc(0))
+    test_overflow[I128](h, I128.min_value().fldc(I128(-1)))
+
 class iso _TestRemc is SafeArithmeticTest
   fun name(): String => "builtin/Remc"
 
@@ -1916,6 +2217,80 @@ class iso _TestRemc is SafeArithmeticTest
     test_overflow[ISize](h, ISize(-0x40).remc(0))
     test_overflow[ISize](h, ISize.min_value().remc(-1))
 
+class iso _TestModc is SafeArithmeticTest
+  fun name(): String => "builtin/Modc"
+
+  fun apply(h: TestHelper) =>
+    test[U8](h, (0x01, false), U8(0x41).modc(2))
+    test_overflow[U8](h, U8(0x40).modc(0))
+
+    test[U16](h, (0x01, false), U16(0x41).modc(2))
+    test_overflow[U16](h, U16(0x40).modc(0))
+
+    test[U32](h, (0x01, false), U32(0x41).modc(2))
+    test_overflow[U32](h, U32(0x40).modc(0))
+
+    test[U64](h, (0x01, false), U64(0x41).modc(2))
+    test_overflow[U64](h, U64(0x40).modc(0))
+
+    test[U128](h, (0x01, false), U128(0x41).modc(2))
+    test_overflow[U128](h, U128(0x40).modc(0))
+
+    test[ULong](h, (0x01, false), ULong(0x41).modc(2))
+    test_overflow[ULong](h, ULong(0x40).modc(0))
+
+    test[USize](h, (0x01, false), USize(0x41).modc(2))
+    test_overflow[USize](h, USize(0x40).modc(0))
+
+    test[I8](h, (0x01, false), I8(0x41).modc(2))
+    test[I8](h, (0x01, false), I8(-0x41).modc(2))
+    test[I8](h, (-0x02, false), I8(-0x41).modc(-3))
+    test_overflow[I8](h, I8(0x40).modc(0))
+    test_overflow[I8](h, I8(-0x40).modc(0))
+    test_overflow[I8](h, I8.min_value().modc(-1))
+
+    test[I16](h, (0x01, false), I16(0x41).modc(2))
+    test[I16](h, (0x01, false), I16(-0x41).modc(2))
+    test[I16](h, (-0x02, false), I16(-0x41).modc(-3))
+    test_overflow[I16](h, I16(0x40).modc(0))
+    test_overflow[I16](h, I16(-0x40).modc(0))
+    test_overflow[I16](h, I16.min_value().modc(-1))
+
+    test[I32](h, (0x01, false), I32(0x41).modc(2))
+    test[I32](h, (0x01, false), I32(-0x41).modc(2))
+    test[I32](h, (-0x02, false), I32(-0x41).modc(-3))
+    test_overflow[I32](h, I32(0x40).modc(0))
+    test_overflow[I32](h, I32(-0x40).modc(0))
+    test_overflow[I32](h, I32.min_value().modc(-1))
+
+    test[I64](h, (0x01, false), I64(0x41).modc(2))
+    test[I64](h, (0x01, false), I64(-0x41).modc(2))
+    test[I64](h, (-0x02, false), I64(-0x41).modc(-3))
+    test_overflow[I64](h, I64(0x40).modc(0))
+    test_overflow[I64](h, I64(-0x40).modc(0))
+    test_overflow[I64](h, I64.min_value().modc(-1))
+
+    test[I128](h, (0x01, false), I128(0x41).modc(2))
+    test[I128](h, (0x01, false), I128(-0x41).modc(2))
+    test[I128](h, (-0x02, false), I128(-0x41).modc(-3))
+    test_overflow[I128](h, I128(0x40).modc(0))
+    test_overflow[I128](h, I128(-0x40).modc(0))
+    test_overflow[I128](h, I128.min_value().modc(-1))
+
+    test[ILong](h, (0x01, false), ILong(0x41).modc(2))
+    test[ILong](h, (0x01, false), ILong(-0x41).modc(2))
+    test[ILong](h, (-0x02, false), ILong(-0x41).modc(-3))
+    test_overflow[ILong](h, ILong(0x40).modc(0))
+    test_overflow[ILong](h, ILong(-0x40).modc(0))
+    test_overflow[ILong](h, ILong.min_value().modc(-1))
+
+    test[ISize](h, (0x01, false), ISize(0x41).modc(2))
+    test[ISize](h, (0x01, false), ISize(-0x41).modc(2))
+    test[ISize](h, (-0x02, false), ISize(-0x41).modc(-3))
+    test_overflow[ISize](h, ISize(0x40).modc(0))
+    test_overflow[ISize](h, ISize(-0x40).modc(0))
+    test_overflow[ISize](h, ISize.min_value().modc(-1))
+
 primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>
     //addition
@@ -1934,9 +2309,17 @@ primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
     h.assert_error({()? => T(1) /? T(0) })
     h.assert_eq[T](T(5), T(10) /? T(2))
 
-    // remulo
+    // floored division
+    h.assert_error({()? => T(1).fld_partial(T(0))? })
+    h.assert_eq[T](T(5), T(10).fld_partial(T(2))?)
+
+    // remainder
     h.assert_error({()? => T(2) %? T(0) })
     h.assert_eq[T](T(1), T(11) %? T(2))
+
+    // modulo
+    h.assert_error({()? => T(2) %%? T(0) })
+    h.assert_eq[T](T(1), T(11) %%? T(2))
 
     // divrem
     h.assert_error({()? => T(3).divrem_partial(T(0))? })
@@ -1949,8 +2332,15 @@ primitive _UnsignedPartialArithmeticTests[T: (Integer[T] val & Unsigned)]
     // division
     h.assert_no_error({()? => T.min_value() /? T(-1) })
 
+    // floored division
+    h.assert_no_error({()? => T.min_value().fld_partial(T(-1))? })
+
     // remainder
     h.assert_no_error({()? => T.min_value() %? T(-1) })
+
+    // modulo
+    h.assert_no_error({()? => T.min_value() %%? T(-1) })
+    h.assert_no_error({()? => h.assert_eq[T](5, T(13)  %%?  8) })
 
     // divrem
     h.assert_no_error({()? => T.min_value().divrem_partial(T(-1))? })
@@ -1969,8 +2359,28 @@ primitive _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
     // division
     h.assert_error({()? => T.min_value() /? T(-1) })
 
+    // floored division
+    h.assert_error({()? => T.min_value().fld_partial(T(-1))? })
+
     // remainder
     h.assert_error({()? => T.min_value() %? T(-1) })
+
+    // modulo
+    h.assert_error({()? => T(-13) %%? T(0)})
+    h.assert_error({()? => T.min_value() %%? -1 })
+
+    h.assert_no_error(
+      {()? =>
+        h.assert_eq[T](3, T(-13) %%?  8)
+      })
+    h.assert_no_error(
+      {()? =>
+        h.assert_eq[T](-3, T(13)  %%? -8)
+      })
+    h.assert_no_error(
+      {()? =>
+        h.assert_eq[T](-5, T(-13) %%? -8)
+      })
 
     // divrem
     h.assert_error({()? => T.min_value().divrem_partial(T(-1))? })

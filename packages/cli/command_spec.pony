@@ -538,7 +538,7 @@ primitive _U64Type is _ValueType
 
 primitive _F64Type is _ValueType
   fun string(): String => "F64"
-  fun value_of(s: String): _Value => s.f64()
+  fun value_of(s: String): _Value ? => s.f64()?
 
 primitive _StringSeqType is _ValueType
   fun string(): String => "ReadSeq[String]"

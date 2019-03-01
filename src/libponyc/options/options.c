@@ -197,8 +197,8 @@ static void usage(void)
     "  --ponythreads    Use N scheduler threads. Defaults to the number of\n"
     "                   cores (not hyperthreads) available.\n"
     "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
-    "                   Defaults to 1.  Use of 0 is considered experimental\n"
-    "                   and may cause improper scheduler behavior.\n"
+    "                   Defaults to 0, meaning that all scheduler threads are\n"
+    "                   allowed to be suspended when no work is available.\n"
     "  --ponysuspendthreshold\n"
     "                   Amount of idle time before a scheduler thread suspends\n"
     "                   itself to minimize resource consumption (max 1000 ms,\n"
@@ -213,10 +213,11 @@ static void usage(void)
     "                   point value. Defaults to 2.0.\n"
     "  --ponynoyield    Do not yield the CPU when no work is available.\n"
     "  --ponynoblock    Do not send block messages to the cycle detector.\n"
-    "  --ponynopin      Do not pin scheduler threads or the ASIO thread, even\n"
-    "                   if --ponypinasio is set.\n"
+    "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n"
+    "                   can also be pinned if `--ponypinasio` is set.\n"
     "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n"
-    "                   threads are pinned to CPUs.\n"
+    "                   threads are pinned to CPUs. Requires `--ponypin` to\n"
+    "                   be set to have any effect.\n"
     "  --ponyversion    Print the version of the compiler and exit.\n"
     );
 }
@@ -319,7 +320,11 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
     switch(id)
     {
       case OPT_VERSION:
+#ifdef _MSC_VER
+        printf("%s %d\n", PONY_VERSION_STR, _MSC_VER);
+#else
         printf("%s\n", PONY_VERSION_STR);
+#endif
         printf("Defaults: pic=%s ssl=%s\n", opt->pic ? "true" : "false",
             PONY_DEFAULT_SSL);
         return EXIT_0;
