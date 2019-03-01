@@ -325,7 +325,7 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#building-ponyc-using-llvm-sources). In either case the supported version of LLVM is 3.9.1, with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
+When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#building-ponyc-using-llvm-sources).
 
 ## Building ponyc using LLVM sources:
 
