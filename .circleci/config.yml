@@ -115,18 +115,18 @@ jobs:
       - run: make all default_ssl=openssl_1.1.0 default_pic=true -j3
       - run: make test-ci default_ssl=openssl_1.1.0 default_pic=true
 
-  alpine-llvm-391-debug:
+  alpine-llvm-5-debug:
     docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
+      - image: ponylang/ponyc-ci:alpine-llvm-5
         user: pony
     steps:
       - checkout
       - run: make all config=debug default_pic=true -j3
       - run: make test-ci config=debug default_pic=true
 
-  alpine-llvm-391-release:
+  alpine-llvm-5-release:
     docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-3.9.1
+      - image: ponylang/ponyc-ci:alpine-llvm-5
         user: pony
     steps:
       - checkout
@@ -385,8 +385,8 @@ workflows:
       - llvm-391-debug
       - llvm-391-release
       - openssl-110
-      - alpine-llvm-391-debug
-      - alpine-llvm-391-release
+      - alpine-llvm-5-debug
+      - alpine-llvm-5-release
       - centos7-llvm-391-debug
       - centos7-llvm-391-release
       - ubuntu-18.04-system-llvm-debug
@@ -411,12 +411,3 @@ workflows:
       - lib-llvm-ubuntu-openssl-110-release
       - lib-llvm-centos7-debug
       - lib-llvm-centos7-release
-
-      # Alpine debug and release don't work because alpine linux
-      # patches llvm to make it work with musl c library.
-      # I've done preliminary testing using the patches found
-      # in the alpine aport repsitory but they don't apply cleanly.
-      # Apparently there version of llvm 3.9.1 is slightly different
-      # from what we have. For now skipping testing them.
-      #- alpine-debug
-      #- alpine-release
