@@ -1,7 +1,8 @@
-freebsd_instance:
-  image: freebsd-12-0-release-amd64
+task:
+  freebsd_instance:
+    image: freebsd-12-0-release-amd64
 
-test_task:
+  name: "freebsd-12"
   install_script:
     - pkg update
     - pkg install -y gmake pcre2 libunwind llvm70 git
