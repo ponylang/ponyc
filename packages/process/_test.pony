@@ -407,7 +407,8 @@ class _TestBadChdir is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let badpath = Path.random(10)
-    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
+    let notifier: ProcessNotify iso =
+      _ProcessClient(0, "", _EXOSERR(), h, ChdirError)
     try
       let auth = h.env.root as AmbientAuth
 
@@ -434,7 +435,8 @@ class _TestBadExec is UnitTest
     "process-monitor"
 
   fun ref apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(0, "", _EXOSERR(), h)
+    let notifier: ProcessNotify iso =
+      _ProcessClient(0, "", _EXOSERR(), h, ExecveError)
     try
       let auth = h.env.root as AmbientAuth
       let path = FilePath(auth, "./_test.sh")?
@@ -509,16 +511,6 @@ class _ProcessClient is ProcessNotify
     forked process.
     """
     match _expected_err
-    | (PreExecError, let step: U8, let exit_code: I32) =>
-      try
-        (_, let step': U8, let exit_code': I32) =
-          err as (PreExecError, U8, I32)
-
-        if (step == step') and (exit_code == exit_code') then
-          _h.complete(true)
-          return None
-        end
-      end
     | let perr: ProcessError =>
       if err is perr then
         _h.complete(true)
@@ -534,10 +526,8 @@ class _ProcessClient is ProcessNotify
     | KillError => _h.fail("ProcessError: KillError")
     | Unsupported => _h.fail("ProcessError: Unsupported")
     | CapError => _h.fail("ProcessError: CapError")
-    | (PreExecError, _StepChdir(), _EXOSERR()) =>
-      _h.fail("ProcessError: (PreExecError, _StepChdir(), _EXOSERR())")
-    | (PreExecError, _StepExecve(), _EXOSERR()) =>
-      _h.fail("ProcessError: (PreExecError, _StepExecve(), _EXOSERR())")
+    | ChdirError => _h.fail("ProcessError: ChdirError")
+    | UnknownError => _h.fail("ProcessError: UnknownError")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
