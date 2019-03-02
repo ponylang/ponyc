@@ -412,7 +412,8 @@ actor TCPConnection
 
   fun local_address(): NetAddress =>
     """
-    Return the local IP address.
+    Return the local IP address. If this TCPConnection is closed then the
+    address returned is invalid.
     """
     let ip = recover NetAddress end
     @pony_os_sockname[Bool](_fd, ip)
@@ -420,7 +421,8 @@ actor TCPConnection
 
   fun remote_address(): NetAddress =>
     """
-    Return the remote IP address.
+    Return the remote IP address. If this TCPConnection is closed then the
+    address returned is invalid.
     """
     let ip = recover NetAddress end
     @pony_os_peername[Bool](_fd, ip)
@@ -1127,4 +1129,3 @@ actor TCPConnection
     var word: Array[U8] ref =
       _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
     _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
-
