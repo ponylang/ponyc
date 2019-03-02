@@ -64,7 +64,7 @@ else ifeq ($(MAKECMDGOALS),llvm-default)
   $(warning llvm-default.....)
   LLVM_TARGET := llvm-default
   GET_LLVM_SRC_TARGET := get-default-llvm-src
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_URL :=
   LLVM_BRANCH :=
 else ifeq ($(MAKECMDGOALS),buildit)
@@ -181,6 +181,7 @@ get-default-llvm-src:
 	@echo get-default-llvm-src
 	rm -rf $(LLVM_SRC_DIR)
 	mkdir $(LLVM_SRC_DIR)
+	git submodule sync
 	git submodule update --init $(LLVM_SRC_DEPTH)
 	touch get-default-llvm-src
 
