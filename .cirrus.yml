@@ -19,7 +19,6 @@ task:
 
   container:
     image: ponylang/ponyc-ci:cross-llvm-7.0.1-arm
-    user: pony
 
   test_script:
     # build and test for x86_64 first
