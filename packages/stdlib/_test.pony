@@ -77,10 +77,7 @@ actor Main is TestList
     net.Main.make().tests(test)
     options.Main.make().tests(test)
 
-    ifdef posix then
-      // The process package currently only supports posix
-      process.Main.make().tests(test)
-    end
+    process.Main.make().tests(test)
 
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
