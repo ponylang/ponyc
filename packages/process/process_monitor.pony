@@ -97,7 +97,8 @@ primitive WriteError
 primitive KillError   // Not thrown at this time
 primitive Unsupported // we throw this on non POSIX systems
 primitive CapError
-primitive PreExecError
+primitive ChdirError
+primitive UnknownError
 
 type ProcessError is
   ( ExecveError
@@ -108,7 +109,8 @@ type ProcessError is
   | WaitpidError
   | WriteError
   | CapError
-  | (PreExecError, U8, I32)
+  | ChdirError
+  | UnknownError
   )
 
 type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
@@ -400,7 +402,14 @@ actor ProcessMonitor
       | _err.near_fd =>
         let child_errno: I32 = try data.read_u32(0)?.i32() else -1 end
         let step: U8 = try data.read_u8(4)? else -1 end
-        _notifier.failed(this, (PreExecError, step, child_errno))
+        match step
+        | _StepChdir() =>
+          _notifier.failed(this, ChdirError)
+        | _StepExecve() =>
+          _notifier.failed(this, ExecveError)
+        else
+          _notifier.failed(this, UnknownError)
+        end
       end
 
       _read_len = 0
