@@ -226,9 +226,7 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
-  else ifneq (,$(shell which llvm-config-7.0 2> /dev/null))
+  ifneq (,$(shell which llvm-config-7.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-7.0
   else ifneq (,$(shell which llvm-config70 2> /dev/null))
     LLVM_CONFIG = llvm-config70
@@ -238,18 +236,12 @@ ifndef LLVM_CONFIG
     LLVM_CONFIG = llvm-config-6.0
   else ifneq (,$(shell which llvm-config-mp-6.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-mp-6.0
-  else ifneq (,$(shell which llvm-config-mp-5.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-mp-5.0
-  else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
-  else ifneq (,$(shell which llvm-config 2> /dev/null))
-    LLVM_CONFIG = llvm-config
   else ifneq (,$(shell which llvm-config-5.0 2> /dev/null))
     LLVM_CONFIG = llvm-config-5.0
-  else ifneq (,$(shell which /opt/llvm-5.0.1/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /opt/llvm-5.0.1/bin/llvm-config
-  else ifneq (,$(shell which /opt/llvm-5.0.0/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /opt/llvm-5.0.0/bin/llvm-config
+  else ifneq (,$(shell which llvm-config-mp-5.0 2> /dev/null))
+    LLVM_CONFIG = llvm-config-mp-5.0
+  else ifneq (,$(shell which llvm-config 2> /dev/null))
+    LLVM_CONFIG = llvm-config
   else
     $(error No LLVM installation found!)
   endif
