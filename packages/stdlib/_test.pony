@@ -65,10 +65,7 @@ actor Main is TestList
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
-
     process.Main.make().tests(test)
-    
-
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
     serialise.Main.make().tests(test)
