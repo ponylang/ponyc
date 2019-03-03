@@ -344,6 +344,7 @@ class iso _TestStdinWriteBuf is UnitTest
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
         pm.write(message)
+        pm.write(message)
         pm.done_writing() // closing stdin allows "cat" to terminate
         h.dispose_when_done(pm)
       end
