@@ -38,7 +38,8 @@ task:
     - brew install pcre2
     - brew install libressl
     - brew install llvm
-    - xcode-select --install
+    - xcodebuild --license
+    - open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg
 
   test_script:
     - export PATH=llvmsym/:$PATH
