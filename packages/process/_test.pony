@@ -339,11 +339,10 @@ class iso _TestStdinWriteBuf is UnitTest
       _pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
 
       // create a message larger than pipe_cap bytes
-      let message: Array[U8] val = recover Array[U8].>undefined(pipe_cap + 1) end
+      let message: Array[U8] val = recover Array[U8].init('\n', pipe_cap + 1) end
 
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
-        pm.write(message)
         pm.write(message)
         pm.done_writing() // closing stdin allows "cat" to terminate
         h.dispose_when_done(pm)
