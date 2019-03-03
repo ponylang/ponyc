@@ -26,3 +26,31 @@ task:
   test_script:
     - gmake all config=debug -j3 default_ssl=openssl_1.1.0
     - gmake test-ci config=debug default_ssl=openssl_1.1.0
+
+task:
+  osx_instance:
+    image: mojave-xcode-10.1
+
+  name: "MacOS"
+
+  install_script:
+    - brew update
+    - brew install pcre2
+    - brew install libressl
+    - brew install llvm
+    - xcode-select --install
+
+  test_script:
+    - export PATH=llvmsym/:$PATH
+    - mkdir llvmsym
+    - export PATH=/usr/local/opt/llvm/bin:$PATH
+    - ln -fs "$(which llvm-config)" llvmsym/llvm-config-7.0
+    - ln -fs "$(which clang++)" llvmsym/clang++-7.0
+    - ln -fs "$(which clang)" llvmsym/clang-7.0
+    - export CC1=clang-7.0
+    - export CXX1=clang++-7.0
+    - echo "Running LLVM 7.0 config=release build..."
+    - export config=release
+    - echo "Building and testing ponyc..."
+    - make CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) all
+    - make CC="$CC1" CXX="$CXX1" test-ci
