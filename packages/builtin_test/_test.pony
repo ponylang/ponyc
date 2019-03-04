@@ -7,7 +7,6 @@ so `builtin` doesn't have to depend on the `PonyTest` package.
 
 use "ponytest"
 use "collections"
-use "debug"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
