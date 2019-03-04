@@ -3,7 +3,7 @@ test-ci-lib-llvm: &test-ci-lib-llvm
   command: |
     # When testing override CPUs in command line, such as:
     #   $ circleci build -e CPUs=11 --job ubuntu-debug
-    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
+    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
     source $BASH_ENV
     echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
     make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
