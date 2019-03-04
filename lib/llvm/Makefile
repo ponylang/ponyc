@@ -43,17 +43,17 @@ ifeq ($(MAKECMDGOALS),rebuild)
 else ifeq ($(MAKECMDGOALS),llvm-7.x)
   LLVM_TARGET := llvm-7.x
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_BRANCH := -b release/7.x
 else ifeq ($(MAKECMDGOALS),llvm-6.x)
   LLVM_TARGET := llvm-6.x
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_BRANCH := -b release/6.x
 else ifeq ($(MAKECMDGOALS),llvm-3.9.1)
   LLVM_TARGET := llvm-3.9.1
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_BRANCH := -b release/3.9.x
 else ifeq ($(MAKECMDGOALS),llvm-current)
   LLVM_TARGET := llvm-current
