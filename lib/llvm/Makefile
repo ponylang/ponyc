@@ -127,7 +127,6 @@ ifneq (,$(verbose))
 endif
 
 $(LLVM_TARGET): installed-llvm-$(LLVM_TARGET)
-	@echo "hi installed $(LLVM_TARGET)"
 
 .PHONY: rebuild
 rebuild: clean-built-installed
@@ -177,8 +176,8 @@ built-llvm-$(LLVM_TARGET): $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARG
 installed-llvm-$(LLVM_TARGET): built-llvm-$(LLVM_TARGET)
 	$(MAKE) installit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
 
-.PHONY: get-nothing
-get-nothing: clean
+get-nothing:
+	touch get-nothing
 
 get-default-llvm-src:
 	@echo get-default-llvm-src
