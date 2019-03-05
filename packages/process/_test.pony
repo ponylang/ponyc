@@ -47,6 +47,30 @@ primitive EchoPath
       "/bin/echo"
     end
 
+primitive BadExecPath
+  fun apply(): String =>
+    ifdef windows then
+       "C:\\Windows\\system.ini" // not exeutable
+    else
+      "./_test.sh" // has non-existent interpreter in shebang
+    end
+
+primitive PwdPath
+  fun apply(): String =>
+    ifdef windows then
+      "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c cd"
+    else
+      "/bin/pwd"
+    end
+
+primitive PwdArgs
+  fun apply(): Array[String] val =>
+    ifdef windows then
+      ["cmd"; "/c"; "cd"]
+    else
+      ["pwd"]
+    end
+
 class iso _TestFileExecCapabilityIsRequired is UnitTest
   fun name(): String =>
     "process/TestFileExecCapabilityIsRequired"
@@ -166,16 +190,16 @@ class iso _TestStderr is UnitTest
   fun ref apply(h: TestHelper) =>
     let errmsg =
       ifdef windows then
-        "FIND: Invalid switch\r\n"
+        "message-to-stderr\r\n"
       else
         "cat: file_does_not_exist: No such file or directory\n"
       end
-    let exit_code: I32 = ifdef windows then 2 else 1 end
+    let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
+      let path = FilePath(h.env.root as AmbientAuth, ifdef windows then "C:\\Windows\\System32\\cmd.exe" else CatPath() end)?
       let args: Array[String] val = ifdef windows then
-        ["find"; "/q"]
+        ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
       else
         ["cat"; "file_does_not_exist"]
       end
@@ -379,18 +403,17 @@ class _TestChdir is UnitTest
   fun ref apply(h: TestHelper) =>
     let parent = Path.dir(Path.cwd())
     // expect path length + \n
-    let notifier: ProcessNotify iso = _ProcessClient(parent.size() + 1, "", 0, h)
+    let notifier: ProcessNotify iso = _ProcessClient(parent.size() + (ifdef windows then 2 else 1 end), "", 0, h)
     try
       let auth = h.env.root as AmbientAuth
-
-      let path = FilePath(auth, "/bin/pwd")?
-      let args: Array[String] iso = recover Array[String](1) end
-      args.push("pwd")
+      
+      let path = FilePath(auth, PwdPath())? 
+      let args: Array[String] val = PwdArgs()
       let vars: Array[String] iso = recover Array[String](0) end
 
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path,
-          consume args, consume vars, FilePath(auth, parent)?)
+          args, consume vars, FilePath(auth, parent)?)
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -406,20 +429,20 @@ class _TestBadChdir is UnitTest
     "process-monitor"
 
   fun ref apply(h: TestHelper) =>
-    let badpath = Path.random(10)
+    let badpath = Path.abs(Path.random(10))
+    h.env.out.print(badpath)
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ChdirError)
     try
       let auth = h.env.root as AmbientAuth
 
-      let path = FilePath(auth, "/bin/pwd")?
-      let args: Array[String] iso = recover Array[String](1) end
-      args.push("pwd")
+      let path = FilePath(auth, PwdPath())?
+      let args: Array[String] val = PwdArgs()
       let vars: Array[String] iso = recover Array[String](0) end
 
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path,
-          consume args, consume vars, FilePath(auth, badpath)?)
+          args, consume vars, FilePath(auth, badpath)?)
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -435,15 +458,18 @@ class _TestBadExec is UnitTest
     "process-monitor"
 
   fun ref apply(h: TestHelper) =>
+    //let expected_error = ifdef windows 
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ExecveError)
     try
       let auth = h.env.root as AmbientAuth
-      let path = FilePath(auth, "./_test.sh")?
-      try
-        if not File(path).chmod(FileMode.>exec()) then error end
-      else
-        h.fail("Unable to ensure _test.sh is executable")
+      let path = FilePath(auth, BadExecPath())?
+      ifdef posix then
+        try
+          if not File(path).chmod(FileMode.>exec()) then error end
+        else
+          h.fail("Unable to ensure _test.sh is executable")
+        end
       end
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, [], [])
@@ -524,7 +550,6 @@ class _ProcessClient is ProcessNotify
     | WaitpidError => _h.fail("ProcessError: WaitpidError")
     | WriteError => _h.fail("ProcessError: WriteError")
     | KillError => _h.fail("ProcessError: KillError")
-    | Unsupported => _h.fail("ProcessError: Unsupported")
     | CapError => _h.fail("ProcessError: CapError")
     | ChdirError => _h.fail("ProcessError: ChdirError")
     | UnknownError => _h.fail("ProcessError: UnknownError")
