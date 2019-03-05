@@ -430,7 +430,6 @@ class _TestBadChdir is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let badpath = Path.abs(Path.random(10))
-    h.env.out.print(badpath)
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ChdirError)
     try
@@ -458,7 +457,6 @@ class _TestBadExec is UnitTest
     "process-monitor"
 
   fun ref apply(h: TestHelper) =>
-    //let expected_error = ifdef windows 
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ExecveError)
     try
