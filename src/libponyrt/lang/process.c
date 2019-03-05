@@ -57,7 +57,11 @@ PONY_API size_t ponyint_win_process_create(
     char* appname,
     char* cmdline,
     char* environ,
-    uint32_t stdin_fd, uint32_t stdout_fd, uint32_t stderr_fd)
+    char* wdir,
+    uint32_t stdin_fd, 
+    uint32_t stdout_fd, 
+    uint32_t stderr_fd,
+    uint32_t* error_code)
 {
     STARTUPINFO si;
     ZeroMemory(&si, sizeof(si));
@@ -78,15 +82,17 @@ PONY_API size_t ponyint_win_process_create(
         TRUE,        // handles are inherited
         0,           // creation flags
         environ,     // environment to use
-        NULL,        // use parent's current directory
+        wdir,        // current directory of the process
         &si,         // STARTUPINFO pointer
         &pi);        // receives PROCESS_INFORMATION
 
     if (success) {
         // Close the thread handle now as we don't need access to it
         CloseHandle(pi.hThread);
+        *error_code = 0;
         return (size_t) pi.hProcess;
     } else {
+        *error_code = GetLastError();
         return 0;  // Null handle return on non-success.
     }
 }

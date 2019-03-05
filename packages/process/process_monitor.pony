@@ -64,7 +64,6 @@ class ProcessClient is ProcessNotify
     | WriteError => _env.out.print("ProcessError: WriteError")
     | KillError => _env.out.print("ProcessError: KillError")
     | CapError => _env.out.print("ProcessError: CapError")
-    | Unsupported => _env.out.print("ProcessError: Unsupported")
     else _env.out.print("Unknown ProcessError!")
     end
 
@@ -95,7 +94,6 @@ primitive ForkError
 primitive WaitpidError
 primitive WriteError
 primitive KillError   // Not thrown at this time
-primitive Unsupported // we throw this on non POSIX systems
 primitive CapError
 primitive ChdirError
 primitive UnknownError
@@ -105,7 +103,6 @@ type ProcessError is
   | ForkError
   | KillError
   | PipeError
-  | Unsupported
   | WaitpidError
   | WriteError
   | CapError
@@ -195,8 +192,15 @@ actor ProcessMonitor
         _child = _ProcessPosix.create(
           filepath.path, args, vars, wdir, _err, _stdin, _stdout, _stderr)?
       elseif windows then
-        _child = _ProcessWindows.create(
-          filepath.path, args, vars, _stdin, _stdout, _stderr)
+        let windows_child = _ProcessWindows.create(
+          filepath.path, args, vars, wdir, _stdin, _stdout, _stderr)
+        _child = windows_child
+        // notify about errors
+        match windows_child.processError
+        | let pe: ProcessError => 
+          _notifier.failed(this, pe)
+          return
+        end
       else
         compile_error "unsupported platform"
       end

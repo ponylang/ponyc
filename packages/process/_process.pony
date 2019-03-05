@@ -2,6 +2,22 @@ use "signals"
 use "files"
 use @pony_os_errno[I32]()
 
+// for Windows System Error Codes see: https://docs.microsoft.com/de-de/windows/desktop/Debug/system-error-codes
+primitive _ERRORBADEXEFORMAT
+  fun apply(): U32 =>
+    """
+    ERROR_BAD_EXE_FORMAT
+    %1 is not a valid Win32 application.
+    """ 
+    193 // 0xC1
+
+primitive _ERRORDIRECTORY
+  fun apply(): U32 =>
+    """
+    The directory name is invalid.
+    """
+    267 // 0x10B
+
 primitive _STDINFILENO
   fun apply(): U32 => 0
 
@@ -182,21 +198,40 @@ class _ProcessPosix is _Process
 
 class _ProcessWindows is _Process
   let hProcess: USize
+  let processError: (ProcessError | None)
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
+    wdir: (FilePath | None),
     stdin: _Pipe,
     stdout: _Pipe,
     stderr: _Pipe)
   =>
     ifdef windows then
+      let wdir_ptr =
+        match wdir
+          | let wdir_fp: FilePath => wdir_fp.path.cstring()
+          | None => Pointer[U8].create() // NULL -> use parent directory
+        end
+      var error_code: U32 = 0
       hProcess = @ponyint_win_process_create[USize](
           path.cstring(),
           _make_cmdline(args).cstring(),
           _make_environ(vars).cpointer(),
-          stdin.far_fd, stdout.far_fd, stderr.far_fd)
+          wdir_ptr,
+          stdin.far_fd, stdout.far_fd, stderr.far_fd,
+          addressof error_code)
+      processError =
+        if hProcess == 0 then
+          match error_code
+          | _ERRORBADEXEFORMAT() => ExecveError
+          | _ERRORDIRECTORY() => ChdirError
+          else
+            UnknownError // TODO: what other errors can we distinguish here? 
+          end
+        end
     else
       compile_error "unsupported platform"
     end
