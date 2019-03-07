@@ -33,6 +33,8 @@ endif
 # xenial and artful are on openssl 1.0
 # artful and newer require PIC
 ifeq (,$(filter $(DEB_DISTRIBUTION),xenial artful))
+# xenial and artful are on openssl 1.0
+# artful and newer require PIC
 	MAKE_OPTIONS += default_ssl='openssl_1.1.0' default_pic=true
 else
 ifeq ($(DEB_DISTRIBUTION),artful)
