@@ -1,8 +1,8 @@
 ARG FROM_DISTRO=ubuntu
-ARG FROM_VERSION=trusty
+ARG FROM_VERSION=xenial
 FROM ${FROM_DISTRO}:${FROM_VERSION}
 
-ARG FROM_VERSION=trusty
+ARG FROM_VERSION=xenial
 
 RUN apt-get update \
  && apt-get install -y \

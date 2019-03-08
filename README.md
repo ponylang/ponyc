@@ -237,7 +237,7 @@ By default, the Pony DEB package is compiled without support for AVX CPU instruc
 
 ### Linux Mint
 
-All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`trusty`, `xenial`, `bionic`) instead of the Linux Mint release.
+All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`xenial`, `bionic`) instead of the Linux Mint release.
 
 Install pre-requisites and add the correct `apt` repository:
 
@@ -445,59 +445,6 @@ To build ponyc, compile and run helloworld:
 ```bash
 cd ~/ponyc/
 make default_pic=true
-./build/release/ponyc examples/helloworld
-./helloworld
-```
-
-### Ubuntu Trusty
-
-Add the LLVM apt repo to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
-
-```
-deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
-deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
-```
-
-Add the LLVM repo as a trusted source:
-
-```bash
-cd /tmp
-wget -O llvm-snapshot.gpg.key http://apt.llvm.org/llvm-snapshot.gpg.key
-sudo apt-key add llvm-snapshot.gpg.key
-```
-
-Install dependencies:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev \
-  libssl-dev llvm-3.9
-```
-
-Install libprce2:
-
-```bash
-cd /tmp
-wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-tar xjvf pcre2-10.21.tar.bz2
-cd pcre2-10.21
-./configure --prefix=/usr
-make
-sudo make install
-```
-
-Clone the ponyc repo:
-
-```bash
-cd ~/
-git clone https://github.com/ponylang/ponyc.git
-```
-
-Build ponyc, compile and run helloworld:
-
-```bash
-cd ~/ponyc/
-make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```

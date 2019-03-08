@@ -2,7 +2,7 @@
 
 REPO_TYPE=debian
 PACKAGE_VERSION=$1  # e.g., 0.24.0
-DISTRO=$2 # e.g., trusty
+DISTRO=$2 # e.g., bionic
 
 if [[ "$PACKAGE_VERSION" == "" ]]; then
   echo "Error! PACKAGE_VERSION (argument 1) required!"
