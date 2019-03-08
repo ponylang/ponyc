@@ -51,130 +51,63 @@ then
   exit
 fi
 
-case "${TRAVIS_OS_NAME}" in
-  "linux")
-    # setting a global python version for all subsequent executions.
-    # this could break the release machinery, so we might need to remove this, if it does.
-    # but we have this here to test stuff out on master
-    pyenv global 3.6
+# setting a global python version for all subsequent executions.
+# this could break the release machinery, so we might need to remove this, if it does.
+# but we have this here to test stuff out on master
+pyenv global 3.6
 
-    # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
-    if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
-    then
-      # verify docs build first
-      ponyc-build-docs
-      # now the packaging
-      "ponyc-build-debs-$RELEASE_DEBS" master
-      exit
-    fi
+# when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
+if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
+then
+  # verify docs build first
+  ponyc-build-docs
+  # now the packaging
+  "ponyc-build-debs-$RELEASE_DEBS" master
+  exit
+fi
 
-    # when building appimage package for a nightly cron job or manual api requested job to make sure packaging isn't broken
-    if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" == "" && "$CROSS_ARCH" == "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
-    then
-      build_appimage "$(cat VERSION)"
-      exit
-    fi
+# when building appimage package for a nightly cron job or manual api requested job to make sure packaging isn't broken
+if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" == "" && "$CROSS_ARCH" == "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
+then
+  build_appimage "$(cat VERSION)"
+  exit
+fi
 
-    # when building debian packages for a release
-    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" != "" ]]
-    then
-      "ponyc-build-debs-$RELEASE_DEBS" "$(cat VERSION)"
-    fi
+# when building debian packages for a release
+if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" != "" ]]
+then
+  "ponyc-build-debs-$RELEASE_DEBS" "$(cat VERSION)"
+fi
 
-    # when running a cross build of ponyc
-    if [[ "${CROSS_ARCH}" != "" ]]
-    then
-      set -x
-      # build and test for x86_64 first
-      echo "Building and testing ponyc..."
-      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} CC="$CC1" CXX="$CXX1" verbose=1 -j$(nproc) all
-      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} CC="$CC1" CXX="$CXX1" verbose=1 test-ci
+# when running a cross build of ponyc
+if [[ "${CROSS_ARCH}" != "" ]]
+then
+  set -x
+  # build and test for x86_64 first
+  echo "Building and testing ponyc..."
+  docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} CC="$CC1" CXX="$CXX1" verbose=1 -j$(nproc) all
+  docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} CC="$CC1" CXX="$CXX1" verbose=1 test-ci
 
-      echo "Building and testing cross ponyc..."
-      # build libponyrt for target arch
-      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 CC="${CROSS_CC}" CXX="${CROSS_CXX}" arch="${CROSS_ARCH}" tune="${CROSS_TUNE}" bits="${CROSS_BITS}" CFLAGS="${CROSS_CFLAGS}" CXXFLAGS="${CROSS_CXXFLAGS}" LDFLAGS="${CROSS_LDFLAGS}" -j$(nproc) libponyrt
-      # build ponyc for target cross compilation
-      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 -j$(nproc) all PONYPATH=/usr/cross/lib cross_triple="${CROSS_TRIPLE}" cross_cpu="${CROSS_TUNE}" cross_arch="${CROSS_ARCH}" cross_linker="${CROSS_LINKER}"
-      # run tests for cross built stdlib using ponyc cross building support
-      docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 test-cross-ci PONYPATH=/usr/cross/lib cross_triple="${CROSS_TRIPLE}" cross_cpu="${CROSS_TUNE}" cross_arch="${CROSS_ARCH}" cross_linker="${CROSS_LINKER}" QEMU_RUNNER="${QEMU_RUNNER:-}"
+  echo "Building and testing cross ponyc..."
+  # build libponyrt for target arch
+  docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 CC="${CROSS_CC}" CXX="${CROSS_CXX}" arch="${CROSS_ARCH}" tune="${CROSS_TUNE}" bits="${CROSS_BITS}" CFLAGS="${CROSS_CFLAGS}" CXXFLAGS="${CROSS_CXXFLAGS}" LDFLAGS="${CROSS_LDFLAGS}" -j$(nproc) libponyrt
+  # build ponyc for target cross compilation
+  docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 -j$(nproc) all PONYPATH=/usr/cross/lib cross_triple="${CROSS_TRIPLE}" cross_cpu="${CROSS_TUNE}" cross_arch="${CROSS_ARCH}" cross_linker="${CROSS_LINKER}"
+  # run tests for cross built stdlib using ponyc cross building support
+  docker run --rm -u pony:2000 -v $(pwd):/home/pony "ponylang/ponyc-ci:cross-llvm-${LLVM_VERSION}-${DOCKER_ARCH}" make config=${config} verbose=1 test-cross-ci PONYPATH=/usr/cross/lib cross_triple="${CROSS_TRIPLE}" cross_cpu="${CROSS_TUNE}" cross_arch="${CROSS_ARCH}" cross_linker="${CROSS_LINKER}" QEMU_RUNNER="${QEMU_RUNNER:-}"
 
-      set +x
-    fi
+  set +x
+fi
 
-    # when RELEASE_CONFIG stops matching part of this case, move this logic
-    if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" == "" ]]
-    then
-      download_llvm
-      download_pcre
-      set_linux_compiler
-      build_appimage "$(cat VERSION)"
-      ponyc-kickoff-copr
-      ponyc-build-packages
-      ponyc-build-docs
-      ponyc-upload-docs
-    fi
-  ;;
-
-  "osx")
-    # when running for a nightly cron job or manual api requested job to make sure packaging isn't broken
-    if [[ "$TRAVIS_BRANCH" == "master" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
-    then
-      brew install ponyc --HEAD
-      brew uninstall ponyc
-      exit
-    fi
-
-    if [[ "$TRAVIS_BRANCH" != "release" ]]
-    then
-      brew update
-      brew install pcre2
-      brew install libressl
-
-      export PATH=llvmsym/:$PATH
-      mkdir llvmsym
-
-      # 3.9.x
-      brew install llvm@3.9
-      brew link --overwrite --force llvm@3.9
-      ln -fs "$(which llvm-config)" llvmsym/llvm-config-3.9
-      ln -fs "$(which clang++)" llvmsym/clang++-3.9
-
-      export CC1=clang-3.9
-      export CXX1=clang++-3.9
-      echo "Running LLVM 3.9 config=debug build..."
-      export config=debug
-      osx-ponyc-test
-      echo "Running LLVM 3.9 config=release build..."
-      export config=release
-      osx-ponyc-test
-
-      make clean
-      brew uninstall llvm@3.9
-
-      # 7.0.x
-      ## THIS WILL BREAK WHEN LLVM 8 is added to brew
-      ## because it will be llvm package and old llvm 7
-      ## will become llm@7
-      export PATH=/usr/local/opt/llvm/bin:$PATH
-      brew install llvm
-      ln -fs "$(which llvm-config)" llvmsym/llvm-config-7.0
-      ln -fs "$(which clang++)" llvmsym/clang++-7.0
-      ln -fs "$(which clang)" llvmsym/clang-7.0
-
-      export CC1=clang-7.0
-      export CXX1=clang++-7.0
-      echo "Running LLVM 7.0 config=release build..."
-      export config=release
-      osx-ponyc-test
-
-      make clean
-      brew uninstall llvm
-    fi
-  ;;
-
-  *)
-    echo "ERROR: An unrecognized OS. Consider OS: ${TRAVIS_OS_NAME}."
-    exit 1
-  ;;
-
-esac
+# when RELEASE_CONFIG stops matching part of this case, move this logic
+if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" == "" ]]
+then
+  download_llvm
+  download_pcre
+  set_linux_compiler
+  build_appimage "$(cat VERSION)"
+  ponyc-kickoff-copr
+  ponyc-build-packages
+  ponyc-build-docs
+  ponyc-upload-docs
+fi
