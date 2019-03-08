@@ -1,11 +1,6 @@
 # Build image for different distros
 
 ```bash
-# Ubuntu Trusty
-docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=trusty -t ponylang/ponyc-ci:trusty-deb-builder .
-```
-
-```bash
 # Ubuntu Xenial
 docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=xenial -t ponylang/ponyc-ci:xenial-deb-builder .
 ```
