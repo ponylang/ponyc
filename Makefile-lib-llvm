@@ -33,7 +33,7 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKECMDGOALS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS)
 
 .PHONY: $(llvm_config)
 $(llvm_config):
@@ -42,14 +42,14 @@ $(llvm_config):
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild
 rebuild: clean
-	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config)
+	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) rebuild
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild-test
 rebuild-test: clean
-	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) test
+	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) rebuild
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) test
 
 # Rebuild and then run some tests as passed in the command line parameter gtest_filter.
 # Note, the clean is needed otherwise the rebuild of llvm won't be linked.
@@ -61,7 +61,7 @@ rebuild-test: clean
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
 	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 	@$(MAKE) -f Makefile-lib-llvm some-tests
 
 # Run the some passing gtest_filter on command line, for example:
@@ -73,7 +73,7 @@ some-tests:
 # Clean just ponyc
 .PHONY: clean
 clean:
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) clean
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) clean
 
 # Clean ponyc and lib/llvm
 .PHONY: clean-all

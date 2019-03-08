@@ -33,7 +33,7 @@ ifeq (,$(MAKECMDGOALS))
   MAKECMDGOALS := llvm-default
 endif
 
-$(warning "lib/llvm/Makefile MAKECMDGOALS=$(MAKECMDGOALS)")
+$(info lib/llvm/Makefile MAKECMDGOALS="$(MAKECMDGOALS)")
 
 ifeq ($(MAKECMDGOALS),rebuild)
   LLVM_TARGET := llvm-current
@@ -61,26 +61,17 @@ else ifeq ($(MAKECMDGOALS),llvm-current)
   LLVM_SRC_DEPTH :=
   LLVM_BRANCH :=
 else ifeq ($(MAKECMDGOALS),llvm-default)
-  $(warning llvm-default.....)
+  $(info llvm-default.....)
   LLVM_TARGET := llvm-default
   GET_LLVM_SRC_TARGET := get-default-llvm-src
   LLVM_SRC_DEPTH :=
   LLVM_URL :=
   LLVM_BRANCH :=
 else ifeq ($(MAKECMDGOALS),buildit)
-  $(warning "lib/llvm/Makefile buildit LLVM_TARGET=$(LLVM_TARGET)")
-  $(warning "lib/llvm/Makefile buildit LLVM_SRC_DIR=$(LLVM_SRC_DIR)")
-  $(warning "lib/llvm/Makefile buildit LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)")
   # Nothing to init
 else ifeq ($(MAKECMDGOALS),installit)
   # Nothing to init
-  $(warning "lib/llvm/Makefile installit LLVM_TARGET=$(LLVM_TARGET)")
-  $(warning "lib/llvm/Makefile installit LLVM_SRC_DIR=$(LLVM_SRC_DIR)")
-  $(warning "lib/llvm/Makefile installit LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)")
 else ifeq ($(MAKECMDGOALS),generateit)
-  $(warning "lib/llvm/Makefile generateit LLVM_TARGET=$(LLVM_TARGET)")
-  $(warning "lib/llvm/Makefile generateit LLVM_SRC_DIR=$(LLVM_SRC_DIR)")
-  $(warning "lib/llvm/Makefile generateit LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)")
   # Nothing to init
 else ifeq ($(MAKECMDGOALS),clean)
   # Nothing to init
@@ -90,6 +81,10 @@ else ifeq ($(MAKECMDGOALS),distclean)
 #  $(error Uknown target '$(MAKECMDGOALS)', someone did not pass a goal)
 endif
 
+$(info lib/llvm/Makefile LLVM_TARGET="$(LLVM_TARGET)")
+$(info lib/llvm/Makefile LLVM_SRC_DIR="$(LLVM_SRC_DIR)")
+$(info lib/llvm/Makefile LLVM_BUILD_DIR="$(LLVM_BUILD_DIR)")
+
 LLVM_SRC_DIR := $(ROOT_DIR)/src
 LLVM_BUILD_DIR := $(ROOT_DIR)/build
 LLVM_INSTALL_DIR := $(ROOT_DIR)/dist
@@ -97,24 +92,24 @@ LLVM_INSTALL_DIR := $(ROOT_DIR)/dist
 LLVM_BUILD_ENGINE := "Unix Makefiles"
 LLVM_BUILD_TYPE := Release
 
-LLVM_LINKER := bfd
-#ifeq (llvm-3.9.1,$(LLVM_TARGET))
-#  # 3.9.1 doesn't supprot -DLLVM_USE_LINKER so make it empty to supress a warning
-#  LLVM_USE_LINKER :=
-#else
-#  LLVM_USE_LINKER := -DLLVM_USE_LINKER=$(LLVM_LINKER)
-#endif
+# LLVM_lINKER valid options are bfd, gold or lld.
+# Currently lld is only valid when compiler is clang{++}.
+LLVM_LINKER := gold
 LLVM_USE_LINKER := -DLLVM_USE_LINKER=$(LLVM_LINKER)
 
-$(warning "lib/llvm/Makefile: LLVM_PROJECT_LIST=$(LLVM_PROJECT_LIST)")
-ifeq ($(LLVM_PROJECT_LIST),all)
-  PROJECT_LIST = clang;clang-tools-extra;libcxx;libcxxabi;libunwind;compiler-rt;lld;lldb;polly;debuginfo-tests
-else ifneq ($(LLVM_PROJECT_LIST),)
+$(info lib/llvm/Makefile LLVM_PROJECT_LIST="$(LLVM_PROJECT_LIST)")
+# LLVM_PROJECT_LIST is a semi-colon seperated list of projects defined
+# by llvm.org. A value of "all", no quotes, will create all projects
+# but I've found that using "all" won't always compile. The following
+# PROJECT_LIST worked for 7.0.1:
+# PROJECT_LIST = clang;clang-tools-extra;libcxx;libcxxabi;libunwind;compiler-rt;lld;lldb;polly;debuginfo-tests
+ifneq ($(LLVM_PROJECT_LIST),)
   PROJECT_LIST = $(LLVM_PROJECT_LIST)
 else
+  # With PROJECT_LIST empty only LLVM will be built.
   PROJECT_LIST =
 endif
-$(warning "lib/llvm/Makefile: PROJECT_LIST=$(PROJECT_LIST)")
+$(info lib/llvm/Makefile PROJECT_LIST="$(PROJECT_LIST)")
 
 ifneq ($(PROJECT_LIST),)
   LLVM_ENABLE_PROJECTS := -DLLVM_ENABLE_PROJECTS="$(PROJECT_LIST)"
@@ -164,7 +159,7 @@ endif
 generateit:
 	@echo generate $(LLVM_TARGET) `git -C src log -1 --pretty="format:hash=%h ref=%d"`
 	mkdir -p $(LLVM_BUILD_DIR)
-	cd $(LLVM_BUILD_DIR); cmake -G $(LLVM_BUILD_ENGINE) $(VERBOSE_CMAKE) $(LLVM_USE_LINKER) $(LLVM_ENABLE_PROJECTS) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(LLVM_BUILD_TYPE) $(LLVM_SRC_DIR)/llvm
+	cd $(LLVM_BUILD_DIR); cmake -G $(LLVM_BUILD_ENGINE) $(VERBOSE_CMAKE) $(LLVM_USE_LINKER) $(LLVM_ENABLE_PROJECTS) -DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DCMAKE_BUILD_TYPE=$(LLVM_BUILD_TYPE) -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON $(LLVM_SRC_DIR)/llvm
 	touch $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
 
 $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET): $(GET_LLVM_SRC_TARGET)
