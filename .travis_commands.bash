@@ -145,7 +145,6 @@ ponyc-build-debs-ubuntu(){
   build_deb xenial
   build_deb artful
   build_deb bionic
-  build_deb trusty
 
   ls -la
   set +x

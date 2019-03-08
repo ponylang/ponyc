@@ -1,6 +1,6 @@
 FROM ponylang/ponyc-ci:ubuntu-16.04-base
 
-ENV LLVM_VERSION 6.0.1
+ENV LLVM_VERSION 3.9.1
 
 USER root
 

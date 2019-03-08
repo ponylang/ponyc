@@ -43,17 +43,17 @@ ifeq ($(MAKECMDGOALS),rebuild)
 else ifeq ($(MAKECMDGOALS),llvm-7.x)
   LLVM_TARGET := llvm-7.x
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_BRANCH := -b release/7.x
 else ifeq ($(MAKECMDGOALS),llvm-6.x)
   LLVM_TARGET := llvm-6.x
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_BRANCH := -b release/6.x
 else ifeq ($(MAKECMDGOALS),llvm-3.9.1)
   LLVM_TARGET := llvm-3.9.1
   GET_LLVM_SRC_TARGET := get-llvm-src-$(LLVM_TARGET)
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_BRANCH := -b release/3.9.x
 else ifeq ($(MAKECMDGOALS),llvm-current)
   LLVM_TARGET := llvm-current
@@ -64,7 +64,7 @@ else ifeq ($(MAKECMDGOALS),llvm-default)
   $(warning llvm-default.....)
   LLVM_TARGET := llvm-default
   GET_LLVM_SRC_TARGET := get-default-llvm-src
-  LLVM_SRC_DEPTH := --depth=1
+  LLVM_SRC_DEPTH :=
   LLVM_URL :=
   LLVM_BRANCH :=
 else ifeq ($(MAKECMDGOALS),buildit)
@@ -122,36 +122,43 @@ else
   LLVM_ENABLE_PROJECTS :=
 endif
 
-ifeq ($(LLVM_BUILD_ENGINE),Ninja)
-MAKE := ninja
-MAKEFILE := build.ninja
-else
-MAKE := make
-MAKEFILE := Makefile
-endif
-
 ifneq (,$(verbose))
   VERBOSE_CMAKE := -DCMAKE_VERBOSE_MAKEFILE=true
 endif
 
 $(LLVM_TARGET): installed-llvm-$(LLVM_TARGET)
-	@echo "hi installed $(LLVM_TARGET)"
 
 .PHONY: rebuild
 rebuild: clean-built-installed
-	make installed-llvm-$(LLVM_TARGET) LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+	$(MAKE) installed-llvm-$(LLVM_TARGET) LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
 
+ifeq ($(LLVM_BUILD_ENGINE),Ninja)
+.PHONY: buildit
+buildit:
+	@echo building $(LLVM_TARGET) `git -C src log -1 --pretty="format:hash=%h ref=%d subject='%s'"`
+	ninja -C $(LLVM_BUILD_DIR)
+	touch built-llvm-$(LLVM_TARGET)
+else
 .PHONY: buildit
 buildit:
 	@echo building $(LLVM_TARGET) `git -C src log -1 --pretty="format:hash=%h ref=%d subject='%s'"`
 	$(MAKE) -C $(LLVM_BUILD_DIR)
 	touch built-llvm-$(LLVM_TARGET)
+endif
 
+ifeq ($(LLVM_BUILD_ENGINE),Ninja)
+.PHONY: installit
+installit:
+	@echo installing $(LLVM_TARGET)
+	ninja -C $(LLVM_BUILD_DIR) install
+	touch installed-llvm-$(LLVM_TARGET)
+else
 .PHONY: installit
 installit:
 	@echo installing $(LLVM_TARGET)
 	$(MAKE) -C $(LLVM_BUILD_DIR) install
 	touch installed-llvm-$(LLVM_TARGET)
+endif
 
 .PHONY: generateit
 generateit:
@@ -161,26 +168,22 @@ generateit:
 	touch $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
 
 $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET): $(GET_LLVM_SRC_TARGET)
-	make generateit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+	$(MAKE) generateit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
 
-ifeq ($(MAKE),ninja)
-built-llvm-$(LLVM_TARGET): $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
-	make buildit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
-else
 built-llvm-$(LLVM_TARGET): $(LLVM_BUILD_DIR)/generated-llvm-makefile-$(LLVM_TARGET)
 	$(MAKE) buildit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
-endif
 
 installed-llvm-$(LLVM_TARGET): built-llvm-$(LLVM_TARGET)
-	make installit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
+	$(MAKE) installit LLVM_TARGET=$(LLVM_TARGET) LLVM_SRC_DIR=$(LLVM_SRC_DIR) LLVM_BUILD_DIR=$(LLVM_BUILD_DIR)
 
-.PHONY: get-nothing
-get-nothing: clean
+get-nothing:
+	touch get-nothing
 
 get-default-llvm-src:
 	@echo get-default-llvm-src
 	rm -rf $(LLVM_SRC_DIR)
 	mkdir $(LLVM_SRC_DIR)
+	git submodule sync
 	git submodule update --init $(LLVM_SRC_DEPTH)
 	touch get-default-llvm-src
 

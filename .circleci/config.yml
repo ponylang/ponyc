@@ -3,7 +3,7 @@ test-ci-lib-llvm: &test-ci-lib-llvm
   command: |
     # When testing override CPUs in command line, such as:
     #   $ circleci build -e CPUs=11 --job ubuntu-debug
-    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
+    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
     source $BASH_ENV
     echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
     make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
@@ -82,6 +82,24 @@ jobs:
   llvm-502-release:
     docker:
       - image: ponylang/ponyc-ci:llvm-5.0.2
+        user: pony
+    steps:
+      - checkout
+      - run: make all config=release default_pic=true -j3
+      - run: make test-ci config=release default_pic=true
+
+  llvm-391-debug:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-3.9.1
+        user: pony
+    steps:
+      - checkout
+      - run: make all config=debug default_pic=true -j3
+      - run: make test-ci config=debug default_pic=true
+
+  llvm-391-release:
+    docker:
+      - image: ponylang/ponyc-ci:llvm-3.9.1
         user: pony
     steps:
       - checkout
@@ -268,6 +286,9 @@ workflows:
       - llvm-502-release:
           requires:
             - llvm-701-release
+      - llvm-391-release:
+          requires:
+            - llvm-701-release
 
       ### p2 tests
       - llvm-701-debug:
@@ -279,6 +300,9 @@ workflows:
       - llvm-502-debug:
           requires:
             - llvm-502-release
+      - llvm-391-debug:
+          requires:
+            - llvm-391-release
 
       # alpine
       - alpine-llvm-5-release:

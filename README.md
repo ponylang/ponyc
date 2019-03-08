@@ -237,7 +237,7 @@ By default, the Pony DEB package is compiled without support for AVX CPU instruc
 
 ### Linux Mint
 
-All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`trusty`, `xenial`, `bionic`) instead of the Linux Mint release.
+All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`xenial`, `bionic`) instead of the Linux Mint release.
 
 Install pre-requisites and add the correct `apt` repository:
 
@@ -340,6 +340,31 @@ Typically you only need to build the LLVM sources once, as the `make clean` targ
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
+### Changing the commit associated with llvm_target=llvm-default
+
+When llvm_target is not specified or it is llvm-default the commit associated with the lib/llvm/src submodule is checked out as the llvm source to be built. To change to a different commit, for instance a tag `llvmorg-8.0.0`, simply clone ponyc and have the lib/llvm/src submodule up to date and initialized. The simplest way to do that is clone ponyc with --recursive-submodule. Then checkout the desired commit the lib/llvm/src directory and push it to the repo, for example:
+```
+git clone --recurse-submodules  https://github.com/you/ponyc ponyc
+cd ponyc
+git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0 master
+cd lib/llvm/src
+git checkout llvmorg-8.0.0:
+cd ../../../
+```
+Now build and test using `llvm_target=llvm-current` and any other appropriate parameters:
+```
+make -j12 llvm_target=llvm-current default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
+# Debug/test ....
+```
+When satisfied create a commit pushing to your repo:
+```
+git add lib/llvm/src
+git commit -m "Update submodule lib/llvm/src to llvmorg-8.0.0"
+git push origin update-lib-llvm-src-to-llvmorg-8.0.0
+```
+And finally create a pull request and work hard getting CI to pass, :)
+See the [Submodule section of the git-scm book](https://git-scm.com/book/en/v2/Git-Tools-Submodules) for more information.
+
 ## Building on Linux
 
 Get the pony source from GitHub (For information on setting up Git, see https://help.github.com/articles/set-up-git/):
@@ -382,59 +407,6 @@ To build ponyc, compile and run helloworld:
 ```bash
 cd ~/ponyc/
 make default_pic=true
-./build/release/ponyc examples/helloworld
-./helloworld
-```
-
-### Ubuntu Trusty
-
-Add the LLVM apt repo to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
-
-```
-deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
-deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
-```
-
-Add the LLVM repo as a trusted source:
-
-```bash
-cd /tmp
-wget -O llvm-snapshot.gpg.key http://apt.llvm.org/llvm-snapshot.gpg.key
-sudo apt-key add llvm-snapshot.gpg.key
-```
-
-Install dependencies:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev \
-  libssl-dev llvm-3.9
-```
-
-Install libprce2:
-
-```bash
-cd /tmp
-wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-tar xjvf pcre2-10.21.tar.bz2
-cd pcre2-10.21
-./configure --prefix=/usr
-make
-sudo make install
-```
-
-Clone the ponyc repo:
-
-```bash
-cd ~/
-git clone https://github.com/ponylang/ponyc.git
-```
-
-Build ponyc, compile and run helloworld:
-
-```bash
-cd ~/ponyc/
-make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
