@@ -226,27 +226,15 @@ ifeq ($(OSTYPE),osx)
 endif
 
 ifndef LLVM_CONFIG
-  ifneq (,$(shell which llvm-config-7.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-7.0
-  else ifneq (,$(shell which llvm-config70 2> /dev/null))
-    LLVM_CONFIG = llvm-config70
-  else ifneq (,$(shell which llvm-config-mp-7.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-mp-7.0
-  else ifneq (,$(shell which llvm-config-6.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-6.0
-  else ifneq (,$(shell which llvm-config-mp-6.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-mp-6.0
-  else ifneq (,$(shell which llvm-config-5.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-5.0
-  else ifneq (,$(shell which llvm-config-mp-5.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-mp-5.0
-  else ifneq (,$(shell which llvm-config 2> /dev/null))
+  ifneq (,$(shell which llvm-config 2> /dev/null))
     LLVM_CONFIG = llvm-config
   else
-    $(error No LLVM installation found!)
+    $(error No LLVM installation found! Set LLVM_CONFIG environment variable \
+      to the `llvm-config` binary for your installation)
   endif
 else ifeq (,$(shell which $(LLVM_CONFIG) 2> /dev/null))
-  $(error No LLVM installation found!)
+  $(error No LLVM installation found! Set LLVM_CONFIG environment variable \
+    to the `llvm-config` binary for your installation)
 endif
 
 LLVM_BINDIR := $(shell $(LLVM_CONFIG) --bindir 2> /dev/null)
