@@ -19,11 +19,7 @@ DEB_DISTRIBUTION = $(call dpkg_late_eval,DEB_DISTRIBUTION,dpkg-parsechangelog -S
 MAKE_OPTIONS := prefix=/usr
 
 ifeq ($(DEB_HOST_ARCH),amd64)
-ifeq ($(DEB_DISTRIBUTION),jessie)
-	MAKE_OPTIONS += arch=x86-64 tune=generic use="llvm_link_static"
-else
 	MAKE_OPTIONS += arch=x86-64 tune=intel
-endif
 endif
 
 ifeq ($(DEB_HOST_ARCH),s390x)
@@ -34,9 +30,9 @@ ifeq ($(DEB_HOST_ARCH),armhf)
 	MAKE_OPTIONS += arch=armv7 tune=arm7
 endif
 
-# jessie, xenial and artful are on openssl 1.0
+# xenial and artful are on openssl 1.0
 # artful and newer require PIC
-ifeq (,$(filter $(DEB_DISTRIBUTION),jessie xenial artful))
+ifeq (,$(filter $(DEB_DISTRIBUTION),xenial artful))
 	MAKE_OPTIONS += default_ssl='openssl_1.1.0' default_pic=true
 else
 ifeq ($(DEB_DISTRIBUTION),artful)
@@ -61,7 +57,7 @@ override_dh_auto_test:
 	$(MAKE) test-ci $(MAKE_OPTIONS)
 
 # if newer debian/ubuntu disable unform compression in deb for bintray
-ifeq (,$(filter $(DEB_DISTRIBUTION),jessie stretch xenial artful))
+ifeq (,$(filter $(DEB_DISTRIBUTION),stretch xenial artful))
 override_dh_builddeb:
 	dh_builddeb -- --no-uniform-compression
 endif

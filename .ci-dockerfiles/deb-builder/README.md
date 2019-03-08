@@ -25,11 +25,6 @@ docker build --build-arg FROM_DISTRO=debian --build-arg FROM_VERSION=stretch -t 
 docker build --build-arg FROM_DISTRO=debian --build-arg FROM_VERSION=buster -t ponylang/ponyc-ci:buster-deb-builder .
 ```
 
-```bash
-# Debian Jessie
-docker build --build-arg FROM_DISTRO=debian --build-arg FROM_VERSION=jessie -t ponylang/ponyc-ci:jessie-deb-builder --file Dockerfile.jessie .
-```
-
 # Push to dockerhub
 
 You'll need credentials for the ponylang dockerhub account. Talk to @jemc or @seantallen for access
