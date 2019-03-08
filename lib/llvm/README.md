@@ -1,39 +1,40 @@
 # Build llvm sources
 
+The ./Makefile provides allowing multiple versions of llvm to be built and
+tested. Various variables/parameters need to be set which can be done directly
+on the command line or set in \*.cfg files and passed to the makefile by
+setting llvm_cfg=XXX.cfg on the command line or export into the environment.
+
 See [llvm getting started](http://llvm.org/docs/GettingStarted.html) for more
 information on building llvm.
 
 ## Prerequesites
-  * Gcc 6+
+  * gcc 6+
   * cmake
   * ninja &| make
-  * gold &| bfd
+  * gold, bfd &| lld
 
-## Building
-Options:
-- LLVM_BUILD_ENGINE=<Ninja|"Unix Makefiles"> the type of build to create (default "Unix Makefiles")
-- LLVM_BUILD_TYPE=<Release|Debug|RelWithDebInfo|MinSizeRel> the type of build to create (default Release)
-- LLVM_INSTALL_DIR=xxx where xxx is the path to the install directory (default ./dist)
-- LLVM_PROJECT_LIST=<""|"all"|<comma seperated list of targets>>
-    if "all" the list is: "clang;clang-tools-extra;libcxx;libcxxabi;libunwind;compiler-rt;lld;lldb;polly;debuginfo-tests"
-- LINKER=<gold|bfd|ld.lld> the linker to use (default bfd)
+## Build and install in one step
+For options See `make help` or ./Makefile
 
-Build using the defaults as defined by lib/llvm/src submodule:
+Build llvm as defined by the commit associated with lib/llvm/src submodule:
 ```
-make -j10
+make -j12
 ```
-Example over riding the defaults for building llvm-7.0.0:
+Example over riding some defaults
 ```
-make llvm-7.x -j12 LLVM_BUILD_ENGINE=Ninja LLVM_BULID_TYPE=Debug LLVM_INSTALL_DIR=./bin LINKER=gold
+make -j6 LLVM_BUILD_ENGINE=Ninja LLVM_BULID_TYPE=Debug
 ```
-Building has been tested on a 32G RAM desktop, 16G laptop and a 1G VM. Be careful
-using -j for parallel build with the desktop -j10 wasn't a problem but with
-the laptop I needed to use -j2 and the tiny VM -j1. YMMV.
 
-## Install
-You must use the same LLVM_BUILD_ENGINE and LLVM_INSTALL_DIR as used when building or none if not specified when building
+## Rebuild current src
+Use the same options as the initial 'all' build
 ```
-make install
+make -j12 rebuild LLVM_BUILD_ENGINE=Ninja LLVM_BULID_TYPE=Debug
+```
+## Install after a rebuild
+Use the same options as the initial 'all' build
+```
+make install LLVM_BUILD_ENGINE=Ninja LLVM_BULID_TYPE=Debug
 ```
 ## Clean
 Clean binaries
