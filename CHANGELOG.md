@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Stop trying to be clever when finding user's LLVM installation ([PR #3077](https://github.com/ponylang/ponyc/pull/3077))
 - Stop supporting Ubuntu Trusty ([PR #3076](https://github.com/ponylang/ponyc/pull/3076))
 
 ## [0.27.0] - 2019-03-01
