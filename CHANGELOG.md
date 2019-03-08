@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Stop supporting Ubuntu Trusty ([PR #3076](https://github.com/ponylang/ponyc/pull/3076))
 
 ## [0.27.0] - 2019-03-01
 
