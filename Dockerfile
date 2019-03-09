@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-ENV LLVM_VERSION 3.9.1
+ENV LLVM_VERSION 7.0.1
 
 RUN apt-get update \
  && apt-get install -y \
