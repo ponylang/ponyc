@@ -16,6 +16,8 @@ export DH_VERBOSE = 1
 dpkg_late_eval ?= $(or $(value DPKG_CACHE_$(1)),$(eval DPKG_CACHE_$(1) := $(shell $(2)))$(value DPKG_CACHE_$(1)))
 DEB_DISTRIBUTION = $(call dpkg_late_eval,DEB_DISTRIBUTION,dpkg-parsechangelog -SDistribution)
 
+export LLVM_CONFIG=llvm-config-3.9
+
 MAKE_OPTIONS := prefix=/usr LLVM_CONFIG=llvm-config-3.9
 
 ifeq ($(DEB_HOST_ARCH),amd64)
