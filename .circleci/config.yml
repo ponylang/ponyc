@@ -8,6 +8,10 @@ test-ci-lib-llvm: &test-ci-lib-llvm
     echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
     make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
 
+notify:
+  webhooks:
+    - url: $ZULIP_WEBHOOK
+
 version: 2
 jobs:
   verify-changelog:
