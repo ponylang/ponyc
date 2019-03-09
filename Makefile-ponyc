@@ -233,8 +233,8 @@ ifndef LLVM_CONFIG
       to the `llvm-config` binary for your installation)
   endif
 else ifeq (,$(shell which $(LLVM_CONFIG) 2> /dev/null))
-  $(error No LLVM installation found! Set LLVM_CONFIG environment variable \
-    to the `llvm-config` binary for your installation)
+  $(error LLVM config $(LLVM_CONFIG) not found! Set LLVM_CONFIG environment \
+  	variable to a valid LLVM installation.)
 endif
 
 LLVM_BINDIR := $(shell $(LLVM_CONFIG) --bindir 2> /dev/null)
