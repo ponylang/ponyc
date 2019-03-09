@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Stop trying to be clever when finding user's LLVM installation ([PR #3077](https://github.com/ponylang/ponyc/pull/3077))
 - Stop supporting Ubuntu Trusty ([PR #3076](https://github.com/ponylang/ponyc/pull/3076))
+- Stop supporting Debian Jessie ([PR #3078](https://github.com/ponylang/ponyc/pull/3078))
 
 ## [0.27.0] - 2019-03-01
 
@@ -1306,4 +1307,3 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
-
