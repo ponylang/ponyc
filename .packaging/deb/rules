@@ -16,9 +16,11 @@ export DH_VERBOSE = 1
 dpkg_late_eval ?= $(or $(value DPKG_CACHE_$(1)),$(eval DPKG_CACHE_$(1) := $(shell $(2)))$(value DPKG_CACHE_$(1)))
 DEB_DISTRIBUTION = $(call dpkg_late_eval,DEB_DISTRIBUTION,dpkg-parsechangelog -SDistribution)
 
+# We MUST set this to whatever the correct llvm-config to build with is if,
+# it isn't `llvm-config`, otherwise, the Pony build process won't be able to run
 export LLVM_CONFIG=llvm-config-3.9
 
-MAKE_OPTIONS := prefix=/usr LLVM_CONFIG=llvm-config-3.9
+MAKE_OPTIONS := prefix=/usr
 
 ifeq ($(DEB_HOST_ARCH),amd64)
 	MAKE_OPTIONS += arch=x86-64 tune=intel
