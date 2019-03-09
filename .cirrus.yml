@@ -26,3 +26,45 @@ task:
   test_script:
     - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3 default_ssl=openssl_1.1.0
     - LLVM_CONFIG=llvm-config70 gmake test-ci config=debug default_ssl=openssl_1.1.0
+
+task:
+  osx_instance:
+    image: high-sierra-xcode-9.4.1
+
+  name: "macOS-release"
+
+  install_script:
+    - brew update
+    - brew install pcre2
+    - brew install libressl
+    - brew install llvm
+
+  test_script:
+    - export PATH=/usr/local/opt/llvm/bin/:$PATH
+    - export CC1=clang
+    - export CXX1=clang++
+    - export LLVM_CONFIG=llvm-config
+    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=release all
+    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=release test-ci
+
+task:
+  osx_instance:
+    image: high-sierra-xcode-9.4.1
+
+  name: "macOS-debug"
+  depends_on:
+    - macOS-release
+
+  install_script:
+    - brew update
+    - brew install pcre2
+    - brew install libressl
+    - brew install llvm
+
+  test_script:
+    - export PATH=/usr/local/opt/llvm/bin/:$PATH
+    - export CC1=clang
+    - export CXX1=clang++
+    - export LLVM_CONFIG=llvm-config
+    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=debug all
+    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=debug test-ci
