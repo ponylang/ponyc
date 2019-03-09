@@ -197,7 +197,7 @@ actor ProcessMonitor
         _child = windows_child
         // notify about errors
         match windows_child.processError
-        | let pe: ProcessError => 
+        | let pe: ProcessError =>
           _notifier.failed(this, pe)
           return
         end
@@ -404,8 +404,7 @@ actor ProcessMonitor
       | _stderr.near_fd =>
         _notifier.stderr(this, consume data)
       | _err.near_fd =>
-        let child_errno: I32 = try data.read_u32(0)?.i32() else -1 end
-        let step: U8 = try data.read_u8(4)? else -1 end
+        let step: U8 = try data.read_u8(0)? else -1 end
         match step
         | _StepChdir() =>
           _notifier.failed(this, ChdirError)

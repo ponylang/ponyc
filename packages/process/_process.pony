@@ -8,7 +8,7 @@ primitive _ERRORBADEXEFORMAT
     """
     ERROR_BAD_EXE_FORMAT
     %1 is not a valid Win32 application.
-    """ 
+    """
     193 // 0xC1
 
 primitive _ERRORDIRECTORY
@@ -125,15 +125,12 @@ class _ProcessPosix is _Process
     _dup2(stderr.far_fd, _STDERRFILENO()) // redirect stderr
 
     var step: U8 = _StepChdir()
-    var errno: I32 = 0
 
     match wdir
     | let d: FilePath =>
       let dir: Pointer[U8] tag = d.path.cstring()
       if 0 > @chdir[I32](dir) then
-        errno = @pony_os_errno()
-        @write[ISize](err.far_fd, addressof errno, USize(4))
-        @write[ISize](err.far_fd, addressof step, USize(1))        
+        @write[ISize](err.far_fd, addressof step, USize(1))
         @_exit[None](_EXOSERR())
       end
     | None => None
@@ -143,8 +140,6 @@ class _ProcessPosix is _Process
     if 0 > @execve[I32](path.cstring(), argp.cpointer(),
       envp.cpointer())
     then
-      errno = @pony_os_errno()
-      @write[ISize](err.far_fd, addressof errno, USize(4))
       @write[ISize](err.far_fd, addressof step, USize(1))
       @_exit[None](_EXOSERR())
     end
@@ -229,7 +224,7 @@ class _ProcessWindows is _Process
           | _ERRORBADEXEFORMAT() => ExecveError
           | _ERRORDIRECTORY() => ChdirError
           else
-            UnknownError // TODO: what other errors can we distinguish here? 
+            UnknownError // TODO: what other errors can we distinguish here?
           end
         end
     else
