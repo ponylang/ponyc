@@ -4,6 +4,7 @@ task:
 
   name: "freebsd-12-release"
   install_script:
+    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
     - pkg install -y gmake pcre2 libunwind llvm70 git
 
@@ -20,6 +21,7 @@ task:
     - freebsd-12-release
 
   install_script:
+    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
     - pkg install -y gmake pcre2 libunwind llvm70 git
 
