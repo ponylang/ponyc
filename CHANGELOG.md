@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fixed issue with ponyc not being able to find Visual Studio Build Tools in non-standard locations. ([PR #3086](https://github.com/ponylang/ponyc/pull/3086))
 - Update TCPConnection docs around local and remote addresses ([PR #3050](https://github.com/ponylang/ponyc/pull/3050))
 
 ### Added
