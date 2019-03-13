@@ -19,7 +19,7 @@
 Name:       ponyc
 Version:    %{ponyc_version}
 Release:    %{release_version}%{?dist}
-Packager:   Pony Core Team <buildbot@pony.groups.io>
+Packager:   Pony Core Team <buildbot@ponylang.io>
 Summary:    Compiler for the pony programming language.
 # For a breakdown of the licensing, see PACKAGE-LICENSING
 License:    BSD
