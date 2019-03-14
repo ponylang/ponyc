@@ -23,7 +23,7 @@ actor Main is TestList
     test(_TestBadChdir)
     test(_TestBadExec)
 
-primitive CatPath
+primitive _CatPath
   fun apply(): String =>
     ifdef windows then
       "C:\\Windows\\System32\\find.exe"
@@ -31,7 +31,7 @@ primitive CatPath
       "/bin/cat"
     end
 
-primitive CatArgs
+primitive _CatArgs
   fun apply(): Array[String] val =>
     ifdef windows then
       ["find"; "/v"; "\"\""]
@@ -39,7 +39,7 @@ primitive CatArgs
       ["cat"]
     end
 
-primitive EchoPath
+primitive _EchoPath
   fun apply(): String =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c echo ..."
@@ -47,7 +47,7 @@ primitive EchoPath
       "/bin/echo"
     end
 
-primitive BadExecPath
+primitive _BadExecPath
   fun apply(): String =>
     ifdef windows then
        "C:\\Windows\\system.ini" // not exeutable
@@ -55,7 +55,7 @@ primitive BadExecPath
       "./_test.sh" // has non-existent interpreter in shebang
     end
 
-primitive PwdPath
+primitive _PwdPath
   fun apply(): String =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c cd"
@@ -63,7 +63,7 @@ primitive PwdPath
       "/bin/pwd"
     end
 
-primitive PwdArgs
+primitive _PwdArgs
   fun apply(): Array[String] val =>
     ifdef windows then
       ["cmd"; "/c"; "cd"]
@@ -82,7 +82,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h, CapError)
     try
       let path =
-        FilePath(h.env.root as AmbientAuth, CatPath(),
+        FilePath(h.env.root as AmbientAuth, _CatPath(),
           recover val FileCaps .> all() .> unset(FileExec) end)?
       let args: Array[String] val = ["dontcare"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
@@ -160,8 +160,8 @@ class iso _TestStdinStdout is UnitTest
     let size: USize = input.size() + ifdef windows then 2 else 0 end
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -197,7 +197,7 @@ class iso _TestStderr is UnitTest
     let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, ifdef windows then "C:\\Windows\\System32\\cmd.exe" else CatPath() end)?
+      let path = FilePath(h.env.root as AmbientAuth, ifdef windows then "C:\\Windows\\System32\\cmd.exe" else _CatPath() end)?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
       else
@@ -259,7 +259,7 @@ class iso _TestExpect is UnitTest
     end
 
     try
-      let path = FilePath(h.env.root as AmbientAuth, EchoPath())?
+      let path = FilePath(h.env.root as AmbientAuth, _EchoPath())?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "echo"; "hello carl"]
       else
@@ -291,8 +291,8 @@ class iso _TestWritevOrdering is UnitTest
     let expected: USize = ifdef windows then 13 else 11 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -322,8 +322,8 @@ class iso _TestPrintvOrdering is UnitTest
     let expected: USize = ifdef windows then 17 else 14 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -357,8 +357,8 @@ class iso _TestStdinWriteBuf is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 2,
       "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
@@ -407,13 +407,13 @@ class _TestChdir is UnitTest
     try
       let auth = h.env.root as AmbientAuth
       
-      let path = FilePath(auth, PwdPath())? 
-      let args: Array[String] val = PwdArgs()
-      let vars: Array[String] iso = recover Array[String](0) end
+      let path = FilePath(auth, _PwdPath())? 
+      let args: Array[String] val = _PwdArgs()
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path,
-          args, consume vars, FilePath(auth, parent)?)
+          args, vars, FilePath(auth, parent)?)
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -435,8 +435,8 @@ class _TestBadChdir is UnitTest
     try
       let auth = h.env.root as AmbientAuth
 
-      let path = FilePath(auth, PwdPath())?
-      let args: Array[String] val = PwdArgs()
+      let path = FilePath(auth, _PwdPath())?
+      let args: Array[String] val = _PwdArgs()
       let vars: Array[String] iso = recover Array[String](0) end
 
       let pm: ProcessMonitor =
@@ -461,7 +461,7 @@ class _TestBadExec is UnitTest
       _ProcessClient(0, "", _EXOSERR(), h, ExecveError)
     try
       let auth = h.env.root as AmbientAuth
-      let path = FilePath(auth, BadExecPath())?
+      let path = FilePath(auth, _BadExecPath())?
       ifdef posix then
         try
           if not File(path).chmod(FileMode.>exec()) then error end
