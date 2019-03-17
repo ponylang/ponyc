@@ -143,7 +143,6 @@ ponyc-build-debs-ubuntu(){
   # To update the builder image for an existing ubuntu version
   # * Create and upload a new version of the appropriate docker image using .ci-dockerfiles/deb-builder
   build_deb xenial
-  build_deb artful
   build_deb bionic
 
   ls -la

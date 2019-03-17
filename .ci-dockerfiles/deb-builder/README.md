@@ -6,11 +6,6 @@ docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=xenial -t p
 ```
 
 ```bash
-# Ubuntu Artful
-docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=artful -t ponylang/ponyc-ci:artful-deb-builder .
-```
-
-```bash
 # Ubuntu Bionic
 docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=bionic -t ponylang/ponyc-ci:bionic-deb-builder .
 ```

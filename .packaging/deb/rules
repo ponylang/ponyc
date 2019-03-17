@@ -34,14 +34,8 @@ ifeq ($(DEB_HOST_ARCH),armhf)
 	MAKE_OPTIONS += arch=armv7 tune=arm7
 endif
 
-# xenial and artful are on openssl 1.0
-# artful and newer require PIC
-ifeq (,$(filter $(DEB_DISTRIBUTION),xenial artful))
+ifeq (,$(filter $(DEB_DISTRIBUTION),xenial))
 	MAKE_OPTIONS += default_ssl='openssl_1.1.0' default_pic=true
-else
-ifeq ($(DEB_DISTRIBUTION),artful)
-	MAKE_OPTIONS += default_pic=true
-endif
 endif
 
 
@@ -61,7 +55,7 @@ override_dh_auto_test:
 	$(MAKE) test-ci $(MAKE_OPTIONS)
 
 # if newer debian/ubuntu disable unform compression in deb for bintray
-ifeq (,$(filter $(DEB_DISTRIBUTION),stretch xenial artful))
+ifeq (,$(filter $(DEB_DISTRIBUTION),stretch xenial))
 override_dh_builddeb:
 	dh_builddeb -- --no-uniform-compression
 endif
