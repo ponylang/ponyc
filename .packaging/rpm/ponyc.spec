@@ -7,12 +7,12 @@
 
 %if 0%{?el7}
 %global arch_build_args arch=x86-64 tune=generic
-%global extra_build_args use="llvm_link_static"
+%global extra_build_args use="llvm_link_static" LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %else
 %if %{?_vendor} == suse
 %global extra_build_args default_ssl='openssl_1.1.0'
 %else
-%global extra_build_args default_ssl='openssl_1.1.0'
+%global extra_build_args default_ssl='openssl_1.1.0' LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %endif
 %endif
 
