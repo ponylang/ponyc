@@ -166,3 +166,47 @@ TEST_F(ReachTest, Determinism)
     }
   }
 }
+
+TEST_F(ReachTest, UnionReachedMethod)
+{
+  const char* src =
+    "trait val TA\n"
+    "  fun example()\n"
+
+    "trait val TB\n"
+    "  fun example()\n"
+
+    "primitive P is TA"
+    "  fun example() => None\n"
+
+    "primitive Indirection\n"
+    "  fun apply(): (TA | TB) => P\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Indirection().example()\n"
+    "    let p = P";
+
+  TEST_COMPILE(src, "reach");
+
+  ast_t* p_ast = type_of("p");
+  ASSERT_NE(p_ast, (void*)NULL);
+
+  reach_t* reach = compile->reach;
+  reach_type_t* p_reach = reach_type(reach, p_ast);
+  ASSERT_NE(p_reach, (void*)NULL);
+
+  bool found = false;
+  size_t i = HASHMAP_BEGIN;
+  reach_method_name_t* n;
+  while((n = reach_method_names_next(&p_reach->methods, &i)) != NULL)
+  {
+    if(n->name == stringtab("example"))
+    {
+      found = true;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(found);
+}
