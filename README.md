@@ -450,9 +450,18 @@ make
 ```
 ### Ubuntu Bionic
 
+Install Requirements:
+
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev
+```
+
+Install LLVM. It is possible to install `llvm-3.9`, `llvm-6.0` or `llvm-7` from the bionic sources.
+We suggest going with `llvm-7`:
+
+```bash
+sudo apt-get install -y llvm-7
 ```
 
 Clone the ponyc repo:
@@ -466,7 +475,10 @@ Build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl=openssl_1.1.0
+
+# chose the llvm-config binary depending on your installed llvm version
+make default_pic=true default_ssl=openssl_1.1.0 LLVM_CONFIG=llvm-config-7
+
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
