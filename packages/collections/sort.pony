@@ -1,6 +1,18 @@
 primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   """
   Implementation of dual-pivot quicksort.
+  
+  ```pony
+     use "collections"
+
+     actor Main 
+       new create(env:Env) => 
+         let array = [ "third"; "second"; "first" ]
+         let sorted_array = Sort[Array[String], String](array)
+         for e in sorted_array.values() do
+           env.out.print(e)
+         end
+    ```
   """
   fun apply(a: A): A^ =>
     """
