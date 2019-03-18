@@ -6,7 +6,7 @@ runtime backpressure system. The goal of the backpressure system is to prevent
 an actor's mailbox from growing at an unbounded rate.
 
 At a high level, the runtime backpressure system works by adjusting the
-scheduling of actors. When an actor becomes overload, the Pony runtime will
+scheduling of actors. When an actor becomes overloaded, the Pony runtime will
 deprioritize scheduling the actors that are sending to it. This change in
 scheduling allows the overloaded actor to catch up.
 
@@ -15,9 +15,9 @@ the overloading of some types of actors is harder to detect. Let's take the
 case of actors like `TCPConnection`.
 
 `TCPConnection` manages a socket for sending data to and receiving data from
-another process. TCP connections can experience backpressure from the outside
+another process. TCP connections can experience backpressure from outside
 our Pony program that prevents them from sending. There's no way for the Pony
-runtime to detect this so, intervention by the programmer is needed.
+runtime to detect this, so intervention by the programmer is needed.
 
 `TCPConnection` is a single example. This Backpressure package exists to allow
 a programmer to indicate to the runtime that a given actor is experiencing
@@ -25,8 +25,8 @@ pressure and sending messages to it should be adjusted accordingly.
 
 Any actor that needs to be able to tell the runtime to "send me messages
 slower" due to external conditions can do so via this package. Additionally,
-actors that maintain there own internal queues of any sort, say for buffering,
-are also prime candidates to for using this package. If an actor's internal
+actors that maintain their own internal queues of any sort, say for buffering,
+are also prime candidates for using this package. If an actor's internal
 queue grows too large, it can call `Backpressure.apply` to let the runtime know
 it is under pressure.
 
@@ -84,7 +84,7 @@ corresponding call to `Backpressure.release`. Authorization via the
 `ApplyReleaseBackpressureAuth` capability is required to apply or release
 backpressure. By requiring that the caller have a token to apply or release a
 backpressure, rouge 3rd party library code can't run wild and unknowingly
-mess with the runtime.
+interfere with the runtime.
 """
 
 use @pony_apply_backpressure[None]()
