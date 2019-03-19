@@ -40,10 +40,10 @@ We have a couple resources designed to help you learn, we suggest starting with 
 * [Standard library docs](http://stdlib.ponylang.io/).
 * [Build Problems, see FAQ Compiling](https://www.ponylang.io/faq/#compiling).
 
-If you are looking for an answer "right now", we suggest you give our Slack community a try. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or Slack isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
+If you are looking for an answer "right now", we suggest you give our Zulip community a try. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or Zulip isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
 * [Mailing list](mailto:pony+user@groups.io).
-* [Slack](https://www.ponylang.io/get-slack-invite)
+* [Zulip](https://ponylang.zulipchat.com)
 
 Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
 * [Open an issue](https://github.com/ponylang/ponyc/issues)
