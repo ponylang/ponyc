@@ -3,7 +3,7 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   Implementation of dual-pivot quicksort.
   
   ## Example program
-  The following example takes an reverse-alphabetical array, and sorts it alphabetically using the default String Comparator.
+  The following takes an reverse-alphabetical array, and sorts it alphabetically using the default String Comparator.
   
   ```pony
      use "collections"
