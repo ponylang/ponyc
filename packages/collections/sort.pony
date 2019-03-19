@@ -3,7 +3,8 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   Implementation of dual-pivot quicksort.
   
   ## Example program
-  The following takes an reverse-alphabetical array, and sorts it alphabetically using the default String Comparator.
+  The following takes an reverse-alphabetical array ("third", "second", "first"), 
+  and sorts it alphabetically using the default String Comparator (giving "first", "second", "third").
   
   ```pony
      use "collections"
@@ -13,7 +14,7 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
          let array = [ "third"; "second"; "first" ]
          let sorted_array = Sort[Array[String], String](array)
          for e in sorted_array.values() do
-           env.out.print(e)
+           env.out.print(e) // prints "first \n second \n third"
          end
     ```
   """
