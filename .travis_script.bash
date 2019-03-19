@@ -57,12 +57,13 @@ fi
 pyenv global 3.6
 
 # when building debian packages for a nightly cron job or manual api requested job to make sure packaging isn't broken
-if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
+#if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" != "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
+if [[ "$RELEASE_DEBS" != "" ]]
 then
   # verify docs build first
   ponyc-build-docs
   # now the packaging
-  "ponyc-build-debs-$RELEASE_DEBS" master
+  "ponyc-build-debs-$RELEASE_DEBS" test-building-apt-packages-with-vendored-llvm
   exit
 fi
 

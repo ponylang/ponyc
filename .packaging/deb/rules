@@ -18,9 +18,8 @@ DEB_DISTRIBUTION = $(call dpkg_late_eval,DEB_DISTRIBUTION,dpkg-parsechangelog -S
 
 # We MUST set this to whatever the correct llvm-config to build with is if,
 # it isn't `llvm-config`, otherwise, the Pony build process won't be able to run
-export LLVM_CONFIG=llvm-config-3.9
 
-MAKE_OPTIONS := prefix=/usr
+MAKE_OPTIONS := prefix=/usr -f Makefile-lib-llvm use=llvm_link_static -j2
 
 ifeq ($(DEB_HOST_ARCH),amd64)
 	MAKE_OPTIONS += arch=x86-64 tune=intel
@@ -53,6 +52,9 @@ override_dh_auto_install:
 
 override_dh_auto_test:
 	$(MAKE) test-ci $(MAKE_OPTIONS)
+
+override_dh_auto_clean:
+	$(MAKE) clean $(MAKE_OPTIONS)
 
 # if newer debian/ubuntu disable unform compression in deb for bintray
 ifeq (,$(filter $(DEB_DISTRIBUTION),stretch xenial))

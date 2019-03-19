@@ -98,7 +98,7 @@ build_deb(){
   dch --package ponyc -v "${package_version}" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
 
   # create package for distro using docker to run debuild
-  sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder" sh -c 'cd ponyc* && apt-get update && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
+  sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder-lib-llvm" sh -c 'cd ponyc* && cd lib/llvm/src && git submodule init && git submodule update && cd ../../../ && apt-get update && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
 
   ls -l ..
 
@@ -127,7 +127,7 @@ ponyc-build-debs-ubuntu(){
   echo "Building off ponyc debs for bintray..."
   wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
 
-  if [ "${package_version}" == "master" ]
+  if [ "${package_version}" == "test-building-apt-packages-with-vendored-llvm" ]
   then
     mv "ponyc_${package_version}.orig.tar.gz" "ponyc_$(cat VERSION).orig.tar.gz"
     package_version=$(cat VERSION)
@@ -143,7 +143,7 @@ ponyc-build-debs-ubuntu(){
   # To update the builder image for an existing ubuntu version
   # * Create and upload a new version of the appropriate docker image using .ci-dockerfiles/deb-builder
   build_deb xenial
-  build_deb bionic
+  #build_deb bionic
 
   ls -la
   set +x
@@ -161,7 +161,7 @@ ponyc-build-debs-debian(){
   echo "Building off ponyc debs for bintray..."
   wget "https://github.com/ponylang/ponyc/archive/${package_version}.tar.gz" -O "ponyc_${package_version}.orig.tar.gz"
 
-  if [ "${package_version}" == "master" ]
+  if [ "${package_version}" == "test-building-apt-packages-with-vendored-llvm" ]
   then
     mv "ponyc_${package_version}.orig.tar.gz" "ponyc_$(cat VERSION).orig.tar.gz"
     package_version=$(cat VERSION)
@@ -177,7 +177,7 @@ ponyc-build-debs-debian(){
   # To update the builder image for an existing debian version
   # * Create and upload a new version of the appropriate docker image using .ci-dockerfiles/deb-builder
   build_deb buster
-  build_deb stretch
+  #build_deb stretch
 
   ls -la
   set +x

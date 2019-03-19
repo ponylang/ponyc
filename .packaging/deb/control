@@ -1,6 +1,6 @@
 Source: ponyc
 Maintainer: Pony Core Team <buildbot@ponylang.io>
-Build-Depends: debhelper (>= 9.0.0), git, zlib1g-dev, libncurses5-dev, libssl-dev, libpcre2-dev, llvm-3.9, llvm-3.9-dev
+Build-Depends: debhelper (>= 9.0.0), git, zlib1g-dev, libncurses5-dev, libssl-dev, libpcre2-dev
 Priority: optional
 Standards-Version: 3.9.7
 Section: devel

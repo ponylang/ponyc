@@ -226,7 +226,7 @@ ifeq ($(OSTYPE),osx)
 endif
 
 # If we are not cleaning we need LLVM_CONFIG
-ifneq ($(MAKECMDGOALS),clean)
+ifeq (,$(filter $(MAKECMDGOALS),clean distclean))
   ifndef LLVM_CONFIG
     ifneq (,$(shell which llvm-config 2> /dev/null))
       LLVM_CONFIG = llvm-config
