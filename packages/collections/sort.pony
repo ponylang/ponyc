@@ -4,7 +4,13 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   
   ## Example program
   The following takes an reverse-alphabetical array ("third", "second", "first"), 
-  and sorts it alphabetically using the default String Comparator (giving "first", "second", "third").
+  and sorts it alphabetically using the default String Comparator.
+  
+  This outputs:
+    
+    first
+    second
+    third
   
   ```pony
      use "collections"
