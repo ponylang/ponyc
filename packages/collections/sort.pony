@@ -1,6 +1,17 @@
 primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   """
-  Implementation of dual-pivot quicksort.
+  Implementation of dual-pivot quicksort.  It operates in-place on the provided Seq, using 
+  a small amount of additional memory. The nature of the element-realation is expressed via 
+  the supplied comparator.
+  
+  (The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Quicksort).)
+  
+  Quicksort is a common implementation of a sort algorithm which can sort items of any type 
+  for which a "less-than" relation (formally, a total order) is defined. 
+  
+  On average, the algorithm takes O(n log n) comparisons to sort n items. In the worst case, 
+  it makes O(n2) comparisons, though this behavior is rare.  Multi-pivot implementations 
+  (of which dual-pivot is one) make efficient use of modern processor caches.
   
   ## Example program
   The following takes an reverse-alphabetical array of Strings ("third", "second", "first"), 
