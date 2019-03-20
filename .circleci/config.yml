@@ -276,16 +276,29 @@ jobs:
       - image: ponylang/ponyc-ci:xenial-deb-builder-lib-llvm
         user: root
     steps:
-      - checkout
-      - run: cp -r .packaging/deb debian
-      - run: cp LICENSE debian/copyright
-      - run: rm -f debian/changelog
-      - run: dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
-      - run: apt-get update
-#      - run: echo 'export test_ci_params="config=debug default_pic=true use=llvm_link_static"' >> $BASH_ENV
-#      - run: *test-ci-lib-llvm
-      - run: mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
-      - run: debuild -b -us -uc
+      - run:
+          command: |
+            mkdir -p /root/project
+            cd /root/project
+            git --version
+            if [ -n "$CIRCLE_TAG" ]
+            then
+              git clone --depth 1 --branch "$CIRCLE_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
+            elif [ -n "$CIRCLE_BRANCH" ]
+            then
+              git clone --depth 1 --branch "$CIRCLE_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
+            fi
+
+            ls -al
+            pwd
+            cd ponyc
+            cp -r .packaging/deb debian
+            cp LICENSE debian/copyright
+            rm -f debian/changelog
+            dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
+            apt-get update
+            mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
+            debuild -b -us -uc
 
 workflows:
   version: 2
