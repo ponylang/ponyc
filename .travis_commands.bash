@@ -86,9 +86,11 @@ build_deb(){
   deb_distro=$1
 
   # untar source code
-  tar -xzf "ponyc_${package_version}.orig.tar.gz"
+  #tar -xzf "ponyc_${package_version}.orig.tar.gz"
+  git clone --depth 1 --branch "$package_version" --recurse-submodules --shallow-submodules https://github.com/ponylang/ponyc.git
 
-  pushd ponyc-*
+  #pushd ponyc-*
+  pushd ponyc
 
   cp -r .packaging/deb debian
   cp LICENSE debian/copyright
@@ -98,7 +100,7 @@ build_deb(){
   dch --package ponyc -v "${package_version}" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
 
   # create package for distro using docker to run debuild
-  sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder-lib-llvm" sh -c 'cd ponyc* && cd lib/llvm/src && git submodule init && git submodule update && cd ../../../ && apt-get update && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
+  sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder-lib-llvm" sh -c 'cd ponyc* && apt-get update && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
 
   ls -l ..
 
@@ -112,7 +114,8 @@ build_deb(){
   mv "ponyc_${package_version}_amd64.deb" "ponyc_${package_version}_${deb_distro}_amd64.deb"
 
   # clean up old build directory to ensure things are all clean
-  sudo rm -rf ponyc-*
+  #sudo rm -rf ponyc-*
+  sudo rm -rf ponyc
 }
 
 ponyc-build-debs-ubuntu(){
