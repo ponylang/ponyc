@@ -273,12 +273,17 @@ jobs:
 
   build-llvm:
     docker:
-      - image: ponylang/ponyc-ci:ubuntu
-        user: pony
+      - image: ponylang/ponyc-ci:xenial-deb-builder-lib-llvm
+        user: root
     steps:
       - checkout
-      - run: git submodule update --init --recursive
+      - run: cp -r .packaging/deb debian
+      - run: cp LICENSE debian/copyright
+      - run: rm -f debian/changelog
+      - run: dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
       - run: apt-get update
+#      - run: echo 'export test_ci_params="config=debug default_pic=true use=llvm_link_static"' >> $BASH_ENV
+#      - run: *test-ci-lib-llvm
       - run: mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
       - run: debuild -b -us -uc
 
