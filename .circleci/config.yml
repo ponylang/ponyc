@@ -273,11 +273,11 @@ jobs:
 
   build-llvm:
     docker:
-      - image:
+      - image: ponylang/ponyc-ci:ubuntu
+        user: pony
     steps:
       - checkout
-      - run: git submodule init lib/llvm/src
-      - run: git submodule update lib/llvm/src
+      - run: git submodule update --init --recursive
       - run: apt-get update
       - run: mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
       - run: debuild -b -us -uc
