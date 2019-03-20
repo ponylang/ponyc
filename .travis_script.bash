@@ -61,7 +61,7 @@ pyenv global 3.6
 if [[ "$RELEASE_DEBS" != "" ]]
 then
   # verify docs build first
-  ponyc-build-docs
+  #ponyc-build-docs
   # now the packaging
   "ponyc-build-debs-$RELEASE_DEBS" test-building-apt-packages-with-vendored-llvm
   exit
