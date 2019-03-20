@@ -97,7 +97,9 @@ build_deb(){
 
   # create changelog
   rm -f debian/changelog
-  dch --package ponyc -v "${package_version}" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
+#  dch --package ponyc -v "${package_version}" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
+  dch --package ponyc -v "1.0" -D "${deb_distro}" --force-distribution --controlmaint --create "Release ${package_version}"
+
 
   # create package for distro using docker to run debuild
   sudo docker run -v "$(pwd)/..:/home/pony" --rm --user root "ponylang/ponyc-ci:${deb_distro}-deb-builder-lib-llvm" sh -c 'cd ponyc && apt-get update && mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r && debuild -b -us -uc'
