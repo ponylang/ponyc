@@ -143,13 +143,31 @@ PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
 PONY_BENCHMARK_DIR ?= benchmark
 
-ifdef use
-  ifneq (,$(filter $(use), valgrind))
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
+
+define USE_CHECK
+  $$(info Enabling use option: $1)
+  ifeq ($1,valgrind)
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
-  endif
-
-  ifneq (,$(filter $(use), coverage))
+  else ifeq ($1,thread_sanitizer)
+    ALL_CFLAGS += -fsanitize=thread
+    ALL_CXXFLAGS += -fsanitize=thread
+    LINKER_FLAGS += -fsanitize=thread
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-thread_sanitizer
+  else ifeq ($1,address_sanitizer)
+    ALL_CFLAGS += -fsanitize=address
+    ALL_CXXFLAGS += -fsanitize=address
+    LINKER_FLAGS += -fsanitize=address
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-address_sanitizer
+  else ifeq ($1,undefined_behavior_sanitizer)
+    ALL_CFLAGS += -fsanitize=undefined
+    ALL_CXXFLAGS += -fsanitize=undefined
+    LINKER_FLAGS += -fsanitize=undefined
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-undefined_behavior_sanitizer
+  else ifeq ($1,coverage)
     ifneq (,$(shell $(CC) -v 2>&1 | grep clang))
       # clang
       COVERAGE_FLAGS = -O0 -fprofile-instr-generate -fcoverage-mapping
@@ -160,38 +178,35 @@ ifdef use
         COVERAGE_FLAGS = -O0 -fprofile-arcs -ftest-coverage
         LINKER_FLAGS += -fprofile-arcs
       else
-        $(error coverage not supported for this compiler/platform)
+        $$(error coverage not supported for this compiler/platform)
       endif
       ALL_CFLAGS += $(COVERAGE_FLAGS)
       ALL_CXXFLAGS += $(COVERAGE_FLAGS)
     endif
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-coverage
-  endif
-
-  ifneq (,$(filter $(use), pooltrack))
+  else ifeq ($1,pooltrack)
     ALL_CFLAGS += -DUSE_POOLTRACK
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
-  endif
-
-  ifneq (,$(filter $(use), dtrace))
+  else ifeq ($1,dtrace)
     DTRACE ?= $(shell which dtrace)
     ifeq (, $(DTRACE))
-      $(error No dtrace compatible user application static probe generation tool found)
+      $$(error No dtrace compatible user application static probe generation tool found)
     endif
-
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
-  endif
-
-  ifneq (,$(filter $(use), actor_continuations))
+  else ifeq ($1,actor_continuations)
     ALL_CFLAGS += -DUSE_ACTOR_CONTINUATIONS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-actor_continuations
-  endif
-
-  ifneq (,$(filter $(use), scheduler_scaling_pthreads))
+  else ifeq ($1,scheduler_scaling_pthreads)
     ALL_CFLAGS += -DUSE_SCHEDULER_SCALING_PTHREADS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-scheduler_scaling_pthreads
+  else
+    $$(warning WARNING: Ignoring unknown use option: $1)
   endif
+endef
+
+ifdef use
+  $(foreach useitem,$(subst $(comma),$(space),$(use)),$(eval $(call USE_CHECK,$(useitem))))
 endif
 
 ifdef config
@@ -1090,6 +1105,9 @@ help:
 	@echo '   coverage'
 	@echo '   llvm_link_static'
 	@echo '   scheduler_scaling_pthreads'
+	@echo '   thread_sanitizer'
+	@echo '   address_sanitizer'
+	@echo '   undefined_behavior_sanitizer'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'
