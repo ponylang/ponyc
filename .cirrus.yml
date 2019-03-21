@@ -36,15 +36,13 @@ task:
   name: "macOS-release"
 
   install_script:
-    - brew update
-    - brew install pcre2
-    - brew install libressl
     - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
     - sudo installer -verbose -pkg macports.pkg -target /
     - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0
+    - sudo /opt/local/bin/port install llvm-7.0 pcre2
 
   test_script:
+    - export LDFLAGS="-L/opt/local/lib"
     - export PATH=/usr/local/opt/llvm/bin/:$PATH
     - export CC1=clang
     - export CXX1=clang++
@@ -61,15 +59,13 @@ task:
     - macOS-release
 
   install_script:
-    - brew update
-    - brew install pcre2
-    - brew install libressl
     - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
     - sudo installer -verbose -pkg macports.pkg -target /
     - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0
+    - sudo /opt/local/bin/port install llvm-7.0 pcre2
 
   test_script:
+    - export LDFLAGS="-L/opt/local/lib"
     - export PATH=/usr/local/opt/llvm/bin/:$PATH
     - export CC1=clang
     - export CXX1=clang++
