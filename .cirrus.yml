@@ -39,13 +39,16 @@ task:
     - brew update
     - brew install pcre2
     - brew install libressl
-    - brew install llvm
+    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
+    - sudo installer -verbose -pkg macports.pkg -target /
+    - sudo /opt/local/bin/port selfupdate
+    - sudo /opt/local/bin/port install llvm-7.0
 
   test_script:
     - export PATH=/usr/local/opt/llvm/bin/:$PATH
     - export CC1=clang
     - export CXX1=clang++
-    - export LLVM_CONFIG=llvm-config
+    - export LLVM_CONFIG=/opt/local/bin/llvm-config-mp-7.0
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=release all
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=release test-ci
 
@@ -61,12 +64,15 @@ task:
     - brew update
     - brew install pcre2
     - brew install libressl
-    - brew install llvm
+    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
+    - sudo installer -verbose -pkg macports.pkg -target /
+    - sudo /opt/local/bin/port selfupdate
+    - sudo /opt/local/bin/port install llvm-7.0
 
   test_script:
     - export PATH=/usr/local/opt/llvm/bin/:$PATH
     - export CC1=clang
     - export CXX1=clang++
-    - export LLVM_CONFIG=llvm-config
+    - export LLVM_CONFIG=/opt/local/bin/llvm-config-mp-7.0
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=debug all
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=debug test-ci
