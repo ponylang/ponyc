@@ -274,92 +274,92 @@ jobs:
 workflows:
   version: 2
   tests:
-    jobs:
-      # sanity tests
-      - verify-changelog
-      - validate-shell-scripts
-
-      # p1 tests
-      - llvm-701-release:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
-      - llvm-601-release:
-          requires:
-            - llvm-701-release
-      - llvm-502-release:
-          requires:
-            - llvm-701-release
-      - llvm-391-release:
-          requires:
-            - llvm-701-release
-
-      ### p2 tests
-      - llvm-701-debug:
-          requires:
-            - llvm-701-release
-      - llvm-601-debug:
-          requires:
-            - llvm-601-release
-      - llvm-502-debug:
-          requires:
-            - llvm-502-release
-      - llvm-391-debug:
-          requires:
-            - llvm-391-release
-
-      # alpine
-      - alpine-llvm-5-release:
-          requires:
-            - llvm-502-release
-      - alpine-llvm-5-debug:
-          requires:
-            - llvm-502-debug
-
-      # p2 cross compilation tests
-      - cross-llvm-701-release-arm:
-          requires:
-            - llvm-701-release
-      - cross-llvm-701-debug-arm:
-          requires:
-            - llvm-701-debug
-      - cross-llvm-701-release-armhf:
-          requires:
-            - llvm-701-release
-      - cross-llvm-701-debug-armhf:
-          requires:
-            - llvm-701-debug
-#     Currently don't pass
-#      - cross-llvm-701-release-aarch64:
-#        requires:
-#          - llvm-701-release
-#      - cross-llvm-701-debug-aarch64:
-#        requires:
-#          - llvm-701-debug
-
-      # p2 other jobs
-      - openssl-110:
-          requires:
-            - llvm-701-release
-
-      # p2 lib/llvm
-      - lib-llvm-ubuntu-release:
-          requires:
-            - llvm-701-release
-      - lib-llvm-ubuntu-debug:
-          requires:
-            - llvm-701-debug
-
-      # p3 validate centos7
-      - lib-llvm-centos7-release:
-          requires:
-            - lib-llvm-ubuntu-release
-      - lib-llvm-centos7-debug:
-          requires:
-            - lib-llvm-ubuntu-debug
-
-      # p4 did we break docker image building?
-      - validate-docker-image-builds:
-          requires:
-            - lib-llvm-centos7-release
-            - lib-llvm-centos7-debug
+#    jobs:
+#      # sanity tests
+#      - verify-changelog
+#      - validate-shell-scripts
+#
+#      # p1 tests
+#      - llvm-701-release:
+#          requires:
+#            - verify-changelog
+#            - validate-shell-scripts
+#      - llvm-601-release:
+#          requires:
+#            - llvm-701-release
+#      - llvm-502-release:
+#          requires:
+#            - llvm-701-release
+#      - llvm-391-release:
+#          requires:
+#            - llvm-701-release
+#
+#      ### p2 tests
+#      - llvm-701-debug:
+#          requires:
+#            - llvm-701-release
+#      - llvm-601-debug:
+#          requires:
+#            - llvm-601-release
+#      - llvm-502-debug:
+#          requires:
+#            - llvm-502-release
+#      - llvm-391-debug:
+#          requires:
+#            - llvm-391-release
+#
+#      # alpine
+#      - alpine-llvm-5-release:
+#          requires:
+#            - llvm-502-release
+#      - alpine-llvm-5-debug:
+#          requires:
+#            - llvm-502-debug
+#
+#      # p2 cross compilation tests
+#      - cross-llvm-701-release-arm:
+#          requires:
+#            - llvm-701-release
+#      - cross-llvm-701-debug-arm:
+#          requires:
+#            - llvm-701-debug
+#      - cross-llvm-701-release-armhf:
+#          requires:
+#            - llvm-701-release
+#      - cross-llvm-701-debug-armhf:
+#          requires:
+#            - llvm-701-debug
+##     Currently don't pass
+##      - cross-llvm-701-release-aarch64:
+##        requires:
+##          - llvm-701-release
+##      - cross-llvm-701-debug-aarch64:
+##        requires:
+##          - llvm-701-debug
+#
+#      # p2 other jobs
+#      - openssl-110:
+#          requires:
+#            - llvm-701-release
+#
+#      # p2 lib/llvm
+#      - lib-llvm-ubuntu-release:
+#          requires:
+#            - llvm-701-release
+#      - lib-llvm-ubuntu-debug:
+#          requires:
+#            - llvm-701-debug
+#
+#      # p3 validate centos7
+#      - lib-llvm-centos7-release:
+#          requires:
+#            - lib-llvm-ubuntu-release
+#      - lib-llvm-centos7-debug:
+#          requires:
+#            - lib-llvm-ubuntu-debug
+#
+#      # p4 did we break docker image building?
+#      - validate-docker-image-builds:
+#          requires:
+#            - lib-llvm-centos7-release
+#            - lib-llvm-centos7-debug
