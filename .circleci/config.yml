@@ -13,6 +13,7 @@ build-llvm: &build-llvm
   command: |
     echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
     source $BASH_ENV
+    echo "CPUs: $CPUs"
     mkdir -p /root/project
     cd /root/project
     git --version
@@ -36,7 +37,6 @@ build-llvm: &build-llvm
     apt-get update
     mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
     debuild -b -us -uc
-    #echo "CPUs: $CPUs"
     #make -f Makefile-lib-llvm -j$CPUs $test_ci_params
 
 notify:
@@ -313,4 +313,5 @@ workflows:
   version: 2
   tests:
     jobs:
-      - vendored-llvm
+      - validate-shell-scripts
+

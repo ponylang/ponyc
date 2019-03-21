@@ -1,13 +1,28 @@
 task:
-  freebsd_instance:
-    image: freebsd-12-0-release-amd64
+  container:
+    image: ponylang/ponyc-ci:xenial-deb-builder-lib-llvm
+    cpu: 8
+    memory: 20
 
-  name: "freebsd-12-release"
-  install_script:
-    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y gmake pcre2 libunwind llvm70 git
+  name: "xenial debian builder"
+
+  clone_script: |
+    if [ -n "$CIRCLE_TAG" ]
+    then
+      echo "cloning $CIRRUS_TAG"
+      git clone --depth 1 --branch "$CIRCLE_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
+    elif [ -n "$CIRRUS_BRANCH" ]
+    then
+      echo "cloning $CIRRUS_BRANCH"
+      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
+    fi
 
   test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=release -j3 default_ssl=openssl_1.1.0
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=release default_ssl=openssl_1.1.0
+    - cd ponyc
+    - cp -r .packaging/deb debian
+    - cp LICENSE debian/copyright
+    - rm -f debian/changelog
+    - dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
+    - apt-get update
+    - mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
+    - debuild -b -us -uc
