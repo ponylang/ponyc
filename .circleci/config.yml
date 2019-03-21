@@ -8,6 +8,36 @@ test-ci-lib-llvm: &test-ci-lib-llvm
     echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
     make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
 
+build-llvm: &build-llvm
+  name: Build LLVM
+  command: |
+    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
+    source $BASH_ENV
+    mkdir -p /root/project
+    cd /root/project
+    git --version
+    if [ -n "$CIRCLE_TAG" ]
+    then
+      echo "cloning $CIRCLE_TAG"
+      git clone --depth 1 --branch "$CIRCLE_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
+    elif [ -n "$CIRCLE_BRANCH" ]
+    then
+      echo "cloning $CIRCLE_BRANCH"
+      git clone --depth 1 --branch "$CIRCLE_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
+    fi
+
+    #ls -al
+    #pwd
+    cd ponyc
+    cp -r .packaging/deb debian
+    cp LICENSE debian/copyright
+    rm -f debian/changelog
+    #dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
+    #apt-get update
+    #mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
+    #debuild -b -us -uc
+    make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
+
 notify:
   webhooks:
     - url: $ZULIP_WEBHOOK
@@ -271,41 +301,16 @@ jobs:
       # run tests for cross built stdlib using ponyc cross building support
       - run: make config=release verbose=1 PONYPATH=/usr/cross/lib cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc QEMU_RUNNER="qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc" test-cross-ci
 
-  build-llvm:
+  vendored-llvm:
     docker:
       - image: ponylang/ponyc-ci:xenial-deb-builder-lib-llvm
-        user: root
+        user: pony
     steps:
-      - run:
-          command: |
-            echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
-            source $BASH_ENV
-            mkdir -p /root/project
-            cd /root/project
-            git --version
-            if [ -n "$CIRCLE_TAG" ]
-            then
-              echo "cloning $CIRCLE_TAG"
-              git clone --depth 1 --branch "$CIRCLE_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
-            elif [ -n "$CIRCLE_BRANCH" ]
-            then
-              echo "cloning $CIRCLE_BRANCH"
-              git clone --depth 1 --branch "$CIRCLE_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
-            fi
-
-            #ls -al
-            #pwd
-            cd ponyc
-            cp -r .packaging/deb debian
-            cp LICENSE debian/copyright
-            rm -f debian/changelog
-            dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
-            apt-get update
-            mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
-            debuild -b -us -uc
+      - run: echo 'export test_ci_params="config=release default_pic=true use=llvm_link_static arch=x86-64 tune=intel"' >> $BASH_ENV
+      - run: *build-llvm
 
 workflows:
   version: 2
   tests:
     jobs:
-      - build-llvm
+      - vendored-llvm
