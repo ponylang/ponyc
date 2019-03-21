@@ -289,16 +289,17 @@ jobs:
               git clone --depth 1 --branch "$CIRCLE_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
             fi
 
-            ls -al
-            pwd
+            #ls -al
+            #pwd
             cd ponyc
-            cp -r .packaging/deb debian
-            cp LICENSE debian/copyright
-            rm -f debian/changelog
-            dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
-            apt-get update
-            mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
-            debuild -b -us -uc
+            #cp -r .packaging/deb debian
+            #cp LICENSE debian/copyright
+            #rm -f debian/changelog
+            #dch --package ponyc -v "1.0" -D "xenial" --force-distribution --controlmaint --create "Release 1.0"
+            #apt-get update
+            #mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
+            #debuild -b -us -uc
+            make prefix=/usr -f Makefile-lib-llvm use=llvm_link_static -j4 arch=x86-64 tune=intel
 
 workflows:
   version: 2
