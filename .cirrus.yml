@@ -39,7 +39,7 @@ task:
     - brew update
     - brew install pcre2
     - brew install libressl
-    - brew install llvm
+    - brew install llvm@7
 
   test_script:
     - export PATH=/usr/local/opt/llvm/bin/:$PATH
@@ -61,7 +61,7 @@ task:
     - brew update
     - brew install pcre2
     - brew install libressl
-    - brew install llvm
+    - brew install llvm@7
 
   test_script:
     - export PATH=/usr/local/opt/llvm/bin/:$PATH
