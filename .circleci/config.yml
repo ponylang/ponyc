@@ -304,7 +304,6 @@ jobs:
   vendored-llvm:
     docker:
       - image: ponylang/ponyc-ci:xenial-deb-builder-lib-llvm
-        user: pony
     steps:
       - run: echo 'export test_ci_params="config=release default_pic=true use=llvm_link_static arch=x86-64 tune=intel"' >> $BASH_ENV
       - run: *build-llvm
