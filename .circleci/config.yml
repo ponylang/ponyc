@@ -278,14 +278,18 @@ jobs:
     steps:
       - run:
           command: |
+            echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
+            source $BASH_ENV
             mkdir -p /root/project
             cd /root/project
             git --version
             if [ -n "$CIRCLE_TAG" ]
             then
+              echo "cloning $CIRCLE_TAG"
               git clone --depth 1 --branch "$CIRCLE_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
             elif [ -n "$CIRCLE_BRANCH" ]
             then
+              echo "cloning $CIRCLE_BRANCH"
               git clone --depth 1 --branch "$CIRCLE_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
             fi
 
@@ -299,7 +303,8 @@ jobs:
             #apt-get update
             #mk-build-deps -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y" -i -r
             #debuild -b -us -uc
-            make prefix=/usr -f Makefile-lib-llvm use=llvm_link_static -j4 arch=x86-64 tune=intel
+            echo "CPUS $CPUs"
+            make prefix=/usr -f Makefile-lib-llvm use=llvm_link_static -j2 arch=x86-64 tune=intel
 
 workflows:
   version: 2
