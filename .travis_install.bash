@@ -9,7 +9,7 @@ download_llvm(){
   git lfs clone -I "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz" https://github.com/ponylang/ponyc-llvm-dependencies.git
 
   pushd ponyc-llvm-dependencies
-  tar -xf "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-14.04.tar.xz"
+  tar -xf "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-debian8.tar.xz"
   pushd clang+llvm* && sudo mkdir /tmp/llvm && sudo cp -r ./* /tmp/llvm/
   sudo ln -s "/tmp/llvm/bin/llvm-config" "/usr/local/bin/${LLVM_CONFIG}"
   popd

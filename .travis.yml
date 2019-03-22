@@ -35,8 +35,8 @@ matrix:
         - g++-6
     env:
     - RELEASE_CONFIG=yes
-    - LLVM_VERSION="7.0.1"
-    - LLVM_CONFIG="llvm-config-7.0"
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
     - config=release
   - os: linux
     env:
