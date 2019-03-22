@@ -181,6 +181,8 @@ Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/
 
 Once the dockerhub images have been updated, visit the [Pony Playground](https://playground.ponylang.io/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
 
+If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, or @plietar.
+
 ### Merge the release blog post PR for the ponylang website
 
 Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.io/blog/).
