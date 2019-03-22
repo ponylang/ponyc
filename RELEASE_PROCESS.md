@@ -175,7 +175,7 @@ As part of every release, 3 docker images are built:
 - release
 - and a release version such as 0.3.1
 
-Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 3 images were successfully built.
+Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 3 images were successfully built. From the time the release starts, it can take about 3 hours for all images to be built.
 
 ### Verify that the Pony Playground updated to the new version
 
