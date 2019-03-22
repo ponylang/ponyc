@@ -1,3 +1,5 @@
+This is currently used only as part of the release process for packages. Not in CI in general.
+
 # Build image
 
 ```bash

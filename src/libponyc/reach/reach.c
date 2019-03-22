@@ -543,6 +543,7 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
           {
             reach_type_cache_put(&t->subtypes, t2);
             reach_type_cache_put(&t2->subtypes, t);
+            add_methods_to_type(r, t2, t, opt);
 
             if(t->underlying == TK_TUPLETYPE)
               add_internal(r, t2, "__is", opt);

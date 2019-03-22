@@ -40,11 +40,10 @@ We have a couple resources designed to help you learn, we suggest starting with 
 * [Standard library docs](http://stdlib.ponylang.io/).
 * [Build Problems, see FAQ Compiling](https://www.ponylang.io/faq/#compiling).
 
-If you are looking for an answer "right now", we suggest you give our IRC channel a try. It's #ponylang on Freenode. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or IRC isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
+If you are looking for an answer "right now", we suggest you give our Zulip community a try. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or Zulip isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
 * [Mailing list](mailto:pony+user@groups.io).
-* [IRC](https://webchat.freenode.net/?channels=%23ponylang).
-* [Slack](https://www.ponylang.io/get-slack-invite)
+* [Zulip](https://ponylang.zulipchat.com)
 
 Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
 * [Open an issue](https://github.com/ponylang/ponyc/issues)
@@ -238,7 +237,7 @@ By default, the Pony DEB package is compiled without support for AVX CPU instruc
 
 ### Linux Mint
 
-All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`trusty`, `xenial`, `bionic`) instead of the Linux Mint release.
+All steps to install Pony in Linux Mint are the same from Ubuntu, but you must use the Ubuntu package base (`xenial`, `bionic`) instead of the Linux Mint release.
 
 Install pre-requisites and add the correct `apt` repository:
 
@@ -325,7 +324,7 @@ First of all, you need a compiler with decent C11 support. The following compile
 - MSVC >= 2015
 - XCode Clang >= 6.0
 
-When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#building-ponyc-using-llvm-sources). In either case the supported version of LLVM is 3.9.1, with experimental support for version 6.0.0. Versions other than LLVM 3.9.1 may result in decreased performance or crashes in generated applications.
+When building ponyc from sources the LLVM installed on your system is used by default. Optionally, you may also build ponyc with LLVM from [sources](#building-ponyc-using-llvm-sources).
 
 ## Building ponyc using LLVM sources:
 
@@ -340,6 +339,31 @@ To compile Pony using LLVM sources on Linux add `-f Makefile-lib-llvm` to any of
 Typically you only need to build the LLVM sources once, as the `make clean` target does not cause the LLVM sources to be rebuilt. To rebuild everything use `make -f Makefile-lib-llvm clean-all && `make -f Makefile-lib-llvm`. There is also a distclean target, `make -f Makefle-lib-llvm distclean`, which will remove the llvm sources and they will be retrieved from the ponylang/llvm repo.
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
+
+### Changing the commit associated with llvm_target=llvm-default
+
+When llvm_target is not specified or it is llvm-default the commit associated with the lib/llvm/src submodule is checked out as the llvm source to be built. To change to a different commit, for instance a tag `llvmorg-8.0.0`, simply clone ponyc and have the lib/llvm/src submodule up to date and initialized. The simplest way to do that is clone ponyc with --recursive-submodule. Then checkout the desired commit the lib/llvm/src directory and push it to the repo, for example:
+```
+git clone --recurse-submodules  https://github.com/you/ponyc ponyc
+cd ponyc
+git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0 master
+cd lib/llvm/src
+git checkout llvmorg-8.0.0:
+cd ../../../
+```
+Now build and test using `llvm_target=llvm-current` and any other appropriate parameters:
+```
+make -j12 llvm_target=llvm-current default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
+# Debug/test ....
+```
+When satisfied create a commit pushing to your repo:
+```
+git add lib/llvm/src
+git commit -m "Update submodule lib/llvm/src to llvmorg-8.0.0"
+git push origin update-lib-llvm-src-to-llvmorg-8.0.0
+```
+And finally create a pull request and work hard getting CI to pass, :)
+See the [Submodule section of the git-scm book](https://git-scm.com/book/en/v2/Git-Tools-Submodules) for more information.
 
 ## Building on Linux
 
@@ -368,44 +392,6 @@ make default_pic=true default_ssl=openssl_1.1.0
 ./helloworld
 ```
 
-### Debian Jessie
-
-Add the following to `/etc/apt/sources`:
-
-```
-deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.9 main
-deb-src http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.9 main
-```
-
-Install the LLVM toolchain public GPG key, update `apt` and install packages:
-
-```bash
-wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
-sudo apt-get update
-sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
-                       libssl-dev llvm-3.9-dev
-```
-
-Debian Jessie and some other Linux distributions don't include pcre2 in their package manager. pcre2 is used by the Pony regex package. To download and build pcre2 from source:
-
-```bash
-wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-tar xvf pcre2-10.21.tar.bz2
-cd pcre2-10.21
-./configure --prefix=/usr
-make
-sudo make install
-```
-
-To build ponyc, compile and run helloworld:
-
-```bash
-cd ~/ponyc/
-make
-./build/release/ponyc examples/helloworld
-./helloworld
-```
-
 ### Debian Sid
 
 Install pony dependencies:
@@ -421,59 +407,6 @@ To build ponyc, compile and run helloworld:
 ```bash
 cd ~/ponyc/
 make default_pic=true
-./build/release/ponyc examples/helloworld
-./helloworld
-```
-
-### Ubuntu Trusty
-
-Add the LLVM apt repo to /etc/apt/sources.list. Open `/etc/apt/sources.list` and add the following lines to the end of the file:
-
-```
-deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
-deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main
-```
-
-Add the LLVM repo as a trusted source:
-
-```bash
-cd /tmp
-wget -O llvm-snapshot.gpg.key http://apt.llvm.org/llvm-snapshot.gpg.key
-sudo apt-key add llvm-snapshot.gpg.key
-```
-
-Install dependencies:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev \
-  libssl-dev llvm-3.9
-```
-
-Install libprce2:
-
-```bash
-cd /tmp
-wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-tar xjvf pcre2-10.21.tar.bz2
-cd pcre2-10.21
-./configure --prefix=/usr
-make
-sudo make install
-```
-
-Clone the ponyc repo:
-
-```bash
-cd ~/
-git clone https://github.com/ponylang/ponyc.git
-```
-
-Build ponyc, compile and run helloworld:
-
-```bash
-cd ~/ponyc/
-make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```

@@ -14,6 +14,9 @@ USER root
 
 RUN dpkg --add-architecture i386 \
  && apt-get update \
+ && apt-get install -y software-properties-common \
+ && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
+ && apt-get update \
  && apt-get install -y \
   libc6:i386 \
   libc6-dev:i386 \

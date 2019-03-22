@@ -2,6 +2,22 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.28.0] - 2019-03-22
+
+### Fixed
+
+- Ensure methods reached through a union are detected as reachable. ([PR #3102](https://github.com/ponylang/ponyc/pull/3102))
+- Fixed issue with ponyc not being able to find Visual Studio Build Tools in non-standard locations. ([PR #3086](https://github.com/ponylang/ponyc/pull/3086))
+- Update TCPConnection docs around local and remote addresses ([PR #3050](https://github.com/ponylang/ponyc/pull/3050))
+
+### Changed
+
+- Stop Supporting Ubuntu Artful ([PR #3100](https://github.com/ponylang/ponyc/pull/3100))
+- Upgrade Docker image to use LLVM 7.0.1 ([PR #3079](https://github.com/ponylang/ponyc/pull/3079))
+- Stop trying to be clever when finding user's LLVM installation ([PR #3077](https://github.com/ponylang/ponyc/pull/3077))
+- Stop supporting Ubuntu Trusty ([PR #3076](https://github.com/ponylang/ponyc/pull/3076))
+- Stop supporting Debian Jessie ([PR #3078](https://github.com/ponylang/ponyc/pull/3078))
+
 ## [0.27.0] - 2019-03-01
 
 ### Fixed

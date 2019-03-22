@@ -1,18 +1,8 @@
 # Build image for different distros
 
 ```bash
-# Ubuntu Trusty
-docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=trusty -t ponylang/ponyc-ci:trusty-deb-builder .
-```
-
-```bash
 # Ubuntu Xenial
 docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=xenial -t ponylang/ponyc-ci:xenial-deb-builder .
-```
-
-```bash
-# Ubuntu Artful
-docker build --build-arg FROM_DISTRO=ubuntu --build-arg FROM_VERSION=artful -t ponylang/ponyc-ci:artful-deb-builder .
 ```
 
 ```bash
@@ -28,11 +18,6 @@ docker build --build-arg FROM_DISTRO=debian --build-arg FROM_VERSION=stretch -t 
 ```bash
 # Debian Buster
 docker build --build-arg FROM_DISTRO=debian --build-arg FROM_VERSION=buster -t ponylang/ponyc-ci:buster-deb-builder .
-```
-
-```bash
-# Debian Jessie
-docker build --build-arg FROM_DISTRO=debian --build-arg FROM_VERSION=jessie -t ponylang/ponyc-ci:jessie-deb-builder --file Dockerfile.jessie .
 ```
 
 # Push to dockerhub

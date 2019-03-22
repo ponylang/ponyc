@@ -1,6 +1,6 @@
 FROM alpine
 
-ENV LLVM_VERSION 3.9
+ENV LLVM_VERSION 5
 
 RUN apk add --update \
   alpine-sdk \

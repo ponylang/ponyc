@@ -225,93 +225,123 @@ ifeq ($(OSTYPE),osx)
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.12
 endif
 
-ifndef LLVM_CONFIG
-  ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
-  else ifneq (,$(shell which llvm-config-7.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-7.0
-  else ifneq (,$(shell which llvm-config70 2> /dev/null))
-    LLVM_CONFIG = llvm-config70
-  else ifneq (,$(shell which llvm-config-6.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-6.0
-  else ifneq (,$(shell which llvm-config-3.9 2> /dev/null))
-    LLVM_CONFIG = llvm-config-3.9
-  else ifneq (,$(shell which /usr/local/opt/llvm@3.9/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm@3.9/bin/llvm-config
-  else ifneq (,$(shell which llvm-config39 2> /dev/null))
-    LLVM_CONFIG = llvm-config39
-  else ifneq (,$(shell which /usr/local/opt/llvm/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm/bin/llvm-config
-  else ifneq (,$(shell which /usr/lib64/llvm3.9/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/lib64/llvm3.9/bin/llvm-config
-  else ifneq (,$(shell which llvm-config 2> /dev/null))
-    LLVM_CONFIG = llvm-config
-  else ifneq (,$(shell which llvm-config-5.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-5.0
-  else ifneq (,$(shell which llvm-config-4.0 2> /dev/null))
-    LLVM_CONFIG = llvm-config-4.0
-  else ifneq (,$(shell which /usr/local/opt/llvm@4.0/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /usr/local/opt/llvm@4.0/bin/llvm-config
-  else ifneq (,$(shell which /opt/llvm-3.9.1/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /opt/llvm-3.9.1/bin/llvm-config
-  else ifneq (,$(shell which /opt/llvm-5.0.1/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /opt/llvm-5.0.1/bin/llvm-config
-  else ifneq (,$(shell which /opt/llvm-5.0.0/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /opt/llvm-5.0.0/bin/llvm-config
-  else ifneq (,$(shell which /opt/llvm-4.0.0/bin/llvm-config 2> /dev/null))
-    LLVM_CONFIG = /opt/llvm-4.0.0/bin/llvm-config
+# If we are not cleaning we need LLVM_CONFIG
+ifneq ($(MAKECMDGOALS),clean)
+  ifndef LLVM_CONFIG
+    ifneq (,$(shell which llvm-config 2> /dev/null))
+      LLVM_CONFIG = llvm-config
+    else
+      $(error No LLVM installation found! Set LLVM_CONFIG environment variable \
+        to the `llvm-config` binary for your installation)
+    endif
+  else ifeq (,$(shell which $(LLVM_CONFIG) 2> /dev/null))
+    $(error LLVM config $(LLVM_CONFIG) not found! Set LLVM_CONFIG environment \
+        variable to a valid LLVM installation.)
+  endif
+
+  LLVM_BINDIR := $(shell $(LLVM_CONFIG) --bindir 2> /dev/null)
+
+  LLVM_LINK := $(LLVM_BINDIR)/llvm-link
+  LLVM_OPT := $(LLVM_BINDIR)/opt
+  LLVM_LLC := $(LLVM_BINDIR)/llc
+  LLVM_AS := $(LLVM_BINDIR)/llvm-as
+  llvm_build_mode := $(shell $(LLVM_CONFIG) --build-mode)
+  ifeq (Release,$(llvm_build_mode))
+    LLVM_BUILD_MODE=LLVM_BUILD_MODE_Release
+  else ifeq (RelWithDebInfo,$(llvm_build_mode))
+    LLVM_BUILD_MODE=LLVM_BUILD_MODE_RelWithDebInfo
+  else ifeq (MinSizeRel,$(llvm_build_mode))
+    LLVM_BUILD_MODE=LLVM_BUILD_MODE_MinSizeRel
+  else ifeq (Debug,$(llvm_build_mode))
+    LLVM_BUILD_MODE=LLVM_BUILD_MODE_Debug
   else
-    $(error No LLVM installation found!)
+    $(error "Unknown llvm build-mode of $(llvm_build_mode)", aborting)
   endif
-else ifeq (,$(shell which $(LLVM_CONFIG) 2> /dev/null))
-  $(error No LLVM installation found!)
-endif
 
-LLVM_BINDIR := $(shell $(LLVM_CONFIG) --bindir 2> /dev/null)
+  llvm_version := $(shell $(LLVM_CONFIG) --version)
 
-LLVM_LINK := $(LLVM_BINDIR)/llvm-link
-LLVM_OPT := $(LLVM_BINDIR)/opt
-LLVM_LLC := $(LLVM_BINDIR)/llc
-LLVM_AS := $(LLVM_BINDIR)/llvm-as
-llvm_build_mode := $(shell $(LLVM_CONFIG) --build-mode)
-ifeq (Release,$(llvm_build_mode))
-  LLVM_BUILD_MODE=LLVM_BUILD_MODE_Release
-else ifeq (RelWithDebInfo,$(llvm_build_mode))
-  LLVM_BUILD_MODE=LLVM_BUILD_MODE_RelWithDebInfo
-else ifeq (MinSizeRel,$(llvm_build_mode))
-  LLVM_BUILD_MODE=LLVM_BUILD_MODE_MinSizeRel
-else ifeq (Debug,$(llvm_build_mode))
-  LLVM_BUILD_MODE=LLVM_BUILD_MODE_Debug
-else
-  $(error "Unknown llvm build-mode of $(llvm_build_mode)", aborting)
-endif
-
-llvm_version := $(shell $(LLVM_CONFIG) --version)
-
-ifeq (,$(LLVM_LINK_STATIC))
-  ifneq (,$(filter $(use), llvm_link_static))
-    LLVM_LINK_STATIC=--link-static
-    $(warning "linking llvm statically")
+  ifeq (,$(LLVM_LINK_STATIC))
+    ifneq (,$(filter $(use), llvm_link_static))
+      LLVM_LINK_STATIC=--link-static
+      $(warning "linking llvm statically")
+    endif
   endif
-endif
 
-ifeq ($(OSTYPE),osx)
-  ifneq (,$(shell which $(LLVM_BINDIR)/llvm-ar 2> /dev/null))
-    AR = $(LLVM_BINDIR)/llvm-ar
-    AR_FLAGS := rcs
+  ifeq ($(OSTYPE),osx)
+    ifneq (,$(shell which $(LLVM_BINDIR)/llvm-ar 2> /dev/null))
+      AR = $(LLVM_BINDIR)/llvm-ar
+      AR_FLAGS := rcs
+    else
+      AR = /usr/bin/ar
+      AR_FLAGS := -rcs
+    endif
+  endif
+
+  ifeq ($(llvm_version),3.9.1)
+  else ifeq ($(llvm_version),5.0.2)
+  else ifeq ($(llvm_version),6.0.1)
+  else ifeq ($(llvm_version),7.0.1)
   else
-    AR = /usr/bin/ar
-    AR_FLAGS := -rcs
+    $(warning WARNING: Unsupported LLVM version: $(llvm_version))
+    $(warning Please use LLVM 3.9.1, 5.0.2, 6.0.1, 7.0.1)
   endif
-endif
 
-ifeq ($(llvm_version),3.9.1)
-else ifeq ($(llvm_version),5.0.2)
-else ifeq ($(llvm_version),6.0.1)
-else ifeq ($(llvm_version),7.0.1)
-else
-  $(warning WARNING: Unsupported LLVM version: $(llvm_version))
-  $(warning Please use LLVM 3.9.1, 5.0.2, 6.0.1, 7.0.1)
+  # Third party, but prebuilt. Prebuilt libraries are defined as
+  # (1) a name (stored in prebuilt)
+  # (2) the linker flags necessary to link against the prebuilt libraries
+  # (3) a list of include directories for a set of libraries
+  # (4) a list of the libraries to link against
+  llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
+
+  # Get cflags using llvm-config
+  llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC)
+  #$(warning llvm.get_cflags="$(llvm.get_cflags)")
+  llvm.cflags := $(shell sh -c "$(llvm.get_cflags)")
+  #$(warning llvm.cflags="$(llvm.cflags)")
+
+  # Get include dirs using grep & sed to extract "-I<dir>" and "-isystem<dir>" entries
+  # that can occur anywhere in the string and <dir> may have a leading spaces, but the
+  # regex assumes a directory does NOT contain spaces.
+  # Note: [:space:] is used for greater portability.
+  llvm.get_include_dirs := echo '$(llvm.cflags)' | grep -oE -- '(^-I[[:space:]]*| -I[[:space:]]*|^-isystem[[:space:]]*| -isystem[[:space:]]*)[^[:space:]]+' | sed -E 's/^[[:space:]]*(-I[[:space:]]*|-isystem[[:space:]]*)//'
+  #$(warning llvm.get_include_dirs="$(llvm.get_include_dirs)")
+  llvm.include_dirs := $(shell sh -c "$(llvm.get_include_dirs)")
+  #$(warning llvm.include_dirs="$(llvm.include_dirs)")
+
+  # Get the compiler output of verbose "-v" and preprocess, "-E" parameters which
+  # contains the search paths.
+  verbose_preprocess_string := $(shell echo | $(CC) -v -E - 2>&1)
+  #$(warning verbose_preprocess_string="$(verbose_preprocess_string)")
+
+  # We must escape any double quotes, ", and any hash, #, characters.
+  quoteDblQuote := $(subst ",\",$(verbose_preprocess_string))
+  #$(warning quoteDblQuote="$(quoteDblQuote)")
+  quoted_verbose_preprocess_string := $(subst \#,\\\#,$(quoteDblQuote))
+  #$(warning quoted_verbose_preprocess_string="$(quoted_verbose_preprocess_string)")
+
+  # Now use a sed command line to extract the search paths from the
+  # quoted verbose preprocess string
+  get_search_paths := sed 's/\(.*\)search starts here:\(.*\)End of search list.\(.*\)/\2/'
+  #$(warning get_search_paths="$(get_search_paths)")
+  search_paths := $(shell echo "$(quoted_verbose_preprocess_string)" | $(get_search_paths))
+  #$(warning search_paths="$(search_paths)")
+
+  # Note: $(search_paths) is padded with a space on front and back so
+  # that when we iterate the ${inc_dir} variable is guaranteed to have
+  # a space at the beginning and end making finding a match easy. If
+  # there is no match we output the ${inc_dir}.
+  loopit :=									\
+	for inc_dir in $(llvm.include_dirs); do					\
+		if ! echo " $(search_paths) " | grep -q " $${inc_dir} "; then	\
+			echo "-isystem $(CROSS_SYSROOT)$${inc_dir}";		\
+		fi								\
+	done
+
+  #$(warning loopit="$(loopit)")
+  llvm.include = $(shell $(loopit))
+  #$(warning llvm.include="$(llvm.include)")
+
+  llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 endif
 
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"
@@ -419,63 +449,6 @@ ifeq ($(OSTYPE), linux)
 else
   libraries := libponyc libgtest libgbenchmark libblake2
 endif
-
-# Third party, but prebuilt. Prebuilt libraries are defined as
-# (1) a name (stored in prebuilt)
-# (2) the linker flags necessary to link against the prebuilt libraries
-# (3) a list of include directories for a set of libraries
-# (4) a list of the libraries to link against
-llvm.ldflags := -L$(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
-
-# Get cflags using llvm-config
-llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC)
-#$(warning llvm.get_cflags="$(llvm.get_cflags)")
-llvm.cflags := $(shell sh -c "$(llvm.get_cflags)")
-#$(warning llvm.cflags="$(llvm.cflags)")
-
-# Get include dirs using grep & sed to extract "-I<dir>" and "-isystem<dir>" entries
-# that can occur anywhere in the string and <dir> may have a leading spaces, but the
-# regex assumes a directory does NOT contain spaces.
-# Note: [:space:] is used for greater portability.
-llvm.get_include_dirs := echo '$(llvm.cflags)' | grep -oE -- '(^-I[[:space:]]*| -I[[:space:]]*|^-isystem[[:space:]]*| -isystem[[:space:]]*)[^[:space:]]+' | sed -E 's/^[[:space:]]*(-I[[:space:]]*|-isystem[[:space:]]*)//'
-#$(warning llvm.get_include_dirs="$(llvm.get_include_dirs)")
-llvm.include_dirs := $(shell sh -c "$(llvm.get_include_dirs)")
-#$(warning llvm.include_dirs="$(llvm.include_dirs)")
-
-# Get the compiler output of verbose "-v" and preprocess, "-E" parameters which
-# contains the search paths.
-verbose_preprocess_string := $(shell echo | $(CC) -v -E - 2>&1)
-#$(warning verbose_preprocess_string="$(verbose_preprocess_string)")
-
-# We must escape any double quotes, ", and any hash, #, characters.
-quoteDblQuote := $(subst ",\",$(verbose_preprocess_string))
-#$(warning quoteDblQuote="$(quoteDblQuote)")
-quoted_verbose_preprocess_string := $(subst \#,\\\#,$(quoteDblQuote))
-#$(warning quoted_verbose_preprocess_string="$(quoted_verbose_preprocess_string)")
-
-# Now use a sed command line to extract the search paths from the
-# quoted verbose preprocess string
-get_search_paths := sed 's/\(.*\)search starts here:\(.*\)End of search list.\(.*\)/\2/'
-#$(warning get_search_paths="$(get_search_paths)")
-search_paths := $(shell echo "$(quoted_verbose_preprocess_string)" | $(get_search_paths))
-#$(warning search_paths="$(search_paths)")
-
-# Note: $(search_paths) is padded with a space on front and back so
-# that when we iterate the ${inc_dir} variable is guaranteed to have
-# a space at the beginning and end making finding a match easy. If
-# there is no match we output the ${inc_dir}.
-loopit :=									\
-	for inc_dir in $(llvm.include_dirs); do					\
-		if ! echo " $(search_paths) " | grep -q " $${inc_dir} "; then	\
-			echo "-isystem $(CROSS_SYSROOT)$${inc_dir}";		\
-		fi								\
-	done
-
-#$(warning loopit="$(loopit)")
-llvm.include = $(shell $(loopit))
-#$(warning llvm.include="$(llvm.include)")
-
-llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz -lncurses
 
 ifeq ($(OSTYPE), bsd)
   extra.bsd.libs = -lpthread -lexecinfo
