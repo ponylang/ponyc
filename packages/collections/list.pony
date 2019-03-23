@@ -1,6 +1,56 @@
 class List[A] is Seq[A]
   """
   A doubly linked list.
+  
+  
+  
+  ## Example program
+  There are a _lot_ of functions in List. The following code picks out a few common examples.
+  
+  ```pony
+  use "collections"
+
+  actor Main 
+    new create(env:Env) => 
+
+      // Create a new empty List
+      let my_list = List[String]()
+
+      // Size of the new empty List?
+      env.out.print(my_list.size().string()) // 0
+
+      // Push a String literal onto the empty List
+      my_list.push("A single String")
+      env.out.print(my_list.size().string()) // 1
+
+      // Get the first element of our List
+      try env.out.print(my_list.index(0)?()?.string()) end // A single String
+
+      // Create a second List from a String literal
+      let my_second_list = List[String].unit("Another String")
+      try env.out.print(my_second_list.index(0)?()?.string()) end // Another String
+
+      // Append the second List to the first
+      my_list.append_list(my_second_list)
+      env.out.print(my_list.size().string()) // 2
+      for n in my_list.values() do
+        env.out.print(n.string())
+      end
+      // NOTE: this _moves_ the elements so second_list consequently ends up empty
+      env.out.print(my_second_list.size().string()) // 0
+
+      // Create a third List from a Seq(ence) 
+      // (In this case a literal array of Strings)
+      let my_third_list = List[String].from([ "First"; "Second"; "Third" ])
+      env.out.print(my_third_list.size().string()) // 3
+
+      // Map over the third List, concatenating some "BOOM!'s" into a new List
+      let new_list = my_third_list.map[String]( { (n) => n + " BOOM!" }) 
+      env.out.print(new_list.size().string()) // 3
+      try env.out.print(new_list.index(0)?()?.string()) end // First BOOM!
+  ```
+
+  
   """
   var _head: (ListNode[A] | None) = None
   var _tail: (ListNode[A] | None) = None
