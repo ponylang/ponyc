@@ -2,7 +2,7 @@ task:
   container:
     image: ponylang/ponyc-ci:xenial-deb-builder-lib-llvm
     cpu: 8
-    memory: 20
+    memory: 24
 
   name: "xenial debian builder"
 
