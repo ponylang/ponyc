@@ -6,9 +6,10 @@ class List[A] is Seq[A]
 
   A doubly linked list is a linked data structure that consists of a set of sequentially
   linked records called nodes. (Implemented in Ponylang via the collections.ListNode class.) Each
-  node contains three fields: two link fields (references to the previous and to the next node in
-  the sequence of nodes) and one data field.  A doubly linked list can be conceptualized as two
-  singly linked lists formed from the same data items, but in opposite sequential orders.
+  node contains four fields: two link fields (references to the previous and to the next node in
+  the sequence of nodes), one data field, and the reference to the in which it resides.  A doubly
+  linked list can be conceptualized as two singly linked lists formed from the same data items, but
+  in opposite sequential orders.
 
   As you would expect. functions are provided to perform all the common list operations such as
   creation, traversal, node addition and removal, iteration, mapping, filtering, etc.
@@ -39,8 +40,8 @@ class List[A] is Seq[A]
   ```pony
     use "collections"
 
-    actor Main 
-      new create(env:Env) => 
+    actor Main
+      new create(env:Env) =>
         
         // Create a new empty List of type String
         let my_list = List[String]()
@@ -49,11 +50,11 @@ class List[A] is Seq[A]
         
         // Push a String literal onto our empty List
         my_list.push("A single String")
-        env.out.print("Adding one node to our empty list means it now has a size of " 
+        env.out.print("Adding one node to our empty list means it now has a size of "
                       + my_list.size().string() + ".") // 1
         
         // Get the first element of our List
-        try env.out.print("The first (index 0) node has the value: " 
+        try env.out.print("The first (index 0) node has the value: "
                           + my_list.index(0)?()?.string()) end // A single String
         
         // Create a second List from a single String literal
@@ -61,28 +62,28 @@ class List[A] is Seq[A]
         
         // Append the second List to the first
         my_list.append_list(my_second_list)
-        env.out.print("A list created by appending our second single-node list onto our first has size: " 
+        env.out.print("A list created by appending our second single-node list onto our first has size: "
                       + my_list.size().string()) // 2
         env.out.print("The List nodes of our first list are now:")
         for n in my_list.values() do
           env.out.print("\t" + n.string())
         end
         // NOTE: this _moves_ the elements so second_list consequently ends up empty
-        env.out.print("Append *moves* the nodes from the second list so that now has " 
+        env.out.print("Append *moves* the nodes from the second list so that now has "
                       + my_second_list.size().string() + " nodes.") // 0
         
-        // Create a third List from a Seq(ence) 
+        // Create a third List from a Seq(ence)
         // (In this case a literal array of Strings)
         let my_third_list = List[String].from([ "First"; "Second"; "Third" ])
-        env.out.print("A list created from an array of three strings has size: " 
+        env.out.print("A list created from an array of three strings has size: "
                       + my_third_list.size().string()) // 3
         for n in my_third_list.values() do
           env.out.print("\t" + n.string())
         end
         
         // Map over the third List, concatenating some "BOOM!'s" into a new List
-        let new_list = my_third_list.map[String]( { (n) => n + " BOOM!" }) 
-        env.out.print("Mapping over our three-node list produces a new list of size: " 
+        let new_list = my_third_list.map[String]( { (n) => n + " BOOM!" })
+        env.out.print("Mapping over our three-node list produces a new list of size: "
                       + new_list.size().string()) // 3
         env.out.print("Each node-value in the resulting list is now far more exciting:")
         for n in new_list.values() do
