@@ -74,7 +74,7 @@ class List[A] is Seq[A]
         
         // Create a third List from a Seq(ence)
         // (In this case a literal array of Strings)
-        let my_third_list = List[String].from([ "First"; "Second"; "Third" ])
+        let my_third_list = List[String].from(["First"; "Second"; "Third"])
         env.out.print("A list created from an array of three strings has size: "
                       + my_third_list.size().string()) // 3
         for n in my_third_list.values() do
