@@ -6,12 +6,20 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- Ensure methods reached through a union are detected as reachable. ([PR #3102](https://github.com/ponylang/ponyc/pull/3102))
-- Fixed issue with ponyc not being able to find Visual Studio Build Tools in non-standard locations. ([PR #3086](https://github.com/ponylang/ponyc/pull/3086))
-- Update TCPConnection docs around local and remote addresses ([PR #3050](https://github.com/ponylang/ponyc/pull/3050))
 
 ### Added
 
+
+### Changed
+
+
+## [0.28.0] - 2019-03-22
+
+### Fixed
+
+- Ensure methods reached through a union are detected as reachable. ([PR #3102](https://github.com/ponylang/ponyc/pull/3102))
+- Fixed issue with ponyc not being able to find Visual Studio Build Tools in non-standard locations. ([PR #3086](https://github.com/ponylang/ponyc/pull/3086))
+- Update TCPConnection docs around local and remote addresses ([PR #3050](https://github.com/ponylang/ponyc/pull/3050))
 
 ### Changed
 
@@ -1311,3 +1319,4 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
+

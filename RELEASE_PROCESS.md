@@ -10,7 +10,7 @@ In order to do a release, you absolutely must have:
 * The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 * Access to the ponylang twitter account
 * Accounts on reddit/hacker news/lobste.rs/ponylang irc for posting release notes
-* An account on the [Pony slack](https://ponylang.io/get-slack-invite)
+* An account on the [Pony Zulip](https://ponylang.zulipchat.com)
 
 While not strictly required, your life will be made much easier if you:
 
@@ -165,7 +165,7 @@ curl -sL https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula
 
 If the formulae has been successfully updated, you'll see the new download url in the output of the command. If it hasn't, you'll see the old url.
 
-Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform Slack, and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and Slack.
+Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform Zulip, and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and Zulip.
 
 ### Wait on Docker images to be built
 
@@ -175,19 +175,21 @@ As part of every release, 3 docker images are built:
 - release
 - and a release version such as 0.3.1
 
-Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 3 images were successfully built.
+Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 3 images were successfully built. From the time the release starts, it can take about 3 hours for all images to be built.
 
 ### Verify that the Pony Playground updated to the new version
 
 Once the dockerhub images have been updated, visit the [Pony Playground](https://playground.ponylang.io/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
 
+If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, or @plietar.
+
 ### Merge the release blog post PR for the ponylang website
 
 Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.io/blog/).
 
-### Inform the Pony Slack
+### Inform the Pony Zulip
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the #general channel of the Pony Slack letting everyone know that the release is out and include a link the release blog post.
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the [#announce stream](https://ponylang.zulipchat.com/#narrow/stream/189932-announce) with a topic like "0.3.1 has been released" of the Pony Zulip letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 

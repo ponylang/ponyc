@@ -35,8 +35,8 @@ matrix:
         - g++-6
     env:
     - RELEASE_CONFIG=yes
-    - LLVM_VERSION="7.0.1"
-    - LLVM_CONFIG="llvm-config-7.0"
+    - LLVM_VERSION="3.9.1"
+    - LLVM_CONFIG="llvm-config-3.9"
     - config=release
   - os: linux
     env:
@@ -190,11 +190,6 @@ notifications:
       - secure: IYtNjqplhXhwZqzUuuVn52fNBt2mToTLZBOM2v4ivC2HgaRr8F3w+TYd4/PBJ8Hr3KgFcDUOrICmbFhJK3N+Z8GiZ4xdxIe8Xkq6GERm3S9LYqd8j5mToZrf4vgrozDap9U0I4ZO+1+1jwGxIXLDHAkRy/XqucxJE67jxWlMbiHAF6z+eivkIbTCv5uso+fWLSu8rRmEvpm+tQFt9VVrr7KvlmB0OLMe4iQZy1OwF6FpcKsPiFDHZfKDKgZAikdg/IFRjnLvcqLxOuoWKbh5oOt6sC6V1S7943TgVHmESeSi/C/bvEvegaxfL4BhOyzIkCwD4USzAYRqFmdAwVw9l/gIsRDHK1HdvvqPGUJnFec0RO7A4Yzj9uIyi525+33qUOlP1f0MpGTwYw+ryqiORjv8Ry3SJzO7eSCpT0RvPZRRKd6egkgdIBhp4OUnbngkkKb4/z3WfjVB+ba5chYpFRosLkhUJM80AkRN0Q9ih0OefglJgKOk2IR5R8AQ8ezfnCl3FyBIjusruckSCzGtKzeh5rgxFWD0U3+x+bxb+ajLBD1TUVEP/wKukya/cLqz7TaXOrTtmHV/VN8PCj1v/fbrGnwAqVvKNY9x4K5SZh1gtCVujSuGrGZDLo2dosSRFKagUhg/STMSKQp+SR5ofC3NKuYMmd3HFYCLrhVVl6Q=
     on_success: always
     on_failure: always
-  slack:
-    rooms:
-      - secure: Ojrqq/3nlLAchueQeaSNZ5oW3f044LZMz5AKBN9h42uMkhAfWsrJ9SJ+8Es1ZEtdwzh8eARjUoCPWT9Jn0Ts98Ee5NSpTeuBdlCTdA0CiFGvODpjmYtKy+e8tZZjN6qakwWUGWWHtuZsWIFly83Gr7aYHXzb3nF4tedRsD/+NfweLzGYlYViQFX+uPv2V1G60aPauphah+k0pTcXcUJnxfKIniu5gIAHTWwniljaWz49zXfjtkfI6DOAGjrdXG0UICybswNzm6paC8rif5LJZqMqsWRojV65GOnHcJDJpD/yANOfCkjECi+e84P3zfAVW6vZ2jxiU9OwXd2HWR7+VzSuDVtPhpZsiP6GEWhz1teAffu49nMuErkmv9oZLHDl8HahkFbhKH6ILgjRqyHwsA3+nqZb4m/bXv5ZguumkzmiNDMInjXI43hKceXZ8VTYrIgaEJTPL/08nY/pCTHSHSgRMhUj75YUKpUOFQIDPas1NVmgd2YYhlj1P4i4P5vPKERWJooPiJSuFIHM6apUbuUP4nkWPONcfuyaF7y68d4oYE+Tm+XL5R+czBY6Cjz0nck2RdhFrjdlCVwRFjvF0F5PXkkEpjUPTUUaJricQKzsVe+b8hyefwXtnsFuAzbRC4spUdEp/c4jBiGyYIHYI2WjwQarfdNtH92Xt0QhJgs=
-    on_success: change
-    on_failure: change
 deploy:
 - provider: bintray
   user: pony-buildbot-2
@@ -212,15 +207,6 @@ deploy:
   on:
     branch: release
     condition: $RELEASE_CONFIG == yes && -z $RELEASE_DEBS
-  key:
-    secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
-- provider: bintray
-  user: pony-buildbot-2
-  file: /home/travis/build/ponylang/ponyc/bintray_debian_trusty.json
-  skip_cleanup: true
-  on:
-    branch: release
-    condition: $RELEASE_CONFIG == yes && $RELEASE_DEBS == ubuntu
   key:
     secure: GGDPvrwx0nY09smgUP0ocbBCIdvl1r96bzM7NYxxS9l9d6xGegaSFzUF6B19mdIRT4A+mR9fxpc2eQpxC6iduWVOWGwXGqtYtWzKz/C1I3s/UICPWDl2f4wsO8KGqcO2+M87aw3bwUKC4GgzKa956HKm8BVeCWhbwyFSf0c4UyST8Lkv2vAFWeRDmu/fzUwwFFpiHwlE7W1rlJhQV2xiY8pwVntgxAmTL5ssSOYdk+t65H1fIfjF3k+dU0KkARa8y2JaVhtYHlisHjCki2V3hhKenGcoK22WnNckaCM9sn/ppCm6KRhqcbtGrbEYu8XAA/xXnw3xtgZWVHhcLdTXDl13rxCGchdF1f2rtEZCfI9BSJeQlLBRrf8lF9rEdLgfUqOKSq47KKrENa5PclhGiby9iICBuzRMJxbKUvXo8dcCvFP+/Q8ekIMyAItIK/AJBX9Gx4Yv25g8n5XZDzgfNlOEou27emo7zv1/nCEZkwKQyfHAEbnpz56y0JaR+eMotBdLIHsDNZSAh+/tWNiUYBaKfZydawrnHlWxiX8diMEOqZWHhlIHRljCmt2NUxAevht2mzzoZ+NBZxfyaDcw0dt8A1cGpigZh995Pj+LaFidPK7lvIwJGJ1956Iaj+wnZxJCkCOHuTLtO5KYDTIlgbmd7vVQfX5wm9uKsrsifF8=
 - provider: bintray

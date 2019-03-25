@@ -4,14 +4,14 @@ Looking for help with Pony? Awesome. We are here to help. Before you open an iss
 
 ## Should I open an issue?
 
-We ask you to refrain from opening GitHub issues for non-actionable items. We use GitHub issues to track bugs and other problems that can be resolved. If you are not sure how to code a particular problem, how to decipher an error message, wondering about a benchmark, or anything of that sort, please use the [mailing list][mailing list] or [slack][slack].
+We ask you to refrain from opening GitHub issues for non-actionable items. We use GitHub issues to track bugs and other problems that can be resolved. If you are not sure how to code a particular problem, how to decipher an error message, wondering about a benchmark, or anything of that sort, please use the [mailing list][mailing list] or [Zulip][zulip].
 
 ## How to get help
 
-You have a couple of different options on how you can get help from the Pony community. If you are looking for an answer "right now," we suggest you give our Slack community a try. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or Slack isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
+You have a couple of different options on how you can get help from the Pony community. If you are looking for an answer "right now," we suggest you give our Zulip community a try. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or Zulip isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
 * [Mailing list][mailing list].
-* [Slack][slack].
+* [Zulip][zulip].
 
 Many folks encounter the same issues or have the same questions, be sure to give the [frequently asked questions][FAQ] section of this website a read.
 
@@ -23,6 +23,6 @@ The Pony community while small is helpful and inviting. We think you'll find int
 
 [mailing list]: https://pony.groups.io/g/user
 [FAQ]: https://www.ponylang.io/faq/
-[slack]: https://www.ponylang.io/get-slack-invite
+[zulip]: https://ponylang.zulipchat.com
 [issues]: https://github.com/ponylang/ponyc/issues
 [website community section]: https://www.ponylang.io/community/
