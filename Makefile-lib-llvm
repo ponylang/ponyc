@@ -33,7 +33,7 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKECMDGOALS) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKECMDGOALS)
 
 .PHONY: $(llvm_config)
 $(llvm_config):
@@ -43,13 +43,13 @@ $(llvm_config):
 .PHONY: rebuild
 rebuild: clean
 	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild-test
 rebuild-test: clean
 	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) test $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) test
 
 # Rebuild and then run some tests as passed in the command line parameter gtest_filter.
 # Note, the clean is needed otherwise the rebuild of llvm won't be linked.
@@ -61,7 +61,7 @@ rebuild-test: clean
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
 	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config)
 	@$(MAKE) -f Makefile-lib-llvm some-tests
 
 # Run the some passing gtest_filter on command line, for example:
