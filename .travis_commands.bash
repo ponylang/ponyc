@@ -72,7 +72,7 @@ EOF
   # build appimage
   sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --output appimage"
 
-  mv Pony_Compiler-x86_64.AppImage "Pony_Compiler-${package_version}-x86_64.AppImage"
+  mv Pony_Compiler*-x86_64.AppImage "Pony_Compiler-${package_version}-x86_64.AppImage"
 
   bash .bintray.bash appimage "${package_version}" ponyc
 
