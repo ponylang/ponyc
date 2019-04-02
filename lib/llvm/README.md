@@ -46,3 +46,14 @@ Clean binaries and sources
 ```
 make distclean
 ```
+### Changing the commit associated with llvm-default.cfg
+
+When llvm_cfg is not specified or it is llvm-default.cfg the commit associated with the submodule is checked out as the llvm source to be built. To change to a different commit, for instance a tag `llvmorg-8.0.0` do something like:
+```
+git clone --recurse-submodules  https://github.com/<you>/ponylang/ponyc
+cd ponyc
+git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0
+(cd lib/llvm/src ; git checkout llvmorg-8.0.0)
+git commit -m "Update src to llvmorg-8.0.0"
+git push origin update-src-to-llvmorg-8.0.0
+```
