@@ -438,15 +438,20 @@ PONY_API bool pony_os_stdin_setup()
   // Always use events
   return true;
 #else
-  if(fd_type(STDIN_FILENO) == FD_TYPE_TTY)
+  switch(fd_type(STDIN_FILENO))
   {
-    if(is_stdout_tty)
-      stdin_tty();
-
-    return true;
+    case FD_TYPE_TTY:
+    {
+      if(is_stdout_tty)
+        stdin_tty();
+      return true;
+      break;
+    }
+    case FD_TYPE_FILE:
+      return false;
+    default:
+      return true;
   }
-
-  return false;
 #endif
 }
 
