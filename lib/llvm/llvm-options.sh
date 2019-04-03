@@ -1,6 +1,6 @@
 echo '  LLVM_CFG=Cfg         LLVM configuration where Cfg is a file, examples:'
 echo '                         llvm-default.cfg (default if not specified builds lib/llvm/src submodule)'
-echo '                         llvm-8.x.cfg (Builds branch release/llvm-8.x'
+echo '                         llvm-8.x.cfg (Builds branch release/llvm-8.x)'
 echo '                         llvm-master-most-ninja.cfg (builds branch master most projects using Ninja)'
 echo '                         none (no Cfg file, at a minimum provide LLVM_CHECKOUT_REF on command line)'
 echo '                         xxx.cfg (any other .cfg file)'

@@ -5,7 +5,7 @@
 #
 # The default configuraton of this makefile builds llvm defined by the submodule,
 # which is currently llvm-7.0.1. You may also build other configurations by setting
-# LLVM_CFG on the command line. See `make -f Makefile-lib-llvm help` for more inof.
+# LLVM_CFG on the command line. See `make -f Makefile-lib-llvm help` for more info.
 #
 # In the future compiling lib/llvm will be incorporated into Makefile
 # and Makefile-lib-llvm will be removed.

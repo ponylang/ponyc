@@ -337,9 +337,9 @@ Typically you only need to build the LLVM sources once, as the `make clean` targ
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
-#### Changing the commit associated with llvm_cfg=llvm-default.cfg
+#### Changing the commit associated with LLVM_CFG=llvm-default.cfg
 
-When llvm_cfg is not specified or it is llvm-default.cfg the commit associated with the `src` submodule is checked out as the llvm source to be built. To change to a different commit, for instance tag `llvmorg-8.0.0`, simply clone ponyc and change `lib/llvm/src` to the desired commit:
+When LLVM_CFG is not specified or it is llvm-default.cfg the commit associated with the `src` submodule is checked out as the llvm source to be built. To change to a different commit, for instance tag `llvmorg-8.0.0`, simply clone ponyc and change `lib/llvm/src` to the desired commit:
 ```
 git clone --recurse-submodules  https://github.com/<you>/ponyc
 cd ponyc
@@ -356,9 +356,9 @@ git checkout llvmorg-8.0.0
 cd ../../../
 ```
 #### Debug/test ....
-Now build and test using `llvm_cfg=llvm-default.cfg` and any other appropriate parameters:
+Now build and test using `LLVM_CFG=llvm-default.cfg` and any other appropriate parameters:
 ```
-make -j12 llvm_cfg=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
+make -j12 LLVM_CFG=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
 ```
 When satisfied create a commit pushing to your repo:
 ```
