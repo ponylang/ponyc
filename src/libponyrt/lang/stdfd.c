@@ -420,6 +420,8 @@ PONY_API void pony_os_stdout_setup()
 
 PONY_API bool pony_os_stdin_setup()
 {
+  // use events by default
+  bool stdin_event_based = true;
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
@@ -434,25 +436,15 @@ PONY_API bool pony_os_stdin_setup()
       mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
     is_stdin_tty = true;
   }
-
-  // Always use events
-  return true;
 #else
-  switch(fd_type(STDIN_FILENO))
-  {
-    case FD_TYPE_TTY:
-    {
-      if(is_stdout_tty)
-        stdin_tty();
-      return true;
-      break;
-    }
-    case FD_TYPE_FILE:
-      return false;
-    default:
-      return true;
-  }
+  // on *nix only not use events when stdin is a redirected file
+  fd_type_t stdin_type = fd_type(STDIN_FILENO);
+  if((stdin_type == FD_TYPE_TTY) && is_stdout_tty)
+    stdin_tty();
+  if(stdin_type == FD_TYPE_FILE)
+    stdin_event_based = false;
 #endif
+  return stdin_event_based;
 }
 
 PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
