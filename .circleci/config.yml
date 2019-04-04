@@ -23,8 +23,8 @@ jobs:
       steps:
         - checkout
         - setup_remote_docker
-
         - run: docker build --cache-from=app -t app .
+
   validate-shell-scripts:
     docker:
       - image: ponylang/ponyc-ci:shellcheck
@@ -280,12 +280,15 @@ workflows:
           requires:
             - verify-changelog
             - validate-shell-scripts
+
       - llvm-601-release:
           requires:
             - llvm-701-release
+
       - llvm-502-release:
           requires:
             - llvm-701-release
+
       - llvm-391-release:
           requires:
             - llvm-701-release
@@ -294,12 +297,15 @@ workflows:
       - llvm-701-debug:
           requires:
             - llvm-701-release
+
       - llvm-601-debug:
           requires:
             - llvm-601-release
+
       - llvm-502-debug:
           requires:
             - llvm-502-release
+
       - llvm-391-debug:
           requires:
             - llvm-391-release
@@ -308,6 +314,7 @@ workflows:
       - alpine-llvm-5-release:
           requires:
             - llvm-502-release
+
       - alpine-llvm-5-debug:
           requires:
             - llvm-502-debug
@@ -316,19 +323,24 @@ workflows:
       - cross-llvm-701-release-arm:
           requires:
             - llvm-701-release
+
       - cross-llvm-701-debug-arm:
           requires:
             - llvm-701-debug
+
       - cross-llvm-701-release-armhf:
           requires:
             - llvm-701-release
+
       - cross-llvm-701-debug-armhf:
           requires:
             - llvm-701-debug
+
 #     Currently don't pass
 #      - cross-llvm-701-release-aarch64:
 #        requires:
 #          - llvm-701-release
+#
 #      - cross-llvm-701-debug-aarch64:
 #        requires:
 #          - llvm-701-debug
@@ -342,6 +354,7 @@ workflows:
       - lib-llvm-ubuntu-release:
           requires:
             - llvm-701-release
+
       - lib-llvm-ubuntu-debug:
           requires:
             - llvm-701-debug
@@ -350,6 +363,7 @@ workflows:
       - lib-llvm-centos7-release:
           requires:
             - lib-llvm-ubuntu-release
+
       - lib-llvm-centos7-debug:
           requires:
             - lib-llvm-ubuntu-debug
