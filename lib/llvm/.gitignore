@@ -1,4 +1,2 @@
-/dist/
-/built-*
-/installed-*
-/get-*
+dist
+/gen/
