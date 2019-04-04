@@ -337,21 +337,28 @@ Typically you only need to build the LLVM sources once, as the `make clean` targ
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
-### Changing the commit associated with llvm_target=llvm-default
+#### Changing the commit associated with LLVM_CFG=llvm-default.cfg
 
-When llvm_target is not specified or it is llvm-default the commit associated with the lib/llvm/src submodule is checked out as the llvm source to be built. To change to a different commit, for instance a tag `llvmorg-8.0.0`, simply clone ponyc and have the lib/llvm/src submodule up to date and initialized. The simplest way to do that is clone ponyc with --recursive-submodule. Then checkout the desired commit the lib/llvm/src directory and push it to the repo, for example:
+When LLVM_CFG is not specified or it is llvm-default.cfg the commit associated with the `src` submodule is checked out as the llvm source to be built. To change to a different commit, for instance tag `llvmorg-8.0.0`, simply clone ponyc and change `lib/llvm/src` to the desired commit:
 ```
-git clone --recurse-submodules  https://github.com/you/ponyc ponyc
+git clone --recurse-submodules  https://github.com/<you>/ponyc
 cd ponyc
-git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0 master
+git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0
 cd lib/llvm/src
-git checkout llvmorg-8.0.0:
+git checkout llvmorg-8.0.0
 cd ../../../
 ```
-Now build and test using `llvm_target=llvm-current` and any other appropriate parameters:
+If you already have ponyc checked out update/init `lib/llvm/src` submodule, if it hasn't been fetched, and then go into `lib/llvm/src` and checkout the desired commit:
 ```
-make -j12 llvm_target=llvm-current default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
-# Debug/test ....
+git submodule update --init
+cd lib/llvm/src
+git checkout llvmorg-8.0.0
+cd ../../../
+```
+#### Debug/test ....
+Now build and test using `LLVM_CFG=llvm-default.cfg` and any other appropriate parameters:
+```
+make -j12 LLVM_CFG=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
 ```
 When satisfied create a commit pushing to your repo:
 ```
@@ -359,7 +366,6 @@ git add lib/llvm/src
 git commit -m "Update submodule lib/llvm/src to llvmorg-8.0.0"
 git push origin update-lib-llvm-src-to-llvmorg-8.0.0
 ```
-And finally create a pull request and work hard getting CI to pass, :)
 See the [Submodule section of the git-scm book](https://git-scm.com/book/en/v2/Git-Tools-Submodules) for more information.
 
 ## Building on Linux

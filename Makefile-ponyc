@@ -303,8 +303,8 @@ ifneq ($(MAKECMDGOALS),clean)
     endif
   endif
 
-  $(info llvm.libdir="$(llvm.libdir)")
-  $(info llvm.ldflags="$(llvm.ldflags)")
+  #$(info llvm.libdir="$(llvm.libdir)")
+  #$(info llvm.ldflags="$(llvm.ldflags)")
 
   # Get cflags using llvm-config
   llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC)
@@ -1078,7 +1078,7 @@ clean:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
 help:
-	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
+	@echo 'Usage: make [config=name] [options] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
 	@echo '  debug'
@@ -1088,7 +1088,8 @@ help:
 	@echo '  native (default)'
 	@echo '  [any compiler supported architecture]'
 	@echo
-	@echo 'Compile time default options:'
+	@echo 'options:'
+	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
 	@echo '  default_ssl=Name     Make Name the default ssl version'
 	@echo '                       where Name is one of:'
