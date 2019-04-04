@@ -124,7 +124,7 @@ static ast_result_t flatten_sendable_params(pass_opt_t* opt, ast_t* params)
 
     if(!sendable(type))
     {
-      ast_error(opt->check.errors, type,
+      ast_error(opt->check.errors, param,
         "this parameter must be sendable (iso, val or tag)");
       r = AST_ERROR;
     }
