@@ -36,6 +36,13 @@ class List[A] is Seq[A]
         First BOOM!
         Second BOOM!
         Third BOOM!
+      Filtering our three-node list produces a new list of size: 2
+        Second BOOM!
+        Third BOOM!
+      The size of our first partitioned list (matches predicate): 1
+      The size of our second partitioned list (doesn't match predicate): 1
+      Our matching partition elements are:
+        Second BOOM!
   
   ```pony
     use "collections"
@@ -82,12 +89,29 @@ class List[A] is Seq[A]
         end
         
         // Map over the third List, concatenating some "BOOM!'s" into a new List
-        let new_list = my_third_list.map[String]( { (n) => n + " BOOM!" })
+        let new_list = my_third_list.map[String]({ (n) => n + " BOOM!" })
         env.out.print("Mapping over our three-node list produces a new list of size: "
                       + new_list.size().string()) // 3
         env.out.print("Each node-value in the resulting list is now far more exciting:")
         for n in new_list.values() do
           env.out.print("\t" + n.string())
+        end
+
+        // Filter the new list to extract 2 elements
+        let filtered_list = new_list.filter({ (n) => n.string().contains("d BOOM!") })
+        env.out.print("Filtering our three-node list produces a new list of size: "
+                          + filtered_list.size().string()) // 2
+        for n in filtered_list.values() do
+          env.out.print("\t" + n.string()) // Second BOOM!\nThird BOOM!
+        end
+        
+        // Partition the filtered list
+        let partitioned_lists = filtered_list.partition({ (n) => n.string().contains("Second") })
+        env.out.print("The size of our first partitioned list (matches predicate): " + partitioned_lists._1.size().string())        // 1
+        env.out.print("The size of our second partitioned list (doesn't match predicate): " + partitioned_lists._2.size().string())  // 1
+        env.out.print("Our matching partition elements are:")
+        for n in partitioned_lists._1.values() do
+          env.out.print("\t" + n.string()) // Second BOOM!
         end
   ```
   
