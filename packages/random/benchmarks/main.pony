@@ -12,6 +12,8 @@ actor Main is BenchmarkList
     bench(RandomBenchmark[MT]("mt"))
     bench(RandomBenchmark[XorShift128Plus]("xorshift128+"))
     bench(RandomBenchmark[XorOshiro128Plus]("xoroshiro128+"))
+    bench(RandomBenchmark[XorOshiro128StarStar]("xoroshiro128**"))
+    bench(RandomBenchmark[SplitMix64]("splitmix64"))
 
 class iso RandIntBenchmark is MicroBenchmark
   let _rand: Rand

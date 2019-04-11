@@ -10,6 +10,15 @@ class XorShift128Plus is Random
   var _x: U64
   var _y: U64
 
+  new from_64bit(x: U64 = 5489) =>
+    """
+    Use seed x to seed a [SplitMix64](random-SplitMix64.md) and use this to
+    initialize the 128 bits of state.
+    """
+    let sm = SplitMix64(x)
+    _x = sm.next()
+    _y = sm.next()
+
   new create(x: U64 = 5489, y: U64 = 0) =>
     """
     Create with the specified seed. Returned values are deterministic for a
