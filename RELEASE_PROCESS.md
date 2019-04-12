@@ -169,13 +169,18 @@ Note that its often quite quick to get everything through Homebrew's CI and merg
 
 ### Wait on Docker images to be built
 
-As part of every release, 3 docker images are built:
+As part of every release, 6 Docker images are built:
 
-- latest
-- release
-- and a release version such as 0.3.1
+- Ubuntu images
+  - latest
+  - release
+  - 0.3.1
+- Alpine images
+  - alpine
+  - release-alpine
+  - 0.3.1-alpine
 
-Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 3 images were successfully built. From the time the release starts, it can take about 3 hours for all images to be built.
+Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 6 images were successfully built. From the time the release starts, it can take several hours for all images to be built.
 
 ### Verify that the Pony Playground updated to the new version
 
