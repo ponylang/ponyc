@@ -245,6 +245,13 @@ class iso _TestRandomShuffle is UnitTest
     h.assert_eq[String](words(8)?, "lazy")
 
 class iso _TestXorOshiro128StarStar is UnitTest
+  """
+  Test against the C reference implementation from
+
+  http://xoshiro.di.unimi.it/xoroshiro128starstar.c
+
+  with a seed of `5489`.
+  """
   fun name(): String => "random/xoroshiro128**"
 
   fun apply(h: TestHelper) =>
@@ -352,7 +359,11 @@ class iso _TestXorOshiro128StarStar is UnitTest
 class iso _TestSplitMix64 is UnitTest
   """
   Testing the first 100 values
-  against values from the C implementation with the same seed.
+  against values from the C reference implementation from
+
+  http://xoshiro.di.unimi.it/splitmix64.c
+
+  using the same seed `5489`.
   """
   fun name(): String => "random/splitmix64"
 
@@ -460,6 +471,15 @@ class iso _TestSplitMix64 is UnitTest
     h.assert_eq[U64](splitmix64.next(), 8011763185713273331)
 
 class iso _TestXorOshiro128Plus is UnitTest
+  """
+  Test against the C reference implementation from
+
+  http://xoshiro.di.unimi.it/xoroshiro128plus.c
+
+  with a seed of `5489` and ignoring the first returned random int
+  as the current implementation calls `.next()` during initialization
+  and thus also ignores the first value.
+  """
   fun name(): String => "random/xoroshiro128+"
 
   fun apply(h: TestHelper)  =>
@@ -566,6 +586,15 @@ class iso _TestXorOshiro128Plus is UnitTest
     h.assert_eq[U64](xoroshiro128.next(), 3565034805594144162)
 
 class iso _TestXorShift128Plus is UnitTest
+  """
+  Test against the C reference implementation from
+
+  http://xoshiro.di.unimi.it/xorshift128plus.c
+
+  with a seed of `5489` and ignoring the first returned random int
+  as the current implementation calls `.next()` during initialization
+  and thus also ignores the first value.
+  """
   fun name(): String => "random/xorshift128+"
   fun apply(h: TestHelper) =>
     let xorshift128 = XorShift128Plus(5489)
