@@ -11,7 +11,7 @@ class SplitMix64 is Random
   // state
   var _x: U64
 
-  new from_64_bits(x: U64 = 5489) =>
+  new from_u64(x: U64 = 5489) =>
     _x = x
 
   new create(x: U64 = 5489, y: U64 = 0) =>

@@ -10,7 +10,7 @@ class XorOshiro128Plus is Random
   var _x: U64
   var _y: U64
 
-  new from_64bit(x: U64 = 5489) =>
+  new from_u64(x: U64 = 5489) =>
     """
     Use seed x to seed a [SplitMix64](random-SplitMix64.md) and use this to
     initialize the 128 bits of state.
@@ -54,7 +54,7 @@ class XorOshiro128StarStar is Random
   var _x: U64
   var _y: U64
 
-  new from_64bit(x: U64 = 5489) =>
+  new from_u64(x: U64 = 5489) =>
     """
     Use seed x to seed a [SplitMix64](random-SplitMix64.md) and use this to
     initialize the 128 bits of state.
