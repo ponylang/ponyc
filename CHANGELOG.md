@@ -1,4 +1,4 @@
-# Change Log
+vi# Change Log
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Don't turn off Epoll OneShot when resubscribing to events  ([PR #3136](https://github.com/ponylang/ponyc/pull/3136))
 
 ### Added
 
