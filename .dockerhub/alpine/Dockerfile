@@ -2,7 +2,7 @@ FROM alpine:3.9
 
 ENV LLVM_VERSION 5
 
-RUN apk add --update \
+RUN apk add --update --no-cache \
   alpine-sdk \
   libressl-dev \
   binutils-gold \
