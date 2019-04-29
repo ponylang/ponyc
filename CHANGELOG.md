@@ -10,8 +10,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Added `XorOshiro128StarStar` and `SplitMix64` PRNGs. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
+- Added function `Random.int_unbiased`. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
+- Added `from_u64` constructor to 128 bit state PRNGs. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 
 ### Changed
+
+- Updated `XorOshiro128Plus` parameters. This PRNG will now produce different values for the same seed as before. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
+- Use fixed-point inversion for `Random.int` if the platform allows. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 
 
 ## [0.28.0] - 2019-03-22
