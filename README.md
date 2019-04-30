@@ -1,5 +1,5 @@
 [![Backers on Open Collective](https://opencollective.com/ponyc/backers/badge.svg)](#backers)
- [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors) 
+ [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors)
 
 # Contributors
 
@@ -304,11 +304,11 @@ brew install ponyc
 
 Windows users will need to install:
 
-- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
+- Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the "Desktop Development with C++" workload.
-  - If using Visual C++ Build Tools 2017, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
-  - If using Visual Studio 2017 or Visual C++ Build Tools 2017, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
+  - If using Visual Studio 2017 or 2019, install the "Desktop Development with C++" workload.
+  - If using Visual C++ Build Tools 2017 or 2019, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
+  - If using Visual Studio 2017 or 2019, or Visual C++ Build Tools 2017 or 2019, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -758,11 +758,11 @@ _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to bui
 
 Building on Windows requires the following:
 
-- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
+- Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the "Desktop Development with C++" workload.
-  - If using Visual C++ Build Tools 2017, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
-  - If using Visual Studio 2017 or Visual C++ Build Tools 2017, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
+  - If using Visual Studio 2017 or 2019, install the "Desktop Development with C++" workload.
+  - If using Visual C++ Build Tools 2017 or 2019, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
+  - If using Visual Studio 2017 or 2019, or Visual C++ Build Tools 2017 or 2019, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:
