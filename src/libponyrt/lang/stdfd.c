@@ -546,7 +546,7 @@ PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
       if(pos > last)
       {
         // Write any pending data.
-        fwrite(&buffer[last], pos - last, 1, fp);
+        _fwrite_nolock(&buffer[last], pos - last, 1, fp);
         last = pos;
       }
 
