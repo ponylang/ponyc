@@ -755,6 +755,21 @@ PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
 #endif
 }
 
+PONY_API void pony_os_std_flush(FILE* fp)
+{
+  // avoid flushing all streams
+  if(fp == NULL)
+    return;
+
+#ifdef PLATFORM_IS_WINDOWS
+  _fflush_nolock(fp);
+#elif defined PLATFORM_IS_LINUX
+  fflush_unlocked(fp);
+#else
+  fflush(fp);
+#endif
+}
+
 #ifdef PLATFORM_IS_WINDOWS
 // Unsurprisingly Windows uses a different order for colors. Map them here.
 // We use the bright versions here, hence the additional 8 on each value.

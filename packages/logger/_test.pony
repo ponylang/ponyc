@@ -119,6 +119,8 @@ actor _TestStream is OutStream
       _collect(bytes)
     end
 
+  be flush() => None
+
   fun ref _collect(data: ByteSeq) =>
     _output.append(data)
 

@@ -30,6 +30,11 @@ interface tag OutStream
     Write an iterable collection of ByteSeqs.
     """
 
+  be flush()
+    """
+    Flush the stream.
+    """
+
 actor StdStream
   """
   Asynchronous access to stdout and stderr. The constructors are private to
@@ -76,6 +81,12 @@ actor StdStream
     for bytes in data.values() do
       _write(bytes)
     end
+
+  be flush() =>
+    """
+    Flush any data out to the os (ignoring failures).
+    """
+    @pony_os_std_flush[None](_stream)
 
   fun ref _write(data: ByteSeq) =>
     """
