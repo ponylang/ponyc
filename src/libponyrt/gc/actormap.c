@@ -125,7 +125,7 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
 }
 
 deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
-  uint32_t mark, deltamap_t* delta)
+  uint32_t mark, deltamap_t* delta, bool actor_noblock)
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
@@ -138,7 +138,11 @@ deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
       aref = move_unmarked_objects(aref, mark);
     } else {
       ponyint_actormap_clearindex(map, i);
-      delta = ponyint_deltamap_update(delta, aref->actor, 0);
+
+      // only update if cycle detector is enabled
+      if(!actor_noblock)
+        delta = ponyint_deltamap_update(delta, aref->actor, 0);
+
       needs_optimize = true;
     }
 
