@@ -32,7 +32,7 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   uint32_t mark);
 
 deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
-  uint32_t mark, deltamap_t* delta);
+  uint32_t mark, deltamap_t* delta, bool actor_noblock);
 
 PONY_EXTERN_C_END
 
