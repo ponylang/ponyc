@@ -593,7 +593,7 @@ actor TCPConnection
     ifdef windows then
       if len == 0 then
         // IOCP reported a failed write on this chunk. Non-graceful shutdown.
-        _hard_close()
+        hard_close()
         return
       end
 
@@ -646,7 +646,7 @@ actor TCPConnection
           end
         else
           // Non-graceful shutdown on error.
-          _hard_close()
+          hard_close()
         end
       end
     end
@@ -779,7 +779,7 @@ actor TCPConnection
           _read_buf.cpointer(_read_len),
           _read_buf.size() - _read_len) ?
       else
-        _hard_close()
+        hard_close()
       end
     end
 
@@ -859,7 +859,7 @@ actor TCPConnection
       _notify.connecting(this, _connect_count)
     else
       _notify.connect_failed(this)
-      _hard_close()
+      hard_close()
     end
 
   fun ref close() =>
@@ -873,7 +873,7 @@ actor TCPConnection
       _close()
     else
       if _muted then
-        _hard_close()
+        hard_close()
       else
         _close()
       end
@@ -907,7 +907,7 @@ actor TCPConnection
     end
 
     if _connected and _shutdown and _shutdown_peer then
-      _hard_close()
+      hard_close()
     end
 
     ifdef windows then
@@ -918,7 +918,7 @@ actor TCPConnection
       end
     end
 
-  fun ref _hard_close() =>
+  fun ref hard_close() =>
     """
     When an error happens, do a non-graceful close.
     """
