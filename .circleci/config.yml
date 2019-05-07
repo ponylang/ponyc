@@ -24,6 +24,7 @@ jobs:
         - checkout
         - setup_remote_docker
         - run: docker build --cache-from=app -t app .
+        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine .
 
   validate-shell-scripts:
     docker:
