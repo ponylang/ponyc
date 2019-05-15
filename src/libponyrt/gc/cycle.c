@@ -546,6 +546,8 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 static void check_blocked(pony_ctx_t* ctx, detector_t* d)
 {
   size_t i = d->last_checked;
+  size_t total = ponyint_viewmap_size(&d->views);
+  size_t n = 0;
   view_t* view;
 
   while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
@@ -558,7 +560,8 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     }
 
     // if we've hit the max limit for # of actors to check
-    if(i > CD_MAX_CHECK_BLOCKED)
+    n++;
+    if(n > (total/10 > CD_MAX_CHECK_BLOCKED ? total/10 : CD_MAX_CHECK_BLOCKED))
       break;
   }
 

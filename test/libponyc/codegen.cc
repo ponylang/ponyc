@@ -765,8 +765,8 @@ TEST_F(CodegenTest, CycleDetector)
 
 
     "actor Main\n"
-    "  var _ring_size: U32 = 5\n"
-    "  var _ring_count: U32 = 2\n"
+    "  var _ring_size: U32 = 100\n"
+    "  var _ring_count: U32 = 100\n"
     "  var _pass: USize = 10\n"
 
     "  new create(env: Env) =>\n"
