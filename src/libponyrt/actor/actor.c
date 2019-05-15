@@ -414,8 +414,9 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   // only run GC is the heap has grow sufficiently
   // or if the actor has processed a sufficient number of application messages
+  //    and the actor heap is > 0
   if(!ponyint_heap_startgc(&actor->heap)
-    && (actor->msgs_since_gc < ACTOR_MSGS_TIL_GC))
+    && ((actor->msgs_since_gc < ACTOR_MSGS_TIL_GC) || (actor->heap.used == 0)))
     return;
 
   DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
