@@ -908,6 +908,15 @@ static void run(scheduler_t* sched)
         DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
+
+        // We have at least two actors worth of work; the one we just finished
+        // running a batch for that needs to be rescheduled and the next one we
+        // just `pop_global`d. This indicates that there is enough work in
+        // theory to have another scheduler thread be woken up to do work in
+        // parallel.
+        // Try and wake up a sleeping scheduler thread to help with the load.
+        // If there isn't enough work, they'll go back to sleep.
+        ponyint_sched_maybe_wakeup(sched->index);
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
