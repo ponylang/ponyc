@@ -51,6 +51,8 @@ actor Main is TestList
     test(_TestStringRecalc)
     test(_TestStringTruncate)
     test(_TestStringChop)
+    test(_TestStringUnchop)
+    test(_TestStringRepeatStr)
     test(_TestStringConcatOffsetLen)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
@@ -65,6 +67,7 @@ actor Main is TestList
     test(_TestArrayFind)
     test(_TestArraySwapElements)
     test(_TestArrayChop)
+    test(_TestArrayUnchop)
     test(_TestMath128)
     test(_TestRem)
     test(_TestMod)
@@ -1141,7 +1144,7 @@ class iso _TestStringTruncate is UnitTest
 
 class iso _TestStringChop is UnitTest
   """
-  Test chopping an array
+  Test chopping a string
   """
   fun name(): String => "builtin/String.chop"
 
@@ -1164,6 +1167,88 @@ class iso _TestStringChop is UnitTest
     (let left: String iso, let right: String iso) = (consume orig).chop(split_point)
     h.assert_eq[String box](expected_left, consume left)
     h.assert_eq[String box](expected_right, consume right)
+
+class iso _TestStringUnchop is UnitTest
+  """
+  Test unchopping a string
+  """
+  fun name(): String => "builtin/String.unchop"
+
+  fun apply(h: TestHelper) =>
+    case(h, "0123456", "0123456".clone(), 4, true)
+    case(h, "0123456", "0123456".clone(), 6, true)
+    case(h, "0123456", "0123456".clone(), 1, true)
+    case(h, "0123456", "0123456".clone(), 7, true)
+    case(h, "0123456", "0123456".clone(), 0, false)
+    case(h, "0123456", "0123456".clone(), 10, true)
+    let s: String = "0123456789" * 20
+    case(h, s, s.clone(), None, true)
+
+  fun case(
+    h: TestHelper,
+    orig: String,
+    orig_clone1: String iso,
+    split_point: (USize | None),
+    is_true: Bool)
+  =>
+    let str_tag: String tag = orig_clone1
+    try
+      let unchopped = chop_unchop(consume orig_clone1, split_point)?
+      if is_true then
+        h.assert_is[String tag](str_tag, unchopped)
+      else
+        h.assert_isnt[String tag](str_tag, unchopped)
+      end
+      h.assert_eq[String box](orig, consume unchopped)
+    else
+      h.assert_eq[String box](orig, "")
+    end
+
+  fun chop_unchop(x: String iso, split_point: (USize | None)): String iso^ ? =>
+    if x.size() < 4 then
+      return consume x
+    end
+
+    let sp = match split_point
+             | None => x.size()/2
+             | let z: USize => z
+             end
+    (let left: String iso, let right: String iso) = (consume x).chop(sp)
+    let unchopped = (chop_unchop(consume left, None)?)
+      .unchop(chop_unchop(consume right, None)?)
+
+    match consume unchopped
+    | let y: String iso =>
+      (let left2: String iso, let right2: String iso) = (consume y).chop(sp)
+      let unchopped2 = (chop_unchop(consume left2, None)?)
+        .unchop(chop_unchop(consume right2, None)?)
+
+      match consume unchopped2
+      | let z: String iso => return consume z
+      else
+        error
+      end
+    else
+      error
+    end
+
+class iso _TestStringRepeatStr is UnitTest
+  """
+  Test repeating a string
+  """
+  fun name(): String => "builtin/String.repeat_str"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String box]("", "123".repeat_str(0))
+    h.assert_eq[String box]("123", "123".repeat_str(1))
+    h.assert_eq[String box]("123123", "123".repeat_str(2))
+    h.assert_eq[String box]("123123123", "123".repeat_str(3))
+    h.assert_eq[String box]("123123123123", "123".repeat_str(4))
+    h.assert_eq[String box]("123123123123123", "123".repeat_str(5))
+    h.assert_eq[String box]("123123123123123123", "123".repeat_str(6))
+    h.assert_eq[String box]("123, 123, 123, 123, 123, 123",
+      "123".repeat_str(6, ", "))
+    h.assert_eq[String box]("123123123123123123", "123" * 6)
 
 class iso _TestStringConcatOffsetLen is UnitTest
   """
@@ -1506,6 +1591,79 @@ class iso _TestArrayChop is UnitTest
     (let left: Array[U8] iso, let right: Array[U8] iso) = (consume orig).chop(split_point)
     h.assert_array_eq[U8](expected_left, consume left)
     h.assert_array_eq[U8](expected_right, consume right)
+
+class iso _TestArrayUnchop is UnitTest
+  """
+  Test unchopping an array
+  """
+  fun name(): String => "builtin/Array.unchop"
+
+  fun apply(h: TestHelper) =>
+    case(h, [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 4, true)
+    case(h, [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 6, true)
+    case(h, [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 1, true)
+    case(h, [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 7, true)
+    case(h, [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 0, false)
+    case(h, [0; 1; 2; 3; 4; 5; 6], recover [0; 1; 2; 3; 4; 5; 6] end, 10, true)
+    case(h, [0; 1; 2; 3; 4; 5; 6; 7; 8; 9
+             0; 1; 2; 3; 4; 5; 6; 7; 8; 9
+             0; 1; 2; 3; 4; 5; 6; 7; 8; 9], recover
+            [0; 1; 2; 3; 4; 5; 6; 7; 8; 9
+             0; 1; 2; 3; 4; 5; 6; 7; 8; 9
+             0; 1; 2; 3; 4; 5; 6; 7; 8; 9] end, None, true)
+
+  fun case(
+    h: TestHelper,
+    orig: Array[U8],
+    orig_clone1: Array[U8] iso,
+    split_point: (USize | None),
+    is_true: Bool)
+  =>
+    let arr_tag: Array[U8] tag = orig_clone1
+    try
+      let unchopped = chop_unchop(consume orig_clone1, split_point)?
+      if is_true then
+        h.assert_is[Array[U8] tag](arr_tag, unchopped)
+      else
+        h.assert_isnt[Array[U8] tag](arr_tag, unchopped)
+      end
+      h.assert_array_eq[U8](orig, consume unchopped)
+    else
+      h.assert_array_eq[U8](orig, Array[U8])
+    end
+
+  fun chop_unchop(x: Array[U8] iso,
+    split_point: (USize | None)): Array[U8] iso^ ?
+  =>
+    let sp =
+      match split_point
+      | None => x.size()/2
+        if x.size() < 4 then
+          return consume x
+        end
+        x.size()/2
+      | let z: USize => z
+    end
+
+    (let left: Array[U8] iso, let right: Array[U8] iso) = (consume x).chop(sp)
+    let unchopped = (chop_unchop(consume left, None)?)
+      .unchop(chop_unchop(consume right, None)?)
+
+    match consume unchopped
+    | let y: Array[U8] iso =>
+      (let left2: Array[U8] iso, let right2: Array[U8] iso) =
+        (consume y).chop(sp)
+      let unchopped2 = (chop_unchop(consume left2, None)?)
+        .unchop(chop_unchop(consume right2, None)?)
+
+      match consume unchopped2
+      | let z: Array[U8] iso => return consume z
+      else
+        error
+      end
+    else
+      error
+    end
 
 class iso _TestMath128 is UnitTest
   """
