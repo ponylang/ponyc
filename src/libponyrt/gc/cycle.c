@@ -559,7 +559,9 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
       pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
     }
 
-    // if we've hit the max limit for # of actors to check
+    // Stop if we've hit the max limit for # of actors to check
+    // (either the CD_MAX_CHECK_BLOCKED constant, or 10% of the total number
+    // of actors, whichever limit is larger)
     n++;
     if(n > (total/10 > CD_MAX_CHECK_BLOCKED ? total/10 : CD_MAX_CHECK_BLOCKED))
       break;
