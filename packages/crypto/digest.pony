@@ -18,7 +18,7 @@ class Digest
     Use the MD5 algorithm to calculate the hash.
     """
     _digest_size = 16
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -30,7 +30,7 @@ class Digest
     Use the RIPEMD160 algorithm to calculate the hash.
     """
     _digest_size = 20
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -42,7 +42,7 @@ class Digest
     Use the SHA1 algorithm to calculate the hash.
     """
     _digest_size = 20
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -54,7 +54,7 @@ class Digest
     Use the SHA256 algorithm to calculate the hash.
     """
     _digest_size = 28
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -66,7 +66,7 @@ class Digest
     Use the SHA256 algorithm to calculate the hash.
     """
     _digest_size = 32
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -78,7 +78,7 @@ class Digest
     Use the SHA384 algorithm to calculate the hash.
     """
     _digest_size = 48
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -90,7 +90,7 @@ class Digest
     Use the SHA512 algorithm to calculate the hash.
     """
     _digest_size = 64
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @EVP_MD_CTX_new[Pointer[_EVPCTX]]()
     else
       _ctx = @EVP_MD_CTX_create[Pointer[_EVPCTX]]()
@@ -118,7 +118,7 @@ class Digest
           @pony_alloc[Pointer[U8]](@pony_ctx[Pointer[None] iso](), size), size)
         end
       @EVP_DigestFinal_ex[None](_ctx, digest.cpointer(), Pointer[USize])
-      ifdef "openssl_1.1.0" then
+      ifdef "openssl_1.1.x" then
         @EVP_MD_CTX_free[None](_ctx)
       else
         @EVP_MD_CTX_cleanup[None](_ctx)

@@ -113,8 +113,8 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make all default_ssl=openssl_1.1.0 default_pic=true -j3
-      - run: make test-ci default_ssl=openssl_1.1.0 default_pic=true
+      - run: make all default_ssl=openssl_1.1.x default_pic=true -j3
+      - run: make test-ci default_ssl=openssl_1.1.x default_pic=true
 
   alpine-llvm-5-debug:
     docker:

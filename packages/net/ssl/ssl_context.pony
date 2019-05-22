@@ -55,7 +55,7 @@ class val SSLContext
     """
     Create an SSL context.
     """
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       _ctx = @SSL_CTX_new(@TLS_method())
 
       // Allow only newer ciphers.
@@ -74,14 +74,14 @@ class val SSLContext
     end
 
   fun _set_options(opts: ULong) =>
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       @SSL_CTX_set_options(_ctx, opts)
     else
       @SSL_CTX_ctrl(_ctx, _SslCtrlSetOptions.apply(), opts, Pointer[None])
     end
 
   fun _clear_options(opts: ULong) =>
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       @SSL_CTX_clear_options(_ctx, opts)
     else
       @SSL_CTX_ctrl(_ctx, _SslCtrlClearOptions.apply(), opts, Pointer[None])
@@ -238,7 +238,7 @@ class val SSLContext
     Returns true on success
     Requires OpenSSL >= 1.0.2
     """
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       @SSL_CTX_set_alpn_select_cb[None](_ctx, addressof SSLContext._alpn_select_cb, resolver)
       return true
     end
@@ -253,7 +253,7 @@ class val SSLContext
     Returns true on success
     Requires OpenSSL >= 1.0.2
     """
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       try
         let proto_list = _ALPNProtocolList.from_array(protocols)?
         let result = @SSL_CTX_set_alpn_protos[I32](_ctx, proto_list.cpointer(), proto_list.size())

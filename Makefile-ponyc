@@ -383,19 +383,20 @@ ifeq ($(runtime-bitcode),yes)
 endif
 
 # Set default ssl version
+valid_ssl_versions=openssl_0.9.0 openssl_1.1.0 openssl_1.1.1 openssl_1.1.x
 ifdef default_ssl
-  ifeq ("openssl_0.9.0","$(default_ssl)")
-    default_ssl_valid:=ok
-  endif
-  ifeq ("openssl_1.1.0","$(default_ssl)")
-    default_ssl_valid:=ok
-  endif
-  ifeq (ok,$(default_ssl_valid))
-    $(warning default_ssl is $(default_ssl))
+  ifeq ($(filter-out $(valid_ssl_versions),$(default_ssl)),)
+    # both openssl_1.1.0 and openssl_1.1.1 are translated to openssl_1.1.x
+    ifneq (,$(findstring openssl_1.1.,$(default_ssl)))
+      pony_default_ssl:=openssl_1.1.x
+    else
+      pony_default_ssl:=$(default_ssl)
+    endif
+    $(info pony_default_ssl is $(pony_default_ssl))
   else
-    $(error default_ssl=$(default_ssl) is invalid, expecting one of openssl_0.9.0 or openssl_1.1.0)
+    $(error default_ssl=$(default_ssl) is invalid (valid values: $(valid_ssl_versions)))
   endif
-  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(default_ssl)\"
+  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(pony_default_ssl)\"
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -1112,7 +1113,7 @@ help:
 	@echo '  default_ssl=Name     Make Name the default ssl version'
 	@echo '                       where Name is one of:'
 	@echo '                         openssl_0.9.0'
-	@echo '                         openssl_1.1.0'
+	@echo '                         openssl_1.1.x'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
