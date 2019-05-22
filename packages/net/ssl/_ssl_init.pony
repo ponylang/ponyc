@@ -19,7 +19,7 @@ primitive _SSLInit
   This initialises SSL when the program begins.
   """
   fun _init() =>
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       let settings = @OPENSSL_INIT_new()
       @OPENSSL_init_ssl(_OpenSslInitLoadSslStrings.apply()
           + _OpenSslInitLoadCryptoStrings.apply(), settings)

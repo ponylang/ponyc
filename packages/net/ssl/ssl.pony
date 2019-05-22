@@ -77,7 +77,7 @@ class SSL
     """
     var ptr: Pointer[U8] iso = recover Pointer[U8] end
     var len = U32(0)
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       @SSL_get0_alpn_selected[None](_ssl, addressof ptr, addressof len)
     end
 

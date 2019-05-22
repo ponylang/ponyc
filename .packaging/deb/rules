@@ -35,7 +35,7 @@ ifeq ($(DEB_HOST_ARCH),armhf)
 endif
 
 ifeq (,$(filter $(DEB_DISTRIBUTION),xenial))
-	MAKE_OPTIONS += default_ssl='openssl_1.1.0' default_pic=true
+	MAKE_OPTIONS += default_ssl='openssl_1.1.x' default_pic=true
 endif
 
 
