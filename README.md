@@ -673,6 +673,31 @@ make
 ./helloworld
 ```
 
+## Building a Unikernel
+
+Obtain OPS - the unikernel builder/ochestrator:
+
+```bash
+curl https://ops.city/get.sh -sSfL | sh
+```
+
+Compile normally:
+```bash
+ponyc .
+```
+
+Create a simple config.json:
+```bash
+{
+  "Args": ["hw"]
+}
+```
+
+Build and Run it:
+```bash
+ops run -c config.json hw
+```
+
 ## Building on DragonFly
 
 Pony previously worked on DragonFly, however, at this time, while it builds, it doesn't pass all tests. If you'd be interested in getting Pony working on DragonFly, have at it. You'll need the following dependencies:
