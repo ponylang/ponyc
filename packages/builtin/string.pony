@@ -633,8 +633,7 @@ actor Main
 
   fun mul(num: USize): String iso^ =>
     """
-    Returns a copy of the string repeated `num` times with an optional
-    separator added inbetween repeats.
+    Returns a copy of the string repeated `num` times.
     """
     repeat_str(num)
 
