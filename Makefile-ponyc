@@ -35,6 +35,8 @@ else
   ifeq ($(UNAME_S),OpenBSD)
     OSTYPE = bsd
     CXX = c++
+    LLVM_CONFIG = /usr/local/bin/llvm-config
+    default_pic = true
   endif
 endif
 

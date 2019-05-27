@@ -708,7 +708,7 @@ gmake
 
 ## Building on OpenBSD
 
-OpenBSD has been tested on OpenBSD 6.4.
+OpenBSD has been tested on OpenBSD 6.5.
 
 First, install the required dependencies:
 
@@ -719,7 +719,7 @@ doas pkg_add gmake libexecinfo llvm pcre2
 This will build ponyc and compile helloworld:
 
 ```bash
-gmake verbose=true default_pic=true bits=64
+gmake verbose=true bits=64
 ./build/release/ponyc examples/helloworld
 ```
 
