@@ -7,6 +7,9 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Don't turn off Epoll OneShot when resubscribing to events  ([PR #3136](https://github.com/ponylang/ponyc/pull/3136))
+- Add unchop to array and unchop, repeat_str and mul to string ([PR #3155])(https://github.com/ponylang/ponyc/pull/3155)
+- Fix cycle detector issue with checking for blocked actors ([PR #3154])(https://github.com/ponylang/ponyc/pull/3154)
+- Wake up suspended scheduler threads if there is work for another one ([PR #3153])(https://github.com/ponylang/ponyc/pull/3153)
 
 ### Added
 
@@ -14,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Added `XorOshiro128StarStar` and `SplitMix64` PRNGs. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 - Added function `Random.int_unbiased`. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 - Added `from_u64` constructor to 128 bit state PRNGs. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
+- Add unchop to array and unchop, repeat_str and mul to string ([PR #3155])(https://github.com/ponylang/ponyc/pull/3155)
 
 ### Changed
 
