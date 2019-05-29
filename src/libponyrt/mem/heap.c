@@ -91,7 +91,7 @@ static void final_small(chunk_t* chunk, uint32_t mark)
     (*(pony_type_t**)p)->final(p);
 
     // clear finaliser in chunk
-    chunk->finalisers &= ~(1 << bit);
+    chunk->finalisers &= ~((uint32_t)1 << bit);
 
     // clear bit just found in our local finaliser map
     finalisers &= (finalisers - 1);
@@ -373,13 +373,13 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
     // Clear and use the first available slot.
     uint32_t slots = chunk->slots;
     uint32_t bit = __pony_ctz(slots);
-    slots &= ~(1 << bit);
+    slots &= ~((uint32_t)1 << bit);
 
     m = chunk->m + (bit << HEAP_MINBITS);
     chunk->slots = slots;
 
     // note that a finaliser needs to run
-    chunk->finalisers |= (1 << bit);
+    chunk->finalisers |= ((uint32_t)1 << bit);
 
     if(slots == 0)
     {
