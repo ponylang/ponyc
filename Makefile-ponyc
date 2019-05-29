@@ -145,13 +145,31 @@ PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
 PONY_BENCHMARK_DIR ?= benchmark
 
-ifdef use
-  ifneq (,$(filter $(use), valgrind))
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
+
+define USE_CHECK
+  $$(info Enabling use option: $1)
+  ifeq ($1,valgrind)
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
-  endif
-
-  ifneq (,$(filter $(use), coverage))
+  else ifeq ($1,thread_sanitizer)
+    ALL_CFLAGS += -fsanitize=thread -DPONY_SANITIZER=\"thread\"
+    ALL_CXXFLAGS += -fsanitize=thread -DPONY_SANITIZER=\"thread\"
+    LINKER_FLAGS += -fsanitize=thread -DPONY_SANITIZER=\"thread\"
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-thread_sanitizer
+  else ifeq ($1,address_sanitizer)
+    ALL_CFLAGS += -fsanitize=address -DPONY_SANITIZER=\"address\"
+    ALL_CXXFLAGS += -fsanitize=address -DPONY_SANITIZER=\"address\"
+    LINKER_FLAGS += -fsanitize=address -DPONY_SANITIZER=\"address\"
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-address_sanitizer
+  else ifeq ($1,undefined_behavior_sanitizer)
+    ALL_CFLAGS += -fsanitize=undefined -DPONY_SANITIZER=\"undefined\"
+    ALL_CXXFLAGS += -fsanitize=undefined -DPONY_SANITIZER=\"undefined\"
+    LINKER_FLAGS += -fsanitize=undefined -DPONY_SANITIZER=\"undefined\"
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-undefined_behavior_sanitizer
+  else ifeq ($1,coverage)
     ifneq (,$(shell $(CC) -v 2>&1 | grep clang))
       # clang
       COVERAGE_FLAGS = -O0 -fprofile-instr-generate -fcoverage-mapping
@@ -162,38 +180,42 @@ ifdef use
         COVERAGE_FLAGS = -O0 -fprofile-arcs -ftest-coverage
         LINKER_FLAGS += -fprofile-arcs
       else
-        $(error coverage not supported for this compiler/platform)
+        $$(error coverage not supported for this compiler/platform)
       endif
       ALL_CFLAGS += $(COVERAGE_FLAGS)
       ALL_CXXFLAGS += $(COVERAGE_FLAGS)
     endif
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-coverage
-  endif
-
-  ifneq (,$(filter $(use), pooltrack))
+  else ifeq ($1,pooltrack)
     ALL_CFLAGS += -DUSE_POOLTRACK
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
-  endif
-
-  ifneq (,$(filter $(use), dtrace))
+  else ifeq ($1,dtrace)
     DTRACE ?= $(shell which dtrace)
     ifeq (, $(DTRACE))
-      $(error No dtrace compatible user application static probe generation tool found)
+      $$(error No dtrace compatible user application static probe generation tool found)
     endif
-
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-dtrace
-  endif
-
-  ifneq (,$(filter $(use), actor_continuations))
+  else ifeq ($1,actor_continuations)
     ALL_CFLAGS += -DUSE_ACTOR_CONTINUATIONS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-actor_continuations
-  endif
-
-  ifneq (,$(filter $(use), scheduler_scaling_pthreads))
+  else ifeq ($1,scheduler_scaling_pthreads)
     ALL_CFLAGS += -DUSE_SCHEDULER_SCALING_PTHREADS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-scheduler_scaling_pthreads
+  else ifeq ($1,llvm_link_static)
+    ifeq (,$(LLVM_LINK_STATIC))
+      LLVM_LINK_STATIC=--link-static
+      $$(info "linking llvm statically")
+    else
+      $$(warning LLVM_LINK_STATIC already set to '$(LLVM_LINK_STATIC)'; using pre-existing value)
+    endif
+  else
+    $$(error ERROR: Unknown use option specified: $1)
   endif
+endef
+
+ifdef use
+  $(foreach useitem,$(subst $(comma),$(space),$(use)),$(eval $(call USE_CHECK,$(useitem))))
 endif
 
 ifdef config
@@ -262,13 +284,6 @@ ifneq ($(MAKECMDGOALS),clean)
 
   llvm_version := $(shell $(LLVM_CONFIG) --version)
 
-  ifeq (,$(LLVM_LINK_STATIC))
-    ifneq (,$(filter $(use), llvm_link_static))
-      LLVM_LINK_STATIC=--link-static
-      $(warning "linking llvm statically")
-    endif
-  endif
-
   ifeq ($(OSTYPE),osx)
     ifneq (,$(shell which $(LLVM_BINDIR)/llvm-ar 2> /dev/null))
       AR = $(LLVM_BINDIR)/llvm-ar
@@ -297,8 +312,8 @@ ifneq ($(MAKECMDGOALS),clean)
   llvm.ldflags := -L$(llvm.libdir)
 
   # Set rpath for ponyc if we're dynamically linking LLVM_VENDOR
-  ifeq (,$(filter $(use), llvm_link_static))
-    # We're linking dynamically as "llvm_link_static" is empty.
+  ifeq (,$(LLVM_LINK_STATIC))
+    # We're linking dynamically as "LLVM_LINK_STATIC" is empty.
     ifeq ($(LLVM_VENDOR),true)
       # LLVM_VENDOR is true, so have linker set rpath.
       llvm.ldflags += -Wl,-rpath,$(llvm.libdir)
@@ -387,6 +402,7 @@ makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
 packages_abs_src := $(shell dirname $(makefile_abs_path))/packages
 
 $(shell mkdir -p $(PONY_BUILD_DIR))
+$(info Building into $(PONY_BUILD_DIR))
 
 lib   := $(PONY_BUILD_DIR)/lib/$(arch)
 bin   := $(PONY_BUILD_DIR)
@@ -1106,6 +1122,9 @@ help:
 	@echo '   coverage'
 	@echo '   llvm_link_static'
 	@echo '   scheduler_scaling_pthreads'
+	@echo '   thread_sanitizer'
+	@echo '   address_sanitizer'
+	@echo '   undefined_behavior_sanitizer'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'
