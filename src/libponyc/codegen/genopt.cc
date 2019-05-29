@@ -1322,13 +1322,13 @@ static void optimise(compile_t* c, bool pony_specific)
   llvm::legacy::PassManager mpm;
   llvm::legacy::FunctionPassManager fpm(m);
 
-  TargetLibraryInfoImpl* tl = new TargetLibraryInfoImpl(
+  TargetLibraryInfoImpl tl = TargetLibraryInfoImpl(
     Triple(m->getTargetTriple()));
 
   lpm.add(createTargetTransformInfoWrapperPass(
     machine->getTargetIRAnalysis()));
 
-  mpm.add(new TargetLibraryInfoWrapperPass(*tl));
+  mpm.add(new TargetLibraryInfoWrapperPass(tl));
   mpm.add(createTargetTransformInfoWrapperPass(
     machine->getTargetIRAnalysis()));
 
