@@ -821,7 +821,9 @@ static pony_actor_t* steal(scheduler_t* sched)
  */
 static void run(scheduler_t* sched)
 {
-  last_cd_tsc = 0;
+  if(sched->index == 0)
+    last_cd_tsc = 0;
+
   pony_actor_t* actor = pop_global(sched);
   if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
     DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
