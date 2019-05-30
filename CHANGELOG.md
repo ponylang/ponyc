@@ -17,7 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Added `XorOshiro128StarStar` and `SplitMix64` PRNGs. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 - Added function `Random.int_unbiased`. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 - Added `from_u64` constructor to 128 bit state PRNGs. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
-- Add unchop to array and unchop, repeat_str and mul to string ([PR #3155])(https://github.com/ponylang/ponyc/pull/3155)
+- Add unchop to array and unchop, repeat_str and mul to string ([PR #3155](https://github.com/ponylang/ponyc/pull/3155))
 
 ### Changed
 
