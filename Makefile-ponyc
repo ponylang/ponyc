@@ -975,8 +975,8 @@ test-stdlib: stdlib
 	$(SILENT)rm stdlib
 
 test-core: all
-	$(SILENT)$(PONY_BUILD_DIR)/libponyc.tests
-	$(SILENT)$(PONY_BUILD_DIR)/libponyrt.tests
+	$(SILENT)$(PONY_BUILD_DIR)/libponyc.tests --gtest_shuffle
+	$(SILENT)$(PONY_BUILD_DIR)/libponyrt.tests --gtest_shuffle
 
 test: test-core test-stdlib test-examples
 
