@@ -436,14 +436,14 @@ def test(ctx):
 
         total = total + 1
         testc = os.path.join(buildDir, 'libponyc.tests')
-        returncode = subprocess.call([ testc ])
+        returncode = subprocess.call([ testc, '--gtest_shuffle' ])
         if returncode == 0:
             passed = passed + 1
 
         total = total + 1
         testrt = os.path.join(buildDir, 'libponyrt.tests')
         print(testrt)
-        returncode = subprocess.call([ testrt ])
+        returncode = subprocess.call([ testrt, '--gtest_shuffle' ])
         if returncode == 0:
             passed = passed + 1
 
