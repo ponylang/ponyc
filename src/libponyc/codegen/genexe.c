@@ -279,16 +279,23 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   size_t arch_len = arch - c->opt->triple;
   const char* linker = c->opt->linker != NULL ? c->opt->linker : "ld";
+  const char* sanitizer_arg =
+#if defined(PONY_SANITIZER)
+    "-fsanitize=" PONY_SANITIZER;
+#else
+    "";
+#endif
+
   size_t ld_len = 128 + arch_len + strlen(linker) + strlen(file_exe) +
-    strlen(file_o) + strlen(lib_args);
+    strlen(file_o) + strlen(lib_args) + strlen(sanitizer_arg);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "%s -execute -no_pie -arch %.*s "
-    "-macosx_version_min 10.12 -o %s %s %s %s -lSystem",
+    "-macosx_version_min 10.12 -o %s %s %s %s -lSystem %s",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
-           lib_args, ponyrt
+           lib_args, ponyrt, sanitizer_arg
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -354,10 +361,18 @@ static bool link_exe(compile_t* c, ast_t* program,
     "";
 #endif
 
+  const char* sanitizer_arg =
+#if defined(PONY_SANITIZER)
+    "-fsanitize=" PONY_SANITIZER;
+#else
+    "";
+#endif
+
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
-                  + strlen(dtrace_args) + strlen(lexecinfo);
+                  + strlen(dtrace_args) + strlen(lexecinfo)
+                  + strlen(sanitizer_arg);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -374,12 +389,12 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 #ifdef PLATFORM_IS_OPENBSD
     // On OpenBSD, the unwind symbols are contained within libc++abi.
-    "%s %s %s %s %s -lpthread %s %s %s -lm -lc++abi %s",
+    "%s %s %s %s %s -lpthread %s %s %s -lm -lc++abi %s %s",
 #else
-    "%s %s %s %s %s -lpthread %s %s %s -lm %s",
+    "%s %s %s %s %s -lpthread %s %s %s -lm %s %s",
 #endif
     linker, file_exe, arch, mcx16_arg, atomic, staticbin, fuseld, file_o,
-    lib_args, dtrace_args, ponyrt, ldl, lexecinfo
+    lib_args, dtrace_args, ponyrt, ldl, lexecinfo, sanitizer_arg
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)

@@ -3,10 +3,9 @@
 # be present before it is invoked, thus the need to build lib/llvm/Makefile
 # first.
 #
-# The default target of this makefile builds llvm defined by the submodule,
-# which is currently llvm-3.9.1. You may also build lvm-7.x by using
-# llvm_target=llvm-7.x. In addition, if you specify llvm_target=llvm-current
-# then lib/llvm/src will not be altered but will be built.
+# The default configuraton of this makefile builds llvm defined by the submodule,
+# which is currently llvm-7.0.1. You may also build other configurations by setting
+# LLVM_CFG on the command line. See `make -f Makefile-lib-llvm help` for more info.
 #
 # In the future compiling lib/llvm will be incorporated into Makefile
 # and Makefile-lib-llvm will be removed.
@@ -14,18 +13,16 @@
 config ?= release
 
 root_dir := $(shell pwd)
-llvm_dir := $(root_dir)/lib/llvm
-llvm_target :=
+pony_lib_llvm_dir := $(root_dir)/lib/llvm
+
+llvm_target := all
 
 ifneq ($(llvm_proj),)
-	$(error "llvm_proj is not named llvm_target")
+  $(error "llvm_proj is now named llvm_target")
 endif
 
-pony_lib_llvm := $(llvm_dir)
-llvm_config := $(pony_lib_llvm)/dist/bin/llvm-config
-llvm_build_type := Release
-new_path := $(pony_lib_llvm)/dist/bin:$(PATH)
-llvm_project_list :=
+llvm_config := $(pony_lib_llvm_dir)/dist/bin/llvm-config
+new_path := $(pony_lib_llvm_dir)/dist/bin:$(PATH)
 
 pony_targets := libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
@@ -33,23 +30,23 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKECMDGOALS) $(MAKEFLAGS)
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS)
 
 .PHONY: $(llvm_config)
 $(llvm_config):
-	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) $(llvm_target) LLVM_PROJECT_LIST="$(llvm_project_list)"
+	@$(MAKE) -C $(pony_lib_llvm_dir) $(llvm_target)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild
 rebuild: clean
-	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKEFLAGS)
+	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild-test
 rebuild-test: clean
-	@$(MAKE) -C $(pony_lib_llvm) $(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) test $(MAKEFLAGS)
+	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
+	@PATH=$(new_path) $(MAKE)  test -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Rebuild and then run some tests as passed in the command line parameter gtest_filter.
 # Note, the clean is needed otherwise the rebuild of llvm won't be linked.
@@ -60,8 +57,8 @@ rebuild-test: clean
 #  gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering 2>&1 | tee clang-rebuild-some-tests.txt
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
-	@$(MAKE) -C $(pony_lib_llvm) LLVM_BUILD_TYPE=$(llvm_build_type) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) $(MAKEFLAGS)
+	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 	@$(MAKE) -f Makefile-lib-llvm some-tests
 
 # Run the some passing gtest_filter on command line, for example:
@@ -73,7 +70,7 @@ some-tests:
 # Clean just ponyc
 .PHONY: clean
 clean:
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc config=$(config) clean
+	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) clean
 
 # Clean ponyc and lib/llvm
 .PHONY: clean-all
@@ -87,7 +84,7 @@ distclean: clean
 
 .PHONY: help
 help:
-	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
+	@echo 'Usage: make [config=name] [options] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
 	@echo '  debug'
@@ -97,23 +94,17 @@ help:
 	@echo '  native (default)'
 	@echo '  [any compiler supported architecture]'
 	@echo
-	@echo 'Compile time default options:'
+	@echo 'options:'
+	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
 	@echo '  default_ssl=Name     Make Name the default ssl version'
 	@echo '                       where Name is one of:'
-	@echo '                         openssl_0.9.0 (default)'
+	@echo '                         openssl_0.9.0'
 	@echo '                         openssl_1.1.0'
 	@echo '  llvm_target=Target   Make llvm where Target is one of:'
-	@echo '                         llvm-3.9.1 (default if not specified)'
-	@echo '                         llvm-6.x'
-	@echo '                         llvm-7.x'
-	@echo '                         llvm-current'
-	@echo '                         llvm-default'
-	@echo '  LLVM_BUILD_TYPE=x    Build type with x='
-	@echo '                         Release (default)'
-	@echo '                         Debug'
-	@echo '                         RelWithDebInfo'
-	@echo '                         MinSizeRel'
+	@echo '                         all (default if not specified)'
+	@echo '                         rebuild'
+	@sh $(pony_lib_llvm_dir)/llvm-options.sh
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
@@ -140,7 +131,7 @@ help:
 	@echo '  install                Install ponyc'
 	@echo '  uninstall              Remove all versions of ponyc'
 	@echo '  stats                  Print Pony cloc statistics'
-	@echo '  clean                  Delete all build files but nothing in $(llvm_dir)'
-	@echo '  clean-all              clean plus clean $(llvm_dir)'
-	@echo '  distclean              clean plus distclean $(llvm_dir)'
+	@echo '  clean                  Delete all build files but nothing in $(pony_llvm_dir)'
+	@echo '  clean-all              clean plus clean $(pony_llvm_dir)'
+	@echo '  distclean              clean plus distclean $(pony_llvm_dir)'
 	@echo

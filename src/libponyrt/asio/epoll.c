@@ -162,7 +162,7 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 
   struct epoll_event ep;
   ep.data.ptr = ev;
-  ep.events = 0;
+  ep.events = EPOLLONESHOT;
   bool something_to_resub = false;
 
   // if the event is supposed to be listening for write notifications
@@ -358,7 +358,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
   struct epoll_event ep;
   ep.data.ptr = ev;
-  ep.events = EPOLLRDHUP | EPOLLET;
+  ep.events = EPOLLRDHUP;
 
   if(ev->flags & ASIO_READ)
     ep.events |= EPOLLIN;
@@ -401,19 +401,21 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     }
   }
 
-  if(ev->flags & ASIO_ONESHOT) {
+  if(ev->flags & ASIO_ONESHOT)
+  {
     ep.events |= EPOLLONESHOT;
-    // disable edge triggering if one shot is enabled
-    // this is because of how the runtime gets notifications
+  } else {
+    // Only use edge triggering if one shot isn't enabled.
+    // This is because of how the runtime gets notifications
     // from epoll in this ASIO thread and then notifies the
     // appropriate actor to read/write as necessary.
     // specifically, it seems there's an edge case/race condition
     // with edge triggering where if there is already data waiting
     // on the socket, then epoll might not be triggering immediately
     // when an edge triggered epoll request is made.
-    ep.events &= ~EPOLLET;
-  }
 
+    ep.events |= EPOLLET;
+  }
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
 }

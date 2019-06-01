@@ -1,6 +1,120 @@
 class List[A] is Seq[A]
   """
   A doubly linked list.
+
+  (The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).)
+
+  A doubly linked list is a linked data structure that consists of a set of sequentially
+  linked records called nodes. (Implemented in Ponylang via the collections.ListNode class.) Each
+  node contains four fields: two link fields (references to the previous and to the next node in
+  the sequence of nodes), one data field, and the reference to the in which it resides.  A doubly
+  linked list can be conceptualized as two singly linked lists formed from the same data items, but
+  in opposite sequential orders.
+
+  As you would expect. functions are provided to perform all the common list operations such as
+  creation, traversal, node addition and removal, iteration, mapping, filtering, etc.
+  
+  ## Example program
+  There are a _lot_ of functions in List. The following code picks out a few common examples.
+
+  It outputs:
+
+      A new empty list has 0 nodes.
+      Adding one node to our empty list means it now has a size of 1.
+      The first (index 0) node has the value: A single String
+      A list created by appending our second single-node list onto our first has size: 2
+      The List nodes of our first list are now:
+        A single String
+        Another String
+      Append *moves* the nodes from the second list so that now has 0 nodes.
+      A list created from an array of three strings has size: 3
+        First
+        Second
+        Third
+      Mapping over our three-node list produces a new list of size: 3
+      Each node-value in the resulting list is now far more exciting:
+        First BOOM!
+        Second BOOM!
+        Third BOOM!
+      Filtering our three-node list produces a new list of size: 2
+        Second BOOM!
+        Third BOOM!
+      The size of our first partitioned list (matches predicate): 1
+      The size of our second partitioned list (doesn't match predicate): 1
+      Our matching partition elements are:
+        Second BOOM!
+  
+  ```pony
+    use "collections"
+
+    actor Main
+      new create(env:Env) =>
+        
+        // Create a new empty List of type String
+        let my_list = List[String]()
+        
+        env.out.print("A new empty list has " + my_list.size().string() + " nodes.") // 0
+        
+        // Push a String literal onto our empty List
+        my_list.push("A single String")
+        env.out.print("Adding one node to our empty list means it now has a size of "
+                      + my_list.size().string() + ".") // 1
+        
+        // Get the first element of our List
+        try env.out.print("The first (index 0) node has the value: "
+                          + my_list.index(0)?()?.string()) end // A single String
+        
+        // Create a second List from a single String literal
+        let my_second_list = List[String].unit("Another String")
+        
+        // Append the second List to the first
+        my_list.append_list(my_second_list)
+        env.out.print("A list created by appending our second single-node list onto our first has size: "
+                      + my_list.size().string()) // 2
+        env.out.print("The List nodes of our first list are now:")
+        for n in my_list.values() do
+          env.out.print("\t" + n.string())
+        end
+        // NOTE: this _moves_ the elements so second_list consequently ends up empty
+        env.out.print("Append *moves* the nodes from the second list so that now has "
+                      + my_second_list.size().string() + " nodes.") // 0
+        
+        // Create a third List from a Seq(ence)
+        // (In this case a literal array of Strings)
+        let my_third_list = List[String].from(["First"; "Second"; "Third"])
+        env.out.print("A list created from an array of three strings has size: "
+                      + my_third_list.size().string()) // 3
+        for n in my_third_list.values() do
+          env.out.print("\t" + n.string())
+        end
+        
+        // Map over the third List, concatenating some "BOOM!'s" into a new List
+        let new_list = my_third_list.map[String]({ (n) => n + " BOOM!" })
+        env.out.print("Mapping over our three-node list produces a new list of size: "
+                      + new_list.size().string()) // 3
+        env.out.print("Each node-value in the resulting list is now far more exciting:")
+        for n in new_list.values() do
+          env.out.print("\t" + n.string())
+        end
+
+        // Filter the new list to extract 2 elements
+        let filtered_list = new_list.filter({ (n) => n.string().contains("d BOOM!") })
+        env.out.print("Filtering our three-node list produces a new list of size: "
+                          + filtered_list.size().string()) // 2
+        for n in filtered_list.values() do
+          env.out.print("\t" + n.string()) // Second BOOM!\nThird BOOM!
+        end
+        
+        // Partition the filtered list
+        let partitioned_lists = filtered_list.partition({ (n) => n.string().contains("Second") })
+        env.out.print("The size of our first partitioned list (matches predicate): " + partitioned_lists._1.size().string())        // 1
+        env.out.print("The size of our second partitioned list (doesn't match predicate): " + partitioned_lists._2.size().string())  // 1
+        env.out.print("Our matching partition elements are:")
+        for n in partitioned_lists._1.values() do
+          env.out.print("\t" + n.string()) // Second BOOM!
+        end
+  ```
+  
   """
   var _head: (ListNode[A] | None) = None
   var _tail: (ListNode[A] | None) = None

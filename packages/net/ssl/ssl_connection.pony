@@ -67,7 +67,7 @@ class SSLConnection is TCPConnectionNotify
       sent(conn, bytes)
     end
 
-  recover val Array[ByteSeq] end
+    recover val Array[ByteSeq] end
 
   fun ref received(
     conn: TCPConnection ref,

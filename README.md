@@ -1,5 +1,5 @@
 [![Backers on Open Collective](https://opencollective.com/ponyc/backers/badge.svg)](#backers)
- [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors) 
+ [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors)
 
 # Contributors
 
@@ -40,10 +40,7 @@ We have a couple resources designed to help you learn, we suggest starting with 
 * [Standard library docs](http://stdlib.ponylang.io/).
 * [Build Problems, see FAQ Compiling](https://www.ponylang.io/faq/#compiling).
 
-If you are looking for an answer "right now", we suggest you give our Zulip community a try. If you ask a question, be sure to hang around until you get an answer. If you don't get one, or Zulip isn't your thing, we have a friendly mailing list you can try. Whatever your question is, it isn't dumb, and we won't get annoyed.
-
-* [Mailing list](mailto:pony+user@groups.io).
-* [Zulip](https://ponylang.zulipchat.com)
+If you are looking for an answer "right now", we suggest you give our [Zulip](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help) community a try. Whatever your question is, it isn't dumb, and we won't get annoyed.
 
 Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
 * [Open an issue](https://github.com/ponylang/ponyc/issues)
@@ -307,11 +304,11 @@ brew install ponyc
 
 Windows users will need to install:
 
-- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
+- Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the "Desktop Development with C++" workload.
-  - If using Visual C++ Build Tools 2017, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
-  - If using Visual Studio 2017 or Visual C++ Build Tools 2017, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
+  - If using Visual Studio 2017 or 2019, install the "Desktop Development with C++" workload.
+  - If using Visual C++ Build Tools 2017 or 2019, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
+  - If using Visual Studio 2017 or 2019, or Visual C++ Build Tools 2017 or 2019, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
 
 Once you have installed the prerequisites, you can download the latest ponyc release from [bintray](https://dl.bintray.com/pony-language/ponyc-win/).
 
@@ -340,21 +337,28 @@ Typically you only need to build the LLVM sources once, as the `make clean` targ
 
 NOTE: If LLVM version < 5.0.0 is used, cpu feature `avx512f` is disabled automagically to avoid [LLVM bug 30542](https://bugs.llvm.org/show_bug.cgi?id=30542) otherwise the compiler crashes during the optimization phase.
 
-### Changing the commit associated with llvm_target=llvm-default
+#### Changing the commit associated with LLVM_CFG=llvm-default.cfg
 
-When llvm_target is not specified or it is llvm-default the commit associated with the lib/llvm/src submodule is checked out as the llvm source to be built. To change to a different commit, for instance a tag `llvmorg-8.0.0`, simply clone ponyc and have the lib/llvm/src submodule up to date and initialized. The simplest way to do that is clone ponyc with --recursive-submodule. Then checkout the desired commit the lib/llvm/src directory and push it to the repo, for example:
+When LLVM_CFG is not specified or it is llvm-default.cfg the commit associated with the `src` submodule is checked out as the llvm source to be built. To change to a different commit, for instance tag `llvmorg-8.0.0`, simply clone ponyc and change `lib/llvm/src` to the desired commit:
 ```
-git clone --recurse-submodules  https://github.com/you/ponyc ponyc
+git clone --recurse-submodules  https://github.com/<you>/ponyc
 cd ponyc
-git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0 master
+git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0
 cd lib/llvm/src
-git checkout llvmorg-8.0.0:
+git checkout llvmorg-8.0.0
 cd ../../../
 ```
-Now build and test using `llvm_target=llvm-current` and any other appropriate parameters:
+If you already have ponyc checked out update/init `lib/llvm/src` submodule, if it hasn't been fetched, and then go into `lib/llvm/src` and checkout the desired commit:
 ```
-make -j12 llvm_target=llvm-current default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
-# Debug/test ....
+git submodule update --init
+cd lib/llvm/src
+git checkout llvmorg-8.0.0
+cd ../../../
+```
+#### Debug/test ....
+Now build and test using `LLVM_CFG=llvm-default.cfg` and any other appropriate parameters:
+```
+make -j12 LLVM_CFG=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
 ```
 When satisfied create a commit pushing to your repo:
 ```
@@ -362,7 +366,6 @@ git add lib/llvm/src
 git commit -m "Update submodule lib/llvm/src to llvmorg-8.0.0"
 git push origin update-lib-llvm-src-to-llvmorg-8.0.0
 ```
-And finally create a pull request and work hard getting CI to pass, :)
 See the [Submodule section of the git-scm book](https://git-scm.com/book/en/v2/Git-Tools-Submodules) for more information.
 
 ## Building on Linux
@@ -705,7 +708,7 @@ gmake
 
 ## Building on OpenBSD
 
-OpenBSD has been tested on OpenBSD 6.4.
+OpenBSD has been tested on OpenBSD 6.5.
 
 First, install the required dependencies:
 
@@ -716,7 +719,7 @@ doas pkg_add gmake libexecinfo llvm pcre2
 This will build ponyc and compile helloworld:
 
 ```bash
-gmake verbose=true default_pic=true bits=64
+gmake verbose=true bits=64
 ./build/release/ponyc examples/helloworld
 ```
 
@@ -755,11 +758,11 @@ _Note: it may also be possible (as tested on build 14372.0 of Windows 10) to bui
 
 Building on Windows requires the following:
 
-- Visual Studio 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
+- Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
   - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017, install the "Desktop Development with C++" workload.
-  - If using Visual C++ Build Tools 2017, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
-  - If using Visual Studio 2017 or Visual C++ Build Tools 2017, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
+  - If using Visual Studio 2017 or 2019, install the "Desktop Development with C++" workload.
+  - If using Visual C++ Build Tools 2017 or 2019, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
+  - If using Visual Studio 2017 or 2019, or Visual C++ Build Tools 2017 or 2019, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
 - [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
 
 In a command prompt in the `ponyc` source directory, run the following:

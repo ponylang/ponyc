@@ -420,6 +420,8 @@ PONY_API void pony_os_stdout_setup()
 
 PONY_API bool pony_os_stdin_setup()
 {
+  // use events by default
+  bool stdin_event_based = true;
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
@@ -434,20 +436,15 @@ PONY_API bool pony_os_stdin_setup()
       mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
     is_stdin_tty = true;
   }
-
-  // Always use events
-  return true;
 #else
-  if(fd_type(STDIN_FILENO) == FD_TYPE_TTY)
-  {
-    if(is_stdout_tty)
-      stdin_tty();
-
-    return true;
-  }
-
-  return false;
+  // on *nix only not use events when stdin is a redirected file
+  fd_type_t stdin_type = fd_type(STDIN_FILENO);
+  if((stdin_type == FD_TYPE_TTY) && is_stdout_tty)
+    stdin_tty();
+  if(stdin_type == FD_TYPE_FILE)
+    stdin_event_based = false;
 #endif
+  return stdin_event_based;
 }
 
 PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
@@ -549,7 +546,7 @@ PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
       if(pos > last)
       {
         // Write any pending data.
-        fwrite(&buffer[last], pos - last, 1, fp);
+        _fwrite_nolock(&buffer[last], pos - last, 1, fp);
         last = pos;
       }
 
@@ -755,6 +752,21 @@ PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
   fwrite_unlocked(buffer, len, 1, fp);
 #else
   fwrite(buffer, len, 1, fp);
+#endif
+}
+
+PONY_API void pony_os_std_flush(FILE* fp)
+{
+  // avoid flushing all streams
+  if(fp == NULL)
+    return;
+
+#ifdef PLATFORM_IS_WINDOWS
+  _fflush_nolock(fp);
+#elif defined PLATFORM_IS_LINUX
+  fflush_unlocked(fp);
+#else
+  fflush(fp);
 #endif
 }
 

@@ -9,7 +9,7 @@ In order to do a release, you absolutely must have:
 * Commit access to the `ponyc` repo
 * The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 * Access to the ponylang twitter account
-* Accounts on reddit/hacker news/lobste.rs/ponylang irc for posting release notes
+* Accounts on reddit/hacker news/lobste.rs for posting release notes
 * An account on the [Pony Zulip](https://ponylang.zulipchat.com)
 
 While not strictly required, your life will be made much easier if you:
@@ -169,17 +169,24 @@ Note that its often quite quick to get everything through Homebrew's CI and merg
 
 ### Wait on Docker images to be built
 
-As part of every release, 3 docker images are built:
+As part of every release, 6 Docker images are built:
 
-- latest
-- release
-- and a release version such as 0.3.1
+- Ubuntu images
+  - latest
+  - release
+  - 0.3.1
+- Alpine images
+  - alpine
+  - release-alpine
+  - 0.3.1-alpine
 
-Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 3 images were successfully built.
+Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 6 images were successfully built. From the time the release starts, it can take several hours for all images to be built.
 
 ### Verify that the Pony Playground updated to the new version
 
 Once the dockerhub images have been updated, visit the [Pony Playground](https://playground.ponylang.io/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
+
+If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, or @plietar.
 
 ### Merge the release blog post PR for the ponylang website
 
@@ -187,13 +194,7 @@ Once all the release steps have been confirmed as successful, merge the PR you c
 
 ### Inform the Pony Zulip
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the #release stream of the Pony Zulip letting everyone know that the release is out and include a link the release blog post.
-
-If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
-
-### Inform pony-user
-
-Once Travis, Appveyor and Homebrew are all finished, send an email to the [pony user](https://pony.groups.io/g/user) mailing list letting everyone know that the release is out and include a link the release blog post. ([example](https://pony.groups.io/g/user/topic/pony_0_22_2_has_been_released/20332095))
+Once Travis, Appveyor and Homebrew are all finished, drop a note in the [#announce stream](https://ponylang.zulipchat.com/#narrow/stream/189932-announce) with a topic like "0.3.1 has been released" of the Pony Zulip letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
