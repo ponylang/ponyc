@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.28.1] - 2019-06-01
 
 ### Fixed
 
@@ -23,7 +23,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Updated `XorOshiro128Plus` parameters. This PRNG will now produce different values for the same seed as before. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
 - Use fixed-point inversion for `Random.int` if the platform allows. ([PR #3135](https://github.com/ponylang/ponyc/pull/3135))
-
 
 ## [0.28.0] - 2019-03-22
 
