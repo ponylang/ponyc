@@ -80,6 +80,9 @@ class iso _TestParseNumber is UnitTest
     doc.parse("0")?
     h.assert_eq[I64](0, doc.data as I64)
 
+    doc.parse("-0")?
+    h.assert_eq[I64](0, doc.data as I64)
+
     doc.parse("13")?
     h.assert_eq[I64](13, doc.data as I64)
 
@@ -109,6 +112,11 @@ class iso _TestParseNumber is UnitTest
     h.assert_error({() ? => JsonDoc.parse("1.")? })
     h.assert_error({() ? => JsonDoc.parse("1.-3")? })
     h.assert_error({() ? => JsonDoc.parse("1e")? })
+
+    // RFC 8259 does not permit leading zeros
+    h.assert_error({() ? => JsonDoc.parse("01")? })
+    h.assert_error({() ? => JsonDoc.parse("-01")? })
+    h.assert_error({() ? => JsonDoc.parse("-012")? })
 
 class iso _TestParseString is UnitTest
   """
