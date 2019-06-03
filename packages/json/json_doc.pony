@@ -116,13 +116,20 @@ class JsonDoc
       _get_char()? // Consume -
     end
 
+    let leading_zero = _peek_char()? == '0'
+
     var frac: I64 = 0
     var frac_digits: U8 = 0
     var exp: I64 = 0
     var exp_digits: U8 = 0
 
     // Start with integer part
-    (let int, _) = _parse_decimal()?
+    (let int, let int_digits) = _parse_decimal()?
+
+    if (int_digits > 1) and (leading_zero == true) then
+      _error("Leading 0 not permitted")
+      error
+    end
 
     if _peek_char()? == '.' then
       // We have a . so expect a fractional part
