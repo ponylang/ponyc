@@ -6,12 +6,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Do not permit leading zeros in JSON numbers ([PR #3167](https://github.com/ponylang/ponyc/pull/3167))
 
 ### Added
 
 
 ### Changed
 
+- Do not permit leading zeros in JSON numbers ([PR #3167](https://github.com/ponylang/ponyc/pull/3167))
 
 ## [0.28.1] - 2019-06-01
 
