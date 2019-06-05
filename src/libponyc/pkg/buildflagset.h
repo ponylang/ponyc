@@ -90,6 +90,9 @@ bool is_build_flag_defined(const char* name);
 // Returns: true if one or more of the flags were removed
 bool remove_build_flags(const char* flags[]);
 
+// Remove all flags.
+void clear_build_flags();
+
 PONY_EXTERN_C_END
 
 #endif

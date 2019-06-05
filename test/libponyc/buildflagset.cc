@@ -158,12 +158,14 @@ TEST(BuildFlagSetTest, MultipleFlags)
 
 TEST(BuildFlagSetTest, UserFlagNoneDefined)
 {
+  clear_build_flags();
   ASSERT_FALSE(is_build_flag_defined("foo"));
 }
 
 
 TEST(BuildFlagSetTest, UserFlagDefined)
 {
+  clear_build_flags();
   define_build_flag("foo");
 
   ASSERT_TRUE(is_build_flag_defined("foo"));
@@ -172,6 +174,7 @@ TEST(BuildFlagSetTest, UserFlagDefined)
 
 TEST(BuildFlagSetTest, UserFlagNotDefined)
 {
+  clear_build_flags();
   define_build_flag("foo");
 
   ASSERT_TRUE(is_build_flag_defined("foo"));
@@ -181,6 +184,7 @@ TEST(BuildFlagSetTest, UserFlagNotDefined)
 
 TEST(BuildFlagSetTest, UserFlagCaseSensitive)
 {
+  clear_build_flags();
   define_build_flag("foo");
 
   ASSERT_TRUE(is_build_flag_defined("foo"));
@@ -190,6 +194,7 @@ TEST(BuildFlagSetTest, UserFlagCaseSensitive)
 
 TEST(BuildFlagSetTest, UserFlagMultiple)
 {
+  clear_build_flags();
   define_build_flag("foo");
   define_build_flag("BAR");
   define_build_flag("Wombat");
