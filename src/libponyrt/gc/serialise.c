@@ -219,6 +219,7 @@ PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
   out->size = ctx->serialise_size;
   out->alloc = out->size;
   out->ptr = (char*)alloc_fn(ctx, out->size);
+  memset(out->ptr, 0, out->size);
 
   size_t i = HASHMAP_BEGIN;
   serialise_t* s;
