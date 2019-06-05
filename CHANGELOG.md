@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow use of OpenSSL 1.1.1 when building Pony ([PR #3156](https://github.com/ponylang/ponyc/pull/3156))
 
 ### Changed
 
