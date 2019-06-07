@@ -1937,7 +1937,7 @@ static void make_rdtscp(compile_t* c)
     LLVMTypeRef r_type_fields[2] = { c->i64, c->i32 };
     LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, r_type_fields, 2,
       true);
-    LLVMTypeRef f_type = LLVMFunctionType(r_type, nullptr, 0, false);
+    LLVMTypeRef f_type = LLVMFunctionType(r_type, NULL, 0, false);
     LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp", f_type);
 
     // i64 @internal.x86.rdtscp(i32*)
@@ -1946,8 +1946,8 @@ static void make_rdtscp(compile_t* c)
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type, false);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
 
-    codegen_startfun(c, fun, nullptr, nullptr, nullptr, false);
-    LLVMValueRef result = LLVMBuildCall(c->builder, rdtscp, nullptr, 0, "");
+    codegen_startfun(c, fun, NULL, NULL, NULL, false);
+    LLVMValueRef result = LLVMBuildCall(c->builder, rdtscp, NULL, 0, "");
     LLVMValueRef second = LLVMBuildExtractValue(c->builder, result, 1, "");
     LLVMValueRef argptr = LLVMGetParam(fun, 0);
     LLVMBuildStore(c->builder, second, argptr);
