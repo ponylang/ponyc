@@ -52,6 +52,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun tag offset(n: USize): Pointer[A] tag =>
+    """
+    Return a tag pointer to the n-th element.
+    """
+     _unsafe()._offset(n)
+
   fun tag _element_size(): USize =>
     """
     Return the size of a single element in an array of type A.
