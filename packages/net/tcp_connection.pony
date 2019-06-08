@@ -204,12 +204,9 @@ actor TCPConnection
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
   var _in_sent: Bool = false
-  // _pending is used to avoid GC prematurely reaping memory.
-  // See GitHub bug 2526 for more.  It looks like a write-only
-  // data structure, but its use is vital to avoid GC races:
-  // _pending_writev's C pointers are invisible to ORCA.
-  embed _pending: Array[ByteSeq] = _pending.create()
-  embed _pending_writev: Array[USize] = _pending_writev.create()
+  embed _pending_writev_posix: Array[(Pointer[U8] tag, USize)] = _pending_writev_posix.create()
+  embed _pending_writev_windows: Array[(USize, Pointer[U8] tag)] = _pending_writev_windows.create()
+
   var _pending_sent: USize = 0
   var _pending_writev_total: USize = 0
   var _read_buf: Array[U8] iso
@@ -364,18 +361,16 @@ actor TCPConnection
           var num_to_send: I32 = 0
           for bytes in _notify.sentv(this, data).values() do
             // Add an IOCP write.
-            _pending_writev
-              .> push(bytes.size())
-              .> push(bytes.cpointer().usize())
+            _pending_writev_windows
+              .> push((bytes.size(), bytes.cpointer()))
             _pending_writev_total = _pending_writev_total + bytes.size()
-            _pending.push(bytes)
             num_to_send = num_to_send + 1
           end
 
           // Write as much data as possible.
           var len =
             @pony_os_writev[USize](_event,
-              _pending_writev.cpointer(_pending_sent * 2),
+              _pending_writev_windows.cpointer(_pending_sent),
               num_to_send) ?
 
           _pending_sent = _pending_sent + num_to_send.usize()
@@ -389,11 +384,9 @@ actor TCPConnection
         end
       else
         for bytes in _notify.sentv(this, data).values() do
-          _pending_writev
-            .> push(bytes.cpointer().usize())
-            .> push(bytes.size())
+          _pending_writev_posix
+            .> push((bytes.cpointer(), bytes.size()))
           _pending_writev_total = _pending_writev_total + bytes.size()
-          _pending.push(bytes)
         end
 
         _pending_writes()
@@ -579,12 +572,11 @@ actor TCPConnection
       ifdef windows then
         try
           // Add an IOCP write.
-          _pending_writev .> push(data.size()) .> push(data.cpointer().usize())
+          _pending_writev_windows .> push((data.size(), data.cpointer()))
           _pending_writev_total = _pending_writev_total + data.size()
-          _pending.push(data)
 
           @pony_os_writev[USize](_event,
-            _pending_writev.cpointer(_pending_sent * 2), I32(1)) ?
+            _pending_writev_windows.cpointer(_pending_sent), I32(1)) ?
 
           _pending_sent = _pending_sent + 1
 
@@ -596,9 +588,8 @@ actor TCPConnection
           end
         end
       else
-        _pending_writev .> push(data.cpointer().usize()) .> push(data.size())
+        _pending_writev_posix .> push((data.cpointer(), data.size()))
         _pending_writev_total = _pending_writev_total + data.size()
-        _pending.push(data)
         _pending_writes()
       end
     end
@@ -617,7 +608,7 @@ actor TCPConnection
 
       try
         _manage_pending_buffer(len.usize(),
-          _pending_writev_total, _pending.size())?
+          _pending_writev_total, _pending_writev_windows.size())?
       end
 
       if _pending_sent < 16 then
@@ -642,22 +633,22 @@ actor TCPConnection
       while _writeable and (_pending_writev_total > 0) do
         try
           // Determine number of bytes and buffers to send.
-          if (_pending_writev.size() / 2) < writev_batch_size then
-            num_to_send = _pending_writev.size() / 2
+          if _pending_writev_posix.size() < writev_batch_size then
+            num_to_send = _pending_writev_posix.size()
             bytes_to_send = _pending_writev_total
           else
             // Have more buffers than a single writev can handle.
             // Iterate over buffers being sent to add up total.
             num_to_send = writev_batch_size
             bytes_to_send = 0
-            for d in Range[USize](1, num_to_send * 2, 2) do
-              bytes_to_send = bytes_to_send + _pending_writev(d)?
+            for d in Range[USize](0, num_to_send, 1) do
+              bytes_to_send = bytes_to_send + _pending_writev_posix(d)?._2
             end
           end
 
           // Write as much data as possible.
           var len = @pony_os_writev[USize](_event,
-            _pending_writev.cpointer(), num_to_send.i32()) ?
+            _pending_writev_posix.cpointer(), num_to_send.i32()) ?
 
           if _manage_pending_buffer(len, bytes_to_send, num_to_send)? then
             return true
@@ -683,40 +674,39 @@ actor TCPConnection
     """
     var len = bytes_sent
     if len < bytes_to_send then
+      var num_sent: USize = 0
       while len > 0 do
-        let iov_p =
+        (let iov_p, let iov_s) =
           ifdef windows then
-            _pending_writev(1)?
+            (let tmp_s, let tmp_p) = _pending_writev_windows(num_sent)?
+            (tmp_p, tmp_s)
           else
-            _pending_writev(0)?
-          end
-        let iov_s =
-          ifdef windows then
-            _pending_writev(0)?
-          else
-            _pending_writev(1)?
+            _pending_writev_posix(num_sent)?
           end
         if iov_s <= len then
+          num_sent = num_sent + 1
           len = len - iov_s
-          _pending_writev.shift()?
-          _pending_writev.shift()?
-          _pending.shift()?
-          ifdef windows then
-            _pending_sent = _pending_sent - 1
-          end
           _pending_writev_total = _pending_writev_total - iov_s
         else
           ifdef windows then
-            _pending_writev.update(1, iov_p+len)?
-            _pending_writev.update(0, iov_s-len)?
+            _pending_writev_windows(num_sent)? = (iov_s-len, iov_p.offset(len))
           else
-            _pending_writev.update(0, iov_p+len)?
-            _pending_writev.update(1, iov_s-len)?
+            _pending_writev_posix(num_sent)? = (iov_p.offset(len), iov_s-len)
           end
           _pending_writev_total = _pending_writev_total - len
           len = 0
         end
       end
+
+      ifdef windows then
+        // do a trim in place instead of many shifts for efficiency
+        _pending_writev_windows.trim_in_place(num_sent)
+        _pending_sent = _pending_sent - num_sent
+      else
+        // do a trim in place instead of many shifts for efficiency
+        _pending_writev_posix.trim_in_place(num_sent)
+      end
+
       ifdef not windows then
         _apply_backpressure()
       end
@@ -724,20 +714,23 @@ actor TCPConnection
       // sent all data we requested in this batch
       _pending_writev_total = _pending_writev_total - bytes_to_send
       if _pending_writev_total == 0 then
-        _pending_writev.clear()
-        _pending.clear()
         ifdef windows then
+          // do a trim in place instead of a clear to free up memory
+          _pending_writev_windows.trim_in_place(_pending_writev_windows.size())
           _pending_sent = 0
+        else
+          // do a trim in place instead of a clear to free up memory
+          _pending_writev_posix.trim_in_place(_pending_writev_posix.size())
         end
         return true
       else
-        for d in Range[USize](0, num_to_send, 1) do
-          _pending_writev.shift()?
-          _pending_writev.shift()?
-          _pending.shift()?
-          ifdef windows then
-            _pending_sent = _pending_sent - 1
-          end
+        ifdef windows then
+          // do a trim in place instead of many shifts for efficiency
+          _pending_writev_windows.trim_in_place(num_to_send)
+          _pending_sent = _pending_sent - 1
+        else
+          // do a trim in place instead of many shifts for efficiency
+          _pending_writev_posix.trim_in_place(num_to_send)
         end
       end
     end
@@ -949,11 +942,12 @@ actor TCPConnection
     _shutdown = true
     _shutdown_peer = true
 
-    _pending.clear()
-    _pending_writev.clear()
     _pending_writev_total = 0
     ifdef windows then
+      _pending_writev_windows.clear()
       _pending_sent = 0
+    else
+      _pending_writev_posix.clear()
     end
 
     ifdef not windows then
