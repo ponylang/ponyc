@@ -130,6 +130,10 @@ class SSL
       if r <= 0 then
         match @SSL_get_error[I32](_ssl, r)
         | 1 | 5 | 6 => _state = SSLError
+        | 2 =>
+          // SSL buffer has more data but it is not yet decoded (or something)
+          _read_buf.truncate(offset)
+          return None
         end
 
         _read_buf.truncate(offset)
@@ -147,7 +151,22 @@ class SSL
     if ready then
       _read_buf = recover Array[U8] end
     else
-      None
+      // try and read again any pending data that SSL hasn't decoded yet
+      if @BIO_ctrl_pending[USize](_input) > 0 then
+        read(expect)
+      else
+        ifdef "openssl_1.1.x" then
+          // try and read again any data already decoded from SSL that hasn't
+          // been read
+          if @SSL_has_pending[I32](_ssl) == 1 then
+            read(expect)
+          else
+            None
+          end
+        else
+          None
+        end
+      end
     end
 
   fun ref write(data: ByteSeq) ? =>

@@ -11,6 +11,7 @@ class SSLConnection is TCPConnectionNotify
   var _expect: USize = 0
   var _closed: Bool = false
   let _pending: List[ByteSeq] = _pending.create()
+  var _accept_pending: Bool = false
 
   new iso create(notify: TCPConnectionNotify iso, ssl: SSL iso) =>
     """
@@ -21,9 +22,10 @@ class SSLConnection is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     """
-    Forward to the wrapped protocol.
+    Swallow this event until the handshake is complete.
     """
-    _notify.accepted(conn)
+    _accept_pending = true
+    _poll(conn)
 
   fun ref connecting(conn: TCPConnection ref, count: U32) =>
     """
@@ -63,11 +65,22 @@ class SSLConnection is TCPConnectionNotify
     ""
 
   fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
-    for bytes in data.values() do
-      sent(conn, bytes)
+    let ret = recover val Array[ByteSeq] end
+    let data' = _notify.sentv(conn, data)
+    for bytes in data'.values() do
+      if _connected then
+        try
+          _ssl.write(bytes)?
+        else
+          return ret
+        end
+      else
+        _pending.push(bytes)
+      end
     end
 
-    recover val Array[ByteSeq] end
+    _poll(conn)
+    ret
 
   fun ref received(
     conn: TCPConnection ref,
@@ -104,6 +117,18 @@ class SSLConnection is TCPConnectionNotify
     _pending.clear()
     _notify.closed(conn)
 
+  fun ref throttled(conn: TCPConnection ref) =>
+    """
+    Forward to the wrapped protocol.
+    """
+    _notify.throttled(conn)
+
+  fun ref unthrottled(conn: TCPConnection ref) =>
+    """
+    Forward to the wrapped protocol.
+    """
+    _notify.unthrottled(conn)
+
   fun ref _poll(conn: TCPConnection ref) =>
     """
     Checks for both new application data and new destination data. Informs the
@@ -113,7 +138,11 @@ class SSLConnection is TCPConnectionNotify
     | SSLReady =>
       if not _connected then
         _connected = true
-        _notify.connected(conn)
+        if _accept_pending then
+          _notify.accepted(conn)
+        else
+          _notify.connected(conn)
+        end
 
         match _notify
         | let alpn_notify: ALPNProtocolNotify =>
