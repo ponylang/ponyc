@@ -874,7 +874,7 @@ actor TCPConnection
           end
 
           // make sure we have enough space to read enough data for _expect
-          if _read_buf.size() < _expect then
+          if _read_buf.size() <= _expect then
             _read_buf_size()
           end
 
