@@ -211,11 +211,12 @@ actor TCPConnection
   var _pending_sent: USize = 0
   var _pending_writev_total: USize = 0
   var _read_buf: Array[U8] iso
+  var _read_buf_offset: USize = 0
+  var _max_received_called: USize = 50
 
   var _next_size: USize
   let _max_size: USize
 
-  var _read_len: USize = 0
   var _expect: USize = 0
 
   var _muted: Bool = false
@@ -758,12 +759,12 @@ actor TCPConnection
         _next_size = _max_size.min(_next_size * 2)
       end
 
-      _read_len = _read_len + len.usize()
+      _read_buf_offset = _read_buf_offset + len.usize()
 
-      if (not _muted) and (_read_len >= _expect) then
+      if (not _muted) and (_read_buf_offset >= _expect) then
         let data = _read_buf = recover Array[U8] end
-        data.truncate(_read_len)
-        _read_len = 0
+        data.truncate(_read_buf_offset)
+        _read_buf_offset = 0
 
         _notify.received(this, consume data, 1)
         _read_buf_size()
@@ -777,7 +778,7 @@ actor TCPConnection
     Resize the read buffer.
     """
     if _expect != 0 then
-      _read_buf.undefined(_expect)
+      _read_buf.undefined(_expect.next_pow2().max(_next_size))
     else
       _read_buf.undefined(_next_size)
     end
@@ -790,8 +791,8 @@ actor TCPConnection
       try
         @pony_os_recv[USize](
           _event,
-          _read_buf.cpointer(_read_len),
-          _read_buf.size() - _read_len) ?
+          _read_buf.cpointer(_read_buf_offset),
+          _read_buf.size() - _read_buf_offset) ?
       else
         hard_close()
       end
@@ -800,8 +801,11 @@ actor TCPConnection
   fun ref _pending_reads() =>
     """
     Unless this connection is currently muted, read while data is available,
-    guessing the next packet length as we go. If we read 4 kb of data, send
+    guessing the next packet length as we go. If we read 5 kb of data, send
     ourself a resume message and stop reading, to avoid starving other actors.
+    Currently we can handle a varying value of _expect (greater than 0) and
+    constant _expect of 0 but we cannot handle switching between these two
+    cases.
     """
     ifdef not windows then
       try
@@ -810,63 +814,85 @@ actor TCPConnection
         _reading = true
 
         while _readable and not _shutdown_peer do
+          // exit if muted
           if _muted then
             _reading = false
             return
           end
 
+          // distribute the data we've already read that is in the `read_buf`
+          // and able to be distributed
+          while (_read_buf_offset >= _expect) and (_read_buf_offset > 0) do
+            // get data to be distributed and update `_read_buf_offset`
+            let data =
+              if _expect == 0 then
+                let data' = _read_buf = recover Array[U8] end
+                data'.truncate(_read_buf_offset)
+                _read_buf_offset = 0
+                consume data'
+              else
+                let x = _read_buf = recover Array[U8] end
+                (let data', _read_buf) = (consume x).chop(_expect)
+                _read_buf_offset = _read_buf_offset - _expect
+                consume data'
+              end
+
+            // increment max reads
+            received_called = received_called + 1
+
+            // check if we should yield to let another actor run
+            if (not _notify.received(this, consume data,
+              received_called))
+              or (received_called >= _max_received_called)
+            then
+              _read_buf_size()
+              _read_again()
+              _reading = false
+              return
+            end
+          end
+
+          if sum >= _max_size then
+            // If we've read _max_size, yield and read again later.
+            _read_buf_size()
+            _read_again()
+            _reading = false
+            return
+          end
+
+          // make sure we have enough space to read enough data for _expect
+          if _read_buf.size() < _expect then
+            _read_buf_size()
+          end
+
           // Read as much data as possible.
           let len = @pony_os_recv[USize](
             _event,
-            _read_buf.cpointer(_read_len),
-            _read_buf.size() - _read_len) ?
+            _read_buf.cpointer(_read_buf_offset),
+            _read_buf.size() - _read_buf_offset) ?
 
           match len
           | 0 =>
             // Would block, try again later.
             // this is safe because asio thread isn't currently subscribed
             // for a read event so will not be writing to the readable flag
-            @pony_asio_event_set_readable(_event, false)
+            @pony_asio_event_set_readable[None](_event, false)
             _readable = false
             _reading = false
             @pony_asio_event_resubscribe_read(_event)
             return
-          | _next_size =>
+          | (_read_buf.size() - _read_buf_offset) =>
             // Increase the read buffer size.
             _next_size = _max_size.min(_next_size * 2)
           end
 
-          _read_len = _read_len + len
-
-          if _read_len >= _expect then
-            let data = _read_buf = recover Array[U8] end
-            data.truncate(_read_len)
-            _read_len = 0
-
-            received_called = received_called + 1
-            if not _notify.received(this, consume data, received_called) then
-              _read_buf_size()
-              _read_again()
-              _reading = false
-              return
-            else
-              _read_buf_size()
-            end
-          end
-
+          _read_buf_offset = _read_buf_offset + len
           sum = sum + len
-
-          if sum >= _max_size then
-            // If we've read _max_size, yield and read again later.
-            _read_again()
-            _reading = false
-            return
-          end
         end
       else
         // The socket has been closed from the other side.
         _shutdown_peer = true
-        close()
+        hard_close()
       end
     end
 
