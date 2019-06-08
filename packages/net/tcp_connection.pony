@@ -198,6 +198,7 @@ actor TCPConnection
   var _event: AsioEventID = AsioEvent.none()
   var _connected: Bool = false
   var _readable: Bool = false
+  var _reading: Bool = false
   var _writeable: Bool = false
   var _throttled: Bool = false
   var _closed: Bool = false
@@ -414,7 +415,9 @@ actor TCPConnection
     Start reading off this TCPConnection again after having been muted.
     """
     _muted = false
-    _pending_reads()
+    if not _reading then
+      _pending_reads()
+    end
 
   be set_notify(notify: TCPConnectionNotify iso) =>
     """
@@ -811,9 +814,11 @@ actor TCPConnection
       try
         var sum: USize = 0
         var received_called: USize = 0
+        _reading = true
 
         while _readable and not _shutdown_peer do
           if _muted then
+            _reading = false
             return
           end
 
@@ -830,6 +835,7 @@ actor TCPConnection
             // for a read event so will not be writing to the readable flag
             @pony_asio_event_set_readable(_event, false)
             _readable = false
+            _reading = false
             @pony_asio_event_resubscribe_read(_event)
             return
           | _next_size =>
@@ -848,6 +854,7 @@ actor TCPConnection
             if not _notify.received(this, consume data, received_called) then
               _read_buf_size()
               _read_again()
+              _reading = false
               return
             else
               _read_buf_size()
@@ -859,6 +866,7 @@ actor TCPConnection
           if sum >= _max_size then
             // If we've read _max_size, yield and read again later.
             _read_again()
+            _reading = false
             return
           end
         end
@@ -868,6 +876,8 @@ actor TCPConnection
         close()
       end
     end
+
+    _reading = false
 
   fun ref _notify_connecting() =>
     """
