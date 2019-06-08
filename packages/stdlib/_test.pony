@@ -75,6 +75,7 @@ actor Main is TestList
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
+    ssl.Main.make().tests(test)
     options.Main.make().tests(test)
 
     ifdef posix then
