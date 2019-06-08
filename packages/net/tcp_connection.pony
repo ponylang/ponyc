@@ -623,6 +623,12 @@ actor TCPConnection
       end
     end
 
+  be _write_again() =>
+    """
+    Resume writing.
+    """
+    _pending_writes()
+
   fun ref _pending_writes(): Bool =>
     """
     Send pending data. If any data can't be sent, keep it and mark as not
@@ -634,7 +640,12 @@ actor TCPConnection
       let writev_batch_size: USize = @pony_os_writev_max[I32]().usize()
       var num_to_send: USize = 0
       var bytes_to_send: USize = 0
+      var bytes_sent: USize = 0
       while _writeable and (_pending_writev_total > 0) do
+        if bytes_sent >= _max_size then
+          _write_again()
+          return false
+        end
         try
           // Determine number of bytes and buffers to send.
           if _pending_writev_posix.size() < writev_batch_size then
@@ -657,6 +668,8 @@ actor TCPConnection
           if _manage_pending_buffer(len, bytes_to_send, num_to_send)? then
             return true
           end
+
+          bytes_sent = bytes_sent + len
         else
           // Non-graceful shutdown on error.
           hard_close()
