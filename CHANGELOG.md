@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Do not permit leading zeros in JSON numbers ([PR #3167](https://github.com/ponylang/ponyc/pull/3167))
 - Make reading via TCPConnection re-entrant safe ([PR #3175](https://github.com/ponylang/ponyc/pull/3175))
 - Cleanup TCPConnection GC-safety mechanism for writev buffers ([#3177](https://github.com/ponylang/ponyc/pull/3177))
+- Add SSL tests and fix some SSL related bugs ([PR #3174](https://github.com/ponylang/ponyc/pull/3174))
 
 ### Added
 
