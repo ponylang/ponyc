@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Do not permit leading zeros in JSON numbers ([PR #3167](https://github.com/ponylang/ponyc/pull/3167))
 - Make TCPConnection yield on writes to not hog cpu ([PR #3176](https://github.com/ponylang/ponyc/pull/3176))
 - Add `pointer.offset` to get arbitrary pointer tags via offset ([#3177](https://github.com/ponylang/ponyc/pull/3177))
+- Change how TCP connection reads data to improve performance ([PR #3178](https://github.com/ponylang/ponyc/pull/3178))
 
 ## [0.28.1] - 2019-06-01
 
