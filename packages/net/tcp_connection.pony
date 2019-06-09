@@ -361,6 +361,11 @@ actor TCPConnection
         try
           var num_to_send: I32 = 0
           for bytes in _notify.sentv(this, data).values() do
+            // don't sent 0 byte payloads; windows doesn't like it (and it's wasteful)
+            if bytes.size() == 0 then
+              continue
+            end
+
             // Add an IOCP write.
             _pending_writev_windows
               .> push((bytes.size(), bytes.cpointer()))
@@ -385,6 +390,11 @@ actor TCPConnection
         end
       else
         for bytes in _notify.sentv(this, data).values() do
+          // don't sent 0 byte payloads; it's wasteful
+          if bytes.size() == 0 then
+            continue
+          end
+
           _pending_writev_posix
             .> push((bytes.cpointer(), bytes.size()))
           _pending_writev_total = _pending_writev_total + bytes.size()
@@ -571,6 +581,11 @@ actor TCPConnection
     that has already been transformed by the notifier. Data will be silently
     discarded if the connection has not yet been established though.
     """
+    // don't sent 0 byte payloads; windows doesn't like it (and it's wasteful)
+    if data.size() == 0 then
+      return
+    end
+
     if _connected and not _closed then
       ifdef windows then
         try
