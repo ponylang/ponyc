@@ -157,7 +157,9 @@ class SSL
       else
         ifdef "openssl_1.1.x" then
           // try and read again any data already decoded from SSL that hasn't
-          // been read
+          // been read via `SSL_has_pending` that was added in 1.1
+          // This mailing list post has a good description of what it is for:
+          // https://mta.openssl.org/pipermail/openssl-users/2017-January/005110.html
           if @SSL_has_pending[I32](_ssl) == 1 then
             read(expect)
           else
