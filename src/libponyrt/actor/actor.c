@@ -16,7 +16,7 @@
 #endif
 
 // default actor batch size
-#define PONY_ACTOR_DEFAULT_BATCH 100
+#define PONY_SCHED_BATCH 100
 
 // Ignore padding at the end of the type.
 pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
@@ -281,7 +281,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
   pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
-  size_t batch = PONY_ACTOR_DEFAULT_BATCH;
+  size_t batch = PONY_SCHED_BATCH;
 
   pony_msg_t* msg;
   size_t app = 0;
