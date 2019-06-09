@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Do not permit leading zeros in JSON numbers ([PR #3167](https://github.com/ponylang/ponyc/pull/3167))
+- Make TCPConnection yield on writes to not hog cpu ([PR #3176](https://github.com/ponylang/ponyc/pull/3176))
 
 ## [0.28.1] - 2019-06-01
 
