@@ -309,7 +309,8 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
 
       for(; child != NULL; child = ast_sibling(child))
       {
-        deferred_reification_t* find = lookup_try(NULL, NULL, child, n->name);
+        deferred_reification_t* find = lookup_try(NULL, NULL, child, n->name,
+          false);
 
         if(find == NULL)
           continue;
@@ -563,7 +564,7 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
   const char* special, pass_opt_t* opt)
 {
   special = stringtab(special);
-  deferred_reification_t* find = lookup_try(NULL, NULL, type, special);
+  deferred_reification_t* find = lookup_try(NULL, NULL, type, special, false);
 
   if(find != NULL)
   {

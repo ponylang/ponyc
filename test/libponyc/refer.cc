@@ -107,7 +107,7 @@ TEST_F(ReferTest, ConsumeLetField)
         "P(consume c)";
 
   TEST_ERRORS_1(src,
-    "consume must take 'this', a local, or a parameter");
+    "can't consume a let or embed field");
 }
 
 TEST_F(ReferTest, ConsumeVar)
@@ -141,7 +141,7 @@ TEST_F(ReferTest, ConsumeVarReuse)
         "P(consume c)";
 
   TEST_ERRORS_2(src,
-    "can't use a consumed local in an expression",
+    "can't use a consumed local or field in an expression",
     "consume must take 'this', a local, or a parameter");
 }
 
@@ -173,7 +173,25 @@ TEST_F(ReferTest, ConsumeVarField)
         "P(consume c)";
 
   TEST_ERRORS_1(src,
-    "consume must take 'this', a local, or a parameter");
+    "consuming a field is only allowed if it is reassigned in the same"
+    " expression");
+}
+
+TEST_F(ReferTest, ConsumeVarFieldReassign)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C): C iso^ => consume c\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "c = P(consume c)";
+
+  TEST_COMPILE(src);
 }
 
 TEST_F(ReferTest, ConsumeEmbedField)
@@ -191,7 +209,7 @@ TEST_F(ReferTest, ConsumeEmbedField)
         "P(consume c)";
 
   TEST_ERRORS_1(src,
-    "consume must take 'this', a local, or a parameter");
+    "can't consume a let or embed field");
 }
 
 TEST_F(ReferTest, ConsumeVarTry)
@@ -227,8 +245,30 @@ TEST_F(ReferTest, ConsumeVarReassignTry)
         "end\n";
 
   TEST_ERRORS_2(src,
-    "can't reassign to a consumed identifier in a try expression unless it is reassigned in the same expression",
+    "can't reassign to a consumed identifier in a try expression unless it is"
+    " reassigned in the same expression",
     "left side must be something that can be assigned to");
+}
+
+TEST_F(ReferTest, ConsumeVarFieldTry)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) ? => error\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  P(consume c) ?"
+        "end";
+
+  TEST_ERRORS_1(src,
+    "consuming a field is only allowed if it is reassigned in the same"
+    " expression");
 }
 
 TEST_F(ReferTest, WhileLoopConsumeLet)
@@ -422,4 +462,365 @@ TEST_F(ReferTest, RepeatLoopDefineVarAndUseInCondition)
         "until (n > 2) end";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(ReferTest, ConsumeVarFieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c = (consume c; consume c)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeVarFieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "fun ref blah(d: C): C iso^ =>\n"
+        "consume d\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c = c.blah(consume c)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeVarFieldReassignSameExpressionReuseSubfield)
+{
+  const char* src =
+    "class iso C\n"
+      "let s: String\n"
+      "new iso create() => s = String\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref blah(d: C, s: String): C iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c = blah(consume c, c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest,
+  ConsumeVarFieldVarSubfieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c.s = (consume c.s; consume c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeVarFieldVarSubfieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref blah(d: Array[U8] iso, n: USize): Array[U8] iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c.s = blah(consume c.s, c.s.size())\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest,
+  ConsumeLetFieldVarSubfieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "let c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c.s = (consume c.s; consume c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeLetFieldVarSubfieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "let c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref blah(d: Array[U8] iso, n: USize): Array[U8] iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c.s = blah(consume c.s, c.s.size())\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest,
+  ConsumeEmbedFieldVarSubfieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "embed c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c.s = (consume c.s; consume c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeEmbedFieldVarSubfieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "embed c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref blah(d: Array[U8] iso, n: USize): Array[U8] iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff() ? =>\n"
+        "c.s = blah(consume c.s, c.s.size())\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest,
+  ConsumeVarLocalVarSubfieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "var c: C = C\n"
+        "c.s = (consume c.s; consume c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeVarLocalVarSubfieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref blah(d: Array[U8] iso, n: USize): Array[U8] iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff() ? =>\n"
+        "var c: C = C\n"
+        "c.s = blah(consume c.s, c.s.size())\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest,
+  ConsumeLetLocalVarSubfieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref dostuff() ? =>\n"
+        "let c: C = C\n"
+        "c.s = (consume c.s; consume c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeLetLocalVarSubfieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try\n"
+        "  dostuff()?\n"
+        "end\n"
+
+      "fun ref blah(d: Array[U8] iso, n: USize): Array[U8] iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff() ? =>\n"
+        "let c: C = C\n"
+        "c.s = blah(consume c.s, c.s.size())\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeParamVarSubfieldReassignSameExpressionConsumedReference)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try\n"
+        "  dostuff(C)?\n"
+        "end\n"
+
+      "fun ref dostuff(c: C) ? =>\n"
+        "c.s = (consume c.s; consume c.s)\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
+}
+
+TEST_F(ReferTest, ConsumeParamVarSubfieldReassignSameExpressionReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "var s: Array[U8] iso\n"
+      "new iso create() => s = recover s.create() end\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try\n"
+        "  dostuff(C)?\n"
+        "end\n"
+
+      "fun ref blah(d: Array[U8] iso, n: USize): Array[U8] iso^ =>\n"
+        "consume d\n"
+
+      "fun ref dostuff(c: C) ? =>\n"
+        "c.s = blah(consume c.s, c.s.size())\n"
+        "error";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed local or field in an expression");
 }

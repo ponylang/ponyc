@@ -612,6 +612,19 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_CONSUME);
   AST_GET_CHILDREN(ast, cap, term);
+
+  if( (ast_id(term) != TK_NONE)
+    && (ast_id(term) != TK_FVARREF)
+    && (ast_id(term) != TK_LETREF)
+    && (ast_id(term) != TK_VARREF)
+    && (ast_id(term) != TK_THIS)
+    && (ast_id(term) != TK_DOT)
+    && (ast_id(term) != TK_PARAMREF))
+  {
+    ast_error(opt->check.errors, ast, "can't consume let or embed fields");
+    return false;
+  }
+
   ast_t* type = ast_type(term);
 
   if(is_typecheck_error(type))
