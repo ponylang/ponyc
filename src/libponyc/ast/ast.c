@@ -58,7 +58,7 @@ enum
   AST_ORPHAN = 0x20,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ALL_FLAGS = 0xFFFFFF
+  AST_ALL_FLAGS = 0x1FFFFFF
 };
 
 
@@ -1288,7 +1288,8 @@ bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner, errorframe_t* errorf)
       {
         // If it's consumed, and has a null value, it's from outside of this
         // scope. We need to know if it's outside the loop scope.
-        if((sym->status == SYM_CONSUMED) && (sym->def == NULL))
+        if(((sym->status == SYM_CONSUMED) || (sym->status == SYM_CONSUMED_SAME_EXPR))
+          && (sym->def == NULL))
         {
           if(!ast_within_scope(outer, inner, sym->name))
           {

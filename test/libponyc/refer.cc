@@ -221,11 +221,13 @@ TEST_F(ReferTest, ConsumeVarReassignTry)
       "new create(env: Env) =>\n"
         "var c = C\n"
         "try\n"
-        "  c = consume c\n"
+        "  let d = consume c\n"
+        "  c = consume d\n"
+        "  error\n"
         "end\n";
 
   TEST_ERRORS_2(src,
-    "can't reassign to a consumed identifier in a try expression",
+    "can't reassign to a consumed identifier in a try expression unless it is reassigned in the same expression",
     "left side must be something that can be assigned to");
 }
 
