@@ -1,6 +1,45 @@
 # Build llvm library
 #  See README.md and `make help` for instructions
 
+ifeq ($(OS),Windows_NT)
+  OSTYPE = windows
+else
+  UNAME_S := $(shell uname -s)
+
+  ifeq ($(UNAME_S),Linux)
+    OSTYPE = linux
+
+    ifndef AR
+      ifneq (,$(shell which gcc-ar 2> /dev/null))
+        AR = gcc-ar
+      endif
+    endif
+
+    ALPINE=$(wildcard /etc/alpine-release)
+  endif
+
+  ifeq ($(UNAME_S),Darwin)
+    OSTYPE = osx
+  endif
+
+  ifeq ($(UNAME_S),FreeBSD)
+    OSTYPE = bsd
+    CXX = c++
+  endif
+
+  ifeq ($(UNAME_S),DragonFly)
+    OSTYPE = bsd
+    CXX = c++
+  endif
+
+  ifeq ($(UNAME_S),OpenBSD)
+    OSTYPE = bsd
+    CXX = c++
+    LLVM_CONFIG = /usr/local/bin/llvm-config
+    default_pic = true
+  endif
+endif
+
 # Set LLVM_CFG if not set
 ifeq (,$(LLVM_CFG))
   LLVM_CFG := llvm-default.cfg
@@ -11,13 +50,21 @@ ifeq (,$(LLVM_RULES))
   LLVM_RULES := llvm-base.rules
 endif
 
-# Look for readlink or greadlink
-ifneq (,$(shell which readlink 2> /dev/null))
-  LLVM_READ_LINK = readlink
+# Look for greadlink or readlink
+ifeq ($(OSTYPE), osx)
+  # On osx only use greadlink as readlink, if it exists,
+  # doesn't support -e parameter.
+  ifneq (,$(shell which greadlink 2> /dev/null))
+    LLVM_READ_LINK = greadlink
+  else
+    $(error No greadlink command, for Mac OS X `install coreutils`!)
+  endif
 else ifneq (,$(shell which greadlink 2> /dev/null))
   LLVM_READ_LINK = greadlink
+else ifneq (,$(shell which readlink 2> /dev/null))
+  LLVM_READ_LINK = readlink
 else
-  $(error No readlink command, for Mac OS X `install coreutils`!)
+  $(error No greadlink or readlink command)
 endif
 
 LLVM_ROOT_DIR := $(shell pwd)
@@ -30,7 +77,9 @@ endif
 # Some defaults
 LLVM_BUILD_ENGINE ?= Unix Makefiles
 LLVM_BUILD_TYPE ?= Release
-LLVM_LINKER ?= gold
+
+# Define LLVM_LINKER to pass LLVM_USE_LINKER to have llvm output -fuse-ld=${LLVM_LINKER}
+#LLVM_LINKER ?= gold
 
 # There must always be a LLVM_CHECKOUT_REF
 ifeq (,$(LLVM_CHECKOUT_REF))
@@ -49,7 +98,9 @@ LLVM_BUILD_DIR := $(LLVM_GEN_DIR)/build
 LLVM_INSTALL_DIR := $(LLVM_GEN_DIR)/dist
 LLVM_TGT_DIR := $(LLVM_GEN_DIR)/tgt
 
-LLVM_USE_LINKER := -DLLVM_USE_LINKER=$(LLVM_LINKER)
+ifneq (,${LLVM_LINKER})
+  LLVM_USE_LINKER := -DLLVM_USE_LINKER=$(LLVM_LINKER)
+endif
 
 ifneq (,$(verbose))
   VERBOSE_CMAKE := -DCMAKE_VERBOSE_MAKEFILE=true
@@ -88,7 +139,9 @@ else ifeq ($(MAKECMDGOALS),rebuild)
 else ifeq ($(MAKECMDGOALS),get-submodule)
   # nothing to init
 else
-  ifeq ($(shell $(LLVM_READ_LINK) -f $(LLVM_INSTALL_DIR_SYMLINK)), $(LLVM_INSTALL_DIR))
+  # Check and see if we've installed this version. If so we don't need to get the source.
+  READ_LINK_RSLT := $(shell $(LLVM_READ_LINK) -e $(LLVM_INSTALL_DIR_SYMLINK))
+  ifeq ($(READ_LINK_RSLT), $(LLVM_INSTALL_DIR))
     GET_LLVM_SRC_TARGET := $(LLVM_TGT_DIR)/get-nothing
   else
     GET_LLVM_SRC_TARGET := $(LLVM_TGT_DIR)/get-llvm-src-$(LLVM_TGT_TAG)
@@ -111,6 +164,7 @@ endif
 #$(info lib/llvm/Makefile LLVM_BUILD_DIR="$(LLVM_BUILD_DIR)")
 #$(info lib/llvm/Makefile LLVM_INSTALL_DIR="$(LLVM_INSTALL_DIR)")
 #$(info lib/llvm/Makefile LLVM_INSTALL_DIR_SYMLINK="$(LLVM_INSTALL_DIR_SYMLINK)")
+#$(info lib/llvm/Makefile READ_LINK_RSLT="$(READ_LINK_RSLT)")
 #$(info lib/llvm/Makefile GET_LLVM_SRC_TARGET="$(GET_LLVM_SRC_TARGET)")
 #$(info lib/llvm/Makefile LLVM_PROJECT_LIST="$(LLVM_PROJECT_LIST)")
 #$(info lib/llvm/Makefile PROJECT_LIST="$(PROJECT_LIST)")
