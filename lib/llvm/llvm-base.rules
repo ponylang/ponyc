@@ -4,12 +4,12 @@ all: $(LLVM_BUILD_DIR) $(LLVM_TGT_DIR) install
 
 .PHONY: install
 install: $(LLVM_TGT_DIR)/installed-llvm-$(LLVM_TGT_TAG)
-	@ln -sf -T $(LLVM_INSTALL_DIR) $(LLVM_INSTALL_DIR_SYMLINK)
+	@ln -sf $(LLVM_INSTALL_DIR) $(LLVM_INSTALL_DIR_SYMLINK)
 
 .PHONY: rebuild
 rebuild: clean-built-installed
 	@$(MAKE) $(LLVM_TGT_DIR)/installed-llvm-$(LLVM_TGT_TAG)
-	@ln -sf -T $(LLVM_INSTALL_DIR) $(LLVM_INSTALL_DIR_SYMLINK)
+	@ln -sf $(LLVM_INSTALL_DIR) $(LLVM_INSTALL_DIR_SYMLINK)
 
 $(LLVM_BUILD_DIR):
 	@mkdir -p $(LLVM_BUILD_DIR)
