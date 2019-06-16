@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Make reading via TCPConnection re-entrant safe ([PR #3175](https://github.com/ponylang/ponyc/pull/3175))
 - Cleanup TCPConnection GC-safety mechanism for writev buffers ([#3177](https://github.com/ponylang/ponyc/pull/3177))
 - Add SSL tests and fix some SSL related bugs ([PR #3174](https://github.com/ponylang/ponyc/pull/3174))
+- Fix lib/llvm to support MacOS ([PR #3181](https://github.com/ponylang/ponyc/pull/3181))
 
 ### Added
 
