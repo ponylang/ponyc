@@ -809,7 +809,11 @@ actor TCPConnection
     Resize the read buffer.
     """
     if _expect != 0 then
-      _read_buf.undefined(_expect.next_pow2().max(_next_size))
+      // We know how much data to expect. If _read_buf is too small,
+      // then resize it.
+      if (_read_buf.size() - _read_buf_offset) <= _expect then
+        _read_buf.undefined(_expect.next_pow2().max(_next_size))
+      end
     else
       _read_buf.undefined(_next_size)
     end
