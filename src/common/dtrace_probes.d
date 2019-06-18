@@ -93,6 +93,18 @@ provider pony {
   probe actor__pressure__released(uintptr_t actor);
 
   /**
+   * Fired when actor is muted
+   * @param actor is the muted actor
+   */
+  probe actor__muted(uintptr_t actor);
+
+  /**
+   * Fired when actor is no longer muted
+   * @param actor is the no longer muted actor
+   */
+  probe actor__unmuted(uintptr_t actor);
+
+  /**
    * Fired when cpu goes into nanosleep
    * @param ns is nano seconds spent in sleep
    */
