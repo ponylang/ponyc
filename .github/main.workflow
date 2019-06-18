@@ -1,3 +1,0 @@
-workflow "Foo" {
-  on = "push"
-}
