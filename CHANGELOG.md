@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Cleanup TCPConnection GC-safety mechanism for writev buffers ([PR #3177](https://github.com/ponylang/ponyc/pull/3177))
 - Add SSL tests and fix some SSL related bugs ([PR #3174](https://github.com/ponylang/ponyc/pull/3174))
 - Fix lib/llvm to support MacOS ([PR #3181](https://github.com/ponylang/ponyc/pull/3181))
+- Close Denial of Service issue with TCPConnection.expect ([PR #3197](https://github.com/ponylang/ponyc/pull/3197))
 
 ### Added
 
@@ -26,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Allow use of runtime TCP connect without ASIO one shot ([PR #3171](https://github.com/ponylang/ponyc/pull/3171))
 - Simplify buffering in TCPConnection ([PR #3185](https://github.com/ponylang/ponyc/pull/3185))
 - Allow for fine-grained control of yielding CPU in TCPConnection ([PR #3197](https://github.com/ponylang/ponyc/pull/3187))
+- Make TCPConnection.expect partial ([PR #3197](https://github.com/ponylang/ponyc/pull/3197))
 
 ## [0.28.1] - 2019-06-01
 

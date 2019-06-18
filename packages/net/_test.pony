@@ -282,8 +282,12 @@ class _TestTCPExpectNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     conn.set_nodelay(true)
-    conn.expect(_expect)
-    _send(conn, "hi there")
+    try
+      conn.expect(_expect)?
+      _send(conn, "hi there")
+    else
+      conn.close()
+    end
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("client connect failed")
@@ -291,7 +295,11 @@ class _TestTCPExpectNotify is TCPConnectionNotify
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
     conn.set_nodelay(true)
-    conn.expect(_expect)
+    try
+      conn.expect(_expect)?
+    else
+      conn.close()
+    end
 
   fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
     _h.complete_action("expect received")
@@ -326,7 +334,11 @@ class _TestTCPExpectNotify is TCPConnectionNotify
       _expect = 4
     end
 
-    conn.expect(_expect)
+    try
+      conn.expect(_expect)?
+    else
+      conn.close()
+    end
     true
 
   fun ref _send(conn: TCPConnection ref, data: String) =>

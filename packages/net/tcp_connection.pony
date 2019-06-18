@@ -463,14 +463,23 @@ actor TCPConnection
     @pony_os_peername[Bool](_fd, ip)
     ip
 
-  fun ref expect(qty: USize = 0) =>
+  fun ref expect(qty: USize = 0) ? =>
     """
     A `received` call on the notifier must contain exactly `qty` bytes. If
     `qty` is zero, the call can contain any amount of data. This has no effect
     if called in the `sent` notifier callback.
+
+    `qty` can not exceed the max buffer size as indicated by the
+    read_buffer_size` supplied when the connection was created.
     """
-    if not _in_sent then
-      _expect = _notify.expect(this, qty)
+
+    if qty <= _read_buffer_size then
+      if not _in_sent then
+        _expect = _notify.expect(this, qty)
+        _read_buf_size()
+      end
+    else
+      error
     end
 
   fun ref set_nodelay(state: Bool) =>
