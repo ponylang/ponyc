@@ -45,10 +45,9 @@ actor TCPListener
   let _limit: USize
   var _count: USize = 0
   var _paused: Bool = false
-  var _read_buffer_size: USize
+  let _read_buffer_size: USize
   let _yield_after_reading: USize
   let _yield_after_writing: USize
-
 
   new create(
     auth: TCPListenerAuth,
