@@ -214,8 +214,7 @@ actor TCPConnection
   var _read_buf_offset: USize = 0
   var _max_received_called: USize = 50
 
-  var _next_size: USize
-  let _max_size: USize
+  let _read_buffer_size: USize
 
   var _expect: USize = 0
 
@@ -227,16 +226,14 @@ actor TCPConnection
     host: String,
     service: String,
     from: String = "",
-    init_size: USize = 64,
-    max_size: USize = 16384)
+    read_buffer_size: USize = 16384)
   =>
     """
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
     will be made from the specified interface.
     """
-    _read_buf = recover Array[U8] .> undefined(init_size) end
-    _next_size = init_size
-    _max_size = max_size
+    _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
+    _read_buffer_size = read_buffer_size
     _notify = consume notify
     let asio_flags =
       ifdef not windows then
@@ -255,15 +252,13 @@ actor TCPConnection
     host: String,
     service: String,
     from: String = "",
-    init_size: USize = 64,
-    max_size: USize = 16384)
+    read_buffer_size: USize = 16384)
   =>
     """
     Connect via IPv4.
     """
-    _read_buf = recover Array[U8] .> undefined(init_size) end
-    _next_size = init_size
-    _max_size = max_size
+    _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
+    _read_buffer_size = read_buffer_size
     _notify = consume notify
     let asio_flags =
       ifdef not windows then
@@ -282,15 +277,13 @@ actor TCPConnection
     host: String,
     service: String,
     from: String = "",
-    init_size: USize = 64,
-    max_size: USize = 16384)
+    read_buffer_size: USize = 16384)
   =>
     """
     Connect via IPv6.
     """
-    _read_buf = recover Array[U8] .> undefined(init_size) end
-    _next_size = init_size
-    _max_size = max_size
+    _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
+    _read_buffer_size = read_buffer_size
     _notify = consume notify
     let asio_flags =
       ifdef not windows then
@@ -307,8 +300,7 @@ actor TCPConnection
     listen: TCPListener,
     notify: TCPConnectionNotify iso,
     fd: U32,
-    init_size: USize = 64,
-    max_size: USize = 16384)
+    read_buffer_size: USize = 16384)
   =>
     """
     A new connection accepted on a server.
@@ -329,9 +321,8 @@ actor TCPConnection
       @pony_asio_event_set_writeable(_event, true)
     end
     _writeable = true
-    _read_buf = recover Array[U8] .> undefined(init_size) end
-    _next_size = init_size
-    _max_size = max_size
+    _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
+    _read_buffer_size = read_buffer_size
 
     _notify.accepted(this)
 
@@ -657,7 +648,7 @@ actor TCPConnection
       var bytes_to_send: USize = 0
       var bytes_sent: USize = 0
       while _writeable and (_pending_writev_total > 0) do
-        if bytes_sent >= _max_size then
+        if bytes_sent >= _read_buffer_size then
           _write_again()
           return false
         end
@@ -775,16 +766,13 @@ actor TCPConnection
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
-      match len.usize()
-      | 0 =>
+      if len.usize() == 0 then
         // The socket has been closed from the other side, or a hard close has
         // cancelled the queued read.
         _readable = false
         _shutdown_peer = true
         close()
         return
-      | _next_size =>
-        _next_size = _max_size.min(_next_size * 2)
       end
 
       _read_buf_offset = _read_buf_offset + len.usize()
@@ -806,16 +794,10 @@ actor TCPConnection
 
   fun ref _read_buf_size() =>
     """
-    Resize the read buffer.
+    Resize the read buffer if it is empty or smaller than the next payload size
     """
-    if _expect != 0 then
-      // We know how much data to expect. If _read_buf is too small,
-      // then resize it.
-      if (_read_buf.size() - _read_buf_offset) <= _expect then
-        _read_buf.undefined(_expect.next_pow2().max(_next_size))
-      end
-    else
-      _read_buf.undefined(_next_size)
+    if _read_buf.size() <= _expect then
+      _read_buf.undefined(_read_buffer_size)
     end
 
   fun ref _queue_read() =>
@@ -879,8 +861,8 @@ actor TCPConnection
             end
           end
 
-          if sum >= _max_size then
-            // If we've read _max_size, yield and read again later.
+          if sum >= _read_buffer_size then
+            // If we've read _read_buffer_size, yield and read again later.
             _read_buf_size()
             _read_again()
             _reading = false
@@ -898,8 +880,7 @@ actor TCPConnection
             _read_buf.cpointer(_read_buf_offset),
             _read_buf.size() - _read_buf_offset) ?
 
-          match len
-          | 0 =>
+          if len == 0 then
             // Would block, try again later.
             // this is safe because asio thread isn't currently subscribed
             // for a read event so will not be writing to the readable flag
@@ -908,9 +889,6 @@ actor TCPConnection
             _reading = false
             @pony_asio_event_resubscribe_read(_event)
             return
-          | (_read_buf.size() - _read_buf_offset) =>
-            // Increase the read buffer size.
-            _next_size = _max_size.min(_next_size * 2)
           end
 
           _read_buf_offset = _read_buf_offset + len
