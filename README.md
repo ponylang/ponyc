@@ -3,6 +3,8 @@
 
 # Contributors
 
+
+
 This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
 <a href="https://github.com/ponylang/ponyc/graphs/contributors"><img src="https://opencollective.com/ponyc/contributors.svg?width=890&button=false" /></a>
 
