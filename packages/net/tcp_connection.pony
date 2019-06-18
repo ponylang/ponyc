@@ -216,6 +216,9 @@ actor TCPConnection
 
   let _read_buffer_size: USize
 
+  let _yield_after_reading: USize
+  let _yield_after_writing: USize
+
   var _expect: USize = 0
 
   var _muted: Bool = false
@@ -226,7 +229,9 @@ actor TCPConnection
     host: String,
     service: String,
     from: String = "",
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
@@ -234,6 +239,8 @@ actor TCPConnection
     """
     _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
     _notify = consume notify
     let asio_flags =
       ifdef not windows then
@@ -252,13 +259,17 @@ actor TCPConnection
     host: String,
     service: String,
     from: String = "",
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     Connect via IPv4.
     """
     _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
     _notify = consume notify
     let asio_flags =
       ifdef not windows then
@@ -277,13 +288,17 @@ actor TCPConnection
     host: String,
     service: String,
     from: String = "",
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     Connect via IPv6.
     """
     _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
     _notify = consume notify
     let asio_flags =
       ifdef not windows then
@@ -300,7 +315,9 @@ actor TCPConnection
     listen: TCPListener,
     notify: TCPConnectionNotify iso,
     fd: U32,
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     A new connection accepted on a server.
@@ -323,6 +340,8 @@ actor TCPConnection
     _writeable = true
     _read_buf = recover Array[U8] .> undefined(read_buffer_size) end
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
 
     _notify.accepted(this)
 
@@ -648,7 +667,9 @@ actor TCPConnection
       var bytes_to_send: USize = 0
       var bytes_sent: USize = 0
       while _writeable and (_pending_writev_total > 0) do
-        if bytes_sent >= _read_buffer_size then
+        if bytes_sent >= _yield_after_writing then
+          // We've written _yield_after_writing bytes.
+          // Yield and write again later.
           _write_again()
           return false
         end
@@ -861,8 +882,9 @@ actor TCPConnection
             end
           end
 
-          if sum >= _read_buffer_size then
-            // If we've read _read_buffer_size, yield and read again later.
+          if sum >= _yield_after_reading then
+            // If we've read _yield_after_reading bytes
+            // yield and read again later.
             _read_buf_size()
             _read_again()
             _reading = false
