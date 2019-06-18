@@ -4,6 +4,6 @@ workflow "Delete Branch on Merge" {
 }
 
 action "SvanBoxel/delete-merged-branch" {
-  uses = "SvanBoxel/delete-merged-branch@be6c5ba3c5d9e19c04e60b28b7d5309ac3fd12fc"
+  uses = "SvanBoxel/delete-merged-branch@v1.3.3"
   secrets = ["GITHUB_TOKEN"]
 }
