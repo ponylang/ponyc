@@ -766,7 +766,7 @@ actor TCPConnection
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
-      if len.usize() == 0 then
+      if len == 0 then
         // The socket has been closed from the other side, or a hard close has
         // cancelled the queued read.
         _readable = false
