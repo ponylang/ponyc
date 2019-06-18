@@ -46,6 +46,9 @@ actor TCPListener
   var _count: USize = 0
   var _paused: Bool = false
   var _read_buffer_size: USize
+  let _yield_after_reading: USize
+  let _yield_after_writing: USize
+
 
   new create(
     auth: TCPListenerAuth,
@@ -53,7 +56,9 @@ actor TCPListener
     host: String = "",
     service: String = "0",
     limit: USize = 0,
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     Listens for both IPv4 and IPv6 connections.
@@ -64,6 +69,8 @@ actor TCPListener
       @pony_os_listen_tcp[AsioEventID](this,
         host.cstring(), service.cstring())
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
@@ -73,7 +80,9 @@ actor TCPListener
     host: String = "",
     service: String = "0",
     limit: USize = 0,
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     Listens for IPv4 connections.
@@ -84,6 +93,8 @@ actor TCPListener
       @pony_os_listen_tcp4[AsioEventID](this, host.cstring(),
         service.cstring())
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
@@ -93,7 +104,9 @@ actor TCPListener
     host: String = "",
     service: String = "0",
     limit: USize = 0,
-    read_buffer_size: USize = 16384)
+    read_buffer_size: USize = 16384,
+    yield_after_reading: USize = 16384,
+    yield_after_writing: USize = 16384)
   =>
     """
     Listens for IPv6 connections.
@@ -104,6 +117,8 @@ actor TCPListener
       @pony_os_listen_tcp6[AsioEventID](this, host.cstring(),
         service.cstring())
     _read_buffer_size = read_buffer_size
+    _yield_after_reading = yield_after_reading
+    _yield_after_writing = yield_after_writing
     _fd = @pony_asio_event_fd(_event)
     _notify_listening()
 
@@ -211,7 +226,7 @@ actor TCPListener
     """
     try
       TCPConnection._accept(this, _notify.connected(this)?, ns,
-        _read_buffer_size)
+        _read_buffer_size, _yield_after_reading, _yield_after_writing)
       _count = _count + 1
     else
       @pony_os_socket_close[None](ns)
