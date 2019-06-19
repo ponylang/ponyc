@@ -470,7 +470,7 @@ actor TCPConnection
     if called in the `sent` notifier callback.
 
     Errors if `qty` exceeds the max buffer size as indicated by the
-    read_buffer_size` supplied when the connection was created.
+    `read_buffer_size` supplied when the connection was created.
     """
 
     if qty <= _read_buffer_size then
