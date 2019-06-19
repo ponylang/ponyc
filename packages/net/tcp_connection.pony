@@ -469,7 +469,7 @@ actor TCPConnection
     `qty` is zero, the call can contain any amount of data. This has no effect
     if called in the `sent` notifier callback.
 
-    `qty` can not exceed the max buffer size as indicated by the
+    Errors if `qty` exceeds the max buffer size as indicated by the
     read_buffer_size` supplied when the connection was created.
     """
 
