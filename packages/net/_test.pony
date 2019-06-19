@@ -286,7 +286,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
       conn.expect(_expect)?
       _send(conn, "hi there")
     else
-      conn.close()
+      _h.fail("expect threw an error")
     end
 
   fun ref connect_failed(conn: TCPConnection ref) =>
@@ -298,7 +298,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     try
       conn.expect(_expect)?
     else
-      conn.close()
+      _h.fail("expect threw an error")
     end
 
   fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
@@ -337,7 +337,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     try
       conn.expect(_expect)?
     else
-      conn.close()
+      _h.fail("expect threw an error")
     end
     true
 
