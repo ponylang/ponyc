@@ -8,14 +8,16 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Do not permit leading zeros in JSON numbers ([PR #3167](https://github.com/ponylang/ponyc/pull/3167))
 - Make reading via TCPConnection re-entrant safe ([PR #3175](https://github.com/ponylang/ponyc/pull/3175))
-- Cleanup TCPConnection GC-safety mechanism for writev buffers ([#3177](https://github.com/ponylang/ponyc/pull/3177))
+- Cleanup TCPConnection GC-safety mechanism for writev buffers ([PR #3177](https://github.com/ponylang/ponyc/pull/3177))
 - Add SSL tests and fix some SSL related bugs ([PR #3174](https://github.com/ponylang/ponyc/pull/3174))
 - Fix lib/llvm to support MacOS ([PR #3181](https://github.com/ponylang/ponyc/pull/3181))
+- Close Denial of Service issue with TCPConnection.expect ([PR #3197](https://github.com/ponylang/ponyc/pull/3197))
 
 ### Added
 
 - Allow use of OpenSSL 1.1.1 when building Pony ([PR #3156](https://github.com/ponylang/ponyc/pull/3156))
 - Add `pointer.offset` to get arbitrary pointer tags via offset ([#3177](https://github.com/ponylang/ponyc/pull/3177))
+- Add DTrace/SystemTap probes for muted & unmuted events ([PR #3196](https://github.com/ponylang/ponyc/pull/3196))
 - Add method to AsioEvent to see if an event is a oneshot ([PR #3198](https://github.com/ponylang/ponyc/pull/3198))
 
 ### Changed
@@ -26,6 +28,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Allow use of runtime TCP connect without ASIO one shot ([PR #3171](https://github.com/ponylang/ponyc/pull/3171))
 - Simplify buffering in TCPConnection ([PR #3185](https://github.com/ponylang/ponyc/pull/3185))
 - Allow for fine-grained control of yielding CPU in TCPConnection ([PR #3197](https://github.com/ponylang/ponyc/pull/3187))
+- Make TCPConnection.expect partial ([PR #3197](https://github.com/ponylang/ponyc/pull/3197))
 
 ## [0.28.1] - 2019-06-01
 
@@ -1355,4 +1358,3 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
-
