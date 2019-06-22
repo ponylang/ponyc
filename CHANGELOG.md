@@ -16,7 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Allow use of OpenSSL 1.1.1 when building Pony ([PR #3156](https://github.com/ponylang/ponyc/pull/3156))
-- Add `pointer.offset` to get arbitrary pointer tags via offset ([#3177](https://github.com/ponylang/ponyc/pull/3177))
+- Add `pointer.offset` to get arbitrary pointer tags via offset ([PR #3177](https://github.com/ponylang/ponyc/pull/3177))
 - Add DTrace/SystemTap probes for muted & unmuted events ([PR #3196](https://github.com/ponylang/ponyc/pull/3196))
 - Add method to AsioEvent to see if an event is a oneshot ([PR #3198](https://github.com/ponylang/ponyc/pull/3198))
 
