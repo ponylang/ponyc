@@ -1051,3 +1051,24 @@ TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeededType)
     "embedded fields must be classes or structs",
     "embedded fields must be classes or structs")
 }
+
+TEST_F(BadPonyTest, AllowAliasForNonEphemeralReturn)
+{
+  const char* src =
+    "class iso Inner\n"
+    "  new iso create() => None\n"
+
+    "class Container[A: Inner #any]\n"
+    "  var inner: A\n"
+    "  new create(inner': A) => inner = consume inner'\n"
+    "  fun get_1(): this->A => inner                        // works\n"
+    "  fun get_2(): this->A => let tmp = inner; consume tmp // also works\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Container[Inner iso](Inner)\n"
+    "    let i_1 : Inner tag = o.get_1()\n"
+    "    let i_2 : Inner tag = o.get_2()";
+
+  TEST_COMPILE(src);
+}
