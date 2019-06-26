@@ -113,7 +113,7 @@ help:
 	@echo '   actor_continuations'
 	@echo '   coverage'
 	@echo '   scheduler_scaling_pthreads'
-	@echo '   llvm_link_static'
+	@echo '   llvm_link_dynamic'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

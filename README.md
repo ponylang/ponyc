@@ -580,7 +580,7 @@ scl enable llvm-toolset-7 bash
 
 ```bash
 cd ~/ponyc/
-make use="llvm_link_static"
+make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```

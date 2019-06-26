@@ -144,6 +144,7 @@ PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
 PONY_BENCHMARK_DIR ?= benchmark
+LLVM_LINK_STATIC ?= --link-static
 
 comma:= ,
 empty:=
@@ -202,13 +203,9 @@ define USE_CHECK
   else ifeq ($1,scheduler_scaling_pthreads)
     ALL_CFLAGS += -DUSE_SCHEDULER_SCALING_PTHREADS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-scheduler_scaling_pthreads
-  else ifeq ($1,llvm_link_static)
-    ifeq (,$(LLVM_LINK_STATIC))
-      LLVM_LINK_STATIC=--link-static
-      $$(info "linking llvm statically")
-    else
-      $$(warning LLVM_LINK_STATIC already set to '$(LLVM_LINK_STATIC)'; using pre-existing value)
-    endif
+  else ifeq ($1,llvm_link_dynamic)
+    LLVM_LINK_STATIC=
+    $$(info "linking llvm dynamically")
   else
     $$(error ERROR: Unknown use option specified: $1)
   endif
@@ -1121,7 +1118,7 @@ help:
 	@echo '   dtrace'
 	@echo '   actor_continuations'
 	@echo '   coverage'
-	@echo '   llvm_link_static'
+	@echo '   llvm_link_dynamic'
 	@echo '   scheduler_scaling_pthreads'
 	@echo '   thread_sanitizer'
 	@echo '   address_sanitizer'

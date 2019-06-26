@@ -159,7 +159,7 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: echo 'export test_ci_params="config=debug default_pic=true use=llvm_link_static"' >> $BASH_ENV
+      - run: echo 'export test_ci_params="config=debug default_pic=true' >> $BASH_ENV
       - run: *test-ci-lib-llvm
 
   lib-llvm-centos7-release:
@@ -168,7 +168,7 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: echo 'export test_ci_params="config=release default_pic=true use=llvm_link_static"' >> $BASH_ENV
+      - run: echo 'export test_ci_params="config=release default_pic=true' >> $BASH_ENV
       - run: *test-ci-lib-llvm
 
   # Jobs for building and testing with ponyc system installed cross-llvm
