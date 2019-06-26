@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add SSL tests and fix some SSL related bugs ([PR #3174](https://github.com/ponylang/ponyc/pull/3174))
 - Fix lib/llvm to support MacOS ([PR #3181](https://github.com/ponylang/ponyc/pull/3181))
 - Close Denial of Service issue with TCPConnection.expect ([PR #3197](https://github.com/ponylang/ponyc/pull/3197))
+- Fix return type checking to allow aliasing for non-ephemeral return types. ([PR #3201](https://github.com/ponylang/ponyc/pull/3201))
 
 ### Added
 
