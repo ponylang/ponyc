@@ -98,13 +98,13 @@ class iso _TestMap is UnitTest
     h.assert_eq[U32](11, (a("1") = 1) as U32)
 
     let b = Map[String, U32]
-    h.assert_eq[U32](0, b.insert("0", 0)?)
-    h.assert_eq[U32](1, b.insert("1", 1)?)
-    h.assert_eq[U32](2, b.insert("2", 2)?)
-    h.assert_eq[U32](3, b.insert("3", 3)?)
-    h.assert_eq[U32](4, b.insert("4", 4)?)
-    h.assert_eq[U32](5, b.insert("5", 5)?)
-    h.assert_eq[U32](6, b.insert("6", 6)?)
+    h.assert_eq[U32](0, b.insert("0", 0))
+    h.assert_eq[U32](1, b.insert("1", 1))
+    h.assert_eq[U32](2, b.insert("2", 2))
+    h.assert_eq[U32](3, b.insert("3", 3))
+    h.assert_eq[U32](4, b.insert("4", 4))
+    h.assert_eq[U32](5, b.insert("5", 5))
+    h.assert_eq[U32](6, b.insert("6", 6))
 
     h.assert_eq[USize](7, a.size())
     h.assert_eq[USize](16, a.space())

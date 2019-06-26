@@ -121,10 +121,11 @@ class HashMap[K, V, H: HashFunction[K] val]
       error
     end
 
-  fun ref insert(key: K, value: V): V ? =>
+  fun ref insert(key: K, value: V): V =>
     """
     Set a value in the map. Returns the new value, allowing reuse.
     """
+    let value' = value
     try
       (let i, let found) = _search(key)
       let key' = key
@@ -135,14 +136,13 @@ class HashMap[K, V, H: HashFunction[K] val]
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')?
         end
       end
 
-      _array(i)? as (_, V)
+      value'
     else
       // This is unreachable, since index will never be out-of-bounds.
-      error
+      value'
     end
 
   fun ref insert_if_absent(key: K, value: V): V ? =>
