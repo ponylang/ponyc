@@ -1,4 +1,7 @@
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
+
 #include "cycle.h"
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"

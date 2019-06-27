@@ -4,22 +4,44 @@ First of all, you need a compiler with decent C11 support. The following compile
 
 - GCC >= 4.7
 - Clang >= 3.4
-- MSVC >= 2015
+- MSVC >= 2017
 - XCode Clang >= 6.0
+
+You also need [CMake](https://cmake.org/download/) version 3.15 or higher.
+
+## Build Steps
+
+The build system uses CMake, and includes a helper wrapper that will automatically set up your out-of-source build directories and libraries for you.
+
+The build system is divided into several stages:
+
+- Build the vendored LLVM libraries that are included in the `lib/llvm/src` Git submodule by running `make libs` (`.\make.ps1 libs` on Windows).  This stage only needs to be run once the first time you build (or if the vendored LLVM submodule changes, or if you run `make distclean`).
+
+- `make build` will build ponyc and put it in `build/release`.  Use `make build config=debug` (`.\make.ps1 build -Config Debug` on Windows) for a debug build.
+- `make test` will run the test suite.
+- `make install` will install ponyc to `/usr/local` by default (`make install prefix=/foo` to install elsewhere; `make install -Prefix foo` on Windows).
+- `make clean` will clean your ponyc build, but not the libraries.
+- `make distclean` will delete the `build` directory, including the libraries.
 
 ## FreeBSD
 
 ```bash
 pkg install -y cmake gmake libunwind git
-make -f Makefile-lib-llvm
-sudo make -f Makefile-lib-llvm install
+make libs
+make configure
+make build
+sudo make install
 ```
+
+Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
 ## Linux
 
 ```bash
-make -f Makefile-lib-llvm
-sudo make -f Makefile-lib-llvm install
+make libs
+make configure
+make build
+sudo make install
 ```
 
 Additional Requirements:
@@ -28,59 +50,46 @@ Distribution | Requires
 --- | ---
 alpine | cmake, g++, make, libexecinfo
 ubuntu | cmake, g++, make
+fedora | cmake, gcc-c++, make, libatomic, libstdc++-static
+
+Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
 ## macOS
 
 ```bash
-make -f Makefile-lib-llvm
-sudo make -f Makefile-lib-llvm install
+make libs
+make configure
+make build
+sudo make install
 ```
+
+Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
 ## Windows
 
 Building on Windows requires the following:
 
-- Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
-  - If using Visual Studio 2015, install the Windows 10 SDK (available [here](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk)).
-  - If using Visual Studio 2017 or 2019, install the "Desktop Development with C++" workload.
-  - If using Visual C++ Build Tools 2017 or 2019, install the "Visual C++ build tools" workload, and the "Visual Studio C++ core features" individual component.
-  - If using Visual Studio 2017 or 2019, or Visual C++ Build Tools 2017 or 2019, make sure the latest `Windows 10 SDK (10.x.x.x) for Desktop` will be installed.
-- [Python](https://www.python.org/downloads) (3.6 or 2.7) needs to be in your PATH.
+- [CMake](https://cmake.org/download/) version 3.15.0 or higher needs to be in your PATH.
+- Visual Studio 2019 or 2017 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019 or 2017 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
+  - If using Visual Studio, install the `Desktop Development with C++` workload.
+  - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `Visual Studio C++ core features` individual component.
+  - Install the latest `Windows 10 SDK (10.x.x.x) for Desktop` component.
 
-In a command prompt in the `ponyc` source directory, run the following:
-
-```
-make.bat configure
-```
-
-(You only need to run `make.bat configure` the first time you build the project.)
+In a PowerShell prompt, run:
 
 ```
-make.bat build test
-```
+.\make.ps1 libs
+.\make.ps1 configure
+.\make.ps1 build
 
-This will automatically perform the following steps:
+Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release"`
 
-- Download the pre-built LLVM library for building the Pony compiler.
-  - [LLVM](http://llvm.org)
-- Build the pony compiler in the `build/<config>-<llvm-version>` directory.
-- Build the unit tests for the compiler and the standard library.
-- Run the unit tests.
+Note that you only need to run `.\make.ps1 libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
-You can provide the following options to `make.bat` when running the `build` or `test` commands:
-
-- `--config debug|release`: whether or not to build a debug or release build (`release` is the default).
-- `--llvm <version>`: the LLVM version to build against (`3.9.1` is the default).
-
-Note that you need to provide these options each time you run make.bat; the system will not remember your last choice.
-
-Other commands include `clean`, which will clean a specified configuration; and `distclean`, which will wipe out the entire build directory.  You will need to run `make configure` after a distclean.
-
-Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release-llvm-7.0.1"`
 
 ----
 
-# Additional Build options
+# Additional Build Options on Unix
 
 ## arch
 
@@ -98,19 +107,12 @@ Link-time optimizations provide a performance improvement. You should strongly c
 
 - If you are on MacOS, turning on LTO means that if you upgrade your version of XCode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of XCode used to build the Pony runtime and the version of XCode you currently have installed.
 
-You can enable LTO when building the compiler in release mode. There are slight differences between platforms so you'll need to do a manual setup. LTO is enabled by setting `lto` to `yes` in the build command line like:
+LTO is enabled by setting `lto` to `yes` in the build command line like:
 
 ```bash
-make lto=yes
+make configure lto=yes
+make build
 ```
-
-If the build fails, you have to specify the LTO plugin for your compiler in the `LTO_PLUGIN` variable. For example:
-
-```bash
-make LTO_PLUGIN=/usr/lib/LLVMgold.so
-```
-
-Refer to your compiler documentation for the plugin to use in your case.
 
 ## runtime-bitcode
 
