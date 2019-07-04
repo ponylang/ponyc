@@ -6,7 +6,7 @@ RUN apk add --update --no-cache \
   alpine-sdk \
   libressl-dev \
   binutils-gold \
-  llvm${LLVM_VERSION} \
+  llvm${LLVM_VERSION}-static \
   llvm${LLVM_VERSION}-dev \
   pcre2-dev \
   libexecinfo-dev \
@@ -31,7 +31,7 @@ RUN git clone https://github.com/ponylang/pony-stable /src/pony-stable
 WORKDIR /src/pony-stable
 
 RUN make \
- && make install
+  && make install
 
 WORKDIR /src/main
 

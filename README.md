@@ -627,7 +627,7 @@ make
 Install build tools/dependencies:
 
 ```bash
-apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev \
+apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9-static llvm3.9-dev \
   pcre2-dev libexecinfo-dev coreutils linux-headers
 ```
 
