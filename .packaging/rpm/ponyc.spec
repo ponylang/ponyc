@@ -10,9 +10,9 @@
 %global extra_build_args use="llvm_link_static" LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %else
 %if %{?_vendor} == suse
-%global extra_build_args default_ssl='openssl_1.1.0'
+%global extra_build_args default_ssl='openssl_1.1.x'
 %else
-%global extra_build_args default_ssl='openssl_1.1.0' LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
+%global extra_build_args default_ssl='openssl_1.1.x' LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %endif
 %endif
 

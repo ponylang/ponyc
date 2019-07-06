@@ -4,6 +4,7 @@ use "lib:crypto"
 
 use @OPENSSL_init_ssl[I32](opts: U64, settings: Pointer[_OpenSslInitSettings])
 use @OPENSSL_INIT_new[Pointer[_OpenSslInitSettings]]()
+use @OPENSSL_INIT_free[None](settings: Pointer[_OpenSslInitSettings])
 
 primitive _OpenSslInitSettings
 
@@ -18,10 +19,11 @@ primitive _SSLInit
   This initialises SSL when the program begins.
   """
   fun _init() =>
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       let settings = @OPENSSL_INIT_new()
       @OPENSSL_init_ssl(_OpenSslInitLoadSslStrings.apply()
           + _OpenSslInitLoadCryptoStrings.apply(), settings)
+      @OPENSSL_INIT_free(settings)
     else
       @SSL_load_error_strings[None]()
       @SSL_library_init[I32]()

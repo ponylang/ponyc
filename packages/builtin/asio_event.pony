@@ -31,6 +31,12 @@ primitive AsioEvent
     """
     flags == 0
 
+  fun oneshotable(flags: U32): Bool =>
+    """
+    Returns true if the flags contain the oneshot flag.
+    """
+    (flags and (1 << 8)) != 0
+
   fun dispose(): U32 => 0
 
   fun read(): U32 => 1 << 0

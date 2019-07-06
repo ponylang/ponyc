@@ -77,7 +77,7 @@ class SSL
     """
     var ptr: Pointer[U8] iso = recover Pointer[U8] end
     var len = U32(0)
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       @SSL_get0_alpn_selected[None](_ssl, addressof ptr, addressof len)
     end
 
@@ -130,6 +130,10 @@ class SSL
       if r <= 0 then
         match @SSL_get_error[I32](_ssl, r)
         | 1 | 5 | 6 => _state = SSLError
+        | 2 =>
+          // SSL buffer has more data but it is not yet decoded (or something)
+          _read_buf.truncate(offset)
+          return None
         end
 
         _read_buf.truncate(offset)
@@ -147,7 +151,24 @@ class SSL
     if ready then
       _read_buf = recover Array[U8] end
     else
-      None
+      // try and read again any pending data that SSL hasn't decoded yet
+      if @BIO_ctrl_pending[USize](_input) > 0 then
+        read(expect)
+      else
+        ifdef "openssl_1.1.x" then
+          // try and read again any data already decoded from SSL that hasn't
+          // been read via `SSL_has_pending` that was added in 1.1
+          // This mailing list post has a good description of what it is for:
+          // https://mta.openssl.org/pipermail/openssl-users/2017-January/005110.html
+          if @SSL_has_pending[I32](_ssl) == 1 then
+            read(expect)
+          else
+            None
+          end
+        else
+          None
+        end
+      end
     end
 
   fun ref write(data: ByteSeq) ? =>

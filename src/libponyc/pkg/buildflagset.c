@@ -643,3 +643,13 @@ bool is_build_flag_defined(const char* name)
 
   return f2 != NULL;
 }
+
+void clear_build_flags()
+{
+  if(_user_flags != NULL)
+  {
+    flagtab_destroy(_user_flags);
+    POOL_FREE(flagtab_t, _user_flags);
+    _user_flags = NULL;
+  }
+}

@@ -70,7 +70,7 @@ primitive X509
     end
 
     var name =
-      ifdef "openssl_1.1.0" then
+      ifdef "openssl_1.1.x" then
         @OPENSSL_sk_pop[Pointer[_GeneralName]](stack)
       else
         @sk_pop[Pointer[_GeneralName]](stack)
@@ -114,14 +114,14 @@ primitive X509
       end
 
       @GENERAL_NAME_free[None](name)
-      ifdef "openssl_1.1.0" then
+      ifdef "openssl_1.1.x" then
         name = @OPENSSL_sk_pop[Pointer[_GeneralName]](stack)
       else
         name = @sk_pop[Pointer[_GeneralName]](stack)
       end
     end
 
-    ifdef "openssl_1.1.0" then
+    ifdef "openssl_1.1.x" then
       @OPENSSL_sk_free[None](stack)
     else
       @sk_free[None](stack)

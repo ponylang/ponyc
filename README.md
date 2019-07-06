@@ -358,7 +358,7 @@ cd ../../../
 #### Debug/test ....
 Now build and test using `LLVM_CFG=llvm-default.cfg` and any other appropriate parameters:
 ```
-make -j12 LLVM_CFG=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.0 -f Makefile-lib-llvm
+make -j12 LLVM_CFG=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.x -f Makefile-lib-llvm
 ```
 When satisfied create a commit pushing to your repo:
 ```
@@ -390,7 +390,7 @@ To build ponyc and compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl=openssl_1.1.0
+make default_pic=true default_ssl=openssl_1.1.x
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -469,7 +469,7 @@ Build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl=openssl_1.1.0
+make default_pic=true default_ssl=openssl_1.1.x
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -513,7 +513,7 @@ To build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_ssl='openssl_1.1.0'
+make default_ssl='openssl_1.1.x'
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```

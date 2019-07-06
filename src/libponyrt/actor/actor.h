@@ -37,8 +37,8 @@ typedef struct pony_actor_t
   pony_msg_t* continuation;
 #endif
   PONY_ATOMIC(uint8_t) flags;
-  PONY_ATOMIC(uint64_t) muted;
   PONY_ATOMIC(uint8_t) is_muted;
+  PONY_ATOMIC(size_t) muted;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
@@ -59,7 +59,7 @@ enum
 
 bool has_flag(pony_actor_t* actor, uint8_t flag);
 
-bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch);
+bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling);
 
 void ponyint_actor_destroy(pony_actor_t* actor);
 

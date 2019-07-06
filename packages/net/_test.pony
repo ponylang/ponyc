@@ -1,4 +1,6 @@
+use "files"
 use "ponytest"
+use "ssl"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -10,10 +12,18 @@ actor Main is TestList
     end
     test(_TestTCPWritev)
     test(_TestTCPExpect)
+    test(_TestTCPExpectOverBufferSize)
     test(_TestTCPMute)
     test(_TestTCPUnmute)
     ifdef not windows then
       test(_TestTCPThrottle)
+    end
+    test(_TestTCPSSLWritev)
+    test(_TestTCPSSLExpect)
+    test(_TestTCPSSLMute)
+    test(_TestTCPSSLUnmute)
+    ifdef not windows then
+      test(_TestTCPSSLThrottle)
     end
 
 class _TestPing is UDPNotify
@@ -208,11 +218,75 @@ class iso _TestTCPExpect is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    h.expect_action("client connect")
     h.expect_action("client receive")
     h.expect_action("server receive")
     h.expect_action("expect received")
 
     _TestTCP(h)(_TestTCPExpectNotify(h, false), _TestTCPExpectNotify(h, true))
+
+class iso _TestTCPExpectOverBufferSize is UnitTest
+  """
+  Test expecting framed data with TCP.
+  """
+  fun name(): String => "net/TCP.expectoverbuffersize"
+  fun label(): String => "unreliable-osx"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("client connect")
+    h.expect_action("connected")
+    h.expect_action("accepted")
+
+    _TestTCP(h)(_TestTCPExpectOverBufferSizeNotify(h),
+      _TestTCPExpectOverBufferSizeNotify(h))
+
+primitive _SSLContext
+  fun val apply(h: TestHelper): (SSL iso^, SSL iso^) ? =>
+    let sslctx =
+      try
+        let auth = h.env.root as AmbientAuth
+        recover
+          SSLContext
+            .>set_authority(FilePath(auth, "./examples/net/cert.pem")?)?
+            .>set_cert(
+              FilePath(auth, "./examples/net/cert.pem")?,
+              FilePath(auth, "./examples/net/key.pem")?)?
+            .>set_client_verify(true)
+            .>set_server_verify(true)
+        end
+      else
+        h.fail("set_cert failed")
+        error
+      end
+
+    let ssl_client = try sslctx.client()? else h.fail("failed getting ssl client session"); error end
+    let ssl_server = try sslctx.server()? else h.fail("failed getting ssl server session"); error end
+
+    (consume ssl_client, consume ssl_server)
+
+class iso _TestTCPSSLExpect is UnitTest
+  """
+  Test expecting framed data with TCP over SSL.
+  """
+  fun name(): String => "net/TCPSSL.expect"
+  fun label(): String => "unreliable-osx"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("client receive")
+    h.expect_action("server receive")
+    h.expect_action("expect received")
+
+    (let ssl_client, let ssl_server) =
+      try
+        _SSLContext(h)?
+      else
+        h.fail("ssl stuff failed")
+        return
+      end
+
+    _TestTCP(h)(SSLConnection(_TestTCPExpectNotify(h, false), consume ssl_client), SSLConnection(_TestTCPExpectNotify(h, true), consume ssl_server))
 
 class _TestTCPExpectNotify is TCPConnectionNotify
   let _h: TestHelper
@@ -226,8 +300,12 @@ class _TestTCPExpectNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     conn.set_nodelay(true)
-    conn.expect(_expect)
-    _send(conn, "hi there")
+    try
+      conn.expect(_expect)?
+      _send(conn, "hi there")
+    else
+      _h.fail("expect threw an error")
+    end
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("client connect failed")
@@ -235,7 +313,11 @@ class _TestTCPExpectNotify is TCPConnectionNotify
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
     conn.set_nodelay(true)
-    conn.expect(_expect)
+    try
+      conn.expect(_expect)?
+    else
+      _h.fail("expect threw an error")
+    end
 
   fun ref expect(conn: TCPConnection ref, qty: USize): USize =>
     _h.complete_action("expect received")
@@ -270,7 +352,11 @@ class _TestTCPExpectNotify is TCPConnectionNotify
       _expect = 4
     end
 
-    conn.expect(_expect)
+    try
+      conn.expect(_expect)?
+    else
+      _h.fail("expect threw an error")
+    end
     true
 
   fun ref _send(conn: TCPConnection ref, data: String) =>
@@ -287,6 +373,35 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     buf.append(data)
     conn.write(consume buf)
 
+class _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
+  let _h: TestHelper
+  let _expect: USize = 6_000_000_000
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("client connect failed")
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    conn.set_nodelay(true)
+    try
+      conn.expect(_expect)?
+      _h.fail("expect didn't error out")
+    else
+      _h.complete_action("accepted")
+    end
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("client connect")
+    conn.set_nodelay(true)
+    try
+      conn.expect(_expect)?
+      _h.fail("expect didn't error out")
+    else
+      _h.complete_action("connected")
+    end
+
 class iso _TestTCPWritev is UnitTest
   """
   Test writev (and sent/sentv notification).
@@ -299,6 +414,27 @@ class iso _TestTCPWritev is UnitTest
     h.expect_action("server receive")
 
     _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h))
+
+class iso _TestTCPSSLWritev is UnitTest
+  """
+  Test writev (and sent/sentv notification).
+  """
+  fun name(): String => "net/TCPSSL.writev"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("client connect")
+    h.expect_action("server receive")
+
+    (let ssl_client, let ssl_server) =
+      try
+        _SSLContext(h)?
+      else
+        h.fail("ssl stuff failed")
+        return
+      end
+
+    _TestTCP(h)(SSLConnection(_TestTCPWritevNotifyClient(h), consume ssl_client), SSLConnection(_TestTCPWritevNotifyServer(h), consume ssl_server))
 
 class _TestTCPWritevNotifyClient is TCPConnectionNotify
   let _h: TestHelper
@@ -370,6 +506,43 @@ class iso _TestTCPMute is UnitTest
 
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPMuteReceiveNotify(h))
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(true)
+
+class iso _TestTCPSSLMute is UnitTest
+  """
+  Test that the `mute` behavior stops us from reading incoming data. The
+  test assumes that send/recv works correctly and that the absence of
+  data received is because we muted the connection.
+
+  Test works as follows:
+
+  Once an incoming connection is established, we set mute on it and then
+  verify that within a 2 second long test that received is not called on
+  our notifier. A timeout is considering passing and received being called
+  is grounds for a failure.
+  """
+  fun name(): String => "net/TCPSSLMute"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("sender connected")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks for data")
+    h.expect_action("sender sent data")
+
+    (let ssl_client, let ssl_server) =
+      try
+        _SSLContext(h)?
+      else
+        h.fail("ssl stuff failed")
+        return
+      end
+
+    _TestTCP(h)(SSLConnection(_TestTCPMuteSendNotify(h), consume ssl_client),
+      SSLConnection(_TestTCPMuteReceiveNotify(h), consume ssl_server))
 
   fun timed_out(h: TestHelper) =>
     h.complete(true)
@@ -461,6 +634,41 @@ class iso _TestTCPUnmute is UnitTest
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPUnmuteReceiveNotify(h))
 
+class iso _TestTCPSSLUnmute is UnitTest
+  """
+  Test that the `unmute` behavior will allow a connection to start reading
+  incoming data again. The test assumes that `mute` works correctly and that
+  after muting, `unmute` successfully reset the mute state rather than `mute`
+  being broken and never actually muting the connection.
+
+  Test works as follows:
+
+  Once an incoming connection is established, we set mute on it, request
+  that data be sent to us and then unmute the connection such that we should
+  receive the return data.
+  """
+  fun name(): String => "net/TCPSSLUnmute"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("sender connected")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks for data")
+    h.expect_action("receiver unmuted")
+    h.expect_action("sender sent data")
+
+    (let ssl_client, let ssl_server) =
+      try
+        _SSLContext(h)?
+      else
+        h.fail("ssl stuff failed")
+        return
+      end
+
+    _TestTCP(h)(SSLConnection(_TestTCPMuteSendNotify(h), consume ssl_client),
+      SSLConnection(_TestTCPUnmuteReceiveNotify(h), consume ssl_server))
+
 class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   """
   Notifier to test that after muting and unmuting a connection, we get data
@@ -517,6 +725,41 @@ class iso _TestTCPThrottle is UnitTest
 
     _TestTCP(h)(_TestTCPThrottleSendNotify(h),
       _TestTCPThrottleReceiveNotify(h))
+
+class iso _TestTCPSSLThrottle is UnitTest
+  """
+  Test that when we experience backpressure when sending that the `throttled`
+  method is called on our `TCPConnectionNotify` instance.
+
+  We do this by starting up a server connection, muting it immediately and then
+  sending data to it which should trigger a throttling to happen. We don't
+  start sending data til after the receiver has muted itself and sent the
+  sender data. This verifies that muting has been completed before any data is
+  sent as part of testing throttling.
+
+  This test assumes that muting functionality is working correctly.
+  """
+  fun name(): String => "net/TCPSSLThrottle"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("sender connected")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks for data")
+    h.expect_action("sender sent data")
+    h.expect_action("sender throttled")
+
+    (let ssl_client, let ssl_server) =
+      try
+        _SSLContext(h)?
+      else
+        h.fail("ssl stuff failed")
+        return
+      end
+
+    _TestTCP(h)(SSLConnection(_TestTCPThrottleSendNotify(h), consume ssl_client),
+      SSLConnection(_TestTCPThrottleReceiveNotify(h), consume ssl_server))
 
 class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
   """
@@ -577,6 +820,6 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
 
   fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq =>
     if not _throttled_yet then
-      conn.write("this is more data that you won't ever read")
+      conn.write("this is more data that you won't ever read" * 10000)
     end
     data

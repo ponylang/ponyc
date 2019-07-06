@@ -15,6 +15,9 @@
 #include <valgrind/helgrind.h>
 #endif
 
+// default actor batch size
+#define PONY_SCHED_BATCH 100
+
 // Ignore padding at the end of the type.
 pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
@@ -230,10 +233,55 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
 }
 
-bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
+// return true if mute occurs
+static bool maybe_mute(pony_actor_t* actor)
+{
+  // if we become muted as a result of handling a message, bail out now.
+  // we aren't set to "muted" at this point. setting to muted during a
+  // a behavior can lead to race conditions that might result in a
+  // deadlock.
+  // Given that actor's are not run when they are muted, then when we
+  // started out batch, actor->muted would have been 0. If any of our
+  // message sends would result in the actor being muted, that value will
+  // have changed to greater than 0.
+  //
+  // We will then set the actor to "muted". Once set, any actor sending
+  // a message to it will be also be muted unless said sender is marked
+  // as overloaded.
+  //
+  // The key points here is that:
+  //   1. We can't set the actor to "muted" until after its finished running
+  //   a behavior.
+  //   2. We should bail out from running the actor and return false so that
+  //   it won't be rescheduled.
+  if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
+  {
+    ponyint_mute_actor(actor);
+    return true;
+  }
+
+  return false;
+}
+
+static bool batch_limit_reached(pony_actor_t* actor, bool polling)
+{
+  if(!has_flag(actor, FLAG_OVERLOADED) && !polling)
+  {
+    // If we hit our batch size, consider this actor to be overloaded
+    // only if we're not polling from C code.
+    // Overloaded actors are allowed to send to other overloaded actors
+    // and to muted actors without being muted themselves.
+    ponyint_actor_setoverloaded(actor);
+  }
+
+  return !has_flag(actor, FLAG_UNSCHEDULED);
+}
+
+bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
   pony_assert(!ponyint_is_muted(actor));
   ctx->current = actor;
+  size_t batch = PONY_SCHED_BATCH;
 
   pony_msg_t* msg;
   size_t app = 0;
@@ -253,8 +301,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       app++;
       try_gc(ctx, actor);
 
-      if(app == batch)
-        return !has_flag(actor, FLAG_UNSCHEDULED);
+      // maybe mute actor
+      if(maybe_mute(actor))
+        return false;
+
+      // if we've reached our batch limit
+      // or if we're polling where we want to stop after one app message
+      if(app == batch || polling)
+        return batch_limit_reached(actor, polling);
     }
   }
 #endif
@@ -274,42 +328,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, size_t batch)
       app++;
       try_gc(ctx, actor);
 
-      // if we become muted as a result of handling a message, bail out now.
-      // we aren't set to "muted" at this point. setting to muted during a
-      // a behavior can lead to race conditions that might result in a
-      // deadlock.
-      // Given that actor's are not run when they are muted, then when we
-      // started out batch, actor->muted would have been 0. If any of our
-      // message sends would result in the actor being muted, that value will
-      // have changed to greater than 0.
-      //
-      // We will then set the actor to "muted". Once set, any actor sending
-      // a message to it will be also be muted unless said sender is marked
-      // as overloaded.
-      //
-      // The key points here is that:
-      //   1. We can't set the actor to "muted" until after its finished running
-      //   a behavior.
-      //   2. We should bail out from running the actor and return false so that
-      //   it won't be rescheduled.
-      if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
-      {
-        ponyint_mute_actor(actor);
+      // maybe mute actor; returns true if mute occurs
+      if(maybe_mute(actor))
         return false;
-      }
 
-      if(app == batch)
-      {
-        if(!has_flag(actor, FLAG_OVERLOADED))
-        {
-          // If we hit our batch size, consider this actor to be overloaded.
-          // Overloaded actors are allowed to send to other overloaded actors
-          // and to muted actors without being muted themselves.
-          ponyint_actor_setoverloaded(actor);
-        }
-
-        return !has_flag(actor, FLAG_UNSCHEDULED);
-      }
+      // if we've reached our batch limit
+      // or if we're polling where we want to stop after one app message
+      if(app == batch || polling)
+        return batch_limit_reached(actor, polling);
     }
 
     // Stop handling a batch if we reach the head we found when we were
@@ -757,8 +783,10 @@ PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
 
 PONY_API void pony_poll(pony_ctx_t* ctx)
 {
+  // TODO: this seems like it could allow muted actors to get `ponyint_actor_run`
+  // which shouldn't be allowed. Fixing might require API changes.
   pony_assert(ctx->current != NULL);
-  ponyint_actor_run(ctx, ctx->current, 1);
+  ponyint_actor_run(ctx, ctx->current, true);
 }
 
 void ponyint_actor_setoverloaded(pony_actor_t* actor)
@@ -847,6 +875,7 @@ void ponyint_mute_actor(pony_actor_t* actor)
 {
    uint8_t is_muted = atomic_load_explicit(&actor->is_muted, memory_order_relaxed);
    pony_assert(is_muted == 0);
+   DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
    is_muted++;
    atomic_store_explicit(&actor->is_muted, is_muted, memory_order_relaxed);
 
@@ -856,5 +885,6 @@ void ponyint_unmute_actor(pony_actor_t* actor)
 {
   uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
   pony_assert(is_muted == 1);
+  DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
   (void)is_muted;
 }

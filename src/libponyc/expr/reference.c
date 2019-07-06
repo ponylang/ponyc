@@ -981,7 +981,7 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   bool ok = true;
 
   errorframe_t info = NULL;
-  if(!is_subtype(body_type, type, &info, opt) ||
+  if(!is_subtype(body_type, type, &info, opt) &&
     !is_subtype(a_body_type, a_type, &info, opt))
   {
     errorframe_t frame = NULL;
