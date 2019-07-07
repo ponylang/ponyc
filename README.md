@@ -59,7 +59,7 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
     - [vim-pony](https://github.com/jakwings/vim-pony)
     - [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
     - [currycomb: Syntastic support](https://github.com/killerswan/pony-currycomb.vim)
-    - [SpaceVim](http://spacevim.org), available as layer for Vim and [Neovim](https://neovim.io). Just follow [installation instructions](https://github.com/SpaceVim/SpaceVim) then put `call SpaceVim#layers#load('lang#pony')`inside configuration file (*$HOME/.SpaceVim.d/init.vim*)
+    - [SpaceVim](http://spacevim.org), available as layer for Vim and [Neovim](https://neovim.io). Just follow [installation instructions](https://github.com/SpaceVim/SpaceVim) then load `lang#pony` layer inside configuration file (*$HOME/.SpaceVim.d/init.toml*)
 * Emacs:
     - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
     - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
