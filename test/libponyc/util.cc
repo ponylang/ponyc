@@ -408,7 +408,8 @@ void PassTest::test_expected_error_frames(const char* src, const char* pass,
     {
       const char* expected_error = *expected_errors;
       EXPECT_FALSE(strstr(ef->msg, expected_error) == NULL)
-        << "Actual error: " << ef->msg;
+        << "Actual error: " << ef->msg
+        << "\nExpected error: " << expected_error;
       expected_errors++;
     }
 
@@ -594,7 +595,8 @@ void PassTest::build_package(const char* pass, const char* src,
         break;
 
       EXPECT_TRUE(strstr(e->msg, expected_error) != NULL)
-        << "Actual error: " << e->msg;
+        << "Actual error: " << e->msg
+        << "\nExpected error: " << expected_error;
       e = e->next;
     }
   }

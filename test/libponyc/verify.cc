@@ -695,3 +695,100 @@ TEST_F(VerifyTest, PartialFunCallInTryBlock)
       DO(test_expected_error_frames(src, "verify", errs, frames));
   }
 }
+
+TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionPartial)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C): C iso^ ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  c = P(consume c) ?\n"
+        "end\n";
+
+  TEST_ERRORS_1(src,
+    "can't reassign to a consumed identifier in a try expression if there is a partial call involved");
+}
+
+TEST_F(VerifyTest, ConsumeVarReassignTrySameExpression)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  c = consume c\n"
+        "  error\n"
+        "end\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionTryElse)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  c = try error else consume c end\n"
+        "  error\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionTryError)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  c = (try error else error end; consume c)\n"
+        "end";
+
+  TEST_ERRORS_1(src, "unreachable code");
+}
+
+TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionIfError)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  c = if true then error else consume c end\n"
+        "end";
+
+  TEST_ERRORS_1(src, "can't reassign to a consumed identifier in a try expression if there is a partial call involved");
+}
+
+TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionAs)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "var x: (C | None) = None\n"
+        "try\n"
+        "  c = (x as C; consume c)\n"
+        "end";
+
+  TEST_ERRORS_1(src, "can't reassign to a consumed identifier in a try expression if there is a partial call involved");
+}

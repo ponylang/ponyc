@@ -167,6 +167,7 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
       return true;
 
     case SYM_CONSUMED:
+    case SYM_CONSUMED_SAME_EXPR:
       if(is_assigned_to(ast, true))
         return true;
 
@@ -260,7 +261,7 @@ static bool refer_this(pass_opt_t* opt, ast_t* ast)
   sym_status_t status;
   ast_get(ast, stringtab("this"), &status);
 
-  if(status == SYM_CONSUMED)
+  if((status == SYM_CONSUMED) || (status == SYM_CONSUMED_SAME_EXPR))
   {
     ast_error(opt->check.errors, ast,
       "can't use a consumed 'this' in an expression");
@@ -577,6 +578,7 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
       return true;
 
     case SYM_CONSUMED:
+    case SYM_CONSUMED_SAME_EXPR:
     {
       bool ok = true;
 
@@ -596,9 +598,14 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
 
       if(opt->check.frame->try_expr != NULL)
       {
-        ast_error(opt->check.errors, ast,
-          "can't reassign to a consumed identifier in a try expression");
-        ok = false;
+        if(status == SYM_CONSUMED)
+        {
+          ast_error(opt->check.errors, ast,
+            "can't reassign to a consumed identifier in a try expression unless it is reassigned in the same expression");
+          ok = false;
+        }
+        // SYM_CONSUMED_SAME_EXPR is allowed to pass; verify pass will check if
+        // there are any partial calls/errors and throw an error if necessary
       }
 
       if(ok)
@@ -746,12 +753,52 @@ static bool refer_assign(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+static bool ast_get_child(ast_t* ast, const char* name)
+{
+  token_id tk = ast_id(ast);
+  if((tk == TK_ID) && (ast_name(ast) == name))
+    return true;
+
+  if(tk == TK_DOT)
+    return false;
+
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    if(ast_get_child(child, name))
+      return true;
+
+    if(tk == TK_REFERENCE)
+      return false;
+
+    child = ast_sibling(child);
+  }
+  return false;
+}
+
+static bool check_assigned_same_expression(ast_t* ast, const char* name, ast_t** ret_assign_ast)
+{
+  ast_t* assign_ast = ast;
+  while((assign_ast != NULL) && (ast_id(assign_ast) != TK_ASSIGN))
+    assign_ast = ast_parent(assign_ast);
+
+  *ret_assign_ast = assign_ast;
+
+  if(assign_ast == NULL)
+    return false;
+
+  ast_t* assign_left = ast_child(assign_ast);
+  return ast_get_child(assign_left, name);
+}
+
 static bool refer_consume(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_CONSUME);
   AST_GET_CHILDREN(ast, cap, term);
 
   const char* name = NULL;
+  bool consumed_same_expr = false;
 
   switch(ast_id(term))
   {
@@ -761,6 +808,13 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
     {
       ast_t* id = ast_child(term);
       name = ast_name(id);
+      ast_t* assign_ast = NULL;
+      if(check_assigned_same_expression(id, name, &assign_ast))
+      {
+        consumed_same_expr = true;
+        ast_setflag(assign_ast, AST_FLAG_CNSM_REASGN);
+      }
+
       break;
     }
 
@@ -785,7 +839,10 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  ast_setstatus(ast, name, SYM_CONSUMED);
+  if(consumed_same_expr)
+    ast_setstatus(ast, name, SYM_CONSUMED_SAME_EXPR);
+  else
+    ast_setstatus(ast, name, SYM_CONSUMED);
 
   return true;
 }

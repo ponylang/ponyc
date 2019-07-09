@@ -233,6 +233,10 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
         // Consumed overrides everything.
         dsym->status = SYM_CONSUMED;
         dsym->branch_count = 0;
+      } else if(sym->status == SYM_CONSUMED_SAME_EXPR) {
+        // Consumed overrides everything.
+        dsym->status = SYM_CONSUMED_SAME_EXPR;
+        dsym->branch_count = 0;
       }
     } else {
       // Add this symbol to the destination.
@@ -332,6 +336,10 @@ void symtab_print(symtab_t* symtab)
 
       case SYM_CONSUMED:
         printf(": consumed\n");
+        break;
+
+      case SYM_CONSUMED_SAME_EXPR:
+        printf(": consumed same expression\n");
         break;
 
       default:

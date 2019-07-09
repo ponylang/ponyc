@@ -23,6 +23,214 @@ class ReferTest : public PassTest
 {};
 
 
+TEST_F(ReferTest, ConsumeThis)
+{
+  const char* src =
+    "class iso C\n"
+      "fun iso get(): C iso^ =>\n"
+        "consume this\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "(consume c).get()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(ReferTest, ConsumeThisReuse)
+{
+  const char* src =
+    "class iso C\n"
+      "fun iso get(): C iso^ =>\n"
+        "consume this\n"
+        "consume this\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "(consume c).get()";
+
+  TEST_ERRORS_1(src,
+    "can't use a consumed 'this' in an expression");
+}
+
+TEST_F(ReferTest, ConsumeLet)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "P(consume c)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(ReferTest, ConsumeLetReassign)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "c = consume c";
+
+  TEST_ERRORS_2(src,
+    "can't reassign to a let local",
+    "left side must be something that can be assigned to");
+}
+
+TEST_F(ReferTest, ConsumeLetField)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "let c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "P(consume c)";
+
+  TEST_ERRORS_1(src,
+    "consume must take 'this', a local, or a parameter");
+}
+
+TEST_F(ReferTest, ConsumeVar)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "P(consume c)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(ReferTest, ConsumeVarReuse)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "consume c\n"
+        "P(consume c)";
+
+  TEST_ERRORS_2(src,
+    "can't use a consumed local in an expression",
+    "consume must take 'this', a local, or a parameter");
+}
+
+TEST_F(ReferTest, ConsumeVarReassign)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "c = consume c";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(ReferTest, ConsumeVarField)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "var c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "P(consume c)";
+
+  TEST_ERRORS_1(src,
+    "consume must take 'this', a local, or a parameter");
+}
+
+TEST_F(ReferTest, ConsumeEmbedField)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) => None\n"
+
+    "actor Main\n"
+      "embed c: C\n"
+      "new create(env: Env) =>\n"
+        "c = C\n"
+        "P(consume c)";
+
+  TEST_ERRORS_1(src,
+    "consume must take 'this', a local, or a parameter");
+}
+
+TEST_F(ReferTest, ConsumeVarTry)
+{
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  P(consume c) ?"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(ReferTest, ConsumeVarReassignTry)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  let d = consume c\n"
+        "  c = consume d\n"
+        "  error\n"
+        "end\n";
+
+  TEST_ERRORS_2(src,
+    "can't reassign to a consumed identifier in a try expression unless it is reassigned in the same expression",
+    "left side must be something that can be assigned to");
+}
+
 TEST_F(ReferTest, WhileLoopConsumeLet)
 {
   const char* src =
