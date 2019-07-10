@@ -1,74 +1,21 @@
 task:
-  freebsd_instance:
-    image: freebsd-12-0-release-amd64
+  container:
+    image: ponylang/ponyc-ci:ubuntu
+    cpu: 8
+    memory: 24
 
-  name: "freebsd-12-release"
-  install_script:
-    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y gmake pcre2 libunwind llvm70 git
+  name: "linux gnu release builder"
 
-  test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=release -j3 default_ssl=openssl_1.1.x
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=release default_ssl=openssl_1.1.x
-
-task:
-  freebsd_instance:
-    image: freebsd-12-0-release-amd64
-
-  name: "freebsd-12-debug"
-  depends_on:
-    - freebsd-12-release
-
-  install_script:
-    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y gmake pcre2 libunwind llvm70 git
+  clone_script: |
+    if [ -n "$CIRRUS_TAG" ]
+    then
+      echo "cloning for tag $CIRRUS_TAG"
+      git clone --depth 1 --branch "$CIRRUS_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
+    elif [ -n "$CIRRUS_BRANCH" ]
+    then
+      echo "cloning for branch $CIRRUS_BRANCH"
+      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github   .com/ponylang/ponyc.git
+    fi
 
   test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3 default_ssl=openssl_1.1.x
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=debug default_ssl=openssl_1.1.x
-
-task:
-  osx_instance:
-    image: high-sierra-xcode-9.4.1
-
-  name: "macOS-release"
-
-  install_script:
-    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
-    - sudo installer -verbose -pkg macports.pkg -target /
-    - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0 pcre2
-
-  test_script:
-    - export LDFLAGS="-L/opt/local/lib"
-    - export PATH=/usr/local/opt/llvm/bin/:$PATH
-    - export CC1=clang
-    - export CXX1=clang++
-    - export LLVM_CONFIG=/opt/local/bin/llvm-config-mp-7.0
-    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=release all
-    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=release test-ci
-
-task:
-  osx_instance:
-    image: high-sierra-xcode-9.4.1
-
-  name: "macOS-debug"
-  depends_on:
-    - macOS-release
-
-  install_script:
-    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
-    - sudo installer -verbose -pkg macports.pkg -target /
-    - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0 pcre2
-
-  test_script:
-    - export LDFLAGS="-L/opt/local/lib"
-    - export PATH=/usr/local/opt/llvm/bin/:$PATH
-    - export CC1=clang
-    - export CXX1=clang++
-    - export LLVM_CONFIG=/opt/local/bin/llvm-config-mp-7.0
-    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=debug all
-    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=debug test-ci
+    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 use=llvm_link_static -j4
