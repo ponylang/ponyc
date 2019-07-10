@@ -248,8 +248,9 @@ actor TCPConnection
       else
         AsioEvent.read_write()
       end
+    (let host', let service') = _notify.proxy_via(host, service)
     _connect_count =
-      @pony_os_connect_tcp[U32](this, host.cstring(), service.cstring(),
+      @pony_os_connect_tcp[U32](this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     _notify_connecting()
 
@@ -277,8 +278,9 @@ actor TCPConnection
       else
         AsioEvent.read_write()
       end
+    (let host', let service') = _notify.proxy_via(host, service)
     _connect_count =
-      @pony_os_connect_tcp4[U32](this, host.cstring(), service.cstring(),
+      @pony_os_connect_tcp4[U32](this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     _notify_connecting()
 
@@ -306,8 +308,9 @@ actor TCPConnection
       else
         AsioEvent.read_write()
       end
+    (let host', let service') = _notify.proxy_via(host, service)
     _connect_count =
-      @pony_os_connect_tcp6[U32](this, host.cstring(), service.cstring(),
+      @pony_os_connect_tcp6[U32](this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     _notify_connecting()
 
