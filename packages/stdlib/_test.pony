@@ -40,10 +40,8 @@ use ponybench = "ponybench"
 use process = "process"
 use promises = "promises"
 use random = "random"
-use regex = "regex"
 use serialise = "serialise"
 use signals = "signals"
-use ssl = "net/ssl"
 use strings = "strings"
 use term = "term"
 use time = "time"
@@ -75,7 +73,6 @@ actor Main is TestList
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
-    ssl.Main.make().tests(test)
     options.Main.make().tests(test)
 
     ifdef posix then
@@ -85,7 +82,6 @@ actor Main is TestList
 
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
-    regex.Main.make().tests(test)
     serialise.Main.make().tests(test)
 
     ifdef not windows then
