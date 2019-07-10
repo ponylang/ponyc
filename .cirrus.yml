@@ -14,7 +14,7 @@ task:
     elif [ -n "$CIRRUS_BRANCH" ]
     then
       echo "cloning for branch $CIRRUS_BRANCH"
-      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github   .com/ponylang/ponyc.git
+      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
     fi
 
   test_script:
