@@ -16,18 +16,6 @@ download_llvm(){
   popd
 }
 
-download_pcre(){
-  echo "Downloading and building PCRE2..."
-
-  git lfs clone -I "pcre2-10.21.tar.bz2" https://github.com/ponylang/ponyc-llvm-dependencies.git pcre-dependencies
-
-  pushd pcre-dependencies
-  tar -xjf pcre2-10.21.tar.bz2
-  pushd pcre2-10.21 && ./configure --prefix=/usr && make && sudo make install
-  popd
-  popd
-}
-
 set_linux_compiler(){
   echo "Setting $ICC1 and $ICXX1 as default compiler"
 

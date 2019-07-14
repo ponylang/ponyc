@@ -383,7 +383,7 @@ git clone git://github.com/ponylang/ponyc
 Install pony dependencies:
 
 ```
-pacman -S llvm make ncurses openssl pcre2 zlib
+pacman -S llvm make ncurses openssl zlib
 ```
 
 To build ponyc and compile and run helloworld:
@@ -402,7 +402,7 @@ Install pony dependencies:
 ```bash
 sudo apt-get update
 sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
-  libssl-dev llvm llvm-dev libpcre2-dev
+  libssl-dev llvm llvm-dev
 ```
 
 To build ponyc, compile and run helloworld:
@@ -433,7 +433,7 @@ sudo apt-key add llvm-snapshot.gpg.key
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-3.9
 ```
 
 Clone the ponyc repo:
@@ -455,7 +455,7 @@ make
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev libpcre2-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-3.9
 ```
 
 Clone the ponyc repo:
@@ -488,7 +488,7 @@ sudo apt-get install -y llvm-3.9-dev
 
 ```bash
 dnf check-update
-sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+sudo dnf install git gcc-c++ make openssl-devel zlib-devel \
   llvm-devel ncurses-devel
 ```
 
@@ -505,7 +505,7 @@ make
 
 ```bash
 dnf check-update
-sudo dnf install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+sudo dnf install git gcc-c++ make openssl-devel zlib-devel \
   llvm3.9-devel ncurses-devel libatomic
 ```
 
@@ -523,7 +523,7 @@ make default_ssl='openssl_1.1.x'
 #### Install dependencies:
 
 ```bash
-sudo yum install git gcc-c++ make openssl-devel pcre2-devel zlib-devel \
+sudo yum install git gcc-c++ make openssl-devel zlib-devel \
   ncurses-devel libatomic
 ```
 
@@ -591,7 +591,7 @@ make use="llvm_link_static"
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
 sudo zypper refresh
 sudo zypper update
-sudo zypper install git gcc-c++ make libopenssl-devel pcre2-devel zlib-devel \
+sudo zypper install git gcc-c++ make libopenssl-devel zlib-devel \
   llvm3_9-devel binutils-gold
 ```
 
@@ -609,7 +609,7 @@ make
 NOTE: LLVM 3.9 doesn't seem to be available so these instructions install the default LLVM version available.
 
 ```bash
-sudo zypper install git gcc-c++ make libopenssl-devel pcre2-devel zlib-devel \
+sudo zypper install git gcc-c++ make libopenssl-devel zlib-devel \
   llvm-devel binutils-gold
 ```
 
@@ -628,7 +628,7 @@ Install build tools/dependencies:
 
 ```bash
 apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev \
-  pcre2-dev libexecinfo-dev coreutils linux-headers
+  libexecinfo-dev coreutils linux-headers
 ```
 
 To build ponyc, compile and run helloworld:
@@ -647,24 +647,12 @@ You need to have the development versions of the following installed:
 * LLVM 3.9.1
 * zlib
 * ncurses
-* pcre2
 * libssl
 
 There is experimental support for LLVM 4.0.1 and 5.0.0, but this may
 result in decreased performance or crashes in generated applications.
 
-If your distribution doesn't have a package for prce2, you will need to download and build it from source:
-
-```bash
-wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2
-tar xvf pcre2-10.21.tar.bz2
-cd pcre2-10.21
-./configure --prefix=/usr
-make
-sudo make install
-```
-
-Finally to build ponyc, compile and run the hello world app:
+To build ponyc, compile and run the hello world app:
 
 ```bash
 cd ~/ponyc/
@@ -682,7 +670,6 @@ First, install the required dependencies:
 ```bash
 sudo pkg install gmake
 sudo pkg install llvm60
-sudo pkg install pcre2
 ```
 
 ## Building on FreeBSD
@@ -695,7 +682,6 @@ First, install the required dependencies:
 ```bash
 sudo pkg install gmake
 sudo pkg install llvm70
-sudo pkg install pcre2
 sudo pkg install libunwind
 ```
 
@@ -713,7 +699,7 @@ OpenBSD has been tested on OpenBSD 6.5.
 First, install the required dependencies:
 
 ```bash
-doas pkg_add gmake libexecinfo llvm pcre2
+doas pkg_add gmake libexecinfo llvm
 ```
 
 This will build ponyc and compile helloworld:
@@ -728,7 +714,7 @@ If you are on a 32-bit platform (e.g., armv7), change `bits=64` to `bits=32`.
 ## Building on Mac OS X
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
-You'll need llvm 3.9.1 and the pcre2 library to build Pony. You can use either homebrew or MacPorts to install your dependencies.
+You'll need llvm 3.9.1 to build Pony. You can use either homebrew or MacPorts to install your dependencies.
 
 There is experimental support for LLVM 4.0.1 or 5.0.0, but this may result in
 decreased performance or crashes in generated applications.
@@ -736,12 +722,12 @@ decreased performance or crashes in generated applications.
 Installation via [homebrew](http://brew.sh):
 ```
 brew update
-brew install llvm@3.9 pcre2 libressl
+brew install llvm@3.9 libressl
 ```
 
 Installation via [MacPorts](https://www.macports.org):
 ```
-sudo port install llvm-3.9 pcre2 libressl
+sudo port install llvm-3.9 libressl
 sudo port select --set llvm mp-llvm-3.9
 ```
 
@@ -782,7 +768,6 @@ This will automatically perform the following steps:
 - Download some pre-built libraries used for building the Pony compiler and standard library.
   - [LLVM](http://llvm.org)
   - [LibreSSL](https://www.libressl.org/)
-  - [PCRE](http://www.pcre.org)
 - Build the pony compiler in the `build/<config>-<llvm-version>` directory.
 - Build the unit tests for the compiler and the standard library.
 - Run the unit tests.

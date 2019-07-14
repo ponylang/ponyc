@@ -8,7 +8,6 @@ RUN apt-get update \
   git \
   libncurses5-dev \
   libssl-dev \
-  libpcre2-dev \
   make \
   wget \
   xz-utils \

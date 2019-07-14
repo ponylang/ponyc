@@ -10,7 +10,6 @@ RUN yum install -y \
     make \
     file \
     openssl-devel \
-    pcre2-devel \
     zlib-devel \
     ncurses-devel \
     libatomic \

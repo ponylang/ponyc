@@ -4,7 +4,6 @@ RUN apk add --update \
   alpine-sdk \
   libressl-dev \
   binutils-gold \
-  pcre2-dev \
   libexecinfo-dev \
   coreutils \
   linux-headers \

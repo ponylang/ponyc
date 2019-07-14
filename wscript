@@ -55,7 +55,6 @@ LLVM_VERSIONS = [
 ]
 
 LIBRESSL_VERSION = "2.9.0"
-PCRE2_VERSION = "10.32"
 WINDOWS_LIBS_TAG = "v1.8.2"
 
 # Adds an option for specifying debug or release mode.
@@ -104,8 +103,6 @@ def configure(ctx):
             bld_env.PONYLIBS_DIR = 'ThirdParty'
             bld_env.LIBRESSL_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
                 'lib', 'libressl-' + LIBRESSL_VERSION)
-            bld_env.PCRE2_DIR = os.path.join(bld_env.PONYLIBS_DIR, \
-                'lib', 'pcre2-' + PCRE2_VERSION)
             bld_env.append_value('DEFINES', [
                 'LLVM_VERSION="' + llvm_version + '"',
                 'PONY_VERSION_STR="' + \
@@ -117,7 +114,6 @@ def configure(ctx):
             libs_name = 'PonyWinLibs' + \
                 '-LLVM-' + llvm_version + \
                 '-LibreSSL-' + LIBRESSL_VERSION + \
-                '-PCRE2-' + PCRE2_VERSION + '-' + \
                 WINDOWS_LIBS_TAG
 
             # Debug configuration
@@ -194,7 +190,6 @@ def build(ctx):
         libsName = ctx.env.PONYLIBS_NAME
         libsDir = os.path.join(buildDir, ctx.env.PONYLIBS_DIR)
         libresslDir = os.path.join(buildDir, ctx.env.LIBRESSL_DIR)
-        pcre2Dir = os.path.join(buildDir, ctx.env.PCRE2_DIR)
         llvmDir = os.path.join(buildDir, ctx.env.LLVM_DIR)
 
         if (ctx.cmd == 'clean'): # make sure to delete the libs directory
@@ -209,7 +204,6 @@ def build(ctx):
 
             if not (os.path.exists(libsDir) \
                 and os.path.exists(libresslDir) \
-                and os.path.exists(pcre2Dir) \
                 and os.path.exists(llvmDir)):
                 libsZip = libsName + '.zip'
                 libsFname = os.path.join(buildDir, '..', libsZip)
@@ -238,11 +232,6 @@ def build(ctx):
                     zf.extractall(libsDir)
 
                 import shutil
-                if (ctx.options.config == 'debug'):
-                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), buildDir)
-                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), os.path.join(buildDir, 'pcre2-8.lib'))
-                else:
-                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'crypto.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'ssl.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'tls.lib'), buildDir)
