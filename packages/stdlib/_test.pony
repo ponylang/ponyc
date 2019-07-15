@@ -63,12 +63,6 @@ actor Main is TestList
     crypto.Main.make().tests(test)
     files.Main.make().tests(test)
     format.Main.make().tests(test)
-
-    ifdef not windows then
-      // The glob tests are currently very broken on Windows, so ignore them.
-      glob.Main.make().tests(test)
-    end
-
     ini.Main.make().tests(test)
     itertools.Main.make().tests(test)
     json.Main.make().tests(test)
