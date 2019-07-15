@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove `glob` package from standard library ([PR #3219](https://github.com/ponylang/ponyc/pull/3219))
 
 ## [0.29.0] - 2019-07-06
 
