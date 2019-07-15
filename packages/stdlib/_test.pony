@@ -77,7 +77,6 @@ actor Main is TestList
 
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
-    regex.Main.make().tests(test)
     serialise.Main.make().tests(test)
 
     ifdef not windows then
