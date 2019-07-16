@@ -12,7 +12,9 @@ RUN apk add --update --no-cache \
   coreutils \
   linux-headers \
   cmake \
-  git
+  git \
+  zlib-dev \
+  ncurses-libs
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/
