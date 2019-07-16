@@ -39,7 +39,6 @@ use ponybench = "ponybench"
 use process = "process"
 use promises = "promises"
 use random = "random"
-use regex = "regex"
 use serialise = "serialise"
 use signals = "signals"
 use ssl = "net/ssl"
@@ -78,7 +77,6 @@ actor Main is TestList
 
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
-    regex.Main.make().tests(test)
     serialise.Main.make().tests(test)
 
     ifdef not windows then

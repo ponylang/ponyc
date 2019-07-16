@@ -6,7 +6,7 @@ task:
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y gmake pcre2 libunwind llvm70 git
+    - pkg install -y gmake libunwind llvm70 git
 
   test_script:
     - LLVM_CONFIG=llvm-config70 gmake all config=release -j3 default_ssl=openssl_1.1.x
@@ -23,7 +23,7 @@ task:
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y gmake pcre2 libunwind llvm70 git
+    - pkg install -y gmake libunwind llvm70 git
 
   test_script:
     - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3 default_ssl=openssl_1.1.x
@@ -39,7 +39,7 @@ task:
     - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
     - sudo installer -verbose -pkg macports.pkg -target /
     - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0 pcre2
+    - sudo /opt/local/bin/port install llvm-7.0
 
   test_script:
     - export LDFLAGS="-L/opt/local/lib"
@@ -62,7 +62,7 @@ task:
     - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
     - sudo installer -verbose -pkg macports.pkg -target /
     - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0 pcre2
+    - sudo /opt/local/bin/port install llvm-7.0
 
   test_script:
     - export LDFLAGS="-L/opt/local/lib"

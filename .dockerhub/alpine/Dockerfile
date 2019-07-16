@@ -8,12 +8,13 @@ RUN apk add --update --no-cache \
   binutils-gold \
   llvm${LLVM_VERSION} \
   llvm${LLVM_VERSION}-dev \
-  pcre2-dev \
   libexecinfo-dev \
   coreutils \
   linux-headers \
   cmake \
-  git
+  git \
+  zlib-dev \
+  ncurses-dev
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/

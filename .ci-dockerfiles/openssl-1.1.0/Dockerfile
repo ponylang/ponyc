@@ -8,7 +8,6 @@ RUN apt-get update \
   g++ \
   git \
   libncurses5-dev \
-  libpcre2-dev \
   make \
   wget \
   xz-utils \

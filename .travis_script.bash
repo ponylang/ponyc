@@ -103,7 +103,6 @@ fi
 if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" == "" ]]
 then
   download_llvm
-  download_pcre
   set_linux_compiler
   build_appimage "$(cat VERSION)"
   ponyc-kickoff-copr
