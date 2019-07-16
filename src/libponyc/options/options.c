@@ -252,7 +252,7 @@ static void print_passes()
 
 #define OPENSSL_LEADER "openssl_"
 static const char* valid_openssl_flags[] =
-  { OPENSSL_LEADER "1.1.0", OPENSSL_LEADER "0.9.0", NULL };
+  { OPENSSL_LEADER "1.1.x", OPENSSL_LEADER "0.9.0", NULL };
 
 
 static bool is_openssl_flag(const char* name)
