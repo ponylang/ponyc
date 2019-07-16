@@ -360,6 +360,12 @@ workflows:
           requires:
             - llvm-701-debug
 
+      # p3 did we break docker image building?
+      - validate-docker-image-builds:
+          requires:
+            - lib-llvm-ubuntu-release
+            - lib-llvm-ubuntu-debug
+
       # p3 validate centos7
       - lib-llvm-centos7-release:
           requires:
@@ -369,8 +375,4 @@ workflows:
           requires:
             - lib-llvm-ubuntu-debug
 
-      # p4 did we break docker image building?
-      - validate-docker-image-builds:
-          requires:
-            - lib-llvm-centos7-release
-            - lib-llvm-centos7-debug
+
