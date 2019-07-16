@@ -10,7 +10,9 @@ RUN apk add --update \
   llvm${LLVM_VERSION}-dev \
   libexecinfo-dev \
   coreutils \
-  linux-headers
+  linux-headers \
+  zlib-dev \
+  ncurses-dev
 
 # add user pony in order to not run tests as root
 RUN adduser -D -s /bin/sh -h /home/pony -g root pony

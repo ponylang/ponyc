@@ -628,7 +628,7 @@ Install build tools/dependencies:
 
 ```bash
 apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev \
-  libexecinfo-dev coreutils linux-headers
+  libexecinfo-dev coreutils linux-headers zlib-dev ncurses-dev
 ```
 
 To build ponyc, compile and run helloworld:
