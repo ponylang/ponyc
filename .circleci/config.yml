@@ -122,8 +122,8 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make all config=debug default_pic=true -j3
-      - run: make test-ci config=debug default_pic=true
+      - run: make LLVM_CONFIG=llvm5-config all config=debug default_pic=true -j3
+      - run: make LLVM_CONFIG=llvm5-config test-ci config=debug default_pic=true
 
   alpine-llvm-5-release:
     docker:
@@ -131,8 +131,8 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make all config=release default_pic=true -j3
-      - run: make test-ci config=release default_pic=true
+      - run: make LLVM_CONFIG=llvm5-config all config=release default_pic=true -j3
+      - run: make LLVM_CONFIG=llvm5-config test-ci config=release default_pic=true
 
   # Jobs for building and testing with ponyc vendor lib/llvm
   lib-llvm-ubuntu-debug:
