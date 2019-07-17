@@ -38,11 +38,7 @@ ifeq (,$(filter $(DEB_DISTRIBUTION),xenial))
 	MAKE_OPTIONS += default_ssl='openssl_1.1.x' default_pic=true
 endif
 
-ifeq (,$(filter $(DEB_DISTRIBUTION),buster))
-	export LLVM_CONFIG=llvm-config-7.0
-else
-	export LLVM_CONFIG=llvm-config-3.9
-endif
+export LLVM_CONFIG=llvm-config-3.9
 
 %:
 	dh $@
