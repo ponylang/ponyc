@@ -24,7 +24,6 @@ use capsicum = "capsicum"
 use cli = "cli"
 use collections = "collections"
 use collections_persistent = "collections/persistent"
-use crypto = "crypto"
 use debug = "debug"
 use files = "files"
 use format = "format"
@@ -41,7 +40,6 @@ use promises = "promises"
 use random = "random"
 use serialise = "serialise"
 use signals = "signals"
-use ssl = "net/ssl"
 use strings = "strings"
 use term = "term"
 use time = "time"
@@ -59,7 +57,6 @@ actor Main is TestList
     cli.Main.make().tests(test)
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
-    crypto.Main.make().tests(test)
     files.Main.make().tests(test)
     format.Main.make().tests(test)
     ini.Main.make().tests(test)
@@ -67,7 +64,6 @@ actor Main is TestList
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
-    ssl.Main.make().tests(test)
     options.Main.make().tests(test)
 
     ifdef posix then

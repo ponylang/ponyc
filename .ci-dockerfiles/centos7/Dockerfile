@@ -6,7 +6,6 @@ RUN yum install -y \
     git \
     gcc-c++ \
     make \
-    openssl-devel \
     zlib-devel \
     ncurses-devel \
     libatomic \

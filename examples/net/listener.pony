@@ -1,38 +1,16 @@
 use "net"
-use "net/ssl"
 use "files"
 
 class Listener is TCPListenNotify
   let _env: Env
   let _limit: USize
-  let _sslctx: (SSLContext | None)
   var _host: String = ""
   var _service: String = ""
   var _count: USize = 0
 
-  new create(env: Env, ssl: Bool, limit: USize) =>
+  new create(env: Env, limit: USize) =>
     _env = env
     _limit = limit
-
-    _sslctx = if ssl then
-      try
-        let auth = env.root as AmbientAuth
-        recover
-          SSLContext
-            .>set_authority(FilePath(auth, "./examples/net/cert.pem")?)?
-            .>set_cert(
-              FilePath(auth, "./examples/net/cert.pem")?,
-              FilePath(auth, "./examples/net/key.pem")?)?
-            .>set_client_verify(true)
-            .>set_server_verify(true)
-        end
-      end
-    end
-    if not (_sslctx is None) then
-      _env.out.print("SSL authentication is setup")
-    else
-      _env.out.print("SSL authentication is NOT setup")
-    end
 
   fun ref listening(listen: TCPListener ref) =>
     try
@@ -48,26 +26,15 @@ class Listener is TCPListenNotify
     _env.out.print("not listening")
     listen.close()
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ ? =>
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     let env = _env
 
-    try
-      let server = match _sslctx
-      | let ctx: SSLContext =>
-        let ssl = ctx.server()?
-        _env.out.print("Server starting with SSL")
-        SSLConnection(ServerSide(env), consume ssl)
-      else
-        _env.out.print("Server starting without SSL")
-        ServerSide(env)
-      end
+    _env.out.print("Server starting")
 
-      _spawn(listen)
-      server
-    else
-      _env.out.print("couldn't create server side")
-      error
-    end
+    let server = ServerSide(env)
+
+    _spawn(listen)
+    server
 
   fun ref _spawn(listen: TCPListener ref) =>
     if (_limit > 0) and (_count >= _limit) then
@@ -81,17 +48,12 @@ class Listener is TCPListenNotify
     try
       let env = _env
 
-      match _sslctx
-      | let ctx: SSLContext =>
-        _env.out.print("Client starting with SSL")
-        let ssl = ctx.client()?
-        TCPConnection(_env.root as AmbientAuth,
-          SSLConnection(ClientSide(env), consume ssl), _host, _service)
-      else
-        _env.out.print("Client starting without SSL")
-        TCPConnection(_env.root as AmbientAuth,
-          ClientSide(env), _host, _service)
-      end
+      _env.out.print("Client starting")
+      TCPConnection(
+        _env.root as AmbientAuth,
+        ClientSide(env),
+        _host,
+        _service)
     else
       _env.out.print("couldn't create client side")
       listen.close()

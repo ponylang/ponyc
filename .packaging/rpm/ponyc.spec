@@ -9,10 +9,8 @@
 %global arch_build_args arch=x86-64 tune=generic
 %global extra_build_args use="llvm_link_static" LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %else
-%if %{?_vendor} == suse
-%global extra_build_args default_ssl='openssl_1.1.x'
-%else
-%global extra_build_args default_ssl='openssl_1.1.x' LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
+%if %{?_vendor} != suse
+%global extra_build_args LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %endif
 %endif
 
@@ -32,11 +30,9 @@ BuildRequires:  zlib-devel
 BuildRequires:  ncurses-devel
 
 %if %{?_vendor} == suse
-BuildRequires:  libopenssl-devel
 BuildRequires:  binutils-gold
 BuildRequires:  llvm-devel
 %else
-BuildRequires:  openssl-devel
 BuildRequires:  libatomic
 BuildRequires:  llvm3.9-devel
 %endif
@@ -46,7 +42,6 @@ BuildRequires:  llvm3.9-static
 %endif
 
 Requires:  gcc-c++
-Requires:  openssl-devel
 
 %if %{?_vendor} == suse
 Requires:  binutils-gold
