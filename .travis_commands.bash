@@ -176,7 +176,6 @@ ponyc-build-debs-debian(){
   #
   # To update the builder image for an existing debian version
   # * Create and upload a new version of the appropriate docker image using .ci-dockerfiles/deb-builder
-  build_deb buster
   build_deb stretch
 
   ls -la
