@@ -191,15 +191,6 @@ rpm --import pubkey.gpg
 zypper install ponyc
 ```
 
-### Using Zypper for OpenSuSE Tumbleweed:
-
-```bash
-zypper addrepo --refresh --repo https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/repo/opensuse-tumbleweed/ponylang-ponylang-opensuse-tumbleweed.repo
-wget https://copr-be.cloud.fedoraproject.org/results/ponylang/ponylang/pubkey.gpg
-rpm --import pubkey.gpg
-zypper install ponyc
-```
-
 ### RPM and AVX2 Support
 
 By default, the Pony RPM package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
