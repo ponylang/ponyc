@@ -107,15 +107,6 @@ jobs:
       - run: make all config=release default_pic=true -j3
       - run: make test-ci config=release default_pic=true
 
-  openssl-110:
-    docker:
-      - image: ponylang/ponyc-ci:openssl-1.1.0
-        user: pony
-    steps:
-      - checkout
-      - run: make all default_ssl=openssl_1.1.x default_pic=true -j3
-      - run: make test-ci default_ssl=openssl_1.1.x default_pic=true
-
   alpine-llvm-5-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine-llvm-5
@@ -345,11 +336,6 @@ workflows:
 #      - cross-llvm-701-debug-aarch64:
 #        requires:
 #          - llvm-701-debug
-
-      # p2 other jobs
-      - openssl-110:
-          requires:
-            - llvm-701-release
 
       # p2 lib/llvm
       - lib-llvm-ubuntu-release:

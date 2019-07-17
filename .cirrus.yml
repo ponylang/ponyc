@@ -9,8 +9,8 @@ task:
     - pkg install -y gmake libunwind llvm70 git
 
   test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=release -j3 default_ssl=openssl_1.1.x
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=release default_ssl=openssl_1.1.x
+    - LLVM_CONFIG=llvm-config70 gmake all config=release -j3
+    - LLVM_CONFIG=llvm-config70 gmake test-ci config=release
 
 task:
   freebsd_instance:
@@ -26,8 +26,8 @@ task:
     - pkg install -y gmake libunwind llvm70 git
 
   test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3 default_ssl=openssl_1.1.x
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=debug default_ssl=openssl_1.1.x
+    - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3
+    - LLVM_CONFIG=llvm-config70 gmake test-ci config=debug
 
 task:
   osx_instance:

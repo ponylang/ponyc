@@ -382,23 +382,6 @@ ifeq ($(runtime-bitcode),yes)
   endif
 endif
 
-# Set default ssl version
-valid_ssl_versions=openssl_0.9.0 openssl_1.1.0 openssl_1.1.1 openssl_1.1.x
-ifdef default_ssl
-  ifeq ($(filter-out $(valid_ssl_versions),$(default_ssl)),)
-    # both openssl_1.1.0 and openssl_1.1.1 are translated to openssl_1.1.x
-    ifneq (,$(findstring openssl_1.1.,$(default_ssl)))
-      pony_default_ssl:=openssl_1.1.x
-    else
-      pony_default_ssl:=$(default_ssl)
-    endif
-    $(info pony_default_ssl is $(pony_default_ssl))
-  else
-    $(error default_ssl=$(default_ssl) is invalid (valid values: $(valid_ssl_versions)))
-  endif
-  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(pony_default_ssl)\"
-endif
-
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
 packages_abs_src := $(shell dirname $(makefile_abs_path))/packages
 
@@ -1110,10 +1093,6 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  default_ssl=Name     Make Name the default ssl version'
-	@echo '                       where Name is one of:'
-	@echo '                         openssl_0.9.0'
-	@echo '                         openssl_1.1.x'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'

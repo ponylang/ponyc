@@ -53,7 +53,7 @@ rebuild-test: clean
 #
 # For example:
 #  $ time CC=clang CXX=clang++ make -j10 -f Makefile-lib-llvm \
-#  verbose=1 config=debug default_pic=true default_ssl=openssl_1.1.x llvm_target=llvm-current rebuild-some-tests \
+#  verbose=1 config=debug default_pic=true llvm_target=llvm-current rebuild-some-tests \
 #  gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering 2>&1 | tee clang-rebuild-some-tests.txt
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
@@ -97,10 +97,6 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  default_ssl=Name     Make Name the default ssl version'
-	@echo '                       where Name is one of:'
-	@echo '                         openssl_0.9.0'
-	@echo '                         openssl_1.1.x'
 	@echo '  llvm_target=Target   Make llvm where Target is one of:'
 	@echo '                         all (default if not specified)'
 	@echo '                         rebuild'

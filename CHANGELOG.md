@@ -14,6 +14,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Remove `glob` package from standard library ([PR #3220](https://github.com/ponylang/ponyc/pull/3220))
 - Remove `regex` package from standard library ([PR #3218](https://github.com/ponylang/ponyc/pull/3218))
+- Remove `crypto` package from standard library ([PR #3225](https://github.com/ponylang/ponyc/pull/3225))
+- Remove `net/ssl` package from standard library ([PR #3225](https://github.com/ponylang/ponyc/pull/3225))
 
 ## [0.29.0] - 2019-07-06
 

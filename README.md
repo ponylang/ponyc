@@ -71,7 +71,7 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 
 # Installation
 
-Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0. In addition, support for OpenSSL 1.1.0 was recently added for systems such as the Debian Stretch and Arch Linux, see [FAQ Compiling](https://www.ponylang.io/faq/#compiling) for additional information.
+Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0.
 
 Pony's prerequisites for CPU platforms are:
 
@@ -358,7 +358,7 @@ cd ../../../
 #### Debug/test ....
 Now build and test using `LLVM_CFG=llvm-default.cfg` and any other appropriate parameters:
 ```
-make -j12 LLVM_CFG=llvm-default.cfg default_pic=true default_ssl=openssl_1.1.x -f Makefile-lib-llvm
+make -j12 LLVM_CFG=llvm-default.cfg default_pic=true -f Makefile-lib-llvm
 ```
 When satisfied create a commit pushing to your repo:
 ```
@@ -383,14 +383,14 @@ git clone git://github.com/ponylang/ponyc
 Install pony dependencies:
 
 ```
-pacman -S llvm make ncurses openssl zlib
+pacman -S llvm make ncurses zlib
 ```
 
 To build ponyc and compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl=openssl_1.1.x
+make default_pic=true
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -469,7 +469,7 @@ Build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_pic=true default_ssl=openssl_1.1.x
+make default_pic=true
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -488,8 +488,7 @@ sudo apt-get install -y llvm-3.9-dev
 
 ```bash
 dnf check-update
-sudo dnf install git gcc-c++ make openssl-devel zlib-devel \
-  llvm-devel ncurses-devel
+sudo dnf install git gcc-c++ make zlib-devel llvm-devel ncurses-devel
 ```
 
 To build ponyc, compile and run helloworld:
@@ -505,15 +504,15 @@ make
 
 ```bash
 dnf check-update
-sudo dnf install git gcc-c++ make openssl-devel zlib-devel \
-  llvm3.9-devel ncurses-devel libatomic
+sudo dnf install git gcc-c++ make zlib-devel llvm3.9-devel ncurses-devel \
+ libatomic
 ```
 
 To build ponyc, compile and run helloworld:
 
 ```bash
 cd ~/ponyc/
-make default_ssl='openssl_1.1.x'
+make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
@@ -523,8 +522,7 @@ make default_ssl='openssl_1.1.x'
 #### Install dependencies:
 
 ```bash
-sudo yum install git gcc-c++ make openssl-devel zlib-devel \
-  ncurses-devel libatomic
+sudo yum install git gcc-c++ make zlib-devel ncurses-devel libatomic
 ```
 
 Using LLVM 3.9.1 from EPEL:
@@ -591,7 +589,7 @@ make use="llvm_link_static"
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
 sudo zypper refresh
 sudo zypper update
-sudo zypper install git gcc-c++ make libopenssl-devel zlib-devel \
+sudo zypper install git gcc-c++ make zlib-devel \
   llvm3_9-devel binutils-gold
 ```
 
@@ -609,7 +607,7 @@ make
 NOTE: LLVM 3.9 doesn't seem to be available so these instructions install the default LLVM version available.
 
 ```bash
-sudo zypper install git gcc-c++ make libopenssl-devel zlib-devel \
+sudo zypper install git gcc-c++ make zlib-devel \
   llvm-devel binutils-gold
 ```
 
