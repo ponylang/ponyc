@@ -191,7 +191,7 @@ define USE_CHECK
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
   else ifeq ($1,dtrace)
     DTRACE ?= $(shell which dtrace)
-    ifeq (, $(DTRACE))
+    ifeq (, $$(DTRACE))
       $$(error No dtrace compatible user application static probe generation tool found)
     endif
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
