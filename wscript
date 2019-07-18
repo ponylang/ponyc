@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+/! /usr/bin/env python
 # encoding: utf-8
 
 # This script is used to configure and build the Pony compiler.
@@ -125,7 +125,7 @@ def configure(ctx):
             ctx.setenv(bldName, env = bld_env)
             ctx.env.PONYLIBS_NAME = libs_name + '-Release'
             ctx.env.LLVM_DIR = os.path.join(ctx.env.PONYLIBS_DIR, \
-                'lib', 'LLVM-' + llvm_version + '-Debug')
+                'lib', 'LLVM-' + llvm_version + '-Release')
 
             ctx.env.append_value('DEFINES', [
                 'DEBUG',
@@ -239,8 +239,7 @@ def build(ctx):
 
                 import shutil
                 if (ctx.options.config == 'debug'):
-                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), buildDir)
-                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8d.lib'), os.path.join(buildDir, 'pcre2-8.lib'))
+                    shutil.copy(os.path.join(pcre2Dir, 'pcre2-8.lib'), buildDir)
                 else:
                     shutil.copy(os.path.join(pcre2Dir, 'pcre2-8.lib'), buildDir)
                 shutil.copy(os.path.join(libresslDir, 'lib', 'crypto.lib'), buildDir)
