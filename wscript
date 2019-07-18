@@ -1,4 +1,4 @@
-/! /usr/bin/env python
+#! /usr/bin/env python
 # encoding: utf-8
 
 # This script is used to configure and build the Pony compiler.
