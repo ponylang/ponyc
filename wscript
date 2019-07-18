@@ -123,7 +123,7 @@ def configure(ctx):
             # Debug configuration
             bldName = 'debug-llvm-' + llvm_version
             ctx.setenv(bldName, env = bld_env)
-            ctx.env.PONYLIBS_NAME = libs_name + '-Debug'
+            ctx.env.PONYLIBS_NAME = libs_name + '-Release'
             ctx.env.LLVM_DIR = os.path.join(ctx.env.PONYLIBS_DIR, \
                 'lib', 'LLVM-' + llvm_version + '-Debug')
 
