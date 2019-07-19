@@ -164,28 +164,28 @@ class iso _TestMapUpsert is UnitTest
   fun apply(h: TestHelper) ? =>
     let x: Map[U32, U64] = Map[U32,U64]
     let f = {(x: U64, y: U64): U64 => x + y }
-    x.upsert(1, 5, f)?
+    x.upsert(1, 5, f)
     h.assert_eq[U64](5, x(1)?)
-    x.upsert(1, 3, f)?
+    x.upsert(1, 3, f)
     h.assert_eq[U64](8, x(1)?)
-    x.upsert(1, 4, f)?
+    x.upsert(1, 4, f)
     h.assert_eq[U64](12, x(1)?)
-    x.upsert(1, 2, f)?
+    x.upsert(1, 2, f)
     h.assert_eq[U64](14, x(1)?)
-    x.upsert(1, 1, f)?
+    x.upsert(1, 1, f)
     h.assert_eq[U64](15, x(1)?)
 
     let x2: Map[U32, String] = Map[U32,String]
     let g = {(x: String, y: String): String => x + ", " + y }
-    x2.upsert(1, "1", g)?
+    x2.upsert(1, "1", g)
     h.assert_eq[String]("1", x2(1)?)
-    x2.upsert(1, "2", g)?
+    x2.upsert(1, "2", g)
     h.assert_eq[String]("1, 2", x2(1)?)
-    x2.upsert(1, "3", g)?
+    x2.upsert(1, "3", g)
     h.assert_eq[String]("1, 2, 3", x2(1)?)
-    x2.upsert(1, "abc", g)?
+    x2.upsert(1, "abc", g)
     h.assert_eq[String]("1, 2, 3, abc", x2(1)?)
-    x2.upsert(1, "def", g)?
+    x2.upsert(1, "def", g)
     h.assert_eq[String]("1, 2, 3, abc, def", x2(1)?)
 
     // verify correct results when we trigger a resize
@@ -194,23 +194,23 @@ class iso _TestMapUpsert is UnitTest
     let x3: Map[U32, U64] = Map[U32,U64](prealloc)
     let f' = {(x: U64, y: U64): U64 => x + y }
     h.assert_eq[USize](expected_initial_size, x3.space())
-    h.assert_eq[U64](1, x3.upsert(1, 1, f')?)
-    h.assert_eq[U64](1, x3.upsert(2, 1, f')?)
-    h.assert_eq[U64](1, x3.upsert(3, 1, f')?)
-    h.assert_eq[U64](1, x3.upsert(4, 1, f')?)
-    h.assert_eq[U64](1, x3.upsert(5, 1, f')?)
-    h.assert_eq[U64](1, x3.upsert(6, 1, f')?)
-    h.assert_eq[U64](1, x3.upsert(7, 1, f')?)
-    h.assert_eq[U64](2, x3.upsert(5, 1, f')?)
+    h.assert_eq[U64](1, x3.upsert(1, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(2, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(3, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(4, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(5, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(6, 1, f'))
+    h.assert_eq[U64](1, x3.upsert(7, 1, f'))
+    h.assert_eq[U64](2, x3.upsert(5, 1, f'))
     h.assert_ne[USize](expected_initial_size, x3.space())
 
     let x4: Map[I32, I64] = Map[I32,I64]
     let i = {(x: I64, y: I64): I64 => x - y }
-    x4.upsert(2, 4, i)?
+    x4.upsert(2, 4, i)
     h.assert_eq[I64](4, x4(2)?)
-    x4.upsert(2, 4, i)?
+    x4.upsert(2, 4, i)
     h.assert_eq[I64](0, x4(2)?)
-    x4.upsert(2, 4, i)?
+    x4.upsert(2, 4, i)
     h.assert_eq[I64](-4, x4(2)?)
 
 class iso _TestMapHashFunc is UnitTest

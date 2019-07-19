@@ -71,9 +71,7 @@ class CommandParser
         match _parse_long_option(token.substring(2), tokens)
         | let o: Option =>
           if o.spec()._typ_p().is_seq() then
-            try
-              options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })?
-            end
+            options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })
           else
             options.update(o.spec().name(), o)
           end
@@ -86,9 +84,7 @@ class CommandParser
         | let os: Array[Option] =>
           for o in os.values() do
             if o.spec()._typ_p().is_seq() then
-              try
-                options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })?
-              end
+              options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })
             else
               options.update(o.spec().name(), o)
             end
@@ -112,9 +108,7 @@ class CommandParser
           match _parse_arg(token, arg_pos)
           | let a: Arg =>
             if a.spec()._typ_p().is_seq() then
-              try
-                args.upsert(a.spec().name(), a, {(x, n) => x._append(n) })?
-              end
+              args.upsert(a.spec().name(), a, {(x, n) => x._append(n) })
             else
               args.update(a.spec().name(), a)
               arg_pos = arg_pos + 1
