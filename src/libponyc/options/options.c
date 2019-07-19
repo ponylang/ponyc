@@ -296,6 +296,8 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
 #else
         printf("%s\n", PONY_VERSION_STR);
 #endif
+
+        printf("Defaults: pic=%s\n", opt->pic ? "true" : "false");
         return EXIT_0;
 
       case OPT_HELP:
