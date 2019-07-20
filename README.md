@@ -61,9 +61,9 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
     - [currycomb: Syntastic support](https://github.com/killerswan/pony-currycomb.vim)
     - [SpaceVim](http://spacevim.org), available as layer for Vim and [Neovim](https://neovim.io). Just follow [installation instructions](https://github.com/SpaceVim/SpaceVim) then load `lang#pony` layer inside configuration file (*$HOME/.SpaceVim.d/init.toml*)
 * Emacs:
-    - [ponylang-mode](https://github.com/seantallen/ponylang-mode)
-    - [flycheck-pony](https://github.com/rmloveland/flycheck-pony)
-    - [pony-snippets](https://github.com/SeanTAllen/pony-snippets)
+    - [ponylang-mode](https://github.com/ponylang/ponylang-mode)
+    - [flycheck-pony](https://github.com/ponylang/flycheck-pony)
+    - [pony-snippets](https://github.com/ponylang/pony-snippets)
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 * Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 * Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
