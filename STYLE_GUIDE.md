@@ -122,7 +122,7 @@ actor Main
     a + b }
   ```
 
-- Normal rules apply to Lambda types. 
+- Normal rules apply to Lambda types.
 
   ```pony
   // OK
@@ -341,7 +341,7 @@ end
   // ...
   ```
 
-- Multiline function parameters are each listed on a separate line. The return type preceded by a `:` is placed at the same indentation level followed by a question mark (if the function is partial). The `=>` is placed on a separate line between the parameter list and the function body at the same indentation level as the `fun` keyword.
+- Multiline function parameters are each listed on a separate line. The return type preceded by a `:` is placed at the same indentation level followed by a question mark (if the function is partial). The `=>` is placed on a separate line between the parameter list and the function body at the same indentation level as the `fun` keyword. These rules also apply to FFI function declarations.
 
   ```pony
   // OK
@@ -360,6 +360,14 @@ end
     : (ValueType, Value, Bool) ?
   =>
     // ...
+
+  // OK
+  @pony_asio_event_create[AsioEventID](
+    owner: AsioEventNotify,
+    fd: U32,
+    flags: U32,
+    nsec: U64,
+    noisy: Bool)
 
   // Not OK
   fun find(
@@ -424,6 +432,36 @@ end
     .>append(file_name)
     .>append(":")
     .>append(msg)
+  ```
+
+- Function arguments mostly follow the same rules as arguments in method declarations. However, all arguments may be placed on the following line with an additional level of indentation if all arguments would fit on that line. Otherwise, arguments must be placed on individual lines. These rules also apply to FFI calls. A `where` keyword and the following arguments may all exist on their own line.
+
+  ```pony
+  // OK
+  h.assert_true(Iter[I64](input.values()).any(is_positive))
+
+  // OK
+  Iter[String].chain(
+    [input0.values(); input1.values(); input0.values()].values())
+
+  // OK
+  h.assert_eq[String](
+    "   fmt   ",
+    Format("fmt", FormatDefault, PrefixDefault, -1, 9, AlignCenter))
+
+  // OK
+  buf.append(Format.int[U32](
+    high
+    where fmt = FormatHexBare, width = 4))
+
+  // Not OK
+  @pony_asio_event_create(this, fd,
+    AsioEvent.read_write_oneshot(), 0, true)
+
+  // Not OK
+  options.upsert(o.spec().name(),
+                 o,
+                 {(x, n) => x._append(n) })?
   ```
 
 ## Naming
