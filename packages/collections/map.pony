@@ -75,7 +75,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       end
     end
 
-  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V ? =>
+  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V =>
     """
     Combines a provided value with the current value for the provided key
     using the provided function. If the provided key has not been added to
@@ -100,31 +100,40 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
 
     (let i, let found) = _search(key)
+    let value' = value
 
     try
       if found then
         (let pkey, let pvalue) = (_array(i)? = _MapEmpty) as (K^, V^)
-        _array(i)? = (consume pkey, f(consume pvalue, consume value))
+
+        let new_value = f(consume pvalue, consume value)
+        let new_value' = new_value
+
+        _array(i)? = (consume pkey, consume new_value)
+
+        return _array(i)? as (_, V)
       else
         let key' = key
+
         _array(i)? = (consume key, consume value)
         _size = _size + 1
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')?
         end
       end
 
-      return _array(i)? as (_, V)
+      value'
     else
-      error
+      // This is unreachable, since index will never be out-of-bounds
+      value'
     end
 
-  fun ref insert(key: K, value: V): V ? =>
+  fun ref insert(key: K, value: V): V! =>
     """
     Set a value in the map. Returns the new value, allowing reuse.
     """
+    let value' = value
     try
       (let i, let found) = _search(key)
       let key' = key
@@ -135,17 +144,16 @@ class HashMap[K, V, H: HashFunction[K] val]
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')?
         end
       end
 
-      _array(i)? as (_, V)
+      value'
     else
       // This is unreachable, since index will never be out-of-bounds.
-      error
+      value'
     end
 
-  fun ref insert_if_absent(key: K, value: V): V ? =>
+  fun ref insert_if_absent(key: K, value: V): V =>
     """
     Set a value in the map if the key doesn't already exist in the Map.
     Saves an extra lookup when doing a pattern like:
@@ -159,6 +167,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     Returns the value, the same as `insert`, allowing 'insert_if_absent'
     to be used as a drop-in replacement for `insert`.
     """
+    let value' = value
+
     try
       (let i, let found) = _search(key)
       let key' = key
@@ -170,14 +180,13 @@ class HashMap[K, V, H: HashFunction[K] val]
 
         if (_size * 4) > (_array.size() * 3) then
           _resize(_array.size() * 2)
-          return this(key')?
         end
       end
 
       _array(i)? as (_, V)
     else
       // This is unreachable, since index will never be out-of-bounds.
-      error
+      value'
     end
 
   fun ref remove(key: box->K!): (K^, V^) ? =>
