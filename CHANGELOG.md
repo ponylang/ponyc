@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Make Map insertion functions total ([PR #3203](https://github.com/ponylang/ponyc/pull/3203))
 - Stop building Tumbleweed packages for releases ([PR #3228](https://github.com/ponylang/ponyc/pull/3228))
 - Stop creating Debian Buster releases ([PR #3227](https://github.com/ponylang/ponyc/pull/3227))
 - Remove `glob` package from standard library ([PR #3220](https://github.com/ponylang/ponyc/pull/3220))
