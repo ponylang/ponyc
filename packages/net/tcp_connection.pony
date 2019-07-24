@@ -190,6 +190,82 @@ actor TCPConnection
   these platforms, you **must** call `unmute` on a muted connection to have
   it close. Without calling `unmute` the `TCPConnection` actor will never
   exit.
+
+  ## Proxy support
+
+  Using the `proxy_via` callback in a `TCPConnectionNotify` it is possible
+  to implement proxies. The function takes the intended destination host
+  and service as parameters and returns a 2-tuple of the proxy host and
+  service.
+
+  The proxy `TCPConnectionNotify` should decorate another implementation of
+  `TCPConnectionNotify` passing relevent data through.
+
+  ### Example proxy implementation
+
+  ```pony
+  actor Main
+    new create(env: Env) =>
+      MyClient.create(
+        "example.com", // we actually want to connect to this host
+        "80",
+        ExampleProxy.create("proxy.example.com", "80") // we connect via this proxy
+      )
+
+  actor MyClient
+    new create(host: String, service: String, proxy: Proxy = NoProxy) =>
+      let conn: TCPConnection = TCPConnection.create(
+              env.root as AmbientAuth,
+              proxy.apply(MyConnectionNotify.create()),
+              host,
+              service
+      )
+
+  class ExampleProxy is Proxy
+    let _proxy_host: String
+    let _proxy_service: String
+
+    new create(proxy_host: String, proxy_service: String) =>
+      _proxy_host = proxy_host
+      _proxy_service = proxy_service
+
+    fun apply(wrap: TCPConnectionNotify iso): TCPConnectionNotify iso^ =>
+      ExampleProxyNotify.create(consume wrap, _proxy_service, _proxy_service)
+
+  class iso ExampleProxyNotify is TCPConnectionNotify
+    // Fictional proxy implementation that has no error
+    // conditions, and always forwards the connection.
+    let _proxy_host: String
+    let _proxy_service: String
+    var _destination_host: (None | String) = None
+    var _destination_service: (None | String) = None
+    let _wrapped: TCPConnectionNotify iso
+
+    new iso create(wrap: TCPConnectionNotify iso, proxy_host: String, proxy_service: String) =>
+      _wrapped = wrap
+      _proxy_host = proxy_host
+      _proxy_service = proxy_service
+
+    fun ref proxy_via(host: String, service: String): (String, String) =>
+      // Stash the original host & service; return the host & service
+      // for the proxy; indicating that the initial TCP connection should
+      // be made to the proxy
+      _destination_host = host
+      _destination_service = service
+      (_proxy_host, _proxy_service)
+
+    fun ref connected(conn: TCPConnection ref) =>
+      // conn is the connection to the *proxy* server. We need to ask the
+      // proxy server to forward this connection to our intended final
+      // destination.
+      conn.write((_destination_host + "\n").array())
+      conn.write((_destination_service + "\n").array())
+      wrapped.connected(conn)
+
+    fun ref received(conn, data, times) => _wrapped.received(conn, data, times)
+    fun ref connect_failed(conn: TCPConnection ref) => None
+  ```
+  
   """
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify
