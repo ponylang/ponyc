@@ -19,7 +19,7 @@ task:
 
   test_script:
     - cd ponyc
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 use=llvm_link_static -j4 symlink=no install
-    - tar -cf /tmp/ponyc.tar /usr/local/lib/pony/*
+    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 use=llvm_link_static -j4 prefix=/tmp/pony/ symlink=no install
+    - tar -cf /tmp/ponyc.tar /tmp/pony/lib/pony/*
     - gzip /tmp/ponyc.tar
     - cloudsmith push raw --version 20190723 --k 1cc732891a064c6542e3632a6ee281b69dbdce18 main-pony/pony-nightlies /tmp/ponyc.tar.gz
