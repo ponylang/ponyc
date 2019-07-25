@@ -31,8 +31,8 @@ ASSET_OWNER=main-pony
 ASSET_REPO=pony-nightlies
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
 ASSET_FILE=${PACKAGE_DIR}/${PACKAGE}.tar.gz
-ASSET_SUMMARY=Pony compiler
-ASSET_DESCRIPTION=https://github.com/ponylang/ponyc
+ASSET_SUMMARY="Pony compiler"
+ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
