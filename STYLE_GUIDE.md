@@ -466,7 +466,7 @@ end
 
 ### Type Parameters and Constraints
 
-Multiline type parameters are each listed on on a separate line. Type constraints will start on the next line beginning with the `is` keyword. Complex type constraints follow the rules described in [Type Aliases](#type-aliases).
+Multiline type parameters are each listed on a separate line. Type constraints will start on the next line beginning with the `is` keyword. Complex type constraints follow the rules described in [Type Aliases](#type-aliases).
 
 ```pony
 // OK
