@@ -2,7 +2,6 @@ FROM alpine
 
 RUN apk add --update \
   alpine-sdk \
-  libressl-dev \
   binutils-gold \
   libexecinfo-dev \
   coreutils \

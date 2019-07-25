@@ -10,7 +10,6 @@ RUN apt-get update \
   g++-6 \
   git \
   libncurses5-dev \
-  libssl-dev \
   make \
   wget \
   xz-utils \

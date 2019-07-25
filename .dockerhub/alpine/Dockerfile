@@ -4,7 +4,6 @@ ENV LLVM_VERSION 5
 
 RUN apk add --update --no-cache \
   alpine-sdk \
-  libressl-dev \
   binutils-gold \
   llvm${LLVM_VERSION} \
   llvm${LLVM_VERSION}-dev \
