@@ -35,15 +35,18 @@ ASSET_SUMMARY="Pony compiler"
 ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
+echo "Building ponyc installation..."
 make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
   -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no use=llvm_link_static
 
 # Package it all up
+echo "Creating .tar.gz of ponyc installation..."
 pushd ${DESTINATION} || exit 1
 tar -cvzf ${ASSET_FILE} *
 popd || exit 1
 
 # Ship it off to cloudsmith
+echo "Uploading package to cloudsmith..."
 cloudsmith push raw --version "${VERSION}" --api-key ${API_KEY} \
   --summary "${ASSET_SUMMARY}" --description "${ASSET_DESCRIPTION}" \
   ${ASSET_PATH} ${ASSET_FILE}
