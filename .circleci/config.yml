@@ -15,7 +15,7 @@ jobs:
       - image: ponylang/ponyc-ci:x86-64-unknown-linux-gnu-nightly
     steps:
       - checkout
-      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash 1cc732891a064c6542e3632a6ee281b69dbdce18
+      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
 
   verify-changelog:
     docker:
