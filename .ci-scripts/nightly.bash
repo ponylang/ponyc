@@ -9,13 +9,14 @@ MAKE_PARALLELISM=4
 BUILD_PREFIX=/tmp/pony
 DESTINATION=${BUILD_PREFIX}/lib/pony
 
-#
-OS=Linux
-CLIB=glibc
+# Triple construction
+VENDOR=unknown
+OS=linux-gnu
+TRIPLE=${ARCH}-${VENDOR}-${OS}
 
 #
 PACKAGE_DIR=/tmp
-PACKAGE=ponyc_${OS}_${CLIB}_${ARCH}
+PACKAGE=ponyc_${TRIPLE}
 
 # Cloudsmith configuration
 VERSION=$(date +%Y%m%d)
