@@ -464,6 +464,68 @@ end
                  {(x, n) => x._append(n) })?
   ```
 
+### Type Parameters and Constraints
+
+Multiline type parameters are each listed on a separate line. Type constraints will start on the next line beginning with the `is` keyword. Complex type constraints follow the rules described in [Type Aliases](#type-aliases).
+
+```pony
+// OK
+type Map[
+  K: (mut.Hashable val & Equatable[K]),
+  V: Any #share]
+  is HashMap[K, V, mut.HashEq[K]]
+
+// OK
+class Flags[
+  A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64]
+  is Comparable[Flags[A, B] box]
+
+// OK
+type BinaryHeapPriority[A: Comparable[A] #read]
+  is ( _BinaryHeapPriority[A]
+    & (MinHeapPriority[A] | MaxHeapPriority[A]) )
+
+// OK
+fun ref zip4[B, C, D, E](
+  i2: Iterator[B],
+  i3: Iterator[C],
+  i4: Iterator[D],
+  i5: Iterator[E])
+  : Iter[(A, B, C, D, E)]^
+=>
+
+// OK
+fun div_checked[
+  T: (SignedInteger[T, U] val & Signed),
+  U: UnsignedInteger[U] val](
+  x: T,
+  y: T)
+  : (T, Bool)
+=>
+
+// Not OK
+primitive HashEq64
+  [A: (Hashable64 #read & Equatable[A] #read)] is HashFunction64[A]
+
+// Not OK
+class Flags[A: Flag[B] val,
+            B: (Unsigned & Integer[B] val) = U64]
+  is Comparable[Flags[A, B] box]
+
+// Not OK
+class val _MapCollisions[K: Any #share, V: Any #share,
+  H: mut.HashFunction[K] val]
+
+// Not OK
+fun mod_checked
+  [T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](
+  x: T,
+  y: T)
+  : (T, Bool)
+=>
+
+```
+
 ## Naming
 
 - `CamelCase` is used for types and `snake_case` is used for field, function, and variable names.
