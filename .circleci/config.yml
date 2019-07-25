@@ -283,8 +283,6 @@ workflows:
       # sanity tests
       - verify-changelog
       - validate-shell-scripts
-      # temp
-      - x86-64-unknown-linux-gnu-nightly
 
       # p1 tests
       - llvm-701-release:
