@@ -20,16 +20,7 @@ RUN wget "https://releases.linaro.org/components/toolchain/binaries/6.4-${COMPIL
  && arm-linux-gnueabihf-gcc --version \
  && rm gcc-linaro-6.4.1-${COMPILER_RELEASE}-x86_64_arm-linux-gnueabihf.tar.xz \
  && wget https://github.com/multiarch/qemu-user-static/releases/download/v${QEMU_VERSION}/qemu-arm-static -O /usr/bin/qemu-arm-static \
- && chmod +x /usr/bin/qemu-arm-static \
-# install libressl
- && wget "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-2.4.5.tar.gz" \
- && tar -xzvf libressl-2.4.5.tar.gz \
- && cd libressl-2.4.5 \
- && ./configure --prefix=/usr/cross --disable-asm --host="${CROSS_TRIPLE}" CC="${CROSS_CC}" CXX="${CROSS_CXX}" CFLAGS="${CROSS_CFLAGS}" LDFLAGS="${CROSS_LDFLAGS}" \
- && make \
- && make install \
- && cd .. \
- && rm -rf libressl-2.4.5*
+ && chmod +x /usr/bin/qemu-arm-static
 
 USER pony
 WORKDIR /home/pony

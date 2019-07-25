@@ -26,15 +26,6 @@ RUN dpkg --add-architecture i386 \
   g++-6 \
   g++-6-multilib \
   gcc-6-multilib \
-# install libressl
- && wget "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-2.4.5.tar.gz" \
- && tar -xzvf libressl-2.4.5.tar.gz \
- && cd libressl-2.4.5 \
- && ./configure --prefix=/usr/cross --disable-asm --host="${CROSS_TRIPLE}" CC="${CROSS_CC}" CXX="${CROSS_CXX}" CFLAGS="${CROSS_CFLAGS}" LDFLAGS="${CROSS_LDFLAGS}" \
- && make \
- && make install \
- && cd .. \
- && rm -rf libressl-2.4.5* \
 # cleanup
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
