@@ -18,11 +18,11 @@ TRIPLE=${ARCH}-${VENDOR}-${OS}
 
 # Build parameters
 MAKE_PARALLELISM=4
-BUILD_PREFIX=/tmp/pony
+BUILD_PREFIX=$(mktemp -d)
 DESTINATION=${BUILD_PREFIX}/lib/pony
 
 # Asset information
-PACKAGE_DIR=/tmp
+PACKAGE_DIR=$(mktemp -d)
 PACKAGE=ponyc-${TRIPLE}
 
 # Cloudsmith configuration
@@ -39,7 +39,9 @@ make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
   -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no use=llvm_link_static
 
 # Package it all up
-tar -cvzf ${ASSET_FILE} ${DESTINATION}/*
+pushd ${DESTINATION} || exit 1
+tar -cvzf ${ASSET_FILE} *
+popd || exit 1
 
 # Ship it off to cloudsmith
 cloudsmith push raw --version "${VERSION}" --api-key ${API_KEY} \
