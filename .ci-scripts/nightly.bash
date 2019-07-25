@@ -23,7 +23,7 @@ API_KEY=1cc732891a064c6542e3632a6ee281b69dbdce18
 ASSET_OWNER=main-pony
 ASSET_REPO=pony-nightlies
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
-ASSET_FILE=/tmp/${PACKAGE_DIR}/${PACKAGE}.tar.gz
+ASSET_FILE=${PACKAGE_DIR}/${PACKAGE}.tar.gz
 ASSET_SUMMARY=Pony compiler
 ASSET_DESCRIPTION=https://github.com/ponylang/ponyc
 
