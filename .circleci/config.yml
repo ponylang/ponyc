@@ -10,6 +10,13 @@ test-ci-lib-llvm: &test-ci-lib-llvm
 
 version: 2
 jobs:
+  x86-64-unknown-linux-gnu-nightly:
+    docker:
+      - image: ponylang/ponyc-ci:x86-64-unknown-linux-gnu-nightly
+    steps:
+      - checkout
+      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash 1cc732891a064c6542e3632a6ee281b69dbdce18
+
   verify-changelog:
     docker:
       - image: ponylang/changelog-tool:release
@@ -261,11 +268,23 @@ jobs:
 
 workflows:
   version: 2
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only: master
+    jobs:
+      - x86-64-unknown-linux-gnu-nightly
+
   tests:
     jobs:
       # sanity tests
       - verify-changelog
       - validate-shell-scripts
+      # temp
+      - x86-64-unknown-linux-gnu-nightly
 
       # p1 tests
       - llvm-701-release:
