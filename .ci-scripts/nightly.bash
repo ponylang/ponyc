@@ -1,33 +1,38 @@
 #!/bin/bash
 
-# Build parameters
+API_KEY=$1
+if [[ ${API_KEY} == "" ]]
+then
+  echo "API_KEY needs to be supplied as first script argument."
+  exit 1
+fi
+
+# Compiler target parameters
 ARCH=x86-64
 PIC=true
-
-# More
-MAKE_PARALLELISM=4
-BUILD_PREFIX=/tmp/pony
-DESTINATION=${BUILD_PREFIX}/lib/pony
 
 # Triple construction
 VENDOR=unknown
 OS=linux-gnu
 TRIPLE=${ARCH}-${VENDOR}-${OS}
 
-#
+# Build parameters
+MAKE_PARALLELISM=4
+BUILD_PREFIX=/tmp/pony
+DESTINATION=${BUILD_PREFIX}/lib/pony
+
+# Asset information
 PACKAGE_DIR=/tmp
-PACKAGE=ponyc_${TRIPLE}
+PACKAGE=ponyc-${TRIPLE}
 
 # Cloudsmith configuration
 VERSION=$(date +%Y%m%d)
-API_KEY=1cc732891a064c6542e3632a6ee281b69dbdce18
 ASSET_OWNER=main-pony
 ASSET_REPO=pony-nightlies
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
 ASSET_FILE=${PACKAGE_DIR}/${PACKAGE}.tar.gz
 ASSET_SUMMARY=Pony compiler
 ASSET_DESCRIPTION=https://github.com/ponylang/ponyc
-
 
 # Build pony installation
 make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
