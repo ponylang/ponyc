@@ -1,4 +1,4 @@
-version: 2.1
+version: 2
 
 orbs:
     zulip: ponylang/zulip@dev:first
@@ -25,7 +25,7 @@ jobs:
           message: "This is a custom message notification"
 
 workflows:
-  version: 2.1
+  version: 2
   tests:
     jobs:
       # sanity tests
