@@ -14,7 +14,8 @@ RUN apt-get update \
   wget \
   xz-utils \
   zlib1g-dev \
-  python
+  python \
+  curl
 
 # install a newer cmake
 RUN wget https://cmake.org/files/v3.11/cmake-3.11.2-Linux-x86_64.sh \

@@ -12,6 +12,7 @@ RUN yum install -y \
     zlib-devel \
     ncurses-devel \
     libatomic \
+    curl \
  && yum copr enable -y alonid/llvm-${LLVM_VERSION} \
  && yum install -y \
     llvm-${LLVM_VERSION} \
