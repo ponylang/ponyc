@@ -12,7 +12,8 @@ jobs:
       - run: apt-get update
       - run: apt-get -y install curl
       - run: changelog-tool verify CHANGELOG.md
-      - zulip/notify
+      - zulip/notify:
+          message: "This is a custom message notification"
 
   validate-shell-scripts:
     docker:
@@ -20,7 +21,8 @@ jobs:
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
-      - zulip/notify
+      - zulip/notify:
+          message: "This is a custom message notification"
 
 workflows:
   version: 2
