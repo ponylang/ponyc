@@ -5,6 +5,8 @@ jobs:
       - image: ponylang/changelog-tool:release
     steps:
       - checkout
+      - run: apt-get update
+      - run: apt-get -y install curl
       - run: changelog-tool verify CHANGELOG.md
       - run:
           name: Failure notification
