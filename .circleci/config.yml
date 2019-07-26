@@ -18,8 +18,6 @@ jobs:
       - image: ponylang/ponyc-ci:shellcheck
     steps:
       - checkout
-      - run: apt-get update
-      - run: apt-get -y install curl
       - run: find . -name '*.bash' -exec shellcheck {} \;
       - run:
           name: Failure notification
