@@ -11,6 +11,7 @@ RUN apt-get update \
   wget \
   xz-utils \
   zlib1g-dev \
+  curl \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean

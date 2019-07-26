@@ -13,7 +13,9 @@ RUN apk add --update --no-cache \
   cmake \
   git \
   zlib-dev \
-  ncurses-dev
+  ncurses-dev \
+  curl \
+  bash
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/

@@ -12,6 +12,7 @@ RUN apt-get update \
   xz-utils \
   zlib1g-dev \
   python-pip \
+  curl \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \
