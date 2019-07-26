@@ -22,6 +22,8 @@ jobs:
         command: bash .ci-scripts/notify-zulip-on-circleci-failure.bash
         when: on_fail
 
+workflows:
+  version: 2
   tests:
     jobs:
       # sanity tests
