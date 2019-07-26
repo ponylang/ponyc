@@ -58,10 +58,21 @@ else
   SILENT =
 endif
 
-ifneq ($(wildcard .git),)
-  tag := $(shell cat VERSION)-$(shell git rev-parse --short HEAD)
+# Default to version from `VERSION` file but allowing overridding on the
+# make command line like:
+# make version="nightly-19710702"
+# overridden version *should not* contain spaces or characters that aren't
+# legal in filesystem path names
+ifndef version
+  version := $(shell cat VERSION)
+  ifneq ($(wildcard .git),)
+    sha := $(shell git rev-parse --short HEAD)
+    tag := $(version)-$(sha)
+  else
+    tag := $(version)
+  endif
 else
-  tag := $(shell cat VERSION)
+  tag := $(version)
 endif
 
 version_str = "$(tag) [$(config)]\ncompiled with: llvm $(llvm_version) \
