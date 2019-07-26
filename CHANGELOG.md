@@ -8,7 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix `which dtrace` path check ([PR #3229](https://github.com/ponylang/ponyc/pull/3229))
 
-### Added
+### Added DUR
 
 
 ### Changed
