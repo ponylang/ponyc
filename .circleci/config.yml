@@ -8,7 +8,7 @@ jobs:
       - run: apt-get update
       - run: apt-get -y install curl
       - run: changelog-tool verify CHANGELOG.md
-      - notify
+      - run: *notify
 
   validate-shell-scripts:
     docker:
@@ -16,7 +16,7 @@ jobs:
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
-      - notify
+      - run: *notify
 
 workflows:
   version: 2
