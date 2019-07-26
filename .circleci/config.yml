@@ -5,6 +5,7 @@ jobs:
       - image: ponylang/changelog-tool:release
     steps:
       - checkout
+      - run: apt-get -y install curl
       - run: changelog-tool verify CHANGELOG.md
       - run:
         name: Failure notification
@@ -16,6 +17,7 @@ jobs:
       - image: ponylang/ponyc-ci:shellcheck
     steps:
       - checkout
+      - run: apt-get -y install curl
       - run: find . -name '*.bash' -exec shellcheck {} \;
       - run:
         name: Failure notification
