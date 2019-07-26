@@ -1,4 +1,4 @@
-version: 2.1
+version: 2
 jobs:
   verify-changelog:
     docker:
@@ -8,10 +8,7 @@ jobs:
       - run: apt-get update
       - run: apt-get -y install curl
       - run: changelog-tool verify CHANGELOG.md
-      - run:
-          name: Failure notification
-          command: bash .ci-scripts/notify-zulip-on-circleci-failure.bash
-          when: on_fail
+      - notify
 
   validate-shell-scripts:
     docker:
@@ -19,10 +16,7 @@ jobs:
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
-      - run:
-          name: Failure notification
-          command: bash .ci-scripts/notify-zulip-on-circleci-failure.bash
-          when: on_fail
+      - notify
 
 workflows:
   version: 2
