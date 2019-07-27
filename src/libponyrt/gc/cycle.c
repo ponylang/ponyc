@@ -67,7 +67,6 @@ struct view_t
   bool deferred;
   uint8_t color;
   viewrefmap_t map;
-  deltamap_t* delta;
   perceived_t* perceived;
 };
 
@@ -88,13 +87,6 @@ static void view_free(view_t* view)
   if(view->view_rc == 0)
   {
     ponyint_viewrefmap_destroy(&view->map);
-
-    if(view->delta != NULL)
-    {
-      ponyint_deltamap_free(view->delta);
-      view->delta = NULL;
-    }
-
     POOL_FREE(view_t, view);
   }
 }
@@ -181,10 +173,8 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
   return view;
 }
 
-static void apply_delta(detector_t* d, view_t* view)
+static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
 {
-  deltamap_t* map = view->delta;
-
   if(map == NULL)
     return;
 
@@ -237,16 +227,12 @@ static void apply_delta(detector_t* d, view_t* view)
   }
 
   ponyint_deltamap_free(map);
-  view->delta = NULL;
 }
 
 static bool mark_grey(detector_t* d, view_t* view, size_t rc)
 {
   if(!view->blocked)
     return false;
-
-  // apply any stored reference delta
-  apply_delta(d, view);
 
   if(view->deferred)
   {
@@ -613,10 +599,7 @@ static void block(detector_t* d, pony_actor_t* actor,
 
   // apply delta immediately
   if(map != NULL)
-  {
-    view->delta = map;
-    apply_delta(d, view);
-  }
+    apply_delta(d, view, map);
 
   // record that we're blocked
   view->blocked = true;
@@ -796,7 +779,6 @@ static void dump_views()
 
   while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
   {
-    apply_delta(d, view);
     dump_view(view);
   }
 }
