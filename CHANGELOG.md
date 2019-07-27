@@ -2,15 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.30.0] - 2019-07-27
 
 ### Fixed
 
 - Fix `which dtrace` path check ([PR #3229](https://github.com/ponylang/ponyc/pull/3229))
 - Fix segfault due to Cycle Detector viewref inconsistency ([PR #3254](https://github.com/ponylang/ponyc/pull/3254))
-
-### Added
-
 
 ### Changed
 
