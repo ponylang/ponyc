@@ -26,8 +26,6 @@ jobs:
     docker:
       - image: ponylang/changelog-tool:release
     steps:
-      - run: apt-get update
-      - run: apt-get install -y curl
       - checkout
       - run: changelog-tool verify CHANGELOG.md
       - zulip/status:
