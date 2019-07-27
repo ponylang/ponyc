@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 API_KEY=$1
 if [[ ${API_KEY} == "" ]]
 then
