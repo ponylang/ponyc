@@ -180,7 +180,7 @@ As part of every release, 6 Docker images are built:
   - release-alpine
   - 0.3.1-alpine
 
-Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 6 images were successfully built. From the time the release starts, it can take several hours for all images to be built.
+Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 6 images were successfully built. From the time the release starts, it can take several hours for all images to be built. You can track the progress of builds on [build activity page](https://cloud.docker.com/u/ponylang/repository/docker/ponylang/ponyc/builds); scroll down to the bottom of the page to see completed, in-progress, and pending jobs.
 
 ### Verify that the Pony Playground updated to the new version
 
