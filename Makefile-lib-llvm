@@ -30,7 +30,7 @@ pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples 
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS)
+	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS)
 
 .PHONY: $(llvm_config)
 $(llvm_config):
@@ -40,37 +40,37 @@ $(llvm_config):
 .PHONY: rebuild
 rebuild: clean
 	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
+	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild-test
 rebuild-test: clean
 	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
-	@PATH=$(new_path) $(MAKE)  test -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
+	@PATH="$(new_path)" $(MAKE)  test -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Rebuild and then run some tests as passed in the command line parameter gtest_filter.
 # Note, the clean is needed otherwise the rebuild of llvm won't be linked.
 #
 # For example:
 #  $ time CC=clang CXX=clang++ make -j10 -f Makefile-lib-llvm \
-#  verbose=1 config=debug default_pic=true default_ssl=openssl_1.1.x llvm_target=llvm-current rebuild-some-tests \
+#  verbose=1 config=debug default_pic=true llvm_target=llvm-current rebuild-some-tests \
 #  gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering 2>&1 | tee clang-rebuild-some-tests.txt
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
 	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
+	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 	@$(MAKE) -f Makefile-lib-llvm some-tests
 
 # Run the some passing gtest_filter on command line, for example:
 #  make -f Makefile-lib-llvm some-tests gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering
 .PHONY: some-tests
 some-tests:
-	@PATH=$(new_path) ./build/debug/libponyc.tests $(gtest_filter)
+	@PATH="$(new_path)" ./build/debug/libponyc.tests $(gtest_filter)
 
 # Clean just ponyc
 .PHONY: clean
 clean:
-	@PATH=$(new_path) $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) clean
+	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) clean
 
 # Clean ponyc and lib/llvm
 .PHONY: clean-all
@@ -97,10 +97,6 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  default_ssl=Name     Make Name the default ssl version'
-	@echo '                       where Name is one of:'
-	@echo '                         openssl_0.9.0'
-	@echo '                         openssl_1.1.x'
 	@echo '  llvm_target=Target   Make llvm where Target is one of:'
 	@echo '                         all (default if not specified)'
 	@echo '                         rebuild'

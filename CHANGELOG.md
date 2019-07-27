@@ -2,6 +2,23 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.30.0] - 2019-07-27
+
+### Fixed
+
+- Fix `which dtrace` path check ([PR #3229](https://github.com/ponylang/ponyc/pull/3229))
+- Fix segfault due to Cycle Detector viewref inconsistency ([PR #3254](https://github.com/ponylang/ponyc/pull/3254))
+
+### Changed
+
+- Make Map insertion functions total ([PR #3203](https://github.com/ponylang/ponyc/pull/3203))
+- Stop building Tumbleweed packages for releases ([PR #3228](https://github.com/ponylang/ponyc/pull/3228))
+- Stop creating Debian Buster releases ([PR #3227](https://github.com/ponylang/ponyc/pull/3227))
+- Remove `glob` package from standard library ([PR #3220](https://github.com/ponylang/ponyc/pull/3220))
+- Remove `regex` package from standard library ([PR #3218](https://github.com/ponylang/ponyc/pull/3218))
+- Remove `crypto` package from standard library ([PR #3225](https://github.com/ponylang/ponyc/pull/3225))
+- Remove `net/ssl` package from standard library ([PR #3225](https://github.com/ponylang/ponyc/pull/3225))
+
 ## [0.29.0] - 2019-07-06
 
 ### Fixed

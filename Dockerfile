@@ -8,12 +8,11 @@ RUN apt-get update \
   g++ \
   git \
   libncurses5-dev \
-  libpcre2-dev \
-  libssl-dev \
   make \
   wget \
   xz-utils \
   zlib1g-dev \
+  curl \
  && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "D401AB61 DBE1D0A2" \
  && echo "deb https://dl.bintray.com/pony-language/pony-stable-debian /" | tee -a /etc/apt/sources.list \
  && apt-get update \

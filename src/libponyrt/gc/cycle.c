@@ -611,11 +611,11 @@ static void block(detector_t* d, pony_actor_t* actor,
   // update reference count
   view->rc = rc;
 
-  // apply any previous delta and store the new delta
+  // apply delta immediately
   if(map != NULL)
   {
-    apply_delta(d, view);
     view->delta = map;
+    apply_delta(d, view);
   }
 
   // record that we're blocked

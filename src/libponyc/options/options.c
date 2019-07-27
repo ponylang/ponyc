@@ -19,11 +19,6 @@
 
 #define MAYBE_UNUSED(x) (void)x
 
-#if !defined(PONY_DEFAULT_SSL)
-// This default value is defined in packages/crypto and packages/net/ssl
-#define PONY_DEFAULT_SSL "openssl_0.9.0"
-#endif
-
 enum
 {
   OPT_VERSION,
@@ -166,9 +161,7 @@ static void usage(void)
     "    =name          Default is the compiler used to compile ponyc.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
-    "  --define, -D     Define which openssl version to use.\n"
-    "    =openssl_1.1.x Default is " PONY_DEFAULT_SSL ".\n"
-    "    =openssl_0.9.0\n"
+    "  --define, -D     Set a compile time definition.\n"
     ,
     "Debugging options:\n"
     "  --verbose, -V    Verbosity level.\n"
@@ -250,26 +243,6 @@ static void print_passes()
     printf("\n%s\n", name);
 }
 
-#define OPENSSL_LEADER "openssl_"
-static const char* valid_openssl_flags[] =
-  { OPENSSL_LEADER "1.1.0", OPENSSL_LEADER "0.9.0", NULL };
-
-
-static bool is_openssl_flag(const char* name)
-{
-  return 0 == strncmp(OPENSSL_LEADER, name, strlen(OPENSSL_LEADER));
-}
-
-static bool validate_openssl_flag(const char* name)
-{
-  for(const char** next = valid_openssl_flags; *next != NULL; next++)
-  {
-    if(0 == strcmp(*next, name))
-      return true;
-  }
-  return false;
-}
-
 /**
  * Handle special cases of options like compile time defaults
  *
@@ -293,8 +266,6 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
   // use by the signals package when not using signals for scheduler scaling
   define_build_flag("scheduler_scaling_pthreads");
 #endif
-
-  define_build_flag(PONY_DEFAULT_SSL);
 
   return CONTINUE;
 }
@@ -325,28 +296,14 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
 #else
         printf("%s\n", PONY_VERSION_STR);
 #endif
-        printf("Defaults: pic=%s ssl=%s\n", opt->pic ? "true" : "false",
-            PONY_DEFAULT_SSL);
+
+        printf("Defaults: pic=%s\n", opt->pic ? "true" : "false");
         return EXIT_0;
 
       case OPT_HELP:
         wants_help = true; break;
       case OPT_DEBUG: opt->release = false; break;
       case OPT_BUILDFLAG:
-        if(is_openssl_flag(s->arg_val))
-        {
-          if(validate_openssl_flag(s->arg_val))
-          { // User wants to add an openssl_flag,
-            // remove any existing openssl_flags.
-            remove_build_flags(valid_openssl_flags);
-          } else {
-            printf("Error: %s is invalid openssl flag, expecting one of:\n",
-                s->arg_val);
-            for(const char** next=valid_openssl_flags; *next != NULL; next++)
-              printf("       %s\n", *next);
-            return EXIT_255;
-          }
-        }
         define_build_flag(s->arg_val);
         break;
       case OPT_STRIP: opt->strip_debug = true; break;

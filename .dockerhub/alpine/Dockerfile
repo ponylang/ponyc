@@ -4,16 +4,18 @@ ENV LLVM_VERSION 5
 
 RUN apk add --update --no-cache \
   alpine-sdk \
-  libressl-dev \
   binutils-gold \
   llvm${LLVM_VERSION} \
   llvm${LLVM_VERSION}-dev \
-  pcre2-dev \
   libexecinfo-dev \
   coreutils \
   linux-headers \
   cmake \
-  git
+  git \
+  zlib-dev \
+  ncurses-dev \
+  curl \
+  bash
 
 WORKDIR /src/ponyc
 COPY Makefile LICENSE VERSION /src/ponyc/

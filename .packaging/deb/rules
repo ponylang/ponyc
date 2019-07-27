@@ -35,9 +35,10 @@ ifeq ($(DEB_HOST_ARCH),armhf)
 endif
 
 ifeq (,$(filter $(DEB_DISTRIBUTION),xenial))
-	MAKE_OPTIONS += default_ssl='openssl_1.1.x' default_pic=true
+	MAKE_OPTIONS += default_pic=true
 endif
 
+export LLVM_CONFIG=llvm-config-3.9
 
 %:
 	dh $@
@@ -64,4 +65,3 @@ endif
 # This is example for Cmake (See https://bugs.debian.org/641051 )
 #override_dh_auto_configure:
 #	dh_auto_configure -- #	-DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)
-

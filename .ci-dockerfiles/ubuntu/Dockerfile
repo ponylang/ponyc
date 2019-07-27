@@ -10,21 +10,12 @@ RUN apt-get update \
   g++-6 \
   git \
   libncurses5-dev \
-  libssl-dev \
   make \
   wget \
   xz-utils \
   zlib1g-dev \
-  python
-
-# install pcre2
-RUN wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.21.tar.bz2 \
- && tar xvf pcre2-10.21.tar.bz2 \
- && cd pcre2-10.21 \
- && ./configure --prefix=/usr \
- && make install \
- && cd .. \
- && rm -rf pcre2-10.21*
+  python \
+  curl
 
 # install a newer cmake
 RUN wget https://cmake.org/files/v3.11/cmake-3.11.2-Linux-x86_64.sh \

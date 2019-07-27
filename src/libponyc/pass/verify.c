@@ -91,6 +91,25 @@ static bool verify_assign_lvalue(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static bool verify_reassign_consumed(pass_opt_t* opt, ast_t* ast)
+{
+  uint32_t ast_flags = ast_checkflag(ast,
+    AST_FLAG_CAN_ERROR | AST_FLAG_CNSM_REASGN);
+
+  // if it's a consume/reassign and an error can be thrown
+  // and we're in a try
+  if((ast_flags == (AST_FLAG_CAN_ERROR | AST_FLAG_CNSM_REASGN))
+    && (opt->check.frame->try_expr != NULL))
+  {
+    ast_error(opt->check.errors, ast,
+      "can't reassign to a consumed identifier in a try expression if there is a partial call involved");
+    return false;
+  }
+
+  return true;
+}
+
+
 static bool verify_assign(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ASSIGN);
@@ -100,6 +119,10 @@ static bool verify_assign(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_inheritflags(ast);
+
+  // Reassign of consumed identifiers only allowed if there are no partial calls involved
+  if(!verify_reassign_consumed(opt, ast))
+    return false;
 
   return true;
 }

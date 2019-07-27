@@ -24,11 +24,9 @@ use capsicum = "capsicum"
 use cli = "cli"
 use collections = "collections"
 use collections_persistent = "collections/persistent"
-use crypto = "crypto"
 use debug = "debug"
 use files = "files"
 use format = "format"
-use glob = "glob"
 use ini = "ini"
 use itertools = "itertools"
 use json = "json"
@@ -40,10 +38,8 @@ use ponybench = "ponybench"
 use process = "process"
 use promises = "promises"
 use random = "random"
-use regex = "regex"
 use serialise = "serialise"
 use signals = "signals"
-use ssl = "net/ssl"
 use strings = "strings"
 use term = "term"
 use time = "time"
@@ -61,21 +57,13 @@ actor Main is TestList
     cli.Main.make().tests(test)
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
-    crypto.Main.make().tests(test)
     files.Main.make().tests(test)
     format.Main.make().tests(test)
-
-    ifdef not windows then
-      // The glob tests are currently very broken on Windows, so ignore them.
-      glob.Main.make().tests(test)
-    end
-
     ini.Main.make().tests(test)
     itertools.Main.make().tests(test)
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
     net.Main.make().tests(test)
-    ssl.Main.make().tests(test)
     options.Main.make().tests(test)
 
     ifdef posix then
@@ -85,7 +73,6 @@ actor Main is TestList
 
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
-    regex.Main.make().tests(test)
     serialise.Main.make().tests(test)
 
     ifdef not windows then

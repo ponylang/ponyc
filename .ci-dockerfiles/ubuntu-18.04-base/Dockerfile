@@ -7,12 +7,11 @@ RUN apt-get update \
   g++-6 \
   git \
   libncurses5-dev \
-  libssl-dev \
-  libpcre2-dev \
   make \
   wget \
   xz-utils \
   zlib1g-dev \
+  curl \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean

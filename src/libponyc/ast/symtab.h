@@ -16,6 +16,7 @@ typedef enum
   SYM_DEFINED,
   SYM_UNDEFINED,
   SYM_CONSUMED,
+  SYM_CONSUMED_SAME_EXPR,
   SYM_FFIDECL,
   SYM_ERROR
 } sym_status_t;

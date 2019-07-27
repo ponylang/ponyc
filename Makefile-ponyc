@@ -58,10 +58,21 @@ else
   SILENT =
 endif
 
-ifneq ($(wildcard .git),)
-  tag := $(shell cat VERSION)-$(shell git rev-parse --short HEAD)
+# Default to version from `VERSION` file but allowing overridding on the
+# make command line like:
+# make version="nightly-19710702"
+# overridden version *should not* contain spaces or characters that aren't
+# legal in filesystem path names
+ifndef version
+  version := $(shell cat VERSION)
+  ifneq ($(wildcard .git),)
+    sha := $(shell git rev-parse --short HEAD)
+    tag := $(version)-$(sha)
+  else
+    tag := $(version)
+  endif
 else
-  tag := $(shell cat VERSION)
+  tag := $(version)
 endif
 
 version_str = "$(tag) [$(config)]\ncompiled with: llvm $(llvm_version) \
@@ -191,7 +202,7 @@ define USE_CHECK
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-pooltrack
   else ifeq ($1,dtrace)
     DTRACE ?= $(shell which dtrace)
-    ifeq (, $(DTRACE))
+    ifeq (, $$(DTRACE))
       $$(error No dtrace compatible user application static probe generation tool found)
     endif
     ALL_CFLAGS += -DUSE_DYNAMIC_TRACE
@@ -380,23 +391,6 @@ ifeq ($(runtime-bitcode),yes)
   ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
     $(error Compiling the runtime as a bitcode file requires clang)
   endif
-endif
-
-# Set default ssl version
-valid_ssl_versions=openssl_0.9.0 openssl_1.1.0 openssl_1.1.1 openssl_1.1.x
-ifdef default_ssl
-  ifeq ($(filter-out $(valid_ssl_versions),$(default_ssl)),)
-    # both openssl_1.1.0 and openssl_1.1.1 are translated to openssl_1.1.x
-    ifneq (,$(findstring openssl_1.1.,$(default_ssl)))
-      pony_default_ssl:=openssl_1.1.x
-    else
-      pony_default_ssl:=$(default_ssl)
-    endif
-    $(info pony_default_ssl is $(pony_default_ssl))
-  else
-    $(error default_ssl=$(default_ssl) is invalid (valid values: $(valid_ssl_versions)))
-  endif
-  BUILD_FLAGS += -DPONY_DEFAULT_SSL=\"$(pony_default_ssl)\"
 endif
 
 makefile_abs_path := $(realpath $(lastword $(MAKEFILE_LIST)))
@@ -1110,10 +1104,6 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  default_ssl=Name     Make Name the default ssl version'
-	@echo '                       where Name is one of:'
-	@echo '                         openssl_0.9.0'
-	@echo '                         openssl_1.1.x'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
