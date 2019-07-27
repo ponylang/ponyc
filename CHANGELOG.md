@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix `which dtrace` path check ([PR #3229](https://github.com/ponylang/ponyc/pull/3229))
+- Fix segfault due to Cycle Detector viewref inconsistency ([PR #3254](https://github.com/ponylang/ponyc/pull/3254))
 
 ### Added
 
