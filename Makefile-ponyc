@@ -51,6 +51,16 @@ tune ?= generic
 cpu ?= $(arch)
 fpu ?=
 bits ?= $(shell getconf LONG_BIT)
+staticbuild ?= false
+
+# Set static building if requested
+ifeq (true,$(staticbuild))
+  use += llvm_link_static
+else
+  ifneq (false,$(staticbuild))
+    $(error staticbuild must be true or false)
+  endif
+endif
 
 ifndef verbose
   SILENT = @
@@ -538,6 +548,11 @@ ifneq ($(ALPINE),)
   libponyrt.tests.linkoptions += -lexecinfo
 endif
 
+# link statically
+ifeq (true,$(staticbuild))
+  libponyrt.tests.linkoptions += -static
+endif
+
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
@@ -557,6 +572,11 @@ ifneq ($(ALPINE),)
   libponyc.tests.linkoptions += -lexecinfo
 endif
 
+# link statically
+ifeq (true,$(staticbuild))
+  libponyc.tests.linkoptions += -static
+endif
+
 libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_LIMIT_MACROS
@@ -572,6 +592,12 @@ ifneq ($(ALPINE),)
   libponyrt.benchmarks.linkoptions += -lexecinfo
 endif
 
+# link statically
+ifeq (true,$(staticbuild))
+  libponyc.benchmarks.linkoptions += -static
+  libponyrt.benchmarks.linkoptions += -static
+endif
+
 ponyc.buildoptions = $(libponyc.buildoptions)
 
 ponyc.linkoptions += -rdynamic
@@ -579,6 +605,11 @@ ponyc.linkoptions += -rdynamic
 ifneq ($(ALPINE),)
   ponyc.linkoptions += -lexecinfo
   BUILD_FLAGS += -DALPINE_LINUX
+endif
+
+# link statically
+ifeq (true,$(staticbuild))
+  ponyc.linkoptions += -static
 endif
 
 ifeq ($(OSTYPE), linux)
@@ -1104,6 +1135,7 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
+	@echo '  staticbuild=true     Link ponyc statically'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
