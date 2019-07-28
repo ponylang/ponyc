@@ -382,7 +382,7 @@ ifneq ($(MAKECMDGOALS),clean)
   llvm.include = $(shell $(loopit))
   #$(info llvm.include="$(llvm.include)")
 
-  llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) -lz
+  llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) $(shell $(LLVM_CONFIG) --system-libs $(LLVM_LINK_STATIC))
 endif
 
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"
