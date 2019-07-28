@@ -51,15 +51,17 @@ tune ?= generic
 cpu ?= $(arch)
 fpu ?=
 bits ?= $(shell getconf LONG_BIT)
-staticbuild ?= false
+static ?= false
 
 # Set static building if requested
-ifeq (true,$(staticbuild))
-  use += llvm_link_static
-else
-  ifneq (false,$(staticbuild))
-    $(error staticbuild must be true or false)
+ifdef static
+  ifeq (,$(filter $(static), true false))
+    $(error static must be true or false)
   endif
+endif
+
+ifeq ($(static),true)
+  use += llvm_link_static
 endif
 
 ifndef verbose
@@ -236,7 +238,7 @@ define USE_CHECK
 endef
 
 ifdef use
-  $(foreach useitem,$(subst $(comma),$(space),$(use)),$(eval $(call USE_CHECK,$(useitem))))
+  $(foreach useitem,$(sort $(subst $(comma),$(space),$(use))),$(eval $(call USE_CHECK,$(useitem))))
 endif
 
 ifdef config
@@ -549,7 +551,7 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(staticbuild))
+ifeq (true,$(static))
   libponyrt.tests.linkoptions += -static
 endif
 
@@ -573,7 +575,8 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-#ifeq (true,$(staticbuild))
+# TODO: uncomment when this is fixed
+#ifeq (true,$(static))
 #  libponyc.tests.linkoptions += -static
 #endif
 
@@ -593,7 +596,7 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(staticbuild))
+ifeq (true,$(static))
   libponyc.benchmarks.linkoptions += -static
   libponyrt.benchmarks.linkoptions += -static
 endif
@@ -608,7 +611,7 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(staticbuild))
+ifeq (true,$(static))
   ponyc.linkoptions += -static
 endif
 
@@ -1135,7 +1138,7 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  staticbuild=true     Link ponyc statically'
+	@echo '  static=true          Link ponyc statically'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
