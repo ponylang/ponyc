@@ -5,7 +5,7 @@ jobs:
     docker:
       - image:  alpine
     steps:
-      - run: apk add --update alpine-sdk libexec-info binutils-gold coreutils linux-headers zlib-dev ncurses-dev
+      - run: apk add --update alpine-sdk libexecinfo-dev binutils-gold coreutils linux-headers zlib-dev ncurses-dev
       - run: apk add --update cmake cmake-doc extra-cmake-modules extra-cmake-modules-doc
       - checkout
       - run: make test-ci -f Makefile-lib-llvm default_pic=true -j4
