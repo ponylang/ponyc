@@ -51,6 +51,18 @@ jobs:
       - zulip/status:
           fail_only: true
 
+  # temporary hack.. fixme
+  alpine-llvm-7-debug-static:
+    docker:
+      - image: alpine:3.10.1
+    steps:
+      - checkout
+      - run: apk add --update alpine-sdk binutils-gold llvm7 llvm7-dev llvm7-static libexecinfo-dev libexecinfo-static coreutils linux-headers cmake git zlib-dev curl bash
+      - run: make LLVM_CONFIG=llvm7-config all config=debug default_pic=true staticbuild=true -j3
+      - run: make LLVM_CONFIG=llvm7-config test-ci config=debug default_pic=true staticbuild=true
+      - zulip/status:
+          fail_only: true
+
   alpine-llvm-5-debug:
     docker:
       - image: ponylang/ponyc-ci:alpine-llvm-5
@@ -251,6 +263,11 @@ workflows:
           context: org-global
 
       - alpine-llvm-5-debug:
+          requires:
+            - lib-llvm-ubuntu-debug
+          context: org-global
+
+      - alpine-llvm-7-debug-static:
           requires:
             - lib-llvm-ubuntu-debug
           context: org-global
