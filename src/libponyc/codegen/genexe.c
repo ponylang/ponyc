@@ -389,12 +389,12 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 #ifdef PLATFORM_IS_OPENBSD
     // On OpenBSD, the unwind symbols are contained within libc++abi.
-    "%s %s %s %s %s -lpthread %s %s %s -lm -lc++abi %s %s",
+    "%s %s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s",
 #else
-    "%s %s %s %s %s -lpthread %s %s %s -lm %s %s",
+    "%s %s %s %s -lpthread %s %s %s -lm %s %s %s",
 #endif
-    linker, file_exe, arch, mcx16_arg, atomic, staticbin, fuseld, file_o,
-    lib_args, dtrace_args, ponyrt, ldl, lexecinfo, sanitizer_arg
+    linker, file_exe, arch, mcx16_arg, staticbin, fuseld, file_o,
+    lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
