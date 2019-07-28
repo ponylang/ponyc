@@ -343,7 +343,9 @@ static bool link_exe(compile_t* c, ast_t* program,
     env_cc_or_pony_compiler(&fallback_linker);
   const char* mcx16_arg = (target_is_lp64(c->opt->triple)
     && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
-  const char* fuseld = target_is_linux(c->opt->triple) ? "-fuse-ld=gold" : "";
+  const char* fuseldcmd = c->opt->link_ldcmd != NULL ? c->opt->link_ldcmd :
+    (target_is_linux(c->opt->triple) ? "gold" : "");
+  const char* fuseld = strlen(fuseldcmd) ? "-fuse-ld=" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
   const char* atomic = target_is_linux(c->opt->triple) ? "-latomic" : "";
   const char* staticbin = c->opt->staticbin ? "-static" : "";
@@ -371,7 +373,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
-                  + strlen(dtrace_args) + strlen(lexecinfo)
+                  + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
                   + strlen(sanitizer_arg);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
@@ -389,11 +391,11 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 #ifdef PLATFORM_IS_OPENBSD
     // On OpenBSD, the unwind symbols are contained within libc++abi.
-    "%s %s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s",
+    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s",
 #else
-    "%s %s %s %s -lpthread %s %s %s -lm %s %s %s",
+    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s",
 #endif
-    linker, file_exe, arch, mcx16_arg, staticbin, fuseld, file_o,
+    linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
 
