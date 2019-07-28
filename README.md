@@ -374,7 +374,7 @@ git clone git://github.com/ponylang/ponyc
 Install pony dependencies:
 
 ```
-pacman -S llvm make ncurses zlib
+pacman -S llvm make zlib
 ```
 
 To build ponyc and compile and run helloworld:
@@ -392,7 +392,7 @@ Install pony dependencies:
 
 ```bash
 sudo apt-get update
-sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
+sudo apt-get install make gcc g++ git zlib1g-dev \
   llvm llvm-dev
 ```
 
@@ -424,7 +424,7 @@ sudo apt-key add llvm-snapshot.gpg.key
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev llvm-3.9
 ```
 
 Clone the ponyc repo:
@@ -446,7 +446,7 @@ make
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev llvm-3.9
 ```
 
 Clone the ponyc repo:
@@ -479,7 +479,7 @@ sudo apt-get install -y llvm-3.9-dev
 
 ```bash
 dnf check-update
-sudo dnf install git gcc-c++ make zlib-devel llvm-devel ncurses-devel
+sudo dnf install git gcc-c++ make zlib-devel llvm-devel
 ```
 
 To build ponyc, compile and run helloworld:
@@ -495,7 +495,7 @@ make
 
 ```bash
 dnf check-update
-sudo dnf install git gcc-c++ make zlib-devel llvm3.9-devel ncurses-devel \
+sudo dnf install git gcc-c++ make zlib-devel llvm3.9-devel \
  libatomic
 ```
 
@@ -513,7 +513,7 @@ make
 #### Install dependencies:
 
 ```bash
-sudo yum install git gcc-c++ make zlib-devel ncurses-devel libatomic
+sudo yum install git gcc-c++ make zlib-devel libatomic
 ```
 
 Using LLVM 3.9.1 from EPEL:
@@ -617,7 +617,7 @@ Install build tools/dependencies:
 
 ```bash
 apk add --update alpine-sdk binutils-gold llvm3.9 llvm3.9-dev \
-  libexecinfo-dev coreutils linux-headers zlib-dev ncurses-dev
+  libexecinfo-dev coreutils linux-headers zlib-dev
 ```
 
 To build ponyc, compile and run helloworld:
@@ -635,7 +635,6 @@ You need to have the development versions of the following installed:
 
 * LLVM 3.9.1
 * zlib
-* ncurses
 
 There is experimental support for LLVM 4.0.1 and 5.0.0, but this may
 result in decreased performance or crashes in generated applications.

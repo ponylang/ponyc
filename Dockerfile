@@ -7,7 +7,6 @@ RUN apt-get update \
   apt-transport-https \
   g++ \
   git \
-  libncurses5-dev \
   make \
   wget \
   xz-utils \

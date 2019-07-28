@@ -9,7 +9,6 @@ RUN apt-get update \
   build-essential \
   g++-6 \
   git \
-  libncurses5-dev \
   make \
   wget \
   xz-utils \

@@ -13,7 +13,6 @@ RUN apk add --update --no-cache \
   cmake \
   git \
   zlib-dev \
-  ncurses-dev \
   curl \
   bash
 

@@ -9,7 +9,6 @@ RUN apk add --update \
   cmake \
   python \
   zlib-dev \
-  ncurses-dev \
   bash \
   curl
 

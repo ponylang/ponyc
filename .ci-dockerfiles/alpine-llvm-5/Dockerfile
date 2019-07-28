@@ -11,7 +11,6 @@ RUN apk add --update \
   coreutils \
   linux-headers \
   zlib-dev \
-  ncurses-dev \
   bash \
   curl
 

@@ -27,7 +27,6 @@ BuildRequires:  git
 BuildRequires:  gcc-c++
 BuildRequires:  make
 BuildRequires:  zlib-devel
-BuildRequires:  ncurses-devel
 
 %if %{?_vendor} == suse
 BuildRequires:  binutils-gold
