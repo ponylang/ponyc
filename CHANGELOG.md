@@ -6,9 +6,11 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix static linking issue by changing the link order ([PR #3259](https://github.com/ponylang/ponyc/pull/3259))
 
 ### Added
 
+- Add `--link-ldcmd` command line argument for overriding the `ld` command used for linking ([PR #3259](https://github.com/ponylang/ponyc/pull/3259))
 
 ### Changed
 
