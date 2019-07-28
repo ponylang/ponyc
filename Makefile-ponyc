@@ -573,9 +573,9 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(staticbuild))
-  libponyc.tests.linkoptions += -static
-endif
+#ifeq (true,$(staticbuild))
+#  libponyc.tests.linkoptions += -static
+#endif
 
 libponyc.benchmarks.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.benchmarks.buildoptions += -D__STDC_FORMAT_MACROS
