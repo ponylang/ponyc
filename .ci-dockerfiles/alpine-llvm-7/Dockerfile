@@ -1,14 +1,18 @@
 FROM alpine
 
+ENV LLVM_VERSION 7
+
 RUN apk add --update \
   alpine-sdk \
   binutils-gold \
+  llvm${LLVM_VERSION} \
+  llvm${LLVM_VERSION}-dev \
+  llvm${LLVM_VERSION}-static \
   libexecinfo-dev \
   libexecinfo-static \
   coreutils \
   linux-headers \
   cmake \
-  python \
   git \
   zlib-dev \
   bash \

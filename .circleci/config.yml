@@ -51,49 +51,45 @@ jobs:
       - zulip/status:
           fail_only: true
 
-  # temporary hack.. fixme
   alpine-lib-llvm-debug-static:
     docker:
-      - image: alpine:3.10.1
+      - image: ponylang/ponyc-ci:alpine
+        user: pony
     steps:
       - checkout
-      - run: apk add --update alpine-sdk binutils-gold libexecinfo-dev libexecinfo-static python coreutils linux-headers cmake git zlib-dev curl bash
       - run: make -f Makefile-lib-llvm all config=debug default_pic=true staticbuild=true -j3
       - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true staticbuild=true
       - zulip/status:
           fail_only: true
 
-  # temporary hack.. fixme
   alpine-lib-llvm-release-static:
     docker:
-      - image: alpine:3.10.1
+      - image: ponylang/ponyc-ci:alpine
+        user: pony
     steps:
       - checkout
-      - run: apk add --update alpine-sdk binutils-gold libexecinfo-dev libexecinfo-static python coreutils linux-headers cmake git zlib-dev curl bash
       - run: make -f Makefile-lib-llvm all config=release default_pic=true staticbuild=true -j3
       - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true staticbuild=true
       - zulip/status:
           fail_only: true
 
-  # temporary hack.. fixme
   alpine-llvm-7-debug-static:
     docker:
-      - image: alpine:3.10.1
+      - image: ponylang/ponyc-ci:alpine-llvm-7
+        user: pony
     steps:
       - checkout
-      - run: apk add --update alpine-sdk binutils-gold llvm7 llvm7-dev llvm7-static libexecinfo-dev libexecinfo-static coreutils linux-headers cmake git zlib-dev curl bash
       - run: make LLVM_CONFIG=llvm7-config all config=debug default_pic=true staticbuild=true -j3
       - run: make LLVM_CONFIG=llvm7-config test-ci config=debug default_pic=true staticbuild=true
       - zulip/status:
           fail_only: true
 
-  # temporary hack.. fixme
   alpine-llvm-7-release-static:
     docker:
-      - image: alpine:3.10.1
+      - image: ponylang/ponyc-ci:alpine-llvm-7
+        user: pony
     steps:
       - checkout
-      - run: apk add --update alpine-sdk binutils-gold llvm7 llvm7-dev llvm7-static libexecinfo-dev libexecinfo-static coreutils linux-headers cmake git zlib-dev curl bash
       - run: make LLVM_CONFIG=llvm7-config all config=release default_pic=true staticbuild=true -j3
       - run: make LLVM_CONFIG=llvm7-config test-ci config=release default_pic=true staticbuild=true
       - zulip/status:
