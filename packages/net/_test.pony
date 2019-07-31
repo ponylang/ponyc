@@ -643,7 +643,7 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
 
 class _TestTCPProxy is UnitTest
   """
-    Check that the proxy callback is called on creation of a TCPConnection.
+  Check that the proxy callback is called on creation of a TCPConnection.
   """
   fun name(): String => "net/TCPProxy"
   fun exclusion_group(): String => "network"
