@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add `--link-ldcmd` command line argument for overriding the `ld` command used for linking ([PR #3259](https://github.com/ponylang/ponyc/pull/3259))
+- Make builds with `musl` on `glibc` systems possible ([PR #3263](https://github.com/ponylang/ponyc/pull/3263))
 
 ### Changed
 
