@@ -15,7 +15,7 @@ No trailing whitespace at the end of lines.
 
 ### Indentation
 
-Use 2 spaces for indentation, No hard tabs.
+Use 2 spaces for indentation, no hard tabs.
 
 ```pony
 actor Main
@@ -557,7 +557,7 @@ fun mod_checked
 
 ## Documentation
 
-Public functions and types must include a triple-quoted docstring unless it is self-explanatory to anyone with the most basic knowledge of the domain. Markdown is used for formatting.
+Public functions and types must include a triple-quoted docstring unless it is self-explanatory to anyone with the most basic knowledge of the domain. Markdown is used for formatting. The `"""` tokens are placed on their own lines, even when the entire docstring could fit on a single line with the `"""` tokens.
 
 ```pony
 primitive Format
@@ -578,3 +578,13 @@ primitive Format
   """
 ```
 
+## Comments
+
+Single line comments will have exactly one space between the `//` token and the beginning of the comment message. This single space may only be omitted if the comment only contains valid Pony code. Single line comments that continue a previous comment have the same spacing requirements. No such restrictions are placed on multiline comments between the `/*` and `*/` tokens.
+
+```pony
+// if `data` is 1 cacheline or less in size
+// copy it into the existing `_current` array
+// to coalesce multiple tiny arrays
+// into a single bigger array
+```
