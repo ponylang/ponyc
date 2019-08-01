@@ -50,7 +50,7 @@ typedef int SOCKET;
 #include <linux/atm.h>
 #include <linux/dn.h>
 #include <linux/rds.h>
-#ifndef ALPINE_LINUX
+#if defined(__GLIBC__)
 #include <netatalk/at.h>
 #include <netax25/ax25.h>
 #include <netax25/ax25.h>
