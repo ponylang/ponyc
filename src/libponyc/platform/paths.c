@@ -265,6 +265,15 @@ bool get_compiler_exe_path(char* output_path, const char* argv0)
     }
     free(tofree);
   }
+#elif defined PLATFORM_IS_NETBSD
+  const int mib[] = {
+    CTL_KERN, KERN_PROC_ARGS, -1, KERN_PROC_PATHNAME,
+  };
+
+  size_t len = MAXPATHLEN;
+  int r = sysctl(mib, 4, output_path, &len, NULL, 0);
+  printf("output path is: %s, return value: %d\n", output_path, r);
+  success = (r == 0);
 #elif defined PLATFORM_IS_BSD
   int mib[4];
   mib[0] = CTL_KERN;
