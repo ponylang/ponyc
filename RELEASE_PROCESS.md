@@ -7,7 +7,7 @@ This document is aimed at members of the Pony team who might be cutting a releas
 In order to do a release, you absolutely must have:
 
 * Commit access to the `ponyc` repo
-* The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
+* Verison 0.3.x of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 * Access to the ponylang twitter account
 * Accounts on reddit/hacker news/lobste.rs for posting release notes
 * An account on the [Pony Zulip](https://ponylang.zulipchat.com)

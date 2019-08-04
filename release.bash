@@ -54,7 +54,7 @@ git checkout -b "release-$version" "$commit"
 
 # update VERSION and CHANGELOG
 update_version
-changelog-tool release CHANGELOG.md "$version" -e
+changelog-tool release "$version" -e
 
 # commit VERSION and CHANGELOG updates
 git add CHANGELOG.md VERSION
@@ -81,7 +81,7 @@ git push origin "$version"
 # update CHANGELOG for new entries
 git checkout master
 git merge "release-$version"
-changelog-tool unreleased CHANGELOG.md -e
+changelog-tool unreleased -e
 
 # check if user wants to continue
 check_for_commit_and_push
