@@ -27,7 +27,7 @@ jobs:
       - image: ponylang/changelog-tool:release
     steps:
       - checkout
-      - run: changelog-tool verify CHANGELOG.md
+      - run: changelog-tool verify 
       - zulip/status:
           fail_only: true
 
