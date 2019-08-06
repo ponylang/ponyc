@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add `--link-ldcmd` command line argument for overriding the `ld` command used for linking ([PR #3259](https://github.com/ponylang/ponyc/pull/3259))
 - Make builds with `musl` on `glibc` systems possible ([PR #3263](https://github.com/ponylang/ponyc/pull/3263))
+- Add `proxy_via(destination_host, destination_service)` to `TCPConnectionNotify` to allow TCP handlers to change the hostname & service from a TCPConnectionNotify before connecting ([PR #3230](https://github.com/ponylang/ponyc/pull/3230))
 
 ### Changed
 
