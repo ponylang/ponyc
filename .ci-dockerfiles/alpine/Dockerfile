@@ -1,6 +1,8 @@
 FROM alpine
 
-RUN apk add --update \
+RUN apk update \
+  && apk upgrade \
+  && apk add --update \
   alpine-sdk \
   binutils-gold \
   libexecinfo-dev \

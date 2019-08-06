@@ -2,7 +2,9 @@ FROM alpine
 
 ENV LLVM_VERSION 7
 
-RUN apk add --update \
+RUN apk update \
+  && apk upgrade \
+  && apk add --update \
   alpine-sdk \
   binutils-gold \
   llvm${LLVM_VERSION} \
