@@ -13,8 +13,7 @@ class val NoProxy is Proxy
         env.root as AmbientAuth,
         proxy.apply(MyConnectionNotify.create()),
         "localhost",
-        "80"
-      )
+        "80")
   ```
   """
   fun apply(wrap: TCPConnectionNotify iso): TCPConnectionNotify iso^ => wrap

@@ -656,7 +656,6 @@ class _TestTCPProxy is UnitTest
       _TestTCPProxyNotify(h))
 
 class _TestTCPProxyNotify is TCPConnectionNotify
-
   let _h: TestHelper
   new iso create(h: TestHelper) =>
     _h = h

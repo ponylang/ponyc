@@ -209,17 +209,15 @@ actor TCPConnection
       MyClient.create(
         "example.com", // we actually want to connect to this host
         "80",
-        ExampleProxy.create("proxy.example.com", "80") // we connect via this proxy
-      )
+        ExampleProxy.create("proxy.example.com", "80")) // we connect via this proxy
 
   actor MyClient
     new create(host: String, service: String, proxy: Proxy = NoProxy) =>
       let conn: TCPConnection = TCPConnection.create(
-              env.root as AmbientAuth,
-              proxy.apply(MyConnectionNotify.create()),
-              host,
-              service
-      )
+        env.root as AmbientAuth,
+        proxy.apply(MyConnectionNotify.create()),
+        host,
+        service)
 
   class ExampleProxy is Proxy
     let _proxy_host: String
