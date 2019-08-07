@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove unnecessary argument to `Map.sub` ([PR #3275](https://github.com/ponylang/ponyc/pull/3275))
 
 ## [0.30.0] - 2019-07-27
 
@@ -1391,4 +1392,3 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
-
