@@ -109,6 +109,22 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     end
     m
 
+  fun val add(key: K, value: val->V): HashMap[K, V, H] =>
+    """
+    This with the new (key, value) mapping.
+    """
+    update(key, value)
+
+  fun val sub(key: K): HashMap[K, V, H] =>
+    """
+    This without the given key.
+    """
+    try
+      remove(key)?
+    else
+      this
+    end
+
   fun val keys(): MapKeys[K, V, H] => MapKeys[K, V, H](this)
 
   fun val values(): MapValues[K, V, H] => MapValues[K, V, H](this)
