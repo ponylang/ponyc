@@ -111,13 +111,13 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
   fun val add(key: K, value: val->V): HashMap[K, V, H] =>
     """
-    This with the new (key, value) mapping.
+    Return this Map with the given (key, value) mapping.
     """
     update(key, value)
 
   fun val sub(key: K): HashMap[K, V, H] =>
     """
-    This without the given key.
+    Return this Map without the given key.
     """
     try
       remove(key)?
