@@ -44,8 +44,17 @@ public:
     _mangle(_es, _dl),
     _ctx(llvm::make_unique<LLVMContext>())
   {
+#if PONY_LLVM < 900
     _es.getMainJITDylib().setGenerator(
       cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(_dl)));
+#else
+    _es.getMainJITDylib().setGenerator(
+      cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(_dl.getGlobalPrefix())));
+#endif
+
+#if (PONY_LLVM >= 800) && defined(PLATFORM_IS_WINDOWS)
+    _obj_layer.setOverrideObjectFlagsWithResponsibilityFlags(true);
+#endif
   }
 
   static Expected<std::unique_ptr<PonyJIT>> create()
