@@ -190,10 +190,10 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
 
 #else
   auto jit = llvm::make_unique<PonyJIT>();
-  jit->addModule(std::unique_ptr<Module>(unwrap<Module>(c->module)));
+  jit->addModule(std::unique_ptr<Module>(llvm::unwrap(c->module)));
   c->module = nullptr;
 
-  if (jit.error)
+  if (jit->error)
   {
     errorf(c->opt->check.errors, nullptr, "LLVM ORC JIT Error");
     return false;
