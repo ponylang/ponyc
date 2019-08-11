@@ -157,10 +157,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         // We're blocked, send block message.
         set_flag(actor, FLAG_BLOCKED_SENT);
         ponyint_cycle_block(ctx, actor, &actor->gc);
-
-        // trigger a GC if we're blocked and have done work since the last GC
-        if(actor->msgs_since_gc > 0)
-          pony_triggergc(ctx);
       }
 
       return false;
