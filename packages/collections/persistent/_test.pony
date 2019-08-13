@@ -230,7 +230,8 @@ class iso _TestListTakeWhile is UnitTest
     h.assert_true(Lists[U32].eq(empty.take_while(is_even), Lists[U32].empty())?)
 
 class iso _TestMap is UnitTest
-  fun name(): String => "collections/persistent/Map (update, remove, concat)"
+  fun name(): String =>
+    "collections/persistent/Map (update, remove, concat, add, sub)"
 
   fun apply(h: TestHelper) ? =>
     let m1 = Map[String,U32]
@@ -269,6 +270,11 @@ class iso _TestMap is UnitTest
     let m10 = m9.remove("b")?.remove("d")?
     h.assert_error({() ? => m10("b")? })
     h.assert_error({() ? => m10("d")? })
+
+    let m11 = m10 + ("b", 3)
+    h.assert_eq[U32](m11("b")?, 3)
+    let m12 = m11 - "b"
+    h.assert_error({() ? => m12("b")? })
 
     let seed = Time.millis()
     h.log("seed: " + seed.string())
