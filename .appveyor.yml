@@ -10,6 +10,7 @@ branches:
 environment:
   matrix:
   - llvm: 7.0.1
+  - llvm: 8.0.0
 
 configuration:
   - release
