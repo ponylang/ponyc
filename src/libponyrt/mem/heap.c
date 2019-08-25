@@ -61,6 +61,25 @@ static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 static size_t heap_initialgc = 1 << 14;
 static double heap_nextgc_factor = 2.0;
 
+#ifdef USE_MEMTRACK
+/** Get the memory used by the heap.
+ */
+size_t ponyint_heap_mem_size(heap_t* heap)
+{
+  // include memory that is in use by the heap but not counted as part of
+  // `used` like `chunk_t`. also, don't include "fake used" for purposes of
+  // triggering GC.
+  return heap->mem_used;
+}
+
+/** Get the memory allocated by the heap.
+ */
+size_t ponyint_heap_alloc_size(heap_t* heap)
+{
+  return heap->mem_allocated;
+}
+#endif
+
 static void large_pagemap(char* m, size_t size, chunk_t* chunk)
 {
   ponyint_pagemap_set_bulk(m, chunk, size);
@@ -164,7 +183,11 @@ static void destroy_large(chunk_t* chunk, uint32_t mark)
 }
 
 static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
+#ifdef USE_MEMTRACK
+  uint32_t empty, size_t size, size_t* mem_allocated, size_t* mem_used)
+#else
   uint32_t empty, size_t size)
+#endif
 {
   size_t used = 0;
   chunk_t* next;
@@ -176,14 +199,26 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
 
     if(chunk->slots == 0)
     {
+#ifdef USE_MEMTRACK
+      *mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+      *mem_allocated += POOL_ALLOC_SIZE(block_t);
+      *mem_used += sizeof(chunk_t);
+      *mem_used += sizeof(block_t);
+#endif
       used += sizeof(block_t);
       chunk->next = *full;
       *full = chunk;
     } else if(chunk->slots == empty) {
       destroy_small(chunk, 0);
     } else {
-      used += sizeof(block_t) -
-        (__pony_popcount(chunk->slots) * size);
+#ifdef USE_MEMTRACK
+      *mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+      *mem_allocated += POOL_ALLOC_SIZE(block_t);
+      *mem_used += sizeof(chunk_t);
+      *mem_used += sizeof(block_t);
+#endif
+      used += (sizeof(block_t) -
+        (__pony_popcount(chunk->slots) * size));
 
       // run finalisers for freed slots
       final_small_freed(chunk);
@@ -201,7 +236,12 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
   return used;
 }
 
+#ifdef USE_MEMTRACK
+static chunk_t* sweep_large(chunk_t* chunk, size_t* used, size_t* mem_allocated,
+  size_t* mem_used)
+#else
 static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
+#endif
 {
   chunk_t* list = NULL;
   chunk_t* next;
@@ -215,6 +255,12 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
     {
       chunk->next = list;
       list = chunk;
+#ifdef USE_MEMTRACK
+      *mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+      *mem_allocated += ponyint_pool_used_size(chunk->size);
+      *mem_used += sizeof(chunk_t);
+      *mem_used += chunk->size;
+#endif
       *used += chunk->size;
     } else {
       destroy_large(chunk, 0);
@@ -340,6 +386,13 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->actor = actor;
     n->m = (char*) POOL_ALLOC(block_t);
     n->size = sizeclass;
+#ifdef USE_MEMTRACK
+    heap->mem_used += sizeof(chunk_t);
+    heap->mem_used += POOL_ALLOC_SIZE(block_t);
+    heap->mem_used -= SIZECLASS_SIZE(sizeclass);
+    heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+    heap->mem_allocated += POOL_ALLOC_SIZE(block_t);
+#endif
 
     // note that no finaliser needs to run
     n->finalisers = 0;
@@ -357,6 +410,9 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     m = chunk->m;
   }
 
+#ifdef USE_MEMTRACK
+  heap->mem_used += SIZECLASS_SIZE(sizeclass);
+#endif
   heap->used += SIZECLASS_SIZE(sizeclass);
   return m;
 }
@@ -392,6 +448,13 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
     n->actor = actor;
     n->m = (char*) POOL_ALLOC(block_t);
     n->size = sizeclass;
+#ifdef USE_MEMTRACK
+    heap->mem_used += sizeof(chunk_t);
+    heap->mem_used += POOL_ALLOC_SIZE(block_t);
+    heap->mem_used -= SIZECLASS_SIZE(sizeclass);
+    heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+    heap->mem_allocated += POOL_ALLOC_SIZE(block_t);
+#endif
 
     // note that a finaliser needs to run
     n->finalisers = 1;
@@ -409,6 +472,9 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
     m = chunk->m;
   }
 
+#ifdef USE_MEMTRACK
+  heap->mem_used += SIZECLASS_SIZE(sizeclass);
+#endif
   heap->used += SIZECLASS_SIZE(sizeclass);
   return m;
 }
@@ -421,6 +487,12 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   chunk->actor = actor;
   chunk->size = size;
   chunk->m = (char*) ponyint_pool_alloc_size(size);
+#ifdef USE_MEMTRACK
+  heap->mem_used += sizeof(chunk_t);
+  heap->mem_used += chunk->size;
+  heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+  heap->mem_allocated += ponyint_pool_used_size(size);
+#endif
   chunk->slots = 0;
   chunk->shallow = 0;
 
@@ -445,6 +517,12 @@ void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
   chunk->actor = actor;
   chunk->size = size;
   chunk->m = (char*) ponyint_pool_alloc_size(size);
+#ifdef USE_MEMTRACK
+  heap->mem_used += sizeof(chunk_t);
+  heap->mem_used += chunk->size;
+  heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+  heap->mem_allocated += ponyint_pool_used_size(size);
+#endif
   chunk->slots = 0;
   chunk->shallow = 0;
 
@@ -538,6 +616,10 @@ bool ponyint_heap_startgc(heap_t* heap)
 
   // reset used to zero
   heap->used = 0;
+#ifdef USE_MEMTRACK
+  heap->mem_allocated = 0;
+  heap->mem_used = 0;
+#endif
   return true;
 }
 
@@ -647,6 +729,10 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
 void ponyint_heap_endgc(heap_t* heap)
 {
   size_t used = 0;
+#ifdef USE_MEMTRACK
+  size_t mem_allocated = 0;
+  size_t mem_used = 0;
+#endif
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
@@ -662,16 +748,31 @@ void ponyint_heap_endgc(heap_t* heap)
     size_t size = SIZECLASS_SIZE(i);
     uint32_t empty = sizeclass_empty[i];
 
+#ifdef USE_MEMTRACK
+    used += sweep_small(list1, avail, full, empty, size,
+      &mem_allocated, &mem_used);
+    used += sweep_small(list2, avail, full, empty, size,
+      &mem_allocated, &mem_used);
+#else
     used += sweep_small(list1, avail, full, empty, size);
     used += sweep_small(list2, avail, full, empty, size);
+#endif
   }
 
+#ifdef USE_MEMTRACK
+  heap->large = sweep_large(heap->large, &used, &mem_allocated, &mem_used);
+#else
   heap->large = sweep_large(heap->large, &used);
+#endif
 
   // Foreign object sizes will have been added to heap->used already. Here we
   // add local object sizes as well and set the next gc point for when memory
   // usage has increased.
   heap->used += used;
+#ifdef USE_MEMTRACK
+  heap->mem_allocated += mem_allocated;
+  heap->mem_used += mem_used;
+#endif
   heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 
   if(heap->next_gc < heap_initialgc)

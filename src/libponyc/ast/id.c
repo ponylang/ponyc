@@ -188,7 +188,7 @@ bool is_name_type(const char* name)
 {
   if(*name == '$')
     name++;
-    
+
   if(*name == '_')
     name++;
 

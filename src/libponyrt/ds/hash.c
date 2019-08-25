@@ -503,6 +503,31 @@ size_t ponyint_hashmap_size(hashmap_t* map)
   return map->count;
 }
 
+double ponyint_hashmap_fill_ratio(hashmap_t* map)
+{
+  return ((double)map->count/(double)map->size);
+}
+
+// mem_size == size of bitmap + size of all buckets.. this is regardless of
+// number of filled buckets as the memory is used once allocated
+size_t ponyint_hashmap_mem_size(hashmap_t* map)
+{
+  size_t bitmap_size = (map->size >> HASHMAP_BITMAP_TYPE_BITS) +
+    ((map->size & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
+  return (bitmap_size * sizeof(bitmap_t)) +
+    (map->size * sizeof(hashmap_entry_t));
+}
+
+// alloc_size == size of bitmap + size of all buckets
+size_t ponyint_hashmap_alloc_size(hashmap_t* map)
+{
+  size_t size = ponyint_hashmap_mem_size(map);
+  if(size == 0)
+    return 0;
+
+  return ponyint_pool_used_size(size);
+}
+
 void ponyint_hashmap_clearindex(hashmap_t* map, size_t index)
 {
   if(map->size <= index)

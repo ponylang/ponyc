@@ -79,3 +79,17 @@ void ponyint_deltamap_free(deltamap_t* map)
   ponyint_deltamap_destroy(map);
   POOL_FREE(deltamap_t, map);
 }
+
+#ifdef USE_MEMTRACK
+size_t ponyint_deltamap_total_mem_size(deltamap_t* map)
+{
+  return ponyint_deltamap_mem_size(map)
+    + (ponyint_deltamap_size(map) * sizeof(delta_t));
+}
+
+size_t ponyint_deltamap_total_alloc_size(deltamap_t* map)
+{
+  return ponyint_deltamap_alloc_size(map)
+    + (ponyint_deltamap_size(map) * POOL_ALLOC_SIZE(delta_t));
+}
+#endif
