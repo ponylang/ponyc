@@ -257,7 +257,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 #define GROUP(name, ...) \
   static check_res_t name(ast_t* ast, errors_t* errs, size_t width)
 
-#define LEAF
+#define LEAF                 
 
 #include "treecheckdef.h"
 

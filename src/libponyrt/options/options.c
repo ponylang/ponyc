@@ -69,7 +69,7 @@ static const opt_arg_t* find_match(opt_state_t* s)
         // and short options might be grouped.
         if((match != NULL) && (match->id != p->id))
           return (opt_arg_t*)1;
-
+        
         match = p;
       }
     }
@@ -188,7 +188,7 @@ void ponyint_opt_init(const opt_arg_t* args, opt_state_t* s, int* argc,
 int ponyint_opt_next(opt_state_t* s)
 {
   s->arg_val = NULL;
-
+  
   if(s->opt_start == NULL || *s->opt_start == '\0')
   {
     // Parsing a new option
@@ -215,7 +215,7 @@ int ponyint_opt_next(opt_state_t* s)
 
   if ((m->flag == OPT_ARG_REQUIRED) && !has_argument(s))
     return missing_argument(s);
-
+  
   if(s->match_type == MATCH_LONG)
   {
     s->remove++;
@@ -237,7 +237,7 @@ int ponyint_opt_next(opt_state_t* s)
     if((m->flag & PARSE_ARG) && has_argument(s))
     {
       parse_short_opt_arg(s);
-
+      
       if(s->arg_val == NULL && (m->flag & OPT_ARG_REQUIRED))
         return missing_argument(s);
     }

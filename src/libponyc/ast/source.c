@@ -19,7 +19,7 @@ source_t* source_open(const char* file, const char** error_msgp)
 
   fseek(fp, 0, SEEK_END);
   ssize_t size = ftell(fp);
-
+  
   if(size < 0)
   {
     *error_msgp = "can't determine length of file";
@@ -36,7 +36,7 @@ source_t* source_open(const char* file, const char** error_msgp)
 
   ssize_t read = fread(source->m, sizeof(char), size, fp);
   source->m[size] = '\0';
-
+  
   if(read < size)
   {
     *error_msgp = "failed to read entire file";

@@ -179,7 +179,7 @@ char* get_file_name(char* filename)
 //   finished with it.
 // If you pass in NULL or the new string can't be allocated,
 //   it returns NULL.
-char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size)
+char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size) 
 {
     char *retstr, *lastdot, *lastsep;
     // Error checks and allocate string.
