@@ -1303,9 +1303,6 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
   send_msg_all_active(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
 }
 
-DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
-DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
-
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   size_t actors_rescheduled = 0;
@@ -1320,7 +1317,6 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
-    actorstack_t* needs_unmuting = NULL;
 
     // Find and collect any actors that need to be unmuted
     while((muted = ponyint_muteset_next(&mref->value, &i)) != NULL)
@@ -1334,32 +1330,22 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 
       if (muted_count == 0)
       {
-        needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
+        if(!has_flag(muted, FLAG_UNSCHEDULED))
+        {
+          ponyint_unmute_actor(muted);
+          // TODO: we don't want to reschedule if our queue is empty.
+          // That's wasteful.
+          ponyint_sched_add(ctx, muted);
+          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)muted);
+          actors_rescheduled++;
+        }
+
+        ponyint_sched_start_global_unmute(ctx->scheduler->index, muted);
       }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
     ponyint_muteref_free(mref);
-
-    // Unmute any actors that need to be unmuted
-    pony_actor_t* to_unmute;
-
-    while(needs_unmuting != NULL)
-    {
-      needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
-
-      if(!has_flag(to_unmute, FLAG_UNSCHEDULED))
-      {
-        ponyint_unmute_actor(to_unmute);
-        // TODO: we don't want to reschedule if our queue is empty.
-        // That's wasteful.
-        ponyint_sched_add(ctx, to_unmute);
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
-        actors_rescheduled++;
-      }
-
-      ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
-    }
   }
 
   return actors_rescheduled > 0;
