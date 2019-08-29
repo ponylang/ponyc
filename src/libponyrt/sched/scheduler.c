@@ -204,7 +204,8 @@ static void wake_suspended_threads(int32_t current_scheduler_id)
 #else
     // get the bool that controls modifying the active scheduler count variable
     // if using signals
-    if(!atomic_exchange_explicit(&scheduler_count_changing, true,
+    if(!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
+      && !atomic_exchange_explicit(&scheduler_count_changing, true,
       memory_order_acquire))
 #endif
     {
@@ -588,7 +589,8 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
   {
     // get the bool that controls modifying the active scheduler
     // count variable if using signals
-    if(!atomic_exchange_explicit(&scheduler_count_changing, true,
+    if(!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
+      && !atomic_exchange_explicit(&scheduler_count_changing, true,
       memory_order_acquire))
     {
 #endif
@@ -652,8 +654,9 @@ static pony_actor_t* perhaps_suspend_scheduler(
 #else
     // try and get the bool that controls modifying the active scheduler count
     // variable if using signals
-    && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire)
+    && (!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
+      && !atomic_exchange_explicit(&scheduler_count_changing, true,
+      memory_order_acquire))
 #endif
     )
   {
@@ -1289,8 +1292,9 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
 #else
     // try and get the bool that controls modifying the active scheduler count
     // variable if using signals
-    !atomic_exchange_explicit(&scheduler_count_changing, true,
-    memory_order_acquire)
+    (!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
+      && !atomic_exchange_explicit(&scheduler_count_changing, true,
+      memory_order_acquire))
 #endif
     )
   {
