@@ -66,13 +66,6 @@ then
   exit
 fi
 
-# when building appimage package for a nightly cron job or manual api requested job to make sure packaging isn't broken
-if [[ "$TRAVIS_BRANCH" == "master" && "$RELEASE_DEBS" == "" && "$CROSS_ARCH" == "" && ( "$TRAVIS_EVENT_TYPE" == "cron" || "$TRAVIS_EVENT_TYPE" == "api" ) ]]
-then
-  build_appimage "$(cat VERSION)"
-  exit
-fi
-
 # when building debian packages for a release
 if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RELEASE_DEBS" != "" ]]
 then
@@ -104,7 +97,6 @@ if [[ "$TRAVIS_BRANCH" == "release" && "$TRAVIS_PULL_REQUEST" == "false" && "$RE
 then
   download_llvm
   set_linux_compiler
-  build_appimage "$(cat VERSION)"
   ponyc-kickoff-copr
   ponyc-build-packages
   ponyc-build-docs

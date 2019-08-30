@@ -150,18 +150,6 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 By default, the Pony Docker image is compiled without support for [AVX CPU instructions](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions). For optimal performance on modern hardware, you should build your Pony installation from source.
 
-## Linux using an AppImage package (via Bintray)
-
-For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-appimage/ponyc](https://bintray.com/pony-language/ponyc-appimage/ponyc)) as an AppImage.
-
-The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with no conflicts.
-
-To install builds via AppImage, you need to go to Bintray and download the appropriate file for the version you want. After the file is downloaded, you need to make it executable using `chmod`.
-
-### DEB and AVX2 Support
-
-By default, the Pony AppImage package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
-
 ## Linux using an RPM package (via COPR)
 
 For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
