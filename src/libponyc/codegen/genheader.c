@@ -70,7 +70,7 @@ static int print_pointer_type(compile_t* c, printbuf_t* buf, ast_t* type)
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* elem = ast_child(typeargs);
 
-  if(is_pointer(elem) || is_nullable_pointer(elem))
+  if(is_pointer(elem) || is_maybe(elem))
     return print_pointer_type(c, buf, elem) + 1;
 
   print_base_type(c, buf, elem);
@@ -79,7 +79,7 @@ static int print_pointer_type(compile_t* c, printbuf_t* buf, ast_t* type)
 
 static void print_type_name(compile_t* c, printbuf_t* buf, ast_t* type)
 {
-  if(is_pointer(type) || is_nullable_pointer(type))
+  if(is_pointer(type) || is_maybe(type))
   {
     int depth = print_pointer_type(c, buf, type);
 
@@ -235,7 +235,7 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
         fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
     }
 
-    if(!is_pointer(t->ast) && !is_nullable_pointer(t->ast) && !is_machine_word(t->ast))
+    if(!is_pointer(t->ast) && !is_maybe(t->ast) && !is_machine_word(t->ast))
     {
       // Forward declare an opaque type.
       fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);
