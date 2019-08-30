@@ -944,9 +944,9 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
     if(!ok)
     {
       ast_error(opt->check.errors, ast,
-                "%s is not allowed: "
-                "the type argument to NullablePointer must be a struct",
-                ast_print_type(ast));
+        "%s is not allowed: "
+        "the type argument to NullablePointer must be a struct",
+        ast_print_type(ast));
 
       return false;
     }

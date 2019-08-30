@@ -70,7 +70,7 @@ static int print_pointer_type(compile_t* c, printbuf_t* buf, ast_t* type)
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* elem = ast_child(typeargs);
 
-  if (is_pointer(elem) || is_nullable_pointer(elem))
+  if(is_pointer(elem) || is_nullable_pointer(elem))
     return print_pointer_type(c, buf, elem) + 1;
 
   print_base_type(c, buf, elem);

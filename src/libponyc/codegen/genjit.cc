@@ -280,12 +280,12 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
 
   auto resolver = orc::createLambdaResolver(local_lookup, external_lookup);
 #if PONY_LLVM >= 500
-  auto nullable_handle = compile_layer.addModule(module, resolver);
+  auto maybe_handle = compile_layer.addModule(module, resolver);
 
-  if(!nullable_handle)
+  if(!maybe_handle)
     return false;
 
-  auto handle = nullable_handle.get();
+  auto handle = maybe_handle.get();
 #else
   std::vector<decltype(module)> module_set{module};
   auto handle = compile_layer.addModuleSet(std::move(module_set), mem_mgr,

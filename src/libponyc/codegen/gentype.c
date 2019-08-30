@@ -156,7 +156,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
           c_t->mem_type = c->void_ptr;
           return true;
         }
-        else if (name == c->str_NullablePointer)
+        else if(name == c->str_NullablePointer)
         {
           c_t->use_type = c->void_ptr;
           c_t->mem_type = c->void_ptr;
@@ -678,7 +678,7 @@ static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
   {
     if(name == c->str_Pointer)
       genprim_pointer_methods(c, t);
-    else if (name == c->str_NullablePointer)
+    else if(name == c->str_NullablePointer)
       genprim_nullable_pointer_methods(c, t);
     else if(name == c->str_DoNotOptimise)
       genprim_donotoptimise_methods(c, t);

@@ -1036,16 +1036,16 @@ TEST_F(BadPonyTest, DisallowPointerAndNullablePointerInEmbeededType)
 {
   // From issue #2596
   const char *src =
-      "struct Ok\n"
+    "struct Ok\n"
 
-      "class Whoops\n"
-      "  embed ok: Ok = Ok\n"
-      "  embed not_ok: Pointer[None] = Pointer[None]\n"
-      "  embed also_not_ok: NullablePointer[Ok] = NullablePointer[Ok](Ok)\n"
+    "class Whoops\n"
+    "  embed ok: Ok = Ok\n"
+    "  embed not_ok: Pointer[None] = Pointer[None]\n"
+    "  embed also_not_ok: NullablePointer[Ok] = NullablePointer[Ok](Ok)\n"
 
-      "actor Main\n"
-      "new create(env: Env) =>\n"
-      "  Whoops";
+    "actor Main\n"
+    "new create(env: Env) =>\n"
+    "  Whoops";
 
   TEST_ERRORS_2(src,
     "embedded fields must be classes or structs",
