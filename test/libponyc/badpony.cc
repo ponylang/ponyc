@@ -1032,7 +1032,7 @@ TEST_F(BadPonyTest, ThisViewpointWithIsoReceiver)
   TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
 
-TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeededType)
+TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbededType)
 {
   // From issue #2596
   const char* src =
