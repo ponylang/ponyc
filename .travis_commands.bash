@@ -29,59 +29,6 @@ osx-ponyc-test(){
   make CC="$CC1" CXX="$CXX1" test-ci
 }
 
-build_appimage(){
-  package_version=$1
-
-  mkdir ponyc.AppDir
-
-  cat > ./ponyc.desktop <<\EOF
-[Desktop Entry]
-Name=Pony Compiler
-Icon=ponyc
-Type=Application
-NoDisplay=true
-Exec=ponyc
-Terminal=true
-Categories=Development;
-EOF
-
-  curl https://www.ponylang.io/images/logo.png -o ponyc.png
-
-  curl https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -o linuxdeploy-x86_64.AppImage -J -L
-  chmod +x linuxdeploy-x86_64.AppImage
-
-  # remove any existing build artifacts
-  sudo rm -rf build
-
-  # can't run appimages in docker; need to extract and then run
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./linuxdeploy-x86_64.AppImage --appimage-extract"
-
-  # need to run in CentOS 7 docker image
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make LLVM_CONFIG=/opt/llvm-3.9.1/bin/llvm-config arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= test-ci"
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "make LLVM_CONFIG=/opt/llvm-3.9.1/bin/llvm-config arch=x86-64 tune=generic default_pic=true use=llvm_link_static DESTDIR=ponyc.AppDir ponydir=/usr prefix= install"
-
-  # build stdlib to ensure libraries get packaged in the appimage
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "./build/release/ponyc packages/stdlib"
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "cp stdlib ponyc.AppDir/usr/bin"
-
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png"
-
-  # delete stdlib to not include it in appimage
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "rm ponyc.AppDir/usr/bin/stdlib"
-
-  # build appimage
-  sudo docker run -v "$(pwd):/home/pony" -u pony:2000 --rm ponylang/ponyc-ci:centos7-llvm-3.9.1 sh -c "ARCH=x86_64 ./squashfs-root/AppRun --appdir ponyc.AppDir --desktop-file=ponyc.desktop --icon-file=ponyc.png --output appimage"
-
-  mv Pony_Compiler*-x86_64.AppImage "Pony_Compiler-${package_version}-x86_64.AppImage"
-
-  bash .bintray.bash appimage "${package_version}" ponyc
-
-  rm linuxdeploy-x86_64.AppImage
-
-  # cleanup
-  sudo rm -rf build
-}
-
 build_deb(){
   deb_distro=$1
 
