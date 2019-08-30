@@ -9,7 +9,7 @@ PONY_EXTERN_C_BEGIN
 
 void genprim_pointer_methods(compile_t* c, reach_type_t* t);
 
-void genprim_maybe_methods(compile_t* c, reach_type_t* t);
+void genprim_nullable_pointer_methods(compile_t* c, reach_type_t* t);
 
 void genprim_donotoptimise_methods(compile_t* c, reach_type_t* t);
 

@@ -1032,7 +1032,7 @@ TEST_F(BadPonyTest, ThisViewpointWithIsoReceiver)
   TEST_ERRORS_1(src, "argument not a subtype of parameter");
 }
 
-TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeededType)
+TEST_F(BadPonyTest, DisallowPointerAndNullablePointerInEmbeededType)
 {
   // From issue #2596
   const char* src =
@@ -1041,7 +1041,7 @@ TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeededType)
     "class Whoops\n"
     "  embed ok: Ok = Ok\n"
     "  embed not_ok: Pointer[None] = Pointer[None]\n"
-    "  embed also_not_ok: MaybePointer[Ok] = MaybePointer[Ok](Ok)\n"
+    "  embed also_not_ok: NullablePointer[Ok] = NullablePointer[Ok](Ok)\n"
     
     "actor Main\n"
     "new create(env: Env) =>\n"

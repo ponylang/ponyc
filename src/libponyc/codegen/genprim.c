@@ -485,7 +485,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_lt(c, t);
 }
 
-static void maybe_create(compile_t* c, reach_type_t* t, compile_type_t* t_elem)
+static void nullable_pointer_create(compile_t* c, reach_type_t* t, compile_type_t* t_elem)
 {
   FIND_METHOD("create", TK_NONE);
 
@@ -500,7 +500,7 @@ static void maybe_create(compile_t* c, reach_type_t* t, compile_type_t* t_elem)
   codegen_finishfun(c);
 }
 
-static void maybe_none(compile_t* c, reach_type_t* t)
+static void nullable_pointer_none(compile_t* c, reach_type_t* t)
 {
   FIND_METHOD("none", TK_NONE);
   start_function(c, t, m, c_t->use_type, &c_t->use_type, 1);
@@ -509,7 +509,7 @@ static void maybe_none(compile_t* c, reach_type_t* t)
   codegen_finishfun(c);
 }
 
-static void maybe_apply(compile_t* c, void* data, token_id cap)
+static void nullable_pointer_apply(compile_t* c, void* data, token_id cap)
 {
   // Returns the receiver if it isn't null.
   reach_type_t* t = ((reach_type_t**)data)[0];
@@ -536,7 +536,7 @@ static void maybe_apply(compile_t* c, void* data, token_id cap)
   codegen_finishfun(c);
 }
 
-static void maybe_is_none(compile_t* c, reach_type_t* t, token_id cap)
+static void nullable_pointer_is_none(compile_t* c, reach_type_t* t, token_id cap)
 {
   // Returns true if the receiver is null.
   FIND_METHOD("is_none", cap);
@@ -549,7 +549,7 @@ static void maybe_is_none(compile_t* c, reach_type_t* t, token_id cap)
   codegen_finishfun(c);
 }
 
-void genprim_maybe_methods(compile_t* c, reach_type_t* t)
+void genprim_nullable_pointer_methods(compile_t* c, reach_type_t* t)
 {
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
@@ -560,10 +560,10 @@ void genprim_maybe_methods(compile_t* c, reach_type_t* t)
   box_args[0] = t;
   box_args[1] = t_elem;
 
-  maybe_create(c, t, t_elem);
-  maybe_none(c, t);
-  BOX_FUNCTION(maybe_apply, box_args);
-  BOX_FUNCTION(maybe_is_none, t);
+  nullable_pointer_create(c, t, t_elem);
+  nullable_pointer_none(c, t);
+  BOX_FUNCTION(nullable_pointer_apply, box_args);
+  BOX_FUNCTION(nullable_pointer_is_none, t);
 }
 
 static void donotoptimise_apply(compile_t* c, reach_type_t* t,
