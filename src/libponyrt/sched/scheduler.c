@@ -1292,9 +1292,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
     // This is safe because an actor can only ever be in a single scheduler's
     // mutemap
     ponyint_muteset_putindex(&mref->value, sender, index2);
-    size_t muted = atomic_load_explicit(&sender->muted, memory_order_relaxed);
-    muted++;
-    atomic_store_explicit(&sender->muted, muted, memory_order_relaxed);
+    atomic_fetch_add_explicit(&sender->muted, 1, memory_order_relaxed);
   }
 }
 
@@ -1327,12 +1325,12 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     {
       // This is safe because an actor can only ever be in a single scheduler's
       // mutemap
-      size_t muted_count = atomic_load_explicit(&muted->muted, memory_order_relaxed);
+      size_t muted_count = atomic_fetch_sub_explicit(&muted->muted, 1, memory_order_relaxed);
       pony_assert(muted_count > 0);
-      muted_count--;
-      atomic_store_explicit(&muted->muted, muted_count, memory_order_relaxed);
 
-      if (muted_count == 0)
+      // If muted_count used to be 1 before we decremented it; then the actor
+      // is longer muted
+      if(muted_count == 1)
       {
         needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
       }
