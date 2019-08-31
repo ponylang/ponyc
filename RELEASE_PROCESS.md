@@ -122,6 +122,7 @@ During the time since you push to the release branch, Travis CI and Appveyor hav
 
 * [Travis CI](https://travis-ci.org/ponylang/ponyc/builds) (confirm that the Travis jobs for the `release` branch ran successfully)
 * [Debian](https://bintray.com/pony-language/ponylang-debian/ponyc)
+* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
 The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
 
