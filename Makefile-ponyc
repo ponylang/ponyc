@@ -1003,7 +1003,7 @@ benchmark: all
 	$(SILENT)echo "Running libponyc benchmarks..."
 	$(SILENT)$(PONY_BUILD_DIR)/libponyc.benchmarks
 	$(SILENT)echo "Running libponyrt benchmarks..."
-	$(SILENT)(PONY_BUILD_DIR)/libponyrt.benchmarks
+	$(SILENT)$(PONY_BUILD_DIR)/libponyrt.benchmarks
 
 stdlib-debug: all
 	$(SILENT)PONYPATH=.:$(PONYPATH) $(PONY_BUILD_DIR)/ponyc $(cross_args) -d -s --checktree --verify packages/stdlib
