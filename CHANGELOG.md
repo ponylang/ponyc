@@ -6,6 +6,18 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+- Rename MaybePointer to NullablePointer ([PR #3293](https://github.com/ponylang/ponyc/pull/3293))
+
+## [0.31.0] - 2019-08-31
+
+### Fixed
+
 - Fix static linking issue by changing the link order ([PR #3259](https://github.com/ponylang/ponyc/pull/3259))
 
 ### Added
@@ -19,7 +31,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Remove unnecessary argument to `Map.sub` ([PR #3275](https://github.com/ponylang/ponyc/pull/3275))
 - No longer supply AppImage as a release format ([PR #3288](https://github.com/ponylang/ponyc/pull/3288))
-- Rename MaybePointer to NullablePointer ([PR #3293](https://github.com/ponylang/ponyc/pull/3293))
 
 ## [0.30.0] - 2019-07-27
 
