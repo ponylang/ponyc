@@ -868,17 +868,15 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 
 bool ponyint_is_muted(pony_actor_t* actor)
 {
-  return (atomic_fetch_add_explicit(&actor->is_muted, 0, memory_order_relaxed) > 0);
+  return (atomic_load_explicit(&actor->is_muted, memory_order_relaxed) > 0);
 }
 
 void ponyint_mute_actor(pony_actor_t* actor)
 {
-   uint8_t is_muted = atomic_load_explicit(&actor->is_muted, memory_order_relaxed);
+   uint8_t is_muted = atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_relaxed);
    pony_assert(is_muted == 0);
    DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
-   is_muted++;
-   atomic_store_explicit(&actor->is_muted, is_muted, memory_order_relaxed);
-
+   (void)is_muted;
 }
 
 void ponyint_unmute_actor(pony_actor_t* actor)
