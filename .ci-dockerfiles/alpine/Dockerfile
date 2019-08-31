@@ -1,15 +1,18 @@
 FROM alpine
 
-RUN apk add --update \
+RUN apk update \
+  && apk upgrade \
+  && apk add --update \
   alpine-sdk \
   binutils-gold \
   libexecinfo-dev \
+  libexecinfo-static \
   coreutils \
   linux-headers \
   cmake \
   python \
+  git \
   zlib-dev \
-  ncurses-dev \
   bash \
   curl
 

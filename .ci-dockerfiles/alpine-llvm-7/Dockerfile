@@ -1,6 +1,6 @@
 FROM alpine
 
-ENV LLVM_VERSION 5
+ENV LLVM_VERSION 7
 
 RUN apk update \
   && apk upgrade \
@@ -9,11 +9,14 @@ RUN apk update \
   binutils-gold \
   llvm${LLVM_VERSION} \
   llvm${LLVM_VERSION}-dev \
+  llvm${LLVM_VERSION}-static \
   libexecinfo-dev \
+  libexecinfo-static \
   coreutils \
   linux-headers \
+  cmake \
+  git \
   zlib-dev \
-  ncurses-dev \
   bash \
   curl
 

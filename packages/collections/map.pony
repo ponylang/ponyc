@@ -254,9 +254,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     r(key) = value
     r
 
-  fun sub[H2: HashFunction[this->K!] val = H](
-    key: this->K!,
-    value: this->V!)
+  fun sub[H2: HashFunction[this->K!] val = H](key: this->K!)
     : HashMap[this->K!, this->V!, H2]^
   =>
     """

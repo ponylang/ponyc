@@ -150,18 +150,6 @@ docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main
 
 By default, the Pony Docker image is compiled without support for [AVX CPU instructions](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions). For optimal performance on modern hardware, you should build your Pony installation from source.
 
-## Linux using an AppImage package (via Bintray)
-
-For most Linux distributions released after RHEL 7, the `release` builds are packaged and available on Bintray ([pony-language/ponyc-appimage/ponyc](https://bintray.com/pony-language/ponyc-appimage/ponyc)) as an AppImage.
-
-The AppImage (www.appimage.org) format allow for an easy ability to use applications with minimal clutter added to your system. The applications are available in a single file and can be run after they're made executable. Additionally, AppImages allow for multiple versions of Pony to be used side by with no conflicts.
-
-To install builds via AppImage, you need to go to Bintray and download the appropriate file for the version you want. After the file is downloaded, you need to make it executable using `chmod`.
-
-### DEB and AVX2 Support
-
-By default, the Pony AppImage package is compiled without support for AVX CPU instructions. For optimal performance, you should build your Pony installation from source.
-
 ## Linux using an RPM package (via COPR)
 
 For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
@@ -393,7 +381,7 @@ Install pony dependencies:
 ```bash
 sudo apt-get update
 sudo apt-get install make gcc g++ git zlib1g-dev libncurses5-dev \
-  libssl-dev llvm llvm-dev
+  llvm llvm-dev
 ```
 
 To build ponyc, compile and run helloworld:
@@ -424,7 +412,7 @@ sudo apt-key add llvm-snapshot.gpg.key
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev llvm-3.9
 ```
 
 Clone the ponyc repo:
@@ -446,7 +434,7 @@ make
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev libssl-dev llvm-3.9
+sudo apt-get install -y build-essential git zlib1g-dev libncurses5-dev llvm-3.9
 ```
 
 Clone the ponyc repo:
@@ -616,7 +604,7 @@ make
 Install build tools/dependencies:
 
 ```bash
-apk add --update alpine-sdk libressl-dev binutils-gold llvm3.9 llvm3.9-dev \
+apk add --update alpine-sdk binutils-gold llvm3.9 llvm3.9-dev \
   libexecinfo-dev coreutils linux-headers zlib-dev ncurses-dev
 ```
 
@@ -636,7 +624,6 @@ You need to have the development versions of the following installed:
 * LLVM 3.9.1
 * zlib
 * ncurses
-* libssl
 
 There is experimental support for LLVM 4.0.1 and 5.0.0, but this may
 result in decreased performance or crashes in generated applications.
@@ -711,12 +698,12 @@ decreased performance or crashes in generated applications.
 Installation via [homebrew](http://brew.sh):
 ```
 brew update
-brew install llvm@3.9 libressl
+brew install llvm@3.9
 ```
 
 Installation via [MacPorts](https://www.macports.org):
 ```
-sudo port install llvm-3.9 libressl
+sudo port install llvm-3.9
 sudo port select --set llvm mp-llvm-3.9
 ```
 
@@ -754,9 +741,8 @@ make.bat build test
 
 This will automatically perform the following steps:
 
-- Download some pre-built libraries used for building the Pony compiler and standard library.
+- Download the pre-built LLVM library for building the Pony compiler.
   - [LLVM](http://llvm.org)
-  - [LibreSSL](https://www.libressl.org/)
 - Build the pony compiler in the `build/<config>-<llvm-version>` directory.
 - Build the unit tests for the compiler and the standard library.
 - Run the unit tests.

@@ -11,7 +11,7 @@ test-ci-lib-llvm: &test-ci-lib-llvm
 version: 2.1
 
 orbs:
-  zulip: ponylang/zulip@1.0.0
+  zulip: ponylang/zulip@1
 
 jobs:
   x86-64-unknown-linux-gnu-nightly:
@@ -26,10 +26,8 @@ jobs:
     docker:
       - image: ponylang/changelog-tool:release
     steps:
-      - run: apt-get update
-      - run: apt-get install -y curl
       - checkout
-      - run: changelog-tool verify CHANGELOG.md
+      - run: changelog-tool verify 
       - zulip/status:
           fail_only: true
 
@@ -50,6 +48,50 @@ jobs:
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
+      - zulip/status:
+          fail_only: true
+
+  alpine-lib-llvm-debug-static:
+    docker:
+      - image: ponylang/ponyc-ci:alpine
+        user: pony
+    steps:
+      - checkout
+      - run: make -f Makefile-lib-llvm all config=debug default_pic=true staticbuild=true -j3
+      - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true staticbuild=true
+      - zulip/status:
+          fail_only: true
+
+  alpine-lib-llvm-release-static:
+    docker:
+      - image: ponylang/ponyc-ci:alpine
+        user: pony
+    steps:
+      - checkout
+      - run: make -f Makefile-lib-llvm all config=release default_pic=true staticbuild=true -j3
+      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true staticbuild=true
+      - zulip/status:
+          fail_only: true
+
+  alpine-llvm-7-debug-static:
+    docker:
+      - image: ponylang/ponyc-ci:alpine-llvm-7
+        user: pony
+    steps:
+      - checkout
+      - run: make LLVM_CONFIG=llvm7-config all config=debug default_pic=true staticbuild=true -j3
+      - run: make LLVM_CONFIG=llvm7-config test-ci config=debug default_pic=true staticbuild=true
+      - zulip/status:
+          fail_only: true
+
+  alpine-llvm-7-release-static:
+    docker:
+      - image: ponylang/ponyc-ci:alpine-llvm-7
+        user: pony
+    steps:
+      - checkout
+      - run: make LLVM_CONFIG=llvm7-config all config=release default_pic=true staticbuild=true -j3
+      - run: make LLVM_CONFIG=llvm7-config test-ci config=release default_pic=true staticbuild=true
       - zulip/status:
           fail_only: true
 
@@ -255,6 +297,26 @@ workflows:
       - alpine-llvm-5-debug:
           requires:
             - lib-llvm-ubuntu-debug
+          context: org-global
+
+      - alpine-llvm-7-debug-static:
+          requires:
+            - lib-llvm-ubuntu-debug
+          context: org-global
+
+      - alpine-llvm-7-release-static:
+          requires:
+            - lib-llvm-ubuntu-release
+          context: org-global
+
+      - alpine-lib-llvm-debug-static:
+          requires:
+            - lib-llvm-ubuntu-debug
+          context: org-global
+
+      - alpine-lib-llvm-release-static:
+          requires:
+            - lib-llvm-ubuntu-release
           context: org-global
 
       # p2 cross compilation tests

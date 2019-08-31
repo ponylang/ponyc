@@ -2,7 +2,9 @@ FROM alpine:3.9
 
 ENV LLVM_VERSION 5
 
-RUN apk add --update --no-cache \
+RUN apk update \
+  && apk upgrade \
+  && apk add --update \
   alpine-sdk \
   binutils-gold \
   llvm${LLVM_VERSION} \

@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef PLATFORM_IS_POSIX_BASED
+#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX)
 #  include <execinfo.h>
+#endif
 #  include <unistd.h>
 #else
 #  include <Windows.h>
@@ -38,6 +40,7 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
     func, expr);
 
+#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX)
   void* addrs[256];
   stack_depth_t depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
@@ -55,7 +58,9 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
       "imprecise or incorrect.\nUse a debug version to get more meaningful "
       "information.\n", stderr);
   }
-
+#else
+  fputs("Backtrace functionality not available.\n", stderr);
+#endif
   fflush(stderr);
   abort();
 }

@@ -17,6 +17,7 @@ actor Main is TestList
     ifdef not windows then
       test(_TestTCPThrottle)
     end
+    test(_TestTCPProxy)
 
 class _TestPing is UDPNotify
   let _h: TestHelper
@@ -639,3 +640,32 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
       conn.write("this is more data that you won't ever read" * 10000)
     end
     data
+
+class _TestTCPProxy is UnitTest
+  """
+  Check that the proxy callback is called on creation of a TCPConnection.
+  """
+  fun name(): String => "net/TCPProxy"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("sender connected") 
+    h.expect_action("sender proxy request") 
+
+    _TestTCP(h)(_TestTCPProxyNotify(h),
+      _TestTCPProxyNotify(h))
+
+class _TestTCPProxyNotify is TCPConnectionNotify
+  let _h: TestHelper
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref proxy_via(host: String, service: String): (String, String) =>
+    _h.complete_action("sender proxy request")
+    (host, service)
+    
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("sender connected")
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("sender connect failed")

@@ -10,7 +10,7 @@
 #include <sys/mman.h>
 #endif
 
-#if defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_DRAGONFLY) || defined(PLATFORM_IS_OPENBSD)
 #include <pthread_np.h>
 #endif
 #if defined(PLATFORM_IS_FREEBSD)

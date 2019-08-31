@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 API_KEY=$1
 if [[ ${API_KEY} == "" ]]
 then
@@ -30,8 +32,8 @@ PACKAGE=ponyc-${TRIPLE}
 
 # Cloudsmith configuration
 CLOUDSMITH_VERSION=${TODAY}
-ASSET_OWNER=main-pony
-ASSET_REPO=pony-nightlies
+ASSET_OWNER=ponylang
+ASSET_REPO=nightlies
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
 ASSET_FILE=${PACKAGE_DIR}/${PACKAGE}.tar.gz
 ASSET_SUMMARY="Pony compiler"

@@ -1099,12 +1099,32 @@ actor Main
     """
     Split the string into an array of strings that are delimited by `delim` in
     the original string. If `n > 0`, then the split count is limited to n.
+    
+    Example:
+
+    ```pony
+    let original: String = "<b><span>Hello!</span></b>"
+    let delimiter: String = "><"
+    let split_array: Array[String] = original.split_by(delimiter)
+    env.out.print("OUTPUT:")
+    for value in split_array.values() do
+      env.out.print(value)
+    end
+
+    // OUTPUT:
+    // <b
+    // span>Hello!</span
+    // b>
+    ```
 
     Adjacent delimiters result in a zero length entry in the array. For
-    example, `"1,,2".split(",") => ["1", "", "2"]`.
+    example, `"1CutCut2".split_by("Cut") => ["1", "", "2"]`.
 
     An empty delimiter results in an array that contains a single element equal
     to the whole string.
+
+    If you want to split the string with each individual character of `delim`,
+    use [`split`](#split).
     """
     let delim_size = ISize.from[USize](delim.size())
     let total_size = ISize.from[USize](size())
@@ -1124,12 +1144,32 @@ actor Main
 
   fun split(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String] iso^ =>
     """
-    Split the string into an array of strings. Any character in the delimiter
-    string is accepted as a delimiter. If `n > 0`, then the split count is
-    limited to n.
+    Split the string into an array of strings with any character in the
+    delimiter string. By default, the string is split with whitespace
+    characters. If `n > 0`, then the split count is limited to n.
+    
+    Example:
+
+    ```pony
+    let original: String = "name,job;department"
+    let delimiter: String = ".,;"
+    let split_array: Array[String] = original.split(delimiter)
+    env.out.print("OUTPUT:")
+    for value in split_array.values() do
+      env.out.print(value)
+    end
+
+    // OUTPUT:
+    // name
+    // job
+    // department
+    ```
 
     Adjacent delimiters result in a zero length entry in the array. For
     example, `"1,,2".split(",") => ["1", "", "2"]`.
+
+    If you want to split the string with the entire delimiter string `delim`,
+    use [`split_by`](#split_by).
     """
     let result = recover Array[String] end
 

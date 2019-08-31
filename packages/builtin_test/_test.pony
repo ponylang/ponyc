@@ -725,11 +725,27 @@ class iso _TestStringSplit is UnitTest
     h.assert_eq[String](r(3)?, "")
     h.assert_eq[String](r(4)?, "4")
 
+    r = "1.2,.3,, 4".split(".,")
+    h.assert_eq[USize](r.size(), 6)
+    h.assert_eq[String](r(0)?, "1")
+    h.assert_eq[String](r(1)?, "2")
+    h.assert_eq[String](r(2)?, "")
+    h.assert_eq[String](r(3)?, "3")
+    h.assert_eq[String](r(4)?, "")
+    h.assert_eq[String](r(5)?, " 4")
+
     r = "1 2 3  4".split(where n = 3)
     h.assert_eq[USize](r.size(), 3)
     h.assert_eq[String](r(0)?, "1")
     h.assert_eq[String](r(1)?, "2")
     h.assert_eq[String](r(2)?, "3  4")
+
+    r = "1.2,.3,, 4".split(".,", 4)
+    h.assert_eq[USize](r.size(), 4)
+    h.assert_eq[String](r(0)?, "1")
+    h.assert_eq[String](r(1)?, "2")
+    h.assert_eq[String](r(2)?, "")
+    h.assert_eq[String](r(3)?, "3,, 4")
 
 class iso _TestStringSplitBy is UnitTest
   """

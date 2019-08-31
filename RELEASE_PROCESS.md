@@ -7,7 +7,7 @@ This document is aimed at members of the Pony team who might be cutting a releas
 In order to do a release, you absolutely must have:
 
 * Commit access to the `ponyc` repo
-* The latest release of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
+* Verison 0.3.x of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 * Access to the ponylang twitter account
 * Accounts on reddit/hacker news/lobste.rs for posting release notes
 * An account on the [Pony Zulip](https://ponylang.zulipchat.com)
@@ -110,7 +110,7 @@ At this point we are basically waiting on Travis, Appveyor and Homebrew. As each
 
 ### Work on the release notes
 
-We do a blog post announcing each release. The release notes blog post should include highlights of any particularly interesting changes that we want the community to be aware of. 
+We do a blog post announcing each release. The release notes blog post should include highlights of any particularly interesting changes that we want the community to be aware of.
 
 Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
 
@@ -121,7 +121,6 @@ Additionally, any breaking changes that require end users to change their code s
 During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
 
 * [Travis CI](https://travis-ci.org/ponylang/ponyc/builds) (confirm that the Travis jobs for the `release` branch ran successfully)
-* [AppImage](https://bintray.com/pony-language/ponyc-appimage/ponyc)
 * [Debian](https://bintray.com/pony-language/ponylang-debian/ponyc)
 
 The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
@@ -129,13 +128,6 @@ The pattern for releases is similar as what we previously saw. In the case of De
 `0.3.1`
 
 It is recommended to check the files for the Deb version to ensure that every distribution we support has a file successfully uploaded.
-
-For AppImage, the versions look something like:
-
-`0.3.1`
-
-* [Appveyor](https://ci.appveyor.com/project/ponylang/ponyc/history) (confirm that Appveyor jobs ran successfully for at least the LLVM/Release job)
-* [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
 For windows, the versions look something like:
 
@@ -180,7 +172,7 @@ As part of every release, 6 Docker images are built:
   - release-alpine
   - 0.3.1-alpine
 
-Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 6 images were successfully built. From the time the release starts, it can take several hours for all images to be built.
+Visit the ponylang dockerhub organization [build page](https://hub.docker.com/r/ponylang/ponyc/builds/) and verify that all 6 images were successfully built. From the time the release starts, it can take several hours for all images to be built. You can track the progress of builds on [build activity page](https://cloud.docker.com/u/ponylang/repository/docker/ponylang/ponyc/builds); scroll down to the bottom of the page to see completed, in-progress, and pending jobs.
 
 ### Verify that the Pony Playground updated to the new version
 

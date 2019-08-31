@@ -22,26 +22,19 @@ case "$REPO_TYPE" in
             \"deb_architecture\": \"amd64\"}
          }
        ],
-       \"publish\": true" 
+       \"publish\": true"
     ;;
   "rpm")
     FILES="\"files\":
       [
         {\"includePattern\": \"/home/travis/build/ponylang/ponyc/build/bin/(.*.rpm)\", \"uploadPattern\": \"\$1\"}
       ],
-    \"publish\": true" 
+    \"publish\": true"
     ;;
   "source")
     FILES="\"files\":
       [
         {\"includePattern\": \"/home/travis/build/ponylang/ponyc/build/bin/(.*.tar.bz2)\", \"uploadPattern\": \"\$1\"}
-      ],
-    \"publish\": true"
-    ;;
-  "appimage")
-    FILES="\"files\":
-      [
-        {\"includePattern\": \"/home/travis/build/ponylang/ponyc/(.*.AppImage)\", \"uploadPattern\": \"\$1\"}
       ],
     \"publish\": true"
     ;;
