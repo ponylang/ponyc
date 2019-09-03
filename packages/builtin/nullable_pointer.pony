@@ -1,6 +1,6 @@
-struct MaybePointer[A]
+struct NullablePointer[A]
   """
-  A MaybePointer[A] is used to encode a possibly-null type. It should
+  A NullablePointer[A] is used to encode a possibly-null type. It should
   _only_ be used for structs that need to be passed to and from the C FFI.
 
   An optional type for anything that isn't a struct should be encoded as a
@@ -8,21 +8,21 @@ struct MaybePointer[A]
   """
   new create(that: A) =>
     """
-    This re-encodes the type of `that` from A to MaybePointer[A], allowing
-    `that` to be assigned to a field or variable of type MaybePointer[A]. It
+    This re-encodes the type of `that` from A to NullablePointer[A], allowing
+    `that` to be assigned to a field or variable of type NullablePointer[A]. It
     doesn't allocate a wrapper object: there is no containing object for `that`.
     """
     compile_intrinsic
 
   new none() =>
     """
-    This returns a null pointer typed as a MaybePointer[A].
+    This returns a null pointer typed as a NullablePointer[A].
     """
     compile_intrinsic
 
   fun apply(): this->A ? =>
     """
-    This re-encodes the type of `this` from MaybePointer[A] to A, allowing
+    This re-encodes the type of `this` from NullablePointer[A] to A, allowing
     `this` to be assigned to a field of variable of type A. If `this` is a null
     pointer, an error is raised.
     """

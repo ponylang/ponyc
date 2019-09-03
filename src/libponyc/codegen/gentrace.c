@@ -13,7 +13,7 @@
 typedef enum
 {
   TRACE_NONE,
-  TRACE_MAYBE,
+  TRACE_NULLABLE_POINTER,
   TRACE_MACHINE_WORD,
   TRACE_PRIMITIVE,
   TRACE_VAL_KNOWN,
@@ -194,7 +194,7 @@ static trace_t trace_type_union(ast_t* type)
         trace = t;
         break;
 
-      case TRACE_MAYBE:
+      case TRACE_NULLABLE_POINTER:
         // Can't be in a union.
         pony_assert(0);
         return TRACE_NONE;
@@ -249,7 +249,7 @@ static trace_t trace_type_isect(ast_t* type)
     switch(t)
     {
       case TRACE_NONE:
-      case TRACE_MAYBE:
+      case TRACE_NULLABLE_POINTER:
         // Can't be in an isect.
         pony_assert(0);
         return TRACE_NONE;
@@ -322,8 +322,8 @@ static trace_t trace_type_nominal(ast_t* type)
 
     case TK_STRUCT:
     case TK_CLASS:
-      if(is_maybe(type))
-        return TRACE_MAYBE;
+      if(is_nullable_pointer(type))
+        return TRACE_NULLABLE_POINTER;
 
       switch(cap_single(type))
       {
@@ -379,7 +379,7 @@ static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
   {
     case TRACE_NONE:
     case TRACE_MACHINE_WORD:
-    case TRACE_MAYBE:
+    case TRACE_NULLABLE_POINTER:
     case TRACE_PRIMITIVE:
     case TRACE_DYNAMIC:
     case TRACE_TAG_KNOWN:
@@ -467,8 +467,8 @@ static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
   }
 }
 
-static void trace_maybe(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
-  ast_t* type)
+static void trace_nullable_pointer(compile_t* c, LLVMValueRef ctx, 
+  LLVMValueRef object, ast_t* type)
 {
   // Only trace the element if it isn't NULL.
   ast_t* type_args = ast_childidx(type, 2);
@@ -983,8 +983,8 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
     case TRACE_PRIMITIVE:
       return;
 
-    case TRACE_MAYBE:
-      trace_maybe(c, ctx, dst_value, src_type);
+    case TRACE_NULLABLE_POINTER:
+      trace_nullable_pointer(c, ctx, dst_value, src_type);
       return;
 
     case TRACE_VAL_KNOWN:
