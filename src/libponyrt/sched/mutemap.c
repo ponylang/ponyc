@@ -44,3 +44,37 @@ void ponyint_muteref_free(muteref_t* mref)
 
 DEFINE_HASHMAP(ponyint_mutemap, mutemap_t, muteref_t, muteref_hash,
   muteref_cmp, ponyint_muteref_free);
+
+#ifdef USE_MEMTRACK
+size_t ponyint_mutemap_total_mem_size(mutemap_t* map)
+{
+  size_t t = 0;
+  t += ponyint_mutemap_mem_size(map);
+  size_t i = HASHMAP_UNKNOWN;
+  muteref_t* mref = NULL;
+
+  while((mref = ponyint_mutemap_next(map, &i)) != NULL)
+  {
+    t += ponyint_muteset_mem_size(&mref->value);
+    t += sizeof(muteref_t);
+  }
+
+  return t;
+}
+
+size_t ponyint_mutemap_total_alloc_size(mutemap_t* map)
+{
+  size_t t = 0;
+  t += ponyint_mutemap_alloc_size(map);
+  size_t i = HASHMAP_UNKNOWN;
+  muteref_t* mref = NULL;
+
+  while((mref = ponyint_mutemap_next(map, &i)) != NULL)
+  {
+    t += ponyint_muteset_alloc_size(&mref->value);
+    t += POOL_ALLOC_SIZE(muteref_t);
+  }
+
+  return t;
+}
+#endif

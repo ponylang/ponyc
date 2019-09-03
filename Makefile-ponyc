@@ -232,6 +232,14 @@ define USE_CHECK
     else
       $$(warning LLVM_LINK_STATIC already set to '$(LLVM_LINK_STATIC)'; using pre-existing value)
     endif
+  else ifeq ($1,memtrack)
+    ALL_CFLAGS += -DUSE_MEMTRACK
+    ALL_CXXFLAGS += -DUSE_MEMTRACK
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-memtrack
+  else ifeq ($1,memtrack_messages)
+    ALL_CFLAGS += -DUSE_MEMTRACK -DUSE_MEMTRACK_MESSAGES
+    ALL_CXXFLAGS += -DUSE_MEMTRACK -DUSE_MEMTRACK_MESSAGES
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-memtrack-messages
   else
     $$(error ERROR: Unknown use option specified: $1)
   endif
@@ -1151,6 +1159,8 @@ help:
 	@echo '   thread_sanitizer'
 	@echo '   address_sanitizer'
 	@echo '   undefined_behavior_sanitizer'
+	@echo '   memtrack'
+	@echo '   memtrack_messages'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

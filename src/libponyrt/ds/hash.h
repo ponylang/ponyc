@@ -103,6 +103,18 @@ void ponyint_hashmap_clearindex(hashmap_t* map, size_t index);
  */
 size_t ponyint_hashmap_size(hashmap_t* map);
 
+/** Get the current fill ratio of the map.
+ */
+double ponyint_hashmap_fill_ratio(hashmap_t* map);
+
+/** Get the memory used by the map.
+ */
+size_t ponyint_hashmap_mem_size(hashmap_t* map);
+
+/** Get the memory allocated by the map.
+ */
+size_t ponyint_hashmap_alloc_size(hashmap_t* map);
+
 /** Hashmap iterator.
  *
  *  Set i to HASHMAP_BEGIN, then call until this returns NULL.
@@ -131,6 +143,9 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   void name##_removeindex(name_t* map, size_t index); \
   void name##_clearindex(name_t* map, size_t index); \
   size_t name##_size(name_t* map); \
+  double name##_fill_ratio(hashmap_t* map); \
+  size_t name##_mem_size(name_t* map); \
+  size_t name##_alloc_size(name_t* map); \
   type* name##_next(name_t* map, size_t* i); \
 
 #define DECLARE_HASHMAP_SERIALISE(name, name_t, type) \
@@ -195,6 +210,18 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   size_t name##_size(name_t* map) \
   { \
     return ponyint_hashmap_size((hashmap_t*)map); \
+  } \
+  double name##_fill_ratio(hashmap_t* map) \
+  { \
+    return ponyint_hashmap_fill_ratio((hashmap_t*)map); \
+  } \
+  size_t name##_mem_size(name_t* map) \
+  { \
+    return ponyint_hashmap_mem_size((hashmap_t*)map); \
+  } \
+  size_t name##_alloc_size(name_t* map) \
+  { \
+    return ponyint_hashmap_alloc_size((hashmap_t*)map); \
   } \
   type* name##_next(name_t* map, size_t* i) \
   { \

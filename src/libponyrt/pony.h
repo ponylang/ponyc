@@ -187,9 +187,17 @@ typedef struct pony_language_features_init_t
  * 28/0 bytes: padding to 64 bytes, ignored
  */
 #if INTPTR_MAX == INT64_MAX
+#ifdef USE_MEMTRACK
+#  define PONY_ACTOR_PAD_SIZE 280
+#else
 #  define PONY_ACTOR_PAD_SIZE 248
+#endif
 #elif INTPTR_MAX == INT32_MAX
+#ifdef USE_MEMTRACK
+#  define PONY_ACTOR_PAD_SIZE 176
+#else
 #  define PONY_ACTOR_PAD_SIZE 160
+#endif
 #endif
 
 typedef struct pony_actor_pad_t

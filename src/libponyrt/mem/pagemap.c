@@ -66,6 +66,25 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
 
 static PONY_ATOMIC(void*) root;
 
+#ifdef USE_MEMTRACK
+static PONY_ATOMIC(size_t) mem_allocated;
+static PONY_ATOMIC(size_t) mem_used;
+
+/** Get the memory used by the pagemap.
+ */
+size_t ponyint_pagemap_mem_size()
+{
+  return atomic_load_explicit(&mem_used, memory_order_relaxed);
+}
+
+/** Get the memory allocated by the pagemap.
+ */
+size_t ponyint_pagemap_alloc_size()
+{
+  return atomic_load_explicit(&mem_allocated, memory_order_relaxed);
+}
+#endif
+
 chunk_t* ponyint_pagemap_get(const void* addr)
 {
   PONY_ATOMIC(void*)* next_node = &root;
@@ -95,6 +114,11 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
     if(node == NULL)
     {
       void* new_node = ponyint_pool_alloc(level[i].size_index);
+#ifdef USE_MEMTRACK
+      atomic_fetch_add_explicit(&mem_used, level[i].size, memory_order_relaxed);
+      atomic_fetch_add_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+        memory_order_relaxed);
+#endif
       memset(new_node, 0, level[i].size);
 
 #ifdef USE_VALGRIND
@@ -107,6 +131,11 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
         ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
         ponyint_pool_free(level[i].size_index, new_node);
+#ifdef USE_MEMTRACK
+        atomic_fetch_sub_explicit(&mem_used, level[i].size, memory_order_relaxed);
+        atomic_fetch_sub_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+          memory_order_relaxed);
+#endif
       } else {
         node = new_node;
       }
@@ -143,6 +172,11 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
       if(node == NULL)
       {
         void* new_node = ponyint_pool_alloc(level[i].size_index);
+#ifdef USE_MEMTRACK
+        atomic_fetch_add_explicit(&mem_used, level[i].size, memory_order_relaxed);
+        atomic_fetch_add_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+          memory_order_relaxed);
+#endif
         memset(new_node, 0, level[i].size);
 
 #ifdef USE_VALGRIND
@@ -155,6 +189,11 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
           ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
           ponyint_pool_free(level[i].size_index, new_node);
+#ifdef USE_MEMTRACK
+          atomic_fetch_sub_explicit(&mem_used, level[i].size, memory_order_relaxed);
+          atomic_fetch_sub_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+            memory_order_relaxed);
+#endif
         } else {
           node = new_node;
         }
