@@ -4,7 +4,7 @@ class Array[A] is Seq[A]
 
   ## Usage
 
-  Creating an Array of String.
+  Creating an Array of String:
   ```pony
     let array: Array[String] = ["dog"; "cat"; "wombat"]
     // array.size() == 3
@@ -12,16 +12,16 @@ class Array[A] is Seq[A]
   ```
 
   Creating an empty Array of String, which may hold at least 10 elements before
-  requesting more space.
+  requesting more space:
   ```pony
-    let array = Array(10)
+    let array = Array[String](10)
     // array.size() == 0
     // array.space() >= 10
   ```
 
   Accessing elements can be done via the `apply(i: USize): this->A ?` method.
   The provided index might be out of bounds so `apply` is partial and has to be
-  called within a try-catch block or inside another partial method.
+  called within a try-catch block or inside another partial method:
   ```pony
     let array: Array[String] = ["dog"; "cat"; "wombat"]
     let is_second_element_wobat = try
@@ -34,7 +34,7 @@ class Array[A] is Seq[A]
 
   Adding and removing elements to and from the end of the Array can be done via
   `push` and `pop` methods. You could treat the array as a FIFO queue using
-  those methods.
+  those methods:
   ```pony
     while (array.size() > 0) do
       let elem = array.pop()?
@@ -46,7 +46,7 @@ class Array[A] is Seq[A]
   which alter the Array at an arbitrary index, moving elements left (when
   deleting) or right (when inserting) as necessary.
 
-  Iterating over the elements of an Array can be done using the `values` method.
+  Iterating over the elements of an Array can be done using the `values` method:
   ```pony
     for element in array.values() do
         // do something with element
