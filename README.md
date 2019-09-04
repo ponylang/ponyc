@@ -817,4 +817,3 @@ gcc -march=none
 ```
 
 This will result in an error message plus a listing of all architecture types acceptable on your platform.
-
