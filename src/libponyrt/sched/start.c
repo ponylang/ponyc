@@ -24,6 +24,7 @@ typedef struct options_t
   // concurrent options
   uint32_t threads;
   uint32_t min_threads;
+  bool noscale;
   uint32_t thread_suspend_threshold;
   uint32_t cd_detect_interval;
   size_t gc_initial;
@@ -53,6 +54,7 @@ enum
 {
   OPT_THREADS,
   OPT_MINTHREADS,
+  OPT_NOSCALE,
   OPT_SUSPENDTHRESHOLD,
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
@@ -68,6 +70,7 @@ static opt_arg_t args[] =
 {
   {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
+  {"ponynoscale", 0, OPT_ARG_NONE, OPT_NOSCALE},
   {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
@@ -86,13 +89,15 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   opt_state_t s;
   int id;
   ponyint_opt_init(args, &s, &argc, argv);
+  bool minthreads_set = false;
 
   while((id = ponyint_opt_next(&s)) != -1)
   {
     switch(id)
     {
       case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
-      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); break;
+      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); minthreads_set = true; break;
+      case OPT_NOSCALE: opt->noscale= true; break;
       case OPT_SUSPENDTHRESHOLD: opt->thread_suspend_threshold = atoi(s.arg_val); break;
       case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
@@ -107,6 +112,11 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     }
   }
 
+  if(minthreads_set && opt->noscale)
+  {
+    printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
+    exit(-1);
+  }
   argv[argc] = NULL;
   return argc;
 }
@@ -148,7 +158,12 @@ PONY_API int pony_init(int argc, char** argv)
     exit(0);
   }
 
-  if (opt.min_threads > opt.threads)
+  if (opt.noscale)
+  {
+    opt.min_threads = opt.threads;
+  }
+
+  if (opt.min_threads > opt.threads) 
   {
     printf("Can't have --ponyminthreads > --ponythreads (%d > %d)\n", opt.min_threads, opt.threads);
     exit(-1);
