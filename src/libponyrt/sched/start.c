@@ -112,11 +112,16 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     }
   }
 
-  if(minthreads_set && opt->noscale)
+  if (opt->noscale)
   {
-    printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
-    exit(-1);
+    if (minthreads_set)
+    {
+      printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
+      exit(-1);
+    }
+    opt->min_threads = opt->threads;
   }
+
   argv[argc] = NULL;
   return argc;
 }
@@ -158,18 +163,22 @@ PONY_API int pony_init(int argc, char** argv)
     exit(0);
   }
 
-  if (opt.noscale)
-  {
-    opt.min_threads = opt.threads;
-  }
+  ponyint_cpu_init();
 
-  if (opt.min_threads > opt.threads) 
+  if (opt.threads == 0) {
+    opt.threads = ponyint_cpu_count();
+  }
+  else if (opt.threads > ponyint_cpu_count())
   {
-    printf("Can't have --ponyminthreads > --ponythreads (%d > %d)\n", opt.min_threads, opt.threads);
+    printf("Can't have --ponythreads > physical cores, the number of threads you'd be running with (%u > %u)\n", opt.threads, ponyint_cpu_count());
     exit(-1);
   }
 
-  ponyint_cpu_init();
+  if (opt.min_threads > opt.threads)
+  {
+    printf("Can't have --ponyminthreads > --ponythreads (%u > %u)\n", opt.min_threads, opt.threads);
+    exit(-1);
+  }
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);

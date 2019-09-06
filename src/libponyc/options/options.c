@@ -193,6 +193,7 @@ static void usage(void)
     "Runtime options for Pony programs (not for use with ponyc):\n"
     "  --ponythreads    Use N scheduler threads. Defaults to the number of\n"
     "                   cores (not hyperthreads) available.\n"
+    "                   This can't be larger than the number of cores available.\n"
     "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
     "                   Defaults to 0, meaning that all scheduler threads are\n"
     "                   allowed to be suspended when no work is available.\n"
