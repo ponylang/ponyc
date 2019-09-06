@@ -196,6 +196,8 @@ static void usage(void)
     "  --ponyminthreads Minimum number of active scheduler threads allowed.\n"
     "                   Defaults to 0, meaning that all scheduler threads are\n"
     "                   allowed to be suspended when no work is available.\n"
+    "                   This can't be larger than --ponythreads if provided,\n"
+    "                   or the physical cores available\n"
     "  --ponysuspendthreshold\n"
     "                   Amount of idle time before a scheduler thread suspends\n"
     "                   itself to minimize resource consumption (max 1000 ms,\n"

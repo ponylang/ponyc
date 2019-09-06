@@ -148,6 +148,12 @@ PONY_API int pony_init(int argc, char** argv)
     exit(0);
   }
 
+  if (opt.min_threads > opt.threads)
+  {
+    printf("Can't have --ponyminthreads > --ponythreads (%d > %d)\n", opt.min_threads, opt.threads);
+    exit(-1);
+  }
+
   ponyint_cpu_init();
 
   ponyint_heap_setinitialgc(opt.gc_initial);
