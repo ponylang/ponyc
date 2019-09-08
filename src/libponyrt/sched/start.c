@@ -8,6 +8,7 @@
 #include "../gc/serialise.h"
 #include "../lang/process.h"
 #include "../lang/socket.h"
+#include "../mem/pool.h"
 #include "../options/options.h"
 #include "ponyassert.h"
 #include <dtrace.h>
@@ -24,6 +25,7 @@ typedef struct options_t
   // concurrent options
   uint32_t threads;
   uint32_t min_threads;
+  size_t max_mem;
   uint32_t thread_suspend_threshold;
   uint32_t cd_detect_interval;
   size_t gc_initial;
@@ -53,6 +55,7 @@ enum
 {
   OPT_THREADS,
   OPT_MINTHREADS,
+  OPT_MAXMEM,
   OPT_SUSPENDTHRESHOLD,
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
@@ -68,6 +71,7 @@ static opt_arg_t args[] =
 {
   {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
+  {"ponymaxmem", 0, OPT_ARG_REQUIRED, OPT_MAXMEM},
   {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
@@ -93,6 +97,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     {
       case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
       case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); break;
+      case OPT_MAXMEM: opt->max_mem = atoi(s.arg_val); break;
       case OPT_SUSPENDTHRESHOLD: opt->thread_suspend_threshold = atoi(s.arg_val); break;
       case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
@@ -132,6 +137,7 @@ PONY_API int pony_init(int argc, char** argv)
 
   // Defaults.
   opt.min_threads = 0;
+  opt.max_mem = -1;
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
@@ -149,6 +155,9 @@ PONY_API int pony_init(int argc, char** argv)
   }
 
   ponyint_cpu_init();
+
+  // initialize pool max memory limit
+  ponyint_pool_init(opt.max_mem);
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);
