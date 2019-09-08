@@ -30,6 +30,8 @@ typedef struct options_t
   uint32_t cd_detect_interval;
   size_t gc_initial;
   double gc_factor;
+  double aggr_gc_factor;
+  size_t aggr_gc_threshold;
   bool noyield;
   bool noblock;
   bool nopin;
@@ -60,6 +62,8 @@ enum
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
+  OPT_AGGRGCFACTOR,
+  OPT_AGGRGCTHRESHOLD,
   OPT_NOYIELD,
   OPT_NOBLOCK,
   OPT_PIN,
@@ -76,6 +80,8 @@ static opt_arg_t args[] =
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
+  {"ponyaggressivegcfactor", 0, OPT_ARG_REQUIRED, OPT_AGGRGCFACTOR},
+  {"ponyaggressivegcthreshold", 0, OPT_ARG_REQUIRED, OPT_AGGRGCTHRESHOLD},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
@@ -102,6 +108,8 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
+      case OPT_AGGRGCFACTOR: opt->aggr_gc_factor = atof(s.arg_val); break;
+      case OPT_AGGRGCTHRESHOLD: opt->aggr_gc_threshold = atoi(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_PIN: opt->nopin = false; break;
@@ -141,6 +149,8 @@ PONY_API int pony_init(int argc, char** argv)
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
+  opt.aggr_gc_factor = 1.5f;
+  opt.aggr_gc_threshold = -1;
   opt.nopin = true;
 
   argc = parse_opts(argc, argv, &opt);
@@ -157,10 +167,10 @@ PONY_API int pony_init(int argc, char** argv)
   ponyint_cpu_init();
 
   // initialize pool max memory limit
-  ponyint_pool_init(opt.max_mem);
+  ponyint_pool_init(opt.max_mem, opt.aggr_gc_threshold);
 
   ponyint_heap_setinitialgc(opt.gc_initial);
-  ponyint_heap_setnextgcfactor(opt.gc_factor);
+  ponyint_heap_setnextgcfactor(opt.gc_factor, opt.aggr_gc_factor);
   ponyint_actor_setnoblock(opt.noblock);
 
   pony_exitcode(0);
