@@ -53,6 +53,15 @@ actor Main
             OptionSpec.i64("report-count",
               "Number of reports to generate, default 0 is infinite"
               where default' = 0)
+            OptionSpec.bool("send-array",
+              "Send array objects in ping messages, default is false"
+              where default' = false)
+            OptionSpec.i64("array-size",
+              "Size of array objects to send in ping messages, default is 512 bytes"
+              where default' = 512)
+            OptionSpec.i64("hold-array-pings",
+              "# of pings to hold an array for before freeing it for GC, default 10, min 1"
+              where default' = 10)
             OptionSpec.i64("initial-pings",
               "Initial # of pings to send to each Pinger actor in an interval"
               where default' = 5)
@@ -74,17 +83,24 @@ actor Main
       let num_pingers = cmd.option("pingers").i64()
       let report_interval = cmd.option("report-interval").i64()
       let report_count = cmd.option("report-count").i64().u64()
+      let send_array = cmd.option("send-array").bool()
+      let array_size = cmd.option("array-size").i64()
+      let hold_array_pings = cmd.option("hold-array-pings").i64().max(1)
       let initial_pings = cmd.option("initial-pings").i64()
 
       env.out.print("# " +
         "pingers " + num_pingers.string() + ", " +
         "report-interval " + report_interval.string() + ", " +
         "report-count " + report_count.string() + ", " +
-        "initial-pings " + initial_pings.string())
+        "initial-pings " + initial_pings.string() + ", " +
+        "send-array " + send_array.string() + ", " +
+        "array-size " + array_size.string() + ", " +
+        "hold-array-pings " + hold_array_pings.string())
       env.out.print("time,run-ns,rate")
 
-      let sync_leader = SyncLeader(env,
-        num_pingers.i32(), initial_pings.usize())
+      let sync_leader = SyncLeader(env, num_pingers.i32(),
+        initial_pings.usize(), send_array, array_size.usize(),
+        hold_array_pings.usize())
       let interval: U64 = (report_interval.u64() * 1_000_000_000) / 10
       let timers = Timers
       let timer = Timer(Tick(env, sync_leader, report_count), interval, interval)
@@ -121,8 +137,12 @@ actor SyncLeader
   var _current_t: I64 = 0
   var _last_t: I64 = 0
   var _done: Bool = false
+  let _send_array: Bool
+  let _array_size: USize
 
-  new create(env: Env, num_pingers: I32, initial_pings: USize) =>
+  new create(env: Env, num_pingers: I32, initial_pings: USize, send_array: Bool,
+    array_size: USize, hold_array_pings: USize)
+  =>
     """
     Create the desired number of Pinger actors and then send them
     their initial ping() messages.
@@ -130,7 +150,7 @@ actor SyncLeader
     let ps: Array[Pinger] iso = recover ps.create() end
 
     for i in Range[I32](0, num_pingers) do
-      let p = Pinger(env, i, this)
+      let p = Pinger(env, i, this, send_array, array_size, hold_array_pings)
       ps.push(p)
     end
     let ps': Array[Pinger] val = consume ps
@@ -140,9 +160,11 @@ actor SyncLeader
     _env = env
     _initial_pings = initial_pings
     _ps = ps'
+    _send_array = send_array
+    _array_size = array_size
     (let t_s: I64, let t_ns: I64) = Time.now()
     _last_t = to_ns(t_s, t_ns)
-    tell_all_to_go(ps', _initial_pings)
+    tell_all_to_go(ps', _initial_pings, _send_array)
 
   be tick_fired(done: Bool) =>
     """
@@ -197,7 +219,7 @@ actor SyncLeader
 
       if not _done then
         (let t_s: I64, let t_ns: I64) = Time.now()
-        tell_all_to_go(_ps, _initial_pings)
+        tell_all_to_go(_ps, _initial_pings, _send_array)
         _total_count = _total_count + _partial_count
         _last_t = to_ns(t_s, t_ns)
         _waiting_for = _ps.size()
@@ -207,7 +229,9 @@ actor SyncLeader
   fun to_ns(t_s: I64, t_ns: I64): I64 =>
     (t_s * 1_000_000_000) + t_ns
 
-  fun tag tell_all_to_go(ps: Array[Pinger] val, initial_pings: USize) =>
+  fun tag tell_all_to_go(ps: Array[Pinger] val, initial_pings: USize,
+    send_array: Bool)
+  =>
     """
     Tell all Pinger actors to start work.
 
@@ -224,7 +248,11 @@ actor SyncLeader
     end
     for i in Range[USize](0, initial_pings) do
       for p in ps.values() do
-        p.ping(42)
+        if send_array then
+          p.array_ping(42, recover Array[U8] end)
+        else
+          p.ping(42)
+        end
       end
     end
 
@@ -238,11 +266,21 @@ actor Pinger
   var _report: Bool = false
   var _count: U64 = 0
   let _rand: Rand
+  let _send_array: Bool
+  let _array_size: USize
+  let _hold_array_pings: USize
+  let _array_prison: Array[Array[U8] val]
 
-  new create(env: Env, id: I32, leader: SyncLeader) =>
+  new create(env: Env, id: I32, leader: SyncLeader, send_array: Bool,
+    array_size: USize, hold_array_pings: USize)
+  =>
     _env = env
     _id = id
     _leader = leader
+    _send_array = send_array
+    _array_size = array_size
+    _hold_array_pings = hold_array_pings
+    _array_prison = Array[Array[U8] val].init(recover Array[U8] end, hold_array_pings)
     (_, let t2: I64) = Time.now()
     let tsc: U64 = @ponyint_cpu_tick()
     _rand = Rand(tsc, t2.u64())
@@ -283,6 +321,35 @@ actor Pinger
     let n: U64 = _rand.int(_num_ps)
     try
       _ps(n.usize())?.ping(42)
+    else
+      _env.out.print("Should never happen but did to pinger " + _id.string())
+    end
+
+  be array_ping(payload: I64, arr: Array[U8] val) =>
+    if _go then
+      _count = _count + 1
+      send_array_pings()
+      try
+        _array_prison(_count.usize() % _hold_array_pings) ?= arr
+      else
+        try
+          Assert(false, "this should never happen")?
+          return
+        end
+      end
+    else
+      // This is a late-arriving ping.  But it should be arriving
+      // before we get a report() message from the SyncLeader.
+      try
+        Assert(_report is false, "Late message, what???")?
+      end
+    end
+
+  fun ref send_array_pings() =>
+    let n: U64 = _rand.int(_num_ps)
+    try
+      _ps(n.usize())?
+        .array_ping(42, recover Array[U8](_array_size) end)
     else
       _env.out.print("Should never happen but did to pinger " + _id.string())
     end
