@@ -79,6 +79,7 @@ typedef struct pool_block_t
   };
   size_t size;
   PONY_ATOMIC(bool) acquired;
+  bool used;
 
 #if defined(_MSC_VER)
   pool_block_t() { }
@@ -117,6 +118,8 @@ static pool_global_t pool_global[POOL_COUNT] =
 
 static pool_block_t pool_block_global;
 static PONY_ATOMIC(size_t) in_pool_block_global;
+static PONY_ATOMIC(size_t) mem_allocated;
+static size_t max_mem_allowed = -1;
 
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
 static __pony_thread_local pool_block_header_t pool_block_header;
@@ -365,6 +368,39 @@ static void track_pull(pool_item_t* p, size_t length, size_t size)
 
 #endif
 
+static void track_mem_allocated(size_t size)
+{
+  // count memory being given to the app
+  size_t old_mem_allocated =
+    atomic_fetch_add_explicit(&mem_allocated, size, memory_order_relaxed);
+
+  // TODO: maybe do something more useful than aborting?
+  if((old_mem_allocated + size) > max_mem_allowed)
+  {
+    printf("ERROR: Memory limit reached! Allocating %zu would use more than"
+      " %zu allowed!\n", size, max_mem_allowed);
+    abort();
+  }
+}
+
+#ifdef PLATFORM_IS_ILP32
+#define MAX_MAX_MEM_MB_ALLOWED 4095
+#else
+#define MAX_MAX_MEM_MB_ALLOWED 8589934592
+#endif
+
+#define MAX_MAX_MEM_ALLOWED (MAX_MAX_MEM_MB_ALLOWED * 1024 * 1024)
+
+
+void ponyint_pool_init(size_t max_mem_mb)
+{
+  // prevent loss of precision when converted to double
+  if(max_mem_mb > MAX_MAX_MEM_MB_ALLOWED)
+    max_mem_mb = MAX_MAX_MEM_MB_ALLOWED;
+
+  max_mem_allowed = max_mem_mb * 1024 * 1024;
+}
+
 static void pool_block_remove(pool_block_t* block)
 {
   pool_block_t* prev = block->prev;
@@ -593,6 +629,9 @@ static void* pool_block_get(size_t size)
         block->size = rem;
         pool_block_header.total_size -= size;
 
+        if((max_mem_allowed < MAX_MAX_MEM_ALLOWED) && (!block->used))
+          track_mem_allocated(size);
+
         if((block->prev != NULL) && (block->prev->size > block->size))
         {
           // If we are now smaller than the previous block, move us forward in
@@ -614,6 +653,10 @@ static void* pool_block_get(size_t size)
             (block->prev == NULL) ? 0 : block->prev->size;
         }
 
+        // count memory being given to the app
+        if((max_mem_allowed < MAX_MAX_MEM_ALLOWED) && (!block->used))
+          track_mem_allocated(size);
+
         // Remove the block from the list.
         pool_block_remove(block);
 
@@ -633,6 +676,10 @@ static void* pool_block_get(size_t size)
 
   if(block == NULL)
     return NULL;
+
+  // count memory being given to the app
+  if((max_mem_allowed < MAX_MAX_MEM_ALLOWED) && (!block->used))
+    track_mem_allocated(size);
 
   if(size == block->size)
     return block;
@@ -655,6 +702,10 @@ static void* pool_alloc_pages(size_t size)
   if(p != NULL)
     return p;
 
+  // count memory being given to the app
+  if(max_mem_allowed < MAX_MAX_MEM_ALLOWED)
+    track_mem_allocated(size);
+
   // We have no free blocks big enough.
   if(size >= POOL_MMAP)
     return ponyint_virt_alloc(size);
@@ -665,6 +716,7 @@ static void* pool_alloc_pages(size_t size)
   block->size = rem;
   block->next = NULL;
   block->prev = NULL;
+  block->used = false;
   pool_block_insert(block);
   pool_block_header.total_size += rem;
   if(pool_block_header.largest_size < rem)
@@ -684,6 +736,7 @@ static void pool_free_pages(void* p, size_t size)
   block->prev = NULL;
   block->next = NULL;
   block->size = size;
+  block->used = true;
 
   pool_block_insert(block);
   pool_block_header.total_size += size;

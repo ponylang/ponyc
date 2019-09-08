@@ -24,6 +24,8 @@
   "  --ponynoscale    Don't scale down the scheduler threads.\n" \
   "                   See --ponymaxthreads on how to specify the number of threads\n" \
   "                   explicitly. Can't be used with --ponyminthreads.\n" \
+  "  --ponymaxmem     Maximum amount of dynamic memory allowed to be used\n" \
+  "                   (in MB).\n" \
   "  --ponysuspendthreshold\n" \
   "                   Amount of idle time before a scheduler thread suspends\n" \
   "                   itself to minimize resource consumption (max 1000 ms,\n" \

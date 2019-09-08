@@ -8,6 +8,7 @@
 #include "../gc/serialise.h"
 #include "../lang/process.h"
 #include "../lang/socket.h"
+#include "../mem/pool.h"
 #include "../options/options.h"
 #include "ponyassert.h"
 #include <dtrace.h>
@@ -25,6 +26,7 @@ typedef struct options_t
   uint32_t threads;
   uint32_t min_threads;
   bool noscale;
+  size_t max_mem;
   uint32_t thread_suspend_threshold;
   uint32_t cd_detect_interval;
   size_t gc_initial;
@@ -60,6 +62,7 @@ enum
   OPT_MAXTHREADS,
   OPT_MINTHREADS,
   OPT_NOSCALE,
+  OPT_MAXMEM,
   OPT_SUSPENDTHRESHOLD,
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
@@ -81,6 +84,7 @@ static opt_arg_t args[] =
   {"ponymaxthreads", 0, OPT_ARG_REQUIRED, OPT_MAXTHREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
   {"ponynoscale", 0, OPT_ARG_NONE, OPT_NOSCALE},
+  {"ponymaxmem", 0, OPT_ARG_REQUIRED, OPT_MAXMEM},
   {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
@@ -173,6 +177,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_MAXTHREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
       case OPT_NOSCALE: opt->noscale = true; break;
+      case OPT_MAXMEM: opt->max_mem = atoi(s.arg_val); break;
       case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
@@ -234,6 +239,7 @@ PONY_API int pony_init(int argc, char** argv)
 
   // Defaults.
   opt.min_threads = 0;
+  opt.max_mem = -1;
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
@@ -285,6 +291,9 @@ PONY_API int pony_init(int argc, char** argv)
   if(opt.stats_interval != UINT32_MAX)
     printf("Printing runtime stats requires building with RUNTIMESTATS enabled. Ignoring.\n");
 #endif
+
+  // initialize pool max memory limit
+  ponyint_pool_init(opt.max_mem);
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);

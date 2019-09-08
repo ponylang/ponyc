@@ -31,6 +31,8 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p);
 
 void ponyint_pool_thread_cleanup();
 
+void ponyint_pool_init(size_t max_mem);
+
 size_t ponyint_pool_index(size_t size);
 
 size_t ponyint_pool_used_size(size_t index);
