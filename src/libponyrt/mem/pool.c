@@ -120,6 +120,8 @@ static pool_block_t pool_block_global;
 static PONY_ATOMIC(size_t) in_pool_block_global;
 static PONY_ATOMIC(size_t) mem_allocated;
 static size_t max_mem_allowed = -1;
+static size_t gc_threshold = -1;
+static bool should_track_mem_allocated = false;
 
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
 static __pony_thread_local pool_block_header_t pool_block_header;
@@ -392,13 +394,38 @@ static void track_mem_allocated(size_t size)
 #define MAX_MAX_MEM_ALLOWED (MAX_MAX_MEM_MB_ALLOWED * 1024 * 1024)
 
 
-void ponyint_pool_init(size_t max_mem_mb)
+void ponyint_pool_init(size_t max_mem_mb, size_t aggr_gc_threshold_mb)
 {
+  should_track_mem_allocated = false;
+
   // prevent loss of precision when converted to double
   if(max_mem_mb > MAX_MAX_MEM_MB_ALLOWED)
     max_mem_mb = MAX_MAX_MEM_MB_ALLOWED;
 
   max_mem_allowed = max_mem_mb * 1024 * 1024;
+
+  if(aggr_gc_threshold_mb > MAX_MAX_MEM_MB_ALLOWED)
+    aggr_gc_threshold_mb = MAX_MAX_MEM_MB_ALLOWED;
+
+  gc_threshold = aggr_gc_threshold_mb * 1024 * 1024;
+
+  if((gc_threshold < MAX_MAX_MEM_ALLOWED) ||
+    (max_mem_allowed < MAX_MAX_MEM_ALLOWED))
+    should_track_mem_allocated = true;
+}
+
+bool ponyint_pool_mem_pressure()
+{
+  // Make GC happen if pony has allocated more than gc_threshold
+  // memory after subtracting pool_block_header cache size.
+  // TODO: this currently does not account for any free blocks of memory tracked
+  // in the local and global sizeclass pools. maybe it should?
+  if(gc_threshold < MAX_MAX_MEM_ALLOWED)
+    return ((atomic_load_explicit(&mem_allocated, memory_order_relaxed)
+     - pool_block_header.total_size) > gc_threshold);
+  else
+    // if gc_threshold wasn't set avoid the atomic load
+    return false;
 }
 
 static void pool_block_remove(pool_block_t* block)
@@ -629,7 +656,7 @@ static void* pool_block_get(size_t size)
         block->size = rem;
         pool_block_header.total_size -= size;
 
-        if((max_mem_allowed < MAX_MAX_MEM_ALLOWED) && (!block->used))
+        if(should_track_mem_allocated && (!block->used))
           track_mem_allocated(size);
 
         if((block->prev != NULL) && (block->prev->size > block->size))
@@ -654,7 +681,7 @@ static void* pool_block_get(size_t size)
         }
 
         // count memory being given to the app
-        if((max_mem_allowed < MAX_MAX_MEM_ALLOWED) && (!block->used))
+        if(should_track_mem_allocated && (!block->used))
           track_mem_allocated(size);
 
         // Remove the block from the list.
@@ -678,7 +705,7 @@ static void* pool_block_get(size_t size)
     return NULL;
 
   // count memory being given to the app
-  if((max_mem_allowed < MAX_MAX_MEM_ALLOWED) && (!block->used))
+  if(should_track_mem_allocated && (!block->used))
     track_mem_allocated(size);
 
   if(size == block->size)
@@ -703,7 +730,7 @@ static void* pool_alloc_pages(size_t size)
     return p;
 
   // count memory being given to the app
-  if(max_mem_allowed < MAX_MAX_MEM_ALLOWED)
+  if(should_track_mem_allocated)
     track_mem_allocated(size);
 
   // We have no free blocks big enough.

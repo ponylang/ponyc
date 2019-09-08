@@ -31,6 +31,8 @@ typedef struct options_t
   uint32_t cd_detect_interval;
   size_t gc_initial;
   double gc_factor;
+  double aggr_gc_factor;
+  size_t aggr_gc_threshold;
   bool noyield;
   bool noblock;
   bool pin;
@@ -67,6 +69,8 @@ enum
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
+  OPT_AGGRGCFACTOR,
+  OPT_AGGRGCTHRESHOLD,
   OPT_NOYIELD,
   OPT_NOBLOCK,
   OPT_PIN,
@@ -89,6 +93,8 @@ static opt_arg_t args[] =
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
+  {"ponyaggressivegcfactor", 0, OPT_ARG_REQUIRED, OPT_AGGRGCFACTOR},
+  {"ponyaggressivegcthreshold", 0, OPT_ARG_REQUIRED, OPT_AGGRGCTHRESHOLD},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
@@ -177,11 +183,13 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_MAXTHREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
       case OPT_NOSCALE: opt->noscale = true; break;
-      case OPT_MAXMEM: opt->max_mem = atoi(s.arg_val); break;
+      case OPT_MAXMEM: if(parse_size(&opt->max_mem, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
+      case OPT_AGGRGCFACTOR: if(parse_udouble(&opt->aggr_gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
+      case OPT_AGGRGCTHRESHOLD: if(parse_size(&opt->aggr_gc_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_PIN: opt->pin = true; break;
@@ -243,6 +251,8 @@ PONY_API int pony_init(int argc, char** argv)
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
+  opt.aggr_gc_factor = 1.5f;
+  opt.aggr_gc_threshold = -1;
   opt.pin = false;
   opt.stats_interval = UINT32_MAX;
 #if defined(USE_SYSTEMATIC_TESTING)
@@ -293,10 +303,10 @@ PONY_API int pony_init(int argc, char** argv)
 #endif
 
   // initialize pool max memory limit
-  ponyint_pool_init(opt.max_mem);
+  ponyint_pool_init(opt.max_mem, opt.aggr_gc_threshold);
 
   ponyint_heap_setinitialgc(opt.gc_initial);
-  ponyint_heap_setnextgcfactor(opt.gc_factor);
+  ponyint_heap_setnextgcfactor(opt.gc_factor, opt.aggr_gc_factor);
   ponyint_actor_setnoblock(opt.noblock);
 
   pony_exitcode(0);
