@@ -391,8 +391,7 @@ static void track_mem_allocated(size_t size)
 #define MAX_MAX_MEM_MB_ALLOWED 8589934592
 #endif
 
-#define MAX_MAX_MEM_ALLOWED (MAX_MAX_MEM_MB_ALLOWED * 1024 * 1024)
-
+#define MAX_MAX_MEM_ALLOWED ((size_t)MAX_MAX_MEM_MB_ALLOWED * (size_t)1024 * (size_t)1024)
 
 void ponyint_pool_init(size_t max_mem_mb, size_t aggr_gc_threshold_mb)
 {
