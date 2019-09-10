@@ -887,8 +887,7 @@ actor TCPConnection
         and (_read_buf_offset > 0) do
         // get data to be distributed and update `_read_buf_offset`
         let chop_at = if _expect == 0 then _read_buf_offset else _expect end
-        let data' = _read_buf = recover Array[U8] end
-        (let data, _read_buf) = (consume data').chop(chop_at)
+        (let data, _read_buf) = (consume _read_buf).chop(chop_at)
         _read_buf_offset = _read_buf_offset - chop_at
 
         _notify.received(this, consume data, 1)
@@ -948,8 +947,7 @@ actor TCPConnection
           while (_read_buf_offset >= _expect) and (_read_buf_offset > 0) do
             // get data to be distributed and update `_read_buf_offset`
             let chop_at = if _expect == 0 then _read_buf_offset else _expect end
-            let data' = _read_buf = recover Array[U8] end
-            (let data, _read_buf) = (consume data').chop(chop_at)
+            (let data, _read_buf) = (consume _read_buf).chop(chop_at)
             _read_buf_offset = _read_buf_offset - chop_at
 
             // increment max reads
