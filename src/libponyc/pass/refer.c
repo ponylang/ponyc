@@ -66,6 +66,133 @@ static bool is_this_incomplete(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
+
+// This function generates the fully qualified string (without the `this`) for a
+// reference (i.e. `a.b.c.d.e`) and ensures it is part of the compiler
+// `stringtab`. It is used to generate this fully qualified string for the field
+// being consumed for tracking its `consume`d status via the ast `symtab`. It is
+// also used to generate the fully qualified string to ensure that same field is
+// being assigned to as part of the same expression as the consume. Lastly, it
+// is used to get the definition for the type based on the `ast_data` to ensure
+// at some point the field is tied to a real type even if we haven't quite fully
+// determined the type of each field/subfield reference yet.
+static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
+  pony_assert(ast_id(ast) == TK_DOT);
+
+  ast_t* def = NULL;
+  size_t len = 0;
+  ast_t* temp_ast = ast;
+
+  do {
+    if(ast_id(temp_ast) != TK_DOT)
+      break;
+
+    AST_GET_CHILDREN(temp_ast, left, right);
+    def = (ast_t*) ast_data(left);
+    temp_ast = left;
+
+    // the `+ 1` is for the '.' needed in the string
+    len += strlen(ast_name(right)) + 1;
+  } while(def == NULL);
+
+  switch(ast_id(temp_ast))
+  {
+    case TK_DOT:
+    {
+      AST_GET_CHILDREN(temp_ast, left, right);
+      if(ast_id(left) == TK_THIS)
+      {
+        temp_ast = right;
+        len += strlen(ast_name(temp_ast));
+      }
+      else
+        pony_assert(0);
+      break;
+    }
+
+    case TK_LETREF:
+    case TK_VARREF:
+    case TK_REFERENCE:
+    case TK_PARAMREF:
+    {
+      temp_ast = ast_child(temp_ast);
+      len += strlen(ast_name(temp_ast));
+      break;
+    }
+
+    case TK_THIS:
+    {
+      temp_ast = ast_sibling(temp_ast);
+      // string len already added by loop above
+      // subtract 1 because we don't have to add '.'
+      // since we're ignoring the `this`
+      len -= 1;
+      break;
+    }
+
+    default:
+    {
+      pony_assert(0);
+    }
+  }
+
+  if(def_found != NULL)
+  {
+    *def_found = def;
+
+    if(def == NULL)
+      return stringtab("");
+  }
+
+  // for the \0 at the end
+  len = len + 1;
+
+  char* buf = (char*)ponyint_pool_alloc_size(len);
+  size_t offset = 0;
+  const char* name = ast_name(temp_ast);
+  size_t slen = strlen(name);
+  strncpy(buf + offset, name, slen);
+  offset += slen;
+  temp_ast = ast_parent(temp_ast);
+
+  while(temp_ast != ast)
+  {
+    buf[offset] = '.';
+    offset += 1;
+    temp_ast = ast_sibling(temp_ast);
+    name = ast_name(temp_ast);
+    slen = strlen(name);
+    strncpy(buf + offset, name, slen);
+    offset += slen;
+    temp_ast = ast_parent(temp_ast);
+  }
+
+  pony_assert((offset + 1) == len);
+  buf[offset] = '\0';
+
+  return stringtab_consume(buf, len);
+}
+
+static bool is_matching_assign_lhs(ast_t* a, ast_t* b)
+{
+  // Has to be the left hand side of an assignment (the first child).
+  if(a == b)
+    return true;
+
+  // or two subfield references that match
+  if((ast_id(a) == TK_DOT) && (ast_id(b) == TK_DOT))
+  {
+    // get fully qualified string identifier without `this`
+    const char* a_name = generate_multi_dot_name(a, NULL);
+    const char* b_name = generate_multi_dot_name(b, NULL);
+
+    if(a_name == b_name)
+      return true;
+  }
+
+  return false;
+}
+
 static bool is_assigned_to(ast_t* ast, bool check_result_needed)
 {
   while(true)
@@ -76,8 +203,7 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
     {
       case TK_ASSIGN:
       {
-        // Has to be the left hand side of an assignment (the first child).
-        if(ast_child(parent) != ast)
+        if(!is_matching_assign_lhs(ast_child(parent), ast))
           return false;
 
         if(!check_result_needed)
@@ -127,6 +253,13 @@ static bool is_constructed_from(ast_t* ast)
 
   ast_t* def = (ast_t*)ast_data(ast);
 
+  // no definition found because it's a TK_DOT
+  if(def == NULL)
+  {
+    pony_assert(ast_id(ast) == TK_DOT);
+    return false;
+  }
+
   // TK_LET and TK_VAR have their symtable point to the TK_ID child,
   // so if we encounter that here, we move up to the parent node.
   if(ast_id(def) == TK_ID)
@@ -172,7 +305,7 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
         return true;
 
       ast_error(opt->check.errors, ast,
-        "can't use a consumed local in an expression");
+        "can't use a consumed local or field in an expression");
       return false;
 
     case SYM_UNDEFINED:
@@ -182,6 +315,10 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
       ast_error(opt->check.errors, ast,
         "can't use an undefined variable in an expression");
       return false;
+
+    case SYM_NONE:
+      pony_assert(ast_id(ast) == TK_DOT);
+      return true;
 
     default: {}
   }
@@ -486,6 +623,25 @@ static bool refer_this_dot(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+static bool refer_multi_dot(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_DOT);
+  AST_GET_CHILDREN(ast, left, right);
+
+  // get fully qualified string identifier without `this`
+  const char* name = generate_multi_dot_name(ast, NULL);
+
+  // use this string to check status using `valid_reference` function.
+  sym_status_t status;
+  ast_get(ast, name, &status);
+
+
+  if(!valid_reference(opt, ast, status))
+    return false;
+
+  return true;
+}
+
 bool refer_dot(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_DOT);
@@ -495,6 +651,18 @@ bool refer_dot(pass_opt_t* opt, ast_t* ast)
   {
     case TK_PACKAGEREF: return refer_packageref_dot(opt, ast);
     case TK_THIS:       return refer_this_dot(opt, ast);
+    case TK_PARAMREF:
+    case TK_VARREF:
+    case TK_LETREF:
+    case TK_DOT:
+    {
+      // check multi_dot reference if it's not a function call
+      // only if we had a field consume/reassign
+      if(!ast_checkflag(ast, AST_FLAG_FCNSM_REASGN)
+        && (ast_id(ast_parent(ast)) != TK_CALL)
+        && (ast_id(ast_parent(ast)) != TK_QUALIFY))
+        return refer_multi_dot(opt, ast);
+    }
     default: {}
   }
 
@@ -544,6 +712,74 @@ bool refer_qualify(pass_opt_t* opt, ast_t* ast)
     return qualify_typeref(opt, ast);
 
   return true;
+}
+
+static bool assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
+{
+  pony_assert(ast_id(ast) == TK_DOT);
+
+  // get fully qualified string identifier without `this`
+  const char* name = generate_multi_dot_name(ast, NULL);
+
+  sym_status_t status;
+  ast_get(ast, name, &status);
+
+  switch(status)
+  {
+    case SYM_UNDEFINED:
+      if(need_value)
+      {
+        ast_error(opt->check.errors, ast,
+          "the left side is undefined but its value is used");
+        return false;
+      }
+
+      ast_setstatus(ast, name, SYM_DEFINED);
+      return true;
+
+    case SYM_DEFINED:
+      return true;
+
+    case SYM_CONSUMED:
+    case SYM_CONSUMED_SAME_EXPR:
+    {
+      bool ok = true;
+
+      if(need_value)
+      {
+        ast_error(opt->check.errors, ast,
+          "the left side is consumed but its value is used");
+        ok = false;
+      }
+
+      if(opt->check.frame->try_expr != NULL)
+      {
+        if(status == SYM_CONSUMED)
+        {
+          ast_error(opt->check.errors, ast,
+            "can't reassign to a consumed identifier in a try expression unless"
+            " it is reassigned in the same expression");
+          ok = false;
+        }
+        // SYM_CONSUMED_SAME_EXPR is allowed to pass; verify pass will check if
+        // there are any partial calls/errors and throw an error if necessary
+      }
+
+      if(ok)
+        ast_setstatus(ast, name, SYM_DEFINED);
+
+      return ok;
+    }
+
+    case SYM_NONE:
+      pony_assert(ast_id(ast) == TK_DOT);
+      return true;
+
+    default: {}
+  }
+
+  pony_assert(0);
+  return false;
 }
 
 static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
@@ -601,7 +837,8 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
         if(status == SYM_CONSUMED)
         {
           ast_error(opt->check.errors, ast,
-            "can't reassign to a consumed identifier in a try expression unless it is reassigned in the same expression");
+            "can't reassign to a consumed identifier in a try expression unless"
+            " it is reassigned in the same expression");
           ok = false;
         }
         // SYM_CONSUMED_SAME_EXPR is allowed to pass; verify pass will check if
@@ -652,20 +889,30 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
     {
       AST_GET_CHILDREN(ast, left, right);
 
-      if(ast_id(left) == TK_THIS)
+      switch(ast_id(left))
       {
-        ast_t* def = (ast_t*)ast_data(ast);
-
-        if(def == NULL)
-          return false;
-
-        switch(ast_id(def))
+        case TK_THIS:
         {
-          case TK_FVAR:  return assign_id(opt, right, false, need_value);
-          case TK_FLET:
-          case TK_EMBED: return assign_id(opt, right, true, need_value);
-          default:       return false;
+          ast_t* def = (ast_t*)ast_data(ast);
+
+          if(def == NULL)
+            return false;
+
+          switch(ast_id(def))
+          {
+            case TK_FVAR:  return assign_id(opt, right, false, need_value);
+            case TK_FLET:
+            case TK_EMBED: return assign_id(opt, right, true, need_value);
+            default:       return false;
+          }
         }
+        case TK_VARREF:
+        case TK_LETREF:
+        case TK_DOT:
+        {
+          return assign_multi_dot(opt, ast, need_value);
+        }
+        default: {}
       }
 
       return true;
@@ -755,12 +1002,29 @@ static bool refer_assign(pass_opt_t* opt, ast_t* ast)
 
 static bool ast_get_child(ast_t* ast, const char* name)
 {
-  token_id tk = ast_id(ast);
-  if((tk == TK_ID) && (ast_name(ast) == name))
-    return true;
+  const char* assign_name = NULL;
 
-  if(tk == TK_DOT)
-    return false;
+  switch(ast_id(ast))
+  {
+    case TK_ID:
+    {
+      assign_name = ast_name(ast);
+      break;
+    }
+
+    case TK_DOT:
+    {
+      // get fully qualified string identifier without `this`
+      assign_name = generate_multi_dot_name(ast, NULL);
+      break;
+    }
+
+    default: {}
+
+  }
+
+  if(assign_name == name)
+    return true;
 
   ast_t* child = ast_child(ast);
 
@@ -769,15 +1033,14 @@ static bool ast_get_child(ast_t* ast, const char* name)
     if(ast_get_child(child, name))
       return true;
 
-    if(tk == TK_REFERENCE)
-      return false;
-
     child = ast_sibling(child);
   }
+
   return false;
 }
 
-static bool check_assigned_same_expression(ast_t* ast, const char* name, ast_t** ret_assign_ast)
+static bool check_assigned_same_expression(ast_t* ast, const char* name,
+  ast_t** ret_assign_ast)
 {
   ast_t* assign_ast = ast;
   while((assign_ast != NULL) && (ast_id(assign_ast) != TK_ASSIGN))
@@ -790,6 +1053,22 @@ static bool check_assigned_same_expression(ast_t* ast, const char* name, ast_t**
 
   ast_t* assign_left = ast_child(assign_ast);
   return ast_get_child(assign_left, name);
+}
+
+static void set_flag_recursive(ast_t* outer, ast_t* inner, uint32_t flag)
+{
+  pony_assert(outer != NULL);
+  pony_assert(inner != NULL);
+
+  do
+  {
+    ast_setflag(inner, flag);
+
+    if(inner == outer)
+      break;
+
+    inner = ast_parent(inner);
+  } while(inner != NULL);
 }
 
 static bool refer_consume(pass_opt_t* opt, ast_t* ast)
@@ -821,6 +1100,61 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
     case TK_THIS:
     {
       name = stringtab("this");
+      break;
+    }
+
+    case TK_DOT:
+    {
+      AST_GET_CHILDREN(term, left, right);
+
+      ast_t* def = NULL;
+
+      if(ast_id(left) == TK_THIS)
+      {
+        def = (ast_t*)ast_data(term);
+        name = ast_name(right);
+
+        // check it's not a let or embed if it's a this variable
+        if((ast_id(def) == TK_FLET) || (ast_id(def) == TK_EMBED))
+        {
+          ast_error(opt->check.errors, ast,
+            "can't consume a let or embed field");
+          return false;
+        }
+      }
+      else
+      {
+        // get fully qualified string identifier without `this`
+        // and def of the root object
+        name = generate_multi_dot_name(term, &def);
+
+        // defer checking it's not a let or embed if it's not a `this` variable
+        // because we don't have the type info available. The expr pass will
+        // catch it in the `expr_consume` function.
+      }
+
+      if(def == NULL)
+      {
+        ast_error(opt->check.errors, ast,
+          "cannot consume an unknown field type");
+        return false;
+      }
+
+      ast_t* assign_ast = NULL;
+
+      if(!check_assigned_same_expression(ast, name, &assign_ast))
+      {
+        ast_error(opt->check.errors, ast,
+          "consuming a field is only allowed if it is reassigned in the same"
+          " expression");
+        return false;
+      }
+
+      consumed_same_expr = true;
+
+      // assign flag to full tree from ast to assign_ast
+      set_flag_recursive(assign_ast, ast, AST_FLAG_FCNSM_REASGN);
+
       break;
     }
 
@@ -1027,7 +1361,8 @@ static bool valid_is_comparand(pass_opt_t* opt, ast_t* ast)
       type = (ast_t*) ast_data(ast);
       if(ast_id(type) != TK_PRIMITIVE)
       {
-        ast_error(opt->check.errors, ast, "identity comparison with a new object will always be false");
+        ast_error(opt->check.errors, ast, "identity comparison with a new object"
+        " will always be false");
         return false;
       }
       return true;
