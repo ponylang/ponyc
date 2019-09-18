@@ -199,7 +199,16 @@ actor Receiver
     _workload = workload.u32()
 
   be msg_from_analyzer() =>
-    @usleep[I32](_workload)
+    ifdef windows then
+      // There is no usleep() on Windows
+      var countdown: I64 = -10 * _workload.i64()
+      let timer: USize = @CreateWaitableTimerW[USize](USize(0), USize(1), USize(0))
+      @SetWaitableTimer[USize](timer, addressof countdown, I32(0), USize(0), USize(0), USize(0))
+      @WaitForSingleObject[USize](timer, U32(0xFFFFFFFF))
+      @CloseHandle[USize](timer)
+    else
+      @usleep[I32](_workload)
+    end
 
 
 
