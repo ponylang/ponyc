@@ -43,7 +43,18 @@ public:
         if (symbol) return symbol;
 
         auto err = symbol.takeError();
-        if (err) return std::move(err);
+        if (err) {
+#if defined(__GNUC__)
+#   include <features.h>
+#   if __GNUC_PREREQ(9,0)
+            return err;
+#   else
+            return std::move(err);
+#   endif
+#else
+            return std::move(err);
+#endif
+        }
 
         auto symaddr = RTDyldMemoryManager::getSymbolAddressInProcess(name);
         if (symaddr)
