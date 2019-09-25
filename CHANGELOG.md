@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow fields to be `consume`d (sometimes) ([PR #3304](https://github.com/ponylang/ponyc/pull/3304))
 
 ### Changed
 
