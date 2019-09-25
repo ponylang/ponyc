@@ -68,6 +68,7 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 * Micro: [micro-pony-plugin](https://github.com/Theodus/micro-pony-plugin)
 * Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
+* CudaText: lexer in Addon Manager
 
 # Installation
 
