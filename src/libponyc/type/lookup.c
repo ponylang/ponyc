@@ -13,7 +13,7 @@
 #include <string.h>
 
 static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
-  ast_t* orig, ast_t* type, const char* name, bool errors);
+  ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private);
 
 // If a box method is being called with an iso/trn receiver, we mustn't replace
 // this-> by iso/trn as this would be unsound, but by ref. See #1887
@@ -54,7 +54,7 @@ static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver) {
 }
 
 static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
-  ast_t* orig, ast_t* type, const char* name, bool errors)
+  ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
   pony_assert(ast_id(type) == TK_NOMINAL);
   typecheck_t* t = &opt->check;
@@ -63,7 +63,8 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   AST_GET_CHILDREN(def, type_id, typeparams);
   const char* type_name = ast_name(type_id);
 
-  if(is_name_private(type_name) && (from != NULL) && (opt != NULL))
+  if(is_name_private(type_name) && (from != NULL) && (opt != NULL)
+    && !allow_private)
   {
     if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
     {
@@ -139,7 +140,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
     return NULL;
   }
 
-  if(is_name_private(name) && (from != NULL) && (opt != NULL))
+  if(is_name_private(name) && (from != NULL) && (opt != NULL) && !allow_private)
   {
     switch(ast_id(find))
     {
@@ -221,7 +222,8 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   if(ast_id(find) == TK_FUN && ast_id(ast_child(find)) == TK_BOX)
     orig = downcast_iso_trn_receiver_to_ref(orig);
 
-  deferred_reification_t* reified = deferred_reify_new(find, typeparams, typeargs, orig);
+  deferred_reification_t* reified = deferred_reify_new(find, typeparams,
+    typeargs, orig);
 
   // free if we made a copy of orig
   if(orig != orig_initial)
@@ -231,7 +233,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 }
 
 static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
-  ast_t* orig, ast_t* type, const char* name, bool errors)
+  ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
   ast_t* def = (ast_t*)ast_data(type);
   ast_t* constraint = ast_childidx(def, 1);
@@ -251,7 +253,7 @@ static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
   }
 
   // Lookup on the constraint instead.
-  return lookup_base(opt, from, orig, constraint, name, errors);
+  return lookup_base(opt, from, orig, constraint, name, errors, allow_private);
 }
 
 static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
@@ -299,7 +301,7 @@ static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
 }
 
 static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
-  ast_t* type, const char* name, bool errors)
+  ast_t* type, const char* name, bool errors, bool allow_private)
 {
   ast_t* child = ast_child(type);
   deferred_reification_t* result = NULL;
@@ -309,7 +311,7 @@ static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
   while(child != NULL)
   {
     deferred_reification_t* r = lookup_base(opt, from, child, child, name,
-      errors);
+      errors, allow_private);
 
     if(r == NULL)
     {
@@ -420,7 +422,7 @@ static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
 }
 
 static deferred_reification_t* lookup_isect(pass_opt_t* opt, ast_t* from,
-  ast_t* type, const char* name, bool errors)
+  ast_t* type, const char* name, bool errors, bool allow_private)
 {
   ast_t* child = ast_child(type);
   deferred_reification_t* result = NULL;
@@ -430,7 +432,7 @@ static deferred_reification_t* lookup_isect(pass_opt_t* opt, ast_t* from,
   while(child != NULL)
   {
     deferred_reification_t* r = lookup_base(opt, from, child, child, name,
-      false);
+      false, allow_private);
 
     if(r != NULL)
     {
@@ -503,15 +505,15 @@ static deferred_reification_t* lookup_isect(pass_opt_t* opt, ast_t* from,
 }
 
 static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
-  ast_t* orig, ast_t* type, const char* name, bool errors)
+  ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      return lookup_union(opt, from, type, name, errors);
+      return lookup_union(opt, from, type, name, errors, allow_private);
 
     case TK_ISECTTYPE:
-      return lookup_isect(opt, from, type, name, errors);
+      return lookup_isect(opt, from, type, name, errors, allow_private);
 
     case TK_TUPLETYPE:
       if(errors)
@@ -526,13 +528,15 @@ static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
       return NULL;
 
     case TK_NOMINAL:
-      return lookup_nominal(opt, from, orig, type, name, errors);
+      return lookup_nominal(opt, from, orig, type, name, errors, allow_private);
 
     case TK_ARROW:
-      return lookup_base(opt, from, orig, ast_childidx(type, 1), name, errors);
+      return lookup_base(opt, from, orig, ast_childidx(type, 1), name, errors,
+        allow_private);
 
     case TK_TYPEPARAMREF:
-      return lookup_typeparam(opt, from, orig, type, name, errors);
+      return lookup_typeparam(opt, from, orig, type, name, errors,
+        allow_private);
 
     case TK_FUNTYPE:
       if(errors)
@@ -556,11 +560,11 @@ static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
 deferred_reification_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type,
   const char* name)
 {
-  return lookup_base(opt, from, type, type, name, true);
+  return lookup_base(opt, from, type, type, name, true, false);
 }
 
 deferred_reification_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type,
-  const char* name)
+  const char* name, bool allow_private)
 {
-  return lookup_base(opt, from, type, type, name, false);
+  return lookup_base(opt, from, type, type, name, false, allow_private);
 }

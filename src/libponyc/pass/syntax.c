@@ -696,6 +696,7 @@ static ast_result_t syntax_consume(pass_opt_t* opt, ast_t* ast)
   {
     case TK_THIS:
     case TK_REFERENCE:
+    case TK_DOT:
       return AST_OK;
 
     default: {}
