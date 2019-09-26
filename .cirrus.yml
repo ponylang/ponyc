@@ -31,12 +31,12 @@ task:
 
 task:
   osx_instance:
-    image: high-sierra-xcode-9.4.1
+    image: mojave-xcode-11.1
 
   name: "macOS-release"
 
   install_script:
-    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
+    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.6.0-10.14-Mojave.pkg
     - sudo installer -verbose -pkg macports.pkg -target /
     - sudo /opt/local/bin/port selfupdate
     - sudo /opt/local/bin/port install llvm-7.0
@@ -52,14 +52,14 @@ task:
 
 task:
   osx_instance:
-    image: high-sierra-xcode-9.4.1
+    image: mojave-xcode-11.1
 
   name: "macOS-debug"
   depends_on:
     - macOS-release
 
   install_script:
-    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
+    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.6.0-10.14-Mojave.pkg
     - sudo installer -verbose -pkg macports.pkg -target /
     - sudo /opt/local/bin/port selfupdate
     - sudo /opt/local/bin/port install llvm-7.0
