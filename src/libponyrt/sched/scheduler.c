@@ -1076,7 +1076,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
 
   // If minimum thread count is > thread count, cap it at thread count
   if(min_threads > threads)
-    min_threads = threads;
+    min_threads = threads; // this becomes the equivalent of --ponynoscale
 
   // convert to cycles for use with ponyint_cpu_tick()
   // 1 second = 2000000000 cycles (approx.)

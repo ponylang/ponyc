@@ -10,10 +10,13 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Allow fields to be `consume`d (sometimes) ([PR #3304](https://github.com/ponylang/ponyc/pull/3304))
+- `--ponynoscale` option ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
 
 ### Changed
 
 - Rename MaybePointer to NullablePointer ([PR #3293](https://github.com/ponylang/ponyc/pull/3293))
+- `--ponyminthreads` option can't be larger than `--ponythreads` ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
+- `--ponythreads` option can't be larger than cores available ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
 
 ## [0.31.0] - 2019-08-31
 
