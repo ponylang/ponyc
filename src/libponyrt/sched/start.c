@@ -34,6 +34,7 @@ typedef struct options_t
   bool nopin;
   bool pinasio;
   bool version;
+  bool ponyhelp;
 } options_t;
 
 typedef enum running_kind_t
@@ -63,7 +64,8 @@ enum
   OPT_NOBLOCK,
   OPT_PIN,
   OPT_PINASIO,
-  OPT_VERSION
+  OPT_VERSION,
+  OPT_PONYHELP
 };
 
 static opt_arg_t args[] =
@@ -80,6 +82,7 @@ static opt_arg_t args[] =
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
+  {"ponyhelp", 0, OPT_ARG_NONE, OPT_PONYHELP},
 
   OPT_ARGS_FINISH
 };
@@ -107,6 +110,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_PIN: opt->nopin = false; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_VERSION: opt->version = true; break;
+      case OPT_PONYHELP: opt->ponyhelp = true; break;
 
       default: exit(-1);
     }
@@ -153,6 +157,11 @@ PONY_API int pony_init(int argc, char** argv)
   opt.nopin = true;
 
   argc = parse_opts(argc, argv, &opt);
+
+  if (opt.ponyhelp) {
+    printf("%s", PONYRT_HELP);
+    exit(0);
+  }
 
   if (opt.version) {
 #ifdef _MSC_VER
