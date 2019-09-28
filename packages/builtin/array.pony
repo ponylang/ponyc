@@ -33,7 +33,7 @@ class Array[A] is Seq[A]
   ```
 
   Adding and removing elements to and from the end of the Array can be done via
-  `push` and `pop` methods. You could treat the array as a FIFO queue using
+  `push` and `pop` methods. You could treat the array as a LIFO stack using
   those methods:
   ```pony
     while (array.size() > 0) do
