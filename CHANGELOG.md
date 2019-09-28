@@ -11,7 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Allow fields to be `consume`d (sometimes) ([PR #3304](https://github.com/ponylang/ponyc/pull/3304))
 - `--ponynoscale` option ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
-- Add `--ponyhelp` option to compiled program ([PR #3312](https://github.com/ponylang/ponyc/pull/3312))
+- `--ponyhelp` option to compiled program ([PR #3312](https://github.com/ponylang/ponyc/pull/3312))
 
 ### Changed
 
