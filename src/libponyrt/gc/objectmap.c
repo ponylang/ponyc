@@ -83,3 +83,17 @@ void ponyint_objectmap_sweep(objectmap_t* map)
   if(needs_optimize)
     ponyint_objectmap_optimize(map);
 }
+
+#ifdef USE_MEMTRACK
+size_t ponyint_objectmap_total_mem_size(objectmap_t* map)
+{
+  return ponyint_objectmap_mem_size(map)
+    + (ponyint_objectmap_size(map) * sizeof(object_t));
+}
+
+size_t ponyint_objectmap_total_alloc_size(objectmap_t* map)
+{
+  return ponyint_objectmap_alloc_size(map)
+    + (ponyint_objectmap_size(map) * POOL_ALLOC_SIZE(object_t));
+}
+#endif

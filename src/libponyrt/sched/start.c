@@ -24,6 +24,7 @@ typedef struct options_t
   // concurrent options
   uint32_t threads;
   uint32_t min_threads;
+  bool noscale;
   uint32_t thread_suspend_threshold;
   uint32_t cd_detect_interval;
   size_t gc_initial;
@@ -33,6 +34,7 @@ typedef struct options_t
   bool nopin;
   bool pinasio;
   bool version;
+  bool ponyhelp;
 } options_t;
 
 typedef enum running_kind_t
@@ -53,6 +55,7 @@ enum
 {
   OPT_THREADS,
   OPT_MINTHREADS,
+  OPT_NOSCALE,
   OPT_SUSPENDTHRESHOLD,
   OPT_CDINTERVAL,
   OPT_GCINITIAL,
@@ -61,13 +64,15 @@ enum
   OPT_NOBLOCK,
   OPT_PIN,
   OPT_PINASIO,
-  OPT_VERSION
+  OPT_VERSION,
+  OPT_PONYHELP
 };
 
 static opt_arg_t args[] =
 {
   {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
+  {"ponynoscale", 0, OPT_ARG_NONE, OPT_NOSCALE},
   {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
   {"ponycdinterval", 0, OPT_ARG_REQUIRED, OPT_CDINTERVAL},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
@@ -77,6 +82,7 @@ static opt_arg_t args[] =
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
+  {"ponyhelp", 0, OPT_ARG_NONE, OPT_PONYHELP},
 
   OPT_ARGS_FINISH
 };
@@ -86,13 +92,15 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   opt_state_t s;
   int id;
   ponyint_opt_init(args, &s, &argc, argv);
+  bool minthreads_set = false;
 
   while((id = ponyint_opt_next(&s)) != -1)
   {
     switch(id)
     {
       case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
-      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); break;
+      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); minthreads_set = true; break;
+      case OPT_NOSCALE: opt->noscale= true; break;
       case OPT_SUSPENDTHRESHOLD: opt->thread_suspend_threshold = atoi(s.arg_val); break;
       case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
@@ -102,9 +110,20 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_PIN: opt->nopin = false; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_VERSION: opt->version = true; break;
+      case OPT_PONYHELP: opt->ponyhelp = true; break;
 
       default: exit(-1);
     }
+  }
+
+  if (opt->noscale)
+  {
+    if (minthreads_set)
+    {
+      printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
+      exit(-1);
+    }
+    opt->min_threads = opt->threads;
   }
 
   argv[argc] = NULL;
@@ -139,6 +158,11 @@ PONY_API int pony_init(int argc, char** argv)
 
   argc = parse_opts(argc, argv, &opt);
 
+  if (opt.ponyhelp) {
+    printf("%s", PONYRT_HELP);
+    exit(0);
+  }
+
   if (opt.version) {
 #ifdef _MSC_VER
         printf("%s %d\n", PONY_VERSION_STR, _MSC_VER);
@@ -149,6 +173,21 @@ PONY_API int pony_init(int argc, char** argv)
   }
 
   ponyint_cpu_init();
+
+  if (opt.threads == 0) {
+    opt.threads = ponyint_cpu_count();
+  }
+  else if (opt.threads > ponyint_cpu_count())
+  {
+    printf("Can't have --ponythreads > physical cores, the number of threads you'd be running with (%u > %u)\n", opt.threads, ponyint_cpu_count());
+    exit(-1);
+  }
+
+  if (opt.min_threads > opt.threads)
+  {
+    printf("Can't have --ponyminthreads > --ponythreads (%u > %u)\n", opt.min_threads, opt.threads);
+    exit(-1);
+  }
 
   ponyint_heap_setinitialgc(opt.gc_initial);
   ponyint_heap_setnextgcfactor(opt.gc_factor);

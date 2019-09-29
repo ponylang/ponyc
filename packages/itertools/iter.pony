@@ -91,7 +91,7 @@ class Iter[A] is Iterator[A]
 
   fun ref map_stateful[B](f: {ref(A!): B^ ?}): Iter[B]^ =>
     """
-    Allows stateful transformaion of each element from the iterator, similar
+    Allows stateful transformation of each element from the iterator, similar
     to `map`.
     """
     Iter[B](

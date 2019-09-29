@@ -20,6 +20,12 @@ deltamap_t* ponyint_deltamap_update(deltamap_t* map, pony_actor_t* actor,
 
 void ponyint_deltamap_free(deltamap_t* map);
 
+#ifdef USE_MEMTRACK
+size_t ponyint_deltamap_total_mem_size(deltamap_t* map);
+
+size_t ponyint_deltamap_total_alloc_size(deltamap_t* map);
+#endif
+
 PONY_EXTERN_C_END
 
 #endif

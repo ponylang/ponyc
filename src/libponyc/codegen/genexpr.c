@@ -105,6 +105,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
           codegen_local_lifetime_end(c, name);
           break;
         }
+        case TK_FVARREF:
         case TK_THIS:
         case TK_PARAMREF:
           break;

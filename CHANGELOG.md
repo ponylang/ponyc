@@ -2,6 +2,20 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.32.0] - 2019-09-29
+
+### Added
+
+- Allow fields to be `consume`d (sometimes) ([PR #3304](https://github.com/ponylang/ponyc/pull/3304))
+- `--ponynoscale` option ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
+- `--ponyhelp` option to compiled program ([PR #3312](https://github.com/ponylang/ponyc/pull/3312))
+
+### Changed
+
+- Rename MaybePointer to NullablePointer ([PR #3293](https://github.com/ponylang/ponyc/pull/3293))
+- `--ponyminthreads` option can't be larger than `--ponythreads` ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
+- `--ponythreads` option can't be larger than cores available ([PR #3303](https://github.com/ponylang/ponyc/pull/3303))
+
 ## [0.31.0] - 2019-08-31
 
 ### Fixed

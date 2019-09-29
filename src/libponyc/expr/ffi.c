@@ -21,12 +21,12 @@ static bool void_star_param(ast_t* param_type, ast_t* arg_type)
     return false;
 
   // Parameter type is Pointer[None]
-  // If the argument is Pointer[A], MaybePointer[A] or USize, allow it
+  // If the argument is Pointer[A], NullablePointer[A] or USize, allow it
   while(ast_id(arg_type) == TK_ARROW)
     arg_type = ast_childidx(arg_type, 1);
 
   if(is_pointer(arg_type) ||
-    is_maybe(arg_type) ||
+    is_nullable_pointer(arg_type) ||
     is_literal(arg_type, "USize"))
     return true;
 

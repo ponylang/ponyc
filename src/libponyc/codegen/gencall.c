@@ -321,8 +321,8 @@ static bool call_needs_receiver(ast_t* postfix, reach_type_t* t)
       if(((compile_type_t*)t->c_type)->primitive != NULL)
         return false;
 
-      // No receiver if a new Pointer or Maybe.
-      if(is_pointer(t->ast) || is_maybe(t->ast))
+      // No receiver if a new Pointer or NullablePointer.
+      if(is_pointer(t->ast) || is_nullable_pointer(t->ast))
         return false;
 
       return true;
@@ -1330,8 +1330,8 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
   if(c_t->primitive != NULL)
     return NULL;
 
-  // Do nothing for Pointer and Maybe.
-  if(is_pointer(t->ast) || is_maybe(t->ast))
+  // Do nothing for Pointer and NullablePointer.
+  if(is_pointer(t->ast) || is_nullable_pointer(t->ast))
     return NULL;
 
   // Use the global instance if we have one.

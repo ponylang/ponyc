@@ -1041,7 +1041,7 @@ TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeddedType)
     "class Whoops\n"
     "  embed ok: Ok = Ok\n"
     "  embed not_ok: Pointer[None] = Pointer[None]\n"
-    "  embed also_not_ok: MaybePointer[Ok] = MaybePointer[Ok](Ok)\n"
+    "  embed also_not_ok: NullablePointer[Ok] = NullablePointer[Ok](Ok)\n"
     
     "actor Main\n"
     "new create(env: Env) =>\n"

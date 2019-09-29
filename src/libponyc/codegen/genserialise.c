@@ -400,8 +400,8 @@ bool genserialise(compile_t* c, reach_type_t* t)
 
       if(package == c->str_builtin)
       {
-        // Don't serialise MaybePointer[A]
-        if(name == c->str_Maybe)
+        // Don't serialise NullablePointer[A]
+        if(name == c->str_NullablePointer)
           return true;
 
         // Don't serialise Pointer[A]

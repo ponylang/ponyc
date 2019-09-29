@@ -20,14 +20,15 @@ jobs:
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
-      - zulip/status
+      - zulip/status:
+          fail_only: true
 
   verify-changelog:
     docker:
       - image: ponylang/changelog-tool:release
     steps:
       - checkout
-      - run: changelog-tool verify 
+      - run: changelog-tool verify
       - zulip/status:
           fail_only: true
 

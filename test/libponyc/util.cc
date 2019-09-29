@@ -116,7 +116,7 @@ static const char* const _builtin =
   "  fun ref next(): A ?\n"
   "primitive DoNotOptimise\n"
   "  fun apply[A](obj: A) => compile_intrinsic\n"
-  "struct MaybePointer[A]\n"
+  "struct NullablePointer[A]\n"
   "  new create(that: A) => compile_intrinsic\n";
 
 

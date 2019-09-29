@@ -18,8 +18,16 @@ typedef struct gc_t
   uint32_t mark;
   uint32_t rc_mark;
   size_t rc;
+  // objectmap size is hashmap mem + (entry mem * num entries)
   objectmap_t local;
+#ifdef USE_MEMTRACK
+  // actormap size is hashmap mem + (entry mem * num entries)
+  // + size of each objectmap in each entry
+  size_t foreign_actormap_objectmap_mem_used;
+  size_t foreign_actormap_objectmap_mem_allocated;
+#endif
   actormap_t foreign;
+  // deltamap size is hashmap mem + (entry mem * num entries)
   deltamap_t* delta;
 } gc_t;
 
@@ -77,6 +85,12 @@ deltamap_t* ponyint_gc_delta(gc_t* gc);
 void ponyint_gc_done(gc_t* gc);
 
 void ponyint_gc_destroy(gc_t* gc);
+
+#ifdef USE_MEMTRACK
+size_t ponyint_gc_total_mem_size(gc_t* gc);
+
+size_t ponyint_gc_total_alloc_size(gc_t* gc);
+#endif
 
 PONY_EXTERN_C_END
 

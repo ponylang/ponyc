@@ -38,8 +38,26 @@ typedef struct pony_ctx_t
   pony_actor_t* current;
   trace_object_fn trace_object;
   trace_actor_fn trace_actor;
+  // Temporary stack for GC tracing; empty when GC not running
   gcstack_t* stack;
+  // Temporary storage for acquire/release of actors/objects for GC;
+  // empty when GC not running
   actormap_t acquire;
+#ifdef USE_MEMTRACK
+  // includes memory for mutemap stuff only
+  int64_t mem_used;
+  int64_t mem_allocated;
+  // includes memory for actor structs (`pony_actor_t`)
+  // and memory for acquire/release message contents (i.e. `actormap`s)
+  int64_t mem_used_actors;
+  int64_t mem_allocated_actors;
+#endif
+#ifdef USE_MEMTRACK_MESSAGES
+  // includes memory for messages only
+  int64_t mem_used_messages;
+  int64_t mem_allocated_messages;
+  int64_t num_messages;
+#endif
 
   void* serialise_buffer;
   size_t serialise_size;
@@ -106,6 +124,24 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
 // Try and wake up a sleeping scheduler thread only if all scheduler
 // threads are asleep
 void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
+
+#ifdef USE_MEMTRACK
+/** Get the static memory used by the scheduler subsystem.
+ */
+size_t ponyint_sched_static_mem_size();
+
+/** Get the static memory allocated by the scheduler subsystem.
+ */
+size_t ponyint_sched_static_alloc_size();
+
+/** Get the total memory used by a scheduler thread.
+ */
+size_t ponyint_sched_total_mem_size(pony_ctx_t* ctx);
+
+/** Get the total memory allocated by a scheduler thread.
+ */
+size_t ponyint_sched_total_alloc_size(pony_ctx_t* ctx);
+#endif
 
 PONY_EXTERN_C_END
 

@@ -12,7 +12,7 @@ deferred_reification_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type,
   const char* name);
 
 deferred_reification_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type,
-  const char* name);
+  const char* name, bool allow_private);
 
 PONY_EXTERN_C_END
 
