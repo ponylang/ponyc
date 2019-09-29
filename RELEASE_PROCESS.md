@@ -202,6 +202,7 @@ All Pony releases should be posted to:
 - [/r/ponylang](https://www.reddit.com/r/ponylang/) ([example](https://www.reddit.com/r/ponylang/comments/8m85p9/0222_released/))
 - [Hacker News](https://news.ycombinator.com/) ([example](https://news.ycombinator.com/item?id=17150567))
 - [ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
+- [Lobste.rs](https://lobste.rs/) ([example](https://lobste.rs/s/znbqba/pony_0_32_0_has_been_released))
 
 ### Close the GitHub issue
 
