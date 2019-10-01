@@ -153,7 +153,7 @@ By default, the Pony Docker image is compiled without support for [AVX CPU instr
 
 ## Linux using an RPM package (via COPR)
 
-For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
+For Red Hat, CentOS, Oracle Linux, Fedora Linux, or openSUSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
 
 ### Using `yum` for Red Hat, CentOS, Oracle Linux and other RHEL compatible systems:
 
@@ -171,7 +171,7 @@ dnf copr enable ponylang/ponylang
 dnf install ponyc
 ```
 
-### Using Zypper for OpenSuSE Leap 15:
+### Using Zypper for openSUSE Leap 15:
 
 ```bash
 zypper addrepo --refresh --repo https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/repo/opensuse-leap-15.0/ponylang-ponylang-opensuse-leap-15.0.repo
@@ -563,7 +563,7 @@ make use="llvm_link_static"
 ./helloworld
 ```
 
-### OpenSUSE (Leap 42.3)
+### openSUSE (Leap 42.3)
 
 ```bash
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
@@ -582,7 +582,7 @@ make
 ./helloworld
 ```
 
-### OpenSuSE (Leap 15, Tumbleweed)
+### openSUSE (Leap 15, Tumbleweed)
 
 NOTE: LLVM 3.9 doesn't seem to be available so these instructions install the default LLVM version available.
 
