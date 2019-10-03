@@ -147,7 +147,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   {
     if (minthreads_set)
     {
-      printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
+      printf("--%s & --%s are mutually exclusive\n", arg_name(OPT_MINTHREADS), arg_name(OPT_NOSCALE));
       exit(-1);
     }
     opt->min_threads = opt->threads;
@@ -206,13 +206,13 @@ PONY_API int pony_init(int argc, char** argv)
   }
   else if (opt.threads > ponyint_cpu_count())
   {
-    printf("Can't have --ponythreads > physical cores, the number of threads you'd be running with (%u > %u)\n", opt.threads, ponyint_cpu_count());
+    printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_THREADS), opt.threads, ponyint_cpu_count());
     exit(-1);
   }
 
   if (opt.min_threads > opt.threads)
   {
-    printf("Can't have --ponyminthreads > --ponythreads (%u > %u)\n", opt.min_threads, opt.threads);
+    printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_THREADS), opt.min_threads, opt.threads);
     exit(-1);
   }
 
