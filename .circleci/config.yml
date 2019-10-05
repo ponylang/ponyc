@@ -34,7 +34,7 @@ jobs:
 
   validate-docker-image-builds:
       docker:
-        - image: ponylang/ponyc-ci:docker-builder
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
       steps:
         - checkout
         - setup_remote_docker
@@ -140,6 +140,31 @@ jobs:
       - run: *test-ci-lib-llvm
       - zulip/status:
           fail_only: true
+
+  # Docker image building
+  build-latest-alpine-docker-image:
+      docker:
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
+      steps:
+        - checkout
+        - setup_remote_docker
+        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine
+        - run: docker push ponylang/ponyc:alpine
+        - zulip/status:
+            fail_only: true
+
+  build-latest-docker-image:
+      docker:
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
+      steps:
+        - checkout
+        - setup_remote_docker
+        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine .
+        - run: docker push ponylang/ponyc:latest
+        - zulip/status:
+            fail_only: true
 
   # Jobs for building and testing with ponyc system installed cross-llvm
   cross-llvm-701-debug-arm:
@@ -288,6 +313,11 @@ workflows:
             - verify-changelog
             - validate-shell-scripts
           context: org-global
+          filters:
+            branches:
+              ignore:
+                - master
+                - release
 
       # alpine
       - alpine-llvm-5-release:
@@ -319,6 +349,25 @@ workflows:
           requires:
             - lib-llvm-ubuntu-release
           context: org-global
+
+      # Docker `latest` image building
+      - build-latest-alpine-docker-image:
+          requires:
+            - alpine-llvm-5-release
+          context: org-globals
+          filters:
+            branches:
+              only:
+                - master
+
+      - build-latest-docker-image:
+          requires:
+            - lib-llvm-ubuntu-release
+          context: org-globals
+          filters:
+            branches:
+              only:
+                - master
 
       # p2 cross compilation tests
       - cross-llvm-701-release-arm:
