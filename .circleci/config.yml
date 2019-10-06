@@ -166,6 +166,28 @@ jobs:
         - zulip/status:
             fail_only: true
 
+  build-release-alpine-docker-image:
+      docker:
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
+      steps:
+        - checkout
+        - setup_remote_docker
+        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+        - run: bash build-alpine-docker-images-on-release.bash "$CIRCLE_TAG"
+        - zulip/status:
+            fail_only: true
+
+  build-release-docker-image:
+      docker:
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
+      steps:
+        - checkout
+        - setup_remote_docker
+        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+        - run: bash build-docker-images-on-release.bash "$CIRCLE_TAG"
+        - zulip/status:
+            fail_only: true
+
   # Jobs for building and testing with ponyc system installed cross-llvm
   cross-llvm-701-debug-arm:
     docker:
@@ -277,7 +299,7 @@ jobs:
 
 workflows:
   version: 2.1
-  nightly:
+  build-nightlies:
     triggers:
       - schedule:
           cron: "0 0 * * *"
@@ -304,6 +326,28 @@ workflows:
             branches:
               only:
                 - master
+
+  # Build docker images on release
+  # We don't need to build `latest` here as there's another commit
+  # to master immediately after release gets kicked off that will pick
+  # up all the meaningful changes. Only the TAG will be missing.
+  build-release-docker-images:
+    jobs:
+      - build-latest-alpine-docker-image:
+          context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
+
+      - build-latest-docker-image:
+          context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
 
   # PR acceptance tests, shouldn't run on `master` or `release` branches
   pr-acceptance-tests:
