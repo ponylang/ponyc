@@ -354,7 +354,7 @@ workflows:
       - build-latest-alpine-docker-image:
           requires:
             - alpine-llvm-5-release
-          context: org-globals
+          context: org-global
           filters:
             branches:
               only:
@@ -363,7 +363,7 @@ workflows:
       - build-latest-docker-image:
           requires:
             - lib-llvm-ubuntu-release
-          context: org-globals
+          context: org-global
           filters:
             branches:
               only:
