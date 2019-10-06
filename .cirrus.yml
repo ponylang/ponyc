@@ -12,7 +12,7 @@ task:
     - LLVM_CONFIG=llvm-config70 gmake all config=release -j3
     - LLVM_CONFIG=llvm-config70 gmake test-ci config=release
 
-  only_if: $CIRRUS_BRANCH != 'master' || $CIRRUS_BRANCH != 'release'
+  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
 task:
   freebsd_instance:
@@ -31,7 +31,7 @@ task:
     - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3
     - LLVM_CONFIG=llvm-config70 gmake test-ci config=debug
 
-  only_if: $CIRRUS_BRANCH != 'master' || $CIRRUS_BRANCH != 'release'
+  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
 task:
   osx_instance:
@@ -54,7 +54,7 @@ task:
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=release all
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=release test-ci
 
-  only_if: $CIRRUS_BRANCH != 'master' || $CIRRUS_BRANCH != 'release'
+  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
 task:
   osx_instance:
@@ -79,4 +79,4 @@ task:
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=debug all
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=debug test-ci
 
-  only_if: $CIRRUS_BRANCH != 'master' || $CIRRUS_BRANCH != 'release'
+  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
