@@ -149,7 +149,7 @@ jobs:
         - checkout
         - setup_remote_docker
         - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
-        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine
+        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine .
         - run: docker push ponylang/ponyc:alpine
         - zulip/status:
             fail_only: true
@@ -161,7 +161,7 @@ jobs:
         - checkout
         - setup_remote_docker
         - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
-        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine .
+        - run: docker build --cache-from=app -t app .
         - run: docker push ponylang/ponyc:latest
         - zulip/status:
             fail_only: true
