@@ -87,6 +87,33 @@ static opt_arg_t args[] =
   OPT_ARGS_FINISH
 };
 
+static const char* arg_name(const int id) {
+  return args[id].long_opt;
+}
+
+static void err_out(int id, const char* msg) {
+  printf("--%s %s\n", arg_name(id), msg);
+  exit(255);
+}
+
+static int parse_uint(uint32_t* target, int min, const char *value) {
+  int v = atoi(value);
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+} 
+
+static int parse_size(size_t* target, int min, const char *value) {
+  int v = atoi(value);
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+} 
+
 static int parse_opts(int argc, char** argv, options_t* opt)
 {
   opt_state_t s;
@@ -98,12 +125,12 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   {
     switch(id)
     {
-      case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
-      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); minthreads_set = true; break;
+      case OPT_THREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
+      case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
       case OPT_NOSCALE: opt->noscale= true; break;
-      case OPT_SUSPENDTHRESHOLD: opt->thread_suspend_threshold = atoi(s.arg_val); break;
-      case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
-      case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
+      case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
@@ -120,7 +147,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   {
     if (minthreads_set)
     {
-      printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
+      printf("--%s & --%s are mutually exclusive\n", arg_name(OPT_MINTHREADS), arg_name(OPT_NOSCALE));
       exit(-1);
     }
     opt->min_threads = opt->threads;
@@ -179,13 +206,13 @@ PONY_API int pony_init(int argc, char** argv)
   }
   else if (opt.threads > ponyint_cpu_count())
   {
-    printf("Can't have --ponythreads > physical cores, the number of threads you'd be running with (%u > %u)\n", opt.threads, ponyint_cpu_count());
+    printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_THREADS), opt.threads, ponyint_cpu_count());
     exit(-1);
   }
 
   if (opt.min_threads > opt.threads)
   {
-    printf("Can't have --ponyminthreads > --ponythreads (%u > %u)\n", opt.min_threads, opt.threads);
+    printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_THREADS), opt.min_threads, opt.threads);
     exit(-1);
   }
 
