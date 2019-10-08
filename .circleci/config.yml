@@ -16,7 +16,7 @@ orbs:
 jobs:
   x86-64-unknown-linux-gnu-nightly:
     docker:
-      - image: ponylang/ponyc-ci:x86-64-unknown-linux-gnu-nightly
+      - image: ponyc-ci-x86-64-unknown-linux-gnu-nightly:20191008
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
