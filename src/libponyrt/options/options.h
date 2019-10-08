@@ -9,16 +9,16 @@
 #define OPT_ARGS_FINISH {NULL, 0, UINT32_MAX, UINT32_MAX}
 #define PONYRT_HELP \
   "Runtime options for Pony programs (not for use with ponyc):\n" \
-  "  --ponythreads    Use N scheduler threads. Defaults to the number of\n" \
+  "  --ponymaxthreads Use N scheduler threads. Defaults to the number of\n" \
   "                   cores (not hyperthreads) available.\n" \
   "                   This can't be larger than the number of cores available.\n" \
   "  --ponyminthreads Minimum number of active scheduler threads allowed.\n" \
   "                   Defaults to 0, meaning that all scheduler threads are\n" \
   "                   allowed to be suspended when no work is available.\n" \
-  "                   This can't be larger than --ponythreads if provided,\n" \
+  "                   This can't be larger than --ponymaxthreads if provided,\n" \
   "                   or the physical cores available\n" \
   "  --ponynoscale    Don't scale down the scheduler threads.\n" \
-  "                   See --ponythreads on how to specify the number of threads\n" \
+  "                   See --ponymaxthreads on how to specify the number of threads\n" \
   "                   explicitly. Can't be used with --ponyminthreads.\n" \
   "  --ponysuspendthreshold\n" \
   "                   Amount of idle time before a scheduler thread suspends\n" \
