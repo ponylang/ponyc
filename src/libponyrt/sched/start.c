@@ -114,6 +114,15 @@ static int parse_size(size_t* target, int min, const char *value) {
   return 0;
 } 
 
+static int parse_udouble(double* target, double min, const char *value) {
+  double v = atof(value);
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+} 
+
 static int parse_opts(int argc, char** argv, options_t* opt)
 {
   opt_state_t s;
@@ -131,7 +140,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
-      case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
+      case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_PIN: opt->nopin = false; break;
