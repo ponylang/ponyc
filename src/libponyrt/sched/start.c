@@ -53,7 +53,7 @@ static pony_language_features_init_t language_init;
 
 enum
 {
-  OPT_THREADS,
+  OPT_MAXTHREADS,
   OPT_MINTHREADS,
   OPT_NOSCALE,
   OPT_SUSPENDTHRESHOLD,
@@ -70,7 +70,7 @@ enum
 
 static opt_arg_t args[] =
 {
-  {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
+  {"ponymaxthreads", 0, OPT_ARG_REQUIRED, OPT_MAXTHREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
   {"ponynoscale", 0, OPT_ARG_NONE, OPT_NOSCALE},
   {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
@@ -125,7 +125,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   {
     switch(id)
     {
-      case OPT_THREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
+      case OPT_MAXTHREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
       case OPT_NOSCALE: opt->noscale= true; break;
       case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
@@ -206,13 +206,13 @@ PONY_API int pony_init(int argc, char** argv)
   }
   else if (opt.threads > ponyint_cpu_count())
   {
-    printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_THREADS), opt.threads, ponyint_cpu_count());
+    printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_MAXTHREADS), opt.threads, ponyint_cpu_count());
     exit(-1);
   }
 
   if (opt.min_threads > opt.threads)
   {
-    printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_THREADS), opt.min_threads, opt.threads);
+    printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_MAXTHREADS), opt.min_threads, opt.threads);
     exit(-1);
   }
 
