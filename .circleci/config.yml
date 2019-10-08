@@ -25,7 +25,7 @@ jobs:
 
   x86-64-unknown-linux-musl-nightly:
     docker:
-      - image: ponylang/ponyc-ci:x86-64-unknown-linux-musl-nightly
+      - image: ponyc-ci-x86-64-unknown-linux-musl-nightly:20191008
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
