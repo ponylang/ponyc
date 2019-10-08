@@ -23,6 +23,15 @@ jobs:
       - zulip/status:
           fail_only: true
 
+  x86-64-unknown-linux-musl-nightly:
+    docker:
+      - image: ponylang/ponyc-ci:x86-64-unknown-linux-musl-nightly
+    steps:
+      - checkout
+      - run: bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
+      - zulip/status:
+          fail_only: true
+
   verify-changelog:
     docker:
       - image: ponylang/changelog-tool:release
@@ -308,6 +317,8 @@ workflows:
               only: master
     jobs:
       - x86-64-unknown-linux-gnu-nightly:
+          context: org-global
+      - x86-64-unknown-linux-musl-nightly:
           context: org-global
 
   # Docker `latest` image building
