@@ -54,7 +54,7 @@ jobs:
 
   validate-shell-scripts:
     docker:
-      - image: ponylang/ponyc-ci:shellcheck
+      - image: ponylang/shared-docker-ci-shellcheck:20191008
     steps:
       - checkout
       - run: find . -name '*.bash' -exec shellcheck {} \;
