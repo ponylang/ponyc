@@ -16,7 +16,7 @@ orbs:
 jobs:
   x86-64-unknown-linux-gnu-nightly:
     docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-nightly:20191008
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
@@ -25,10 +25,28 @@ jobs:
 
   x86-64-unknown-linux-musl-nightly:
     docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-nightly:20191008
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
+      - zulip/status:
+          fail_only: true
+
+  x86-64-unknown-linux-gnu-release:
+    docker:
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
+    steps:
+      - checkout
+      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
+      - zulip/status:
+          fail_only: true
+
+  x86-64-unknown-linux-musl-release:
+    docker:
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
+    steps:
+      - checkout
+      - run: bash .ci-scripts/x86-64-unknown-linux-musl-release.bash ${CLOUDSMITH_API_KEY}
       - zulip/status:
           fail_only: true
 
@@ -308,6 +326,7 @@ jobs:
 
 workflows:
   version: 2.1
+
   build-nightlies:
     triggers:
       - schedule:
@@ -353,6 +372,25 @@ workflows:
               ignore: /.*/
 
       - build-release-docker-image:
+          context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
+
+  # Build release packages to upload to Cloudsmith
+  build-cloudsmith-release-packages:
+    jobs:
+      - x86-64-unknown-linux-gnu-release:
+          context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
+
+      - x86-64-unknown-linux-musl-release:
           context: org-global
           filters:
             tags:
