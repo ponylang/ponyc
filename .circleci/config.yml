@@ -344,7 +344,7 @@ workflows:
   # up all the meaningful changes. Only the TAG will be missing.
   build-release-docker-images:
     jobs:
-      - build-latest-alpine-docker-image:
+      - build-release-alpine-docker-image:
           context: org-global
           filters:
             tags:
@@ -352,7 +352,7 @@ workflows:
             branches:
               ignore: /.*/
 
-      - build-latest-docker-image:
+      - build-release-docker-image:
           context: org-global
           filters:
             tags:
