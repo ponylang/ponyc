@@ -18,6 +18,7 @@ While not strictly required, you probably be unable to deal with any errors that
 * Read and write access to the ponylang [travis-ci](https://travis-ci.org) account
 * Read and write access to the ponylang [circleci](https://circleci.com) account
 * Read and write access to the ponylang [appveyor](https://www.appveyor.com) account
+* Read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
 ## Prerequisites for specific releases
 
@@ -145,6 +146,21 @@ The Travis CI build for the release branch kicks off packaging builds on Fedora 
 The pattern for packaging release builds is similar as what we previously saw. The version looks something like:
 
 `0.3.1-1.fc27` (confirm `status` is `succeeded`)
+
+### Wait on Cloudsmith releases
+
+On each release, we upload ponyc binaries for musl and GNU libc builds to Cloudsmith. The releases are built on [CircleCI](https://circleci.com/gh/ponylang/ponyc).
+
+You can verify that the release artifacts were successfully built and uploaded by checking the [ponylang Cloudsmith releases repository](https://cloudsmith.io/~ponylang/repos/releases/packages/) and verifing that packages exist for both GNU libc and musl libc.
+
+Package names will be:
+
+- ponyc-x86-64-unknown-linux-gnu.tar.gz
+- ponyc-x86-64-unknown-linux-musl.tar.gz
+
+and should have a version field listing that matches the current release e.g. `0.3.1`.
+
+In general, you should expect it to take about 30 to 50 minutes to build each package once CircleCI starts running the task.
 
 ### Wait on Homebrew
 
