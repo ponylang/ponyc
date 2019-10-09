@@ -311,7 +311,7 @@ workflows:
   build-nightlies:
     triggers:
       - schedule:
-          cron: "0 15 * * *"
+          cron: "0 16 * * *"
           filters:
             branches:
               only: master
