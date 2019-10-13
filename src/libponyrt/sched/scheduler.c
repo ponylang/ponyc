@@ -1059,7 +1059,7 @@ static void ponyint_sched_shutdown()
   ponyint_mpmcq_destroy(&inject);
 }
 
-pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
+pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold)
 {
   pony_register_thread();
@@ -1098,7 +1098,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
 #endif
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
-  uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, nopin,
+  uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pin,
     pinasio);
 
 #if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)

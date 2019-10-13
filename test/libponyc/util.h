@@ -25,6 +25,9 @@
 #  define EXPORT_SYMBOL
 #endif
 
+extern "C" {
+void Main_runtime_override_defaults_oo(void* opt);
+}
 
 class PassTest : public testing::Test
 {
