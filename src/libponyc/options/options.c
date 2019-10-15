@@ -60,6 +60,7 @@ enum
   OPT_EXTFUN,
   OPT_SIMPLEBUILTIN,
   OPT_LINT_LLVM,
+  OPT_LLVM_ARGS,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -107,6 +108,9 @@ static opt_arg_t std_args[] =
   {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   {"simplebuiltin", '\0', OPT_ARG_NONE, OPT_SIMPLEBUILTIN},
   {"lint-llvm", '\0', OPT_ARG_NONE, OPT_LINT_LLVM},
+#ifndef NDEBUG
+  {"llvm-args", '\0', OPT_ARG_REQUIRED, OPT_LLVM_ARGS},
+#endif
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
@@ -166,6 +170,9 @@ static void usage(void)
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
     "  --define, -D     Set a compile time definition.\n"
+#ifndef NDEBUG
+    "  --llvm-args      Pass LLVM-specific arguments.\n"
+#endif
     ,
     "Debugging options:\n"
     "  --verbose, -V    Verbosity level.\n"
@@ -244,6 +251,11 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
   // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
   // use by the signals package when not using signals for scheduler scaling
   define_build_flag("scheduler_scaling_pthreads");
+#endif
+
+#ifndef NDEBUG
+  // llvm-args might not be used, initialized with NULL pointer first
+  opt->llvm_args = NULL;
 #endif
 
   return CONTINUE;
@@ -340,6 +352,9 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_FILENAMES: opt->print_filenames = true; break;
       case OPT_CHECKTREE: opt->check_tree = true; break;
       case OPT_LINT_LLVM: opt->lint_llvm = true; break;
+#ifndef NDEBUG
+      case OPT_LLVM_ARGS: opt->llvm_args = s->arg_val; break;
+#endif
 
       case OPT_BNF: print_grammar(false, true); return EXIT_0;
       case OPT_ANTLR: print_grammar(true, true); return EXIT_0;
