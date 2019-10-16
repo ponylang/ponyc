@@ -4,7 +4,7 @@
 #include "ponyassert.h"
 #include <string.h>
 
-static bool verify_calls(pass_opt_t* opt, ast_t* ast)
+static bool verify_calls_runtime_override(pass_opt_t* opt, ast_t* ast)
 {
   token_id tk = ast_id(ast);
   if((tk == TK_NEWREF) || (tk == TK_NEWBEREF) ||
@@ -31,7 +31,7 @@ static bool verify_calls(pass_opt_t* opt, ast_t* ast)
     else
     {
       // recursively check function call tree for other non-primitive method calls
-      if(!verify_calls(opt, method_ast))
+      if(!verify_calls_runtime_override(opt, method_ast))
         return false;
     }
   }
@@ -41,7 +41,7 @@ static bool verify_calls(pass_opt_t* opt, ast_t* ast)
   while(child != NULL)
   {
     // recursively check all child nodes for non-primitive method calls
-    if(!verify_calls(opt, child))
+    if(!verify_calls_runtime_override(opt, child))
       return false;
 
     child = ast_sibling(child);
@@ -124,7 +124,7 @@ static bool verify_main_runtime_override_defaults(pass_opt_t* opt, ast_t* ast)
   }
 
   // check to make sure no function calls on non-primitives
-  if(!verify_calls(opt, body))
+  if(!verify_calls_runtime_override(opt, body))
   {
     ok = false;
   }
