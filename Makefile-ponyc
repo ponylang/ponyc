@@ -1051,7 +1051,7 @@ test-cross-ci: cross_runner=$(QEMU_RUNNER)
 test-cross-ci: test-ci
 
 docs: all
-	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs --pass expr
+	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs-public --pass expr
 
 docs-online: docs
 	$(SILENT)$(SED_INPLACE) 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
