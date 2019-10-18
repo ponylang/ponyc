@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow programmatic override of the default runtime options ([PR #3342](https://github.com/ponylang/ponyc/pull/3342))
 
 ### Changed
 
