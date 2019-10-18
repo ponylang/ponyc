@@ -31,7 +31,7 @@ typedef struct options_t
   double gc_factor;
   bool noyield;
   bool noblock;
-  bool nopin;
+  bool pin;
   bool pinasio;
   bool version;
   bool ponyhelp;
@@ -86,6 +86,14 @@ static opt_arg_t args[] =
 
   OPT_ARGS_FINISH
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+void Main_runtime_override_defaults_oo(options_t* opt);
+#ifdef __cplusplus
+}
+#endif
 
 static const char* arg_name(const int id) {
   return args[id].long_opt;
@@ -143,7 +151,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
-      case OPT_PIN: opt->nopin = false; break;
+      case OPT_PIN: opt->pin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_VERSION: opt->version = true; break;
       case OPT_PONYHELP: opt->ponyhelp = true; break;
@@ -190,7 +198,12 @@ PONY_API int pony_init(int argc, char** argv)
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
-  opt.nopin = true;
+  opt.pin = false;
+
+  pony_register_thread();
+
+  // Allow override via bare function on Main actor
+  Main_runtime_override_defaults_oo(&opt);
 
   argc = parse_opts(argc, argv, &opt);
 
@@ -231,7 +244,7 @@ PONY_API int pony_init(int argc, char** argv)
 
   pony_exitcode(0);
 
-  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
+  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
     opt.pinasio, opt.min_threads, opt.thread_suspend_threshold);
 
   ponyint_cycle_create(ctx, opt.cd_detect_interval);

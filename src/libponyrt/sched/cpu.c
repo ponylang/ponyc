@@ -207,11 +207,11 @@ uint32_t ponyint_cpu_count()
 }
 
 uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
-  bool nopin, bool pinasio)
+  bool pin, bool pinasio)
 {
   uint32_t asio_cpu = -1;
 
-  if(nopin)
+  if(!pin)
   {
     for(uint32_t i = 0; i < count; i++)
     {

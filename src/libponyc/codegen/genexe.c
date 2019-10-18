@@ -527,6 +527,7 @@ bool genexe(compile_t* c, ast_t* program)
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Reachability\n");
   reach(c->reach, main_ast, c->str_create, NULL, c->opt);
+  reach(c->reach, main_ast, stringtab("runtime_override_defaults"), NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
   if(c->opt->limit == PASS_REACH)

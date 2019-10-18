@@ -17,6 +17,28 @@
 #include <string.h>
 
 
+static ast_t* make_runtime_override_defaults(ast_t* ast)
+{
+  pony_assert(ast != NULL);
+
+  // set it as a bare function
+  token_id cap = TK_AT;
+
+  BUILD(runtime_override_defaults, ast,
+    NODE(TK_FUN, AST_SCOPE
+      NODE(cap)
+      ID("runtime_override_defaults")  // name
+      NONE          // typeparams
+      NODE(TK_PARAMS, NODE(TK_PARAM, ID("rto") NODE(TK_NOMINAL, ID("$0") ID("RuntimeOptions") NONE NONE NONE) NONE))          // params
+      NONE          // return type
+      NONE          // error
+      NODE(TK_SEQ, NODE(TK_TRUE))
+      NONE
+      ));
+
+  return runtime_override_defaults;
+}
+
 static ast_t* make_create(ast_t* ast)
 {
   pony_assert(ast != NULL);
@@ -79,6 +101,19 @@ bool has_member(ast_t* members, const char* name)
   }
 
   return false;
+}
+
+
+static void add_default_runtime_override_defaults_method(ast_t* ast)
+{
+  pony_assert(ast != NULL);
+  ast_t* members = ast_childidx(ast, 4);
+
+  // If have no @runtime_override_defaults method, add one.
+  if(has_member(members, "runtime_override_defaults"))
+    return;
+
+  ast_append(members, make_runtime_override_defaults(ast));
 }
 
 
@@ -181,6 +216,9 @@ static ast_result_t sugar_entity(pass_opt_t* opt, ast_t* ast, bool add_create,
   (void)opt;
 
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
+
+  if(ast_name(id) == stringtab("Main"))
+    add_default_runtime_override_defaults_method(ast);
 
   if(add_create)
     add_default_constructor(ast);

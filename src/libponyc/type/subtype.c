@@ -1757,6 +1757,11 @@ bool is_env(ast_t* type)
   return is_literal(type, "Env");
 }
 
+bool is_runtime_options(ast_t* type)
+{
+  return is_literal(type, "RuntimeOptions");
+}
+
 bool is_bool(ast_t* type)
 {
   return is_literal(type, "Bool");

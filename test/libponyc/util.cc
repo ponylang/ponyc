@@ -117,8 +117,14 @@ static const char* const _builtin =
   "primitive DoNotOptimise\n"
   "  fun apply[A](obj: A) => compile_intrinsic\n"
   "struct NullablePointer[A]\n"
-  "  new create(that: A) => compile_intrinsic\n";
+  "  new create(that: A) => compile_intrinsic\n"
+  "struct RuntimeOptions\n";
 
+void Main_runtime_override_defaults_oo(void* opt)
+{
+  (void)opt;
+  return;
+}
 
 // Check whether the 2 given ASTs are identical
 static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)

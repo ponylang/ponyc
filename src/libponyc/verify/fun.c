@@ -1,8 +1,136 @@
 #include "fun.h"
+#include "../type/lookup.h"
 #include "../type/subtype.h"
 #include "ponyassert.h"
 #include <string.h>
 
+static bool verify_calls_runtime_override(pass_opt_t* opt, ast_t* ast)
+{
+  token_id tk = ast_id(ast);
+  if((tk == TK_NEWREF) || (tk == TK_NEWBEREF) ||
+     (tk == TK_FUNREF) || (tk == TK_BEREF))
+  {
+    ast_t* method = ast_sibling(ast_child(ast));
+    ast_t* receiver = ast_child(ast);
+
+    // Look up the original method definition for this method call.
+    deferred_reification_t* method_def = lookup(opt, ast, ast_type(receiver),
+      ast_name(method));
+    ast_t* method_ast = method_def->ast;
+
+    // The deferred reification doesn't own the underlying AST so we can free it
+    // safely.
+    deferred_reify_free(method_def);
+
+    if(ast_id(ast_parent(ast_parent(method_ast))) != TK_PRIMITIVE)
+    {
+      ast_error(opt->check.errors, ast,
+        "the runtime_override_defaults method of the Main actor can only call functions on primitives");
+      return false;
+    }
+    else
+    {
+      // recursively check function call tree for other non-primitive method calls
+      if(!verify_calls_runtime_override(opt, method_ast))
+        return false;
+    }
+  }
+
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    // recursively check all child nodes for non-primitive method calls
+    if(!verify_calls_runtime_override(opt, child))
+      return false;
+
+    child = ast_sibling(child);
+  }
+  return true;
+}
+
+static bool verify_main_runtime_override_defaults(pass_opt_t* opt, ast_t* ast)
+{
+  if(ast_id(opt->check.frame->type) != TK_ACTOR)
+    return true;
+
+  ast_t* type_id = ast_child(opt->check.frame->type);
+
+  if(strcmp(ast_name(type_id), "Main"))
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+  ast_t* type = ast_parent(ast_parent(ast));
+
+  if(strcmp(ast_name(id), "runtime_override_defaults"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(opt->check.errors, ast,
+      "the runtime_override_defaults method of the Main actor must be a function");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(opt->check.errors, typeparams,
+      "the runtime_override_defaults method of the Main actor must not take type parameters");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    if(ast_pos(params) == ast_pos(type))
+      ast_error(opt->check.errors, params,
+        "The Main actor must have a runtime_override_defaults method which takes only a "
+        "single RuntimeOptions parameter");
+    else
+      ast_error(opt->check.errors, params,
+        "the runtime_override_defaults method of the Main actor must take only a single "
+        "RuntimeOptions parameter");
+    ok = false;
+  }
+
+  ast_t* param = ast_child(params);
+
+  if(param != NULL)
+  {
+    ast_t* p_type = ast_childidx(param, 1);
+
+    if(!is_runtime_options(p_type))
+    {
+      ast_error(opt->check.errors, p_type, "must be of type RuntimeOptions");
+      ok = false;
+    }
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(opt->check.errors, result,
+      "the runtime_override_defaults method of the Main actor must return None");
+    ok = false;
+  }
+
+  bool bare = ast_id(cap) == TK_AT;
+
+  if(!bare)
+  {
+    ast_error(opt->check.errors, ast,
+      "the runtime_override_defaults method of the Main actor must be a bare function");
+    ok = false;
+  }
+
+  // check to make sure no function calls on non-primitives
+  if(!verify_calls_runtime_override(opt, body))
+  {
+    ok = false;
+  }
+
+  return ok;
+}
 
 static bool verify_main_create(pass_opt_t* opt, ast_t* ast)
 {
@@ -367,6 +495,7 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
 
   // Run checks tailored to specific kinds of methods, if any apply.
   if(!verify_main_create(opt, ast) ||
+    !verify_main_runtime_override_defaults(opt, ast) ||
     !verify_primitive_init(opt, ast) ||
     !verify_any_final(opt, ast) ||
     !verify_any_serialise(opt, ast))
