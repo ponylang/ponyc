@@ -87,7 +87,13 @@ static opt_arg_t args[] =
   OPT_ARGS_FINISH
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void Main_runtime_override_defaults_oo(options_t* opt);
+#ifdef __cplusplus
+}
+#endif
 
 static const char* arg_name(const int id) {
   return args[id].long_opt;
