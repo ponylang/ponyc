@@ -193,7 +193,7 @@ static const char* get_multi_ref_name(ast_t* ast)
   size_t offset = 0;
   const char* name = ast_name(temp_ast);
   size_t slen = strlen(name);
-  strncpy(buf + offset, name, slen);
+  memcpy(buf + offset, name, slen);
   offset += slen;
   temp_ast = ast_parent(temp_ast);
 
@@ -204,7 +204,7 @@ static const char* get_multi_ref_name(ast_t* ast)
     temp_ast = ast_sibling(temp_ast);
     name = ast_name(temp_ast);
     slen = strlen(name);
-    strncpy(buf + offset, name, slen);
+    memcpy(buf + offset, name, slen);
     offset += slen;
     temp_ast = ast_parent(temp_ast);
   }
