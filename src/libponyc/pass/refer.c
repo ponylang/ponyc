@@ -151,7 +151,7 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
   size_t offset = 0;
   const char* name = ast_name(temp_ast);
   size_t slen = strlen(name);
-  strncpy(buf + offset, name, slen);
+  memcpy(buf + offset, name, slen);
   offset += slen;
   temp_ast = ast_parent(temp_ast);
 
@@ -162,7 +162,7 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
     temp_ast = ast_sibling(temp_ast);
     name = ast_name(temp_ast);
     slen = strlen(name);
-    strncpy(buf + offset, name, slen);
+    memcpy(buf + offset, name, slen);
     offset += slen;
     temp_ast = ast_parent(temp_ast);
   }
@@ -347,7 +347,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
     // Try with a leading underscore
     char* buf = (char*)ponyint_pool_alloc_size(name_len + 2);
     buf[0] = '_';
-    strncpy(buf + 1, name, name_len + 1);
+    memcpy(buf + 1, name, name_len + 1);
     const char* try_name = stringtab_consume(buf, name_len + 2);
 
     if(ast_get(ast, try_name, NULL) != NULL)

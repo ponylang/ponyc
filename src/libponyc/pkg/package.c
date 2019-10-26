@@ -820,7 +820,7 @@ bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
     } else {
       char path[FILENAME_MAX];
 
-      strncpy(path, paths, len);
+      memcpy(path, paths, len);
       path[len] = '\0';
       ok = f(path, opt) && ok;
     }

@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Building ponyc with GCC 8+ ([PR #3345](https://github.com/ponylang/ponyc/pull/3345))
 
 ### Added
 
