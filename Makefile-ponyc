@@ -133,7 +133,12 @@ endif
 LIB_EXT ?= a
 BUILD_FLAGS = -march=$(arch) -mtune=$(tune) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS = -march=$(arch) -mtune=$(tune) $(LDFLAGS)
+
+LINKER_FLAGS = -march=$(arch) -mtune=$(tune) -static-libstdc++ $(LDFLAGS)
+ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
+  LINKER_FLAGS += -static-libgcc
+endif
+
 AR_FLAGS ?= rcs
 ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION=\"$(tag)\" -DLLVM_VERSION=\"$(llvm_version)\" \
