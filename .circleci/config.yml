@@ -169,30 +169,6 @@ jobs:
           fail_only: true
 
   # Docker image building
-  build-latest-alpine-docker-image:
-      docker:
-        - image: ponylang/shared-docker-ci-docker-builder:20190808
-      steps:
-        - checkout
-        - setup_remote_docker
-        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
-        - run: docker build --file=.dockerhub/alpine/Dockerfile -t ponylang/ponyc:alpine .
-        - run: docker push ponylang/ponyc:alpine
-        - zulip/status:
-            fail_only: true
-
-  build-latest-docker-image:
-      docker:
-        - image: ponylang/shared-docker-ci-docker-builder:20190808
-      steps:
-        - checkout
-        - setup_remote_docker
-        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
-        - run: docker build --file=Dockerfile -t ponylang/ponyc:latest .
-        - run: docker push ponylang/ponyc:latest
-        - zulip/status:
-            fail_only: true
-
   build-release-alpine-docker-image:
       docker:
         - image: ponylang/shared-docker-ci-docker-builder:20190808
@@ -339,23 +315,6 @@ workflows:
           context: org-global
       - x86-64-unknown-linux-musl-nightly:
           context: org-global
-
-  # Docker `latest` image building
-  build-latest-docker-images:
-    jobs:
-      - build-latest-alpine-docker-image:
-          context: org-global
-          filters:
-            branches:
-              only:
-                - master
-
-      - build-latest-docker-image:
-          context: org-global
-          filters:
-            branches:
-              only:
-                - master
 
   # Build docker images on release
   # We don't need to build `latest` here as there's another commit
