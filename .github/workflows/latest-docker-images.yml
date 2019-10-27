@@ -1,0 +1,22 @@
+name: Build latest Docker images
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-latest-alpine-docker-image:
+    name: Build latest Alpine based Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Docker build
+        run: "docker build --file=.dockerhub/alpine/Dockerfile -t ponylang/ponyc:alpine ."
+      - name: Push image to Docker Hub
+        run: "docker push ponylang/ponyc:alpine"
