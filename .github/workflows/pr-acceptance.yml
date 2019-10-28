@@ -12,6 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Build ponyc
-        run: "make -f Makefile-lib-llvm config=release default_pic=true use=llvm_link_static -j2"
+        run: "make -f Makefile-lib-llvm config=release default_pic=true use=llvm_link_static -j4"
       - name: Run CI tests
         run: "make -f Makefile-lib-llvm test-ci config=release default_pic=true use=llvm_link_static"
