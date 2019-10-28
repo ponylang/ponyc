@@ -19,4 +19,4 @@ task:
 
   test_script:
     - cd ponyc
-    - make -f Makefile-lib-llvm config=release default_pic=true arch=x86-64 use=llvm_link_static -j4
+    - make -f Makefile-lib-llvm config=release default_pic=true arch=x86-64 use=llvm_link_static -j6
