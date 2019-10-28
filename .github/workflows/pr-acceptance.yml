@@ -15,3 +15,16 @@ jobs:
         run: "make -f Makefile-lib-llvm config=release default_pic=true use=llvm_link_static -j4"
       - name: Run CI tests
         run: "make -f Makefile-lib-llvm test-ci config=release default_pic=true use=llvm_link_static"
+
+  ubuntu-lib-llvm-release:
+    name: Test release build of ponyc on ubunt using vendored LLVM
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/ponyc-ci-gh-tester-ubuntu:latest
+      options: --cpus 2
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build ponyc
+        run: "make -f Makefile-lib-llvm config=release default_pic=true use=llvm_link_static -j4"
+      - name: Run CI tests
+        run: "make -f Makefile-lib-llvm test-ci config=release default_pic=true use=llvm_link_static"
