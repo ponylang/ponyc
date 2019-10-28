@@ -360,27 +360,8 @@ workflows:
   # PR acceptance tests, shouldn't run on `master` or `release` branches
   pr-acceptance-tests:
     jobs:
-      # sanity tests
-      - verify-changelog:
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - validate-shell-scripts:
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
 
       - lib-llvm-ubuntu-release:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
           context: org-global
           filters:
             branches:
@@ -389,61 +370,6 @@ workflows:
                 - release
 
       - lib-llvm-ubuntu-debug:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - validate-docker-image-builds:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      # alpine
-      - alpine-llvm-5-release:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-llvm-5-debug:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-llvm-7-debug-static:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-llvm-7-release-static:
-          requires:
-            - lib-llvm-ubuntu-release
           context: org-global
           filters:
             branches:
@@ -452,8 +378,6 @@ workflows:
                 - release
 
       - alpine-lib-llvm-debug-static:
-          requires:
-            - lib-llvm-ubuntu-debug
           context: org-global
           filters:
             branches:
@@ -462,83 +386,9 @@ workflows:
                 - release
 
       - alpine-lib-llvm-release-static:
-          requires:
-            - lib-llvm-ubuntu-release
           context: org-global
           filters:
             branches:
               ignore:
                 - master
                 - release
-
-      - alpine-lib-llvm-release-static:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      # p2 cross compilation tests
-      - cross-llvm-701-release-arm:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - cross-llvm-701-debug-arm:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - cross-llvm-701-release-armhf:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - cross-llvm-701-debug-armhf:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-#     Currently don't pass
-#      - cross-llvm-701-release-aarch64:
-#           requires:
-#             - lib-llvm-ubuntu-release
-#           context: org-global
-#          filters:
-#            branches:
-#              ignore:
-#                - master
-#                - release
-#
-#      - cross-llvm-701-debug-aarch64:
-#           requires:
-#             - lib-llvm-ubuntu-debugS
-#           context: org-global
-#          filters:
-#            branches:
-#              ignore:
-#                - master
-#                - release
