@@ -6,7 +6,8 @@ test-ci-lib-llvm: &test-ci-lib-llvm
     echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
     source $BASH_ENV
     echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
-    make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
+    make -f Makefile-lib-llvm -j$CPUs $test_ci_params
+    make -f Makefile-lib-llvm $test_ci_params test-ci
 
 version: 2.1
 
@@ -152,7 +153,7 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: echo 'export test_ci_params="config=debug default_pic=true"' >> $BASH_ENV
+      - run: echo 'export test_ci_params="config=debug default_pic=true arch=x86-64 use=llvm_link_static"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
       - zulip/status:
           fail_only: true
@@ -163,7 +164,7 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: echo 'export test_ci_params="config=release default_pic=true"' >> $BASH_ENV
+      - run: echo 'export test_ci_params="config=release default_pic=true arch=x86-64 use=llvm_link_static"' >> $BASH_ENV
       - run: *test-ci-lib-llvm
       - zulip/status:
           fail_only: true
