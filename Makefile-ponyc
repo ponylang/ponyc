@@ -55,7 +55,7 @@ bits ?= $(shell getconf LONG_BIT)
 # static links everything statically (only works with musl libc)
 # llvm-static links llvm statically
 # llvm-dynamic links llvm dynamically
-link ?= llmv-static
+link ?= llvm-static
 
 ifndef verbose
   SILENT = @
