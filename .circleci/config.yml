@@ -91,50 +91,6 @@ jobs:
       - zulip/status:
           fail_only: true
 
-  alpine-llvm-7-debug-static:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-7
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm7-config all config=debug default_pic=true staticbuild=true -j3
-      - run: make LLVM_CONFIG=llvm7-config test-ci config=debug default_pic=true staticbuild=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-7-release-static:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-7
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm7-config all config=release default_pic=true staticbuild=true -j3
-      - run: make LLVM_CONFIG=llvm7-config test-ci config=release default_pic=true staticbuild=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-5-debug:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-5
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm5-config all config=debug default_pic=true -j3
-      - run: make LLVM_CONFIG=llvm5-config test-ci config=debug default_pic=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-5-release:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-5
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm5-config all config=release default_pic=true -j3
-      - run: make LLVM_CONFIG=llvm5-config test-ci config=release default_pic=true
-      - zulip/status:
-          fail_only: true
-
   # Docker image building
   build-release-alpine-docker-image:
       docker:
@@ -356,7 +312,7 @@ workflows:
                 - release
 
       # alpine
-      - alpine-llvm-5-release:
+      - alpine-lib-llvm-debug-static:
           requires:
             - validate-docker-image-builds
           context: org-global
@@ -366,59 +322,9 @@ workflows:
                 - master
                 - release
 
-      - alpine-llvm-5-debug:
-          requires:
-            - alpine-llvm-5-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-llvm-7-debug-static:
-          requires:
-            - alpine-llvm-5-debug
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-llvm-7-release-static:
-          requires:
-            - alpine-llvm-5-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-lib-llvm-debug-static:
-          requires:
-            - alpine-llvm-5-debug
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
       - alpine-lib-llvm-release-static:
           requires:
-            - alpine-llvm-5-release
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-lib-llvm-release-static:
-          requires:
-            - alpine-llvm-5-release
+            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
@@ -429,7 +335,7 @@ workflows:
       # p2 cross compilation tests
       - cross-llvm-701-release-arm:
           requires:
-            - alpine-llvm-5-release
+            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
@@ -439,7 +345,7 @@ workflows:
 
       - cross-llvm-701-debug-arm:
           requires:
-            - alpine-llvm-5-debug
+            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
@@ -449,7 +355,7 @@ workflows:
 
       - cross-llvm-701-release-armhf:
           requires:
-            - alpine-llvm-5-release
+            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
@@ -459,7 +365,7 @@ workflows:
 
       - cross-llvm-701-debug-armhf:
           requires:
-            - alpine-llvm-5-debug
+            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
