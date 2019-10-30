@@ -19,12 +19,7 @@ task:
 
   test_script:
     - cd ponyc
-    - echo -e "\e[44m***** Building debug ponyc - includes building LLVM"
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=debug -j8
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=debug test-ci
-    - echo -e "\e[44m***** Cleaning ponyc build in prep for release build tests"
-    - make config=debug clean
-    - echo -e "\e[44m***** Building release ponyc"
+    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
     - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
 
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
@@ -33,7 +28,8 @@ task:
   freebsd_instance:
     image: freebsd-12-0-release-amd64
 
-  name: "freebsd-12-release"
+  name: "FreeBSD 12"
+
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
@@ -46,29 +42,10 @@ task:
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
 task:
-  freebsd_instance:
-    image: freebsd-12-0-release-amd64
-
-  name: "freebsd-12-debug"
-  depends_on:
-    - freebsd-12-release
-
-  install_script:
-    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y gmake libunwind llvm70 git
-
-  test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=debug -j3
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=debug
-
-  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
-
-task:
   osx_instance:
     image: mojave-xcode-11.1
 
-  name: "macOS-release"
+  name: "macOS"
 
   install_script:
     - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.6.0-10.14-Mojave.pkg
@@ -84,30 +61,5 @@ task:
     - export LLVM_CONFIG=/opt/local/bin/llvm-config-mp-7.0
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=release all
     - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=release test-ci
-
-  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
-
-task:
-  osx_instance:
-    image: mojave-xcode-11.1
-
-  name: "macOS-debug"
-  depends_on:
-    - macOS-release
-
-  install_script:
-    - curl -o macports.pkg https://distfiles.macports.org/MacPorts/MacPorts-2.6.0-10.14-Mojave.pkg
-    - sudo installer -verbose -pkg macports.pkg -target /
-    - sudo /opt/local/bin/port selfupdate
-    - sudo /opt/local/bin/port install llvm-7.0
-
-  test_script:
-    - export LDFLAGS="-L/opt/local/lib"
-    - export PATH=/usr/local/opt/llvm/bin/:$PATH
-    - export CC1=clang
-    - export CXX1=clang++
-    - export LLVM_CONFIG=/opt/local/bin/llvm-config-mp-7.0
-    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" -j$(sysctl -n hw.ncpu) config=debug all
-    - make LLVM_CONFIG="$LLVM_CONFIG" CC="$CC1" CXX="$CXX1" config=debug test-ci
 
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
