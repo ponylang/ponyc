@@ -170,8 +170,12 @@ ifneq (,$(filter $(link),static llvm-static))
   endif
   $(info "linking llvm statically")
 else ifeq ($(link),llvm-dynamic)
-  LLVM_LINKING =--link-shared
-  $(info "linking llvm dynamically")
+  ifneq ($(LLVM_VENDOR),true)
+    LLVM_LINKING =--link-shared
+    $(info "linking llvm dynamically")
+  else
+    $(error "Can't use llvm-dynamic with vendored LLVM at this time")
+  endif
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)
@@ -345,16 +349,6 @@ ifneq ($(MAKECMDGOALS),clean)
   # (4) a list of the libraries to link against
   llvm.libdir := $(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINKING)))
   llvm.ldflags := -L$(llvm.libdir)
-
-  # Set rpath for ponyc if we're dynamically linking LLVM_VENDOR
-  # We don't currently support dynamic linking of vendored LLVM
-  ifneq (,$(filter $(link),static llvm-static))
-    # We're linking dynamically as "LLVM_LINK_STATIC" is empty.
-    ifeq ($(LLVM_VENDOR),true)
-      # LLVM_VENDOR is true, so have linker set rpath.
-      llvm.ldflags += -Wl,-rpath,$(llvm.libdir)
-    endif
-  endif
 
   #$(info llvm.libdir="$(llvm.libdir)")
   #$(info llvm.ldflags="$(llvm.ldflags)")
