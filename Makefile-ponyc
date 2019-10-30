@@ -168,10 +168,10 @@ ifneq (,$(filter $(link),static llvm-static))
   ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
     LINKER_FLAGS += -static-libgcc
   endif
-  $$(info "linking llvm statically")
+  $(info "linking llvm statically")
 else ifeq ($(link),llvm-dynamic)
   LLVM_LINKING =--link-shared
-  $$(info "linking llvm dynamically")
+  $(info "linking llvm dynamically")
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)
