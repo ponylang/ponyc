@@ -715,10 +715,6 @@ make
 ```
 
 ## Building on Windows
-[![Backers on Open Collective](https://opencollective.com/ponyc/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors) [![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
-
-_Note: it may also be possible (as tested on build 14372.0 of Windows 10) to build Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about)._
-
 Building on Windows requires the following:
 
 - Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and
