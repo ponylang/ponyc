@@ -51,18 +51,11 @@ tune ?= generic
 cpu ?= $(arch)
 fpu ?=
 bits ?= $(shell getconf LONG_BIT)
-static ?= false
-
-# Set static building if requested
-ifdef static
-  ifeq (,$(filter $(static), true false))
-    $(error static must be true or false)
-  endif
-endif
-
-ifeq ($(static),true)
-  use += llvm_link_static
-endif
+# linking strategy (static, llvm-static, llvm-dynamic)
+# static links everything statically (only works with musl libc)
+# llvm-static links llvm statically
+# llvm-dynamic links llvm dynamically
+link ?= llvm-static
 
 ifndef verbose
   SILENT = @
@@ -163,6 +156,28 @@ ifneq ($(fpu),)
   LINKER_FLAGS += -mfpu=$(fpu)
 endif
 
+ifdef link
+  ifeq (,$(filter $(link),static llvm-static llvm-dynamic))
+    $(error Unknown linking strategy "$(link)")
+  endif
+endif
+
+ifneq (,$(filter $(link),static llvm-static))
+  LLVM_LINKING =--link-static
+  LINKER_FLAGS += -static-libstdc++
+  ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
+    LINKER_FLAGS += -static-libgcc
+  endif
+  $(info "linking llvm statically")
+else ifeq ($(link),llvm-dynamic)
+  ifneq ($(LLVM_VENDOR),true)
+    LLVM_LINKING =--link-shared
+    $(info "linking llvm dynamically")
+  else
+    $(error "Can't use llvm-dynamic with vendored LLVM at this time")
+  endif
+endif
+
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
@@ -225,17 +240,6 @@ define USE_CHECK
   else ifeq ($1,scheduler_scaling_pthreads)
     ALL_CFLAGS += -DUSE_SCHEDULER_SCALING_PTHREADS
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-scheduler_scaling_pthreads
-  else ifeq ($1,llvm_link_static)
-    ifeq (,$(LLVM_LINK_STATIC))
-      LLVM_LINK_STATIC=--link-static
-      LINKER_FLAGS += -static-libstdc++
-      ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
-        LINKER_FLAGS += -static-libgcc
-      endif
-      $$(info "linking llvm statically")
-    else
-      $$(warning LLVM_LINK_STATIC already set to '$(LLVM_LINK_STATIC)'; using pre-existing value)
-    endif
   else ifeq ($1,memtrack)
     ALL_CFLAGS += -DUSE_MEMTRACK
     ALL_CXXFLAGS += -DUSE_MEMTRACK
@@ -343,23 +347,14 @@ ifneq ($(MAKECMDGOALS),clean)
   # (2) the linker flags necessary to link against the prebuilt libraries
   # (3) a list of include directories for a set of libraries
   # (4) a list of the libraries to link against
-  llvm.libdir := $(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINK_STATIC)))
+  llvm.libdir := $(CROSS_SYSROOT)$(subst -L,,$(shell $(LLVM_CONFIG) --ldflags $(LLVM_LINKING)))
   llvm.ldflags := -L$(llvm.libdir)
-
-  # Set rpath for ponyc if we're dynamically linking LLVM_VENDOR
-  ifeq (,$(LLVM_LINK_STATIC))
-    # We're linking dynamically as "LLVM_LINK_STATIC" is empty.
-    ifeq ($(LLVM_VENDOR),true)
-      # LLVM_VENDOR is true, so have linker set rpath.
-      llvm.ldflags += -Wl,-rpath,$(llvm.libdir)
-    endif
-  endif
 
   #$(info llvm.libdir="$(llvm.libdir)")
   #$(info llvm.ldflags="$(llvm.ldflags)")
 
   # Get cflags using llvm-config
-  llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINK_STATIC)
+  llvm.get_cflags := $(LLVM_CONFIG) --cflags $(LLVM_LINKING)
   #$(info llvm.get_cflags="$(llvm.get_cflags)")
   llvm.cflags := $(shell sh -c "$(llvm.get_cflags)")
   #$(info llvm.cflags="$(llvm.cflags)")
@@ -406,7 +401,7 @@ ifneq ($(MAKECMDGOALS),clean)
   llvm.include = $(shell $(loopit))
   #$(info llvm.include="$(llvm.include)")
 
-  llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINK_STATIC)) $(shell $(LLVM_CONFIG) --system-libs $(LLVM_LINK_STATIC))
+  llvm.libs    := $(shell $(LLVM_CONFIG) --libs $(LLVM_LINKING)) $(shell $(LLVM_CONFIG) --system-libs $(LLVM_LINKING))
 endif
 
 compiler_version := "$(shell $(CC) --version | sed -n 1p)"
@@ -563,7 +558,7 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(static))
+ifeq ($(link),static)
   libponyrt.tests.linkoptions += -static
 endif
 
@@ -588,7 +583,7 @@ endif
 
 # link statically
 # TODO: uncomment when this is fixed
-#ifeq (true,$(static))
+#ifeq ($(link),static)
 #  libponyc.tests.linkoptions += -static
 #endif
 
@@ -608,7 +603,7 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(static))
+ifeq ($(link),static)
   libponyc.benchmarks.linkoptions += -static
   libponyrt.benchmarks.linkoptions += -static
 endif
@@ -623,7 +618,7 @@ ifneq ($(ALPINE),)
 endif
 
 # link statically
-ifeq (true,$(static))
+ifeq ($(link),static)
   ponyc.linkoptions += -static
 endif
 
@@ -1150,7 +1145,10 @@ help:
 	@echo 'options:'
 	@echo '  arch=Name            Architecture if Name not specified then host name'
 	@echo '  default_pic=true     Make --pic the default'
-	@echo '  static=true          Link ponyc statically'
+	@echo '  link=XXX             ponyc linking strategy'
+	@echo '                         static (completely static only works with musl)'
+	@echo '                         llvm-static (statically link LLVM)'
+	@echo '                         llvm-dynamic (dynamically link LLVM)'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   valgrind'
@@ -1158,7 +1156,6 @@ help:
 	@echo '   dtrace'
 	@echo '   actor_continuations'
 	@echo '   coverage'
-	@echo '   llvm_link_static'
 	@echo '   scheduler_scaling_pthreads'
 	@echo '   thread_sanitizer'
 	@echo '   address_sanitizer'

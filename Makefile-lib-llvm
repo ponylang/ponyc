@@ -100,6 +100,10 @@ help:
 	@echo '  llvm_target=Target   Make llvm where Target is one of:'
 	@echo '                         all (default if not specified)'
 	@echo '                         rebuild'
+	@echo '  link=XXX             ponyc linking strategy'
+	@echo '                         static (completely static only works with musl)'
+	@echo '                         llvm-static (default - statically link LLVM)'
+	@echo '                         llvm-dynamic (dynamically link LLVM)'
 	@sh $(pony_lib_llvm_dir)/llvm-options.sh
 	@echo
 	@echo 'USE OPTIONS:'
@@ -109,7 +113,6 @@ help:
 	@echo '   actor_continuations'
 	@echo '   coverage'
 	@echo '   scheduler_scaling_pthreads'
-	@echo '   llvm_link_static'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc               Pony compiler library'

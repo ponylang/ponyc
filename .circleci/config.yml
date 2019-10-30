@@ -75,8 +75,8 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm all config=debug default_pic=true staticbuild=true -j3
-      - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true staticbuild=true
+      - run: make -f Makefile-lib-llvm all config=debug default_pic=true link=static -j3
+      - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true link=static
       - zulip/status:
           fail_only: true
 
@@ -86,8 +86,8 @@ jobs:
         user: pony
     steps:
       - checkout
-      - run: make -f Makefile-lib-llvm all config=release default_pic=true staticbuild=true -j3
-      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true staticbuild=true
+      - run: make -f Makefile-lib-llvm all config=release default_pic=true link=static -j3
+      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true link=static
       - zulip/status:
           fail_only: true
 

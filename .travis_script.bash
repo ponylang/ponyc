@@ -17,7 +17,7 @@ then
 
     "freebsd11-x86_64")
       date
-      docker run --rm -u pony:2000 -v $(pwd):/home/pony ponylang/ponyc-ci:cross-llvm-3.9.1-freebsd11-x86_64 make arch=x86-64 config=${config} verbose=1 CC=clang CXX=clang++ CFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" CXXFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" LDFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/ -L/opt/cross-freebsd-11/usr/local/llvm39/lib" OSTYPE=bsd use="llvm_link_static" CROSS_SYSROOT=/opt/cross-freebsd-11 -j$(nproc)
+      docker run --rm -u pony:2000 -v $(pwd):/home/pony ponylang/ponyc-ci:cross-llvm-3.9.1-freebsd11-x86_64 make arch=x86-64 config=${config} verbose=1 CC=clang CXX=clang++ CFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" CXXFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/" LDFLAGS="-target x86_64-unknown-freebsd11.1 --sysroot=/opt/cross-freebsd-11/ -isystem /opt/cross-freebsd-11/usr/local/llvm39/include/ -L/opt/cross-freebsd-11/usr/local/llvm39/lib" OSTYPE=bsd CROSS_SYSROOT=/opt/cross-freebsd-11 -j$(nproc)
       date
       download_vagrant
       qemu-system-x86_64 --version
