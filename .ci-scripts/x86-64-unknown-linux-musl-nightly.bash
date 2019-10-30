@@ -42,7 +42,7 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 # Build pony installation
 echo "Building ponyc installation..."
 make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
-  -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no use=llvm_link_static \
+  -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no \
   version="${PONY_VERSION}"
 
 # Package it all up

@@ -7,10 +7,10 @@
 
 %if 0%{?el7}
 %global arch_build_args arch=x86-64 tune=generic
-%global extra_build_args use="llvm_link_static" LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
+%global extra_build_args LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %else
 %if %{?_vendor} != suse
-%global extra_build_args LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
+%global extra_build_args link=llvm-dynamic LLVM_CONFIG=/usr/lib64/llvm3.9/bin/llvm-config
 %endif
 %endif
 
