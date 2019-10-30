@@ -228,6 +228,10 @@ define USE_CHECK
   else ifeq ($1,llvm_link_static)
     ifeq (,$(LLVM_LINK_STATIC))
       LLVM_LINK_STATIC=--link-static
+      LINKER_FLAGS += -static-libstdc++
+      ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
+        LINKER_FLAGS += -static-libgcc
+      endif
       $$(info "linking llvm statically")
     else
       $$(warning LLVM_LINK_STATIC already set to '$(LLVM_LINK_STATIC)'; using pre-existing value)
