@@ -1,4 +1,35 @@
 task:
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
+    cpu: 8
+    memory: 24
+
+  name: "lib/llvm: x86-64-unknown-linux-gnu"
+
+  clone_script: |
+    if [ -n "$CIRRUS_TAG" ]
+    then
+      echo "cloning for tag $CIRRUS_TAG"
+      git clone --depth 1 --branch "$CIRRUS_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
+    elif [ -n "$CIRRUS_BRANCH" ]
+    then
+      echo "cloning for branch $CIRRUS_BRANCH"
+      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
+    fi
+
+  test_script:
+    - cd ponyc
+    - echo "\e[44m***** Building debug ponyc - includes building LLVM"
+    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 use=llvm_link_static config=debug -j8
+    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 use=llvm_link_static config=debug test-ci
+    - echo "\e[44m***** Cleaning ponyc build in prep for release build tests"
+    - make config=debug clean
+    - echo "\e[44m***** Building release ponyc"
+    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 use=llvm_link_static config=release test-ci
+
+  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
+
+task:
   freebsd_instance:
     image: freebsd-12-0-release-amd64
 

@@ -1,14 +1,3 @@
-test-ci-lib-llvm: &test-ci-lib-llvm
-  name: Run make lib-llvm
-  command: |
-    # When testing override CPUs in command line, such as:
-    #   $ circleci build -e CPUs=11 --job ubuntu-debug
-    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
-    source $BASH_ENV
-    echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
-    make -f Makefile-lib-llvm -j$CPUs $test_ci_params
-    make -f Makefile-lib-llvm $test_ci_params test-ci
-
 version: 2.1
 
 orbs:
@@ -143,29 +132,6 @@ jobs:
       - checkout
       - run: make LLVM_CONFIG=llvm5-config all config=release default_pic=true -j3
       - run: make LLVM_CONFIG=llvm5-config test-ci config=release default_pic=true
-      - zulip/status:
-          fail_only: true
-
-  # Jobs for building and testing with ponyc vendor lib/llvm
-  lib-llvm-ubuntu-debug:
-    docker:
-      - image: ponylang/ponyc-ci:ubuntu
-        user: pony
-    steps:
-      - checkout
-      - run: echo 'export test_ci_params="config=debug default_pic=true arch=x86-64 use=llvm_link_static"' >> $BASH_ENV
-      - run: *test-ci-lib-llvm
-      - zulip/status:
-          fail_only: true
-
-  lib-llvm-ubuntu-release:
-    docker:
-      - image: ponylang/ponyc-ci:ubuntu
-        user: pony
-    steps:
-      - checkout
-      - run: echo 'export test_ci_params="config=release default_pic=true arch=x86-64 use=llvm_link_static"' >> $BASH_ENV
-      - run: *test-ci-lib-llvm
       - zulip/status:
           fail_only: true
 
@@ -378,28 +344,6 @@ workflows:
                 - master
                 - release
 
-      - lib-llvm-ubuntu-release:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - lib-llvm-ubuntu-debug:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
       - validate-docker-image-builds:
           requires:
             - verify-changelog
@@ -414,7 +358,7 @@ workflows:
       # alpine
       - alpine-llvm-5-release:
           requires:
-            - lib-llvm-ubuntu-release
+            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
@@ -424,7 +368,7 @@ workflows:
 
       - alpine-llvm-5-debug:
           requires:
-            - lib-llvm-ubuntu-debug
+            - alpine-llvm-5-release
           context: org-global
           filters:
             branches:
@@ -434,7 +378,7 @@ workflows:
 
       - alpine-llvm-7-debug-static:
           requires:
-            - lib-llvm-ubuntu-debug
+            - alpine-llvm-5-debug
           context: org-global
           filters:
             branches:
@@ -444,7 +388,7 @@ workflows:
 
       - alpine-llvm-7-release-static:
           requires:
-            - lib-llvm-ubuntu-release
+            - alpine-llvm-5-release
           context: org-global
           filters:
             branches:
@@ -454,7 +398,7 @@ workflows:
 
       - alpine-lib-llvm-debug-static:
           requires:
-            - lib-llvm-ubuntu-debug
+            - alpine-llvm-5-debug
           context: org-global
           filters:
             branches:
@@ -464,7 +408,7 @@ workflows:
 
       - alpine-lib-llvm-release-static:
           requires:
-            - lib-llvm-ubuntu-release
+            - alpine-llvm-5-release
           context: org-global
           filters:
             branches:
@@ -474,7 +418,7 @@ workflows:
 
       - alpine-lib-llvm-release-static:
           requires:
-            - lib-llvm-ubuntu-release
+            - alpine-llvm-5-release
           context: org-global
           filters:
             branches:
@@ -485,7 +429,7 @@ workflows:
       # p2 cross compilation tests
       - cross-llvm-701-release-arm:
           requires:
-            - lib-llvm-ubuntu-release
+            - alpine-llvm-5-release
           context: org-global
           filters:
             branches:
@@ -495,7 +439,7 @@ workflows:
 
       - cross-llvm-701-debug-arm:
           requires:
-            - lib-llvm-ubuntu-debug
+            - alpine-llvm-5-debug
           context: org-global
           filters:
             branches:
@@ -505,7 +449,7 @@ workflows:
 
       - cross-llvm-701-release-armhf:
           requires:
-            - lib-llvm-ubuntu-release
+            - alpine-llvm-5-release
           context: org-global
           filters:
             branches:
@@ -515,7 +459,7 @@ workflows:
 
       - cross-llvm-701-debug-armhf:
           requires:
-            - lib-llvm-ubuntu-debug
+            - alpine-llvm-5-debug
           context: org-global
           filters:
             branches:
