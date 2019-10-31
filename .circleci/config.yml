@@ -40,35 +40,6 @@ jobs:
       - zulip/status:
           fail_only: true
 
-  verify-changelog:
-    docker:
-      - image: ponylang/changelog-tool:release
-    steps:
-      - checkout
-      - run: changelog-tool verify
-      - zulip/status:
-          fail_only: true
-
-  validate-docker-image-builds:
-      docker:
-        - image: ponylang/shared-docker-ci-docker-builder:20190808
-      steps:
-        - checkout
-        - setup_remote_docker
-        - run: docker build --cache-from=app -t app .
-        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine .
-        - zulip/status:
-            fail_only: true
-
-  validate-shell-scripts:
-    docker:
-      - image: ponylang/shared-docker-ci-shellcheck:20191008
-    steps:
-      - checkout
-      - run: find . -name '*.bash' -exec shellcheck {} \;
-      - zulip/status:
-          fail_only: true
-
   # Docker image building
   build-release-alpine-docker-image:
       docker:
@@ -207,38 +178,8 @@ workflows:
   # PR acceptance tests, shouldn't run on `master` or `release` branches
   pr-acceptance-tests:
     jobs:
-      # sanity tests
-      - verify-changelog:
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - validate-shell-scripts:
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - validate-docker-image-builds:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
       # p2 cross compilation tests
       - cross-llvm-701-arm:
-          requires:
-            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
@@ -247,8 +188,6 @@ workflows:
                 - release
 
       - cross-llvm-701-armhf:
-          requires:
-            - validate-docker-image-builds
           context: org-global
           filters:
             branches:

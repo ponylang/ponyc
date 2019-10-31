@@ -1,0 +1,40 @@
+name: PR
+
+on: pull_request
+
+jobs:
+  shellcheck:
+    name: Shellcheck shell scripts
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/shared-docker-ci-shellcheck:20191008
+    steps:
+      - uses: actions/checkout@v1
+      - name: Shellcheck *.bash files
+        run: find . -name '*.bash' -exec shellcheck {} \;
+
+  validate-alpine-docker-image-builds:
+    name: Validate Alpine based Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker build
+        run: "docker build --file=.dockerhub/alpine/Dockerfile ."
+
+  validate-docker-image-builds:
+    name: Validate Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker build
+        run: "docker build --file=Dockerfile ."
+
+  verify-changelog:
+    name: Verify CHANGELOG is valid
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/changelog-tool:release
+    steps:
+      - uses: actions/checkout@v1
+      - name: Verify CHANGELOG
+        run: changelog-tool verify
