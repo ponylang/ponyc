@@ -10,7 +10,7 @@ jobs:
     name: Build latest Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v1
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -25,7 +25,7 @@ jobs:
     name: Build latest Alpine based Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v1
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
