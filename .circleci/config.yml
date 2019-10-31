@@ -69,17 +69,6 @@ jobs:
       - zulip/status:
           fail_only: true
 
-  alpine-lib-llvm:
-    docker:
-      - image: ponylang/ponyc-ci:alpine
-        user: pony
-    steps:
-      - checkout
-      - run: make -f Makefile-lib-llvm all config=release default_pic=true link=static -j3
-      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true link=static
-      - zulip/status:
-          fail_only: true
-
   # Docker image building
   build-release-alpine-docker-image:
       docker:
@@ -239,16 +228,6 @@ workflows:
           requires:
             - verify-changelog
             - validate-shell-scripts
-          context: org-global
-          filters:
-            branches:
-              ignore:
-                - master
-                - release
-
-      - alpine-lib-llvm:
-          requires:
-            - validate-docker-image-builds
           context: org-global
           filters:
             branches:
