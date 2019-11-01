@@ -49,17 +49,33 @@ task:
 task:
   freebsd_instance:
     image: freebsd-12-0-release-amd64
+    cpu: 8
+    memory: 24
 
-  name: "FreeBSD 12"
+  name: "lib/llvm: x86-64-unknown-freebsd12"
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y gmake libunwind llvm70 git
+    - pkg install -y cmake gmake libunwind git
+
+  clone_script: |
+    if [ -n "$CIRRUS_TAG" ]
+    then
+      echo "cloning for tag $CIRRUS_TAG"
+      git clone --depth 1 --branch "$CIRRUS_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
+    elif [ -n "$CIRRUS_BRANCH" ]
+    then
+      echo "cloning for branch $CIRRUS_BRANCH"
+      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
+    fi
 
   test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=release -j3
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=release
+    - cc --version
+    - c++ --version
+    - cd ponyc
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release link=static -j8
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
 
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
