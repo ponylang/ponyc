@@ -178,14 +178,12 @@ Note that its often quite quick to get everything through Homebrew's CI and merg
 
 ### Wait on Docker images to be built
 
-As part of every release, 6 Docker images are built:
+As part of every release, 4 Docker images are built:
 
 - Ubuntu images
-  - latest
   - release
   - 0.3.1
 - Alpine images
-  - alpine
   - release-alpine
   - 0.3.1-alpine
 
