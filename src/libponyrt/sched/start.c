@@ -31,7 +31,7 @@ typedef struct options_t
   double gc_factor;
   bool noyield;
   bool noblock;
-  bool nopin;
+  bool pin;
   bool pinasio;
   bool version;
   bool ponyhelp;
@@ -53,7 +53,7 @@ static pony_language_features_init_t language_init;
 
 enum
 {
-  OPT_THREADS,
+  OPT_MAXTHREADS,
   OPT_MINTHREADS,
   OPT_NOSCALE,
   OPT_SUSPENDTHRESHOLD,
@@ -70,7 +70,7 @@ enum
 
 static opt_arg_t args[] =
 {
-  {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
+  {"ponymaxthreads", 0, OPT_ARG_REQUIRED, OPT_MAXTHREADS},
   {"ponyminthreads", 0, OPT_ARG_REQUIRED, OPT_MINTHREADS},
   {"ponynoscale", 0, OPT_ARG_NONE, OPT_NOSCALE},
   {"ponysuspendthreshold", 0, OPT_ARG_REQUIRED, OPT_SUSPENDTHRESHOLD},
@@ -87,6 +87,50 @@ static opt_arg_t args[] =
   OPT_ARGS_FINISH
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+void Main_runtime_override_defaults_oo(options_t* opt);
+#ifdef __cplusplus
+}
+#endif
+
+static const char* arg_name(const int id) {
+  return args[id].long_opt;
+}
+
+static void err_out(int id, const char* msg) {
+  printf("--%s %s\n", arg_name(id), msg);
+  exit(255);
+}
+
+static int parse_uint(uint32_t* target, int min, const char *value) {
+  int v = atoi(value);
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+} 
+
+static int parse_size(size_t* target, int min, const char *value) {
+  int v = atoi(value);
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+} 
+
+static int parse_udouble(double* target, double min, const char *value) {
+  double v = atof(value);
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+} 
+
 static int parse_opts(int argc, char** argv, options_t* opt)
 {
   opt_state_t s;
@@ -98,16 +142,16 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   {
     switch(id)
     {
-      case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
-      case OPT_MINTHREADS: opt->min_threads = atoi(s.arg_val); minthreads_set = true; break;
+      case OPT_MAXTHREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
+      case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
       case OPT_NOSCALE: opt->noscale= true; break;
-      case OPT_SUSPENDTHRESHOLD: opt->thread_suspend_threshold = atoi(s.arg_val); break;
-      case OPT_CDINTERVAL: opt->cd_detect_interval = atoi(s.arg_val); break;
-      case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
-      case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
+      case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
-      case OPT_PIN: opt->nopin = false; break;
+      case OPT_PIN: opt->pin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_VERSION: opt->version = true; break;
       case OPT_PONYHELP: opt->ponyhelp = true; break;
@@ -120,7 +164,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
   {
     if (minthreads_set)
     {
-      printf("--ponyminthreads & --ponynoscale are mutually exclusive\n");
+      printf("--%s & --%s are mutually exclusive\n", arg_name(OPT_MINTHREADS), arg_name(OPT_NOSCALE));
       exit(-1);
     }
     opt->min_threads = opt->threads;
@@ -154,7 +198,12 @@ PONY_API int pony_init(int argc, char** argv)
   opt.cd_detect_interval = 100;
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
-  opt.nopin = true;
+  opt.pin = false;
+
+  pony_register_thread();
+
+  // Allow override via bare function on Main actor
+  Main_runtime_override_defaults_oo(&opt);
 
   argc = parse_opts(argc, argv, &opt);
 
@@ -179,13 +228,13 @@ PONY_API int pony_init(int argc, char** argv)
   }
   else if (opt.threads > ponyint_cpu_count())
   {
-    printf("Can't have --ponythreads > physical cores, the number of threads you'd be running with (%u > %u)\n", opt.threads, ponyint_cpu_count());
+    printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_MAXTHREADS), opt.threads, ponyint_cpu_count());
     exit(-1);
   }
 
   if (opt.min_threads > opt.threads)
   {
-    printf("Can't have --ponyminthreads > --ponythreads (%u > %u)\n", opt.min_threads, opt.threads);
+    printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_MAXTHREADS), opt.min_threads, opt.threads);
     exit(-1);
   }
 
@@ -195,7 +244,7 @@ PONY_API int pony_init(int argc, char** argv)
 
   pony_exitcode(0);
 
-  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.nopin,
+  pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
     opt.pinasio, opt.min_threads, opt.thread_suspend_threshold);
 
   ponyint_cycle_create(ctx, opt.cd_detect_interval);

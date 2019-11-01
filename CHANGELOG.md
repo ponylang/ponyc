@@ -2,6 +2,22 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [0.33.0] - 2019-11-01
+
+### Fixed
+
+- Building ponyc with GCC 8+ ([PR #3345](https://github.com/ponylang/ponyc/pull/3345))
+
+### Added
+
+- Allow programmatic override of the default runtime options ([PR #3342](https://github.com/ponylang/ponyc/pull/3342))
+
+### Changed
+
+- `--ponythreads` has been renamed to `--ponymaxthreads` ([PR #3334](https://github.com/ponylang/ponyc/pull/3334))
+- All `--pony*` options that accept a value, will be checked for minimal values ([PR #3303](https://github.com/ponylang/ponyc/pull/3317))
+- Default to statically linking LLVM into ponyc ([PR #3355](https://github.com/ponylang/ponyc/pull/3355))
+
 ## [0.32.0] - 2019-09-29
 
 ### Added

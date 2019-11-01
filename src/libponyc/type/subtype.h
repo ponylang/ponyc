@@ -37,6 +37,8 @@ bool is_none(ast_t* type);
 
 bool is_env(ast_t* type);
 
+bool is_runtime_options(ast_t* type);
+
 bool is_bool(ast_t* type);
 
 bool is_float(ast_t* type);

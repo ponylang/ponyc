@@ -153,7 +153,7 @@ By default, the Pony Docker image is compiled without support for [AVX CPU instr
 
 ## Linux using an RPM package (via COPR)
 
-For Red Hat, CentOS, Oracle Linux, Fedora Linux, or OpenSuSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
+For Red Hat, CentOS, Oracle Linux, Fedora Linux, or openSUSE, the `release` builds are packaged and available on COPR ([ponylang/ponylang](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/)).
 
 ### Using `yum` for Red Hat, CentOS, Oracle Linux and other RHEL compatible systems:
 
@@ -171,7 +171,7 @@ dnf copr enable ponylang/ponylang
 dnf install ponyc
 ```
 
-### Using Zypper for OpenSuSE Leap 15:
+### Using Zypper for openSUSE Leap 15:
 
 ```bash
 zypper addrepo --refresh --repo https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/repo/opensuse-leap-15.0/ponylang-ponylang-opensuse-leap-15.0.repo
@@ -558,12 +558,12 @@ scl enable llvm-toolset-7 bash
 
 ```bash
 cd ~/ponyc/
-make use="llvm_link_static"
+make
 ./build/release/ponyc examples/helloworld
 ./helloworld
 ```
 
-### OpenSUSE (Leap 42.3)
+### openSUSE (Leap 42.3)
 
 ```bash
 sudo zypper addrepo http://download.opensuse.org/repositories/devel:tools:compiler/openSUSE_Leap_42.3/devel:tools:compiler.repo
@@ -582,7 +582,7 @@ make
 ./helloworld
 ```
 
-### OpenSuSE (Leap 15, Tumbleweed)
+### openSUSE (Leap 15, Tumbleweed)
 
 NOTE: LLVM 3.9 doesn't seem to be available so these instructions install the default LLVM version available.
 
@@ -605,7 +605,7 @@ make
 Install build tools/dependencies:
 
 ```bash
-apk add --update alpine-sdk binutils-gold llvm3.9 llvm3.9-dev \
+apk add --update alpine-sdk binutils-gold llvm3.9-static llvm3.9-dev \
   libexecinfo-dev coreutils linux-headers zlib-dev ncurses-dev
 ```
 
@@ -715,10 +715,6 @@ make
 ```
 
 ## Building on Windows
-[![Backers on Open Collective](https://opencollective.com/ponyc/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors) [![Windows](https://ci.appveyor.com/api/projects/status/kckam0f1a1o0ly2j?svg=true)](https://ci.appveyor.com/project/sylvanc/ponyc)
-
-_Note: it may also be possible (as tested on build 14372.0 of Windows 10) to build Pony using the [Ubuntu 14.04](#ubuntu-1404-1510-1604) instructions inside [Bash on Ubuntu on Windows](https://msdn.microsoft.com/en-us/commandline/wsl/about)._
-
 Building on Windows requires the following:
 
 - Visual Studio 2019, 2017 or 2015 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019, 2017 or 2015 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)), and

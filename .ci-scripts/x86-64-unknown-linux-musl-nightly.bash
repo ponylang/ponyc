@@ -17,7 +17,7 @@ PIC=true
 
 # Triple construction
 VENDOR=unknown
-OS=linux-gnu
+OS=linux-musl
 TRIPLE=${ARCH}-${VENDOR}-${OS}
 
 # Build parameters
@@ -41,8 +41,8 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
-make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
-  -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no \
+make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH}\
+  link=static -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no \
   version="${PONY_VERSION}"
 
 # Package it all up

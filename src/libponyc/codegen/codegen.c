@@ -745,6 +745,44 @@ PONY_EXTERN_C_END
 #define LLVMInitializeInstCombine LLVMInitializeInstCombine_Pony
 #endif
 
+#ifndef NDEBUG
+// Process the llvm-args option and pass to LLVMParseCommandLineOptions
+static void process_llvm_args(pass_opt_t* opt) {
+  if(!opt->llvm_args) return;
+  // Copy to a mutable buffer
+  size_t raw_opt_str_size = strlen(opt->llvm_args) + 1;
+  char* buffer = (char*)malloc(sizeof(char) * raw_opt_str_size);
+  strncpy(buffer, opt->llvm_args, raw_opt_str_size);
+  // Create a two-dimension array as argv
+  size_t argv_buf_size = 4;
+  const char** argv_buffer
+    = (const char**)malloc(sizeof(const char*) * argv_buf_size);
+
+  size_t token_counter = 0;
+  // Put argv[0] first
+  argv_buffer[token_counter++] = opt->argv0;
+  // Tokenize the string
+  char* token = strtok(buffer, ",");
+  while(token) {
+    if(++token_counter > argv_buf_size) {
+      // Double the size
+      argv_buf_size <<= 1;
+      argv_buffer = (const char**)realloc(argv_buffer,
+                                          sizeof(const char*) * argv_buf_size);
+    }
+    argv_buffer[token_counter - 1] = (const char*)token;
+    token = strtok(NULL, ",");
+  }
+
+  LLVMParseCommandLineOptions((int)token_counter,
+                              (const char* const*)argv_buffer,
+                              NULL);
+
+  free(argv_buffer);
+  free(buffer);
+}
+#endif
+
 bool codegen_llvm_init()
 {
   LLVMLoadLibraryPermanently(NULL);
@@ -782,6 +820,10 @@ void codegen_llvm_shutdown()
 
 bool codegen_pass_init(pass_opt_t* opt)
 {
+#ifndef NDEBUG
+  process_llvm_args(opt);
+#endif
+
   char *triple;
 
   // Default triple, cpu and features.

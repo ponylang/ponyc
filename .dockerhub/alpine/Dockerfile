@@ -7,7 +7,7 @@ RUN apk update \
   && apk add --update \
   alpine-sdk \
   binutils-gold \
-  llvm${LLVM_VERSION} \
+  llvm${LLVM_VERSION}-static \
   llvm${LLVM_VERSION}-dev \
   libexecinfo-dev \
   coreutils \

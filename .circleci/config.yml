@@ -1,13 +1,3 @@
-test-ci-lib-llvm: &test-ci-lib-llvm
-  name: Run make lib-llvm
-  command: |
-    # When testing override CPUs in command line, such as:
-    #   $ circleci build -e CPUs=11 --job ubuntu-debug
-    echo 'if [ "$CPUs" == "" ]; then cnt=$(nproc); if (( $cnt >= 4 )); then (( cnt=$cnt / 4 )); else cnt=1; fi; if (( $cnt > 4 )); then cnt=4; fi; export CPUs=$cnt; fi;' >> $BASH_ENV
-    source $BASH_ENV
-    echo "make-llvm: CPUs=$CPUs test_ci_params='$test_ci_params'"
-    make -f Makefile-lib-llvm test-ci -j$CPUs $test_ci_params
-
 version: 2.1
 
 orbs:
@@ -16,151 +6,65 @@ orbs:
 jobs:
   x86-64-unknown-linux-gnu-nightly:
     docker:
-      - image: ponylang/ponyc-ci:x86-64-unknown-linux-gnu-nightly
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
       - zulip/status:
           fail_only: true
 
-  verify-changelog:
+  x86-64-unknown-linux-musl-nightly:
     docker:
-      - image: ponylang/changelog-tool:release
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
     steps:
       - checkout
-      - run: changelog-tool verify
+      - run: bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
       - zulip/status:
           fail_only: true
 
-  validate-docker-image-builds:
+  x86-64-unknown-linux-gnu-release:
+    docker:
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
+    steps:
+      - checkout
+      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
+      - zulip/status:
+          fail_only: true
+
+  x86-64-unknown-linux-musl-release:
+    docker:
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
+    steps:
+      - checkout
+      - run: bash .ci-scripts/x86-64-unknown-linux-musl-release.bash ${CLOUDSMITH_API_KEY}
+      - zulip/status:
+          fail_only: true
+
+  # Docker image building
+  build-release-alpine-docker-image:
       docker:
-        - image: ponylang/ponyc-ci:docker-builder
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
       steps:
         - checkout
         - setup_remote_docker
-        - run: docker build --cache-from=app -t app .
-        - run: docker build --cache-from=app-alpine --file=.dockerhub/alpine/Dockerfile -t app-alpine .
+        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+        - run: bash build-alpine-docker-images-on-release.bash "$CIRCLE_TAG"
         - zulip/status:
             fail_only: true
 
-  validate-shell-scripts:
-    docker:
-      - image: ponylang/ponyc-ci:shellcheck
-    steps:
-      - checkout
-      - run: find . -name '*.bash' -exec shellcheck {} \;
-      - zulip/status:
-          fail_only: true
-
-  alpine-lib-llvm-debug-static:
-    docker:
-      - image: ponylang/ponyc-ci:alpine
-        user: pony
-    steps:
-      - checkout
-      - run: make -f Makefile-lib-llvm all config=debug default_pic=true staticbuild=true -j3
-      - run: make -f Makefile-lib-llvm test-ci config=debug default_pic=true staticbuild=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-lib-llvm-release-static:
-    docker:
-      - image: ponylang/ponyc-ci:alpine
-        user: pony
-    steps:
-      - checkout
-      - run: make -f Makefile-lib-llvm all config=release default_pic=true staticbuild=true -j3
-      - run: make -f Makefile-lib-llvm test-ci config=release default_pic=true staticbuild=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-7-debug-static:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-7
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm7-config all config=debug default_pic=true staticbuild=true -j3
-      - run: make LLVM_CONFIG=llvm7-config test-ci config=debug default_pic=true staticbuild=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-7-release-static:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-7
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm7-config all config=release default_pic=true staticbuild=true -j3
-      - run: make LLVM_CONFIG=llvm7-config test-ci config=release default_pic=true staticbuild=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-5-debug:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-5
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm5-config all config=debug default_pic=true -j3
-      - run: make LLVM_CONFIG=llvm5-config test-ci config=debug default_pic=true
-      - zulip/status:
-          fail_only: true
-
-  alpine-llvm-5-release:
-    docker:
-      - image: ponylang/ponyc-ci:alpine-llvm-5
-        user: pony
-    steps:
-      - checkout
-      - run: make LLVM_CONFIG=llvm5-config all config=release default_pic=true -j3
-      - run: make LLVM_CONFIG=llvm5-config test-ci config=release default_pic=true
-      - zulip/status:
-          fail_only: true
-
-  # Jobs for building and testing with ponyc vendor lib/llvm
-  lib-llvm-ubuntu-debug:
-    docker:
-      - image: ponylang/ponyc-ci:ubuntu
-        user: pony
-    steps:
-      - checkout
-      - run: echo 'export test_ci_params="config=debug default_pic=true"' >> $BASH_ENV
-      - run: *test-ci-lib-llvm
-      - zulip/status:
-          fail_only: true
-
-  lib-llvm-ubuntu-release:
-    docker:
-      - image: ponylang/ponyc-ci:ubuntu
-        user: pony
-    steps:
-      - checkout
-      - run: echo 'export test_ci_params="config=release default_pic=true"' >> $BASH_ENV
-      - run: *test-ci-lib-llvm
-      - zulip/status:
-          fail_only: true
+  build-release-docker-image:
+      docker:
+        - image: ponylang/shared-docker-ci-docker-builder:20190808
+      steps:
+        - checkout
+        - setup_remote_docker
+        - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+        - run: bash build-docker-images-on-release.bash "$CIRCLE_TAG"
+        - zulip/status:
+            fail_only: true
 
   # Jobs for building and testing with ponyc system installed cross-llvm
-  cross-llvm-701-debug-arm:
-    docker:
-      - image: ponylang/ponyc-ci:cross-llvm-7.0.1-arm
-        user: pony
-    steps:
-      - checkout
-      # build and test for x86_64 first
-      - run: make config=debug verbose=1 -j3 all
-      - run: make config=debug verbose=1 test-ci
-      # build libponyrt for target arch
-      - run: make config=debug verbose=1 CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a tune=cortex-a9 bits=32 CFLAGS="-idirafter /usr/cross/include/" CXXFLAGS="-idirafter /usr/cross/include/" LDFLAGS="-idirafter /usr/cross/include/" PONYPATH=/usr/cross/lib -j3 libponyrt
-      # build ponyc for target cross compilation
-      - run: make config=debug verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" -j3 all
-      # run tests for cross built stdlib using ponyc cross building support
-      - run: make config=debug verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" test-cross-ci
-      - zulip/status:
-          fail_only: true
-
-  cross-llvm-701-release-arm:
+  cross-llvm-701-arm:
     docker:
       - image: ponylang/ponyc-ci:cross-llvm-7.0.1-arm
         user: pony
@@ -178,25 +82,7 @@ jobs:
       - zulip/status:
           fail_only: true
 
-  cross-llvm-701-debug-armhf:
-    docker:
-      - image: ponylang/ponyc-ci:cross-llvm-7.0.1-armhf
-        user: pony
-    steps:
-      - checkout
-      # build and test for x86_64 first
-      - run: make config=debug verbose=1 -j3 all
-      - run: make config=debug verbose=1 test-ci
-      # build libponyrt for target arch
-      - run: make config=debug verbose=1 CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a tune=cortex-a9 bits=32 CFLAGS="-idirafter /usr/cross/include/" CXXFLAGS="-idirafter /usr/cross/include/" LDFLAGS="-idirafter /usr/cross/include/" PONYPATH=/usr/cross/lib -j3 libponyrt
-      # build ponyc for target cross compilation
-      - run: make config=debug verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" -j3 all
-      # run tests for cross built stdlib using ponyc cross building support
-      - run: make config=debug verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" test-cross-ci
-      - zulip/status:
-          fail_only: true
-
-  cross-llvm-701-release-armhf:
+  cross-llvm-701-armhf:
     docker:
       - image: ponylang/ponyc-ci:cross-llvm-7.0.1-armhf
         user: pony
@@ -214,25 +100,7 @@ jobs:
       - zulip/status:
           fail_only: true
 
-  cross-llvm-701-debug-aarch64:
-    docker:
-      - image: ponylang/ponyc-ci:cross-llvm-7.0.1-aarch64
-        user: pony
-    steps:
-      - checkout
-      # build and test for x86_64 first
-      - run: make config=debug verbose=1 -j3 all
-      - run: make config=debug verbose=1 test-ci
-      # build libponyrt for target arch
-      - run: make config=debug verbose=1 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a tune=cortex-a53 bits=64 CFLAGS="-idirafter /usr/cross/include/" CXXFLAGS="-idirafter /usr/cross/include/" LDFLAGS="-idirafter /usr/cross/include/" PONYPATH=/usr/cross/lib -j3 libponyrt
-      # build ponyc for target cross compilation
-      - run: make config=debug verbose=1 PONYPATH=/usr/cross/lib cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc QEMU_RUNNER="qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc" -j3 all
-      # run tests for cross built stdlib using ponyc cross building support
-      - run: make config=debug verbose=1 PONYPATH=/usr/cross/lib cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc QEMU_RUNNER="qemu-aarch64-static --cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc" test-cross-ci
-      - zulip/status:
-          fail_only: true
-
-  cross-llvm-701-release-aarch64:
+  cross-llvm-701-aarch64:
     docker:
       - image: ponylang/ponyc-ci:cross-llvm-7.0.1-aarch64
         user: pony
@@ -252,7 +120,8 @@ jobs:
 
 workflows:
   version: 2.1
-  nightly:
+
+  build-nightlies:
     triggers:
       - schedule:
           cron: "0 0 * * *"
@@ -262,93 +131,87 @@ workflows:
     jobs:
       - x86-64-unknown-linux-gnu-nightly:
           context: org-global
+      - x86-64-unknown-linux-musl-nightly:
+          context: org-global
 
-  tests:
+  # Build docker images on release
+  # We don't need to build `latest` here as there's another commit
+  # to master immediately after release gets kicked off that will pick
+  # up all the meaningful changes. Only the TAG will be missing.
+  build-release-docker-images:
     jobs:
-      # sanity tests
-      - verify-changelog:
+      - build-release-alpine-docker-image:
           context: org-global
-      - validate-shell-scripts:
-          context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
 
-      - lib-llvm-ubuntu-release:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
+      - build-release-docker-image:
           context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
 
-      - lib-llvm-ubuntu-debug:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
+  # Build release packages to upload to Cloudsmith
+  build-cloudsmith-release-packages:
+    jobs:
+      - x86-64-unknown-linux-gnu-release:
           context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
 
-      - validate-docker-image-builds:
-          requires:
-            - verify-changelog
-            - validate-shell-scripts
+      - x86-64-unknown-linux-musl-release:
           context: org-global
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+            branches:
+              ignore: /.*/
 
-      # alpine
-      - alpine-llvm-5-release:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-
-      - alpine-llvm-5-debug:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-
-      - alpine-llvm-7-debug-static:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-
-      - alpine-llvm-7-release-static:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-
-      - alpine-lib-llvm-debug-static:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
-
-      - alpine-lib-llvm-release-static:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-
+  # PR acceptance tests, shouldn't run on `master` or `release` branches
+  pr-acceptance-tests:
+    jobs:
       # p2 cross compilation tests
-      - cross-llvm-701-release-arm:
-          requires:
-            - lib-llvm-ubuntu-release
+      - cross-llvm-701-arm:
           context: org-global
+          filters:
+            branches:
+              ignore:
+                - master
+                - release
 
-      - cross-llvm-701-debug-arm:
-          requires:
-            - lib-llvm-ubuntu-debug
+      - cross-llvm-701-armhf:
           context: org-global
-
-      - cross-llvm-701-release-armhf:
-          requires:
-            - lib-llvm-ubuntu-release
-          context: org-global
-
-      - cross-llvm-701-debug-armhf:
-          requires:
-            - lib-llvm-ubuntu-debug
-          context: org-global
+          filters:
+            branches:
+              ignore:
+                - master
+                - release
 
 #     Currently don't pass
 #      - cross-llvm-701-release-aarch64:
 #           requires:
 #             - lib-llvm-ubuntu-release
 #           context: org-global
+#          filters:
+#            branches:
+#              ignore:
+#                - master
+#                - release
 #
 #      - cross-llvm-701-debug-aarch64:
 #           requires:
 #             - lib-llvm-ubuntu-debugS
 #           context: org-global
-
+#          filters:
+#            branches:
+#              ignore:
+#                - master
+#                - release

@@ -9,29 +9,26 @@ then
   exit 1
 fi
 
-TODAY=$(date +%Y%m%d)
-
 # Compiler target parameters
 ARCH=x86-64
 PIC=true
 
 # Triple construction
 VENDOR=unknown
-OS=linux-gnu
+OS=linux-musl
 TRIPLE=${ARCH}-${VENDOR}-${OS}
 
 # Build parameters
 MAKE_PARALLELISM=4
 BUILD_PREFIX=$(mktemp -d)
 DESTINATION=${BUILD_PREFIX}/lib/pony
-PONY_VERSION="nightly-${TODAY}"
 
 # Asset information
 PACKAGE_DIR=$(mktemp -d)
 PACKAGE=ponyc-${TRIPLE}
 
 # Cloudsmith configuration
-CLOUDSMITH_VERSION=${TODAY}
+CLOUDSMITH_VERSION=$(cat VERSION)
 ASSET_OWNER=ponylang
 ASSET_REPO=nightlies
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
@@ -42,8 +39,7 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 # Build pony installation
 echo "Building ponyc installation..."
 make install prefix=${BUILD_PREFIX} default_pic=${PIC} arch=${ARCH} \
-  -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no \
-  version="${PONY_VERSION}"
+  link=static -j${MAKE_PARALLELISM} -f Makefile-lib-llvm symlink=no
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
