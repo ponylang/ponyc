@@ -30,7 +30,7 @@ PACKAGE=ponyc-${TRIPLE}
 # Cloudsmith configuration
 CLOUDSMITH_VERSION=$(cat VERSION)
 ASSET_OWNER=ponylang
-ASSET_REPO=nightlies
+ASSET_REPO=releases
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
 ASSET_FILE=${PACKAGE_DIR}/${PACKAGE}.tar.gz
 ASSET_SUMMARY="Pony compiler"
