@@ -48,7 +48,7 @@ jobs:
         - checkout
         - setup_remote_docker
         - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
-        - run: bash build-alpine-docker-images-on-release.bash "$CIRCLE_TAG"
+        - run: bash .ci-scripts/build-alpine-docker-images-on-release.bash "$CIRCLE_TAG"
         - zulip/status:
             fail_only: true
 
@@ -59,7 +59,7 @@ jobs:
         - checkout
         - setup_remote_docker
         - run: docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
-        - run: bash build-docker-images-on-release.bash "$CIRCLE_TAG"
+        - run: bash .ci-scripts/build-docker-images-on-release.bash "$CIRCLE_TAG"
         - zulip/status:
             fail_only: true
 
