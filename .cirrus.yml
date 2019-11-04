@@ -9,11 +9,11 @@ task:
   clone_script: |
     if [ -n "$CIRRUS_TAG" ]
     then
-      echo "cloning for tag $CIRRUS_TAG"
+      echo "cloning for tag $CIRRUS_TAG from $CIRRUS_REPO_CLONE_URL"
       git clone --depth 1 --branch "$CIRRUS_TAG" --recurse-submodules "$CIRRUS_REPO_CLONE_URL"
     elif [ -n "$CIRRUS_BRANCH" ]
     then
-      echo "cloning for branch $CIRRUS_BRANCH"
+      echo "cloning for branch $CIRRUS_BRANCH from $CIRRUS_REPO_CLONE_URL"
       git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules "$CIRRUS_REPO_CLONE_URL"
     fi
 
