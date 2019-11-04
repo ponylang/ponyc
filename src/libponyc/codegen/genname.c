@@ -118,7 +118,7 @@ const char* genname_alloc(const char* type)
   return stringtab_two(type, "Alloc");
 }
 
-const char* genname_traitlist(const char* type)
+const char* genname_traitmap(const char* type)
 {
   return stringtab_two(type, "Traits");
 }
@@ -188,6 +188,11 @@ const char* genname_box(const char* name)
 const char* genname_unbox(const char* name)
 {
   return stringtab_two(name, "Unbox");
+}
+
+const char* genname_unsafe(const char* name)
+{
+  return stringtab_two(name, "unsafe");
 }
 
 const char* genname_program_fn(const char* program, const char* name)

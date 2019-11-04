@@ -23,8 +23,14 @@ actor _TestRunner
   var _tearing_down: Bool = false
   var _test_timers: Array[Timer tag] = Array[Timer tag]
 
-  new create(ponytest: PonyTest, id: USize, test: UnitTest iso, group: _Group,
-    verbose: Bool, env: Env, timers: Timers)
+  new create(
+    ponytest: PonyTest,
+    id: USize,
+    test: UnitTest iso,
+    group: _Group,
+    verbose: Bool,
+    env: Env,
+    timers: Timers)
   =>
     """
     Create a new TestHelper.
@@ -52,9 +58,15 @@ actor _TestRunner
     _ponytest._test_started(_id)
 
     try
-      _test(_helper)
+      _test.set_up(_helper)?
+      try
+        _test(_helper)?
+      else
+        log("Test threw an error", false)
+        _pass = false
+      end
     else
-      log("Test threw an error", false)
+      log("Test threw an error during set_up", false)
       _pass = false
     end
 
@@ -145,7 +157,7 @@ actor _TestRunner
 
     for (i, action) in _expect_actions.pairs() do
       if action == name then
-        try _expect_actions.delete(i) end
+        try _expect_actions.delete(i)? end
         break
       end
     end
@@ -184,21 +196,32 @@ actor _TestRunner
     """
     The test has been flagged as a long test.
     """
-    _is_long_test = true
-    _log("Long test, timeout " + timeout.string(), true)
+    if not _is_long_test then
+      _is_long_test = true
+      _log("Long test, timeout " + timeout.string(), true)
 
-    if _completed then
-      // We've already completed, don't start the timer
-      return
+      if _completed then
+        // We've already completed, don't start the timer
+        return
+      end
+
+      let timer =
+        Timer(
+          object iso
+            let _runner: _TestRunner = this
+
+            fun apply(timer: Timer, count: U64): Bool =>
+              _runner._timeout()
+              false
+
+            fun cancel(timer: Timer) => None
+          end,
+          timeout)
+      _test_timers.push(timer)
+      _timers(consume timer)
+    else
+      _log("Attempt to register duplicate long test for " + _test.name(), true)
     end
-
-    let timer = Timer(object iso
-      let _runner: _TestRunner = this
-      fun apply(timer: Timer, count: U64): Bool => _runner._timeout(); false
-      fun cancel(timer: Timer) => None
-      end, timeout)
-    _test_timers.push(timer)
-    _timers(consume timer)
 
   be _timeout() =>
     """

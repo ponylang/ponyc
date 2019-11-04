@@ -31,3 +31,9 @@ actor FileStream is OutStream
     Write an iterable collection of ByteSeqs.
     """
     _file.writev(data)
+
+  be flush() =>
+    """
+    Flush pending data to write.
+    """
+    _file.flush()

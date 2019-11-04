@@ -1,10 +1,17 @@
 #include "alias.h"
 #include "assemble.h"
-#include "viewpoint.h"
 #include "cap.h"
+#include "viewpoint.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
+
+typedef enum recovery_t
+{
+  RECOVERY_NONE,
+  RECOVERY_IMMUTABLE,
+  RECOVERY_MUTABLE
+} recovery_t;
 
 static ast_t* alias_single(ast_t* type)
 {
@@ -49,7 +56,8 @@ static ast_t* alias_single(ast_t* type)
   return NULL;
 }
 
-static ast_t* recover_single(ast_t* type, token_id rcap)
+static ast_t* recover_single(ast_t* type, token_id rcap,
+  recovery_t* tuple_elem_recover)
 {
   ast_t* cap = cap_fetch(type);
   token_id tcap = ast_id(cap);
@@ -78,6 +86,30 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
       // as ephemeral to allow direct recovery to iso or trn.
       if(rcap == TK_NONE)
         rcap = TK_ISO;
+
+      if((tuple_elem_recover != NULL) && !cap_safetowrite(rcap, tcap))
+      {
+        switch(rcap)
+        {
+          case TK_ISO:
+          case TK_TRN:
+            if(*tuple_elem_recover != RECOVERY_NONE)
+              return NULL;
+
+            *tuple_elem_recover = RECOVERY_MUTABLE;
+            break;
+
+          case TK_VAL:
+            if(*tuple_elem_recover == RECOVERY_MUTABLE)
+              return NULL;
+
+            *tuple_elem_recover = RECOVERY_IMMUTABLE;
+            break;
+
+          default: {}
+        }
+      }
+
       rec_eph = true;
       break;
 
@@ -100,6 +132,15 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
           return NULL;
 
         case TK_VAL:
+          if((tuple_elem_recover != NULL) && (tcap != TK_VAL))
+          {
+            if(*tuple_elem_recover == RECOVERY_MUTABLE)
+              return NULL;
+
+            *tuple_elem_recover = RECOVERY_IMMUTABLE;
+          }
+          break;
+
         case TK_BOX:
         case TK_TAG:
         case TK_CAP_SHARE:
@@ -132,8 +173,10 @@ static ast_t* recover_single(ast_t* type, token_id rcap)
   type = ast_dup(type);
   cap = cap_fetch(type);
   ast_setid(cap, rcap);
+
   if(rec_eph)
     ast_setid(ast_sibling(cap), TK_EPHEMERAL);
+
   return type;
 }
 
@@ -168,7 +211,8 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
     default: {}
   }
 
-  if(!is_cap_sub_cap(tcap, TK_NONE, ccap, TK_NONE))
+  // We're only modifying the cap, not the type, so the bounds are the same.
+  if(!is_cap_sub_cap_bound(tcap, TK_NONE, ccap, TK_NONE))
   {
     ast_free_unattached(type);
     return NULL;
@@ -294,7 +338,11 @@ ast_t* consume_type(ast_t* type, token_id cap)
   return NULL;
 }
 
-static ast_t* recover_complex(ast_t* type, token_id cap)
+static ast_t* recover_type_inner(ast_t* type, token_id cap,
+  recovery_t* tuple_elem_recover);
+
+static ast_t* recover_complex(ast_t* type, token_id cap,
+  recovery_t* tuple_elem_recover)
 {
   switch(ast_id(type))
   {
@@ -314,7 +362,7 @@ static ast_t* recover_complex(ast_t* type, token_id cap)
 
   while(child != NULL)
   {
-    ast_t* r_right = recover_type(child, cap);
+    ast_t* r_right = recover_type_inner(child, cap, tuple_elem_recover);
 
     if(r_right == NULL)
     {
@@ -329,37 +377,34 @@ static ast_t* recover_complex(ast_t* type, token_id cap)
   return r_type;
 }
 
-ast_t* recover_type(ast_t* type, token_id cap)
+static ast_t* recover_type_inner(ast_t* type, token_id cap,
+  recovery_t* tuple_elem_recover)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-      return recover_complex(type, cap);
+      return recover_complex(type, cap, tuple_elem_recover);
 
     case TK_TUPLETYPE:
     {
-      if((cap == TK_VAL) || (cap == TK_BOX) || (cap == TK_TAG))
-        return recover_complex(type, cap);
+      if(tuple_elem_recover)
+        return recover_complex(type, cap, tuple_elem_recover);
 
-      if(immutable_or_opaque(type))
-        return recover_complex(type, cap);
-
-      // If we're recovering to something writable, we can't lift the reference
-      // capability because the objects in the tuple might alias each other.
-      return ast_dup(type);
+      recovery_t elem_recover = RECOVERY_NONE;
+      return recover_complex(type, cap, &elem_recover);
     }
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return recover_single(type, cap);
+      return recover_single(type, cap, tuple_elem_recover);
 
     case TK_ARROW:
     {
       // recover just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
-      ast_t* r_right = recover_type(right, cap);
+      ast_t* r_right = recover_type_inner(right, cap, tuple_elem_recover);
 
       if(r_right == NULL)
         return NULL;
@@ -380,6 +425,11 @@ ast_t* recover_type(ast_t* type, token_id cap)
 
   pony_assert(0);
   return NULL;
+}
+
+ast_t* recover_type(ast_t* type, token_id cap)
+{
+  return recover_type_inner(type, cap, NULL);
 }
 
 ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)

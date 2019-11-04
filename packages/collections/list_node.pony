@@ -1,6 +1,62 @@
 class ListNode[A]
   """
-  A node in a list.
+  A node in a doubly linked list.
+  
+  (See Ponylang [collections.List](https://stdlib.ponylang.io/collections-List/)
+  class for usage examples.)
+  
+  Each node contains four fields: two link fields (references to the previous and
+  to the next node in the sequence of nodes), one data field, and the reference to
+  the in which it resides.
+
+  As you would expect functions are provided to create a ListNode, update a
+  ListNode's contained item, and pop the item from the ListNode.
+
+  Additional functions are provided to operate on a ListNode as part of a Linked
+  List. These provide for prepending, appending, removal, and safe traversal in
+  both directions.  The Ponylang
+  [collections.List](https://stdlib.ponylang.io/collections-List/) class is the
+  correct way to create these. _Do not attempt to create a Linked List using only
+  ListNodes._
+  
+  ## Example program
+  The functions which are illustrated below are only those which operate on an
+  individual ListNode.
+
+  It outputs:
+
+    My node has the item value: My Node item
+    My node has the updated item value: My updated Node item
+    Popped the item from the ListNode
+    The ListNode has no (None) item.
+
+  ```pony
+    use "collections"
+    actor Main
+      new create(env:Env) =>
+        
+        // Create a new ListNode of type String
+        let my_list_node = ListNode[String]("My Node item")
+        try 
+          env.out.print("My node has the item value: "
+                        + my_list_node.apply()?) // My Node item
+        end
+        
+        // Update the item contained in the ListNode
+        try
+          my_list_node.update("My updated Node item")?
+          env.out.print("My node has the updated item value: "
+                        + my_list_node.apply()?) // My updated Node item
+        end
+        // Pop the item from the ListNode
+        try
+          my_list_node.pop()?
+          env.out.print("Popped the item from the ListNode")
+          my_list_node.apply()? // This will error as the item is now None
+        else
+          env.out.print("The ListNode has no (None) item.")
+        end
+  ...
   """
   var _item: (A | None)
   var _list: (List[A] | None) = None
@@ -37,6 +93,7 @@ class ListNode[A]
     Prepend a node to this one. If `that` is already in a list, it is removed
     before it is prepended. Returns true if `that` was removed from another
     list.
+    If the ListNode is not contained within a List the prepend will fail.
     """
     if (_prev is that) or (this is that) then
       return false
@@ -69,6 +126,8 @@ class ListNode[A]
     Append a node to this one. If `that` is already in a list, it is removed
     before it is appended. Returns true if `that` was removed from another
     list.
+    
+    If the ListNode is not contained within a List the append will fail.
     """
     if (_next is that) or (this is that) then
       return false
@@ -99,6 +158,8 @@ class ListNode[A]
   fun ref remove() =>
     """
     Remove a node from a list.
+    
+    The ListNode must be contained within a List for this to succeed.
     """
     match _list
     | let list': List[A] =>

@@ -32,9 +32,13 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
     // so we only return true if *all* elements return true.
     case TK_TUPLE:
       for(ast_t* e = ast_child(case_expr); e != NULL; e = ast_sibling(e))
-        if(!case_expr_matches_type_alone(opt, ast_childlast(e)))
+        if(!case_expr_matches_type_alone(opt, e))
           return false;
       return true;
+
+    // This pattern form matches on type alone if the final child returns true.
+    case TK_SEQ:
+      return case_expr_matches_type_alone(opt, ast_childlast(case_expr));
 
     default: {}
   }
@@ -53,9 +57,8 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
     return false;
 
   ast_t* def = (ast_t*)ast_data(type);
-  pony_assert(def != NULL);
 
-  if((ast_id(def) != TK_PRIMITIVE) || is_machine_word(type))
+  if((def == NULL) || (ast_id(def) != TK_PRIMITIVE) || is_machine_word(type))
     return false;
 
   ast_t* eq_def = ast_get(def, stringtab("eq"), NULL);
@@ -86,7 +89,12 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
   return true;
 }
 
-static bool is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type, ast_t* cases)
+/**
+ * return a pointer to the case expr at which the match can be considered
+ * exhaustive or NULL if it is not exhaustive.
+ **/
+static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
+  ast_t* cases)
 {
   pony_assert(expr_type != NULL);
   pony_assert(ast_id(cases) == TK_CASES);
@@ -94,16 +102,24 @@ static bool is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type, ast_t* cases)
   // Exhaustive match not yet supported for matches where all cases "jump away".
   // The return/error/break/continue should be moved to outside the match.
   if(ast_checkflag(cases, AST_FLAG_JUMPS_AWAY))
-    return false;
+    return NULL;
 
   // Construct a union of all pattern types that count toward exhaustive match.
   ast_t* cases_union_type = ast_from(cases, TK_UNIONTYPE);
+  ast_t* result = NULL;
 
   for(ast_t* c = ast_child(cases); c != NULL; c = ast_sibling(c))
   {
     AST_GET_CHILDREN(c, case_expr, guard, case_body);
-    ast_t* pattern_type = ast_type(c);
+    ast_t* case_type = ast_type(case_expr);
 
+    // if any case is a `_` we have an exhaustive match
+    // and we can shortcut here
+    if(ast_id(case_expr) == TK_DONTCAREREF)
+    {
+      result = c;
+      break;
+    }
     // Only cases with no guard clause can count toward exhaustive match,
     // because the truth of a guard clause can't be statically evaluated.
     // So, for the purposes of exhaustive match, we ignore those cases.
@@ -117,18 +133,21 @@ static bool is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type, ast_t* cases)
       continue;
 
     // It counts, so add this pattern type to our running union type.
-    ast_add(cases_union_type, pattern_type);
+    ast_add(cases_union_type, case_type);
+
+    // If our cases types union is a supertype of the match expression type,
+    // then the match must be exhaustive, because all types are covered by cases.
+    if(is_subtype(expr_type, cases_union_type, NULL, opt))
+    {
+      result = c;
+      break;
+    }
   }
 
-  // If our cases types union is a supertype of the match expression type,
-  // then the match must be exhaustive, because all types are covered by cases.
-  bool ret = (ast_childcount(cases_union_type) > 0) &&
-    is_subtype(expr_type, cases_union_type, NULL, opt);
-
   ast_free_unattached(cases_union_type);
-
-  return ret;
+  return result;
 }
+
 
 bool expr_match(pass_opt_t* opt, ast_t* ast)
 {
@@ -168,32 +187,60 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     type = control_type_add_branch(opt, type, cases);
   }
 
-  // If we have no else clause, and the match is not found to be exhaustive,
-  // we must generate an implicit else clause that returns None as the value.
-  if((ast_id(else_clause) == TK_NONE) &&
-    !is_match_exhaustive(opt, expr_type, cases))
+  // analyze exhaustiveness
+  ast_t* exhaustive_at = is_match_exhaustive(opt, expr_type, cases);
+
+  if(exhaustive_at == NULL)
   {
-    ast_scope(else_clause);
-    ast_setid(else_clause, TK_SEQ);
+    // match might not be exhaustive
+    if ((ast_id(else_clause) == TK_NONE))
+    {
+      // If we have no else clause, and the match is not found to be exhaustive,
+      // we must generate an implicit else clause that returns None as the value.
+      ast_scope(else_clause);
+      ast_setid(else_clause, TK_SEQ);
 
-    BUILD(ref, else_clause,
-      NODE(TK_TYPEREF,
-        NONE
-        ID("None")
-        NONE));
-    ast_add(else_clause, ref);
+      BUILD(ref, else_clause,
+        NODE(TK_TYPEREF,
+          NONE
+          ID("None")
+          NONE));
+      ast_add(else_clause, ref);
 
-    if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
+      if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
+        return false;
+    }
+  }
+  else
+  {
+    // match is exhaustive
+    if(ast_sibling(exhaustive_at) != NULL)
+    {
+      // we have unreachable cases
+      ast_error(opt->check.errors, ast, "match contains unreachable cases");
+      ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
+        "first unreachable case expression");
       return false;
+    }
+    else if((ast_id(else_clause) != TK_NONE))
+    {
+      ast_error(opt->check.errors, ast,
+        "match is exhaustive, the else clause is unreachable");
+      ast_error_continue(opt->check.errors, else_clause,
+        "unreachable code");
+      return false;
+    }
   }
 
-  if((ast_id(else_clause) != TK_NONE) &&
-    !ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  if((ast_id(else_clause) != TK_NONE))
   {
-    if(is_typecheck_error(ast_type(else_clause)))
-      return false;
+    if (!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+    {
+      if(is_typecheck_error(ast_type(else_clause)))
+        return false;
 
-    type = control_type_add_branch(opt, type, else_clause);
+      type = control_type_add_branch(opt, type, else_clause);
+    }
   }
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
@@ -317,7 +364,8 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
   }
 
   // Structural equality, pattern.eq(match).
-  ast_t* fun = lookup(opt, pattern, pattern_type, stringtab("eq"));
+  deferred_reification_t* fun = lookup(opt, pattern, pattern_type,
+    stringtab("eq"));
 
   if(fun == NULL)
   {
@@ -327,17 +375,19 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
     return NULL;
   }
 
-  if(ast_id(fun) != TK_FUN)
+  if(ast_id(fun->ast) != TK_FUN)
   {
     ast_error(opt->check.errors, pattern,
       "eq is not a function on this pattern element");
-    ast_error_continue(opt->check.errors, fun,
+    ast_error_continue(opt->check.errors, fun->ast,
       "definition of eq is here");
-    ast_free_unattached(fun);
+    deferred_reify_free(fun);
     return NULL;
   }
 
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
+  ast_t* r_fun = deferred_reify_method_def(fun, fun->ast, opt);
+
+  AST_GET_CHILDREN(r_fun, cap, id, typeparams, params, result, partial);
   bool ok = true;
 
   if(ast_id(typeparams) != TK_NONE)
@@ -394,7 +444,8 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   ast_free_unattached(r_type);
   ast_free_unattached(a_type);
-  ast_free_unattached(fun);
+  ast_free_unattached(r_fun);
+  deferred_reify_free(fun);
 
   return pattern_type;
 }
@@ -429,6 +480,13 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  if((ast_id(pattern) == TK_DONTCAREREF))
+  {
+    ast_error(opt->check.errors, pattern,
+      "can't have a case with `_` only, use an else clause");
+    return false;
+  }
+
   ast_t* cases = ast_parent(ast);
   ast_t* match = ast_parent(cases);
   ast_t* match_expr = ast_child(match);
@@ -450,31 +508,44 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
   ast_t* operand_type = alias(match_type);
   bool ok = true;
+  errorframe_t info = NULL;
 
-  switch(is_matchtype(operand_type, pattern_type, opt))
+  switch(is_matchtype(operand_type, pattern_type, &info, opt))
   {
     case MATCHTYPE_ACCEPT:
       break;
 
     case MATCHTYPE_REJECT:
     {
-      ast_error(opt->check.errors, pattern, "this pattern can never match");
-      ast_error_continue(opt->check.errors, match_type, "match type: %s",
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, pattern, "this pattern can never match");
+      ast_error_frame(&frame, match_type, "match type: %s",
         ast_print_type(operand_type));
-      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+      // TODO report unaliased type when body is consume !
+      ast_error_frame(&frame, pattern, "pattern type: %s",
         ast_print_type(pattern_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame, opt->check.errors);
+
       ok = false;
       break;
     }
 
     case MATCHTYPE_DENY:
     {
-      ast_error(opt->check.errors, pattern,
-        "this capture violates capabilities");
-      ast_error_continue(opt->check.errors, match_type, "match type: %s",
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, pattern,
+        "this capture violates capabilities, because the match would "
+        "need to differentiate by capability at runtime instead of matching "
+        "on type alone");
+      ast_error_frame(&frame, match_type, "the match type allows for more than "
+        "one possibility with the same type as pattern type, but different "
+        "capabilities. match type: %s",
         ast_print_type(operand_type));
-      ast_error_continue(opt->check.errors, pattern, "pattern type: %s",
+      ast_error_frame(&frame, pattern, "pattern type: %s",
         ast_print_type(pattern_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame, opt->check.errors);
 
       ok = false;
       break;
@@ -491,7 +562,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     } else if(!is_bool(guard_type)) {
       ast_error(opt->check.errors, guard,
         "guard must be a boolean expression");
-      ok = false;
     }
   }
 

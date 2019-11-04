@@ -21,3 +21,6 @@ primitive Nanos
 
   fun from_micros_f(t: F64): U64 =>
     (t * 1_000).trunc().u64()
+
+  fun from_wall_clock(wall: (I64, I64)): U64 =>
+    ((wall._1 * 1000000000) + wall._2).u64()

@@ -86,7 +86,7 @@ typedef struct name_record_t
 // We keep our name records in a hash map
 static size_t name_record_hash(name_record_t* p)
 {
-  return ponyint_hash_ptr(p->name);
+  return ponyint_hash_str(p->name);
 }
 
 static bool name_record_cmp(name_record_t* a, name_record_t* b)
@@ -102,8 +102,7 @@ static void name_record_free(name_record_t* p)
 
 DECLARE_HASHMAP(name_records, name_records_t, name_record_t);
 DEFINE_HASHMAP(name_records, name_records_t, name_record_t, name_record_hash,
-  name_record_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  name_record_free);
+  name_record_cmp, name_record_free);
 
 
 typedef struct colour_record_t
@@ -274,6 +273,9 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 
   while((t = reach_types_next(types, &i)) != NULL)
   {
+    if(t->bare_method != NULL)
+      continue;
+
     pony_assert(typemap_index < painter->typemap_size);
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
@@ -355,7 +357,7 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
   // Iterate over all types
   while((t = reach_types_next(types, &i)) != NULL)
   {
-    if(reach_method_names_size(&t->methods) == 0)
+    if((reach_method_names_size(&t->methods) == 0) || (t->bare_method != NULL))
       continue;
 
     size_t j = HASHMAP_BEGIN;

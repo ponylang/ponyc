@@ -1,4 +1,4 @@
-use "options"
+use "cli"
 
 actor Main
   new create(env: Env) =>
@@ -11,7 +11,7 @@ actor Main
 
     env.out.print(consume str)
 
-    let envvars = EnvVars(env.vars())
+    let envvars = EnvVars(env.vars)
 
     for (k, v) in envvars.pairs() do
       env.out.print(k + " = " + v)

@@ -109,11 +109,13 @@ static bool is_expr_infix(token_id id)
     case TK_MINUS:
     case TK_MULTIPLY:
     case TK_DIVIDE:
+    case TK_REM:
     case TK_MOD:
     case TK_PLUS_TILDE:
     case TK_MINUS_TILDE:
     case TK_MULTIPLY_TILDE:
     case TK_DIVIDE_TILDE:
+    case TK_REM_TILDE:
     case TK_MOD_TILDE:
     case TK_LSHIFT:
     case TK_RSHIFT:
@@ -336,7 +338,6 @@ static bool check_members(pass_opt_t* opt, ast_t* members, int entity_def_index)
       }
 
       default:
-        ast_print(members);
         pony_assert(0);
         return false;
     }
@@ -360,10 +361,20 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
   AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
 
   // Check if we're called Main
-  if(def->permissions[ENTITY_MAIN] == 'N' && ast_name(id) == stringtab("Main"))
+  if(ast_name(id) == stringtab("Main"))
   {
-    ast_error(opt->check.errors, ast, "Main must be an actor");
-    r = AST_ERROR;
+    if(ast_id(typeparams) != TK_NONE)
+    {
+      ast_error(opt->check.errors, typeparams,
+        "the Main actor cannot have type parameters");
+      r = AST_ERROR;
+    }
+
+    if(def->permissions[ENTITY_MAIN] == 'N')
+    {
+      ast_error(opt->check.errors, ast, "Main must be an actor");
+      r = AST_ERROR;
+    }
   }
 
   if(!check_id_type(opt, id, def->desc))
@@ -389,9 +400,17 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
   if(entity_def_index != DEF_TYPEALIAS)
   {
     // Check referenced traits
-    if(ast_id(provides) != TK_NONE &&
-      !check_provides_type(opt, provides, "provides"))
-      r = AST_ERROR;
+    if(ast_id(provides) != TK_NONE)
+    {
+      if(ast_has_annotation(ast, "nosupertype"))
+      {
+        ast_error(opt->check.errors, provides,
+          "a 'nosupertype' type cannot specify a provides list");
+        r = AST_ERROR;
+      } else if(!check_provides_type(opt, provides, "provides")) {
+        r = AST_ERROR;
+      }
+    }
   }
   else
   {
@@ -677,6 +696,7 @@ static ast_result_t syntax_consume(pass_opt_t* opt, ast_t* ast)
   {
     case TK_THIS:
     case TK_REFERENCE:
+    case TK_DOT:
       return AST_OK;
 
     default: {}
@@ -795,7 +815,7 @@ static ast_result_t syntax_type_param(pass_opt_t* opt, ast_t* ast)
 }
 
 
-static const char* _illegal_flags[] =
+static const char* const _illegal_flags[] =
 {
   "ndebug",
   "unknown_os",
@@ -814,10 +834,15 @@ static bool syntax_ifdef_cond(pass_opt_t* opt, ast_t* ast, const char* context)
 
   switch(ast_id(ast))
   {
+
     case TK_AND:
     case TK_OR:
     case TK_NOT:
       // Valid node.
+      break;
+
+    case TK_NONE:
+      // Valid because we have an optional TK_QUESTION in TK_AND and TK_OR.
       break;
 
     case TK_STRING:
@@ -1053,13 +1078,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
   pony_assert((ast_id(ast) == TK_LAMBDA) || (ast_id(ast) == TK_BARELAMBDA));
   AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
     ret_type, raises, body, reference_cap);
-
-  if(ast_id(reference_cap) == TK_QUESTION)
-  {
-    ast_error(opt->check.errors, ast,
-      "lambda ... end is no longer supported syntax; use {...} for lambdas");
-    return AST_ERROR;
-  }
+  bool r = true;
 
   switch(ast_id(ret_type))
   {
@@ -1074,7 +1093,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
         ast_print_type(ret_type));
       ast_error_continue(opt->check.errors, ret_type, "lambda return type "
         "cannot be capability");
-      return AST_ERROR;
+      r = false;
     }
     default: {}
   }
@@ -1085,21 +1104,21 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, receiver_cap, "a bare lambda cannot specify "
         "a receiver capability");
-      return AST_ERROR;
+      r = false;
     }
 
     if(ast_id(t_params) != TK_NONE)
     {
       ast_error(opt->check.errors, t_params, "a bare lambda cannot specify "
         "type parameters");
-      return AST_ERROR;
+      r = false;
     }
 
     if(ast_id(captures) != TK_NONE)
     {
       ast_error(opt->check.errors, captures, "a bare lambda cannot specify "
         "captures");
-      return AST_ERROR;
+      r = false;
     }
 
     switch(ast_id(reference_cap))
@@ -1111,7 +1130,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
       default:
         ast_error(opt->check.errors, reference_cap, "a bare lambda can only "
           "have a 'val' capability");
-        return AST_ERROR;
+        r = false;
     }
   }
 
@@ -1122,12 +1141,12 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, capture,
         "use a named capture to capture 'this'");
-      return AST_ERROR;
+      r = false;
     }
     capture = ast_sibling(capture);
   }
 
-  return AST_OK;
+  return r ? AST_OK : AST_ERROR;
 }
 
 
@@ -1139,6 +1158,9 @@ static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
   // Check for illegal members - even though object literals can be non-actors,
   // we use DEF_ACTOR because the permissions are close enough for our purposes.
   if(!check_members(opt, members, DEF_ACTOR))
+    return AST_ERROR;
+
+  if(ast_id(provides) != TK_NONE && !check_provides_type(opt, provides, "provides"))
     return AST_ERROR;
 
   return AST_OK;
@@ -1219,24 +1241,106 @@ static ast_result_t syntax_cap_set(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
+  ast_t* loc, const char* str)
+{
+  if((strcmp(str, "likely") == 0) || (strcmp(str, "unlikely") == 0))
+  {
+    ast_t* parent = ast_parent(ast);
+
+    switch(ast_id(parent))
+    {
+      case TK_IF:
+      case TK_WHILE:
+      case TK_CASE:
+        break;
+
+      default:
+      {
+        ast_t* grandparent = ast_parent(parent);
+        if((ast_id(grandparent) == TK_REPEAT) &&
+          (ast_childidx(grandparent, 1) == parent))
+          break;
+
+        ast_error(opt->check.errors, loc,
+          "a '%s' annotation can only appear on the condition of an if, "
+          "while, or until, or on the case of a match", str);
+        return false;
+      }
+    }
+  } else if(strcmp(str, "packed") == 0) {
+    if(ast_id(ast_parent(ast)) != TK_STRUCT)
+    {
+      ast_error(opt->check.errors, loc,
+        "a 'packed' annotation can only appear on a struct declaration");
+      return false;
+    }
+  } else if(strcmp(str, "nosupertype") == 0) {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_CLASS:
+      case TK_ACTOR:
+      case TK_PRIMITIVE:
+      case TK_STRUCT:
+        break;
+
+      default:
+        ast_error(opt->check.errors, loc,
+          "a 'nosupertype' annotation can only appear on a concrete type "
+          "declaration");
+        return false;
+    }
+  }
+
+  return true;
+}
+
+
 static ast_result_t syntax_annotation(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_ANNOTATION);
 
   const char ponyint[] = "ponyint";
+  ast_result_t ok = AST_OK;
 
   for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
   {
     const char* str = ast_name(child);
-    if(strlen(str) < (sizeof ponyint - 1))
-      continue;
 
-    if(strncmp(str, ponyint, sizeof ponyint - 1) == 0)
+    if((strlen(str) >= (sizeof ponyint - 1)) &&
+      (strncmp(str, ponyint, sizeof ponyint - 1) == 0))
     {
       ast_error(opt->check.errors, child,
         "annotations starting with 'ponyint' are reserved for internal use");
-      return AST_ERROR;
+      ok = AST_ERROR;
+      continue;
     }
+
+    if(!check_annotation_location(opt, ast, child, str))
+      ok = AST_ERROR;
+  }
+
+  return ok;
+}
+
+
+static ast_result_t syntax_as(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_AS);
+  AST_GET_CHILDREN(ast, expr);
+
+  switch (ast_id(expr))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+      ast_error(opt->check.errors, expr,
+        "Cannot cast uninferred numeric literal");
+      ast_error_continue(opt->check.errors, expr,
+        "To give a numeric literal a specific type, "
+        "use the constructor of that numeric type");
+      return AST_ERROR;
+
+    default: break;
   }
 
   return AST_OK;
@@ -1326,6 +1430,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
       r = AST_ERROR;
       break;
 
+    case TK_AS:         r = syntax_as(options, ast); break;
+
     default: break;
   }
 
@@ -1340,8 +1446,15 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   }
 
   ast_t* annotation = ast_annotation(ast);
+
   if(annotation != NULL)
-    r = ast_visit(&annotation, pass_syntax, NULL, options, PASS_SYNTAX);
+  {
+    ast_result_t r2 = ast_visit(&annotation, pass_syntax, NULL, options,
+      PASS_SYNTAX);
+
+    if(r2 > r)
+      r = r2;
+  }
 
   return r;
 }

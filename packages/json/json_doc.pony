@@ -7,6 +7,11 @@ class JsonDoc
   A JSON document consists of exactly 1 value.
   """
   var data: JsonType
+    """
+    The parsed JSON structure.
+
+    Will be a `None` if `parse(source: String)` has not been called yet.
+    """
 
   // Internal state for parsing
   var _source: String = ""
@@ -16,7 +21,7 @@ class JsonDoc
   var _err_msg: String = "" // ..
   var _last_index: USize = 0  // Last source index we peeked or got, for errors
 
-  new iso create() =>
+  new create() =>
     """
     Default constructor building a document containing a single null.
     """
@@ -26,8 +31,9 @@ class JsonDoc
     """
     Generate string representation of this document.
     """
-    let buf = _JsonPrint._string(data, recover String(256) end, indent, 0,
-      pretty_print)
+    let buf =
+      _JsonPrint._string(data, recover String(256) end, indent, 0,
+        pretty_print)
     buf.compact()
     buf
 
@@ -43,12 +49,12 @@ class JsonDoc
     _err_msg = ""
     _last_index = 0
 
-    data = _parse_value("top level value")
+    data = _parse_value("top level value")?
 
     // Make sure there's no trailing text
     _dump_whitespace()
     if _index < _source.size() then
-      _peek_char()  // Setup _last_index
+      _peek_char()?  // Setup _last_index
       _error("Unexpected text found after top level value: " + _last_char())
       error
     end
@@ -66,13 +72,13 @@ class JsonDoc
     Raise error on invalid or missing value.
     """
     _dump_whitespace()
-    match _peek_char(context)
-    | let c: U8 if (c >= 'a') and (c <= 'z') => _parse_keyword()
-    | let c: U8 if (c >= '0') and (c <= '9') => _parse_number()
-    | '-' => _parse_number()
-    | '{' => _parse_object()
-    | '[' => _parse_array()
-    | '"' => _parse_string("string value")
+    match _peek_char(context)?
+    | let c: U8 if (c >= 'a') and (c <= 'z') => _parse_keyword()?
+    | let c: U8 if (c >= '0') and (c <= '9') => _parse_number()?
+    | '-' => _parse_number()?
+    | '{' => _parse_object()?
+    | '[' => _parse_array()?
+    | '"' => _parse_string("string value")?
     else
       _error("Unexpected character '" + _last_char() + "'")
       error
@@ -85,9 +91,9 @@ class JsonDoc
     var word: String ref = String
 
     // Find the contiguous block of lower case letters
-    while let c = _peek_char(); (c >= 'a') and (c <= 'z') do
+    while let c = _peek_char()?; (c >= 'a') and (c <= 'z') do
       word.push(c)
-      _get_char() // Consume peeked char
+      _get_char()? // Consume peeked char
     end
 
     match word
@@ -105,10 +111,12 @@ class JsonDoc
     """
     var minus = false
 
-    if _peek_char("number") == '-' then
+    if _peek_char("number")? == '-' then
       minus = true
-      _get_char() // Consume -
+      _get_char()? // Consume -
     end
+
+    let leading_zero = _peek_char()? == '0'
 
     var frac: I64 = 0
     var frac_digits: U8 = 0
@@ -116,25 +124,30 @@ class JsonDoc
     var exp_digits: U8 = 0
 
     // Start with integer part
-    (let int, _) = _parse_decimal()
+    (let int, let int_digits) = _parse_decimal()?
 
-    if _peek_char() == '.' then
-      // We have a . so expect a fractional part
-      _get_char()  // Consume .
-      (frac, frac_digits) = _parse_decimal()
+    if (int_digits > 1) and (leading_zero == true) then
+      _error("Leading 0 not permitted")
+      error
     end
 
-    if (_peek_char() or 0x20) == 'e' then
+    if _peek_char()? == '.' then
+      // We have a . so expect a fractional part
+      _get_char()?  // Consume .
+      (frac, frac_digits) = _parse_decimal()?
+    end
+
+    if (_peek_char()? or 0x20) == 'e' then
       // We have an e so expect an exponent
-      _get_char()  // Consume e
+      _get_char()?  // Consume e
       var neg_exp = false
 
-      match _peek_char("number exponent")
-      | '-' => _get_char(); neg_exp = true
-      | '+' => _get_char()
+      match _peek_char("number exponent")?
+      | '-' => _get_char()?; neg_exp = true
+      | '+' => _get_char()?
       end
 
-      (exp, exp_digits) = _parse_decimal()
+      (exp, exp_digits) = _parse_decimal()?
 
       if neg_exp then
         exp = -exp
@@ -147,8 +160,9 @@ class JsonDoc
     end
 
     // We have fractional part and/or exponent, make a float
-    var f = (int.f64() + (frac.f64() / F64(10).pow(frac_digits.f64()))) *
-      (F64(10).pow(exp.f64()))
+    var f =
+      (int.f64() + (frac.f64() / F64(10).pow(frac_digits.f64())))
+        * (F64(10).pow(exp.f64()))
 
     if minus then -f else f end
 
@@ -158,13 +172,13 @@ class JsonDoc
     """
     var value: I64 = 0
     var digit_count: U8 = 0
-    var c = _peek_char("number")
+    var c = _peek_char("number")?
 
     while (c >= '0') and (c <= '9') do
-      _get_char() // Consume peeked digit
+      _get_char()? // Consume peeked digit
       value = (value * 10) + (c - '0').i64()
       digit_count = digit_count + 1
-      c = _peek_char()
+      c = _peek_char()?
     end
 
     if digit_count == 0 then
@@ -178,12 +192,12 @@ class JsonDoc
     """
     Parse a JSON object, the leading { of which has already been peeked.
     """
-    _get_char() // Consume {
+    _get_char()? // Consume {
     _dump_whitespace()
 
-    if _peek_char("object") == '}' then
+    if _peek_char("object")? == '}' then
       // Empty object
-      _get_char() // Consume }
+      _get_char()? // Consume }
       return JsonObject
     end
 
@@ -193,20 +207,20 @@ class JsonDoc
     while true do
       // Each element of of the form:
       //   "key": value
-      let key = _parse_string("object key")
+      let key = _parse_string("object key")?
       _dump_whitespace()
 
-      if _get_char("object element value") != ':' then
+      if _get_char("object element value")? != ':' then
         _error("Expected ':' after object key, got '" + _last_char() + "'")
         error
       end
 
-      map(key) = _parse_value("object")
+      map(key) = _parse_value("object")?
       _dump_whitespace()
 
       // Must now have another element, separated by a comma, or the end of the
       // object
-      match _get_char("object")
+      match _get_char("object")?
       | '}' => break // End of object
       | ',' => None  // Next element
       else
@@ -221,12 +235,12 @@ class JsonDoc
     """
     Parse an array, the leading [ of which has already been peeked.
     """
-    _get_char() // Consume [
+    _get_char()? // Consume [
     _dump_whitespace()
 
-    if _peek_char("array") == ']' then
+    if _peek_char("array")? == ']' then
       // Empty array
-      _get_char() // Consume ]
+      _get_char()? // Consume ]
       return JsonArray
     end
 
@@ -234,12 +248,12 @@ class JsonDoc
 
     // Find elements in array
     while true do
-      array.push(_parse_value("array"))
+      array.push(_parse_value("array")?)
       _dump_whitespace()
 
       // Must now have another element, separated by a comma, or the end of the
       // array
-      match _get_char("array")
+      match _get_char("array")?
       | ']' => break // End of array
       | ',' => None // Next element
       else
@@ -256,7 +270,7 @@ class JsonDoc
     """
     _dump_whitespace()
 
-    if _get_char(context) != '"' then
+    if _get_char(context)? != '"' then
       _error("Expected " + context + ", got '" + _last_char() + "'")
       error
     end
@@ -264,9 +278,9 @@ class JsonDoc
     var text = recover iso String end
 
     // Process characters one at a time until we hit the end "
-    while let c = _get_char(context); c != '"' do
+    while let c = _get_char(context)?; c != '"' do
       if c == '\\' then
-        text.append(_parse_escape())
+        text.append(_parse_escape()?)
       else
         text.push(c)
       end
@@ -279,7 +293,7 @@ class JsonDoc
     Process a string escape sequence, the leading \ of which has already been
     consumed.
     """
-    match _get_char("escape sequence")
+    match _get_char("escape sequence")?
     | '"' => "\""
     | '\\' => "\\"
     | '/' => "/"
@@ -288,7 +302,7 @@ class JsonDoc
     | 'n' => "\n"
     | 'r' => "\r"
     | 't' => "\t"
-    | 'u' => _parse_unicode_escape()
+    | 'u' => _parse_unicode_escape()?
     else
       _error("Unrecognised escape sequence \\" + _last_char())
       error
@@ -299,7 +313,7 @@ class JsonDoc
     Process a Unicode escape sequence, the leading \u of which has already been
     consumed.
     """
-    let value = _parse_unicode_digits()
+    let value = _parse_unicode_digits()?
 
     if (value < 0xD800) or (value >= 0xE000) then
       // Just a simple UTF-16 character
@@ -307,13 +321,13 @@ class JsonDoc
     end
 
     // Value is one half of a UTF-16 surrogate pair, get the other half
-    if (_get_char("Unicode escape sequence") != '\\') or
-      (_get_char("Unicode escape sequence") != 'u') then
+    if (_get_char("Unicode escape sequence")? != '\\') or
+      (_get_char("Unicode escape sequence")? != 'u') then
       _error("Expected UTF-16 trailing surrogate, got '" + _last_char() + "'")
       error
     end
 
-    let trailing = _parse_unicode_digits()
+    let trailing = _parse_unicode_digits()?
 
     if (value >= 0xDC00) or (trailing < 0xDC00) or (trailing >= 0xE000) then
       _error("Expected UTF-16 surrogate pair, got \\u" +
@@ -336,7 +350,7 @@ class JsonDoc
 
     while i < 4 do
       let d =
-        match _get_char("Unicode escape sequence")
+        match _get_char("Unicode escape sequence")?
         | let c: U8 if (c >= '0') and (c <= '9') => c - '0'
         | let c: U8 if (c >= 'a') and (c <= 'f') => (c - 'a') + 10
         | let c: U8 if (c >= 'A') and (c <= 'F') => (c - 'A') + 10
@@ -358,7 +372,7 @@ class JsonDoc
     """
     try
       while true do
-        match _source(_index)
+        match _source(_index)?
         | ' '
         | '\r'
         | '\t' => None
@@ -382,7 +396,7 @@ class JsonDoc
     """
     try
       _last_index = _index
-      _source(_index)
+      _source(_index)?
     else
       // EOF found, is that OK?
       _last_index = -1
@@ -407,7 +421,7 @@ class JsonDoc
     If eof_context is None then 0 is returned on EOF. It up to the caller to
     handle this appropriately.
     """
-    let c = _peek_char(eof_context)
+    let c = _peek_char(eof_context)?
 
     if c == '\n' then
       _line = _line + 1

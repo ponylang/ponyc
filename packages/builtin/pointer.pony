@@ -28,6 +28,12 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun _convert[B](): this->Pointer[B] =>
+    """
+    Convert from Pointer[A] to Pointer[B].
+    """
+    compile_intrinsic
+
   fun _apply(i: USize): this->A =>
     """
     Retrieve index i.
@@ -45,6 +51,12 @@ struct Pointer[A]
     Return a pointer to the n-th element.
     """
     compile_intrinsic
+
+  fun tag offset(n: USize): Pointer[A] tag =>
+    """
+    Return a tag pointer to the n-th element.
+    """
+     _unsafe()._offset(n)
 
   fun tag _element_size(): USize =>
     """
@@ -71,12 +83,6 @@ struct Pointer[A]
   fun _copy_to(that: Pointer[this->A!], n: USize): this->Pointer[A] =>
     """
     Copy n elements from this to that.
-    """
-    compile_intrinsic
-
-  fun ref _consume_from(that: Pointer[A]^, n: USize): Pointer[A]^ =>
-    """
-    Copy n elements from that to this.
     """
     compile_intrinsic
 
@@ -109,8 +115,14 @@ struct Pointer[A]
   fun tag ge(that: Pointer[A] tag): Bool => not lt(that)
   fun tag gt(that: Pointer[A] tag): Bool => not le(that)
 
-  fun tag hash(): U64 =>
+  fun tag hash(): USize =>
     """
     Returns a hash of the address.
     """
     usize().hash()
+
+  fun tag hash64(): U64 =>
+    """
+    Returns a 64-bit hash of the address.
+    """
+    usize().hash64()

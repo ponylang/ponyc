@@ -14,8 +14,8 @@ actor Worker
     var correct =
       try
         (result.size() == 2) and
-          (result(0) == 86028157) and
-          (result(1) == 329545133)
+          (result(0)? == 86028157) and
+          (result(1)? == 329545133)
       else
         false
       end
@@ -101,17 +101,17 @@ actor Main
     _env = env
 
     try
-      arguments()
+      arguments()?
       start_benchmark()
     else
       usage()
     end
 
   fun ref arguments() ? =>
-    _count = _env.args(1).u32()
-    _size = _env.args(2).u32()
-    _pass = _env.args(3).u32()
-    _repetitions = _env.args(4).u32()
+    _count = _env.args(1)?.u32()?
+    _size = _env.args(2)?.u32()?
+    _pass = _env.args(3)?.u32()?
+    _repetitions = _env.args(4)?.u32()?
     
   fun ref start_benchmark() =>
     for i in Range[U32](0, _count) do

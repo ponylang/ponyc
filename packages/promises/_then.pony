@@ -7,8 +7,7 @@ class _Then[A: Any #share, B: Any #share]
   let _promise: Promise[B]
   var _active: Bool = true
 
-  new iso create(fulfill: Fulfill[A, B], rejected: Reject[B])
-  =>
+  new iso create(fulfill: Fulfill[A, B], rejected: Reject[B]) =>
     """
     A step is represented by a fulfill function and a reject function.
     """
@@ -30,7 +29,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise(_fulfill(value))
+        _promise(_fulfill(value)?)
       else
         _promise.reject()
       end
@@ -44,7 +43,7 @@ class _Then[A: Any #share, B: Any #share]
       _active = false
 
       try
-        _promise(_rejected())
+        _promise(_rejected()?)
       else
         _promise.reject()
       end

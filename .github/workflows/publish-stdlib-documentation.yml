@@ -1,0 +1,18 @@
+on:
+  push:
+    tags:
+      - \d+.\d+.\d+
+
+jobs:
+  build-and-push-stdlib-documentation:
+    name: Build and Push standard library documentation
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/ponyc-ci-stdlib-builder:latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build and push
+        run: "bash .ci-scripts/build-and-push-stdlib-documentation $STDLIB_TOKEN"
+        env:
+          STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
+

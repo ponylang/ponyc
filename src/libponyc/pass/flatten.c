@@ -8,27 +8,9 @@
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
 
-static ast_result_t flatten_union(pass_opt_t* opt, ast_t** astp)
+static void flatten_typeexpr_element(ast_t* type, ast_t* elem, token_id id)
 {
-  ast_t* ast = *astp;
-
-  // If there are more than 2 children, this has already been flattened.
-  if(ast_childcount(ast) > 2)
-    return AST_OK;
-
-  AST_EXTRACT_CHILDREN(ast, left, right);
-
-  ast_t* r_ast = type_union(opt, left, right);
-  ast_replace(astp, r_ast);
-  ast_free_unattached(left);
-  ast_free_unattached(right);
-
-  return AST_OK;
-}
-
-static void flatten_isect_element(ast_t* type, ast_t* elem)
-{
-  if(ast_id(elem) != TK_ISECTTYPE)
+  if(ast_id(elem) != id)
   {
     ast_append(type, elem);
     return;
@@ -43,6 +25,23 @@ static void flatten_isect_element(ast_t* type, ast_t* elem)
   }
 
   ast_free_unattached(elem);
+}
+
+static ast_result_t flatten_union(pass_opt_t* opt, ast_t* ast)
+{
+  (void)opt;
+  // Flatten unions without testing subtyping. This will be tested after the
+  // traits pass, when we have full subtyping information.
+  // If there are more than 2 children, this has already been flattened.
+  if(ast_childcount(ast) > 2)
+    return AST_OK;
+
+  AST_EXTRACT_CHILDREN(ast, left, right);
+
+  flatten_typeexpr_element(ast, left, TK_UNIONTYPE);
+  flatten_typeexpr_element(ast, right, TK_UNIONTYPE);
+
+  return AST_OK;
 }
 
 static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
@@ -69,24 +68,48 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
     return AST_ERROR;
   }
 
-  flatten_isect_element(ast, left);
-  flatten_isect_element(ast, right);
+  flatten_typeexpr_element(ast, left, TK_ISECTTYPE);
+  flatten_typeexpr_element(ast, right, TK_ISECTTYPE);
 
   return AST_OK;
 }
 
 ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, cap, eph);
+  ast_t* cap_ast = cap_fetch(ast);
+  token_id cap = ast_id(cap_ast);
 
-  if(ast_id(cap) != TK_NONE)
+  typeparam_set_cap(ast);
+
+  token_id set_cap = ast_id(cap_ast);
+
+  if((cap != TK_NONE) && (cap != set_cap))
   {
-    ast_error(opt->check.errors, cap,
-      "can't specify a capability on a type parameter");
+    ast_t* def = (ast_t*)ast_data(ast);
+    ast_t* constraint = typeparam_constraint(ast);
+
+    if(constraint != NULL)
+    {
+      ast_error(opt->check.errors, cap_ast, "can't specify a capability on a "
+        "type parameter that differs from the constraint");
+      ast_error_continue(opt->check.errors, constraint,
+        "constraint definition is here");
+
+      if(ast_parent(constraint) != def)
+      {
+        ast_error_continue(opt->check.errors, def,
+          "type parameter definition is here");
+      }
+    } else {
+      ast_error(opt->check.errors, cap_ast, "a type parameter with no "
+        "constraint can only have #any as its capability");
+      ast_error_continue(opt->check.errors, def,
+        "type parameter definition is here");
+    }
+
     return AST_ERROR;
   }
 
-  typeparam_set_cap(ast);
   return AST_OK;
 }
 
@@ -101,7 +124,7 @@ static ast_result_t flatten_sendable_params(pass_opt_t* opt, ast_t* params)
 
     if(!sendable(type))
     {
-      ast_error(opt->check.errors, type,
+      ast_error(opt->check.errors, param,
         "this parameter must be sendable (iso, val or tag)");
       r = AST_ERROR;
     }
@@ -197,7 +220,7 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
       if(ast_id(def) != TK_TRAIT && ast_id(def) != TK_INTERFACE)
       {
         ast_error(opt->check.errors, error_at,
-          "can only provide traits and interfaces");
+          "invalid provides type. Can only be interfaces, traits and intersects of those.");
         ast_error_continue(opt->check.errors, provides_type,
           "invalid type here");
         return false;
@@ -212,7 +235,7 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
 
     default:
       ast_error(opt->check.errors, error_at,
-        "provides type may only be an intersect of traits and interfaces");
+        "invalid provides type. Can only be interfaces, traits and intersects of those.");
       ast_error_continue(opt->check.errors, provides_type, "invalid type here");
       return false;
   }
@@ -250,7 +273,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return flatten_union(options, astp);
+      return flatten_union(options, ast);
 
     case TK_ISECTTYPE:
       return flatten_isect(options, ast);
@@ -285,7 +308,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       AST_GET_CHILDREN(ast, id, type, init);
       bool ok = true;
 
-      if(ast_id(type) != TK_NOMINAL)
+      if(ast_id(type) != TK_NOMINAL || is_pointer(type) || is_nullable_pointer(type))
         ok = false;
 
       ast_t* def = (ast_t*)ast_data(type);

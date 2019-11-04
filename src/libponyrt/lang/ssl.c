@@ -1,4 +1,5 @@
 #include <platform.h>
+#include "../mem/pool.h"
 
 #if defined(PLATFORM_IS_WINDOWS)
 static HANDLE* locks;
@@ -39,12 +40,13 @@ static void locking_callback(int mode, int type, const char* file, int line)
 PONY_API void* ponyint_ssl_multithreading(uint32_t count)
 {
 #if defined(PLATFORM_IS_WINDOWS)
-  locks = (HANDLE*)malloc(count * sizeof(HANDLE*));
+  locks = (HANDLE*)ponyint_pool_alloc_size(count * sizeof(HANDLE*));
 
   for(uint32_t i = 0; i < count; i++)
     locks[i] = CreateMutex(NULL, FALSE, NULL);
 #else
-  locks = malloc(count * sizeof(pthread_mutex_t));
+  locks = (pthread_mutex_t*)
+    ponyint_pool_alloc_size(count * sizeof(pthread_mutex_t));
 
   for(uint32_t i = 0; i < count; i++)
     pthread_mutex_init(&locks[i], NULL);

@@ -141,10 +141,33 @@ trait val Real[A: Real[A] val] is
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y
-  fun div(y: A): A => this / y
-  fun divmod(y: A): (A, A) => (this / y, this % y)
-  fun mod(y: A): A => this % y
+  fun div(y: A): A =>
+    """
+    Integer division, rounded towards zero.
+    """
+    this / y
+
+  fun divrem(y: A): (A, A) => (this / y, this % y)
+  fun rem(y: A): A =>
+    """
+    Calculate the remainder after integer division, rounded towards zero (`div`).
+
+    The result has the sign of the dividend.
+    """
+    this % y
+
   fun neg(): A => -this
+
+  fun fld(y: A): A
+    """
+    Floored integer division, rounded towards negative infinity.
+    """
+  fun mod(y: A): A
+    """
+    Calculate the modulo after floored integer division, rounded towards negative infinity (`fld`).
+
+    The result has the sign of the divisor.
+    """
 
   fun eq(y: box->A): Bool => this == y
   fun ne(y: box->A): Bool => this != y
@@ -156,8 +179,25 @@ trait val Real[A: Real[A] val] is
   fun min(y: A): A
   fun max(y: A): A
 
-  fun hash(): U64 =>
+  fun hash(): USize =>
+    var x = usize()
+
+    ifdef ilp32 then
+      x = (not x) + (x << 15)
+      x = x xor (x >> 12)
+      x = x + (x << 2)
+      x = x xor (x >> 4)
+      x = (x + (x << 3)) + (x << 11)
+      x = x xor (x >> 16)
+
+      x
+    else
+      hash64().usize()
+    end
+
+  fun hash64(): U64 =>
     var x = u64()
+
     x = (not x) + (x << 21)
     x = x xor (x >> 24)
     x = (x + (x << 3)) + (x << 8)
@@ -165,6 +205,7 @@ trait val Real[A: Real[A] val] is
     x = (x + (x << 2)) + (x << 4)
     x = x xor (x >> 28)
     x = x + (x << 31)
+
     x
 
   fun _value(): A => compile_intrinsic
@@ -193,27 +234,112 @@ trait val Integer[A: Integer[A] val] is Real[A]
 
   fun div_unsafe(y: A): A =>
     """
+    Integer division, rounded towards zero.
+
     Unsafe operation.
     If y is 0, the result is undefined.
     If the operation overflows, the result is undefined.
     """
     this /~ y
 
-  fun divmod_unsafe(y: A): (A, A) =>
+  fun divrem_unsafe(y: A): (A, A) =>
     """
+    Calculates the quotient of this number and `y` and the remainder.
+
     Unsafe operation.
     If y is 0, the result is undefined.
     If the operation overflows, the result is undefined.
     """
     (this /~ y, this %~ y)
 
-  fun mod_unsafe(y: A): A =>
+  fun rem_unsafe(y: A): A =>
     """
+    Calculates the remainder of this number divided by `y`.
+
     Unsafe operation.
     If y is 0, the result is undefined.
     If the operation overflows, the result is undefined.
     """
     this %~ y
+
+  fun fld_unsafe(y: A): A
+    """
+    Floored division, rounded towards negative infinity,
+    as opposed to `div` which rounds towards zero.
+
+    *Unsafe Operation*
+
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+
+  fun mod_unsafe(y: A): A
+    """
+    Calculates the modulo of this number after floored division by `y`.
+
+    *Unsafe Operation.*
+
+    If y is 0, the result is undefined.
+    If the operation overflows, the result is undefined.
+    """
+
+  fun add_partial(y: A): A ?
+    """
+    Add y to this number.
+
+    If the operation overflows this function errors.
+    """
+
+  fun sub_partial(y: A): A ?
+    """
+    Subtract y from this number.
+
+    If the operation overflows/underflows this function errors.
+    """
+
+  fun mul_partial(y: A): A ?
+    """
+    Multiply y with this number.
+
+    If the operation overflows this function errors.
+    """
+
+  fun div_partial(y: A): A ?
+    """
+    Divides this number by `y`, rounds the result towards zero.
+
+    If y is `0` or the operation overflows, this function errors.
+    """
+
+  fun rem_partial(y: A): A ?
+    """
+    Calculates the remainder of this number divided by y.
+    The result has the sign of the dividend.
+
+    If y is `0` or the operation overflows, this function errors.
+    """
+
+  fun divrem_partial(y: A): (A, A) ?
+    """
+    Divides this number by y and calculates the remainder of the operation.
+
+    If y is `0` or the operation overflows, this function errors.
+    """
+
+  fun fld_partial(y: A): A ?
+    """
+    Floored integer division, rounded towards negative infinity.
+
+    If y is `0` or the operation overflows, this function errors
+    """
+
+  fun mod_partial(y: A): A ?
+    """
+    Calculates the modulo of this number and `y` after floored division (`fld`).
+    The result has the sign of the divisor.
+
+    If y is `0` or the operation overflows, this function errors.
+    """
 
   fun neg_unsafe(): A =>
     """
@@ -222,15 +348,54 @@ trait val Integer[A: Integer[A] val] is Real[A]
     """
     -~this
 
+  fun addc(y: A): (A, Bool)
+    """
+    Add `y` to this integer and return the result and a flag indicating overflow.
+    """
+  fun subc(y: A): (A, Bool)
+    """
+    Subtract `y` from this integer and return the result and a flag indicating overflow.
+    """
+  fun mulc(y: A): (A, Bool)
+    """
+    Multiply `y` with this integer and return the result and a flag indicating overflow.
+    """
+  fun divc(y: A): (A, Bool)
+    """
+    Divide this integer by `y` and return the result and a flag indicating overflow or division by zero.
+    """
+  fun remc(y: A): (A, Bool)
+    """
+    Calculate the remainder of this number divided by `y` and return the result and a flag indicating division by zero or overflow.
+
+    The result will have the sign of the dividend.
+    """
+  fun fldc(y: A): (A, Bool)
+    """
+    Divide this integer by `y` and return the result, rounded towards negative infinity and a flag indicating overflow or division by zero.
+    """
+  fun modc(y: A): (A, Bool)
+    """
+    Calculate the modulo of this number after floored division by `y` and return the result and a flag indicating division by zero or overflow.
+
+    The result will have the sign of the divisor.
+    """
+
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
   fun op_xor(y: A): A => this xor y
   fun op_not(): A => not this
 
+  fun bit_reverse(): A
+    """
+    Reverse the order of the bits within the integer.
+    For example, 0b11101101 (237) would return 0b10110111 (183).
+    """
+
   fun bswap(): A
 
-trait val _SignedInteger[A: _SignedInteger[A, B] val,
-    B: _UnsignedInteger[B] val] is Integer[A]
+trait val SignedInteger[A: SignedInteger[A, B] val,
+    B: UnsignedInteger[B] val] is Integer[A]
   fun abs(): B
 
   fun shl(y: B): A => this << y
@@ -269,14 +434,27 @@ trait val _SignedInteger[A: _SignedInteger[A, B] val,
 
   fun bitwidth(): B
 
+  fun bytewidth(): USize
+
   fun string(): String iso^ =>
     _ToString._u64(abs().u64(), i64() < 0)
 
-trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
+trait val UnsignedInteger[A: UnsignedInteger[A] val] is Integer[A]
   fun abs(): A
 
   fun shl(y: A): A => this << y
   fun shr(y: A): A => this >> y
+
+  // both fld and mod behave the same as div and rem for unsigned integers
+  fun fld(y: A): A => this / y
+  fun fldc(y: A): (A, Bool) => this.divc(y)
+  fun fld_partial(y: A): A ? => this.div_partial(y)?
+  fun fld_unsafe(y: A): A => this.div_unsafe(y)
+
+  fun mod(y: A): A => this % y
+  fun modc(y: A): (A, Bool) => this.remc(y)
+  fun mod_partial(y: A): A ? => this.rem_partial(y)?
+  fun mod_unsafe(y: A): A => this.rem_unsafe(y)
 
   fun shl_unsafe(y: A): A =>
     """
@@ -314,17 +492,23 @@ trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
 
   fun clz_unsafe(): A
     """
+    Count leading zeroes.
+
     Unsafe operation.
     If this is 0, the result is undefined.
     """
 
   fun ctz_unsafe(): A
     """
+    Count trailing zeroes.
+
     Unsafe operation.
     If this is 0, the result is undefined.
     """
 
   fun bitwidth(): A
+
+  fun bytewidth(): USize
 
   fun string(): String iso^ =>
     _ToString._u64(u64(), false)
@@ -376,7 +560,15 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     """
     this /~ y
 
-  fun divmod_unsafe(y: A): (A, A) =>
+  fun fld_unsafe(y: A): A
+    """
+    Unsafe operation.
+    If any input or output of the operation is +/- infinity or NaN, the result
+    is undefined.
+    The operation isn't required to fully comply to IEEE 754 semantics.
+    """
+
+  fun divrem_unsafe(y: A): (A, A) =>
     """
     Unsafe operation.
     If any input or output of the operation is +/- infinity or NaN, the result
@@ -385,7 +577,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     """
     (this /~ y, this %~ y)
 
-  fun mod_unsafe(y: A): A =>
+  fun rem_unsafe(y: A): A =>
     """
     Unsafe operation.
     If any input or output of the operation is +/- infinity or NaN, the result
@@ -393,6 +585,14 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
     The operation isn't required to fully comply to IEEE 754 semantics.
     """
     this %~ y
+
+  fun mod_unsafe(y: A): A
+    """
+    Unsafe operation.
+    If any input or output of the operation is +/- infinity or NaN, the result
+    is undefined.
+    The operation isn't required to fully comply to IEEE 754 semantics.
+    """
 
   fun neg_unsafe(): A =>
     """

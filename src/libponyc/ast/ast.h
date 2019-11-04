@@ -28,24 +28,27 @@ typedef enum
 
 enum
 {
-  AST_FLAG_PASS_MASK    = 0x0F,
-  AST_FLAG_CAN_ERROR    = 0x20,
-  AST_FLAG_CAN_SEND     = 0x40,
-  AST_FLAG_MIGHT_SEND   = 0x80,
-  AST_FLAG_IN_PARENS    = 0x100,
-  AST_FLAG_AMBIGUOUS    = 0x200,
-  AST_FLAG_BAD_SEMI     = 0x400,
-  AST_FLAG_MISSING_SEMI = 0x800,
-  AST_FLAG_PRESERVE     = 0x1000, // Do not process
-  AST_FLAG_RECURSE_1    = 0x2000,
-  AST_FLAG_DONE_1       = 0x4000,
-  AST_FLAG_ERROR_1      = 0x8000,
-  AST_FLAG_RECURSE_2    = 0x10000,
-  AST_FLAG_DONE_2       = 0x20000,
-  AST_FLAG_ERROR_2      = 0x40000,
-  AST_FLAG_JUMPS_AWAY   = 0x80000, // Jumps away (control flow) without a value.
-  AST_FLAG_INCOMPLETE   = 0x100000, // Not all fields of `this` are defined yet.
-  AST_FLAG_IMPORT       = 0x200000, // Import the referenced package.
+  AST_FLAG_PASS_MASK    = 0x1F,
+  AST_FLAG_CAN_ERROR    = 0x40,
+  AST_FLAG_CAN_SEND     = 0x80,
+  AST_FLAG_MIGHT_SEND   = 0x100,
+  AST_FLAG_IN_PARENS    = 0x200,
+  AST_FLAG_AMBIGUOUS    = 0x400,
+  AST_FLAG_BAD_SEMI     = 0x800,
+  AST_FLAG_MISSING_SEMI = 0x1000,
+  AST_FLAG_PRESERVE     = 0x2000, // Do not process
+  AST_FLAG_RECURSE_1    = 0x4000,
+  AST_FLAG_DONE_1       = 0x8000,
+  AST_FLAG_ERROR_1      = 0x10000,
+  AST_FLAG_RECURSE_2    = 0x20000,
+  AST_FLAG_DONE_2       = 0x40000,
+  AST_FLAG_ERROR_2      = 0x80000,
+  AST_FLAG_JUMPS_AWAY   = 0x100000, // Jumps away (control flow) without a value.
+  AST_FLAG_INCOMPLETE   = 0x200000, // Not all fields are defined.
+  AST_FLAG_IMPORT       = 0x400000, // Import the referenced package.
+  AST_FLAG_MAY_BREAK    = 0x800000, // This loop has seen a break statement in it.
+  AST_FLAG_CNSM_REASGN  = 0x1000000, // A variable is reassigned after a consume in the same expression
+  AST_FLAG_FCNSM_REASGN = 0x2000000, // A field is reassigned after a consume in the same expression
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);
@@ -58,8 +61,11 @@ ast_t* ast_from_string(ast_t* ast, const char* name);
 ast_t* ast_from_int(ast_t* ast, uint64_t value);
 ast_t* ast_from_float(ast_t* ast, double value);
 ast_t* ast_dup(ast_t* ast);
+ast_t* ast_dup_partial(ast_t* ast, bool* dup_child, bool dup_type,
+  bool dup_annotation, bool dup_symtab);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
+void ast_set_scope(ast_t* ast, ast_t* scope);
 symtab_t* ast_get_symtab(ast_t* ast);
 ast_t* ast_setid(ast_t* ast, token_id id);
 void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos);
@@ -140,12 +146,15 @@ void ast_reorder_children(ast_t* ast, const size_t* new_order,
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
-void ast_print(ast_t* ast);
+bool ast_is_frozen(ast_t* ast);
+void ast_freeze(ast_t* ast);
+
+void ast_print(ast_t* ast, size_t width);
 void ast_printverbose(ast_t* ast);
-void ast_fprint(FILE* fp, ast_t* ast);
+void ast_fprint(FILE* fp, ast_t* ast, size_t width);
 void ast_fprintverbose(FILE* fp, ast_t* ast);
 const char* ast_print_type(ast_t* type);
-void ast_setwidth(size_t w);
+const char* ast_print_type_no_cap(ast_t* type);
 
 void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 3, 4)));
@@ -204,20 +213,11 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       children); \
   }
 
-typedef struct unattached_asts_t
-{
-  ast_t** storage;
-  size_t count;
-  size_t alloc;
-} unattached_asts_t;
+pony_type_t* ast_signature_pony_type();
 
-void unattached_asts_init(unattached_asts_t* asts);
+pony_type_t* ast_nominal_pkg_id_signature_pony_type();
 
-void unattached_asts_put(unattached_asts_t* asts, ast_t* ast);
-
-void unattached_asts_clear(unattached_asts_t* asts);
-
-void unattached_asts_destroy(unattached_asts_t* asts);
+pony_type_t* ast_pony_type();
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }

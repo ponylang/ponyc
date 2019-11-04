@@ -181,22 +181,62 @@ class iso _I8AddTest is UnitTest
 
 ```
 
-## Tear down
+## Setting up and tearing down a test environment
 
-Each unit test object may define a tear_down() function. This is called after
+### Set Up
+
+Any kind of fixture or environment necessary for executing a [UnitTest](ponytest-UnitTest.md)
+can be set up either in the tests constructor or in a function called [set_up()](ponytest-UnitTest.md#set_up).
+
+[set_up()](ponytest-UnitTest.md#set_up) is called before the test is executed. It is partial,
+if it errors, the test is not executed but reported as failing during set up.
+The test's [TestHelper](ponytest-TestHelper.md) is handed to [set_up()](ponytest-UnitTest.md#set_up)
+in order to log messages or access the tests [Env](builtin-Env.md) via [TestHelper.env](ponytest-TestHelper.md#let-env-env-val).
+
+### Tear Down
+
+Each unit test object may define a [tear_down()](ponytest-UnitTest.md#tear_down) function. This is called after
 the test has finished to allow tearing down of any complex environment that had
 to be set up for the test.
 
-The tear_down() function is called for each test regardless of whether it
-passed or failed. If a test times out tear_down() will be called after
+The [tear_down()](ponytest-UnitTest.md#tear_down) function is called for each test regardless of whether it
+passed or failed. If a test times out [tear_down()](ponytest-UnitTest.md#tear_down) will be called after
 timed_out() returns.
 
-When a test is in an exclusion group, the tear_down() call is considered part
+When a test is in an exclusion group, the [tear_down()](ponytest-UnitTest.md#tear_down) call is considered part
 of the tests run. The next test in the exclusion group will not start until
-after tear_down() returns on the current test.
+after [tear_down()](ponytest-UnitTest.md#tear_down) returns on the current test.
 
-The test's TestHelper is handed to tear_down() and it is permitted to log
+The test's [TestHelper](ponytest-TestHelper.md) is handed to [tear_down()](ponytest-UnitTest.md#tear_down) and it is permitted to log
 messages and call assert functions during tear down.
+
+### Example
+
+The following example creates a temporary directory in the [set_up()](ponytest-UnitTest.md#set_up) function
+and removes it in the [tear_down()](ponytest-UnitTest.md#tear_down) function, thus
+simplifying the test function itself:
+
+```pony
+use "ponytest"
+use "files"
+
+class iso TempDirTest
+  var tmp_dir: (FilePath | None) = None
+
+  fun name(): String => "temp-dir"
+
+  fun ref set_up(h: TestHelper)? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "temp-dir")?
+
+  fun ref tear_down(h: TestHelper) =>
+    try
+      (tmp_dir as FilePath).remove()
+    end
+
+  fun apply(h: TestHelper)? =>
+    let dir = tmp_dir as FilePath
+    // do something inside the temporary directory
+```
 
 """
 
@@ -235,6 +275,7 @@ actor PonyTest
     _env = env
     _process_opts()
     _groups.push(("", _SimultaneousGroup))
+    @ponyint_assert_disable_popups[None]()
     list.tests(this)
     _all_tests_applied()
 
@@ -313,9 +354,10 @@ actor PonyTest
 
     try
       if not _no_prog then
-        _env.out.print(_started.string() + " test" + _plural(_started) +
-          " started, " + _finished.string() + " complete: " +
-          _records(id).name + " started")
+        _env.out.print(
+          _started.string() + " test" + _plural(_started)
+            + " started, " + _finished.string() + " complete: "
+            + _records(id)?.name + " started")
       end
     end
 
@@ -328,12 +370,13 @@ actor PonyTest
     _finished = _finished + 1
 
     try
-      _records(id)._result(pass, log)
+      _records(id)?._result(pass, log)
 
       if not _no_prog then
-        _env.out.print(_started.string() + " test" + _plural(_started) +
-          " started, " + _finished.string() + " complete: " +
-          _records(id).name + " complete")
+        _env.out.print(
+          _started.string() + " test" + _plural(_started)
+            + " started, " + _finished.string() + " complete: "
+            + _records(id)?.name + " complete")
       end
     end
 
@@ -403,10 +446,10 @@ actor PonyTest
         _env.out.print("  " + exe_name + " [options]")
         _env.out.print("")
         _env.out.print("Options:")
-        _env.out.print("  --exclude=prefix  - Don't run tests whose names " +
-          "start with the given prefix.")
-        _env.out.print("  --only=prefix     - Only run tests whose names " +
-          "start with the given prefix.")
+        _env.out.print("  --exclude=prefix  - Don't run tests whose names "
+          + "start with the given prefix.")
+        _env.out.print("  --only=prefix     - Only run tests whose names "
+          + "start with the given prefix.")
         _env.out.print("  --verbose         - Show all test output.")
         _env.out.print("  --sequential      - Run tests sequentially.")
         _env.out.print("  --noprog          - Do not print progress messages.")
@@ -436,10 +479,10 @@ actor PonyTest
 
     // Next we print the pass / fail stats.
     _env.out.print("----")
-    _env.out.print("---- " + _records.size().string() + " test" +
-      _plural(_records.size()) + " ran.")
-    _env.out.print(_Color.green() + "---- Passed: " + pass_count.string() +
-      _Color.reset())
+    _env.out.print("---- " + _records.size().string() + " test"
+      + _plural(_records.size()) + " ran.")
+    _env.out.print(_Color.green() + "---- Passed: " + pass_count.string()
+      + _Color.reset())
 
     if fail_count == 0 then
       // Success, nothing failed.
@@ -447,8 +490,8 @@ actor PonyTest
     end
 
     // Not everything passed.
-    _env.out.print(_Color.red() + "**** FAILED: " + fail_count.string() +
-      " test" + _plural(fail_count) + ", listed below:" + _Color.reset())
+    _env.out.print(_Color.red() + "**** FAILED: " + fail_count.string()
+      + " test" + _plural(fail_count) + ", listed below:" + _Color.reset())
 
     // Finally print our list of failed tests.
     for rec in _records.values() do

@@ -39,8 +39,9 @@ typedef struct pagemap_level_t
   size_t size_index;
 } pagemap_level_t;
 
-/* Constructed for a 48 bit address space where we are interested in memory
- * with POOL_ALIGN_BITS granularity.
+/* The pagemap is a prefix tree that maps heap memory to its corresponding
+ * bookkeeping data structure. It is constructed for a 48 bit address space
+ * where we are interested in memory with POOL_ALIGN_BITS granularity.
  *
  * At the first level, we shift 35 and mask on the low 13 bits, giving us bits
  * 35-47. At the second level, we shift 23 and mask on the low 12 bits, giving
@@ -63,110 +64,161 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
     POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };
 
-static PONY_ATOMIC(void**) root;
+static PONY_ATOMIC(void*) root;
 
-void* ponyint_pagemap_get(const void* m)
+#ifdef USE_MEMTRACK
+static PONY_ATOMIC(size_t) mem_allocated;
+static PONY_ATOMIC(size_t) mem_used;
+
+/** Get the memory used by the pagemap.
+ */
+size_t ponyint_pagemap_mem_size()
 {
-  void** v = atomic_load_explicit(&root, memory_order_relaxed);
-
-  for(int i = 0; i < PAGEMAP_LEVELS; i++)
-  {
-    if(v == NULL)
-      return NULL;
-
-    uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    PONY_ATOMIC(void**)* av = (PONY_ATOMIC(void**)*)&(v[ix]);
-    v = atomic_load_explicit(av, memory_order_relaxed);
-  }
-
-  return v;
+  return atomic_load_explicit(&mem_used, memory_order_relaxed);
 }
 
-void ponyint_pagemap_set(const void* m, void* v)
+/** Get the memory allocated by the pagemap.
+ */
+size_t ponyint_pagemap_alloc_size()
 {
-  PONY_ATOMIC(void**)* pv = &root;
-  void* p;
+  return atomic_load_explicit(&mem_allocated, memory_order_relaxed);
+}
+#endif
 
-  for(int i = 0; i < PAGEMAP_LEVELS; i++)
+chunk_t* ponyint_pagemap_get(const void* addr)
+{
+  PONY_ATOMIC(void*)* next_node = &root;
+  void* node = atomic_load_explicit(next_node, memory_order_relaxed);
+
+  for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
   {
-    void** pv_ld = atomic_load_explicit(pv, memory_order_acquire);
-    if(pv_ld == NULL)
+    if(node == NULL)
+      return NULL;
+
+    uintptr_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+    node = atomic_load_explicit(next_node, memory_order_relaxed);
+  }
+
+  return (chunk_t*)node;
+}
+
+void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
+{
+  PONY_ATOMIC(void*)* next_node = &root;
+
+  for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
+  {
+    void* node = atomic_load_explicit(next_node, memory_order_relaxed);
+
+    if(node == NULL)
     {
-      p = ponyint_pool_alloc(level[i].size_index);
-      memset(p, 0, level[i].size);
-      void** prev = NULL;
+      void* new_node = ponyint_pool_alloc(level[i].size_index);
+#ifdef USE_MEMTRACK
+      atomic_fetch_add_explicit(&mem_used, level[i].size, memory_order_relaxed);
+      atomic_fetch_add_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+        memory_order_relaxed);
+#endif
+      memset(new_node, 0, level[i].size);
 
 #ifdef USE_VALGRIND
-        ANNOTATE_HAPPENS_BEFORE(pv);
+      ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
-      if(!atomic_compare_exchange_strong_explicit(pv, &prev, (void**)p,
+      if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
         memory_order_release, memory_order_acquire))
       {
 #ifdef USE_VALGRIND
-        ANNOTATE_HAPPENS_AFTER(pv);
+        ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
-        ponyint_pool_free(level[i].size_index, p);
-        pv_ld = prev;
+        ponyint_pool_free(level[i].size_index, new_node);
+#ifdef USE_MEMTRACK
+        atomic_fetch_sub_explicit(&mem_used, level[i].size, memory_order_relaxed);
+        atomic_fetch_sub_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+          memory_order_relaxed);
+#endif
       } else {
-        pv_ld = (void**)p;
+        node = new_node;
       }
+    } else {
+      atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+      ANNOTATE_HAPPENS_AFTER(next_node);
+#endif
     }
 
-    uintptr_t ix = ((uintptr_t)m >> level[i].shift) & level[i].mask;
-    pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+    uintptr_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
   }
 
-  atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
+  atomic_store_explicit(next_node, chunk, memory_order_relaxed);
 }
 
-void ponyint_pagemap_set_bulk(const void* m, void* v, size_t size)
+void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
 {
-  PONY_ATOMIC(void**)* pv = NULL;
-  void* p;
-  void** pv_ld = NULL;
+  PONY_ATOMIC(void*)* next_node = NULL;
+  void* node = NULL;
   uintptr_t ix = 0;
-  uintptr_t m_ptr = (uintptr_t)m;
-  uintptr_t m_end = (uintptr_t)m + size;
+  uintptr_t addr_ptr = (uintptr_t)addr;
+  uintptr_t addr_end = (uintptr_t)addr + size;
 
-  while(m_ptr < m_end)
+  while(addr_ptr < addr_end)
   {
-    pv = &root;
-    for(int i = 0; i < PAGEMAP_LEVELS; i++)
+    next_node = &root;
+
+    for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
     {
-      pv_ld = atomic_load_explicit(pv, memory_order_acquire);
-      if(pv_ld == NULL)
+      node = atomic_load_explicit(next_node, memory_order_relaxed);
+
+      if(node == NULL)
       {
-        p = ponyint_pool_alloc(level[i].size_index);
-        memset(p, 0, level[i].size);
-        void** prev = NULL;
+        void* new_node = ponyint_pool_alloc(level[i].size_index);
+#ifdef USE_MEMTRACK
+        atomic_fetch_add_explicit(&mem_used, level[i].size, memory_order_relaxed);
+        atomic_fetch_add_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+          memory_order_relaxed);
+#endif
+        memset(new_node, 0, level[i].size);
 
 #ifdef USE_VALGRIND
-        ANNOTATE_HAPPENS_BEFORE(pv);
+        ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
-        if(!atomic_compare_exchange_strong_explicit(pv, &prev, (void**)p,
+        if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
           memory_order_release, memory_order_acquire))
         {
 #ifdef USE_VALGRIND
-          ANNOTATE_HAPPENS_AFTER(pv);
+          ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
-          ponyint_pool_free(level[i].size_index, p);
-          pv_ld = prev;
+          ponyint_pool_free(level[i].size_index, new_node);
+#ifdef USE_MEMTRACK
+          atomic_fetch_sub_explicit(&mem_used, level[i].size, memory_order_relaxed);
+          atomic_fetch_sub_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
+            memory_order_relaxed);
+#endif
         } else {
-          pv_ld = (void**)p;
+          node = new_node;
         }
+      } else {
+        atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+        ANNOTATE_HAPPENS_AFTER(next_node);
+#endif
       }
 
-      ix = (m_ptr >> level[i].shift) & level[i].mask;
-      pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
+      ix = (addr_ptr >> level[i].shift) & level[i].mask;
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
     }
 
-    // store as many pagemap entries as would fit into this pagemap level segment
-    do {
-      atomic_store_explicit(pv, (void**)v, memory_order_relaxed);
-      m_ptr += POOL_ALIGN;
+    // Store as many pagemap entries as would fit into this pagemap level
+    // segment.
+    do
+    {
+      atomic_store_explicit(next_node, chunk, memory_order_relaxed);
+      addr_ptr += POOL_ALIGN;
       ix++;
-      pv = (PONY_ATOMIC(void**)*)&(pv_ld[ix]);
-      // if ix is greater than mask we need to move to the next pagement level segment
-    } while((m_ptr < m_end) && (ix <= (uintptr_t)level[PAGEMAP_LEVELS-1].mask));
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+      // If ix is greater than mask we need to move to the next pagemap level
+      // segment.
+    } while((addr_ptr < addr_end) &&
+        (ix <= (uintptr_t)level[PAGEMAP_LEVELS-1].mask));
   }
 }

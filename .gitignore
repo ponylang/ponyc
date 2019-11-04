@@ -7,6 +7,10 @@ tags
 *.bc
 *.a
 *.exe
+*.exp
+*.ilk
+*.lib
+*.pdb
 *.sublime*
 .*.swp
 .*.swo
@@ -26,3 +30,9 @@ output/
 _ReSharper.*
 .vscode/
 src/common/dtrace_probes.h
+packages/stdlib/stdlib
+
+/stdlib-docs/
+
+# Allow these paths
+!src/libponyrt/lang/except_try_catch.ll

@@ -23,6 +23,12 @@ object_t* ponyint_objectmap_getorput(objectmap_t* map, void* address,
 
 void ponyint_objectmap_sweep(objectmap_t* map);
 
+#ifdef USE_MEMTRACK
+size_t ponyint_objectmap_total_mem_size(objectmap_t* map);
+
+size_t ponyint_objectmap_total_alloc_size(objectmap_t* map);
+#endif
+
 PONY_EXTERN_C_END
 
 #endif

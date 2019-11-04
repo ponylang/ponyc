@@ -8,6 +8,11 @@ probe process.mark("actor-msg-send")
         the message type is calculated from that value. UINT32_MAX
         must be changed on different types of machines */
     UINT32_MAX = 4294967296;
+    ACTORMSG_APPLICATION_START = (UINT32_MAX - 11);
+    ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);
+    ACTORMSG_DESTROYED = (UINT32_MAX - 9);
+    ACTORMSG_CREATED = (UINT32_MAX - 8);
+    ACTORMSG_ISBLOCKED = (UINT32_MAX - 7);
     ACTORMSG_BLOCK = (UINT32_MAX - 6);
     ACTORMSG_UNBLOCK = (UINT32_MAX - 5);
     ACTORMSG_ACQUIRE = (UINT32_MAX - 4);
@@ -15,8 +20,20 @@ probe process.mark("actor-msg-send")
     ACTORMSG_CONF = (UINT32_MAX - 2);
     ACTORMSG_ACK = (UINT32_MAX - 1);
 
-    if ($arg2 < ACTORMSG_BLOCK) {
+    if ($arg2 <= ACTORMSG_APPLICATION_START) {
         messages[$arg1, "count_msg_app"] ++;
+    }
+    if ($arg2 == ACTORMSG_CHECKBLOCKED) {
+        messages[$arg1, "count_msg_checkblocked"] ++;
+    }
+    if ($arg2 == ACTORMSG_DESTROYED) {
+        messages[$arg1, "count_msg_destroyed"] ++;
+    }
+    if ($arg2 == ACTORMSG_CREATED) {
+        messages[$arg1, "count_msg_created"] ++;
+    }
+    if ($arg2 == ACTORMSG_ISBLOCKED) {
+        messages[$arg1, "count_msg_isblocked"] ++;
     }
     if ($arg2 == ACTORMSG_BLOCK) {
         messages[$arg1, "count_msg_block"] ++;
@@ -46,8 +63,10 @@ probe process.mark("gc-start")
 
 probe process.mark("gc-end")
 {
-    time_in_gc[$arg1, "gc"] = gettimeofday_us() - tmp_ts[$arg1, "gc"];
-    delete tmp_ts[$arg1, "gc"];
+    if (tmp_ts[$arg1, "gc"] > 0) {
+        time_in_gc[$arg1, "gc"] += gettimeofday_us() - tmp_ts[$arg1, "gc"];
+        delete tmp_ts[$arg1, "gc"];
+    }
 }
 
 probe process.mark("gc-send-start")
@@ -57,8 +76,10 @@ probe process.mark("gc-send-start")
 
 probe process.mark("gc-send-end")
 {
-    time_in_gc[$arg1, "gc_send"] = gettimeofday_us() - tmp_ts[$arg1, "gc_send"];
-    delete tmp_ts[$arg1, "gc_send"];
+    if (tmp_ts[$arg1, "gc_send"] > 0) {
+        time_in_gc[$arg1, "gc_send"] += gettimeofday_us() - tmp_ts[$arg1, "gc_send"];
+        delete tmp_ts[$arg1, "gc_send"];
+    }
 }
 
 probe process.mark("gc-recv-start")
@@ -68,14 +89,16 @@ probe process.mark("gc-recv-start")
 
 probe process.mark("gc-recv-end")
 {
-    time_in_gc[$arg1, "gc_recv"] = gettimeofday_us() - tmp_ts[$arg1, "gc_recv"];
-    delete tmp_ts[$arg1, "gc_recv"];
+    if (tmp_ts[$arg1, "gc_recv"]) {
+        time_in_gc[$arg1, "gc_recv"] += gettimeofday_us() - tmp_ts[$arg1, "gc_recv"];
+        delete tmp_ts[$arg1, "gc_recv"];
+    }
 }
 
 probe process.mark("heap-alloc")
 {
     alloc[$arg1, "heap"] ++;
-    alloc[$arg1, "size"] = alloc[$arg1, "size"] + $arg2;
+    alloc[$arg1, "size"] += $arg2;
 }
 
 probe process.mark("actor-alloc")
@@ -94,6 +117,10 @@ probe end
       printf("    \"count_alloc_size\": %d,\n", alloc[scheduler, "size"]);
       printf("    \"count_alloc_actors\": %d,\n", alloc[scheduler, "actor"]);
       printf("    \"count_msg_app\": %d,\n", messages[scheduler, "count_msg_app"]);
+      printf("    \"count_msg_checkblocked\": %d,\n", messages[scheduler, "count_msg_checkblocked"]);
+      printf("    \"count_msg_destroyed\": %d,\n", messages[scheduler, "count_msg_destroyed"]);
+      printf("    \"count_msg_created\": %d,\n", messages[scheduler, "count_msg_created"]);
+      printf("    \"count_msg_isblocked\": %d,\n", messages[scheduler, "count_msg_isblocked"]);
       printf("    \"count_msg_block\": %d,\n", messages[scheduler, "count_msg_block"]);
       printf("    \"count_msg_unblock\": %d,\n", messages[scheduler, "count_msg_unblock"]);
       printf("    \"count_msg_acquire\": %d,\n", messages[scheduler, "count_msg_acquire"]);

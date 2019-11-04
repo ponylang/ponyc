@@ -24,7 +24,7 @@ static struct
   const char* name;
   lexint_t limit;
   bool neg_plus_one;    // Is a negated value allowed to be 1 bigger
-} _str_uif_types[UIF_COUNT] =
+} const _str_uif_types[UIF_COUNT] =
 {
   { "U8", {0x100, 0}, false },
   { "U16", {0x10000, 0}, false },
@@ -53,13 +53,13 @@ typedef struct lit_op_info_t
   bool neg_plus_one;
 } lit_op_info_t;
 
-static lit_op_info_t _operator_fns[] =
+static const lit_op_info_t _operator_fns[] =
 {
   { "add", 1, true, false },
   { "sub", 1, true, false },
   { "mul", 1, true, false },
   { "div", 1, true, false },
-  { "mod", 1, true, false },
+  { "rem", 1, true, false },
   { "neg", 0, true, true },
   { "shl", 1, true, false },
   { "shr", 1, true, false },
@@ -77,13 +77,37 @@ static lit_op_info_t _operator_fns[] =
 };
 
 
-static lit_op_info_t* lookup_literal_op(const char* name)
+static lit_op_info_t const* lookup_literal_op(const char* name)
 {
   for(int i = 0; _operator_fns[i].name != NULL; i++)
     if(strcmp(name, _operator_fns[i].name) == 0)
       return &_operator_fns[i];
 
   return NULL;
+}
+
+
+void operatorliteral_serialise_data(ast_t* ast, ast_t* dst)
+{
+  lit_op_info_t const* data = (lit_op_info_t*)ast_data(ast);
+  if(data != NULL)
+  {
+    size_t index = (size_t)(data - _operator_fns);
+    ast_setdata(dst, (void*)index);
+  } else {
+    ast_setdata(dst, (void*)((size_t)(~0)));
+  }
+}
+
+
+void operatorliteral_deserialise_data(ast_t* ast)
+{
+  size_t index = (size_t)ast_data(ast);
+
+  if(index > 17)
+    ast_setdata(ast, (void*)NULL);
+  else
+    ast_setdata(ast, (void*)&_operator_fns[index]);
 }
 
 
@@ -392,8 +416,21 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
-      pony_assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
-      return uifset(opt, ast_childidx(type, 1), chain);
+      {
+        ast_t* rhs = ast_childidx(type, 1);
+        switch(ast_id(rhs))
+        {
+          case TK_NOMINAL:
+          case TK_TYPEPARAMREF:
+            return uifset(opt, rhs, chain);
+
+          default:
+            ast_error(opt->check.errors, rhs,
+              "Internal error: uif type, node %d", ast_id(rhs));
+            pony_assert(0);
+            return UIF_ERROR;
+        }
+      }
 
     case TK_TYPEPARAMREF:
       if(chain->cardinality != CHAIN_CARD_BASE) // Incorrect cardinality
@@ -551,7 +588,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 
         if(parent_type != NULL && ast_id(parent_type) == TK_OPERATORLITERAL &&
           ast_child(parent) == literal &&
-          ((lit_op_info_t*)ast_data(parent_type))->neg_plus_one)
+          ((lit_op_info_t const*)ast_data(parent_type))->neg_plus_one)
           neg_plus_one = true;
       }
 
@@ -736,7 +773,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
 
     case TK_CALL:
     {
-      AST_GET_CHILDREN(literal_expr, positional, named, receiver);
+      AST_GET_CHILDREN(literal_expr, receiver, positional, named, question);
       ast_t* arg = ast_child(positional);
 
       if(!coerce_literal_to_type(&receiver, target_type, chain, opt,
@@ -863,7 +900,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* opt)
   // Look up member name
   pony_assert(ast_id(name_node) == TK_ID);
   const char* name = ast_name(name_node);
-  lit_op_info_t* op = lookup_literal_op(name);
+  lit_op_info_t const* op = lookup_literal_op(name);
 
   if(op == NULL || ast_id(ast_parent(ast)) != TK_CALL)
   {
@@ -884,7 +921,7 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_CALL);
 
-  AST_GET_CHILDREN(ast, positional_args, named_args, receiver);
+  AST_GET_CHILDREN(ast, receiver, positional_args, named_args, question);
 
   ast_t* recv_type = ast_type(receiver);
 
@@ -900,7 +937,7 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
   if(ast_id(recv_type) != TK_OPERATORLITERAL) // Nothing to do
     return true;
 
-  lit_op_info_t* op = (lit_op_info_t*)ast_data(recv_type);
+  lit_op_info_t const* op = (lit_op_info_t const*)ast_data(recv_type);
   pony_assert(op != NULL);
 
   if(ast_childcount(named_args) != 0)

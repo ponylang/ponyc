@@ -11,7 +11,6 @@
 
 *.bat win
 
-pony.g export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
 

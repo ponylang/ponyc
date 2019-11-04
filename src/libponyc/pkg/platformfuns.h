@@ -7,7 +7,10 @@
 PONY_EXTERN_C_BEGIN
 
 // OS names used in platform.pony
+#define OS_BSD_NAME "bsd"
 #define OS_FREEBSD_NAME "freebsd"
+#define OS_DRAGONFLY_NAME "dragonfly"
+#define OS_OPENBSD_NAME "openbsd"
 #define OS_LINUX_NAME "linux"
 #define OS_MACOSX_NAME "osx"
 #define OS_WINDOWS_NAME "windows"
@@ -19,6 +22,8 @@ PONY_EXTERN_C_BEGIN
 #define OS_ILP32_NAME "ilp32"
 #define OS_NATIVE128_NAME "native128"
 #define OS_DEBUG_NAME "debug"
+#define OS_BIGENDIAN_NAME "bigendian"
+#define OS_LITTLEENDIAN_NAME "littleendian"
 
 /** Report whether the named platform attribute is true
  * @param out_is true if the specified attribute is set, false otherwise

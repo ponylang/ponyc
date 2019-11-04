@@ -3,9 +3,9 @@
 
 The Process package provides support for handling Unix style processes.
 For each external process that you want to handle, you need to create a
-`ProcessMonitor` and a corresponding `ProcessNotify` object. Each ProcessMonitor
-runs as it own actor and upon receiving data will call its corresponding
-`ProcessNotify`'s method.
+`ProcessMonitor` and a corresponding `ProcessNotify` object. Each
+ProcessMonitor runs as it own actor and upon receiving data will call its
+corresponding `ProcessNotify`'s method.
 
 ## Example program
 
@@ -24,18 +24,15 @@ actor Main
     let notifier: ProcessNotify iso = consume client
     // define the binary to run
     try
-      let path = FilePath(env.root as AmbientAuth, "/bin/cat")
+      let path = FilePath(env.root as AmbientAuth, "/bin/cat")?
       // define the arguments; first arg is always the binary name
-      let args: Array[String] iso = recover Array[String](1) end
-      args.push("cat")
+      let args: Array[String] val = ["cat"]
       // define the environment variable for the execution
-      let vars: Array[String] iso = recover Array[String](2) end
-      vars.push("HOME=/")
-      vars.push("PATH=/bin")
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
       // create a ProcessMonitor and spawn the child process
       let auth = env.root as AmbientAuth
-      let pm: ProcessMonitor = ProcessMonitor(auth, consume notifier, path,
-      consume args, consume vars)
+      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
+      path, args, vars)
       // write to STDIN of the child process
       pm.write("one, two, three")
       pm.done_writing() // closing stdin allows cat to terminate
@@ -60,16 +57,15 @@ class ProcessClient is ProcessNotify
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     match err
-    | ExecveError   => _env.out.print("ProcessError: ExecveError")
-    | PipeError     => _env.out.print("ProcessError: PipeError")
-    | ForkError     => _env.out.print("ProcessError: ForkError")
-    | WaitpidError  => _env.out.print("ProcessError: WaitpidError")
-    | WriteError    => _env.out.print("ProcessError: WriteError")
-    | KillError     => _env.out.print("ProcessError: KillError")
-    | CapError      => _env.out.print("ProcessError: CapError")
-    | Unsupported   => _env.out.print("ProcessError: Unsupported")
-    else
-      _env.out.print("Unknown ProcessError!")
+    | ExecveError => _env.out.print("ProcessError: ExecveError")
+    | PipeError => _env.out.print("ProcessError: PipeError")
+    | ForkError => _env.out.print("ProcessError: ForkError")
+    | WaitpidError => _env.out.print("ProcessError: WaitpidError")
+    | WriteError => _env.out.print("ProcessError: WriteError")
+    | KillError => _env.out.print("ProcessError: KillError")
+    | CapError => _env.out.print("ProcessError: CapError")
+    | Unsupported => _env.out.print("ProcessError: Unsupported")
+    else _env.out.print("Unknown ProcessError!")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
@@ -88,61 +84,17 @@ a runtime error.
 Document waitpid behaviour (stops world)
 
 """
+use "backpressure"
+use "collections"
 use "files"
-use @pony_os_errno[I32]()
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-      flags: U32, nsec: U64, noisy: Bool)
-use @pony_asio_event_unsubscribe[None](event: AsioEventID)
-use @pony_asio_event_destroy[None](event: AsioEventID)
-
-primitive _EINTR
-  fun apply(): I32 => 4
-
-primitive _STDINFILENO
-  fun apply(): U32 => 0
-
-primitive _STDOUTFILENO
-  fun apply(): U32 => 1
-
-primitive _STDERRFILENO
-  fun apply(): U32 => 2
-
-primitive _FSETFL
-  fun apply(): I32 => 4
-
-primitive _FGETFL
-  fun apply(): I32 => 3
-
-primitive _FSETFD
-  fun apply(): I32 => 2
-
-primitive _FGETFD
-  fun apply(): I32 => 1
-
-primitive _FDCLOEXEC
-  fun apply(): I32 => 1
-
-primitive _SIGTERM
-  fun apply(): I32 => 15
-
-primitive _EAGAIN
-  fun apply(): I32 =>
-    ifdef freebsd or osx then 35
-    elseif linux then 11
-    else compile_error "no EAGAIN" end
-
-primitive _ONONBLOCK
-  fun apply(): I32 =>
-    ifdef freebsd or osx then 4
-    elseif linux then 2048
-    else compile_error "no O_NONBLOCK" end
+use "time"
 
 primitive ExecveError
 primitive PipeError
 primitive ForkError
 primitive WaitpidError
 primitive WriteError
-primitive KillError
+primitive KillError   // Not thrown at this time
 primitive Unsupported // we throw this on non POSIX systems
 primitive CapError
 
@@ -161,39 +113,42 @@ type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
 
 actor ProcessMonitor
   """
-  Forks and monitors a process. Notifies a client about STDOUT / STDERR events.
+  Fork+execs / creates a child process and monitors it. Notifies a client about
+  STDOUT / STDERR events.
   """
   let _notifier: ProcessNotify
-  var _child_pid: I32 = -1
+  let _backpressure_auth: BackpressureAuth
 
-  var _stdout_event: AsioEventID = AsioEvent.none()
-  var _stderr_event: AsioEventID = AsioEvent.none()
+  var _stdin: _Pipe = _Pipe.none()
+  var _stdout: _Pipe = _Pipe.none()
+  var _stderr: _Pipe = _Pipe.none()
+  var _child: _Process = _ProcessNone
 
   let _max_size: USize = 4096
-  var _read_buf: Array[U8] iso = recover Array[U8].>undefined(_max_size) end
+  var _read_buf: Array[U8] iso = recover Array[U8] .> undefined(_max_size) end
   var _read_len: USize = 0
   var _expect: USize = 0
 
-  var _stdin_read:   U32 = -1
-  var _stdin_write:  U32 = -1
-  var _stdout_read:  U32 = -1
-  var _stdout_write: U32 = -1
-  var _stderr_read:  U32 = -1
-  var _stderr_write: U32 = -1
-
-  var _stdout_open: Bool = true
-  var _stderr_open: Bool = true
+  embed _pending: List[(ByteSeq, USize)] = _pending.create()
+  var _done_writing: Bool = false
 
   var _closed: Bool = false
+  var _timers: (Timers tag | None) = None  // For windows only
 
-  new create(auth: ProcessMonitorAuth, notifier: ProcessNotify iso,
-    filepath: FilePath, args: Array[String] val, vars: Array[String] val)
+  new create(
+    auth: ProcessMonitorAuth,
+    backpressure_auth: BackpressureAuth,
+    notifier: ProcessNotify iso,
+    filepath: FilePath,
+    args: Array[String] val,
+    vars: Array[String] val)
   =>
     """
-    Create infrastructure to communicate with a forked child process
-    and register the asio events. Fork child process and notify our
-    user about incoming data via the notifier.
+    Create infrastructure to communicate with a forked child process and
+    register the asio events. Fork child process and notify our user about
+    incoming data via the notifier.
     """
+    _backpressure_auth = backpressure_auth
     _notifier = consume notifier
 
     // We need permission to execute and the
@@ -204,188 +159,78 @@ actor ProcessMonitor
     end
 
     let ok = try
-      FileInfo(filepath).mode.any_exec
+      FileInfo(filepath)?.file
     else
       false
     end
     if not ok then
-      // path is to a non-executable file or that file doesn't exist
+      // unable to stat the file path given so it may not exist
+      // or may be a directory.
       _notifier.failed(this, ExecveError)
       return
     end
 
-    ifdef posix then
-      try
-        (_stdin_read, _stdin_write)   = _make_pipe(_FDCLOEXEC())
-        (_stdout_read, _stdout_write) = _make_pipe(_FDCLOEXEC())
-        (_stderr_read, _stderr_write) = _make_pipe(_FDCLOEXEC())
-        // Set O_NONBLOCK only for parent-side file descriptors, as many
-        // programs (like cat) cannot handle a non-blocking stdin/stdout/stderr
-        _set_fl(_stdin_write, _ONONBLOCK())
-        _set_fl(_stdout_read, _ONONBLOCK())
-        _set_fl(_stderr_read, _ONONBLOCK())
-      else
-        _close_fd(_stdin_read)
-        _close_fd(_stdin_write)
-        _close_fd(_stdout_read)
-        _close_fd(_stdout_write)
-        _close_fd(_stderr_read)
-        _close_fd(_stderr_write)
-        _notifier.failed(this, PipeError)
-        return
-      end
-      // prepare argp and envp ahead of fork() as it's not safe
-      // to allocate in the child after fork() was called.
-      let argp = _make_argv(args)
-      let envp = _make_argv(vars)
-      // fork child process
-      _child_pid = @fork[I32]()
-      match _child_pid
-      | -1  => _notifier.failed(this, ForkError)
-      | 0   => _child(filepath.path, argp, envp)
-      else
-        _parent()
-      end
-    elseif windows then
-      _notifier.failed(this, Unsupported)
+    try
+      _stdin = _Pipe.outgoing()?
+      _stdout = _Pipe.incoming()?
+      _stderr = _Pipe.incoming()?
     else
-      compile_error "unsupported platform"
+      _stdin.close()
+      _stdout.close()
+      _stderr.close()
+      _notifier.failed(this, PipeError)
+      return
+    end
+
+    try
+      ifdef posix then
+        _child = _ProcessPosix.create(
+          filepath.path, args, vars, _stdin, _stdout, _stderr)?
+      elseif windows then
+        _child = _ProcessWindows.create(
+          filepath.path, args, vars, _stdin, _stdout, _stderr)
+      else
+        compile_error "unsupported platform"
+      end
+      _stdin.begin(this)
+      _stdout.begin(this)
+      _stderr.begin(this)
+
+      // Asio is not wired up for Windows, so use a timer for now.
+      ifdef windows then
+        let timers = Timers
+        let pm: ProcessMonitor tag = this
+        let tn =
+          object iso is TimerNotify
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              pm.timer_notify()
+              true
+          end
+        let timer = Timer(consume tn, 50_000_000, 10_000_000)
+        timers(consume timer)
+        _timers = timers
+      end
+    else
+      _notifier.failed(this, ForkError)
+      return
     end
     _notifier.created(this)
 
-  fun _child(path: String, argp: Array[Pointer[U8] tag],
-    envp: Array[Pointer[U8] tag])
-    =>
-    """
-    We are now in the child process. We redirect STDIN, STDOUT and STDERR
-    to their pipes and execute the command. The command is executed via
-    execve which does not return on success, and the text, data, bss, and
-    stack of the calling process are overwritten by that of the program
-    loaded. We've set the FD_CLOEXEC flag on all file descriptors to ensure
-    that they are all closed automatically once @execve gets called.
-    """
-    ifdef posix then
-      _dup2(_stdin_read, _STDINFILENO())    // redirect stdin
-      _dup2(_stdout_write, _STDOUTFILENO()) // redirect stdout
-      _dup2(_stderr_write, _STDERRFILENO()) // redirect stderr
-      if 0 > @execve[I32](path.cstring(), argp.cpointer(),
-        envp.cpointer())
-      then
-        @_exit[None](I32(-1))
-      end
-    end
-
-  fun ref _parent() =>
-    """
-    We're now in the parent process. We setup asio events for STDOUT and STDERR
-    and close the file descriptors we don't need.
-    """
-    ifdef posix then
-      _stdout_event = _create_asio_event(_stdout_read)
-      _stderr_event = _create_asio_event(_stderr_read)
-      _close_fd(_stdin_read)
-      _close_fd(_stdout_write)
-      _close_fd(_stderr_write)
-    end
-
-  fun _make_argv(args: Array[String] box): Array[Pointer[U8] tag] =>
-    """
-    Convert an array of String parameters into an array of
-    C pointers to same strings.
-    """
-    let argv = Array[Pointer[U8] tag](args.size() + 1)
-    for s in args.values() do
-      argv.push(s.cstring())
-    end
-    argv.push(Pointer[U8]) // nullpointer to terminate list of args
-    argv
-
-  fun _dup2(oldfd: U32, newfd: U32) =>
-    """
-    Creates a copy of the file descriptor oldfd using the file
-    descriptor number specified in newfd. If the file descriptor newfd
-    was previously open, it is silently closed before being reused.
-    If dup2() fails because of EINTR we retry.
-    """
-    ifdef posix then
-      while (@dup2[I32](oldfd, newfd) < 0) do
-        if @pony_os_errno() == _EINTR() then
-          continue
-        else
-          @_exit[None](I32(-1))
-        end
-      end
-    end
-
-  fun _make_pipe(fd_flags: I32): (U32, U32) ? =>
-    """
-    Creates a pipe, an unidirectional data channel that can be used
-    for interprocess communication. We need to set the flags O_NONBLOCK
-    and O_CLOEXEC on the two file descriptors here to prevent capturing
-    by another thread.
-    """
-    ifdef posix then
-      var pipe = (U32(0), U32(0))
-      if @pipe[I32](addressof pipe) < 0 then
-        error
-      end
-      _set_fd(pipe._1, fd_flags)
-      _set_fd(pipe._2, fd_flags)
-      pipe
-    else
-      (U32(0), U32(0))
-    end
-
-  fun _getflags(fd: U32): String box ? =>
-    """
-    Get the string representation of flags set for a file descriptor
-    """
-    let result: String ref = String
-    ifdef posix then
-      let fd_flags: I32 = @fcntl[I32](fd, _FGETFD(), I32(0))
-      if fd_flags < 0 then error end
-      if (fd_flags and _FDCLOEXEC()) > 0 then
-        result.append(" _FDCLOEXEC ")
-      end
-      let fl_flags: I32 = @fcntl[I32](fd, _FGETFL(), I32(0))
-      if fl_flags < 0 then error end
-        if (fl_flags and _ONONBLOCK()) > 0 then
-          result.append(" O_NONBLOCK ")
-        end
-      result
-    else
-      result
-    end
-
-  fun _set_fd(fd: U32, flags: I32) ? =>
-    let result = @fcntl[I32](fd, _FSETFD(), flags)
-    if result < 0 then error end
-
-  fun _set_fl(fd: U32, flags: I32) ? =>
-    let result = @fcntl[I32](fd, _FSETFL(), flags)
-    if result < 0 then error end
-
   be print(data: ByteSeq) =>
     """
-    Print some bytes and insert a newline afterwards.
+    Print some bytes and append a newline.
     """
-    _print_final(data)
+    if not _done_writing then
+      _write_final(data)
+      _write_final("\n")
+    end
 
   be write(data: ByteSeq) =>
     """
     Write to STDIN of the child process.
-    TODO: Signal back success/failure
     """
-    ifdef posix then
-      let d = data
-      if _stdin_write > 0 then
-        let res = @write[ISize](_stdin_write, d.cpointer(), d.size())
-        if res < 0 then
-          _notifier.failed(this, WriteError)
-        end
-      else
-        _notifier.failed(this, WriteError)
-      end
+    if not _done_writing then
+      _write_final(data)
     end
 
   be printv(data: ByteSeqIter) =>
@@ -393,7 +238,8 @@ actor ProcessMonitor
     Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
-      _print_final(bytes)
+      _write_final(bytes)
+      _write_final("\n")
     end
 
   be writev(data: ByteSeqIter) =>
@@ -404,39 +250,23 @@ actor ProcessMonitor
       _write_final(bytes)
     end
 
-  fun ref _print_final(data: ByteSeq) =>
-    _write_final(data)
-    _write_final("\n")
-
-  fun ref _write_final(data: ByteSeq) =>
-    ifdef posix then
-      let d = data
-      if _stdin_write > 0 then
-        let res = @write[ISize](_stdin_write, d.cpointer(), d.size())
-        if res < 0 then
-          _notifier.failed(this, WriteError)
-        end
-      else
-        _notifier.failed(this, WriteError)
-      end
-    end
-
   be done_writing() =>
     """
-    Close _stdin_write file descriptor.
+    Set the _done_writing flag to true. If _pending is empty we can close the
+    _stdin pipe.
     """
-    _close_fd(_stdin_write)
+    _done_writing = true
+    Backpressure.release(_backpressure_auth)
+    if _pending.size() == 0 then
+      _stdin.close_near()
+    end
 
   be dispose() =>
     """
     Terminate child and close down everything.
     """
-    try
-      _kill_child()
-    else
-      _notifier.failed(this, KillError)
-      return
-    end
+    Backpressure.release(_backpressure_auth)
+    _child.kill()
     _close()
 
   fun ref expect(qty: USize = 0) =>
@@ -447,93 +277,60 @@ actor ProcessMonitor
     _expect = _notifier.expect(this, qty)
     _read_buf_size()
 
-  fun _kill_child() ? =>
-    """
-    Terminate the child process.
-    """
-    if @kill[I32](_child_pid, _SIGTERM()) < 0 then error end
-
-  fun _create_asio_event(fd: U32): AsioEventID =>
-    """
-    Takes a file descriptor (one end of a pipe) and returns an AsioEvent.
-    """
-    ifdef posix then
-      @pony_asio_event_create(this, fd, AsioEvent.read(), 0, true)
-    else
-      AsioEvent.none()
-    end
-
-  fun _event_flags(flags: U32): String box=>
-    """
-    Return all flags of an event as a string.
-    """
-    let all: String ref = String
-    if AsioEvent.readable(flags) then all.append("readable|") end
-    if AsioEvent.disposable(flags) then all.append("disposable|") end
-    if AsioEvent.writeable(flags) then all.append("writeable|") end
-    all
-
   be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
-    Handle the incoming event.
+    Handle the incoming Asio event from one of the pipes.
     """
     match event
-    | _stdout_event =>
-      if AsioEvent.readable(flags) then
-        _stdout_open = _pending_reads(_stdout_read)
+    | _stdin.event =>
+      if AsioEvent.writeable(flags) then
+        _pending_writes()
       elseif AsioEvent.disposable(flags) then
-        @pony_asio_event_destroy(event)
-        _stdout_event = AsioEvent.none()
+        _stdin.dispose()
       end
-    | _stderr_event =>
+    | _stdout.event =>
       if AsioEvent.readable(flags) then
-        _stderr_open = _pending_reads(_stderr_read)
+        _pending_reads(_stdout)
       elseif AsioEvent.disposable(flags) then
-        @pony_asio_event_destroy(event)
-        _stderr_event = AsioEvent.none()
+        _stdout.dispose()
+      end
+    | _stderr.event =>
+      if AsioEvent.readable(flags) then
+        _pending_reads(_stderr)
+      elseif AsioEvent.disposable(flags) then
+        _stderr.dispose()
       end
     end
     _try_shutdown()
 
-  fun ref _close_fd(fd: U32) =>
+  be timer_notify() =>
     """
-    Close a file descriptor.
+    Windows IO polling timer has fired
     """
-    @close[I32](fd)
-    match fd
-    | _stdin_read   => _stdin_read   = -1
-    | _stdin_write  => _stdin_write  = -1
-    | _stdout_read  => _stdout_read  = -1
-    | _stdout_write => _stdout_write = -1
-    | _stderr_read  => _stderr_read  = -1
-    | _stderr_write => _stderr_write = -1
-    end
+    _pending_writes() // try writes
+    _pending_reads(_stdout)
+    _pending_reads(_stderr)
+    _try_shutdown()
 
   fun ref _close() =>
     """
-    Close all pipes, unsubscribe events and wait for the child process to exit.
+    Close all pipes and wait for the child process to exit.
     """
-    ifdef posix then
-      if not _closed then
-        _closed = true
-        _close_fd(_stdin_read)
-        _close_fd(_stdin_write)
-        _close_fd(_stdout_read)
-        _close_fd(_stdout_write)
-        _close_fd(_stderr_read)
-        _close_fd(_stderr_write)
-        _stdout_open = false
-        _stderr_open = false
-        @pony_asio_event_unsubscribe(_stdout_event)
-        @pony_asio_event_unsubscribe(_stderr_event)
-        // We want to capture the exit status of the child
-        var wstatus: I32 = 0
-        let options: I32 = 0
-        if @waitpid[I32](_child_pid, addressof wstatus, options) < 0 then
-          _notifier.failed(this, WaitpidError)
-        end
+    if not _closed then
+      _closed = true
+      _stdin.close()
+      _stdout.close()
+      _stderr.close()
+      let exit_code = _child.wait()
+      if exit_code < 0 then
+        // An error waiting for pid
+        _notifier.failed(this, WaitpidError)
+      else
         // process child exit code
-        _notifier.dispose(this, (wstatus >> 8) and 0xff)
+        _notifier.dispose(this, exit_code)
+      end
+      match _timers
+      | let t: Timers => t.dispose()
       end
     end
 
@@ -541,65 +338,63 @@ actor ProcessMonitor
     """
     If neither stdout nor stderr are open we close down and exit.
     """
-    if (_stdout_read == -1) and (_stderr_read == -1) then
-      _close()
+    if _stdin.is_closed() and
+      _stdout.is_closed() and
+      _stderr.is_closed()
+    then
+       _close()
     end
 
-  fun ref _pending_reads(fd: U32): Bool =>
+  fun ref _pending_reads(pipe: _Pipe) =>
     """
-    Read from stdout while data is available. If we read 4 kb of data,
-    send ourself a resume message and stop reading, to avoid starving
+    Read from stdout or stderr while data is available. If we read 4 kb of
+    data, send ourself a resume message and stop reading, to avoid starving
     other actors.
     It's safe to use the same buffer for stdout and stderr because of
     causal messaging. Events get processed one _after_ another.
     """
-    ifdef posix then
-      if fd == -1 then return false end
-      var sum: USize = 0
-      while true do
-        let len = @read[ISize](fd, _read_buf.cpointer().usize() + _read_len,
-          _read_buf.size() - _read_len)
-        let errno = @pony_os_errno()
-        let next = _read_buf.space()
-        match len
-        | -1 =>
-          if errno == _EAGAIN()  then
-            return true // resource temporarily unavailable, retry
-          end
-          _close_fd(fd)
-          return false
-        | 0  =>
-          _close_fd(fd)
-          return false
+    if pipe.is_closed() then return end
+    var sum: USize = 0
+    while true do
+      (_read_buf, let len, let errno) =
+        pipe.read(_read_buf = recover Array[U8] end, _read_len)
+
+      let next = _read_buf.space()
+      match len
+      | -1 =>
+        if (errno == _EAGAIN()) then
+          return // nothing to read right now, try again later
         end
-
-        _read_len = _read_len + len.usize()
-
-        let data = _read_buf = recover Array[U8].>undefined(next) end
-        data.truncate(_read_len)
-
-        match fd
-        | _stdout_read =>
-          if _read_len >= _expect then
-            _notifier.stdout(this, consume data)
-          end
-        | _stderr_read =>
-          _notifier.stderr(this, consume data)
-        end
-
-        _read_len = 0
-        _read_buf_size()
-
-        sum = sum + len.usize()
-        if sum > (1 << 12) then
-          // If we've read 4 kb, yield and read again later.
-          _read_again(fd)
-          return true
-        end
+        pipe.close()
+        return
+      | 0  =>
+        pipe.close()
+        return
       end
-      true
-    else
-      true
+
+      _read_len = _read_len + len.usize()
+
+      let data = _read_buf = recover Array[U8] .> undefined(next) end
+      data.truncate(_read_len)
+
+      match pipe.near_fd
+      | _stdout.near_fd =>
+        if _read_len >= _expect then
+          _notifier.stdout(this, consume data)
+        end
+      | _stderr.near_fd =>
+        _notifier.stderr(this, consume data)
+      end
+
+      _read_len = 0
+      _read_buf_size()
+
+      sum = sum + len.usize()
+      if sum > (1 << 12) then
+        // If we've read 4 kb, yield and read again later.
+        _read_again(pipe.near_fd)
+        return
+      end
     end
 
   fun ref _read_buf_size() =>
@@ -609,11 +404,89 @@ actor ProcessMonitor
       _read_buf.undefined(_max_size)
     end
 
-  be _read_again(fd: U32) =>
+  be _read_again(near_fd: U32) =>
     """
     Resume reading on file descriptor.
     """
-    match fd
-    | _stdout_read => _stdout_open = _pending_reads(fd)
-    | _stderr_read => _stderr_open = _pending_reads(fd)
+    match near_fd
+    | _stdout.near_fd => _pending_reads(_stdout)
+    | _stderr.near_fd => _pending_reads(_stderr)
+    end
+
+  fun ref _write_final(data: ByteSeq) =>
+    """
+    Write as much as possible to the pipe if it is open and there are no
+    pending writes. Save everything unwritten into _pending and apply
+    backpressure.
+    """
+    if (not _closed) and not _stdin.is_closed() and (_pending.size() == 0) then
+      // Send as much data as possible.
+      (let len, let errno) = _stdin.write(data, 0)
+
+      if len == -1 then // write error
+        if errno == _EAGAIN() then
+          // Resource temporarily unavailable, send data later.
+          _pending.push((data, 0))
+          Backpressure.apply(_backpressure_auth)
+        else
+          // Notify caller of error, close fd and done.
+          _notifier.failed(this, WriteError)
+          _stdin.close_near()
+        end
+      elseif len.usize() < data.size() then
+        // Send any remaining data later.
+        _pending.push((data, len.usize()))
+        Backpressure.apply(_backpressure_auth)
+      end
+    else
+      // Send later, when the pipe is available for writing.
+      _pending.push((data, 0))
+      Backpressure.apply(_backpressure_auth)
+    end
+
+  fun ref _pending_writes() =>
+    """
+    Send any pending data. If any data can't be sent, keep it in _pending.
+    Once _pending is non-empty, direct writes will get queued there,
+    and they can only be written here. If the _done_writing flag is set, close
+    the pipe once we've processed pending writes.
+    """
+    while (not _closed) and not _stdin.is_closed() and (_pending.size() > 0) do
+      try
+        let node = _pending.head()?
+        (let data, let offset) = node()?
+
+        // Write as much data as possible.
+        (let len, let errno) = _stdin.write(data, offset)
+
+        if len == -1 then // OS signals write error
+          if errno == _EAGAIN() then
+            // Resource temporarily unavailable, send data later.
+            return
+          else
+            // Close pipe and bail out.
+            _notifier.failed(this, WriteError)
+            _stdin.close_near()
+            return
+          end
+        elseif (len.usize() + offset) < data.size() then
+          // Send remaining data later.
+          node()? = (data, offset + len.usize())
+          return
+        else
+          // This pending chunk has been fully sent.
+          _pending.shift()?
+          if (_pending.size() == 0) then
+            Backpressure.release(_backpressure_auth)
+            // check if the client has signaled it is done
+            if _done_writing then
+              _stdin.close_near()
+            end
+          end
+        end
+      else
+        // handle error
+        _notifier.failed(this, WriteError)
+        return
+      end
     end

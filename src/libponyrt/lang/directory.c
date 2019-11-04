@@ -1,24 +1,36 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include <platform.h>
 #include <pony.h>
-#include "lang.h"
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
+#include "../mem/pool.h"
 #include <direct.h>
 #include <errno.h>
 #include <fcntl.h>
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
+#endif
+
+#ifdef USE_VALGRIND
+#include <valgrind/helgrind.h>
 #endif
 
 PONY_EXTERN_C_BEGIN
 
-const char* cwd;
+PONY_ATOMIC(const char*) cwd_cache;
 
 PONY_API int pony_os_eexist()
 {
   return EEXIST;
+}
+
+PONY_API void pony_os_clear_errno()
+{
+  errno = 0;
 }
 
 PONY_API int pony_os_errno()
@@ -39,16 +51,38 @@ static bool skip_entry(const char* entry, size_t len)
 
 PONY_API char* pony_os_cwd()
 {
+  const char* cwd = atomic_load_explicit(&cwd_cache, memory_order_relaxed);
+
   if(cwd == NULL)
   {
+    char* cwd_alloc;
 #if defined(PLATFORM_IS_WINDOWS)
-    cwd = _getcwd(NULL, 0);
+    cwd_alloc = _getcwd(NULL, 0);
 #else
-    cwd = getcwd(NULL, 0);
+    cwd_alloc = getcwd(NULL, 0);
 #endif
 
-    if(cwd == NULL)
-      cwd = strdup(".");
+    if(cwd_alloc == NULL)
+      cwd_alloc = strdup(".");
+
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_BEFORE(&cwd_cache);
+#endif
+    if(!atomic_compare_exchange_strong_explicit(&cwd_cache, &cwd,
+      (const char*)cwd_alloc, memory_order_release, memory_order_acquire))
+    {
+#ifdef USE_VALGRIND
+      ANNOTATE_HAPPENS_AFTER(&cwd_cache);
+#endif
+      free(cwd_alloc);
+    } else {
+      cwd = cwd_alloc;
+    }
+  } else {
+    atomic_thread_fence(memory_order_acquire);
+#ifdef USE_VALGRIND
+    ANNOTATE_HAPPENS_AFTER(&cwd_cache);
+#endif
   }
 
   size_t len = strlen(cwd) + 1;
@@ -62,7 +96,12 @@ PONY_API char* pony_os_cwd()
 
 PONY_API WIN32_FIND_DATA* ponyint_windows_find_data()
 {
-  return (WIN32_FIND_DATA*)malloc(sizeof(WIN32_FIND_DATA));
+  return POOL_ALLOC(WIN32_FIND_DATA);
+}
+
+PONY_API void ponyint_windows_find_data_free(WIN32_FIND_DATA* data)
+{
+  POOL_FREE(WIN32_FIND_DATA, data);
 }
 
 PONY_API const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
@@ -82,22 +121,38 @@ PONY_API const char* ponyint_windows_readdir(WIN32_FIND_DATA* find)
 
 PONY_API int ponyint_o_rdonly()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_RDONLY | _O_BINARY;
+#else
   return O_RDONLY;
+#endif
 }
 
 PONY_API int ponyint_o_rdwr()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_RDWR | _O_BINARY;
+#else
   return O_RDWR;
+#endif
 }
 
 PONY_API int ponyint_o_creat()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_CREAT | _O_BINARY;
+#else
   return O_CREAT;
+#endif
 }
 
 PONY_API int ponyint_o_trunc()
 {
+#if defined(PLATFORM_IS_WINDOWS)
+  return _O_TRUNC | _O_BINARY;
+#else
   return O_TRUNC;
+#endif
 }
 
 #if defined(PLATFORM_IS_POSIX_BASED)
@@ -132,7 +187,7 @@ PONY_API const char* ponyint_unix_readdir(DIR* dir)
 
 #if defined(PLATFORM_IS_LINUX)
     size_t len = strlen(d->d_name);
-#elif defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_MACOSX)
+#elif defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
     size_t len = d->d_namlen;
 #endif
 

@@ -11,6 +11,27 @@ interface TCPConnectionNotify
     """
     None
 
+  fun ref proxy_via(host: String, service: String): (String, String) =>
+    """
+    Called before before attempting to connect to the destination server
+    In order to connect via proxy, return the host & service for the proxy
+    server.
+
+    An implementation of this function might look like:
+    ```pony
+    let _proxy_host = "some-proxy.example.com"
+    let _proxy_service = "80"
+    var _destination_host: ( None | String )
+    var _destination_service: ( None | String )
+
+    fun ref proxy_via(host: String, service: String): (String, String) =>
+      _destination_host = host
+      _destination_service = service
+      ( _proxy_host, _proxy_service )
+    ```
+    """
+    (host, service)
+
   fun ref connecting(conn: TCPConnection ref, count: U32) =>
     """
     Called if name resolution succeeded for a TCPConnection and we are now
@@ -34,7 +55,7 @@ interface TCPConnectionNotify
     It is expected to implement proper error handling. You need to opt in to
     ignoring errors, which can be implemented like this:
 
-    ```
+    ```pony
     fun ref connect_failed(conn: TCPConnection ref) =>
       None
     ```
@@ -65,8 +86,11 @@ interface TCPConnectionNotify
     """
     data
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
     """
     Called when new data is received on the connection. Return true if you

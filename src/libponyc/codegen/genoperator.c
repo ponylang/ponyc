@@ -73,13 +73,14 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   return build_i(c->builder, l_value, r_value, "");
 }
 
-static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
+static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   const_binop const_f, const_binop const_ui, const_binop const_si,
   build_binop build_f, build_binop build_ui, build_binop build_si,
   bool safe)
 {
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -96,7 +97,7 @@ static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
     long long r_const = LLVMConstIntGetSExtValue(r_value);
     if (r_const == 0)
     {
-      ast_error(c->opt->check.errors, right, "constant divide or mod by zero");
+      ast_error(c->opt->check.errors, right, "constant divide or rem by zero");
       return NULL;
     }
 
@@ -110,7 +111,7 @@ static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
       if(LLVMConstIntGetSExtValue(l_value) == min)
       {
         ast_error(c->opt->check.errors, ast_parent(left),
-          "constant divide or mod overflow");
+          "constant divide or rem overflow");
         return NULL;
       }
     }
@@ -133,7 +134,7 @@ static LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   LLVMBasicBlockRef insert;
   LLVMBasicBlockRef nonzero_block;
   LLVMBasicBlockRef no_overflow_block;
-  LLVMBasicBlockRef post_block;
+  LLVMBasicBlockRef post_block = NULL;
   LLVMValueRef zero;
 
   if(safe)
@@ -239,16 +240,14 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui,
   bool safe)
 {
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
-  LLVMValueRef test = make_cmp_value(c, sign, l_value, r_value,
-    cmp_f, cmp_si, cmp_ui, safe);
-
-  return LLVMBuildZExt(c->builder, test, c->ibool, "");
+  return make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui, safe);
 }
 
 static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
@@ -286,12 +285,11 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
 
   LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
   LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
-  LLVMValueRef test = LLVMBuildTrunc(c->builder, l_value, c->i1, "");
 
   if(is_and)
-    LLVMBuildCondBr(c->builder, test, right_block, post_block);
+    LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
   else
-    LLVMBuildCondBr(c->builder, test, post_block, right_block);
+    LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
 
   LLVMPositionBuilderAtEnd(c->builder, right_block);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -303,7 +301,7 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   LLVMBuildBr(c->builder, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->ibool, "");
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
 
   LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
   LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
@@ -326,44 +324,45 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
 }
 
 static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
-  LLVMValueRef r_value, ast_t* r_type)
+  LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
 {
+  reach_type_t* t = reach_type(c->reach, l_type);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
+  result = gen_assign_cast(c, c_t->use_type, result, l_type);
 
   // Cast the rvalue appropriately.
-  LLVMTypeRef cast_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  LLVMValueRef cast_value = gen_assign_cast(c, cast_type, r_value, r_type);
+  r_value = gen_assign_cast(c, c_t->mem_type, r_value, r_type);
 
-  if(cast_value == NULL)
+  if(r_value == NULL)
     return NULL;
 
   // Store to the local.
-  LLVMBuildStore(c->builder, cast_value, l_value);
+  LLVMBuildStore(c->builder, r_value, l_value);
 
   return result;
 }
 
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
-  LLVMValueRef r_value, ast_t* p_type, ast_t* r_type)
+  LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
 {
+  reach_type_t* t = reach_type(c->reach, l_type);
+  pony_assert(t != NULL);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
 
   // Cast the rvalue appropriately.
-  LLVMTypeRef cast_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  LLVMValueRef cast_value = gen_assign_cast(c, cast_type, r_value, r_type);
+  r_value = gen_assign_cast(c, c_t->mem_type, r_value, r_type);
 
-  if(cast_value == NULL)
+  if(r_value == NULL)
     return NULL;
 
   // Store to the field.
-  LLVMValueRef store = LLVMBuildStore(c->builder, cast_value, l_value);
+  LLVMBuildStore(c->builder, r_value, l_value);
 
-  LLVMValueRef metadata = tbaa_metadata_for_type(c, p_type);
-  const char id[] = "tbaa";
-  LLVMSetMetadata(result, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-  LLVMSetMetadata(store, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
-
-  return result;
+  return gen_assign_cast(c, c_t->use_type, result, l_type);
 }
 
 static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
@@ -422,6 +421,8 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
 static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
   LLVMValueRef r_value)
 {
+  deferred_reification_t* reify = c->frame->reify;
+
   switch(ast_id(left))
   {
     case TK_SEQ:
@@ -452,16 +453,28 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     {
       // The result is the previous value of the field.
       LLVMValueRef l_value = gen_fieldptr(c, left);
-      ast_t* p_type = ast_type(ast_child(left));
-      return assign_field(c, l_value, r_value, p_type, r_type);
+      ast_t* p_type = deferred_reify(reify, ast_type(ast_child(left)), c->opt);
+      ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
+
+      LLVMValueRef ret = assign_field(c, l_value, r_value, l_type, r_type);
+
+      ast_free_unattached(p_type);
+      ast_free_unattached(l_type);
+      return ret;
     }
 
     case TK_TUPLEELEMREF:
     {
       // The result is the previous value of the tuple element.
       LLVMValueRef l_value = gen_tupleelemptr(c, left);
-      ast_t* p_type = ast_type(ast_child(left));
-      return assign_field(c, l_value, r_value, p_type, r_type);
+      ast_t* p_type = deferred_reify(reify, ast_type(ast_child(left)), c->opt);
+      ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
+
+      LLVMValueRef r = assign_field(c, l_value, r_value, l_type, r_type);
+
+      ast_free_unattached(p_type);
+      ast_free_unattached(l_type);
+      return r;
     }
 
     case TK_EMBEDREF:
@@ -476,7 +489,11 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       const char* name = ast_name(ast_child(left));
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
-      LLVMValueRef ret = assign_local(c, l_value, r_value, r_type);
+      ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
+
+      LLVMValueRef ret = assign_local(c, l_value, r_value, l_type, r_type);
+
+      ast_free_unattached(l_type);
       return ret;
     }
 
@@ -510,7 +527,11 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       const char* name = ast_name(left);
       codegen_local_lifetime_start(c, name);
       LLVMValueRef l_value = codegen_getlocal(c, name);
-      LLVMValueRef ret = assign_local(c, l_value, r_value, r_type);
+      ast_t* l_type = deferred_reify(reify, ast_type(ast_parent(left)), c->opt);
+
+      LLVMValueRef ret = assign_local(c, l_value, r_value, l_type, r_type);
+
+      ast_free_unattached(l_type);
       return ret;
     }
 
@@ -575,8 +596,9 @@ LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
     return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
       LLVMBuildFAdd, LLVMBuildAdd);
 
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
     make_unsafe_fadd, sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
@@ -588,8 +610,9 @@ LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
     return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
       LLVMBuildFSub, LLVMBuildSub);
 
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
     make_unsafe_fsub, sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
@@ -601,8 +624,9 @@ LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
     return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
       LLVMBuildFMul, LLVMBuildMul);
 
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
     make_unsafe_fmul, sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
@@ -610,14 +634,14 @@ LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divmod(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
+  return make_divrem(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
     LLVMConstSDiv, safe ? LLVMBuildFDiv : make_unsafe_fdiv,
     LLVMBuildUDiv, LLVMBuildSDiv, safe);
 }
 
-LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right, bool safe)
+LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divmod(c, left, right, LLVMConstFRem, LLVMConstURem,
+  return make_divrem(c, left, right, LLVMConstFRem, LLVMConstURem,
     LLVMConstSRem, safe ? LLVMBuildFRem : make_unsafe_frem,
     LLVMBuildURem, LLVMBuildSRem, safe);
 }
@@ -641,8 +665,9 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
   if(safe)
     return LLVMBuildNeg(c->builder, value, "");
 
-  ast_t* type = ast_type(ast);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   if(sign)
     return LLVMBuildNSWNeg(c->builder, value, "");
@@ -685,8 +710,9 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
     return LLVMBuildShl(c->builder, l_value, select, "");
   }
 
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   LLVMValueRef result = LLVMBuildShl(c->builder, l_value, r_value, "");
 
@@ -701,8 +727,9 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
 LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   (void)safe;
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -814,21 +841,22 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   if(value == NULL)
     return NULL;
 
-  ast_t* type = ast_type(ast);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
+  bool bool_type = is_bool(type);
+  ast_free_unattached(type);
 
-  if(is_bool(type))
+  if(bool_type)
   {
     if(LLVMIsAConstantInt(value))
     {
       if(is_always_true(value))
-        return LLVMConstInt(c->ibool, 0, false);
+        return LLVMConstInt(c->i1, 0, false);
 
-      return LLVMConstInt(c->ibool, 1, false);
+      return LLVMConstInt(c->i1, 1, false);
     }
 
-    LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, value,
-      LLVMConstInt(c->ibool, 0, false), "");
-    return LLVMBuildZExt(c->builder, test, c->ibool, "");
+    return LLVMBuildICmp(c->builder, LLVMIntEQ, value,
+      LLVMConstInt(c->i1, 0, false), "");
   }
 
   if(LLVMIsAConstantInt(value))
@@ -845,14 +873,13 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right, bool safe)
 LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value,
   bool safe)
 {
-  ast_t* type = ast_type(left);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
+  ast_free_unattached(type);
   LLVMValueRef l_value = gen_expr(c, left);
 
-  LLVMValueRef test = make_cmp_value(c, sign, l_value, r_value,
-    LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ, safe);
-
-  return LLVMBuildZExt(c->builder, test, c->ibool, "");
+  return make_cmp_value(c, sign, l_value, r_value, LLVMRealOEQ, LLVMIntEQ,
+    LLVMIntEQ, safe);
 }
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right, bool safe)
@@ -882,16 +909,17 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right, bool safe)
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 {
-  // Must generate the right hand side before the left hand side. Left and
-  // right are swapped for type checking, so we fetch them in reverse order.
-  AST_GET_CHILDREN(ast, right, left);
+  // Must generate the right hand side before the left hand side.
+  AST_GET_CHILDREN(ast, left, right);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if(r_value == NULL)
     return NULL;
 
   codegen_debugloc(c, ast);
-  LLVMValueRef result = assign_rvalue(c, left, ast_type(right), r_value);
+  ast_t* type = deferred_reify(c->frame->reify, ast_type(right), c->opt);
+  LLVMValueRef result = assign_rvalue(c, left, type, r_value);
+  ast_free_unattached(type);
   codegen_debugloc(c, NULL);
   return result;
 }

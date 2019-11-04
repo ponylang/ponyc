@@ -3,6 +3,9 @@
 
 #include <platform.h>
 #include <llvm-c/Core.h>
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
 
 PONY_EXTERN_C_BEGIN
 
@@ -46,6 +49,7 @@ LLVMDIBuilderRef LLVMNewDIBuilder(LLVMModuleRef m);
 
 void LLVMDIBuilderDestroy(LLVMDIBuilderRef d);
 
+#if PONY_LLVM < 600
 void LLVMDIBuilderFinalize(LLVMDIBuilderRef d);
 
 LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
@@ -53,6 +57,11 @@ LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef d,
   int optimized);
 
 LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef d, const char* file);
+#endif
+
+LLVMMetadataRef LLVMDIBuilderCreateNamespace(LLVMDIBuilderRef d,
+  LLVMMetadataRef scope, const char* name, LLVMMetadataRef file,
+  unsigned line);
 
 LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, LLVMMetadataRef file, unsigned line, unsigned col);
@@ -62,6 +71,7 @@ LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
   LLVMMetadataRef file, unsigned line, LLVMMetadataRef type, LLVMValueRef func,
   int optimized);
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, LLVMMetadataRef file,
   unsigned line, LLVMMetadataRef type);
@@ -69,21 +79,27 @@ LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef d,
 LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, unsigned arg,
   LLVMMetadataRef file, unsigned line, LLVMMetadataRef type);
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateArtificialVariable(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, unsigned arg,
   LLVMMetadataRef file, unsigned line, LLVMMetadataRef type);
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef d,
   const char* name, uint64_t size_bits, uint64_t align_bits,
   unsigned encoding);
+#endif
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef d,
   LLVMMetadataRef elem_type, uint64_t size_bits, uint64_t align_bits);
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateArtificialType(LLVMDIBuilderRef d,
   LLVMMetadataRef type);
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef d,
   LLVMMetadataRef file, LLVMMetadataRef param_types);
 
@@ -91,11 +107,13 @@ LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, LLVMMetadataRef file,
   unsigned line, uint64_t size_bits, uint64_t align_bits,
   LLVMMetadataRef elem_types);
+#endif
 
 LLVMMetadataRef LLVMDIBuilderCreateReplaceableStruct(LLVMDIBuilderRef d,
   const char* name, LLVMMetadataRef scope, LLVMMetadataRef file,
   unsigned line);
 
+#if PONY_LLVM < 700
 LLVMMetadataRef LLVMDIBuilderCreateMemberType(LLVMDIBuilderRef d,
   LLVMMetadataRef scope, const char* name, LLVMMetadataRef file,
   unsigned line, uint64_t size_bits, uint64_t align_bits,
@@ -104,6 +122,7 @@ LLVMMetadataRef LLVMDIBuilderCreateMemberType(LLVMDIBuilderRef d,
 LLVMMetadataRef LLVMDIBuilderCreateArrayType(LLVMDIBuilderRef d,
   uint64_t size_bits, uint64_t align_bits,
   LLVMMetadataRef elem_type, LLVMMetadataRef subscripts);
+#endif
 
 LLVMMetadataRef LLVMDIBuilderGetOrCreateArray(LLVMDIBuilderRef d,
   LLVMMetadataRef* data, size_t length);

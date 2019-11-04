@@ -1,12 +1,6 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include "gendebug.h"
-#include "../reach/reach.h"
-#include "../pass/pass.h"
-#include "../ast/ast.h"
-#include "../ast/printbuf.h"
-
 #include <platform.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
@@ -15,39 +9,41 @@
 #include <llvm-c/Analysis.h>
 #include <stdio.h>
 
-PONY_EXTERN_C_BEGIN
-
 #define PONY_LLVM ((LLVM_VERSION_MAJOR * 100) + LLVM_VERSION_MINOR)
 
+#include "gendebug.h"
+#include "../reach/reach.h"
+#include "../pass/pass.h"
+#include "../ast/ast.h"
+#include "../ast/printbuf.h"
+
+PONY_EXTERN_C_BEGIN
+
 // Missing from C API.
+
+#if PONY_LLVM < 700
 char* LLVMGetHostCPUName();
 char* LLVMGetHostCPUFeatures();
+#endif
+
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst);
 void LLVMSetNoSignedWrap(LLVMValueRef inst);
 void LLVMSetIsExact(LLVMValueRef inst);
-#if PONY_LLVM < 309
-void LLVMSetReturnNoAlias(LLVMValueRef fun);
-void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, size_t size);
-void LLVMSetDereferenceableOrNull(LLVMValueRef fun, uint32_t i, size_t size);
-#  if PONY_LLVM >= 308
-void LLVMSetCallInaccessibleMemOnly(LLVMValueRef inst);
-void LLVMSetInaccessibleMemOrArgMemOnly(LLVMValueRef fun);
-void LLVMSetCallInaccessibleMemOrArgMemOnly(LLVMValueRef inst);
-#  endif
-#endif
 LLVMValueRef LLVMConstNaN(LLVMTypeRef type);
 LLVMValueRef LLVMConstInf(LLVMTypeRef type, bool negative);
 LLVMModuleRef LLVMParseIRFileInContext(LLVMContextRef ctx, const char* file);
+bool LLVMHasMetadataStr(LLVMValueRef val, const char* str);
 void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
+void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
+  LLVMValueRef node);
 
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
-LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module);
-LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
+LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type);
+LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
 
-#if PONY_LLVM >= 309
 #define LLVM_DECLARE_ATTRIBUTEREF(decl, name, val) \
   LLVMAttributeRef decl; \
   { \
@@ -55,11 +51,10 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module);
       LLVMGetEnumAttributeKindForName(#name, sizeof(#name) - 1); \
     decl = LLVMCreateEnumAttribute(c->context, decl##_id, val); \
   }
-#endif
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
-#define GEN_NOTNEEDED (LLVMConstInt(c->ibool, 0, false))
+#define GEN_NOTNEEDED ((LLVMValueRef)2)
 
 typedef struct genned_string_t genned_string_t;
 DECLARE_HASHMAP(genned_strings, genned_strings_t, genned_string_t);
@@ -67,7 +62,8 @@ DECLARE_HASHMAP(genned_strings, genned_strings_t, genned_string_t);
 typedef struct compile_local_t compile_local_t;
 DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
 
-typedef struct tbaa_metadatas_t tbaa_metadatas_t;
+typedef struct ffi_decl_t ffi_decl_t;
+DECLARE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t);
 
 typedef struct compile_frame_t
 {
@@ -85,6 +81,7 @@ typedef struct compile_frame_t
   bool is_function;
   bool early_termination;
   bool bare_function;
+  deferred_reification_t* reify;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -93,8 +90,8 @@ typedef struct compile_t
 {
   pass_opt_t* opt;
   reach_t* reach;
-  tbaa_metadatas_t* tbaa_mds;
   genned_strings_t strings;
+  ffi_decls_t ffi_decls;
   const char* filename;
 
   const char* str_builtin;
@@ -116,7 +113,7 @@ typedef struct compile_t
   const char* str_F32;
   const char* str_F64;
   const char* str_Pointer;
-  const char* str_Maybe;
+  const char* str_NullablePointer;
   const char* str_DoNotOptimise;
   const char* str_Array;
   const char* str_String;
@@ -128,13 +125,13 @@ typedef struct compile_t
   const char* str_sub;
   const char* str_mul;
   const char* str_div;
-  const char* str_mod;
+  const char* str_rem;
   const char* str_neg;
   const char* str_add_unsafe;
   const char* str_sub_unsafe;
   const char* str_mul_unsafe;
   const char* str_div_unsafe;
-  const char* str_mod_unsafe;
+  const char* str_rem_unsafe;
   const char* str_neg_unsafe;
   const char* str_and;
   const char* str_or;
@@ -163,6 +160,11 @@ typedef struct compile_t
   const char* str__init;
   const char* str__final;
   const char* str__event_notify;
+  const char* str__serialise_space;
+  const char* str__serialise;
+  const char* str__deserialise;
+
+  uint32_t trait_bitmap_size;
 
   LLVMCallConv callconv;
   LLVMLinkage linkage;
@@ -173,9 +175,6 @@ typedef struct compile_t
   LLVMBuilderRef builder;
   LLVMDIBuilderRef di;
   LLVMMetadataRef di_unit;
-  LLVMValueRef tbaa_root;
-  LLVMValueRef tbaa_descriptor;
-  LLVMValueRef tbaa_descptr;
   LLVMValueRef none_instance;
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;
@@ -183,7 +182,6 @@ typedef struct compile_t
   LLVMValueRef numeric_sizes;
 
   LLVMTypeRef void_type;
-  LLVMTypeRef ibool;
   LLVMTypeRef i1;
   LLVMTypeRef i8;
   LLVMTypeRef i16;
@@ -210,6 +208,8 @@ typedef struct compile_t
   LLVMTypeRef dispatch_type;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
+  LLVMTypeRef custom_serialise_space_fn;
+  LLVMTypeRef custom_deserialise_fn;
 
   LLVMValueRef personality;
 
@@ -226,16 +226,21 @@ bool codegen_pass_init(pass_opt_t* opt);
 
 void codegen_pass_cleanup(pass_opt_t* opt);
 
+LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
+  bool jit);
+
 bool codegen(ast_t* program, pass_opt_t* opt);
 
-bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt);
+bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
+  pass_id last_pass);
 
 void codegen_cleanup(compile_t* c);
 
-LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
+LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
+  bool pony_abi);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
-  LLVMMetadataRef scope, bool bare);
+  LLVMMetadataRef scope, deferred_reification_t* reify, bool bare);
 
 void codegen_finishfun(compile_t* c);
 
@@ -278,6 +283,8 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count, bool setcc);
+
+LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len);
 
 const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   const char* file, const char* extension);

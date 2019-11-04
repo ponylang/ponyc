@@ -1,8 +1,10 @@
 use @memcmp[I32](dst: Pointer[U8] box, src: Pointer[U8] box, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
-use @strtof[F32](nptr: Pointer[U8] box, endptr: USize)
-use @strtod[F64](nptr: Pointer[U8] box, endptr: USize)
+use @strtof[F32](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
+use @strtod[F64](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
+use @pony_os_clear_errno[None]()
+use @pony_os_errno[I32]()
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
@@ -91,7 +93,7 @@ actor Main
       _set(0, 0)
     else
       _size = len
-      _alloc = alloc.max(_size.min(len.max_value() - 1) + 1)
+      _alloc = alloc.max(_size.min(len.max_value() - 1))
       _ptr = str
     end
 
@@ -114,10 +116,7 @@ actor Main
     else
       var i: USize = 0
 
-      while true do
-        if str._apply(i) == 0 then
-          break
-        end
+      while str._apply(i) != 0 do
         i = i + 1
       end
 
@@ -126,11 +125,9 @@ actor Main
       _ptr = str
     end
 
-  new copy_cstring(str: Pointer[U8] box, len: USize = 0) =>
+  new copy_cpointer(str: Pointer[U8] box, len: USize) =>
     """
-    If the cstring is not null terminated and a length isn't specified, this
-    can crash. This will only occur if the C-FFI has been used to craft such
-    a pointer.
+    Create a string by copying a fixed number of bytes from a pointer.
     """
     if str.is_null() then
       _size = 0
@@ -139,14 +136,32 @@ actor Main
       _set(0, 0)
     else
       _size = len
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      str._copy_to(_ptr, _alloc)
+    end
 
-      if len == 0 then
-        while str._apply(_size) != 0 do
-          _size = _size + 1
-        end
+  new copy_cstring(str: Pointer[U8] box) =>
+    """
+    Create a string by copying a null-terminated C string. Note that
+    the scan is unbounded; the pointed to data must be null-terminated
+    within the allocated array to preserve memory safety. If a null
+    pointer is given then an empty string is returned.
+    """
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      var i: USize = 0
+
+      while str._apply(i) != 0 do
+        i = i + 1
       end
 
-      _alloc = _size + 1
+      _size = i
+      _alloc = i + 1
       _ptr = Pointer[U8]._alloc(_alloc)
       str._copy_to(_ptr, _alloc)
     end
@@ -208,7 +223,7 @@ actor Main
     """
     Returns a C compatible pointer to a null-terminated version of the
     string, safe to pass to an FFI function that doesn't accept a size
-    argument, expecting a null-terminator.  If the underlying string
+    argument, expecting a null-terminator. If the underlying string
     is already null terminated, this is returned; otherwise the string
     is copied into a new, null-terminated allocation.
     """
@@ -218,12 +233,20 @@ actor Main
 
     let ptr = Pointer[U8]._alloc(_size + 1)
     _ptr._copy_to(ptr._unsafe(), _size)
-    ptr._update(_size + 1, 0)
+    ptr._update(_size, 0)
     ptr
 
   fun val array(): Array[U8] val =>
     """
-    Returns an Array[U8] that that reuses the underlying data pointer.
+    Returns an Array[U8] that reuses the underlying data pointer.
+    """
+    recover
+      Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)
+    end
+
+  fun iso iso_array(): Array[U8] iso^ =>
+    """
+    Returns an Array[U8] iso that reuses the underlying data pointer.
     """
     recover
       Array[U8].from_cpointer(_ptr._unsafe(), _size, _alloc)
@@ -289,13 +312,13 @@ actor Main
       if (_size + 1).next_pow2() != _alloc.next_pow2() then
         _alloc = (_size + 1).next_pow2()
         let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
-        _ptr._consume_from(consume old_ptr, _size)
+        old_ptr._copy_to(_ptr, _size)
         _set(_size, 0)
       end
     elseif (_size + 1) < _alloc then
       _alloc = (_size + 1)
       let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._consume_from(consume old_ptr, _size)
+      old_ptr._copy_to(_ptr, _size)
       _set(_size, 0)
     end
 
@@ -334,14 +357,30 @@ actor Main
   fun ref trim_in_place(from: USize = 0, to: USize = -1) =>
     """
     Trim the string to a portion of itself, covering `from` until `to`.
-    Unlike slice, the operation does not allocate a new string nor copy elements.
+    Unlike slice, the operation does not allocate a new string nor copy
+    elements.
     """
     let last = _size.min(to)
     let offset = last.min(from)
+    let size' = last - offset
 
-    _size = last - offset
-    _alloc = _alloc - offset
-    _ptr = if _size > 0 then _ptr._offset(offset) else _ptr.create() end
+    // use the new size' for alloc if we're not including the last used byte
+    // from the original data and only include the extra allocated bytes if
+    // we're including the last byte.
+    _alloc = if last == _size then _alloc - offset else size' end
+
+    _size = size'
+
+    // if _alloc == 0 then we've trimmed all the memory originally allocated.
+    // if we do _ptr._offset, we will spill into memory not allocated/owned
+    // by this string and could potentially cause a segfault if we cross
+    // a pagemap boundary into a pagemap address that hasn't been allocated
+    // yet when `reserve` is called next.
+    if _alloc == 0 then
+      _ptr = Pointer[U8]
+    else
+      _ptr = _ptr._offset(offset)
+    end
 
   fun val trim(from: USize = 0, to: USize = -1): String val =>
     """
@@ -354,13 +393,85 @@ actor Main
 
     recover
       let size' = last - offset
-      let alloc = _alloc - offset
+
+      // use the new size' for alloc if we're not including the last used byte
+      // from the original data and only include the extra allocated bytes if
+      // we're including the last byte.
+      let alloc = if last == _size then _alloc - offset else size' end
 
       if size' > 0 then
         from_cpointer(_ptr._offset(offset)._unsafe(), size', alloc)
       else
         create()
       end
+    end
+
+  fun iso chop(split_point: USize): (String iso^, String iso^) =>
+    """
+    Chops the string in half at the split point requested and returns both
+    the left and right portions. The original string is trimmed in place and
+    returned as the left portion. If the split point is larger than the
+    string, the left portion is the original string and the right portion
+    is a new empty string.
+    Both strings are isolated and mutable, as they do not share memory.
+    The operation does not allocate a new string pointer nor copy elements.
+    """
+    let start_ptr = cpointer(split_point)
+    let size' = _size - _size.min(split_point)
+    let alloc = _alloc - _size.min(split_point)
+
+    trim_in_place(0, split_point)
+
+    let right = recover
+      if size' > 0 then
+        from_cpointer(start_ptr._unsafe(), size', alloc)
+      else
+        create()
+      end
+    end
+
+    (consume this, consume right)
+
+  fun iso unchop(b: String iso): ((String iso^, String iso^) | String iso^) =>
+    """
+    Unchops two iso strings to return the original string they were chopped
+    from. Both input strings are isolated and mutable and were originally
+    chopped from a single string. This function checks that they are indeed two
+    strings chopped from the same original string and can be unchopped before
+    doing the unchopping and returning the unchopped string. If the two strings
+    cannot be unchopped it returns both strings without modifying them.
+    The operation does not allocate a new string pointer nor copy elements.
+    """
+    if _size == 0 then
+      return consume b
+    end
+
+    if b.size() == 0 then
+      return consume this
+    end
+
+    (let unchoppable, let a_left) =
+      if (_size == _alloc) and (cpointer(_size) == b.cpointer()) then
+        (true, true)
+      elseif (b.size() == b.space()) and (b.cpointer(b.size()) == cpointer())
+        then
+        (true, false)
+      else
+        (false, false)
+      end
+
+    if not unchoppable then
+      return (consume this, consume b)
+    end
+
+    if a_left then
+      _alloc = _alloc + b._alloc
+      _size = _size + b._size
+      consume this
+    else
+      b._alloc = b._alloc + _alloc
+      b._size = b._size + _size
+      consume b
     end
 
   fun is_null_terminated(): Bool =>
@@ -481,14 +592,14 @@ actor Main
     Returns the byte at the given offset. Raise an error if the offset is out
     of bounds.
     """
-    this(offset_to_index(offset))
+    this(offset_to_index(offset))?
 
   fun ref update_offset(offset: ISize, value: U8): U8 ? =>
     """
     Changes a byte in the string, returning the previous byte at that offset.
     Raise an error if the offset is out of bounds.
     """
-    this(offset_to_index(offset)) = value
+    this(offset_to_index(offset))? = value
 
   fun clone(): String iso^ =>
     """
@@ -501,6 +612,30 @@ actor Main
     str._size = len
     str._set(len, 0)
     str
+
+  fun repeat_str(num: USize = 1, sep: String = ""): String iso^ =>
+    """
+    Returns a copy of the string repeated `num` times with an optional
+    separator added inbetween repeats.
+    """
+    var c = num
+    var str = recover String((_size + sep.size()) * c) end
+
+    while c > 0 do
+      c = c - 1
+      str = (consume str)._append(this)
+      if (sep.size() > 0) and (c != 0) then
+        str = (consume str)._append(sep)
+      end
+    end
+
+    consume str
+
+  fun mul(num: USize): String iso^ =>
+    """
+    Returns a copy of the string repeated `num` times.
+    """
+    repeat_str(num)
 
   fun find(s: String box, offset: ISize = 0, nth: USize = 0): ISize ? =>
     """
@@ -606,7 +741,7 @@ actor Main
 
     try
       while k <= j do
-        k = find(s, k) + s.size().isize()
+        k = find(s, k)? + s.size().isize()
         i = i + 1
       end
     end
@@ -805,7 +940,7 @@ actor Main
 
       try
         while i < cap do
-          push(seq(i))
+          push(seq(i)?)
           i = i + 1
         end
       end
@@ -821,7 +956,7 @@ actor Main
 
       while n < offset do
         if iter.has_next() then
-          iter.next()
+          iter.next()?
         else
           return
         end
@@ -833,10 +968,12 @@ actor Main
 
       while n < len do
         if iter.has_next() then
-          push(iter.next())
+          push(iter.next()?)
         else
           return
         end
+
+        n = n + 1
       end
     end
 
@@ -922,7 +1059,7 @@ actor Main
 
     try
       while true do
-        i = find(s, i)
+        i = find(s, i)?
         cut_in_place(i, i + s.size().isize())
         n = n + 1
       end
@@ -941,7 +1078,7 @@ actor Main
 
     try
       while true do
-        offset = find(from, offset)
+        offset = find(from, offset)?
         cut_in_place(offset, offset + from_len)
         insert_in_place(offset, to)
         offset = offset + to_len
@@ -954,16 +1091,40 @@ actor Main
     end
     occur
 
-  fun split_by(delim: String, n: USize = USize.max_value()): Array[String] iso^ =>
+  fun split_by(
+    delim: String,
+    n: USize = USize.max_value())
+    : Array[String] iso^
+  =>
     """
     Split the string into an array of strings that are delimited by `delim` in
     the original string. If `n > 0`, then the split count is limited to n.
+    
+    Example:
+
+    ```pony
+    let original: String = "<b><span>Hello!</span></b>"
+    let delimiter: String = "><"
+    let split_array: Array[String] = original.split_by(delimiter)
+    env.out.print("OUTPUT:")
+    for value in split_array.values() do
+      env.out.print(value)
+    end
+
+    // OUTPUT:
+    // <b
+    // span>Hello!</span
+    // b>
+    ```
 
     Adjacent delimiters result in a zero length entry in the array. For
-    example, `"1,,2".split(",") => ["1", "", "2"]`.
+    example, `"1CutCut2".split_by("Cut") => ["1", "", "2"]`.
 
     An empty delimiter results in an array that contains a single element equal
     to the whole string.
+
+    If you want to split the string with each individual character of `delim`,
+    use [`split`](#split).
     """
     let delim_size = ISize.from[USize](delim.size())
     let total_size = ISize.from[USize](size())
@@ -973,7 +1134,7 @@ actor Main
 
     while ((result.size() + 1) < n) and (current < total_size) do
       try
-        let delim_start = find(delim where offset = current)
+        let delim_start = find(delim where offset = current)?
         result.push(substring(current, delim_start))
         current = delim_start + delim_size
       else break end
@@ -983,12 +1144,32 @@ actor Main
 
   fun split(delim: String = " \t\v\f\r\n", n: USize = 0): Array[String] iso^ =>
     """
-    Split the string into an array of strings. Any character in the delimiter
-    string is accepted as a delimiter. If `n > 0`, then the split count is
-    limited to n.
+    Split the string into an array of strings with any character in the
+    delimiter string. By default, the string is split with whitespace
+    characters. If `n > 0`, then the split count is limited to n.
+    
+    Example:
+
+    ```pony
+    let original: String = "name,job;department"
+    let delimiter: String = ".,;"
+    let split_array: Array[String] = original.split(delimiter)
+    env.out.print("OUTPUT:")
+    for value in split_array.values() do
+      env.out.print(value)
+    end
+
+    // OUTPUT:
+    // name
+    // job
+    // department
+    ```
 
     Adjacent delimiters result in a zero length entry in the array. For
     example, `"1,,2".split(",") => ["1", "", "2"]`.
+
+    If you want to split the string with the entire delimiter string `delim`,
+    use [`split_by`](#split_by).
     """
     let result = recover Array[String] end
 
@@ -1005,7 +1186,7 @@ actor Main
 
       try
         while i < _size do
-          (let c, let len) = utf32(i.isize())
+          (let c, let len) = utf32(i.isize())?
 
           if chars.contains(c) then
             // If we find a delimiter, add the current string to the array.
@@ -1045,7 +1226,7 @@ actor Main
     """
     Remove all leading and trailing characters from the string that are in s.
     """
-    this.>lstrip(s).>rstrip(s)
+    this .> lstrip(s) .> rstrip(s)
 
   fun ref rstrip(s: String box = " \t\v\f\r\n") =>
     """
@@ -1055,6 +1236,7 @@ actor Main
     if _size > 0 then
       let chars = Array[U32](s.size())
       var i = _size - 1
+      var truncate_at = _size
 
       for rune in s.runes() do
         chars.push(rune)
@@ -1062,19 +1244,20 @@ actor Main
 
       repeat
         try
-          match utf32(i.isize())
+          match utf32(i.isize())?
           | (0xFFFD, 1) => None
           | (let c: U32, _) =>
             if not chars.contains(c) then
               break
             end
+	    truncate_at = i
           end
         else
           break
         end
       until (i = i - 1) == 0 end
 
-      truncate(i + 1)
+      truncate(truncate_at)
     end
 
   fun ref lstrip(s: String box = " \t\v\f\r\n") =>
@@ -1092,7 +1275,7 @@ actor Main
 
       while i < _size do
         try
-          (let c, let len) = utf32(i.isize())
+          (let c, let len) = utf32(i.isize())?
           if not chars.contains(c) then
             break
           end
@@ -1126,14 +1309,14 @@ actor Main
     let s = recover String(len) end
     (consume s)._append(this)._append(that)
 
-  fun join(data: ReadSeq[Stringable]): String iso^ =>
+  fun join(data: Iterator[Stringable]): String iso^ =>
     """
     Return a string that is a concatenation of the strings in data, using this
     as a separator.
     """
     var buf = recover String end
     var first = true
-    for v in data.values() do
+    for v in data do
       if first then
         first = false
       else
@@ -1149,8 +1332,13 @@ actor Main
     """
     compare_sub(that, _size.max(that._size))
 
-  fun compare_sub(that: String box, n: USize, offset: ISize = 0,
-    that_offset: ISize = 0, ignore_case: Bool = false): Compare
+  fun compare_sub(
+    that: String box,
+    n: USize,
+    offset: ISize = 0,
+    that_offset: ISize = 0,
+    ignore_case: Bool = false)
+    : Compare
   =>
     """
     Lexically compare at most `n` bytes of the substring of `this` starting at
@@ -1258,20 +1446,20 @@ actor Main
       error
     end
 
-  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
-  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
-  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
-  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)
-  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)
-  fun ilong(base: U8 = 0): ILong ? => _to_int[ILong](base)
-  fun isize(base: U8 = 0): ISize ? => _to_int[ISize](base)
-  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)
-  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)
-  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)
-  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
-  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
-  fun ulong(base: U8 = 0): ULong ? => _to_int[ULong](base)
-  fun usize(base: U8 = 0): USize ? => _to_int[USize](base)
+  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)?
+  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)?
+  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)?
+  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)?
+  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)?
+  fun ilong(base: U8 = 0): ILong ? => _to_int[ILong](base)?
+  fun isize(base: U8 = 0): ISize ? => _to_int[ISize](base)?
+  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)?
+  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)?
+  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)?
+  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)?
+  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)?
+  fun ulong(base: U8 = 0): ULong ? => _to_int[ULong](base)?
+  fun usize(base: U8 = 0): USize ? => _to_int[USize](base)?
 
   fun _to_int[A: ((Signed | Unsigned) & Integer[A] val)](base: U8): A ? =>
     """
@@ -1279,13 +1467,15 @@ actor Main
     If there are any other characters in the string, or the integer found is
     out of range for the target type then an error is thrown.
     """
-    (let v, let d) = read_int[A](0, base)
+    (let v, let d) = read_int[A](0, base)?
     // Check the whole string is used
     if (d == 0) or (d.usize() != _size) then error end
     v
 
-  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](offset: ISize = 0,
-    base: U8 = 0): (A, USize /* chars used */) ?
+  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](
+    offset: ISize = 0,
+    base: U8 = 0)
+    : (A, USize /* chars used */) ?
   =>
     """
     Read an integer from the specified location in this string. The integer
@@ -1340,18 +1530,12 @@ actor Main
         break
       end
 
-      let new_value: A = if minus then
-        (value * base') - digit
+      value = if minus then
+        (value *? base') -? digit
       else
-        (value * base') + digit
+        (value *? base') +? digit
       end
 
-      if (new_value / base') != value then
-        // Overflow
-        error
-      end
-
-      value = new_value
       had_digit = true
       index = index + 1
     end
@@ -1365,8 +1549,10 @@ actor Main
     // Success
     (value, index - start_index)
 
-  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)]
-    (base: U8, index: USize): (A, USize /* chars used */)
+  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)](
+    base: U8,
+    index: USize)
+    : (A, USize /* chars used */)
   =>
     """
     Determine the base of an integer starting at the specified index.
@@ -1400,26 +1586,77 @@ actor Main
     // No base specified, default to decimal
     (10, 0)
 
-  fun f32(offset: ISize = 0): F32 =>
-    let index = offset_to_index(offset)
+  fun f32(offset: ISize = 0): F32 ? =>
+    """
+    Convert this string starting at the given offset
+    to a 32-bit floating point number ([F32](builtin-F32.md)).
 
+    This method errors if this string cannot be parsed to a float,
+    if the result would over- or underflow,
+    the offset exceeds the size of this string or
+    there are leftover characters in the string after conversion.
+
+    Examples:
+
+    ```pony
+    "1.5".f32()? == F32(1.5)
+    "1.19208e-07".f32()? == F32(1.19208e-07)
+    "NaN".f32()?.nan() == true
+    ```
+    """
+    let index = offset_to_index(offset)
     if index < _size then
-      @strtof(_ptr._offset(index), 0)
+      @pony_os_clear_errno()
+      var endp: Pointer[U8] box = Pointer[U8]
+      let res = @strtof(_ptr._offset(index), addressof endp)
+      let errno: I32 = @pony_os_errno()
+      if (errno != 0) or (endp != _ptr._offset(_size)) then
+        error
+      else
+        res
+      end
     else
-      F32(0)
+      error
     end
 
-  fun f64(offset: ISize = 0): F64 =>
-    let index = offset_to_index(offset)
+  fun f64(offset: ISize = 0): F64 ? =>
+    """
+    Convert this string starting at the given offset
+    to a 64-bit floating point number ([F64](builtin-F64.md)).
 
+    This method errors if this string cannot be parsed to a float,
+    if the result would over- or underflow,
+    the offset exceeds the size of this string or
+    there are leftover characters in the string after conversion.
+
+    Examples:
+
+    ```pony
+    "1.5".f64()? == F64(1.5)
+    "1.19208e-07".f64()? == F64(1.19208e-07)
+    "Inf".f64()?.infinite() == true
+    ```
+    """
+    let index = offset_to_index(offset)
     if index < _size then
-      @strtod(_ptr._offset(index), 0)
+      @pony_os_clear_errno()
+      var endp: Pointer[U8] box = Pointer[U8]
+      let res = @strtod(_ptr._offset(index), addressof endp)
+      let errno: I32 = @pony_os_errno()
+      if (errno != 0) or (endp != _ptr._offset(_size)) then
+        error
+      else
+        res
+      end
     else
-      F64(0)
+      error
     end
 
-  fun hash(): U64 =>
-    @ponyint_hash_block[U64](_ptr, _size)
+  fun hash(): USize =>
+    @ponyint_hash_block[USize](_ptr, _size)
+
+  fun hash64(): U64 =>
+    @ponyint_hash_block64[U64](_ptr, _size)
 
   fun string(): String iso^ =>
     clone()
@@ -1454,7 +1691,7 @@ class StringBytes is Iterator[U8]
     _i < _string.size()
 
   fun ref next(): U8 ? =>
-    _string(_i = _i + 1)
+    _string(_i = _i + 1)?
 
 class StringRunes is Iterator[U32]
   let _string: String box
@@ -1468,28 +1705,27 @@ class StringRunes is Iterator[U32]
     _i < _string.size()
 
   fun ref next(): U32 ? =>
-    (let rune, let len) = _string.utf32(_i.isize())
+    (let rune, let len) = _string.utf32(_i.isize())?
     _i = _i + len.usize()
     rune
 
 primitive _UTF32Encoder
   fun encode(value: U32): (USize, U8, U8, U8, U8) =>
     """
-    Encode the code point into UTF-8. It returns a tuple with the size of the encoded data and then the data
+    Encode the code point into UTF-8. It returns a tuple with the size of the
+    encoded data and then the data.
     """
     if value < 0x80 then
       (1, value.u8(), 0, 0, 0)
     elseif value < 0x800 then
-      (
-        2,
+      ( 2,
         ((value >> 6) or 0xC0).u8(),
         ((value and 0x3F) or 0x80).u8(),
         0,
         0
       )
     elseif value < 0xD800 then
-      (
-        3,
+      ( 3,
         ((value >> 12) or 0xE0).u8(),
         (((value >> 6) and 0x3F) or 0x80).u8(),
         ((value and 0x3F) or 0x80).u8(),
@@ -1499,16 +1735,14 @@ primitive _UTF32Encoder
       // UTF-16 surrogate pairs are not allowed.
       (3, 0xEF, 0xBF, 0xBD, 0)
     elseif value < 0x10000 then
-      (
-        3,
+      ( 3,
         ((value >> 12) or 0xE0).u8(),
         (((value >> 6) and 0x3F) or 0x80).u8(),
         ((value and 0x3F) or 0x80).u8(),
         0
       )
     elseif value < 0x110000 then
-      (
-        4,
+      ( 4,
         ((value >> 18) or 0xF0).u8(),
         (((value >> 12) and 0x3F) or 0x80).u8(),
         (((value >> 6) and 0x3F) or 0x80).u8(),

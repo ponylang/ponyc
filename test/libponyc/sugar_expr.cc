@@ -14,6 +14,10 @@
   { const char* errs[] = {err1, NULL}; \
     DO(test_expected_errors(src, "expr", errs)); }
 
+#define TEST_ERRORS_2(src, err1, err2) \
+  { const char* errs[] = {err1, err2, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
+
 
 class SugarExprTest : public PassTest
 {};
@@ -240,7 +244,7 @@ TEST_F(SugarExprTest, PartialRaisesError)
 
     "class Foo\n"
     "  fun f(x: T) =>\n"
-    "    {box()($1 = x): U32 ? => $1.f() }";
+    "    {box()($1 = x): U32 ? => $1.f()? }";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -560,7 +564,8 @@ TEST_F(SugarExprTest, Location)
     "  fun box bar(): None =>\n"
     "    object\n"
     "      fun tag file(): String => \"\"\n"
-    "      fun tag method(): String => \"bar\"\n"
+    "      fun tag type_name(): String => \"Foo\"\n"
+    "      fun tag method_name(): String => \"bar\"\n"
     "      fun tag line(): USize => 4\n"
     "      fun tag pos(): USize => 5\n"
     "    end";
@@ -574,35 +579,40 @@ TEST_F(SugarExprTest, LocationDefaultArg)
   const char* short_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
-    "  fun method(): String\n"
+    "  fun type_name(): String\n"
+    "  fun method_name(): String\n"
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
     "class Foo\n"
     "  var create: U32\n"
     "  fun bar() =>\n"
-    "    wombat()\n"
-    "  fun wombat(x: SourceLoc = __loc) =>\n"
-    "    None";
+    "    Log.apply()"
+
+    "primitive Log\n"
+    "  fun apply(x: SourceLoc = __loc) => None\n";
 
   const char* full_form =
     "interface val SourceLoc\n"
     "  fun file(): String\n"
-    "  fun method(): String\n"
+    "  fun type_name(): String\n"
+    "  fun method_name(): String\n"
     "  fun line(): USize\n"
     "  fun pos(): USize\n"
 
     "class Foo\n"
     "  var create: U32\n"
     "  fun bar() =>\n"
-    "    wombat(object\n"
+    "    Log.apply(object\n"
     "      fun tag file(): String => \"\"\n"
-    "      fun tag method(): String => \"bar\"\n"
-    "      fun tag line(): USize => 9\n"
-    "      fun tag pos(): USize => 12\n"
-    "    end)\n"
-    "  fun wombat(x: SourceLoc = __loc) =>\n"
-    "    None";
+    "      fun tag type_name(): String => \"Foo\"\n"
+    "      fun tag method_name(): String => \"bar\"\n"
+    "      fun tag line(): USize => 10\n"
+    "      fun tag pos(): USize => 14\n"
+    "    end)"
+
+    "primitive Log\n"
+    "  fun apply(x: SourceLoc = __loc) => None\n";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -627,7 +637,6 @@ TEST_F(SugarExprTest, MatchExhaustiveAllCasesOfUnion)
 
   TEST_COMPILE(src);
 }
-
 
 TEST_F(SugarExprTest, MatchNonExhaustiveSomeCasesMissing)
 {
@@ -902,4 +911,328 @@ TEST_F(SugarExprTest, MatchExhaustiveSomeCasesJumpAway)
     "    end";
 
   TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveSingleElementTuples)
+{
+  // From issue #1991
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
+
+    "primitive Foo\n"
+    "  fun apply(p': (P1 | P2 | P3)): Bool =>\n"
+    "    match p'\n"
+    "    | (let p: P1) => true\n"
+    "    | (let p: (P2 | P3)) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveElseClause)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(p: (String | None)): U8 =>\n"
+    "    match p\n"
+    "    | let s: String => U8(1)\n"
+    "    | None => U8(0)\n"
+    "    else\n"
+    "      U8(2)\n"
+    "    end";
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveUnreachableCase)
+{
+  const char* src =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+    "primitive Foo\n"
+    "  fun apply(p: (Bar | Baz)): String =>\n"
+    "    match p\n"
+    "    | let q: Qux => \"qux\"\n"
+    "    | let b: Bar => \"bar\"\n"
+    "    end";
+  TEST_ERRORS_1(src, "match contains unreachable cases");
+
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveUnreachableCases)
+{
+  const char* src =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+    "primitive Foo\n"
+    "  fun apply(p: (Bar | Baz)): String =>\n"
+    "    match p\n"
+    "    | let q: Qux => \"qux\"\n"
+    "    | let b1: Bar => \"bar\"\n"
+    "    | let b2: Baz => \"baz\"\n"
+    "    end";
+  TEST_ERRORS_1(src, "match contains unreachable cases");
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveEquatableOfSubType)
+{
+  const char* src =
+    "interface Equatable[T]\n"
+    "  fun eq(that: T): Bool => this is that\n"
+    "primitive X is Equatable[Dimension]\n"
+    "primitive Y is Equatable[Dimension]\n"
+    "primitive Z is Equatable[Dimension]\n"
+    "\n"
+    "type Dimension is ( X | Y | Z )\n"
+    "\n"
+    "primitive Foo\n"
+    "  fun apply(p: Dimension) =>\n"
+    "    let s: String =\n"
+    "      match p\n"
+    "      | X => \"x\"\n"
+    "      | Y => \"y\"\n"
+    "      | Z => \"z\"\n"
+    "      end";
+  TEST_COMPILE(src);
+}
+
+TEST_F(SugarExprTest, MatchNonExhaustiveSubsetOfEquatableOfSubType)
+{
+  const char* src =
+    "interface Equatable[T]\n"
+    "  fun eq(that: T): Bool => this is that\n"
+    "primitive X is Equatable[Dimension]\n"
+    "primitive Y is Equatable[Dimension]\n"
+    "primitive Z is Equatable[Dimension]\n"
+    "\n"
+    "type Dimension is ( X | Y | Z )\n"
+    "\n"
+    "primitive Foo\n"
+    "  fun apply(p: Dimension): String =>\n"
+    "      match p\n"
+    "      | X => \"x\"\n"
+    "      | Y => \"y\"\n"
+    "      end";
+  TEST_ERRORS_1(src, "function body isn't the result type");
+
+}
+
+TEST_F(SugarExprTest, MatchStructuralEqualityOnIncompatibleUnion)
+{
+  // From issue #2110
+  const char* src =
+    "class C1\n"
+    "  fun eq(that: C1 box): Bool => that is this\n"
+
+    "primitive Foo\n"
+    "  fun apply(c': (C1 | None)) =>\n"
+    "    let compare: (C1 | None) = C1\n"
+    "    match c'\n"
+    "    | compare => true\n"
+    "    | let c: (C1 | None) => false"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "a member of the union type has an incompatible method signature",
+    "this pattern element doesn't support structural equality");
+}
+
+
+TEST_F(SugarExprTest, As)
+{
+  const char* short_form =
+    "class Bar\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: (Foo | Bar)): Foo ? =>\n"
+    "    a as Foo ref";
+
+  const char* full_form =
+    "class Bar\n"
+
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Foo | Bar)): Foo ? =>\n"
+    "    match a\n"
+    "    | $let $1: Foo ref => consume $aliased $1\n"
+    "    else\n"
+    "      error\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+TEST_F(SugarExprTest, AsSameType)
+{
+  const char* src =
+    "class Bar\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: (Foo | Bar)): Foo ? =>\n"
+    "    a as (Foo | Bar)";
+  TEST_ERRORS_1(src, "Cannot cast to same type");
+}
+
+TEST_F(SugarExprTest, AsSubtype)
+{
+  const char* src =
+    "trait Baz\n"
+    "class Bar is Baz\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: Bar): Baz ? =>\n"
+    "    a as Baz";
+
+  TEST_ERRORS_1(src, "Cannot cast to subtype");
+}
+
+TEST_F(SugarExprTest, AsTupleSubtype)
+{
+  const char* src =
+    "interface Baz\n"
+    "class Bar is Baz\n"
+
+    "class Foo is Baz\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Foo, Bar)): (Baz, Baz) ? =>\n"
+    "    a as (Baz, Baz)";
+  TEST_ERRORS_1(src, "Cannot cast to subtype");
+}
+
+TEST_F(SugarExprTest, AsTuple)
+{
+  const char* short_form =
+    "interface Baz\n"
+    "class Bar is Baz\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: (Foo, Baz)): (Foo, Bar) ? =>\n"
+    "    a as (Foo ref, Bar ref)";
+
+  const char* full_form =
+    "interface Baz\n"
+    "class Bar is Baz\n"
+
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Foo, Baz)): (Foo, Bar) ? =>\n"
+    "    match a\n"
+    "    | ($let $1: Foo ref, $let $2: Bar ref) =>\n"
+    "      (consume $aliased $1, consume $aliased $2)\n"
+    "    else\n"
+    "      error\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, AsNestedTuple)
+{
+  const char* short_form =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: (Foo, (Qux, Qux))): (Foo, (Bar, Baz)) ? =>\n"
+    "    a as (Foo ref, (Bar ref, Baz ref))";
+
+  const char* full_form =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Foo, (Qux, Qux))): (Foo, (Bar, Baz)) ? =>\n"
+    "    match a\n"
+    "    | ($let $1: Foo ref, ($let $2: Bar ref, $let $3: Baz ref)) =>\n"
+    "      (consume $aliased $1,\n"
+    "        (consume $aliased $2, consume $aliased $3))\n"
+    "    else\n"
+    "      error\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, AsDontCare)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  fun f(a: Foo): Foo ? =>\n"
+    "    a as (_)";
+
+  TEST_ERRORS_1(short_form, " ");
+}
+
+
+TEST_F(SugarExprTest, AsDontCare2Tuple)
+{
+  const char* short_form =
+    "trait Baz\n"
+    "class Bar\n"
+
+    "class Foo is Baz\n"
+    "  var create: U32\n"
+    "  fun f(a: (Baz, Bar)): Foo ? =>\n"
+    "    a as (Foo ref, _)";
+
+  const char* full_form =
+    "trait Baz\n"
+    "class Bar\n"
+
+    "class ref Foo is Baz\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Baz, Bar)): Foo ? =>\n"
+    "    match a\n"
+    "    | ($let $1: Foo ref, _) =>\n"
+    "      consume $aliased $1\n"
+    "    else\n"
+    "      error\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, AsDontCareMultiTuple)
+{
+  const char* short_form =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(a: (Foo, Qux, Qux)): (Foo, Baz) ? =>\n"
+    "    a as (Foo ref, _, Baz ref)";
+
+  const char* full_form =
+    "trait Qux\n"
+    "class Bar is Qux\n"
+    "class Baz is Qux\n"
+
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(a: (Foo, Qux, Qux)): (Foo, Baz) ? =>\n"
+    "    match a\n"
+    "    | ($let $1: Foo ref, _, $let $2: Baz ref) =>\n"
+    "      (consume $aliased $1, consume $aliased $2)\n"
+    "    else\n"
+    "      error\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
 }

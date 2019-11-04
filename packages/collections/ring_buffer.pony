@@ -51,7 +51,7 @@ class RingBuffer[A]
       error
     end
 
-    _array(i and _mod)
+    _array(i and _mod)?
 
   fun ref push(value: A): Bool =>
     """
@@ -63,7 +63,7 @@ class RingBuffer[A]
     if _write < space() then
       _array.push(consume value)
     else
-      try _array(_write and _mod) = consume value end
+      try _array(_write and _mod)? = consume value end
       full = true
     end
 

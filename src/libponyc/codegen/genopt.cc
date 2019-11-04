@@ -1,18 +1,7 @@
-#ifdef _MSC_VER
-#  pragma warning(push)
-// because LLVM IR Builder code is broken: e.g. Instructions.h:521-527
-#  pragma warning(disable:4244)
-#  pragma warning(disable:4800)
-#  pragma warning(disable:4267)
-#  pragma warning(disable:4624)
-#  pragma warning(disable:4141)
-#  pragma warning(disable:4146)
-// LLVM claims DEBUG as a macro name. Conflicts with MSVC headers.
-#  pragma warning(disable:4005)
-#endif
-
 #include "genopt.h"
 #include <string.h>
+
+#include "llvm_config_begin.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/CallSite.h>
@@ -21,6 +10,8 @@
 #include <llvm/IR/DebugInfo.h>
 
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Analysis/CallGraph.h>
+#include <llvm/Analysis/Lint.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Analysis/TargetTransformInfo.h>
 
@@ -30,12 +21,14 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
+#if PONY_LLVM >= 600
+#include <llvm-c/DebugInfo.h>
+#endif
+
+#include "llvm_config_end.h"
+
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
-
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
 
 using namespace llvm;
 using namespace llvm::legacy;
@@ -85,6 +78,15 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
   }
 }
 
+// TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
+#if PONY_LLVM == 600
+PONY_EXTERN_C_BEGIN
+void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R) {
+  initializeInstructionCombiningPassPass(*unwrap(R));
+}
+PONY_EXTERN_C_END
+#endif
+
 class HeapToStack : public FunctionPass
 {
 public:
@@ -110,7 +112,7 @@ public:
       {
         Instruction* inst = &(*(iter++));
 
-        if(runOnInstruction(builder, inst, dt))
+        if(runOnInstruction(builder, inst, dt, f))
           changed = true;
       }
     }
@@ -119,7 +121,7 @@ public:
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
-    DominatorTree& dt)
+    DominatorTree& dt, Function& f)
   {
     CallSite call(inst);
 
@@ -179,11 +181,37 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
 
-    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, "",
-      begin);
+    unsigned int align = target_is_ilp32(c->opt->triple) ? 4 : 8;
+
+#if PONY_LLVM < 500
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, align,
+      "", begin);
+#else
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(),
+      0, int_size, align, "", begin);
+#endif
 
     replace->setDebugLoc(call->getDebugLoc());
     inst->replaceAllUsesWith(replace);
+
+#if PONY_LLVM < 400
+    (void)f;
+#else
+    if (call.isInvoke())
+    {
+      InvokeInst *invoke = cast<InvokeInst>(call.getInstruction());
+      BranchInst::Create(invoke->getNormalDest(), invoke);
+      invoke->getUnwindDest()->removePredecessor(call->getParent());
+    }
+    CallGraphWrapperPass *cg_pass =
+      getAnalysisIfAvailable<CallGraphWrapperPass>();
+    CallGraph *cg = cg_pass ? &cg_pass->getCallGraph() : nullptr;
+    CallGraphNode *cg_node = cg ? (*cg)[&f] : nullptr;
+    if (cg_node)
+    {
+      cg_node->removeCallEdgeFor(call);
+    }
+#endif
     inst->eraseFromParent();
 
     for(auto new_call: new_calls)
@@ -511,7 +539,7 @@ public:
   }
 };
 
-char DispatchPonyCtx::ID = 0;
+char DispatchPonyCtx::ID = 1;
 
 static RegisterPass<DispatchPonyCtx>
   DPC("dispatchponyctx", "Replace pony_ctx calls in a dispatch function by the\
@@ -529,17 +557,36 @@ class MergeRealloc : public FunctionPass
 public:
   static char ID;
   compile_t* c;
-  Module* module;
+  Function* alloc_fn;
+  Function* alloc_small_fn;
+  Function* alloc_large_fn;
 
   MergeRealloc() : FunctionPass(ID)
   {
     c = the_compiler;
-    module = NULL;
+    alloc_fn = NULL;
+    alloc_small_fn = NULL;
+    alloc_large_fn = NULL;
   }
 
   bool doInitialization(Module& m)
   {
-    module = &m;
+    alloc_fn = m.getFunction("pony_alloc");
+    alloc_small_fn = m.getFunction("pony_alloc_small");
+    alloc_large_fn = m.getFunction("pony_alloc_large");
+
+    if(alloc_fn == NULL)
+      alloc_fn = declareAllocFunction(m, "pony_alloc", unwrap(c->intptr),
+        HEAP_MIN, true);
+
+    if(alloc_small_fn == NULL)
+      alloc_small_fn = declareAllocFunction(m, "pony_alloc_small",
+        unwrap(c->i32), HEAP_MIN, false);
+
+    if(alloc_large_fn == NULL)
+      alloc_large_fn = declareAllocFunction(m, "pony_alloc_large",
+        unwrap(c->intptr), HEAP_MAX << 1, false);
+
     return false;
   }
 
@@ -760,7 +807,6 @@ public:
 
   Value* mergeNoOp(IRBuilder<>& builder, Value* ctx, Value* size)
   {
-    Function* alloc_fn = module->getFunction("pony_alloc");
     Value* args[2];
     args[0] = ctx;
     args[1] = size;
@@ -772,33 +818,73 @@ public:
 
   Value* mergeConstant(IRBuilder<>& builder, Value* ctx, size_t size)
   {
-    Function* alloc_fn;
-    ConstantInt* int_size;
+    Function* used_alloc_fn;
+    IntegerType* int_type;
 
     if(size == 0)
     {
       return ConstantPointerNull::get(builder.getInt8PtrTy());
     } else if(size <= HEAP_MAX) {
-      alloc_fn = module->getFunction("pony_alloc_small");
+      used_alloc_fn = alloc_small_fn;
+      int_type = unwrap<IntegerType>(c->i32);
       size = ponyint_heap_index(size);
-      int_size = ConstantInt::get(builder.getInt32Ty(), size);
     } else {
-      alloc_fn = module->getFunction("pony_alloc_large");
-      if(target_is_ilp32(c->opt->triple))
-      {
-        int_size = ConstantInt::get(builder.getInt32Ty(), size);
-      } else {
-        int_size = ConstantInt::get(builder.getInt64Ty(), size);
-      }
+      used_alloc_fn = alloc_large_fn;
+      int_type = unwrap<IntegerType>(c->intptr);
     }
 
     Value* args[2];
     args[0] = ctx;
-    args[1] = int_size;
+    args[1] = ConstantInt::get(int_type, size);
 
-    CallInst* inst = builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
+    CallInst* inst = builder.CreateCall(used_alloc_fn,
+      ArrayRef<Value*>(args, 2));
     inst->setTailCall();
     return inst;
+  }
+
+  Function* declareAllocFunction(Module& m, std::string const& name,
+    Type* size_type, size_t min_size, bool can_be_null)
+  {
+    Type* params[2];
+    params[0] = unwrap(c->void_ptr);
+    params[1] = size_type;
+
+    FunctionType* fn_type = FunctionType::get(unwrap(c->void_ptr),
+      ArrayRef<Type*>(params, 2), false);
+    Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
+      &m);
+
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+    unsigned returnIndex = AttributeSet::ReturnIndex;
+#else
+    unsigned functionIndex = AttributeList::FunctionIndex;
+    unsigned returnIndex = AttributeList::ReturnIndex;
+#endif
+
+    fn->addAttribute(functionIndex, Attribute::NoUnwind);
+    fn->addAttribute(functionIndex,
+      Attribute::InaccessibleMemOrArgMemOnly);
+
+#if PONY_LLVM < 500
+    fn->setDoesNotAlias(0);
+#endif
+
+    if(can_be_null)
+      fn->addDereferenceableOrNullAttr(returnIndex, min_size);
+    else
+      fn->addDereferenceableAttr(returnIndex, min_size);
+
+    AttrBuilder attr;
+    attr.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
+#if PONY_LLVM < 500
+    fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(),
+      returnIndex, attr));
+#else
+    fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(), attr));
+#endif
+    return fn;
   }
 
   bool isZeroRealloc(CallInst* realloc)
@@ -815,7 +901,7 @@ public:
   }
 };
 
-char MergeRealloc::ID = 0;
+char MergeRealloc::ID = 2;
 
 static RegisterPass<MergeRealloc>
   MR("mergerealloc", "Merge successive reallocations of the same variable");
@@ -825,6 +911,404 @@ static void addMergeReallocPass(const PassManagerBuilder& pmb,
 {
   if(pmb.OptLevel >= 2)
     pm.add(new MergeRealloc());
+}
+
+class MergeMessageSend : public BasicBlockPass
+{
+public:
+  struct MsgFnGroup
+  {
+    BasicBlock::iterator alloc, trace, done, send;
+  };
+
+  enum MsgKind
+  {
+    MsgNone,
+    MsgNoTrace,
+    MsgTrace
+  };
+
+  static char ID;
+  compile_t* c;
+  Function* send_next_fn;
+  Function* msg_chain_fn;
+  Function* sendv_single_fn;
+
+  MergeMessageSend() : BasicBlockPass(ID)
+  {
+    c = the_compiler;
+    send_next_fn = nullptr;
+    msg_chain_fn = nullptr;
+    sendv_single_fn = nullptr;
+  }
+
+  bool doInitialization(Module& m)
+  {
+    send_next_fn = m.getFunction("pony_send_next");
+    msg_chain_fn = m.getFunction("pony_chain");
+    sendv_single_fn = m.getFunction("pony_sendv_single");
+
+    if(send_next_fn == NULL)
+      send_next_fn = declareTraceNextFn(m);
+
+    if(msg_chain_fn == NULL)
+      msg_chain_fn = declareMsgChainFn(m);
+
+    return false;
+  }
+
+  bool doInitialization(Function& f)
+  {
+    (void)f;
+    return false;
+  }
+
+  bool runOnBasicBlock(BasicBlock& b)
+  {
+    auto start = b.begin();
+    auto end = b.end();
+    bool changed = false;
+    SmallVector<CallInst*, 16> sends;
+
+    while(start != end)
+    {
+      MsgFnGroup first;
+      MsgKind first_kind = findMsgSend(start, end, true, first);
+
+      switch(first_kind)
+      {
+        case MsgNone:
+          start = end;
+          break;
+
+        default:
+        {
+          sends.push_back(cast<CallInst>(&(*first.send)));
+          bool stop = false;
+
+          while(!stop)
+          {
+            MsgFnGroup next;
+            MsgKind next_kind = findMsgSend(std::next(first.send), end, false,
+              next);
+
+            switch(next_kind)
+            {
+              case MsgNone:
+                stop = true;
+                break;
+
+              default:
+                sends.push_back(cast<CallInst>(&(*next.send)));
+                mergeMsgSend(first, next, first_kind, next_kind);
+                first = next;
+                first_kind = next_kind;
+                changed = true;
+                break;
+            }
+          }
+
+          sends.push_back(nullptr);
+          start = std::next(first.send);
+          break;
+        }
+      }
+    }
+
+    if(!sends.empty())
+      makeMsgChains(sends);
+
+    return changed;
+  }
+
+  MsgKind findMsgSend(BasicBlock::iterator start, BasicBlock::iterator end,
+    bool can_pass_writes, MsgFnGroup& out_calls)
+  {
+    auto alloc = findCallTo("pony_alloc_msg", start, end, can_pass_writes);
+
+    if(alloc == end)
+      return MsgNone;
+
+    decltype(alloc) trace;
+    size_t fn_index;
+
+    std::tie(trace, fn_index) =
+      findCallTo(std::vector<StringRef>{"pony_gc_send", "pony_sendv",
+        "pony_sendv_single"}, std::next(alloc), end, true);
+
+    switch(fn_index)
+    {
+      case (size_t)-1:
+        return MsgNone;
+
+      case 0:
+        break;
+
+      default:
+        out_calls.alloc = alloc;
+        out_calls.send = trace;
+        return MsgNoTrace;
+    }
+
+    auto done = findCallTo("pony_send_done", std::next(trace), end, true);
+
+    if(done == end)
+      return MsgNone;
+
+    auto send = findCallTo(std::vector<StringRef>{"pony_sendv",
+      "pony_sendv_single"}, std::next(done), end, true).first;
+
+    if(send == end)
+      return MsgNone;
+
+    out_calls.alloc = alloc;
+    out_calls.trace = trace;
+    out_calls.done = done;
+    out_calls.send = send;
+    return MsgTrace;
+  }
+
+  BasicBlock::iterator findCallTo(StringRef name,
+    BasicBlock::iterator start, BasicBlock::iterator end, bool can_pass_writes)
+  {
+    return findCallTo(std::vector<StringRef>{name}, start, end, can_pass_writes).first;
+  }
+
+  std::pair<BasicBlock::iterator, size_t> findCallTo(
+      std::vector<StringRef> const& names, BasicBlock::iterator start,
+    BasicBlock::iterator end, bool can_pass_writes)
+  {
+    for(auto iter = start; iter != end; ++iter)
+    {
+      if(iter->getMetadata("pony.msgsend") != NULL)
+      {
+        CallSite call(&(*iter));
+        Function* fun = call.getCalledFunction();
+        pony_assert(fun != NULL);
+
+        for(size_t i = 0; i < names.size(); i++)
+        {
+          if(fun->getName().compare(names[i]) == 0)
+            return {iter, i};
+        }
+      }
+
+      if(!can_pass_writes && iter->mayWriteToMemory())
+        break;
+    }
+
+    return {end, -1};
+  }
+
+  void mergeMsgSend(MsgFnGroup& first, MsgFnGroup& next, MsgKind first_kind,
+    MsgKind& next_kind)
+  {
+    pony_assert((first_kind != MsgNone) && (next_kind != MsgNone));
+
+    if(first_kind == MsgNoTrace)
+    {
+      auto src = first.send;
+      auto dst = next.send;
+
+      while(1)
+      {
+        auto prev = std::prev(src);
+        src->moveBefore(&(*dst));
+
+        if(prev->getMetadata("pony.msgsend") == NULL)
+          break;
+
+        CallSite call(&(*prev));
+        auto fun = call.getCalledFunction();
+        pony_assert(fun != NULL);
+
+        if(fun->getName().compare("pony_alloc_msg") == 0)
+          break;
+
+        dst = src;
+        src = prev;
+      }
+    } else {
+      auto iter = first.alloc;
+
+      while(iter != first.trace)
+      {
+        auto& inst = (*iter++);
+        inst.moveBefore(&(*next.alloc));
+      }
+
+      if(next_kind == MsgNoTrace)
+      {
+        auto first_send_post = std::next(first.send);
+
+        while(iter != first_send_post)
+        {
+          auto& inst = *(iter++);
+          if(inst.getOpcode() == Instruction::Call)
+            inst.moveBefore(&(*next.send));
+        }
+
+        next.trace = first.trace;
+        next.done = first.done;
+        next_kind = MsgTrace;
+      } else {
+        while(iter != first.done)
+        {
+          auto& inst = *(iter++);
+          if(inst.getOpcode() == Instruction::Call)
+            inst.moveBefore(&(*next.trace));
+        }
+
+        iter++;
+        first.done->eraseFromParent();
+        CallSite call(&(*next.trace));
+        call.setCalledFunction(send_next_fn);
+
+        auto first_send_post = std::next(first.send);
+        auto next_done_post = std::next(next.done);
+
+        while(iter != first_send_post)
+        {
+          auto& inst = *(iter++);
+          if(inst.getOpcode() == Instruction::Call)
+            inst.moveBefore(&(*next_done_post));
+        }
+
+        next.trace = first.trace;
+      }
+    }
+  }
+
+  bool makeMsgChains(SmallVector<CallInst*, 16> const& sends)
+  {
+    if(sends.size() < 2)
+      return false;
+
+    auto iter = std::begin(sends);
+    auto next = std::next(iter);
+    Value* chain_start = nullptr;
+    bool is_single = false;
+    bool changed = false;
+
+    while(true)
+    {
+      pony_assert(*iter != nullptr);
+
+      if((next == std::end(sends)) || (*next == nullptr))
+      {
+        if(chain_start != nullptr)
+        {
+          (*iter)->setArgOperand(2, chain_start);
+          chain_start = nullptr;
+
+          if(is_single)
+          {
+            pony_assert(sendv_single_fn != nullptr);
+            (*iter)->setCalledFunction(sendv_single_fn);
+            is_single = false;
+          }
+        }
+
+        if(next == std::end(sends))
+          break;
+
+        iter = std::next(next);
+
+        if(iter == std::end(sends))
+          break;
+
+        next = std::next(iter);
+        continue;
+      }
+
+      auto prev_msg = (*iter)->getArgOperand(2);
+      auto next_msg = (*next)->getArgOperand(2);
+
+      pony_assert(prev_msg == (*iter)->getArgOperand(3));
+      pony_assert(next_msg == (*next)->getArgOperand(3));
+
+      if((*iter)->getArgOperand(1) == (*next)->getArgOperand(1))
+      {
+        if((*iter)->getCalledFunction() == sendv_single_fn)
+          is_single = true;
+
+        auto chain_call = CallInst::Create(msg_chain_fn, {prev_msg, next_msg},
+          "", *iter);
+        chain_call->setTailCall();
+        (*iter)->eraseFromParent();
+
+        if(chain_start == nullptr)
+        {
+          chain_start = prev_msg;
+          changed = true;
+        }
+      } else if(chain_start != nullptr) {
+        (*iter)->setArgOperand(2, chain_start);
+        chain_start = nullptr;
+
+        if(is_single)
+        {
+          pony_assert(sendv_single_fn != nullptr);
+          (*iter)->setCalledFunction(sendv_single_fn);
+          is_single = false;
+        }
+      }
+
+      iter = next;
+      next = std::next(iter);
+    }
+
+    return changed;
+  }
+
+  Function* declareTraceNextFn(Module& m)
+  {
+    FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
+      {unwrap(c->void_ptr)}, false);
+    Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
+      "pony_send_next", &m);
+
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+#else
+    unsigned functionIndex = AttributeList::FunctionIndex;
+#endif
+
+    fn->addAttribute(functionIndex, Attribute::NoUnwind);
+    return fn;
+  }
+
+  Function* declareMsgChainFn(Module& m)
+  {
+    FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
+      {unwrap(c->msg_ptr), unwrap(c->msg_ptr)}, false);
+    Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
+      "pony_chain", &m);
+
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+#else
+    unsigned functionIndex = AttributeList::FunctionIndex;
+#endif
+
+    fn->addAttribute(functionIndex, Attribute::NoUnwind);
+    fn->addAttribute(functionIndex, Attribute::ArgMemOnly);
+    fn->addAttribute(1, Attribute::NoCapture);
+    fn->addAttribute(2, Attribute::ReadNone);
+    return fn;
+  }
+};
+
+char MergeMessageSend::ID = 3;
+
+static RegisterPass<MergeMessageSend>
+  MMS("mergemessagesend", "Group message sends in the same BasicBlock");
+
+static void addMergeMessageSendPass(const PassManagerBuilder& pmb,
+  PassManagerBase& pm)
+{
+  if(pmb.OptLevel >= 2)
+    pm.add(new MergeMessageSend());
 }
 
 static void optimise(compile_t* c, bool pony_specific)
@@ -838,13 +1322,13 @@ static void optimise(compile_t* c, bool pony_specific)
   llvm::legacy::PassManager mpm;
   llvm::legacy::FunctionPassManager fpm(m);
 
-  TargetLibraryInfoImpl *tl = new TargetLibraryInfoImpl(
+  TargetLibraryInfoImpl tl = TargetLibraryInfoImpl(
     Triple(m->getTargetTriple()));
 
   lpm.add(createTargetTransformInfoWrapperPass(
     machine->getTargetIRAnalysis()));
 
-  mpm.add(new TargetLibraryInfoWrapperPass(*tl));
+  mpm.add(new TargetLibraryInfoWrapperPass(tl));
   mpm.add(createTargetTransformInfoWrapperPass(
     machine->getTargetIRAnalysis()));
 
@@ -868,7 +1352,9 @@ static void optimise(compile_t* c, bool pony_specific)
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
+#if PONY_LLVM < 500
   pmb.LoadCombine = true;
+#endif
 
   if(pony_specific)
   {
@@ -878,6 +1364,8 @@ static void optimise(compile_t* c, bool pony_specific)
       addHeapToStackPass);
     pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
       addDispatchPonyCtxPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addMergeMessageSendPass);
   }
 
   pmb.populateFunctionPassManager(fpm);
@@ -903,6 +1391,12 @@ static void optimise(compile_t* c, bool pony_specific)
       pmb.OptLevel = 0;
   }
 
+#if PONY_LLVM >= 700
+  // LLVM 7 has a bug where running MergeFunctions more than once causes an
+  // assert fail saying "Invalid RAUW on key of ValueMap". We can avoid that
+  // by setting to false before populating lpm, after mpm was already populated.
+  pmb.MergeFunctions = false;
+#endif
   pmb.populateLTOPassManager(lpm);
 
   // There is a problem with optimised debug info in certain cases. This is
@@ -914,6 +1408,9 @@ static void optimise(compile_t* c, bool pony_specific)
 
   if(c->opt->strip_debug)
     lpm.add(createStripSymbolsPass());
+
+  if(c->opt->lint_llvm)
+    fpm.add(createLintPass());
 
   fpm.doInitialization();
 
@@ -963,11 +1460,32 @@ bool target_is_linux(char* t)
   return triple.isOSLinux();
 }
 
+bool target_is_bsd(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSDragonFly() || triple.isOSFreeBSD() || triple.isOSOpenBSD();
+}
+
 bool target_is_freebsd(char* t)
 {
   Triple triple = Triple(t);
 
   return triple.isOSFreeBSD();
+}
+
+bool target_is_dragonfly(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSDragonFly();
+}
+
+bool target_is_openbsd(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSOpenBSD();
 }
 
 bool target_is_macosx(char* t)
@@ -988,14 +1506,19 @@ bool target_is_posix(char* t)
 {
   Triple triple = Triple(t);
 
-  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux();
+  return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux()
+    || triple.isOSDragonFly() || triple.isOSOpenBSD();
 }
 
 bool target_is_x86(char* t)
 {
   Triple triple = Triple(t);
 
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
 
   return !strcmp("x86", arch);
 }
@@ -1004,9 +1527,30 @@ bool target_is_arm(char* t)
 {
   Triple triple = Triple(t);
 
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
   const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
 
-  return !strcmp("arm", arch);
+  return (!strcmp("arm", arch) || !strcmp("aarch64", arch));
+}
+
+// This function is used to safeguard against potential oversights on the size
+// of Bool on any future port to PPC32.
+// We do not currently support compilation to PPC. It could work, but no
+// guarantees.
+bool target_is_ppc(char* t)
+{
+  Triple triple = Triple(t);
+
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
+  const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
+
+  return !strcmp("ppc", arch);
 }
 
 bool target_is_lp64(char* t)
@@ -1035,4 +1579,18 @@ bool target_is_native128(char* t)
   Triple triple = Triple(t);
 
   return !triple.isArch32Bit() && !triple.isKnownWindowsMSVCEnvironment();
+}
+
+bool target_is_bigendian(char* t)
+{
+  Triple triple = Triple(t);
+
+  return !triple.isLittleEndian();
+}
+
+bool target_is_littleendian(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isLittleEndian();
 }

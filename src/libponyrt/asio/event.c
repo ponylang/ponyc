@@ -2,6 +2,7 @@
 #include "asio.h"
 #include "../actor/actor.h"
 #include "../mem/pool.h"
+#include "../sched/scheduler.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -67,6 +68,14 @@ PONY_API int pony_asio_event_fd(asio_event_t* ev)
   return ev->fd;
 }
 
+PONY_API bool pony_asio_event_get_disposable(asio_event_t* ev)
+{
+  if(ev == NULL)
+    return false;
+
+  return (ev->flags == ASIO_DISPOSABLE);
+}
+
 PONY_API bool pony_asio_event_get_writeable(asio_event_t* ev)
 {
   if(ev == NULL)
@@ -118,5 +127,11 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   pony_register_thread();
 #endif
 
-  pony_sendv(pony_ctx(), ev->owner, &m->msg);
+  // ASIO messages technically are application messages, but since they have no
+  // sender they aren't covered by backpressure. We pass false for an early
+  // bailout in the backpressure code.
+  pony_sendv(pony_ctx(), ev->owner, &m->msg, &m->msg, false);
+
+  // maybe wake up a scheduler thread if they've all fallen asleep
+  ponyint_sched_maybe_wakeup_if_all_asleep(-1);
 }

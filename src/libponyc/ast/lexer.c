@@ -15,6 +15,7 @@ struct lexer_t
 {
   source_t* source;
   errors_t* errors;
+  bool allow_test_symbols;
 
   // Information about next unused character in file
   size_t ptr;
@@ -67,7 +68,8 @@ static const lextoken_t symbols[] =
   { "-~", TK_MINUS_TILDE },
   { "*~", TK_MULTIPLY_TILDE },
   { "/~", TK_DIVIDE_TILDE },
-  { "%~", TK_MOD_TILDE },
+  { "%%~", TK_MOD_TILDE },
+  { "%~", TK_REM_TILDE },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
@@ -104,7 +106,8 @@ static const lextoken_t symbols[] =
   { "-", TK_MINUS },
   { "*", TK_MULTIPLY },
   { "/", TK_DIVIDE },
-  { "%", TK_MOD },
+  { "%%", TK_MOD },
+  { "%", TK_REM },
   { "@", TK_AT },
 
   { "<", TK_LT },
@@ -140,7 +143,6 @@ static const lextoken_t keywords[] =
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
-  { "lambda", TK_LAMBDA },
 
   { "as", TK_AS },
   { "is", TK_IS },
@@ -169,7 +171,7 @@ static const lextoken_t keywords[] =
 
   { "if", TK_IF },
   { "ifdef", TK_IFDEF },
-  { "iftype", TK_IFTYPE },
+  { "iftype", TK_IFTYPE_SET },
   { "then", TK_THEN },
   { "else", TK_ELSE },
   { "elseif", TK_ELSEIF },
@@ -218,6 +220,8 @@ static const lextoken_t keywords[] =
   { "$ifdefnot", TK_IFDEFNOT },
   { "$flag", TK_IFDEFFLAG },
   { "$let", TK_MATCH_CAPTURE },
+  { "$dontcare", TK_MATCH_DONTCARE },
+  { "$iftype", TK_IFTYPE },
 
   { NULL, (token_id)0 }
 };
@@ -268,6 +272,7 @@ static const lextoken_t abstract[] =
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
 
+  { "lambda", TK_LAMBDA },
   { "barelambda", TK_BARELAMBDA },
 
   { "seq", TK_SEQ },
@@ -308,15 +313,6 @@ static const lextoken_t abstract[] =
 };
 
 
-static bool allow_test_symbols = false;
-
-
-void lexer_allow_test_symbols()
-{
-  allow_test_symbols = true;
-}
-
-
 // Report an error at the specified location
 static void lex_error_at(lexer_t* lexer, size_t line, size_t pos,
   const char* fmt, ...)
@@ -351,13 +347,8 @@ static void append_to_token(lexer_t* lexer, char c)
   if(lexer->buflen >= lexer->alloc)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* new_buf = (char*)ponyint_pool_alloc_size(new_len);
-    memcpy(new_buf, lexer->buffer, lexer->alloc);
-
-    if(lexer->alloc > 0)
-      ponyint_pool_free_size(lexer->alloc, lexer->buffer);
-
-    lexer->buffer = new_buf;
+    lexer->buffer =
+      (char*)ponyint_pool_realloc_size(lexer->alloc, new_len, lexer->buffer);
     lexer->alloc = new_len;
   }
 
@@ -519,6 +510,7 @@ static token_t* slash(lexer_t* lexer)
 * Removes longest common prefix indentation from every line in a triple
 * quoted string. If the string begins with an empty line, that line is removed
 * entirely.
+* If the last line only consists of whitespace those will also be removed.
 */
 static void normalise_string(lexer_t* lexer)
 {
@@ -529,11 +521,25 @@ static void normalise_string(lexer_t* lexer)
   if(memchr(lexer->buffer, '\n', lexer->buflen) == NULL)
     return;
 
-  // Calculate leading whitespace.
+  // Trim a leading newline if there is one.
   char* buf = lexer->buffer;
+
+  if((buf[0] == '\r') && (buf[1] == '\n'))
+  {
+    lexer->buflen -= 2;
+    memmove(&buf[0], &buf[2], lexer->buflen);
+  }
+  else if(buf[0] == '\n')
+  {
+    lexer->buflen--;
+    memmove(&buf[0], &buf[1], lexer->buflen);
+  }
+
+  // Calculate leading whitespace.
   size_t ws = lexer->buflen;
   size_t ws_this_line = 0;
   bool in_leading_ws = true;
+  bool has_non_ws = false;
 
   for(size_t i = 0; i < lexer->buflen; i++)
   {
@@ -545,9 +551,12 @@ static void normalise_string(lexer_t* lexer)
       {
         ws_this_line++;
       }
-      else if((c != '\r') && (c != '\n'))
+      else
       {
-        if(ws_this_line < ws)
+        if(!isspace(c))
+          has_non_ws = true;
+
+        if(has_non_ws && (ws_this_line < ws))
           ws = ws_this_line;
 
         in_leading_ws = false;
@@ -557,6 +566,7 @@ static void normalise_string(lexer_t* lexer)
     if(c == '\n')
     {
       ws_this_line = 0;
+      has_non_ws = false;
       in_leading_ws = true;
     }
   }
@@ -593,18 +603,22 @@ static void normalise_string(lexer_t* lexer)
     lexer->buflen = compacted - lexer->buffer;
   }
 
-  // Trim a leading newline if there is one.
-  buf = lexer->buffer;
-
-  if((buf[0] == '\r') && (buf[1] == '\n'))
+  // Trim trailing empty line
+  size_t trim = 0;
+  for (size_t i = (lexer->buflen - 1); i>0; i--)
   {
-    lexer->buflen -= 2;
-    memmove(&buf[0], &buf[2], lexer->buflen);
-  }
-  else if(buf[0] == '\n')
-  {
-    lexer->buflen--;
-    memmove(&buf[0], &buf[1], lexer->buflen);
+    char c = lexer->buffer[i];
+    if (c == '\n')
+    {
+      lexer->buflen -= trim;
+      break;
+    }
+    else if (isspace(c))
+    {
+      trim++;
+    }
+    else
+      break; // non-empty line
   }
 }
 
@@ -614,6 +628,9 @@ static void normalise_string(lexer_t* lexer)
 static token_t* triple_string(lexer_t* lexer)
 {
   consume_chars(lexer, 3);  // Leading """
+
+  size_t start_line = lexer->line;
+  bool non_space_on_first_line = false;
 
   while(true)
   {
@@ -634,9 +651,20 @@ static token_t* triple_string(lexer_t* lexer)
         consume_chars(lexer, 1);
       }
 
+      if (lexer->line > start_line && non_space_on_first_line)
+      {
+        lex_error(
+          lexer,
+          "multi-line triple-quoted string must be started below the opening triple-quote");
+        return make_token(lexer, TK_LEX_ERROR);
+      }
+
       normalise_string(lexer);
       return make_token_with_text(lexer, TK_STRING);
     }
+
+    if (lexer->line == start_line && !isspace(c))
+      non_space_on_first_line = true;
 
     consume_chars(lexer, 1);
     append_to_token(lexer, c);
@@ -798,7 +826,6 @@ static token_t* string(lexer_t* lexer)
 {
   if((lookn(lexer, 2) == '\"') && (lookn(lexer, 3) == '\"'))
     return triple_string(lexer);
-
   consume_chars(lexer, 1);  // Leading "
 
   while(true)
@@ -838,6 +865,7 @@ static token_t* character(lexer_t* lexer)
 {
   consume_chars(lexer, 1);  // Leading '
 
+  size_t chars_consumed = 0;
   lexint_t value;
   lexint_zero(&value);
 
@@ -846,13 +874,22 @@ static token_t* character(lexer_t* lexer)
     if(is_eof(lexer))
       return literal_doesnt_terminate(lexer);
 
-    int c = look(lexer);
-
+    // ensure lexer char is correctly coerced to int
+    int c = look(lexer) & 0x000000FF;
     if(c == '\'')
     {
+      token_t* t;
       consume_chars(lexer, 1);
-      token_t* t = make_token(lexer, TK_INT);
-      token_set_int(t, &value);
+      if (chars_consumed == 0)
+      {
+        lex_error(lexer, "Empty character literal");
+        t = make_token(lexer, TK_LEX_ERROR);
+      }
+      else
+      {
+        t = make_token(lexer, TK_INT);
+        token_set_int(t, &value);
+      }
       return t;
     }
 
@@ -861,6 +898,7 @@ static token_t* character(lexer_t* lexer)
     else
       consume_chars(lexer, 1);
 
+    chars_consumed++;
     // Just ignore bad escapes here and carry on. They've already been
     // reported and this allows catching later errors.
     if(c >= 0)
@@ -1153,7 +1191,7 @@ static token_t* dollar(lexer_t* lexer)
   append_to_token(lexer, look(lexer));  // $
   consume_chars(lexer, 1);
 
-  if(allow_test_symbols)
+  if(lexer->allow_test_symbols)
   {
     // Test mode, allow test keywords and identifiers.
     // Note that a lone '$' is always an error to allow tests to force a lexer
@@ -1179,11 +1217,11 @@ static token_id newline_symbols(token_id raw_token, bool newline)
 
   switch(raw_token)
   {
-    case TK_LPAREN:      return TK_LPAREN_NEW;
-    case TK_LSQUARE:     return TK_LSQUARE_NEW;
-    case TK_MINUS:       return TK_MINUS_NEW;
-    case TK_MINUS_TILDE: return TK_MINUS_TILDE_NEW;
-    default:             return raw_token;
+    case TK_LPAREN:         return TK_LPAREN_NEW;
+    case TK_LSQUARE:        return TK_LSQUARE_NEW;
+    case TK_MINUS:          return TK_MINUS_NEW;
+    case TK_MINUS_TILDE:    return TK_MINUS_TILDE_NEW;
+    default:                return raw_token;
   }
 }
 
@@ -1217,7 +1255,8 @@ static token_t* symbol(lexer_t* lexer)
 }
 
 
-lexer_t* lexer_open(source_t* source, errors_t* errors)
+lexer_t* lexer_open(source_t* source, errors_t* errors,
+  bool allow_test_symbols)
 {
   pony_assert(source != NULL);
 
@@ -1226,7 +1265,8 @@ lexer_t* lexer_open(source_t* source, errors_t* errors)
 
   lexer->source = source;
   lexer->errors = errors;
-  lexer->len = source->len;
+  lexer->allow_test_symbols = allow_test_symbols;
+  lexer->len = source->len - 1; // because we don't want the null terminator to be parsed.
   lexer->line = 1;
   lexer->pos = 1;
   lexer->newline = true;

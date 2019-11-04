@@ -3,15 +3,17 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
 #endif
 
-#if defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_DRAGONFLY) || defined(PLATFORM_IS_OPENBSD)
 #include <pthread_np.h>
+#endif
+#if defined(PLATFORM_IS_FREEBSD)
 #include <sys/cpuset.h>
 typedef cpuset_t cpu_set_t;
 #endif
@@ -157,6 +159,7 @@ uint32_t ponyint_numa_node_of_cpu(uint32_t cpu)
 bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   uint32_t cpu, void* arg)
 {
+  bool ret = true;
   (void)cpu;
 
 #if defined(PLATFORM_IS_WINDOWS)
@@ -166,42 +169,46 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
     return false;
 
   *thread = (HANDLE)p;
-#elif defined(PLATFORM_IS_LINUX)
+#else
+  bool setstack_called = false;
+  struct rlimit limit;
   pthread_attr_t attr;
-  pthread_attr_init(&attr);
+  pthread_attr_t* attr_p = &attr;
+  pthread_attr_init(attr_p);
 
-  if(cpu != (uint32_t)-1)
+  // Some systems, e.g., macOS, hav a different default default
+  // stack size than the typical system's RLIMIT_STACK.
+  // Let's use RLIMIT_STACK's current limit if it is sane.
+  if(getrlimit(RLIMIT_STACK, &limit) == 0 &&
+    limit.rlim_cur != RLIM_INFINITY &&
+    limit.rlim_cur >= PTHREAD_STACK_MIN)
   {
-    cpu_set_t set;
-    CPU_ZERO(&set);
-    CPU_SET(cpu, &set);
-
-    pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
-
-    if(use_numa)
+#if defined(PLATFORM_IS_LINUX)
+    if(cpu != (uint32_t)-1 && use_numa)
     {
-      struct rlimit limit;
+      cpu_set_t set;
+      CPU_ZERO(&set);
+      CPU_SET(cpu, &set);
 
-      if(getrlimit(RLIMIT_STACK, &limit) == 0)
-      {
-        int node = _numa_node_of_cpu(cpu);
-        void* stack = _numa_alloc_onnode((size_t)limit.rlim_cur, node);
-        if (stack != NULL) {
-          pthread_attr_setstack(&attr, stack, (size_t)limit.rlim_cur);
-        }
+      int node = _numa_node_of_cpu(cpu);
+      void* stack = _numa_alloc_onnode((size_t)limit.rlim_cur, node);
+      if (stack != NULL) {
+        pthread_attr_setstack(&attr, stack, (size_t)limit.rlim_cur);
+        setstack_called = true;
       }
     }
+#endif
+    if(! setstack_called)
+      pthread_attr_setstacksize(&attr, (size_t)limit.rlim_cur);
+  } else {
+    attr_p = NULL;
   }
 
-  if(pthread_create(thread, &attr, start, arg))
-    return false;
-
+  if(pthread_create(thread, attr_p, start, arg))
+    ret = false;
   pthread_attr_destroy(&attr);
-#else
-  if(pthread_create(thread, NULL, start, arg))
-    return false;
 #endif
-  return true;
+  return ret;
 }
 
 bool ponyint_thread_join(pony_thread_id_t thread)
@@ -231,4 +238,46 @@ pony_thread_id_t ponyint_thread_self()
 #else
   return pthread_self();
 #endif
+}
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+void ponyint_thread_suspend(pony_signal_event_t signal, pthread_mutex_t* mut)
+#else
+void ponyint_thread_suspend(pony_signal_event_t signal)
+#endif
+{
+#ifdef PLATFORM_IS_WINDOWS
+  WaitForSingleObject(signal, INFINITE);
+#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+  int ret;
+
+  // wait for condition variable (will sleep and release mutex)
+  ret = pthread_cond_wait(signal, mut);
+  // TODO: What to do if `ret` is an unrecoverable error?
+  (void) ret;
+#else
+  int sig;
+  sigset_t sigmask;
+  sigemptyset(&sigmask);         /* zero out all bits */
+  sigaddset(&sigmask, signal);   /* unblock desired signal */
+
+  // sleep waiting for signal to wake up again
+  sigwait(&sigmask, &sig);
+#endif
+}
+
+int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
+{
+  int ret;
+#if defined(PLATFORM_IS_WINDOWS)
+  (void) thread;
+  ret = !SetEvent(signal);
+#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
+  (void) thread;
+  // signal condition variable
+  ret = pthread_cond_signal(signal);
+#else
+  ret = pthread_kill(thread, signal);
+#endif
+  return ret;
 }

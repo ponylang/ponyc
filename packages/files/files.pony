@@ -12,7 +12,7 @@ file that can be used to write to and/or read from the file. It can
 also be used with the `Directory` object to get a reference to a
 directory object that can be used for directory operations.
 
-The `FileLine` class allows a file to be accessed one line at a time.
+The `FileLines` class allows a file to be accessed one line at a time.
 
 The `FileStream` actor provides the ability to asynchronously write to
 a file.
@@ -32,7 +32,7 @@ actor Main
   new create(env: Env) =>
     try
       for file_name in env.args.slice(1).values() do
-        let path = FilePath(env.root as AmbientAuth, file_name)
+        let path = FilePath(env.root as AmbientAuth, file_name)?
         match OpenFile(path)
         | let file: File =>
           while file.errno() is FileOK do

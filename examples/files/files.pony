@@ -6,15 +6,15 @@ actor Main
 
     try
       with file = OpenFile(
-        FilePath(env.root as AmbientAuth, env.args(1), caps)) as File
+        FilePath(env.root as AmbientAuth, env.args(1)?, caps)?) as File
       do
         env.out.print(file.path.path)
         for line in file.lines() do
-          env.out.print(line)
+          env.out.print(consume line)
         end
       end
     else
       try
-        env.out.print("Couldn't open " + env.args(1))
+        env.out.print("Couldn't open " + env.args(1)?)
       end
     end

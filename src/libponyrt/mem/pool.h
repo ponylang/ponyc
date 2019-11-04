@@ -27,11 +27,13 @@ void ponyint_pool_free(size_t index, void* p);
 __pony_spec_malloc__(void* ponyint_pool_alloc_size(size_t size));
 void ponyint_pool_free_size(size_t size, void* p);
 
+void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p);
+
 void ponyint_pool_thread_cleanup();
 
 size_t ponyint_pool_index(size_t size);
 
-size_t ponyint_pool_size(size_t index);
+size_t ponyint_pool_used_size(size_t index);
 
 size_t ponyint_pool_adjust_size(size_t size);
 
@@ -60,6 +62,14 @@ size_t ponyint_pool_adjust_size(size_t size);
 
 #define POOL_FREE(TYPE, VALUE) \
   ponyint_pool_free(POOL_INDEX(sizeof(TYPE)), VALUE)
+
+#define POOL_SIZE(INDEX) \
+  ((size_t)1 << (POOL_MIN_BITS + INDEX))
+
+#ifdef USE_MEMTRACK
+#define POOL_ALLOC_SIZE(TYPE) \
+  POOL_SIZE(POOL_INDEX(sizeof(TYPE)))
+#endif
 
 PONY_EXTERN_C_END
 

@@ -7,8 +7,11 @@ type JsonType is (F64 | I64 | Bool | None | String | JsonArray | JsonObject)
 
 class JsonArray
   var data: Array[JsonType]
+    """
+    The actual array containing JSON structures.
+    """
 
-  new iso create(len: USize = 0) =>
+  new create(len: USize = 0) =>
     """
     Create an array with zero elements, but space for len elements.
     """
@@ -28,8 +31,12 @@ class JsonArray
     buf.compact()
     buf
 
-  fun _show(buf': String iso, indent: String = "", level: USize,
-    pretty: Bool): String iso^
+  fun _show(
+    buf': String iso,
+    indent: String = "",
+    level: USize,
+    pretty: Bool)
+    : String iso^
   =>
     """
     Append the string representation of this array to the provided String.
@@ -69,8 +76,12 @@ class JsonArray
 
 class JsonObject
   var data: Map[String, JsonType]
+    """
+    The actual JSON object structure,
+    mapping `String` keys to other JSON structures.
+    """
 
-  new iso create(prealloc: USize = 6) =>
+  new create(prealloc: USize = 6) =>
     """
     Create a map with space for prealloc elements without triggering a
     resize. Defaults to 6.
@@ -91,8 +102,8 @@ class JsonObject
     buf.compact()
     buf
 
-  fun _show(buf': String iso, indent: String = "", level: USize,
-    pretty: Bool): String iso^
+  fun _show(buf': String iso, indent: String = "", level: USize, pretty: Bool)
+    : String iso^
   =>
     """
     Append the string representation of this object to the provided String.

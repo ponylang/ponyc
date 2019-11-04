@@ -24,7 +24,7 @@ If you submit a pull request to implement a new feature without going through th
 
 Bug report
 ----------
-First of all please [search existing issues][complete-issue-list] to make sure your issue hasn't already been reported. If you cannot find a suitable issue — [create a new one][new-issue].
+First of all please [search existing issues](https://github.com/ponylang/ponyc/issues) to make sure your issue hasn't already been reported. If you cannot find a suitable issue — [create a new one](https://github.com/ponylang/ponyc/issues/new).
 
 Provide the following details:
 
@@ -52,12 +52,12 @@ Here is the basic GitHub workflow:
 Some things to note that aren't immediately obvious to folks just starting out:
 
 1. Your fork doesn't automatically stay up to date with change in the main repo.
-2. Any changes you make on your branch that you used for the PR will automatically appear in the PR so if you have more than 1 PR, be sure to always create different braches for them.
-3. Weird things happen with commit history if you dont create your PR branches off of master so always make sure you have the master branch checked out before creating a branch for a PR
+2. Any changes you make on your branch that you used for the PR will automatically appear in the PR so if you have more than 1 PR, be sure to always create different branches for them.
+3. Weird things happen with commit history if you don't create your PR branches off of master so always make sure you have the master branch checked out before creating a branch for a PR
 
-If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [IRC](https://webchat.freenode.net/?channels=%23ponylang) or the [pony developer mailing list](https://pony.groups.io/g/dev) for assistance.
+If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [Zulip](https://ponylang.zulipchat.com).
 
-You can get help using GitHub via [the official documentation](https://help.github.com/). Some hightlights include:
+You can get help using GitHub via [the official documentation](https://help.github.com/). Some highlights include:
 
 - [Fork A Repo](https://help.github.com/articles/fork-a-repo/)
 - [Creating a pull request](https://help.github.com/articles/creating-a-pull-request/)
@@ -83,6 +83,10 @@ Once those conditions are met, the PR can be merged, and an automated system wil
 
 Please note, if your changes are purely to things like README, CHANGELOG etc, you can add [skip ci] as the last line of your commit message and your PR won't be run through our continuous integration systems. We ask that you use [skip ci] where appropriate as it helps to get changes through CI faster and doesn't waste resources that Appveyor and TravisCI are kindly donating to the Open Source community.
 
+Grammar Changes
+---------------
+If your contribution contains changes to the grammar of the language, you should update the `pony.g` file at the root of the repository with `ponyc --antlr > pony.g`.
+
 Documentation Formatting
 ---------------
 When contributing to documentation, try to keep the following style guidelines in mind:
@@ -93,50 +97,44 @@ When contributing to documentation, try to keep the following style guidelines i
 
 Code Formatting
 ---------------
-A few code formatting rules to be aware of if you are submitting changes. In general, take a look at the existing code and try to match that formatting style. A couple things that might not be immediately obvious.
-
-* Indentation
-
-We indent using spaces not tabs. The unit of indentation is two spaces.
-
-* Watch your whitespace!
-
-Use an editor plugin to remove unused trailing whitespace. This includes both at the end of a line and at the end of a file. By the same token, remember to leave a single newline only line at the end of each file. It makes output files to the console much more pleasant.
-
-* Line Length
-
-We all have different sized monitors. What might look good on yours might look like awful on another. Be kind and wrap all lines at 80 columns unless you have a good reason not to.
-
-* Style
-
-*Variable and method names* -- Variable and method names should be lowercase and should have underscores between the words. Examples: `from_array`, `offset_to_index`.
-
-*Class, type, interface, trait, and primitive names* -- Class, type, interface, trait, and primitive names should start with an uppercase letter and each word should be capitalized. Examples: `StringBytes`, `ErrorReason`, `ReadlineNotify`, `FloatingPoint` `UnrecognizedOption`.
-
-*Breaking up parameter lists* -- A method signature may need to be split across several lines in order to follow the rule that the line length must be 80 characters or fewer. The accepted way to break up a parameter list is to indent all lines after the first line by 2 spaces, and to place the `=>` on a line by itself at the same level of indentation as the `fun` or `be` at the beginning of the declaration. Example:
-
-```pony
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
-    len: USize = -1): Array[A]^
-  =>
-```
-
-* Reformatting code to meet standards
-
-Try to avoid doing it. A commit that changes the formatting for large chunks of a file makes for an ugly commit history when looking for important changes. This means, don't commit code that doesn't conform to coding standards in the first place. If you do reformat code, make sure it is either standalone reformatting with no logic changes or confined solely to code whose logic you touched. For example, changing the indentation in a file? Do not make logic changes along with it. Editing a line that has extra whitespace at the end? Feel free to remove it.
-
-[complete-issue-list]: //github.com/ponylang/ponyc/search?q=&type=Issues&utf8=%E2%9C%93
-[new-issue]: //github.com/ponylang/ponyc/issues/new
+For code formatting guidelines please see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md).
 
 Standard Library File Naming
----------------
-As of July 2016, the have adopted the following guidelines for naming files in the Pony standard library. New additions to the standard library should conform to this standard:
+----------------
+For standard library file naming guidelines see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md#naming).
 
-- The *file name* of Pony source files should be based on the name of the *principal type* defined in that file.
-    + The *principal type* in a file is the type that makes up the bulk of the significant lines of code in the file or is conceptually more important or fundamental than all other types in the file. For example, if a file defines a trait type and a group of small class types that all provide that trait, then the trait type should be considered the *principal type*.
-    + If there are multiple types defined in the file which all have equal significance and a shared name prefix, then the shared prefix should be used as the *principal type name*. For example, a file that defines `PacketFoo`, `PacketBar`, and `PacketBaz` types should use `Packet` as the *principal type name*, even if no `Packet` type is defined.
-    + If there are multiple significant types defined in the file which do not have a shared name prefix, then this should be taken as a hint that these types should probably be defined in separate files instead of together in one file.
-- The *file name* should be directly derived from the *principal type name* using a consistent reproducible scheme of case conversion.
-    + The *file name* should be the "snake case" version of the *principal type name*. That is, each word in the *principal type name* (as defined by transitions from lowercase to uppercase letters) should be separated with the underscore character (`_`) and lowercased to generate the *file name*. For example, a file that defines the `ContentsLog` type should be named `contents_log.pony`.
-    + If the *principal type* is a private type (its name beginning with an underscore character), then the *file name* should also be prefixed with an underscore character to highlight the fact that it defines a private type. For example, a file that defines the `_ClientConnection` type should be named `_client_connection.pony`.
-    + If the *principal type* name contains an acronym (a sequence of uppercase letters with no lowercase letters between them), then the entire acronym should be considered as a single word when converting to snake case. Note that if there is another word following the acronym, its first letter will also be uppercase, but should not be considered part of the sequence of uppercase letters that form the acronym. For example, a file that defines the `SSLContext` type should be named `ssl_context.pony`.
+Source Code Coverage of Ponyc
+----------------
+
+To get C code coverage information for test runs or for calling ponyc, call `make` with `use=coverage config=debug`. This works both for *clang* and *gcc*. Make sure to configure `CC` and `CXX` environment variables both to either `gcc` and `g++` or `clang` and `clang++`.
+
+### Using gcc and lcov
+
+* Compile ponyc with `use=coverage config=debug` and environment variables `CC=gcc CXX=g++`
+* Run ponyc or the test suite from `build/debug-coverage`
+* generate the html coverage report:
+
+  ```
+  # generate coverage report
+  lcov --directory .build/debug-coverage/obj –zerocounters
+  lcov --directory .build/debug-coverage/obj --capture --output-file ponyc.info
+  genhtml -o build/debug-coverage/coverage ponyc.info
+  ```
+* open the html report at `build/debug-coverage/coverage/index.html`
+
+### Using clang and llvm-cov
+
+* Compile ponyc with `use=coverage config=debug` and environment variables `CC=clang CXX=clang++`
+* Run ponyc or the test suite from `build/debug-coverage` with environment variable: `LLVM_PROFILE_FILE="build/debug-coverage/coverage.profraw"`
+* generate coverage data:
+
+  ```
+  llvm-profdata merge -sparse -output=build/debug-coverage/coverage.profdata build/debug-coverage/coverage.profraw
+  ```
+
+* show coverage data (only for `lexer.c` in this case):
+
+  ```
+  llvm-cov show ./build/debug-coverage/libponyc.tests -instr-profile=./build/debug-coverage/coverage.profdata src/libponyc/ast/lexer.c 
+  ```
+

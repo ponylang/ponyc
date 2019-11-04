@@ -5,6 +5,7 @@
 
 #include "lexint.h"
 #include "source.h"
+#include "../libponyrt/pony.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -13,6 +14,8 @@ extern "C" {
 #endif
 
 typedef struct token_t token_t;
+
+typedef struct token_signature_t token_signature_t;
 
 typedef enum token_id
 {
@@ -55,6 +58,8 @@ typedef enum token_id
   TK_MULTIPLY_TILDE,
   TK_DIVIDE,
   TK_DIVIDE_TILDE,
+  TK_REM,
+  TK_REM_TILDE,
   TK_MOD,
   TK_MOD_TILDE,
   TK_AT,
@@ -147,6 +152,7 @@ typedef enum token_id
   TK_IF,
   TK_IFDEF,
   TK_IFTYPE,
+  TK_IFTYPE_SET,
   TK_THEN,
   TK_ELSE,
   TK_ELSEIF,
@@ -288,6 +294,19 @@ token_t* token_dup_new_id(token_t* token, token_id id);
   * The token argument may be NULL.
   */
 void token_free(token_t* token);
+
+/// Set the token as read-only.
+void token_freeze(token_t* token);
+
+/// Get a pony_type_t for token_t. Should only be used for signature computation.
+pony_type_t* token_signature_pony_type();
+
+/// Get a pony_type_t for a docstring token_t. Should only be used for signature
+/// computation.
+pony_type_t* token_docstring_signature_pony_type();
+
+/// Get a pony_type_t for token_t. Should only be used for serialisation.
+pony_type_t* token_pony_type();
 
 
 // Read accessors

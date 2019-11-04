@@ -52,8 +52,8 @@ protected:
     memset(method, 0, sizeof(reach_method_t));
     method->name = stringtab(name);
     method->mangled_name = method->name;
+    method->fun = NULL;
     method->typeargs = NULL;
-    method->r_fun = NULL;
     method->vtable_index = (uint32_t)-1;
     method->needs_vtable_index = true;
 

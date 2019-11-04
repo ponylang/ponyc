@@ -25,7 +25,9 @@ static void cond_normalise(ast_t** astp)
     {
       ast_setid(ast, TK_IFDEFAND);
 
-      AST_GET_CHILDREN(ast, left, right);
+      AST_GET_CHILDREN(ast, left, right, question);
+      pony_assert(ast_id(question) == TK_NONE);
+      ast_remove(question);
       cond_normalise(&left);
       cond_normalise(&right);
       break;
@@ -35,7 +37,9 @@ static void cond_normalise(ast_t** astp)
     {
       ast_setid(ast, TK_IFDEFOR);
 
-      AST_GET_CHILDREN(ast, left, right);
+      AST_GET_CHILDREN(ast, left, right, question);
+      pony_assert(ast_id(question) == TK_NONE);
+      ast_remove(question);
       cond_normalise(&left);
       cond_normalise(&right);
       break;
@@ -71,7 +75,7 @@ static void cond_normalise(ast_t** astp)
             NODE(TK_IFDEFOR,
               NODE(TK_IFDEFFLAG, ID(OS_LINUX_NAME))
               NODE(TK_IFDEFFLAG, ID(OS_MACOSX_NAME)))
-            NODE(TK_IFDEFFLAG, ID(OS_FREEBSD_NAME))));
+            NODE(TK_IFDEFFLAG, ID(OS_BSD_NAME))));
         break;
       }
 
@@ -99,7 +103,6 @@ static void cond_normalise(ast_t** astp)
       break;
 
     default:
-      ast_fprint(stderr, ast);
       pony_assert(0);
       break;
   }
@@ -156,7 +159,6 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
     }
 
     default:
-      ast_fprint(stderr, ast);
       pony_assert(0);
       return false;
   }
@@ -196,7 +198,6 @@ static void find_flags_in_cond(ast_t* ast, buildflagset_t* config)
     }
 
     default:
-      ast_fprint(stderr, ast);
       pony_assert(0);
       break;
   }
@@ -425,11 +426,15 @@ bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* opt)
   while(buildflagset_next(config))
   {
     if(cond_eval(*astp, config, false, opt))
+    {
       // Condition is true for this config.
+      buildflagset_free(config);
       return true;
+    }
   }
 
   // Condition isn't true for any configs.
+  buildflagset_free(config);
   return false;
 }
 

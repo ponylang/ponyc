@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef PLATFORM_IS_POSIX_BASED
+#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX)
 #  include <execinfo.h>
+#endif
 #  include <unistd.h>
 #else
 #  include <Windows.h>
@@ -18,7 +20,7 @@ static PONY_ATOMIC(bool) assert_guard = false;
 
 #ifdef PLATFORM_IS_POSIX_BASED
 
-#ifdef PLATFORM_IS_FREEBSD
+#if defined(PLATFORM_IS_BSD) && !defined(PLATFORM_IS_OPENBSD)
 typedef size_t stack_depth_t;
 #else
 typedef int stack_depth_t;
@@ -38,6 +40,7 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
     func, expr);
 
+#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX)
   void* addrs[256];
   stack_depth_t depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
@@ -55,7 +58,9 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
       "imprecise or incorrect.\nUse a debug version to get more meaningful "
       "information.\n", stderr);
   }
-
+#else
+  fputs("Backtrace functionality not available.\n", stderr);
+#endif
   fflush(stderr);
   abort();
 }
@@ -146,3 +151,22 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
 }
 
 #endif
+
+void ponyint_assert_disable_popups()
+{
+  // from LLVM utils/unittest/UnitTestMain/TestMain.cpp
+# if defined(_WIN32)
+  // Disable all of the possible ways Windows conspires to make automated
+  // testing impossible.
+  ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+#   if defined(_MSC_VER)
+    ::_set_error_mode(_OUT_TO_STDERR);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+#   endif
+# endif
+}

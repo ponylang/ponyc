@@ -39,8 +39,12 @@ primitive _FileDes
     """
     set_time(fd, path, Time.now(), Time.now())
 
-  fun set_time(fd: I32, path: FilePath, atime: (I64, I64),
-    mtime: (I64, I64)): Bool
+  fun set_time(
+    fd: I32,
+    path: FilePath,
+    atime: (I64, I64),
+    mtime: (I64, I64))
+    : Bool
   =>
     """
     Set the last access and modification times of the file to the given values.
@@ -53,8 +57,8 @@ primitive _FileDes
       path.set_time(atime, mtime)
     else
       var tv: (ILong, ILong, ILong, ILong) =
-        (atime._1.ilong(), atime._2.ilong() / 1000,
-          mtime._1.ilong(), mtime._2.ilong() / 1000)
+        ( atime._1.ilong(), atime._2.ilong() / 1000,
+          mtime._1.ilong(), mtime._2.ilong() / 1000 )
       @futimes[I32](fd, addressof tv) == 0
     end
 

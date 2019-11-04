@@ -1,6 +1,120 @@
 class List[A] is Seq[A]
   """
   A doubly linked list.
+
+  (The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).)
+
+  A doubly linked list is a linked data structure that consists of a set of sequentially
+  linked records called nodes. (Implemented in Ponylang via the collections.ListNode class.) Each
+  node contains four fields: two link fields (references to the previous and to the next node in
+  the sequence of nodes), one data field, and the reference to the in which it resides.  A doubly
+  linked list can be conceptualized as two singly linked lists formed from the same data items, but
+  in opposite sequential orders.
+
+  As you would expect. functions are provided to perform all the common list operations such as
+  creation, traversal, node addition and removal, iteration, mapping, filtering, etc.
+  
+  ## Example program
+  There are a _lot_ of functions in List. The following code picks out a few common examples.
+
+  It outputs:
+
+      A new empty list has 0 nodes.
+      Adding one node to our empty list means it now has a size of 1.
+      The first (index 0) node has the value: A single String
+      A list created by appending our second single-node list onto our first has size: 2
+      The List nodes of our first list are now:
+        A single String
+        Another String
+      Append *moves* the nodes from the second list so that now has 0 nodes.
+      A list created from an array of three strings has size: 3
+        First
+        Second
+        Third
+      Mapping over our three-node list produces a new list of size: 3
+      Each node-value in the resulting list is now far more exciting:
+        First BOOM!
+        Second BOOM!
+        Third BOOM!
+      Filtering our three-node list produces a new list of size: 2
+        Second BOOM!
+        Third BOOM!
+      The size of our first partitioned list (matches predicate): 1
+      The size of our second partitioned list (doesn't match predicate): 1
+      Our matching partition elements are:
+        Second BOOM!
+  
+  ```pony
+    use "collections"
+
+    actor Main
+      new create(env:Env) =>
+        
+        // Create a new empty List of type String
+        let my_list = List[String]()
+        
+        env.out.print("A new empty list has " + my_list.size().string() + " nodes.") // 0
+        
+        // Push a String literal onto our empty List
+        my_list.push("A single String")
+        env.out.print("Adding one node to our empty list means it now has a size of "
+                      + my_list.size().string() + ".") // 1
+        
+        // Get the first element of our List
+        try env.out.print("The first (index 0) node has the value: "
+                          + my_list.index(0)?()?.string()) end // A single String
+        
+        // Create a second List from a single String literal
+        let my_second_list = List[String].unit("Another String")
+        
+        // Append the second List to the first
+        my_list.append_list(my_second_list)
+        env.out.print("A list created by appending our second single-node list onto our first has size: "
+                      + my_list.size().string()) // 2
+        env.out.print("The List nodes of our first list are now:")
+        for n in my_list.values() do
+          env.out.print("\t" + n.string())
+        end
+        // NOTE: this _moves_ the elements so second_list consequently ends up empty
+        env.out.print("Append *moves* the nodes from the second list so that now has "
+                      + my_second_list.size().string() + " nodes.") // 0
+        
+        // Create a third List from a Seq(ence)
+        // (In this case a literal array of Strings)
+        let my_third_list = List[String].from(["First"; "Second"; "Third"])
+        env.out.print("A list created from an array of three strings has size: "
+                      + my_third_list.size().string()) // 3
+        for n in my_third_list.values() do
+          env.out.print("\t" + n.string())
+        end
+        
+        // Map over the third List, concatenating some "BOOM!'s" into a new List
+        let new_list = my_third_list.map[String]({ (n) => n + " BOOM!" })
+        env.out.print("Mapping over our three-node list produces a new list of size: "
+                      + new_list.size().string()) // 3
+        env.out.print("Each node-value in the resulting list is now far more exciting:")
+        for n in new_list.values() do
+          env.out.print("\t" + n.string())
+        end
+
+        // Filter the new list to extract 2 elements
+        let filtered_list = new_list.filter({ (n) => n.string().contains("d BOOM!") })
+        env.out.print("Filtering our three-node list produces a new list of size: "
+                          + filtered_list.size().string()) // 2
+        for n in filtered_list.values() do
+          env.out.print("\t" + n.string()) // Second BOOM!\nThird BOOM!
+        end
+        
+        // Partition the filtered list
+        let partitioned_lists = filtered_list.partition({ (n) => n.string().contains("Second") })
+        env.out.print("The size of our first partitioned list (matches predicate): " + partitioned_lists._1.size().string())        // 1
+        env.out.print("The size of our second partitioned list (doesn't match predicate): " + partitioned_lists._2.size().string())  // 1
+        env.out.print("Our matching partition elements are:")
+        for n in partitioned_lists._1.values() do
+          env.out.print("\t" + n.string()) // Second BOOM!
+        end
+  ```
+  
   """
   var _head: (ListNode[A] | None) = None
   var _tail: (ListNode[A] | None) = None
@@ -42,7 +156,7 @@ class List[A] is Seq[A]
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """
-    index(i)()
+    index(i)?()?
 
   fun ref update(i: USize, value: A): A^ ? =>
     """
@@ -50,7 +164,7 @@ class List[A] is Seq[A]
     Returns the previous value, which may be None if the node has been popped
     but left on the list.
     """
-    index(i)() = consume value
+    index(i)?()? = consume value
 
   fun index(i: USize): this->ListNode[A] ? =>
     """
@@ -75,7 +189,7 @@ class List[A] is Seq[A]
     Remove the i-th node, raising an error if the index is out of bounds.
     The removed node is returned.
     """
-    index(i).>remove()
+    index(i)? .> remove()
 
   fun ref clear() =>
     """
@@ -125,7 +239,7 @@ class List[A] is Seq[A]
     """
     if this isnt that then
       while that._size > 0 do
-        try append_node(that.head()) end
+        try append_node(that.head()?) end
       end
     end
 
@@ -135,7 +249,7 @@ class List[A] is Seq[A]
     """
     if this isnt that then
       while that._size > 0 do
-        try prepend_node(that.tail()) end
+        try prepend_node(that.tail()?) end
       end
     end
 
@@ -149,7 +263,7 @@ class List[A] is Seq[A]
     """
     Removes a value from the tail of the list.
     """
-    tail().>remove().pop()
+    tail()? .> remove().pop()?
 
   fun ref unshift(a: A) =>
     """
@@ -161,9 +275,11 @@ class List[A] is Seq[A]
     """
     Removes a value from the head of the list.
     """
-    head().>remove().pop()
+    head()? .> remove().pop()?
 
-  fun ref append(seq: (ReadSeq[A] & ReadElement[A^]), offset: USize = 0,
+  fun ref append(
+    seq: (ReadSeq[A] & ReadElement[A^]),
+    offset: USize = 0,
     len: USize = -1)
   =>
     """
@@ -181,7 +297,7 @@ class List[A] is Seq[A]
 
     try
       while i < cap do
-        push(seq(i))
+        push(seq(i)?)
         i = i + 1
       end
     end
@@ -194,7 +310,7 @@ class List[A] is Seq[A]
     try
       for i in Range(0, offset) do
         if iter.has_next() then
-          iter.next()
+          iter.next()?
         else
           return
         end
@@ -202,7 +318,7 @@ class List[A] is Seq[A]
 
       for i in Range(0, len) do
         if iter.has_next() then
-          push(iter.next())
+          push(iter.next()?)
         else
           return
         end
@@ -216,7 +332,7 @@ class List[A] is Seq[A]
     """
     try
       while _size > len do
-        pop()
+        pop()?
       end
     end
 
@@ -236,18 +352,21 @@ class List[A] is Seq[A]
     Builds a new list by applying a function to every member of the list.
     """
     try
-      _map[B](head(), f, List[B])
+      _map[B](head()?, f, List[B])
     else
       List[B]
     end
 
-  fun _map[B](ln: this->ListNode[A], f: {(this->A!): B^} box, acc: List[B])
+  fun _map[B](
+    ln: this->ListNode[A],
+    f: {(this->A!): B^} box,
+    acc: List[B])
     : List[B]^
   =>
     """
     Private helper for map, recursively working with ListNodes.
     """
-    try acc.push(f(ln())) end
+    try acc.push(f(ln()?)) end
 
     try
       _map[B](ln.next() as this->ListNode[A], f, acc)
@@ -261,18 +380,20 @@ class List[A] is Seq[A]
     using the elements of the resulting lists.
     """
     try
-      _flat_map[B](head(), f, List[B])
+      _flat_map[B](head()?, f, List[B])
     else
       List[B]
     end
 
-  fun _flat_map[B](ln: this->ListNode[A], f: {(this->A!): List[B]} box,
+  fun _flat_map[B](
+    ln: this->ListNode[A],
+    f: {(this->A!): List[B]} box,
     acc: List[B]): List[B]^
   =>
     """
     Private helper for flat_map, recursively working with ListNodes.
     """
-    try acc.append_list(f(ln())) end
+    try acc.append_list(f(ln()?)) end
 
     try
       _flat_map[B](ln.next() as this->ListNode[A], f, acc)
@@ -285,19 +406,21 @@ class List[A] is Seq[A]
     Builds a new list with those elements that satisfy a provided predicate.
     """
     try
-      _filter(head(), f, List[this->A!])
+      _filter(head()?, f, List[this->A!])
     else
       List[this->A!]
     end
 
-  fun _filter(ln: this->ListNode[A], f: {(this->A!): Bool} box,
+  fun _filter(
+    ln: this->ListNode[A],
+    f: {(this->A!): Bool} box,
     acc: List[this->A!]): List[this->A!]
   =>
     """
     Private helper for filter, recursively working with ListNodes.
     """
     try
-      let cur = ln()
+      let cur = ln()?
       if f(cur) then acc.push(cur) end
     end
 
@@ -312,19 +435,23 @@ class List[A] is Seq[A]
     Folds the elements of the list using the supplied function.
     """
     let h = try
-      head()
+      head()?
     else
       return acc
     end
 
     _fold[B](h, f, consume acc)
 
-  fun _fold[B](ln: this->ListNode[A], f: {(B!, this->A!): B^} box, acc: B): B
+  fun _fold[B](
+    ln: this->ListNode[A],
+    f: {(B!, this->A!): B^} box,
+    acc: B)
+    : B
   =>
     """
     Private helper for fold, recursively working with ListNodes.
     """
-    let nextAcc: B = try f(acc, ln()) else consume acc end
+    let nextAcc: B = try f(acc, ln()?) else consume acc end
     let h = try
       ln.next() as this->ListNode[A]
     else
@@ -339,7 +466,7 @@ class List[A] is Seq[A]
     otherwise.
     """
     try
-      _every(head(), f)
+      _every(head()?, f)
     else
       true
     end
@@ -349,7 +476,7 @@ class List[A] is Seq[A]
     Private helper for every, recursively working with ListNodes.
     """
     try
-      if not(f(ln())) then
+      if not(f(ln()?)) then
         false
       else
         _every(ln.next() as this->ListNode[A], f)
@@ -364,7 +491,7 @@ class List[A] is Seq[A]
     false otherwise.
     """
     try
-      _exists(head(), f)
+      _exists(head()?, f)
     else
       false
     end
@@ -374,7 +501,7 @@ class List[A] is Seq[A]
     Private helper for exists, recursively working with ListNodes.
     """
     try
-      if f(ln()) then
+      if f(ln()?) then
         true
       else
         _exists(ln.next() as this->ListNode[A], f)
@@ -383,7 +510,9 @@ class List[A] is Seq[A]
       false
     end
 
-  fun partition(f: {(this->A!): Bool} box): (List[this->A!]^, List[this->A!]^)
+  fun partition(
+    f: {(this->A!): Bool} box)
+    : (List[this->A!]^, List[this->A!]^)
   =>
     """
     Builds a pair of lists, the first of which is made up of the elements
@@ -405,10 +534,10 @@ class List[A] is Seq[A]
 
     if size() > n then
       try
-        var node = index(n)
+        var node = index(n)?
 
         for i in Range(n, size()) do
-          l.push(node())
+          l.push(node()?)
           node = node.next() as this->ListNode[A]
         end
       end
@@ -423,10 +552,10 @@ class List[A] is Seq[A]
 
     if size() > 0 then
       try
-        var node = head()
+        var node = head()?
 
         for i in Range(0, n.min(size())) do
-          l.push(node())
+          l.push(node()?)
           node = node.next() as this->ListNode[A]
         end
       end
@@ -442,10 +571,10 @@ class List[A] is Seq[A]
 
     if size() > 0 then
       try
-        var node = head()
+        var node = head()?
 
         for i in Range(0, size()) do
-          let item = node()
+          let item = node()?
           if f(item) then l.push(item) else return l end
           node = node.next() as this->ListNode[A]
         end
@@ -458,7 +587,7 @@ class List[A] is Seq[A]
     Builds a new list by reversing the elements in the list.
     """
     try
-      _reverse(head(), List[this->A!])
+      _reverse(head()?, List[this->A!])
     else
       List[this->A!]
     end
@@ -467,7 +596,7 @@ class List[A] is Seq[A]
     """
     Private helper for reverse, recursively working with ListNodes.
     """
-    try acc.unshift(ln()) end
+    try acc.unshift(ln()?) end
 
     try
       _reverse(ln.next() as this->ListNode[A], acc)
@@ -480,19 +609,21 @@ class List[A] is Seq[A]
     Returns true if the list contains the provided element, false otherwise.
     """
     try
-      _contains[B](head(), a)
+      _contains[B](head()?, a)
     else
       false
     end
 
-  fun _contains[B: (A & HasEq[A!] #read) = A](ln: this->ListNode[A],
-    a: box->B): Bool
+  fun _contains[B: (A & HasEq[A!] #read) = A](
+    ln: this->ListNode[A],
+    a: box->B)
+    : Bool
   =>
     """
     Private helper for contains, recursively working with ListNodes.
     """
     try
-      if a == ln() then
+      if a == ln()? then
         true
       else
         _contains[B](ln.next() as this->ListNode[A], a)
@@ -612,7 +743,7 @@ class ListValues[A, N: ListNode[A] #read] is Iterator[N->A]
         _next = next'.next()
       end
 
-      next'()
+      next'()?
     else
       error
     end

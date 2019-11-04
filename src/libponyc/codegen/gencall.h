@@ -6,8 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef orig_args[],
-  LLVMValueRef cast_args[], ast_t* args_ast);
+void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
+  ast_t* args_ast);
 
 LLVMValueRef gen_funptr(compile_t* c, ast_t* ast);
 
@@ -27,7 +27,7 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t);
 
 LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t);
 
-void gencall_throw(compile_t* c);
+void gencall_error(compile_t* c);
 
 void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef n);

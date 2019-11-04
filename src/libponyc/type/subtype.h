@@ -18,6 +18,9 @@ bool is_subtype(ast_t* sub, ast_t* super, errorframe_t* errorf,
 bool is_subtype_constraint(ast_t* sub, ast_t* super, errorframe_t* errorf,
   pass_opt_t* opt);
 
+bool is_subtype_ignore_cap(ast_t* sub, ast_t* super, errorframe_t* errorf,
+  pass_opt_t* opt);
+
 bool is_subtype_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
   pass_opt_t* opt);
 
@@ -28,11 +31,13 @@ bool is_sub_provides(ast_t* type, ast_t* provides, errorframe_t* errorf,
 
 bool is_pointer(ast_t* type);
 
-bool is_maybe(ast_t* type);
+bool is_nullable_pointer(ast_t* type);
 
 bool is_none(ast_t* type);
 
 bool is_env(ast_t* type);
+
+bool is_runtime_options(ast_t* type);
 
 bool is_bool(ast_t* type);
 
@@ -51,6 +56,8 @@ bool is_concrete(ast_t* type);
 bool is_known(ast_t* type);
 
 bool is_bare(ast_t* type);
+
+bool is_top_type(ast_t* type, bool ignore_cap);
 
 bool is_entity(ast_t* type, token_id entity);
 

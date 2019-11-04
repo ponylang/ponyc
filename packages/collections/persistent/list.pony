@@ -4,27 +4,32 @@ A persistent list with functional transformations.
 
 ## Usage
 
-```
-let l1 = Lists[U32]([2, 4, 6, 8]) // List(2, 4, 6, 8)
+```pony
+use "collections/persistent"
 
-let empty = Lists[U32].empty() // List()
+actor Main
+  new create(env: Env) =>
+    try
+      let l1 = Lists[U32]([2; 4; 6; 8]) // List(2, 4, 6, 8)
 
-// prepend() returns a new List, leaving the
-// old list unchanged
-let l2 = empty.prepend(3) // List(3)
-let l3 = l2.prepend(2) // List(2, 3)
-let l4 = l3.prepend(1) // List(1, 2, 3)
-let l4_head = l4.head() // 1
-let l4_tail = l4.tail() // List(2, 3)
+      let empty = Lists[U32].empty() // List()
 
-h.assert_eq[U32](l4_head, 1)
-h.assert_true(Lists[U32].eq(l4, Lists[U32]([1, 2, 3])))
-h.assert_true(Lists[U32].eq(l4_tail, Lists[U32]([2, 3])))
+      // prepend() returns a new List, leaving the
+      // old list unchanged
+      let l2 = empty.prepend(3) // List(3)
+      let l3 = l2.prepend(2) // List(2, 3)
+      let l4 = l3.prepend(1) // List(1, 2, 3)
+      let l4_head = l4.head() // 1
+      let l4_tail = l4.tail() // List(2, 3)
 
-let doubled = l4.map[U32]({(x: U32): U32 => x * 2 })
+      l4_head == 1
+      Lists[U32].eq(l4, Lists[U32]([1; 2; 3]))?
+      Lists[U32].eq(l4_tail, Lists[U32]([2; 3]))?
 
-h.assert_true(Lists[U32].eq(doubled, Lists[U32]([2, 4, 6])))
+      let doubled = l4.map[U32]({(x) => x * 2 })
 
+      Lists[U32].eq(doubled, Lists[U32]([2; 4; 6]))?
+    end
 ```
 """
 
@@ -50,11 +55,7 @@ primitive Lists[A]
     """
     Builds a new list from an Array
     """
-    var lst = this.empty()
-    for v in arr.values() do
-      lst = lst.prepend(v)
-    end
-    lst.reverse()
+    this.from(arr.values())
 
   fun from(iter: Iterator[val->A]): List[A] =>
     """
@@ -65,7 +66,7 @@ primitive Lists[A]
     for i in iter do
       l = Cons[A](i, l)
     end
-    l
+    l.reverse()
 
   fun eq[T: Equatable[T] val = A](l1: List[T], l2: List[T]): Bool ? =>
     """
@@ -77,10 +78,10 @@ primitive Lists[A]
       false
     elseif (l1.is_non_empty() and l2.is_empty()) then
       false
-    elseif (l1.head() != l2.head()) then
+    elseif (l1.head()? != l2.head()?) then
       false
     else
-      eq[T](l1.tail(), l2.tail())
+      eq[T](l1.tail()?, l2.tail()?)?
     end
 
 primitive Nil[A] is ReadSeq[val->A]
@@ -256,7 +257,7 @@ class val Cons[A] is ReadSeq[val->A]
     """
     match i
     | 0 => _head
-    else   _tail(i - 1)
+    else _tail(i - 1)?
     end
 
   fun values(): Iterator[val->A]^ =>
@@ -266,7 +267,7 @@ class val Cons[A] is ReadSeq[val->A]
     object is Iterator[val->A]
       var _list: List[A] box = this
       fun has_next(): Bool => _list isnt Nil[A]
-      fun ref next(): val->A! ? => (_list = _list.tail()).head()
+      fun ref next(): val->A! ? => (_list = _list.tail()?).head()?
     end
 
   fun is_empty(): Bool =>
@@ -490,7 +491,7 @@ class val Cons[A] is ReadSeq[val->A]
     var hits: List[A] = Nil[A]
     var misses: List[A] = Nil[A]
     var cur: List[A] = this
-    while(true) do
+    while true do
       match cur
       | let cons: Cons[A] =>
         let next = cons.head()
@@ -513,7 +514,7 @@ class val Cons[A] is ReadSeq[val->A]
     var cur: List[A] = this
     if cur.size() <= n then return Nil[A] end
     var count = n
-    while(count > 0) do
+    while count > 0 do
       match cur
       | let cons: Cons[A] =>
         cur = cons.tail()
@@ -528,7 +529,7 @@ class val Cons[A] is ReadSeq[val->A]
     fails to satisfy the provided predicate.
     """
     var cur: List[A] = this
-    while(true) do
+    while true do
       match cur
       | let cons: Cons[A] =>
         if f(cons.head()) then cur = cons.tail() else break end
@@ -546,7 +547,7 @@ class val Cons[A] is ReadSeq[val->A]
     if cur.size() <= n then return cur end
     var count = n
     var res: List[A] = Nil[A]
-    while(count > 0) do
+    while count > 0 do
       match cur
       | let cons: Cons[A] =>
         res = res.prepend(cons.head())
@@ -565,7 +566,7 @@ class val Cons[A] is ReadSeq[val->A]
     """
     var cur: List[A] = this
     var res: List[A] = Nil[A]
-    while(true) do
+    while true do
       match cur
       | let cons: Cons[A] =>
         if f(cons.head()) then

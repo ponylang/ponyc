@@ -2,6 +2,7 @@
 #include "literal.h"
 #include "reference.h"
 #include "../ast/astbuild.h"
+#include "../ast/id.h"
 #include "../ast/printbuf.h"
 #include "../pass/expr.h"
 #include "../pass/pass.h"
@@ -9,20 +10,28 @@
 #include "../pass/syntax.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
+#include "../type/reify.h"
 #include "../type/sanitise.h"
+#include "../type/subtype.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
 
 // Process the given capture and create the AST for the corresponding field.
-// Returns the create field AST, which must be freed by the caller.
-// Returns NULL on error.
-static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
+// Returns the create field AST in out_field, which must be freed by the caller,
+// or NULL if there is no field to create.
+// Returns false on error.
+static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
+  ast_t** out_field)
 {
   pony_assert(capture != NULL);
+  pony_assert(out_field != NULL);
 
   AST_GET_CHILDREN(capture, id_node, type, value);
   const char* name = ast_name(id_node);
+
+  bool is_dontcare = is_name_dontcare(name);
 
   // There are 3 varieties of capture:
   // x -> capture variable x, type from defn of x
@@ -34,19 +43,25 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     // Variable capture
     pony_assert(ast_id(type) == TK_NONE);
 
+    if(is_dontcare)
+    {
+      *out_field = NULL;
+      return true;
+    }
+
     ast_t* def = ast_get(capture, name, NULL);
 
     if(def == NULL)
     {
       ast_error(opt->check.errors, id_node,
         "cannot capture \"%s\", variable not defined", name);
-      return NULL;
+      return false;
     }
 
     // lambda captures used before their declaration with their type
     // not defined are not legal
     if(!def_before_use(opt, def, capture, name))
-      return NULL;
+      return false;
 
     switch(ast_id(def))
     {
@@ -62,7 +77,7 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
       default:
         ast_error(opt->check.errors, id_node, "cannot capture \"%s\", can only "
           "capture fields, parameters and local variables", name);
-        return NULL;
+        return false;
     }
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
@@ -72,16 +87,47 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
     if(ast_type(value) == NULL)
-      return NULL;
+      return false;
+
     type = alias(ast_type(value));
   } else {
     // Type given, infer literals
     if(!coerce_literals(&value, type, opt))
-      return NULL;
+      return false;
+
+    // Check subtyping now if we're capturing into '_', since the field will be
+    // discarded.
+    if(is_dontcare)
+    {
+      ast_t* v_type = alias(ast_type(value));
+      errorframe_t info = NULL;
+
+      if(!is_subtype(v_type, type, &info, opt))
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, value, "argument not a subtype of parameter");
+        ast_error_frame(&frame, value, "argument type is %s",
+                        ast_print_type(v_type));
+        ast_error_frame(&frame, id_node, "parameter type is %s",
+                        ast_print_type(type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
+        ast_free_unattached(v_type);
+        return false;
+      }
+
+      ast_free_unattached(v_type);
+    }
   }
 
   if(is_typecheck_error(type))
-    return NULL;
+    return false;
+
+  if(is_dontcare)
+  {
+    *out_field = NULL;
+    return true;
+  }
 
   type = sanitise_type(type);
 
@@ -89,9 +135,72 @@ static ast_t* make_capture_field(pass_opt_t* opt, ast_t* capture)
     NODE(TK_FVAR,
       TREE(id_node)
       TREE(type)
-      TREE(value)));
+      TREE(value)
+      NONE));
 
-  return field;
+  *out_field = field;
+  return true;
+}
+
+
+static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
+  astlist_t** fun_defs, astlist_t** obj_caps)
+{
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+    {
+      // A lambda type definition must be an interface.
+      ast_t* def = (ast_t*)ast_data(ast);
+      if(ast_id(def) != TK_INTERFACE)
+        return;
+
+      // The interface must specify just one method in its members.
+      ast_t* members = ast_childidx(def, 4);
+      pony_assert(ast_id(members) == TK_MEMBERS);
+      if(ast_childcount(members) != 1)
+        return;
+
+      // That one method is the fun def that we're looking for.
+      ast_t* fun_def = ast_child(members);
+
+      // If the interface type has type parameters, we need to reify.
+      ast_t* typeargs = ast_childidx(ast, 2);
+      ast_t* typeparams = ast_childidx(def, 1);
+      if((ast_id(typeargs) == TK_TYPEARGS) &&
+        (ast_id(typeparams) == TK_TYPEPARAMS)
+        )
+        fun_def = reify_method_def(fun_def, typeparams, typeargs, opt);
+
+      // Return the object cap and the method definition.
+      *obj_caps = astlist_push(*obj_caps, ast_childidx(ast, 3));
+      *fun_defs = astlist_push(*fun_defs, fun_def);
+      break;
+    }
+
+    case TK_ARROW:
+      find_possible_fun_defs(opt, ast_childidx(ast, 1), fun_defs, obj_caps);
+      break;
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(ast);
+      pony_assert(ast_id(def) == TK_TYPEPARAM);
+      find_possible_fun_defs(opt, ast_childidx(def, 1), fun_defs, obj_caps);
+      break;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
+        find_possible_fun_defs(opt, c, fun_defs, obj_caps);
+      break;
+    }
+
+    default:
+      break;
+  }
 }
 
 
@@ -102,8 +211,143 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast != NULL);
 
   AST_GET_CHILDREN(ast, receiver_cap, name, t_params, params, captures,
-    ret_type, raises, body, reference_cap);
+    ret_type, raises, body, obj_cap);
   ast_t* annotation = ast_consumeannotation(ast);
+
+  // Try to find an antecedent type, and find possible lambda interfaces in it.
+  ast_t* antecedent_type = find_antecedent_type(opt, ast, NULL);
+  astlist_t* possible_fun_defs = NULL;
+  astlist_t* possible_obj_caps = NULL;
+  if(!is_typecheck_error(antecedent_type))
+    find_possible_fun_defs(opt, antecedent_type, &possible_fun_defs,
+      &possible_obj_caps);
+
+  // If there's more than one possible fun defs, rule out impossible ones by
+  // comparing each fun def by some basic criteria against the lambda,
+  // creating a new list containing only the remaining possibilities.
+  if(astlist_length(possible_fun_defs) > 1)
+  {
+    astlist_t* new_fun_defs = NULL;
+    astlist_t* new_obj_caps = NULL;
+
+    astlist_t* fun_def_cursor = possible_fun_defs;
+    astlist_t* obj_cap_cursor = possible_obj_caps;
+    for(; (fun_def_cursor != NULL) && (obj_cap_cursor != NULL);
+      fun_def_cursor = astlist_next(fun_def_cursor),
+      obj_cap_cursor = astlist_next(obj_cap_cursor))
+    {
+      ast_t* fun_def = astlist_data(fun_def_cursor);
+      ast_t* def_obj_cap = astlist_data(obj_cap_cursor);
+
+      if(is_typecheck_error(fun_def))
+        continue;
+
+      AST_GET_CHILDREN(fun_def, def_receiver_cap, def_name, def_t_params,
+        def_params, def_ret_type, def_raises);
+
+      // Must have the same number of parameters.
+      if(ast_childcount(params) != ast_childcount(def_params))
+        continue;
+
+      // Must have a supercap of the def's receiver cap (if present).
+      if((ast_id(receiver_cap) != TK_NONE) && (ast_id(receiver_cap) != TK_AT) &&
+        !is_cap_sub_cap(ast_id(def_receiver_cap), TK_NONE,
+        ast_id(receiver_cap), TK_NONE)
+        )
+        continue;
+
+      // Must have a supercap of the def's object cap (if present).
+      if((ast_id(obj_cap) != TK_NONE) &&
+        !is_cap_sub_cap(ast_id(obj_cap), TK_NONE, ast_id(def_obj_cap), TK_NONE))
+        continue;
+
+      // TODO: This logic could potentially be expanded to do deeper
+      // compatibility checks, but checks involving subtyping here would be
+      // difficult, because the lambda's AST is not caught up yet in the passes.
+
+      new_fun_defs = astlist_push(new_fun_defs, fun_def);
+      new_obj_caps = astlist_push(new_obj_caps, def_obj_cap);
+    }
+
+    astlist_free(possible_fun_defs);
+    astlist_free(possible_obj_caps);
+    possible_fun_defs = new_fun_defs;
+    possible_obj_caps = new_obj_caps;
+  }
+
+  if(astlist_length(possible_fun_defs) == 1)
+  {
+    ast_t* fun_def = astlist_data(possible_fun_defs);
+    ast_t* def_obj_cap = astlist_data(possible_obj_caps);
+
+    // Try to complete the lambda's type info by inferring from the lambda type.
+    if(!is_typecheck_error(fun_def))
+    {
+      // Infer the object cap, receiver cap, and return type if unspecified.
+      if(ast_id(obj_cap) == TK_NONE)
+        ast_replace(&obj_cap, def_obj_cap);
+      if(ast_id(receiver_cap) == TK_NONE)
+        ast_replace(&receiver_cap, ast_child(fun_def));
+      if(ast_id(ret_type) == TK_NONE)
+        ast_replace(&ret_type, ast_childidx(fun_def, 4));
+
+      // Infer the type of any parameters that were left unspecified.
+      ast_t* param = ast_child(params);
+      ast_t* def_param = ast_child(ast_childidx(fun_def, 3));
+      while((param != NULL) && (def_param != NULL))
+      {
+        ast_t* param_id = ast_child(param);
+        ast_t* param_type = ast_sibling(param_id);
+
+        // Convert a "_" parameter to whatever the expected parameter is.
+        if(is_name_dontcare(ast_name(param_id)))
+        {
+          ast_replace(&param_id, ast_child(def_param));
+          ast_replace(&param_type, ast_childidx(def_param, 1));
+        }
+        // Give a type-unspecified parameter the type of the expected parameter.
+        else if(ast_id(param_type) == TK_NONE)
+        {
+          ast_replace(&param_type, ast_childidx(def_param, 1));
+        }
+
+        param = ast_sibling(param);
+        def_param = ast_sibling(def_param);
+      }
+    }
+
+    ast_free_unattached(fun_def);
+  }
+
+  astlist_free(possible_obj_caps);
+
+  // If any parameters still have no type specified, it's an error.
+  ast_t* param = ast_child(params);
+  while(param != NULL)
+  {
+    if(ast_id(ast_childidx(param, 1)) == TK_NONE)
+    {
+      ast_error(opt->check.errors, param,
+        "a lambda parameter must specify a type or be inferable from context");
+
+      if(astlist_length(possible_fun_defs) > 1)
+      {
+        for(astlist_t* fun_def_cursor = possible_fun_defs;
+          fun_def_cursor != NULL;
+          fun_def_cursor = astlist_next(fun_def_cursor))
+        {
+          ast_error_continue(opt->check.errors, astlist_data(fun_def_cursor),
+            "this lambda interface is inferred, but it's not the only one");
+        }
+      }
+
+      astlist_free(possible_fun_defs);
+      return false;
+    }
+    param = ast_sibling(param);
+  }
+
+  astlist_free(possible_fun_defs);
 
   bool bare = ast_id(ast) == TK_BARELAMBDA;
   ast_t* members = ast_from(ast, TK_MEMBERS);
@@ -116,11 +360,13 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Process captures
   for(ast_t* p = ast_child(captures); p != NULL; p = ast_sibling(p))
   {
-    ast_t* field = make_capture_field(opt, p);
+    ast_t* field = NULL;
+    bool ok = make_capture_field(opt, p, &field);
 
     if(field != NULL)
       ast_list_append(members, &last_member, field);
-    else  // An error occurred, just keep going to potentially find more errors
+    else if(!ok)
+      // An error occurred, just keep going to potentially find more errors
       failed = true;
   }
 
@@ -152,8 +398,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       TREE(ret_type)
       TREE(raises)
       TREE(body)
-      NONE    // Doc string
-      NONE)); // Guard
+      NONE)); // Doc string
 
   ast_list_append(members, &last_member, apply);
   ast_setflag(members, AST_FLAG_PRESERVE);
@@ -185,7 +430,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Replace lambda with object literal
   REPLACE(astp,
     NODE(TK_OBJECT, DATA(stringtab(buf->m))
-      TREE(reference_cap)
+      TREE(obj_cap)
       NONE  // Provides list
       TREE(members)));
 
@@ -215,6 +460,9 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
   ast_t* captures, ast_t** last_capture)
 {
   const char* name = ast_name(ast_child(ast));
+
+  if(is_name_dontcare(name))
+    return true;
 
   ast_t* refdef = ast_get(ast, name, NULL);
 
@@ -270,7 +518,8 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
     NODE(TK_FVAR,
       ID(name)
       TREE(type)
-      NODE(TK_REFERENCE, ID(name))));
+      NODE(TK_REFERENCE, ID(name))
+      NONE));
 
   ast_list_append(captures, last_capture, field);
   return true;
@@ -364,8 +613,8 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
   // The body of create contains: id = consume $0
   BUILD(assign, init,
     NODE(TK_ASSIGN,
-      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-      NODE(TK_REFERENCE, TREE(id))));
+      NODE(TK_REFERENCE, TREE(id))
+      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))));
 
   // Remove the initialiser from the field
   ast_replace(&init, ast_from(init, TK_NONE));
@@ -391,9 +640,8 @@ static bool catch_up_provides(pass_opt_t* opt, ast_t* provides)
       return false;
 
     ast_t* def = (ast_t*)ast_data(child);
-    pony_assert(def != NULL);
 
-    if(!ast_passes_type(&def, opt, PASS_EXPR))
+    if(def != NULL && !ast_passes_type(&def, opt, PASS_EXPR))
       return false;
 
     child = ast_sibling(child);
@@ -448,7 +696,6 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       NONE
       NODE(TK_SEQ,
         NODE(TK_TRUE))
-      NONE
       NONE));
 
   BUILD(type_ref, ast, NODE(TK_REFERENCE, ID(c_id)));
@@ -465,15 +712,16 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
     NODE(TK_CALL,
-      NODE(TK_POSITIONALARGS)
-      NONE
       NODE(TK_DOT,
         TREE(type_ref)
-        ID("create"))));
+        ID("create"))
+      NODE(TK_POSITIONALARGS)
+      NONE
+      NONE));
 
   ast_t* create_params = ast_childidx(create, 3);
   ast_t* create_body = ast_childidx(create, 6);
-  ast_t* call_args = ast_child(call);
+  ast_t* call_args = ast_childidx(call, 1);
   ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 

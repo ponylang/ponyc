@@ -1,5 +1,5 @@
-#ifndef LANG_H
-#define LANG_H
+#ifndef lang_socket_h
+#define lang_socket_h
 
 PONY_EXTERN_C_BEGIN
 

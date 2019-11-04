@@ -1,54 +1,101 @@
 use ".."
+use mut = "collections"
 use "ponybench"
 
-actor Main
+type K is String
+type V is U64
+
+actor Main is BenchmarkList
   new create(env: Env) =>
-    let bench = PonyBench(env)
+    PonyBench(env, this)
 
-    var map = Map[U64, U64]
-    map = map.update(0, 0)
+  fun tag benchmarks(bench: PonyBench) =>
+    let size: USize = 32 * 32
+    let ns = [as USize: 0; 4; 17; 21; 24; 30]
 
-    bench[Map[U64, U64]](
-      "insert level 0",
-      {(): Map[U64, U64] => map.update(1, 1)} val)
+    for n in ns.values() do bench(MapApply(size, n)) end
+    for n in ns.values() do bench(MapInsert(size, n)) end
+    for n in ns.values() do bench(MapUpdate(size, n)) end
+    bench(MapIter(32))
+    bench(MapIter(32 * 32))
+    bench(MapIter(32 * 32 * 32))
 
-    bench[U64](
-      "get level 0",
-      {(): U64 ? => map(0)} val)
+class iso MapApply is MicroBenchmark
+  let _size: USize
+  let _n: USize
+  let _map: Map[K, V]
 
-    bench[Map[U64, U64]](
-      "update level 0",
-      {(): Map[U64, U64] => map.update(0, 1)} val)
+  new iso create(size: USize, n: USize) =>
+    _size = size
+    _n = n
+    _map = GenMap(_size)
 
-    bench[Map[U64, U64]](
-      "delete level 0",
-      {(): Map[U64, U64] ? => map.remove(0)} val)
+  fun name(): String =>
+    " ".join(["apply"; _n; "size"; _size].values())
 
-    bench[Map[U64, U64]](
-      "create sub-node",
-      {(): Map[U64, U64] => map.update(32, 32)} val)
+  fun apply() ? =>
+    let x = _map(_n.string())?
+    DoNotOptimise[V](x)
+    DoNotOptimise.observe()
 
-    // expand index 0 into 2 sub-nodes
-    map = map.update(32, 32)
+class iso MapInsert is MicroBenchmark
+  let _size: USize
+  let _n: USize
+  let _map: Map[K, V]
 
-    bench[Map[U64, U64]](
-      "remove sub-node",
-      {(): Map[U64, U64] ? => map.remove(32)} val)
+  new iso create(size: USize, n: USize) =>
+    _size = size
+    _n = n
+    _map = try GenMap(size).remove(n.string())? else GenMap(0) end
 
-    bench[Map[U64, U64]](
-      "insert level 1",
-      {(): Map[U64, U64] => map.update(1, 1)} val)
+  fun name(): String =>
+    " ".join(["insert"; _n; "size"; _size].values())
 
-    bench[U64](
-      "get level 1",
-      {(): U64 ? => map(0)} val)
+  fun apply() =>
+    let m = _map(_n.string()) = _n.u64()
+    DoNotOptimise[Map[K, V]](m)
+    DoNotOptimise.observe()
 
-    bench[Map[U64, U64]](
-      "update level 1",
-      {(): Map[U64, U64] => map.update(0, 1)} val)
+class iso MapUpdate is MicroBenchmark
+  let _size: USize
+  let _n: USize
+  let _map: Map[K, V]
 
-    map = map.update(1, 1)
+  new iso create(size: USize, n: USize) =>
+    _size = size
+    _n = n
+    _map = GenMap(_size)
 
-    bench[Map[U64, U64]](
-      "delete level 1",
-      {(): Map[U64, U64] ? => map.remove(1)} val)
+  fun name(): String =>
+    " ".join(["update"; _n; "size"; _size].values())
+
+  fun apply() =>
+    let m = _map.update(_n.string(), -_n.u64())
+    DoNotOptimise[Map[K, V]](m)
+    DoNotOptimise.observe()
+
+class iso MapIter is MicroBenchmark
+  let _size: USize
+  let _map: Map[K, V]
+
+  new iso create(size: USize) =>
+    _size = size
+    _map = GenMap(_size)
+
+  fun name(): String =>
+    " ".join(["iter size"; _size].values())
+
+  fun apply() ? =>
+    for i in mut.Range(0, _size) do
+      let x = _map(i.string())?
+      DoNotOptimise[V](x)
+    end
+    DoNotOptimise.observe()
+
+primitive GenMap
+  fun apply(size: USize): Map[K, V] =>
+    var m = Map[K, V]
+    for i in mut.Range(0, size) do
+      m = m(i.string()) = i.u64()
+    end
+    m

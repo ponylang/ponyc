@@ -3,6 +3,11 @@
 #pragma D option quiet
 
 inline unsigned int UINT32_MAX = -1;
+inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 11);
+inline unsigned int ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);
+inline unsigned int ACTORMSG_DESTROYED = (UINT32_MAX - 9);
+inline unsigned int ACTORMSG_CREATED = (UINT32_MAX - 8);
+inline unsigned int ACTORMSG_ISBLOCKED = (UINT32_MAX - 7);
 inline unsigned int ACTORMSG_BLOCK = (UINT32_MAX - 6);
 inline unsigned int ACTORMSG_UNBLOCK = (UINT32_MAX - 5);
 inline unsigned int ACTORMSG_ACQUIRE = (UINT32_MAX - 4);
@@ -11,6 +16,35 @@ inline unsigned int ACTORMSG_CONF = (UINT32_MAX - 2);
 inline unsigned int ACTORMSG_ACK = (UINT32_MAX - 1);
 
 pony$target:::actor-msg-send
+/ (unsigned int)arg1 <= (unsigned int)ACTORMSG_APPLICATION_START /
+{
+  @counts[arg0, "Application Messages Sent"] = count();
+}
+
+pony$target:::actor-msg-send
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_CHECKBLOCKED /
+{
+  @counts[arg0, "Check Blocked Messages Sent"] = count();
+}
+
+pony$target:::actor-msg-send
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_DESTROYED /
+{
+  @counts[arg0, "Destroyed Messages Sent"] = count();
+}
+
+pony$target:::actor-msg-send
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_CREATED /
+{
+  @counts[arg0, "Created Messages Sent"] = count();
+}
+
+pony$target:::actor-msg-send
+/ (unsigned int)arg1 == (unsigned int)ACTORMSG_ISBLOCKED /
+{
+  @counts[arg0, "Is Blocked Messages Sent"] = count();
+}
+
 / (unsigned int)arg1 == (unsigned int)ACTORMSG_BLOCK /
 {
   @counts[arg0, "Block Messages Sent"] = count();
@@ -44,12 +78,6 @@ pony$target:::actor-msg-send
 / (unsigned int)arg1 == (unsigned int)ACTORMSG_ACK /
 {
   @counts[arg0, "Acknowledgement Messages Sent"] = count();
-}
-
-pony$target:::actor-msg-send
-/ (unsigned int)arg1 < (unsigned int)ACTORMSG_BLOCK /
-{
-  @counts[arg0, "Application Messages Sent"] = count();
 }
 
 pony$target:::actor-alloc

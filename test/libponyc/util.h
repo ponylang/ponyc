@@ -25,6 +25,9 @@
 #  define EXPORT_SYMBOL
 #endif
 
+extern "C" {
+void Main_runtime_override_defaults_oo(void* opt);
+}
 
 class PassTest : public testing::Test
 {
@@ -34,6 +37,7 @@ protected:
   ast_t* package; // AST of first package, cache of ast_child(program)
   ast_t* module;  // AST of first module in first package
   compile_t* compile;
+  pass_id last_pass;
 
   virtual void SetUp();
   virtual void TearDown();
@@ -68,6 +72,10 @@ protected:
   // Check that the given source compiles to the specified pass without error
   void test_compile(const char* src, const char* pass);
 
+  // Check that the given source compiles to the specified pass without error.
+  // Starts from an AST built in a previous call to test_compile
+  void test_compile_resume(const char* src);
+
   // Check that the given source fails when compiled to the specified pass
   void test_error(const char* src, const char* pass);
 
@@ -76,6 +84,12 @@ protected:
   // expected text, given as a NULL-terminated array of NULL-terminated strings.
   void test_expected_errors(const char* src, const char* pass,
     const char** errors);
+
+  // Performs the same check as test_expected_errors, and alse checks all
+  // errors within each error frame, given as a NULL-terminated array of
+  // NULL-terminated arrays of additional error messages.
+  void test_expected_error_frames(const char* src, const char* pass,
+    const char** errors, const char*** frames);
 
   // Check that the 2 given sources compile to give the same AST for the first
   // package
@@ -118,7 +132,8 @@ private:
   // Attempt to compile the package with the specified name into a program.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void build_package(const char* pass, const char* src,
-    const char* package_name, bool check_good, const char** expected_errors);
+    const char* package_name, bool check_good, const char** expected_errors,
+    bool resume);
 
   // Find the type of the parameter, field or local variable with the specified
   // name in the given AST.

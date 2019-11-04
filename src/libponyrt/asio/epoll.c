@@ -6,6 +6,9 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
+#include "../sched/cpu.h"
+#include "../sched/scheduler.h"
+#include "ponyassert.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
@@ -33,12 +36,17 @@ struct asio_backend_t
 static void send_request(asio_event_t* ev, int req)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_messageq_push(&b->q, (pony_msg_t*)msg);
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL
+#endif
+    );
 
   eventfd_write(b->wakeup, 1);
 }
@@ -48,9 +56,8 @@ static void signal_handler(int sig)
   if(sig >= MAX_SIGNAL)
     return;
 
-  // Reset the signal handler.
-  signal(sig, signal_handler);
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
   asio_event_t* ev = atomic_load_explicit(&b->sighandlers[sig],
     memory_order_acquire);
 
@@ -64,11 +71,22 @@ static void signal_handler(int sig)
   eventfd_write(ev->fd, 1);
 }
 
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+static void empty_signal_handler(int sig)
+{
+  (void) sig;
+}
+#endif
+
 static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_messageq_pop(&b->q)) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
+#ifdef USE_DYNAMIC_TRACE
+    , SPECIAL_THREADID_EPOLL
+#endif
+    )) != NULL)
   {
     asio_event_t* ev = msg->event;
 
@@ -104,6 +122,19 @@ asio_backend_t* ponyint_asio_backend_init()
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
 
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Make sure we ignore signals related to scheduler sleeping/waking
+  // as the default for those signals is termination
+  struct sigaction new_action;
+  new_action.sa_handler = empty_signal_handler;
+  sigemptyset (&new_action.sa_mask);
+
+  // ask to restart interrupted syscalls to match `signal` behavior
+  new_action.sa_flags = SA_RESTART;
+
+  sigaction(PONY_SCHED_SLEEP_WAKE_SIGNAL, &new_action, NULL);
+#endif
+
   return b;
 }
 
@@ -113,58 +144,80 @@ void ponyint_asio_backend_final(asio_backend_t* b)
   eventfd_write(b->wakeup, 1);
 }
 
-PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
+// Single function for resubscribing to both reads and writes for an event
+PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 {
+  // needs to be a valid event that is one shot enabled
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
-    (ev->flags == ASIO_DESTROYED))
+    (ev->flags == ASIO_DESTROYED) ||
+    !(ev->flags & ASIO_ONESHOT))
+  {
+    pony_assert(0);
     return;
+  }
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   struct epoll_event ep;
   ep.data.ptr = ev;
-  ep.events = 0;
+  ep.events = EPOLLONESHOT;
+  bool something_to_resub = false;
 
-  if(ev->flags & ASIO_ONESHOT)
-    ep.events |= EPOLLONESHOT;
-
+  // if the event is supposed to be listening for write notifications
+  // and it is currently not writeable
   if((ev->flags & ASIO_WRITE) && !ev->writeable)
+  {
+    something_to_resub = true;
     ep.events |= EPOLLOUT;
-  else
-    return;
+  }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+  // if the event is supposed to be listening for read notifications
+  // and it is currently not readable
+  if((ev->flags & ASIO_READ) && !ev->readable)
+  {
+    something_to_resub = true;
+    ep.events |= EPOLLRDHUP;
+    ep.events |= EPOLLIN;
+  }
+
+  // only resubscribe if there is something to resubscribe to
+  if (something_to_resub)
+    epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
 }
 
+// Kept to maintain backwards compatibility so folks don't
+// have to change their code to use `pony_asio_event_resubscribe`
+// immediately
+PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
+{
+  pony_asio_event_resubscribe(ev);
+}
+
+// Kept to maintain backwards compatibility so folks don't
+// have to change their code to use `pony_asio_event_resubscribe`
+// immediately
 PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 {
-  if((ev == NULL) ||
-    (ev->flags == ASIO_DISPOSABLE) ||
-    (ev->flags == ASIO_DESTROYED))
-    return;
-
-  asio_backend_t* b = ponyint_asio_get_backend();
-
-  struct epoll_event ep;
-  ep.data.ptr = ev;
-  ep.events = EPOLLRDHUP | EPOLLET;
-
-  if(ev->flags & ASIO_ONESHOT)
-    ep.events |= EPOLLONESHOT;
-
-  if((ev->flags & ASIO_READ) && !ev->readable)
-    ep.events |= EPOLLIN;
-  else
-    return;
-
-  epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+  pony_asio_event_resubscribe(ev);
 }
 
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
+  ponyint_cpu_affinity(ponyint_asio_get_cpu());
   pony_register_thread();
   asio_backend_t* b = arg;
+  pony_assert(b != NULL);
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+  // Make sure we block signals related to scheduler sleeping/waking
+  // so they queue up to avoid race conditions
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
+  pthread_sigmask(SIG_BLOCK, &set, NULL);
+#endif
 
   while(!atomic_load_explicit(&b->terminate, memory_order_relaxed))
   {
@@ -185,8 +238,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
-          flags |= ASIO_READ;
-          ev->readable = true;
+          // Send read notification to an actor if either
+          // * the event is not a one shot event
+          // * the event is a one shot event and we haven't already sent a notification
+          // if the event is a one shot event and we have already sent a notification
+          // don't send another one until we are asked for it again (i.e. the actor
+          // gets a 0 byte read and sets `readable` to false and resubscribes to reads
+          if(((ev->flags & ASIO_ONESHOT) && !ev->readable) || !(ev->flags & ASIO_ONESHOT))
+          {
+            ev->readable = true;
+            flags |= ASIO_READ;
+          }
         }
       }
 
@@ -194,8 +256,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & EPOLLOUT)
         {
-          flags |= ASIO_WRITE;
-          ev->writeable = true;
+          // Send write notification to an actor if either
+          // * the event is not a one shot event
+          // * the event is a one shot event and we haven't already sent a notification
+          // if the event is a one shot event and we have already sent a notification
+          // don't send another one until we are asked for it again (i.e. the actor
+          // gets partial write and sets `writeable` to false and resubscribes to writes
+          if(((ev->flags & ASIO_ONESHOT) && !ev->writeable) || !(ev->flags & ASIO_ONESHOT))
+          {
+            flags |= ASIO_WRITE;
+            ev->writeable = true;
+          }
         }
       }
 
@@ -222,12 +293,20 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         }
       }
 
+      // if we had a valid event of some type that needs to be sent
+      // to an actor
       if(flags != 0)
       {
-        if(ev->auto_resub && !(flags & ASIO_WRITE))
-          pony_asio_event_resubscribe_write(ev);
-        if(ev->auto_resub && !(flags & ASIO_READ))
-          pony_asio_event_resubscribe_read(ev);
+        // if this event hasn't been destroyed or disposed.
+        // to avoid a race condition if destroyed or dispoed events
+        // are resubscribed
+        if((ev->flags != ASIO_DISPOSABLE) && (ev->flags != ASIO_DESTROYED))
+          // if this event is using one shot and should auto resubscribe and
+          // then resubscribe
+          if(ev->flags & ASIO_ONESHOT)
+            pony_asio_event_resubscribe(ev);
+
+        // send the event to the actor
         pony_asio_event_send(ev, flags, count);
       }
     }
@@ -260,16 +339,26 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
-    ponyint_asio_noisy_add();
+  {
+    uint64_t old_count = ponyint_asio_noisy_add();
+    // tell scheduler threads that asio has at least one noisy actor
+    // if the old_count was 0
+    if (old_count == 0)
+      ponyint_sched_noisy_asio(SPECIAL_THREADID_EPOLL);
+  }
 
   struct epoll_event ep;
   ep.data.ptr = ev;
-  ep.events = EPOLLRDHUP | EPOLLET;
+  ep.events = EPOLLRDHUP;
 
   if(ev->flags & ASIO_READ)
     ep.events |= EPOLLIN;
@@ -296,7 +385,15 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
       memory_order_release, memory_order_relaxed))
     {
-      signal(sig, signal_handler);
+      struct sigaction new_action;
+      new_action.sa_handler = signal_handler;
+      sigemptyset (&new_action.sa_mask);
+
+      // ask to restart interrupted syscalls to match `signal` behavior
+      new_action.sa_flags = SA_RESTART;
+
+      sigaction(sig, &new_action, NULL);
+
       ev->fd = eventfd(0, EFD_NONBLOCK);
       ep.events |= EPOLLIN;
     } else {
@@ -304,9 +401,20 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     }
   }
 
-  if(ev->flags & ASIO_ONESHOT) {
+  if(ev->flags & ASIO_ONESHOT)
+  {
     ep.events |= EPOLLONESHOT;
-    ev->auto_resub = true;
+  } else {
+    // Only use edge triggering if one shot isn't enabled.
+    // This is because of how the runtime gets notifications
+    // from epoll in this ASIO thread and then notifies the
+    // appropriate actor to read/write as necessary.
+    // specifically, it seems there's an edge case/race condition
+    // with edge triggering where if there is already data waiting
+    // on the socket, then epoll might not be triggering immediately
+    // when an edge triggered epoll request is made.
+
+    ep.events |= EPOLLET;
   }
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
@@ -317,7 +425,10 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   if(ev->flags & ASIO_TIMER)
   {
@@ -331,13 +442,27 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    pony_assert(0);
     return;
+  }
 
   asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
 
   if(ev->noisy)
   {
-    ponyint_asio_noisy_remove();
+    uint64_t old_count = ponyint_asio_noisy_remove();
+    // tell scheduler threads that asio has no noisy actors
+    // if the old_count was 1
+    if (old_count == 1)
+    {
+      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_EPOLL);
+
+      // maybe wake up a scheduler thread if they've all fallen asleep
+      ponyint_sched_maybe_wakeup_if_all_asleep(-1);
+    }
+
     ev->noisy = false;
   }
 
@@ -364,7 +489,24 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
       memory_order_release, memory_order_relaxed))
     {
-      signal(sig, SIG_DFL);
+      struct sigaction new_action;
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+      // Make sure we ignore signals related to scheduler sleeping/waking
+      // as the default for those signals is termination
+      if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+        new_action.sa_handler = empty_signal_handler;
+      else
+#endif
+        new_action.sa_handler = SIG_DFL;
+
+      sigemptyset (&new_action.sa_mask);
+
+      // ask to restart interrupted syscalls to match `signal` behavior
+      new_action.sa_flags = SA_RESTART;
+
+      sigaction(sig, &new_action, NULL);
+
       close(ev->fd);
       ev->fd = -1;
     }

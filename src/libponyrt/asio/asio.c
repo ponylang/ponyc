@@ -33,6 +33,11 @@ asio_backend_t* ponyint_asio_get_backend()
   return running_base.backend;
 }
 
+uint32_t ponyint_asio_get_cpu()
+{
+  return asio_cpu;
+}
+
 void ponyint_asio_init(uint32_t cpu)
 {
   asio_cpu = cpu;
@@ -41,6 +46,10 @@ void ponyint_asio_init(uint32_t cpu)
 
 bool ponyint_asio_start()
 {
+  // if the backend wasn't successfully initialized
+  if(running_base.backend == NULL)
+    return false;
+
   if(!ponyint_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
     asio_cpu, running_base.backend))
     return false;
@@ -50,7 +59,7 @@ bool ponyint_asio_start()
 
 bool ponyint_asio_stop()
 {
-  if(atomic_load_explicit(&running_base.noisy_count, memory_order_relaxed) > 0)
+  if(!ponyint_asio_stoppable())
     return false;
 
   if(running_base.backend != NULL)
@@ -65,12 +74,18 @@ bool ponyint_asio_stop()
   return true;
 }
 
-void ponyint_asio_noisy_add()
+bool ponyint_asio_stoppable()
 {
-  atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+  // can only stop if we have no noisy actors
+  return atomic_load_explicit(&running_base.noisy_count, memory_order_relaxed) == 0;
 }
 
-void ponyint_asio_noisy_remove()
+uint64_t ponyint_asio_noisy_add()
 {
-  atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+  return atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+}
+
+uint64_t ponyint_asio_noisy_remove()
+{
+  return atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
 }

@@ -48,8 +48,7 @@ void ponyint_actorref_free(actorref_t* aref)
 }
 
 DEFINE_HASHMAP(ponyint_actormap, actormap_t, actorref_t, actorref_hash,
-  actorref_cmp, ponyint_pool_alloc_size, ponyint_pool_free_size,
-  ponyint_actorref_free);
+  actorref_cmp, ponyint_actorref_free);
 
 static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 {
@@ -126,28 +125,123 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
 }
 
 deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
-  uint32_t mark, deltamap_t* delta)
+#ifdef USE_MEMTRACK
+  uint32_t mark, deltamap_t* delta, bool actor_noblock, size_t* mem_used_freed,
+  size_t* mem_allocated_freed)
+#else
+  uint32_t mark, deltamap_t* delta, bool actor_noblock)
+#endif
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
   bool needs_optimize = false;
 
+#ifdef USE_MEMTRACK
+  size_t objectmap_mem_used_freed = 0;
+  size_t objectmap_mem_allocated_freed = 0;
+#endif
+
   while((aref = ponyint_actormap_next(map, &i)) != NULL)
   {
+#ifdef USE_MEMTRACK
+    objectmap_mem_used_freed += ponyint_objectmap_total_mem_size(&aref->map);
+    objectmap_mem_allocated_freed +=
+      ponyint_objectmap_total_alloc_size(&aref->map);
+#endif
+
     if(aref->mark == mark)
     {
+#ifdef USE_MEMTRACK
+      actorref_t* old_aref = aref;
+#endif
       aref = move_unmarked_objects(aref, mark);
+#ifdef USE_MEMTRACK
+      // captures difference in # of entries removed from objectmap and their
+      // object_t sizes freed although technically not freed yet; will be freed
+      // by receiving scheduler thread during gc_release
+      objectmap_mem_used_freed -=
+        ponyint_objectmap_total_mem_size(&old_aref->map);
+      objectmap_mem_allocated_freed -=
+        ponyint_objectmap_total_alloc_size(&old_aref->map);
+#endif
     } else {
       ponyint_actormap_clearindex(map, i);
-      delta = ponyint_deltamap_update(delta, aref->actor, 0);
+
+      // only update if cycle detector is enabled
+      if(!actor_noblock)
+        delta = ponyint_deltamap_update(delta, aref->actor, 0);
+
       needs_optimize = true;
     }
 
+#ifdef USE_MEMTRACK
+    if(aref != NULL)
+    {
+      ctx->mem_used_actors += (sizeof(actorref_t)
+        + ponyint_objectmap_total_mem_size(&aref->map));
+      ctx->mem_allocated_actors += (POOL_ALLOC_SIZE(actorref_t)
+        + ponyint_objectmap_total_alloc_size(&aref->map));
+    }
+#endif
+
     send_release(ctx, aref);
   }
+
+#ifdef USE_MEMTRACK
+  *mem_used_freed = objectmap_mem_used_freed;
+  *mem_allocated_freed = objectmap_mem_allocated_freed;
+#endif
 
   if(needs_optimize)
     ponyint_actormap_optimize(map);
 
   return delta;
 }
+
+#ifdef USE_MEMTRACK
+size_t ponyint_actormap_partial_mem_size(actormap_t* map)
+{
+  return ponyint_actormap_mem_size(map)
+    + (ponyint_actormap_size(map) * sizeof(actorref_t));
+}
+
+size_t ponyint_actormap_partial_alloc_size(actormap_t* map)
+{
+  return ponyint_actormap_alloc_size(map)
+    + (ponyint_actormap_size(map) * POOL_ALLOC_SIZE(actorref_t));
+}
+
+size_t ponyint_actormap_total_mem_size(actormap_t* map)
+{
+  size_t t = 0;
+
+  size_t i = HASHMAP_UNKNOWN;
+  actorref_t* aref = NULL;
+
+  while((aref = ponyint_actormap_next(map, &i)) != NULL)
+  {
+    t += ponyint_objectmap_total_mem_size(&aref->map);
+  }
+
+  return ponyint_actormap_mem_size(map)
+    + (ponyint_actormap_size(map) * sizeof(actorref_t))
+    + t;
+}
+
+size_t ponyint_actormap_total_alloc_size(actormap_t* map)
+{
+  size_t t = 0;
+
+  size_t i = HASHMAP_UNKNOWN;
+  actorref_t* aref = NULL;
+
+  while((aref = ponyint_actormap_next(map, &i)) != NULL)
+  {
+    t += ponyint_objectmap_total_alloc_size(&aref->map);
+  }
+
+  return ponyint_actormap_alloc_size(map)
+    + (ponyint_actormap_size(map) * POOL_ALLOC_SIZE(actorref_t))
+    + t;
+}
+#endif

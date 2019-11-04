@@ -1,6 +1,6 @@
 version: "{build}"
 
-image: Visual Studio 2015
+image: Visual Studio 2017
 
 branches:
   only:
@@ -9,35 +9,37 @@ branches:
 
 environment:
   matrix:
-  - llvm: 3.9.1
-  - llvm: 3.8.1
-  - llvm: 3.7.1
+  - llvm: 7.0.1
 
 configuration:
   - release
-  - debug
 
 clone_depth: 100
 skip_tags: true
 skip_commits:
   files:
     - .bintray.sh
+    - .ci-dockerfiles/*
+    - .circleci/config.yml
+    - .cirrus.yml
     - .gitattributes
     - .gitignore
     - .gitmodules
     - .travis.yml
+    - .travis_commands.bash
     - .travis_install.bash
     - .travis_script.bash
-    - Dockerfile
+    - '**/Dockerfile'
     - LICENSE
     - Makefile
+    - Makefile-ponyc
     - release.bash
     - '**/*.md'
     - '**/*.txt'
 
 clone_folder: C:\projects\ponyc
 
-install:
+build_script:
   - ps: |
       $package_commit = git rev-parse --short --verify "HEAD^{commit}"
       $package_version = (Get-Content "VERSION")
@@ -45,9 +47,10 @@ install:
       Update-AppveyorBuild -Version "ponyc-$package_version-$package_iteration"
   - cd C:\projects\ponyc
   - python -x waf configure
+  - python -x waf clean --config %configuration% --llvm %llvm%
   - python -x waf build --config %configuration% --llvm %llvm%
   - ps: |
-      $ponydir = "${env:appveyor_build_version}-win64"
+      $ponydir = "ponyc-${package_version}-win64"
       cd C:\projects\ponyc
       md "$ponydir"
       md "${ponydir}\ponyc"
@@ -73,17 +76,12 @@ deploy:
     subject: pony-language
     repo: ponyc-win
     package: ponyc
-    version: $(appveyor_build_version)
     on:
         branch: release
-        llvm: 3.9.1
+        llvm: 7.0.1
         configuration: release
     publish: true
 
-build:
-  none
-
 test_script:
-  - ps: |
-      cd C:\projects\ponyc
-      python -x waf test --config $env:configuration --llvm $env:llvm
+  - cd C:\projects\ponyc
+  - python -x waf test examples --config %configuration% --llvm %llvm%

@@ -83,6 +83,23 @@ PONY_API void ponyint_gmtime(date_t* date, int64_t sec, int64_t nsec)
   tm_to_date(&tm, (int)nsec, date);
 }
 
+void format_invalid_parameter_handler(const wchar_t* expression,
+  const wchar_t* function,
+  const wchar_t* file,
+  unsigned int line,
+  uintptr_t p_reserved)
+{
+  // Cast all parameters to void to silence unused parameter warning
+  (void) expression;
+  (void) function;
+  (void) file;
+  (void) line;
+  (void) p_reserved;
+
+  // Throw a pony error
+  pony_error();
+}
+
 PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
 {
   pony_ctx_t* ctx = pony_ctx();
@@ -105,7 +122,21 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
   while(r == 0)
   {
     buffer = (char*)pony_alloc(ctx, len);
+
+    // Set up an invalid parameter handler on Windows to throw a Pony error
+    #ifdef PLATFORM_IS_WINDOWS
+      _invalid_parameter_handler old_handler, new_handler;
+      new_handler = format_invalid_parameter_handler;
+      old_handler = _set_thread_local_invalid_parameter_handler(new_handler);
+    #endif
+
     r = strftime(buffer, len, fmt, &tm);
+
+    // Reset the invalid parameter handler
+    #ifdef PLATFORM_IS_WINDOWS
+      _set_thread_local_invalid_parameter_handler(old_handler);
+    #endif
+
     len <<= 1;
   }
 

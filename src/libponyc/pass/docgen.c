@@ -6,7 +6,20 @@
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
+#include "../common/paths.h"
 
+// Type for storing the source code along the documentation.
+typedef struct doc_sources_t
+{
+  const source_t* source; // The source file content
+  const char* filename; // The source filename.
+  size_t filename_alloc_size; // alloc size for the filename.
+  const char* doc_path; // The relative path of the generated source file. Used for putting correct path in mkdocs.yml
+  size_t doc_path_alloc_size; // alloc size for the doc_path.
+  const char* file_path; // The absolute path of the generate source file.
+  size_t file_path_alloc_size; // alloc size for the file_path.
+  struct doc_sources_t* next; // The next element of the linked list.
+} doc_sources_t;
 
 // Define a type with the docgen state that needs to passed around the
 // functions below.
@@ -30,17 +43,23 @@ typedef struct docgen_t
   FILE* index_file;
   FILE* home_file;
   FILE* package_file;
-  printbuf_t* test_types;
   printbuf_t* public_types;
   printbuf_t* private_types;
   FILE* type_file;
   const char* base_dir;
   const char* sub_dir;
+  char* doc_source_dir;
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
   errors_t* errors;
+  doc_sources_t* included_sources; // As a linked list, being the first element or NULL
 } docgen_t;
 
+// Define options for doc generation
+typedef struct docgen_opt_t
+{
+  bool include_private;
+} docgen_opt_t;
 
 // Define a list for keeping lists of ASTs ordered by name.
 // Each list should have an empty head node (prefereably on the stack). Other
@@ -53,7 +72,6 @@ typedef struct ast_list_t
   const char* name;
   struct ast_list_t* next;
 } ast_list_t;
-
 
 // Free the contents of the given list, but not the head node which must be
 // handled separately
@@ -70,7 +88,6 @@ static void doc_list_free(ast_list_t* list)
     p = next;
   }
 }
-
 
 // Add the given AST to the given list, under the specified name
 static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
@@ -105,6 +122,44 @@ static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
   prev->next = n;
 }
 
+static bool is_for_testing(const char* name, ast_t* list)
+{
+  pony_assert(name != NULL);
+  pony_assert(list != NULL);
+
+  if (strncmp(name, "_Test", 5) == 0) return true;
+
+  if(ast_id(list) == TK_NONE) return false;
+
+  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
+  {
+    if (ast_id(p) == TK_PROVIDES) {
+        // descent 1 level down to TK_NOMINAL
+        p = ast_child(p);
+    }
+    if(ast_id(p) == TK_NOMINAL)
+    {
+      ast_t* id = ast_childidx(p, 1);
+
+      if(strcmp(ast_name(id), "TestList") == 0) return true;
+      if(strcmp(ast_name(id), "UnitTest") == 0) return true;
+
+      ast_t* p_def = (ast_t*)ast_data(p);
+      ast_t* p_list = ast_childidx(p_def, 3);
+      return is_for_testing(ast_name(id), p_list);
+    }
+  }
+
+  return false;
+}
+
+// detect if a whole package is for testing purposes
+// statically checks if package name is "test" or "builtin_test"
+static bool is_package_for_testing(const char* name)
+{
+    pony_assert(name != NULL);
+    return (strcmp(name, "test") == 0 || strcmp(name, "builtin_test") == 0);
+}
 
 // Add the given AST to the given list, using the name from the specified
 // child.
@@ -124,18 +179,23 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   if(is_name_internal_test(name))  // Ignore internally generated names
     return;
 
-  if(is_name_private(name) && !allow_private)  // Ignore private
+  if(is_for_testing(name, ast)) // Ignore test types
     return;
 
-  if(!is_name_private(name) && !allow_public)  // Ignore public
+  bool has_private_name = is_name_private(name);
+
+  if(has_private_name && !allow_private)  // Ignore private
     return;
 
-  if(is_name_private(name))  // Ignore leading underscore for ordering
+
+  if(!has_private_name && !allow_public)  // Ignore public
+    return;
+
+  if(has_private_name)  // Ignore leading underscore for ordering
     name++;
 
   doc_list_add(list, ast, name, false);
 }
-
 
 // Utilities
 
@@ -177,7 +237,6 @@ static char* doc_cat(const char* a, const char* b, const char* c,
   *out_buf_size = buf_len;
   return buffer;
 }
-
 
 // Fully qualified type names (TQFNs).
 // We need unique names for types, for use in file names and links. The format
@@ -226,7 +285,6 @@ static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
   return buffer;
 }
 
-
 // Open a file with the specified info.
 // The given filename extension should include a dot if one is needed.
 // The returned file handle must be fclosed() with no longer needed.
@@ -257,11 +315,11 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
   return file;
 }
 
-
 // Functions to handle types
 
-static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble, bool generate_links, bool line_breaks);
+static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* list,
+  const char* preamble, const char* separator, const char* postamble,
+  bool generate_links, bool break_lines);
 
 // Report the human readable description for the given capability node.
 // The returned string is valid forever and should not be freed.
@@ -289,9 +347,24 @@ static const char* doc_get_cap(ast_t* cap)
   }
 }
 
+static const doc_sources_t* get_doc_source(docgen_t* docgen, source_t* source)
+{
+  if (docgen->included_sources == NULL)
+    return NULL;
+
+  const doc_sources_t* current_elem = docgen->included_sources;
+
+  while (current_elem != NULL) {
+    if (source == current_elem->source)
+      return current_elem;
+    current_elem = current_elem->next;
+  }
+  return NULL;
+}
 
 // Write the given type to the current type file
-static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
+static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_t* type, bool generate_links, bool break_lines)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -304,8 +377,11 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
       AST_GET_CHILDREN(type, package, id, tparams, cap, ephemeral);
 
       // Generate links only if directed to and if the type is not anonymous (as
-      // indicated by a name created by package_hygienic_id).
-      if(generate_links && *ast_name(id) != '$')
+      // indicated by a name created by package_hygienic_id)
+      // and if the type not private if we exclude private types.
+      const char* type_id_name = ast_name(id);
+      if(generate_links && *type_id_name != '$'
+        && (docgen_opt->include_private || !is_name_private(type_id_name)))
       {
         // Find type we reference so we can link to it
         ast_t* target = (ast_t*)ast_data(type);
@@ -315,18 +391,20 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
         char* tqfn = write_tqfn(target, NULL, &link_len);
 
         // Links are of the form: [text](target)
-        fprintf(docgen->type_file, "[%s](%s)", ast_nice_name(id), tqfn);
+        // mkdocs requires the full filename for creating proper links
+        fprintf(docgen->type_file, "[%s](%s.md)", ast_nice_name(id), tqfn);
         ponyint_pool_free_size(link_len, tqfn);
 
-        doc_type_list(docgen, tparams, "\\[", ", ", "\\]", true, false);
+        doc_type_list(docgen, docgen_opt, tparams, "\\[", ", ", "\\]", true, false);
       }
       else
       {
         fprintf(docgen->type_file, "%s", ast_nice_name(id));
-        doc_type_list(docgen, tparams, "[", ", ", "]", false, false);
+        doc_type_list(docgen, docgen_opt, tparams, "[", ", ", "]", false, false);
       }
 
       const char* cap_text = doc_get_cap(cap);
+
       if(cap_text != NULL)
         fprintf(docgen->type_file, " %s", cap_text);
 
@@ -337,25 +415,21 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     }
 
     case TK_UNIONTYPE:
-      doc_type_list(docgen, type, "(", " | ", ")", generate_links, true);
+      doc_type_list(docgen, docgen_opt, type, "(", " | ", ")", generate_links, break_lines);
       break;
 
     case TK_ISECTTYPE:
-      doc_type_list(docgen, type, "(", " & ", ")", generate_links, false);
+      doc_type_list(docgen, docgen_opt, type, "(", " & ", ")", generate_links, break_lines);
       break;
 
     case TK_TUPLETYPE:
-      doc_type_list(docgen, type, "(", " , ", ")", generate_links, false);
+      doc_type_list(docgen, docgen_opt, type, "(", " , ", ")", generate_links, break_lines);
       break;
 
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, ephemeral);
       fprintf(docgen->type_file, "%s", ast_nice_name(id));
-
-      const char* cap_text = doc_get_cap(cap);
-      if(cap_text != NULL)
-        fprintf(docgen->type_file, " %s", cap_text);
 
       if(ast_id(ephemeral) != TK_NONE)
         fprintf(docgen->type_file, "%s", ast_get_print(ephemeral));
@@ -366,9 +440,9 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
-      doc_type(docgen, left, generate_links);
+      doc_type(docgen, docgen_opt, left, generate_links, break_lines);
       fprintf(docgen->type_file, "->");
-      doc_type(docgen, right, generate_links);
+      doc_type(docgen, docgen_opt, right, generate_links, break_lines);
       break;
     }
 
@@ -391,10 +465,11 @@ static void doc_type(docgen_t* docgen, ast_t* type, bool generate_links)
 }
 
 // Write the given list of types to the current type file, with the specified
-// preamble, separator and psotamble text. If the list is empty nothing is
+// preamble, separator and postamble text. If the list is empty nothing is
 // written.
-static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
-  const char* separator, const char* postamble, bool generate_links, bool line_breaks)
+static void doc_type_list(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* list,
+  const char* preamble, const char* separator, const char* postamble,
+  bool generate_links, bool break_lines)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -411,12 +486,12 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
   int listItemCount = 0;
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
-    doc_type(docgen, p, generate_links);
+    doc_type(docgen, docgen_opt, p, generate_links, break_lines);
 
     if(ast_sibling(p) != NULL) {
       fprintf(docgen->type_file, "%s", separator);
 
-      if (line_breaks) {
+      if (break_lines) {
         if (listItemCount++ == 2) {
           fprintf(docgen->type_file, "\n    ");
           listItemCount = 0;
@@ -429,41 +504,34 @@ static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
   fprintf(docgen->type_file, "%s", postamble);
 }
 
-static bool is_for_testing(const char* name, ast_t* list)
+static void add_source_code_link(docgen_t* docgen, ast_t* elem)
 {
-  pony_assert(name != NULL);
-  pony_assert(list != NULL);
+  pony_assert(docgen != NULL);
+  pony_assert(docgen->type_file != NULL);
+  source_t* source = ast_source(elem);
+  const doc_sources_t* doc_source = NULL;
 
-  if (strncmp(name, "_Test", 5) == 0) return true;
+  if (source != NULL)
+    doc_source = get_doc_source(docgen, source);
 
-  if(ast_id(list) == TK_NONE) return false;
-
-  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
-  {
-    if(ast_id(p) == TK_NOMINAL)
-    {
-      ast_t* id = ast_childidx(p, 1);
-
-      if(strcmp(ast_name(id), "TestList") == 0) return true;
-      if(strcmp(ast_name(id), "UnitTest") == 0) return true;
-
-      ast_t* p_def = (ast_t*)ast_data(p);
-      ast_t* p_list = ast_childidx(p_def, 3);
-      return is_for_testing(ast_name(id), p_list);
-    }
+  if (doc_source != NULL) {
+      fprintf(
+        docgen->type_file,
+        "\n<span class=\"source-link\">[[Source]](%s#L%zd)</span>\n",
+        doc_source->doc_path, ast_line(elem)
+      );
+  } else {
+    fprintf(docgen->type_file, "\n\n");
   }
-
-  return false;
 }
-
-
 
 // Functions to handle everything else
 
 // Write the given list of fields to the current type file.
 // The given title text is used as a section header.
 // If the field list is empty nothing is written.
-static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
+static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_list_t* fields, const char* title)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -480,7 +548,7 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
     ast_t* field = p->ast;
     pony_assert(field != NULL);
 
-    AST_GET_CHILDREN(field, id, type, init);
+    AST_GET_CHILDREN(field, id, type, init, doc);
     const char* name = ast_name(id);
     pony_assert(name != NULL);
 
@@ -495,17 +563,22 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
       default: pony_assert(0);
     }
 
-    fprintf(docgen->type_file, "* %s %s: ", ftype, name);
-    doc_type(docgen, type, true);
+    fprintf(docgen->type_file, "### %s %s: ", ftype, name);
+    doc_type(docgen, docgen_opt, type, true, true);
+    add_source_code_link(docgen, field);
+    fprintf(docgen->type_file, "\n");
+
+    if(ast_id(doc) != TK_NONE)
+      fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
+
     fprintf(docgen->type_file, "\n\n---\n\n");
   }
 }
 
-
 // Write the given list of type parameters to the current type file, with
 // surrounding []. If the given list is empty nothing is written.
-static void doc_type_params(docgen_t* docgen, ast_t* t_params,
-  bool generate_links)
+static void doc_type_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_t* t_params, bool generate_links, bool break_lines)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -537,7 +610,7 @@ static void doc_type_params(docgen_t* docgen, ast_t* t_params,
     fprintf(docgen->type_file, "%s: ", name);
 
     if(ast_id(constraint) != TK_NONE)
-      doc_type(docgen, constraint, generate_links);
+      doc_type(docgen, docgen_opt, constraint, generate_links, break_lines);
     else
       fprintf(docgen->type_file, "no constraint");
   }
@@ -550,7 +623,8 @@ static void doc_type_params(docgen_t* docgen, ast_t* t_params,
 
 // Write the given list of parameters to the current type file, with
 // surrounding (). If the given list is empty () is still written.
-static void code_block_doc_params(docgen_t* docgen, ast_t* params)
+static void code_block_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_t* params)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -571,19 +645,19 @@ static void code_block_doc_params(docgen_t* docgen, ast_t* params)
     pony_assert(name != NULL);
 
     fprintf(docgen->type_file, "  %s: ", name);
-    doc_type(docgen, type, false);
+    doc_type(docgen, docgen_opt, type, false, true);
 
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
     {
-      switch(ast_id(def_val))
+      switch(ast_id(ast_child(def_val)))
       {
         case TK_STRING:
-          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = \"%s\"", ast_get_print(ast_child(def_val)));
           break;
 
         default:
-          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = %s", ast_get_print(ast_child(def_val)));
           break;
       }
     }
@@ -592,7 +666,8 @@ static void code_block_doc_params(docgen_t* docgen, ast_t* params)
   fprintf(docgen->type_file, ")");
 }
 
-static void list_doc_params(docgen_t* docgen, ast_t* params)
+static void list_doc_params(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_t* params)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -612,19 +687,19 @@ static void list_doc_params(docgen_t* docgen, ast_t* params)
     pony_assert(name != NULL);
 
     fprintf(docgen->type_file, "  %s: ", name);
-    doc_type(docgen, type, true);
+    doc_type(docgen, docgen_opt, type, true, true);
 
     // if we have a default value, add it to the documentation
     if(ast_id(def_val) != TK_NONE)
     {
-      switch(ast_id(def_val))
+      switch(ast_id(ast_child(def_val)))
       {
         case TK_STRING:
-          fprintf(docgen->type_file, "= \"%s\"", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = \"%s\"", ast_get_print(ast_child(def_val)));
           break;
 
         default:
-          fprintf(docgen->type_file, " = %s", ast_get_print(def_val));
+          fprintf(docgen->type_file, " = %s", ast_get_print(ast_child(def_val)));
           break;
       }
     }
@@ -636,7 +711,8 @@ static void list_doc_params(docgen_t* docgen, ast_t* params)
 }
 
 // Write a description of the given method to the current type file
-static void doc_method(docgen_t* docgen, ast_t* method)
+static void doc_method(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_t* method)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -649,7 +725,10 @@ static void doc_method(docgen_t* docgen, ast_t* method)
 
   // Method
   fprintf(docgen->type_file, "### %s", name);
-  doc_type_params(docgen, t_params, true);
+  doc_type_params(docgen, docgen_opt, t_params, true, false);
+
+  add_source_code_link(docgen, method);
+
   fprintf(docgen->type_file, "\n\n");
 
   // The docstring, if any
@@ -665,15 +744,15 @@ static void doc_method(docgen_t* docgen, ast_t* method)
     if(cap_text != NULL) fprintf(docgen->type_file, "%s ", cap_text);
   }
   fprintf(docgen->type_file, "%s", name);
-  doc_type_params(docgen, t_params, false);
+  doc_type_params(docgen, docgen_opt, t_params, false, true);
   // parameters of the code block
-  code_block_doc_params(docgen, params);
+  code_block_doc_params(docgen, docgen_opt, params);
 
   // return type
   if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     fprintf(docgen->type_file, "\n: ");
-    doc_type(docgen, ret, false);
+    doc_type(docgen, docgen_opt, ret, false, true);
 
     if(ast_id(error) == TK_QUESTION)
       fprintf(docgen->type_file, " ?");
@@ -683,14 +762,14 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   fprintf(docgen->type_file, "\n```\n");
 
   // Parameters
-  list_doc_params(docgen, params);
+  list_doc_params(docgen, docgen_opt, params);
 
   // Return value
   if(ast_id(method) == TK_FUN || ast_id(method) == TK_NEW)
   {
     fprintf(docgen->type_file, "#### Returns\n\n");
     fprintf(docgen->type_file, "* ");
-    doc_type(docgen, ret, true);
+    doc_type(docgen, docgen_opt, ret, true, true);
 
     if(ast_id(error) == TK_QUESTION)
       fprintf(docgen->type_file, " ?");
@@ -703,12 +782,11 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   fprintf(docgen->type_file, "---\n\n");
 }
 
-
 // Write the given list of methods to the current type file.
 // The variety text is used as a heading.
 // If the list is empty nothing is written.
-static void doc_methods(docgen_t* docgen, ast_list_t* methods,
-  const char* variety)
+static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_list_t* methods, const char* variety)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->type_file != NULL);
@@ -721,21 +799,189 @@ static void doc_methods(docgen_t* docgen, ast_list_t* methods,
   fprintf(docgen->type_file, "## %s\n\n", variety);
 
   for(ast_list_t* p = methods->next; p != NULL; p = p->next)
-    doc_method(docgen, p->ast);
+    doc_method(docgen, docgen_opt, p->ast);
 }
 
+static char* concat(const char *s1, const char *s2, size_t* allocated_size)
+{
+  size_t str_size = strlen(s1) + strlen(s2) + 1;
+  char* result = (char*) ponyint_pool_alloc_size(str_size); //+1 for the null-terminator
+  *allocated_size = str_size;
+  strcpy(result, s1);
+  strcat(result, s2);
+  result[str_size - 1] = '\0';
+  return result;
+}
+
+static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source, const char* package_name)
+{
+  pony_assert(docgen != NULL);
+  pony_assert(source != NULL);
+  pony_assert(package_name != NULL);
+
+  doc_sources_t* result = (doc_sources_t*) ponyint_pool_alloc_size(sizeof(doc_sources_t));
+
+  char filename_copy[FILENAME_MAX];
+  strcpy(filename_copy, source->file);
+
+  const char* just_filename = get_file_name(filename_copy);
+  size_t filename_alloc_size = strlen(just_filename) + 1;
+  char* filename = (char*) ponyint_pool_alloc_size(filename_alloc_size);
+  strcpy(filename, just_filename);
+  size_t filename_without_ext_alloc_size = 0;
+  const char* filename_without_ext = remove_ext(filename, '.', 0, &filename_without_ext_alloc_size);
+  size_t filename_md_extension_alloc_size = 0;
+  const char* filename_md_extension = concat(filename_without_ext, ".md", &filename_md_extension_alloc_size);
+
+  // Absolute path where a copy of the source will be put.
+  char source_dir[FILENAME_MAX];
+  path_cat(docgen->doc_source_dir, package_name, source_dir);
+
+  //Create directory for [documentationDir]/src/[package_name]
+  pony_mkdir(source_dir);
+
+  // Get absolute path for [documentationDir]/src/[package_name]/[filename].md
+  size_t file_path_alloc_size = FILENAME_MAX;
+  char* path = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
+  path_cat(source_dir, filename_md_extension, path);
+
+  // Get relative path for [documentationDir]/src/[package_name]/
+  // so it can be written in the mkdocs.yml file.
+
+  size_t old_ptr_alloc_size = 0;
+  const char* doc_source_dir_relative = concat("src/", package_name, &old_ptr_alloc_size);
+  const char* old_ptr = doc_source_dir_relative;
+  size_t doc_source_dir_relative_alloc_size = 0;
+  doc_source_dir_relative = concat(doc_source_dir_relative, "/", &doc_source_dir_relative_alloc_size);
+  ponyint_pool_free_size(old_ptr_alloc_size, (void*) old_ptr);
+
+  // Get relative path for [documentationDir]/src/[package_name]/[filename].md
+  size_t doc_path_alloc_size = 0;
+  const char* doc_path = concat(doc_source_dir_relative, filename_md_extension, &doc_path_alloc_size);
+
+  ponyint_pool_free_size(filename_without_ext_alloc_size, (void*) filename_without_ext);
+  ponyint_pool_free_size(filename_md_extension_alloc_size, (void*) filename_md_extension);
+  ponyint_pool_free_size(doc_source_dir_relative_alloc_size, (void*) doc_source_dir_relative);
+
+  // Section to copy source file to [documentationDir]/src/[package_name]/[filename].md
+  FILE* file = fopen(path, "w");
+
+  if (file != NULL) {
+
+    // Escape markdown to tell this is Pony code
+    // Using multiple '```````'  so hopefully the markdown parser
+    // will consider the whole text as a code block.
+    fprintf(file, "```````pony-full-source\n");
+    fprintf(file, "%s", source->m);
+    fprintf(file, "\n```````");
+    fclose(file);
+
+    result->source = source;
+
+    result->filename = filename;
+    result->filename_alloc_size= filename_alloc_size;
+    result->doc_path = doc_path;
+    result->doc_path_alloc_size = doc_path_alloc_size;
+    result->file_path = path;
+    result->file_path_alloc_size = file_path_alloc_size;
+
+    result->next = NULL;
+
+    return result;
+  } else {
+    ponyint_pool_free_size(filename_alloc_size, (void*) filename);
+    ponyint_pool_free_size(doc_path_alloc_size, (void*) doc_path);
+    ponyint_pool_free_size(file_path_alloc_size, (void*) path);
+    errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
+    return NULL;
+  }
+}
+
+static char* replace_path_separator(const char* path, size_t* name_len) {
+  size_t str_len = strlen(path);
+  *name_len = str_len + 1;
+  char* buffer = (char*) ponyint_pool_alloc_size(*name_len);
+  memcpy(buffer, path, str_len);
+  for(char* p = buffer; *p != '\0'; p++)
+  {
+    if(*p == '.')
+      *p = '_';
+    if(*p == '/')
+      *p = '-';
+#ifdef PLATFORM_IS_WINDOWS
+    if(*p == '\\')
+      *p = '-';
+#endif
+  }
+  buffer[str_len] = '\0';
+  return buffer;
+}
+
+static void include_source_if_needed(
+  docgen_t* docgen,
+  source_t* source,
+  const char* package_name
+)
+{
+  pony_assert(source != NULL);
+  pony_assert(docgen != NULL);
+  const char* source_path = source->file;
+  pony_assert(source_path != NULL);
+
+  if (docgen->included_sources == NULL) {
+    docgen->included_sources = copy_source_to_doc_src(docgen, source, package_name);
+  } else {
+    doc_sources_t* current_source = docgen->included_sources;
+    doc_sources_t* last_valid_source = current_source;
+    bool is_already_included = false;
+    while (current_source != NULL && !is_already_included) {
+      pony_assert(current_source != NULL);
+      pony_assert(current_source->source != NULL);
+      pony_assert(current_source->source->file != NULL);
+
+      if(strcmp(source_path, current_source->source->file) == 0) {
+        is_already_included = true;
+      } else {
+        last_valid_source = current_source;
+        current_source = current_source->next;
+      }
+    }
+    if (!is_already_included) {
+      last_valid_source->next = copy_source_to_doc_src(docgen, source, package_name);
+    }
+  }
+}
 
 // Write a description of the given entity to its own type file.
-static void doc_entity(docgen_t* docgen, ast_t* ast)
+static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
   pony_assert(docgen != NULL);
   pony_assert(docgen->index_file != NULL);
   pony_assert(docgen->package_file != NULL);
-  pony_assert(docgen->test_types != NULL);
   pony_assert(docgen->public_types != NULL);
   pony_assert(docgen->private_types != NULL);
   pony_assert(docgen->type_file == NULL);
   pony_assert(ast != NULL);
+
+  ast_t* package =  ast;
+  while (ast_parent(package) != NULL && ast_id(package) != TK_PACKAGE)
+  {
+    package = ast_parent(package);
+  }
+
+  size_t package_name_len;
+
+  char* package_name =
+    replace_path_separator(
+      package_qualified_name(package),
+      &package_name_len
+    );
+
+  source_t* source = ast_source(ast);
+  if (source != NULL && package != NULL)
+    include_source_if_needed(docgen, source, package_name);
+
+  ponyint_pool_free_size(package_name_len, package_name);
 
   // First open a file
   size_t tqfn_len;
@@ -757,8 +1003,7 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
 
   // Add to appropriate package types buffer
   printbuf_t* buffer = docgen->public_types;
-  if(is_for_testing(name, provides)) buffer = docgen->test_types;
-  else if(name[0] == '_') buffer = docgen->private_types;
+  if(is_name_private(name)) buffer = docgen->private_types;
   printbuf(buffer,
            "* [%s %s](%s.md)\n",
            ast_get_print(ast), name, tqfn);
@@ -767,11 +1012,14 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
-  doc_type_params(docgen, tparams, true);
-  fprintf(docgen->type_file, "\n\n");
+
+  doc_type_params(docgen, docgen_opt, tparams, true, false);
+
+  add_source_code_link(docgen, ast);
 
   if(ast_id(doc) != TK_NONE)
-    fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
+    // additional linebreak for better source code link display with docstring
+    fprintf(docgen->type_file, "\n%s\n\n", ast_name(doc));
 
   // code block
   fprintf(docgen->type_file, "```pony\n");
@@ -782,15 +1030,16 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
 
   fprintf(docgen->type_file, "%s", name);
 
-  doc_type_params(docgen, tparams, false);
-  doc_type_list(docgen, provides, " is\n  ", ",\n  ", "", false, false);
+  doc_type_params(docgen, docgen_opt, tparams, false, true);
+  doc_type_list(docgen, docgen_opt, provides, " is\n  ", ",\n  ", "",
+    false, false);
   fprintf(docgen->type_file, "\n```\n\n");
 
   if (ast_id(ast) !=  TK_TYPE)
-    doc_type_list(docgen, provides,
+    doc_type_list(docgen, docgen_opt, provides,
       "#### Implements\n\n* ", "\n* ", "\n\n---\n\n", true, false);
   else
-    doc_type_list(docgen, provides,
+    doc_type_list(docgen, docgen_opt, provides,
       "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n", true, false);
 
   // Sort members into varieties
@@ -812,17 +1061,19 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
         break;
 
       case TK_NEW:
-        doc_list_add_named(&news, p, 1, true, true);
+        doc_list_add_named(&news, p, 1, true, docgen_opt->include_private);
         break;
 
       case TK_BE:
         doc_list_add_named(&pub_bes, p, 1, true, false);
-        doc_list_add_named(&priv_bes, p, 1, false, true);
+        doc_list_add_named(&priv_bes, p, 1,
+          false, docgen_opt->include_private);
         break;
 
       case TK_FUN:
         doc_list_add_named(&pub_funs, p, 1, true, false);
-        doc_list_add_named(&priv_funs, p, 1, false, true);
+        doc_list_add_named(&priv_funs, p, 1,
+          false, docgen_opt->include_private);
         break;
 
       default:
@@ -832,12 +1083,12 @@ static void doc_entity(docgen_t* docgen, ast_t* ast)
   }
 
   // Handle member variety lists
-  doc_methods(docgen, &news, "Constructors");
-  doc_fields(docgen, &pub_fields, "Public fields");
-  doc_methods(docgen, &pub_bes, "Public Behaviours");
-  doc_methods(docgen, &pub_funs, "Public Functions");
-  doc_methods(docgen, &priv_bes, "Private Behaviours");
-  doc_methods(docgen, &priv_funs, "Private Functions");
+  doc_methods(docgen, docgen_opt, &news, "Constructors");
+  doc_fields(docgen, docgen_opt, &pub_fields, "Public fields");
+  doc_methods(docgen, docgen_opt, &pub_bes, "Public Behaviours");
+  doc_methods(docgen, docgen_opt, &pub_funs, "Public Functions");
+  doc_methods(docgen, docgen_opt, &priv_bes, "Private Behaviours");
+  doc_methods(docgen, docgen_opt, &priv_funs, "Private Functions");
 
   doc_list_free(&pub_fields);
   doc_list_free(&news);
@@ -860,7 +1111,6 @@ static void doc_package_home(docgen_t* docgen,
   pony_assert(docgen->index_file != NULL);
   pony_assert(docgen->home_file != NULL);
   pony_assert(docgen->package_file == NULL);
-  pony_assert(docgen->test_types == NULL);
   pony_assert(docgen->public_types == NULL);
   pony_assert(docgen->private_types == NULL);
   pony_assert(docgen->type_file == NULL);
@@ -884,7 +1134,7 @@ static void doc_package_home(docgen_t* docgen,
   fprintf(docgen->index_file, "  - Package: \"%s.md\"\n", tqfn);
 
   // Add reference to package to home file
-  fprintf(docgen->home_file, "* [%s](%s)\n", package_qualified_name(package),
+  fprintf(docgen->home_file, "* [%s](%s.md)\n", package_qualified_name(package),
     tqfn);
 
   // Now we can write the actual documentation for the package
@@ -902,21 +1152,19 @@ static void doc_package_home(docgen_t* docgen,
 
   ponyint_pool_free_size(tqfn_len, tqfn);
 
-  docgen->test_types = printbuf_new();
   docgen->public_types = printbuf_new();
   docgen->private_types = printbuf_new();
+
   docgen->package_file = docgen->type_file;
   docgen->type_file = NULL;
 }
 
-
 // Document the given package
-static void doc_package(docgen_t* docgen, ast_t* ast)
+static void doc_package(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
 {
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_PACKAGE);
   pony_assert(docgen->package_file == NULL);
-  pony_assert(docgen->test_types == NULL);
   pony_assert(docgen->public_types == NULL);
   pony_assert(docgen->private_types == NULL);
 
@@ -945,7 +1193,7 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
             ast_id(t) == TK_STRUCT || ast_id(t) == TK_CLASS ||
             ast_id(t) == TK_ACTOR);
           // We have a type
-          doc_list_add_named(&types, t, 0, true, true);
+          doc_list_add_named(&types, t, 0, true, docgen_opt->include_private);
         }
       }
     }
@@ -955,7 +1203,7 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
 
   // Process types
   for(ast_list_t* p = types.next; p != NULL; p = p->next)
-    doc_entity(docgen, p->ast);
+    doc_entity(docgen, docgen_opt, p->ast);
 
   // Add listing of subpackages and links
   if(docgen->public_types->offset > 0)
@@ -964,31 +1212,24 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
     fprintf(docgen->package_file, "%s", docgen->public_types->m);
   }
 
-  if(docgen->private_types->offset > 0)
+  if(docgen_opt->include_private && docgen->private_types->offset > 0)
   {
     fprintf(docgen->package_file, "\n\n## Private Types\n\n");
     fprintf(docgen->package_file, "%s", docgen->private_types->m);
   }
 
-  if(docgen->test_types->offset > 0)
-  {
-    fprintf(docgen->package_file, "\n\n## Test Types\n\n");
-    fprintf(docgen->package_file, "%s", docgen->test_types->m);
-  }
-
   fclose(docgen->package_file);
   docgen->package_file = NULL;
-  printbuf_free(docgen->test_types);
   printbuf_free(docgen->public_types);
   printbuf_free(docgen->private_types);
-  docgen->test_types = NULL;
   docgen->public_types = NULL;
   docgen->private_types = NULL;
 }
 
 
 // Document the packages in the given program
-static void doc_packages(docgen_t* docgen, ast_t* ast)
+static void doc_packages(docgen_t* docgen, docgen_opt_t* docgen_opt,
+  ast_t* ast)
 {
   pony_assert(ast != NULL);
   pony_assert(ast_id(ast) == TK_PROGRAM);
@@ -1010,15 +1251,19 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
 
   // Process packages
   docgen->package_file = NULL;
-  docgen->test_types = NULL;
   docgen->public_types = NULL;
   docgen->private_types = NULL;
-  doc_package(docgen, package_1);
+  doc_package(docgen, docgen_opt, package_1);
 
   for(ast_list_t* p = packages.next; p != NULL; p = p->next)
-    doc_package(docgen, p->ast);
+  {
+    const char* p_name = package_qualified_name(p->ast);
+    if(!is_package_for_testing(p_name))
+    {
+      doc_package(docgen, docgen_opt, p->ast);
+    }
+  }
 }
-
 
 // Delete all the files in the specified directory
 static void doc_rm_star(const char* path)
@@ -1054,7 +1299,6 @@ static void doc_rm_star(const char* path)
 
   pony_closedir(dir);
 }
-
 
 /* Ensure that the directories we need exist and are empty.
  *
@@ -1096,13 +1340,15 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   doc_rm_star(docgen->sub_dir);
 }
 
-
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   pony_assert(program != NULL);
 
   if(ast_id(program) != TK_PROGRAM)
     return;
+
+  docgen_opt_t docgen_opt;
+  docgen_opt.include_private = options->docs_private;
 
   docgen_t docgen;
   docgen.errors = options->check.errors;
@@ -1113,6 +1359,11 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.index_file = doc_open_file(&docgen, false, "mkdocs", ".yml");
   docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
+  docgen.included_sources = NULL;
+
+  docgen.doc_source_dir = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
+  path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
+  pony_mkdir(docgen.doc_source_dir);
 
   // Write documentation files
   if(docgen.index_file != NULL && docgen.home_file != NULL)
@@ -1123,11 +1374,28 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.home_file, "Packages\n\n");
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
-    fprintf(docgen.index_file, "theme: readthedocs\n");
-    fprintf(docgen.index_file, "pages:\n");
+    fprintf(docgen.index_file, "theme: ponylang\n");
+    fprintf(docgen.index_file, "markdown_extensions:\n");
+    fprintf(docgen.index_file, "- markdown.extensions.toc:\n");
+    fprintf(docgen.index_file, "    permalink: true\n");
+    fprintf(docgen.index_file, "nav:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
-    doc_packages(&docgen, program);
+    doc_packages(&docgen, &docgen_opt, program);
+  }
+
+  if (docgen.included_sources != NULL) {
+    fprintf(docgen.index_file, "- source:\n");
+    doc_sources_t* current_source = docgen.included_sources;
+    while (current_source != NULL) {
+      fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
+      ponyint_pool_free_size(current_source->filename_alloc_size, (void*) current_source->filename);
+      ponyint_pool_free_size(current_source->doc_path_alloc_size, (void*) current_source->doc_path);
+      ponyint_pool_free_size(current_source->file_path_alloc_size, (void*) current_source->file_path);
+      doc_sources_t* current_source_ptr_copy = current_source;
+      current_source = current_source->next;
+      ponyint_pool_free_size(sizeof(doc_sources_t), (void*) current_source_ptr_copy);
+    }
   }
 
   // Tidy up
