@@ -29,8 +29,8 @@ static bool actor_noblock = false;
 
 bool has_flag(pony_actor_t* actor, uint8_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
-  return (flags & flag) != 0;
+  //uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  return flag != 0;
 }
 
 static void set_flag(pony_actor_t* actor, uint8_t flag)
