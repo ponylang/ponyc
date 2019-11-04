@@ -16,20 +16,3 @@ jobs:
         env:
           STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
 
-on:
-  schedule:
-    - cron: '0 7 * * *'
-
-jobs:
-  build-stdlib-builder-image:
-    name: Build stdlib-builder Docker image
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      - name: Build and push
-        run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
