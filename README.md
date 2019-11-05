@@ -72,7 +72,7 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 
 # Installation
 
-Pony supports LLVM 3.9 and on an experimental basis it supports LLVM 4.0 and 5.0.
+Pony supports LLVM 7.0.
 
 Pony's prerequisites for CPU platforms are:
 
