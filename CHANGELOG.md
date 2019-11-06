@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix building ponyc with clang on Ubuntu ([PR #3378](https://github.com/ponylang/ponyc/pull/3378))
 - Fix error using latest VS2019 to build ponyc ([PR #3369](https://github.com/ponylang/ponyc/pull/3369))
 
 ### Added
