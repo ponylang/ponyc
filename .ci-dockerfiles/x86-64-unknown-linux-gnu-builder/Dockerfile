@@ -7,7 +7,6 @@ RUN apt-get update \
   cmake \
   g++-6 \
   git \
-  libncurses5-dev \
   make \
   xz-utils \
   zlib1g-dev \
