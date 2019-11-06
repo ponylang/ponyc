@@ -6,7 +6,7 @@ orbs:
 jobs:
   x86-64-unknown-linux-gnu-nightly:
     docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
@@ -15,7 +15,7 @@ jobs:
 
   x86-64-unknown-linux-musl-nightly:
     docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
@@ -24,7 +24,7 @@ jobs:
 
   x86-64-unknown-linux-gnu-release:
     docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
@@ -33,7 +33,7 @@ jobs:
 
   x86-64-unknown-linux-musl-release:
     docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
+      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
     steps:
       - checkout
       - run: bash .ci-scripts/x86-64-unknown-linux-musl-release.bash ${CLOUDSMITH_API_KEY}

@@ -1,6 +1,6 @@
 task:
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191009
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
     cpu: 8
     memory: 24
 
@@ -24,7 +24,7 @@ task:
 
 task:
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191009
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
     cpu: 8
     memory: 24
 

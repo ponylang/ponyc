@@ -1,15 +1,10 @@
-FROM alpine
-
-ENV LLVM_VERSION 7
+FROM alpine:3.10
 
 RUN apk update \
   && apk upgrade \
   && apk add --update \
   alpine-sdk \
   binutils-gold \
-  llvm${LLVM_VERSION} \
-  llvm${LLVM_VERSION}-dev \
-  llvm${LLVM_VERSION}-static \
   libexecinfo-dev \
   libexecinfo-static \
   coreutils \
