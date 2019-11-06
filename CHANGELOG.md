@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 
+- Update default LLVM 7.1.0 ([PR #3377](https://github.com/ponylang/ponyc/pull/3377))
 ## [0.33.0] - 2019-11-01
 
 ### Fixed
