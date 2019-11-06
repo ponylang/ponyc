@@ -54,6 +54,8 @@ git clone --recurse-submodules  https://github.com/<you>/ponylang/ponyc
 cd ponyc
 git checkout -b update-lib-llvm-src-to-llvmorg-8.0.0
 (cd lib/llvm/src ; git checkout llvmorg-8.0.0)
+cd ../
+git add src
 git commit -m "Update src to llvmorg-8.0.0"
 git push origin update-src-to-llvmorg-8.0.0
 ```
