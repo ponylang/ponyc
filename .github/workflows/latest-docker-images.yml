@@ -1,9 +1,8 @@
 name: Build latest Docker images
 
 on:
-  push:
-    branches:
-      - master
+  schedule:
+    - cron: '0 5 * * *'
 
 jobs:
   build-latest-docker-image:
@@ -16,10 +15,8 @@ jobs:
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      - name: Docker build
-        run: "docker build --file=Dockerfile -t ponylang/ponyc:latest ."
-      - name: Push image to Docker Hub
-        run: "docker push ponylang/ponyc:latest"
+      - name: Build and push
+        run: bash .dockerfiles/x86-84-unknown-linux-gnu/build-and-push.bash
 
   build-latest-alpine-docker-image:
     name: Build latest Alpine based Docker image
@@ -31,7 +28,5 @@ jobs:
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      - name: Docker build
-        run: "docker build --file=.dockerhub/alpine/Dockerfile -t ponylang/ponyc:alpine ."
-      - name: Push image to Docker Hub
-        run: "docker push ponylang/ponyc:alpine"
+      - name: Build and push
+        run: bash .dockerfiles/x86-84-unknown-linux-musl/build-and-push.bash
