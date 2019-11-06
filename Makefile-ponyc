@@ -164,7 +164,10 @@ endif
 
 ifneq (,$(filter $(link),static llvm-static))
   LLVM_LINKING =--link-static
-  LINKER_FLAGS += -static-libstdc++
+  ifeq ($(OSTYPE),linux)
+    # definitely not for freebsd, do we need for windows?
+    LINKER_FLAGS += -static-libstdc++
+  endif
   ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
     LINKER_FLAGS += -static-libgcc
   endif
@@ -287,6 +290,8 @@ ifeq ($(OSTYPE),osx)
   ALL_CFLAGS += -mmacosx-version-min=10.12 -DUSE_SCHEDULER_SCALING_PTHREADS
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.12
 endif
+
+ALL_CXXFLAGS += -stdlib=libc++
 
 # If we are not cleaning we need LLVM_CONFIG
 ifneq ($(MAKECMDGOALS),clean)
