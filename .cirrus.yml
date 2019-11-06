@@ -72,8 +72,8 @@ task:
   test_script:
     - cc --version
     - c++ --version
-    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
-    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release link=llvm-dynamic -j8
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 link=llvm-dynamic config=release test-ci
 
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
