@@ -74,7 +74,7 @@ task:
     - cc --version
     - c++ --version
     - cd ponyc
-    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release link=static -j8
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
     - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
 
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
