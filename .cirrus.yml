@@ -60,20 +60,18 @@ task:
     - pkg install -y cmake gmake libunwind git
 
   clone_script: |
-    if [ -n "$CIRRUS_TAG" ]
-    then
-      echo "cloning for tag $CIRRUS_TAG"
-      git clone --depth 1 --branch "$CIRRUS_TAG" --recurse-submodules https://github.com/ponylang/ponyc.git
-    elif [ -n "$CIRRUS_BRANCH" ]
-    then
-      echo "cloning for branch $CIRRUS_BRANCH"
-      git clone --depth 1 --branch "$CIRRUS_BRANCH" --recurse-submodules https://github.com/ponylang/ponyc.git
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
     fi
 
   test_script:
     - cc --version
     - c++ --version
-    - cd ponyc
     - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
     - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
 
