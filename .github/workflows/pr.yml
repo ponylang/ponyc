@@ -29,6 +29,22 @@ jobs:
       - name: Docker build
         run: "docker build --file=Dockerfile ."
 
+  validate-musl-docker-image-builds:
+    name: Validate musl Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker build
+        run: "docker build --file=.dockerfiles/x86-64-unknown-linux-musl/Dockerfile ."
+
+  validate-gnu-docker-image-builds:
+    name: Validate GNU Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker build
+        run: "docker build --file=.dockerfiles/x86-64-unknown-linux-gnu/Dockerfile ."
+
   verify-changelog:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
