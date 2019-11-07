@@ -6,6 +6,8 @@ RUN apk add --update \
     curl
 
 RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
- && ponyup update nightly --libc=musl
+ && ponyup update ponyc nightly --libc=musl \
+ && ponyup update stable nightly --libc=musl \
+ && ponyup update corral nightly --libc=musl
 
 CMD ponyc
