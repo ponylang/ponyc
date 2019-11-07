@@ -658,7 +658,7 @@ bool refer_dot(pass_opt_t* opt, ast_t* ast)
     {
       // check multi_dot reference if it's not a function call
       // only if we had a field consume/reassign
-      if(!ast_checkflag(ast, AST_FLAG_FCNSM_REASGN)
+      if(ast_checkflag(ast, AST_FLAG_FCNSM_REASGN)
         && (ast_id(ast_parent(ast)) != TK_CALL)
         && (ast_id(ast_parent(ast)) != TK_QUALIFY))
         return refer_multi_dot(opt, ast);
@@ -1055,20 +1055,20 @@ static bool check_assigned_same_expression(ast_t* ast, const char* name,
   return ast_get_child(assign_left, name);
 }
 
-static void set_flag_recursive(ast_t* outer, ast_t* inner, uint32_t flag)
+static void set_flag_recursive(ast_t* outer, uint32_t flag)
 {
   pony_assert(outer != NULL);
-  pony_assert(inner != NULL);
 
-  do
+  ast_setflag(outer, flag);
+
+  ast_t* child = ast_child(outer);
+
+  while(child != NULL)
   {
-    ast_setflag(inner, flag);
+    set_flag_recursive(child, flag);
 
-    if(inner == outer)
-      break;
-
-    inner = ast_parent(inner);
-  } while(inner != NULL);
+    child = ast_sibling(child);
+  }
 }
 
 static bool refer_consume(pass_opt_t* opt, ast_t* ast)
@@ -1152,8 +1152,8 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
 
       consumed_same_expr = true;
 
-      // assign flag to full tree from ast to assign_ast
-      set_flag_recursive(assign_ast, ast, AST_FLAG_FCNSM_REASGN);
+      // assign flag to assign_ast and all children
+      set_flag_recursive(assign_ast, AST_FLAG_FCNSM_REASGN);
 
       break;
     }
