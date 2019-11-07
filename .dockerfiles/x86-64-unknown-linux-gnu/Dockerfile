@@ -7,6 +7,8 @@ RUN apt-get update \
     curl
 
 RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
- && ponyup update nightly --libc=gnu
+ && ponyup update ponyc nightly --libc=gnu \
+ && ponyup update stable nightly --libc=gnu \
+ && ponyup update corral nightly --libc=gnu
 
 CMD ponyc
