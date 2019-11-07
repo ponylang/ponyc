@@ -45,9 +45,7 @@ changelog-tool release "${VERSION}" -e
 
 # commit CHANGELOG and VERSION updates
 git add CHANGELOG.md VERSION
-git commit -m "${VERSION} release
-
-[skip ci]"
+git commit -m "${VERSION} release"
 
 # merge into release
 git checkout release
