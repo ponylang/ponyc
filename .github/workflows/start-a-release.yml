@@ -9,7 +9,7 @@ jobs:
     name: Start a release
     runs-on: ubuntu-latest
     container:
-      image: ponylang/shared-docker-ci-release-a-library:release
+      image: ponylang/shared-docker-ci-start-an-application-release:20191106
     steps:
       - uses: actions/checkout@v1
       - name: Start release process
