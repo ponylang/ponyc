@@ -16,7 +16,7 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Build and push
-        run: bash .dockerfiles/x86-84-unknown-linux-gnu/build-and-push.bash
+        run: bash .dockerfiles/x86-64-unknown-linux-gnu/build-and-push.bash
 
   build-latest-alpine-docker-image:
     name: Build latest Alpine based Docker image
@@ -29,4 +29,4 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Build and push
-        run: bash .dockerfiles/x86-84-unknown-linux-musl/build-and-push.bash
+        run: bash .dockerfiles/x86-64-unknown-linux-musl/build-and-push.bash
