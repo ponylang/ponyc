@@ -1,6 +1,9 @@
 name: Changelog Bot
 
-on: push
+on:
+  push:
+    paths-ignore:
+      - CHANGELOG.md
 
 jobs:
   changelog-bot:
