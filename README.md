@@ -273,7 +273,7 @@ found by searching your distro's package repository for `binutils-gold`
 or just `ld-gold`.
 
 
-## Mac OS X using [Homebrew](http://brew.sh)
+## macOS using [Homebrew](http://brew.sh)
 
 ```bash
 brew update
@@ -688,7 +688,7 @@ gmake verbose=true bits=64
 
 If you are on a 32-bit platform (e.g., armv7), change `bits=64` to `bits=32`.
 
-## Building on Mac OS X
+## Building on macOS
 [![Linux and OS X](https://travis-ci.org/ponylang/ponyc.svg?branch=master)](https://travis-ci.org/ponylang/ponyc)
 
 You'll need llvm 3.9.1 to build Pony. You can use either homebrew or MacPorts to install your dependencies.
@@ -699,13 +699,13 @@ decreased performance or crashes in generated applications.
 Installation via [homebrew](http://brew.sh):
 ```
 brew update
-brew install llvm@3.9
+brew install llvm@7
 ```
 
 Installation via [MacPorts](https://www.macports.org):
 ```
-sudo port install llvm-3.9
-sudo port select --set llvm mp-llvm-3.9
+sudo port install llvm-7.0
+sudo port select --set llvm mp-llvm-7.0
 ```
 
 Launch the build with `make` after installing the dependencies:
