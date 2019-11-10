@@ -2,10 +2,12 @@
 #define BENCHMARK_API_INTERNAL_H
 
 #include "benchmark/benchmark.h"
+#include "commandlineflags.h"
 
 #include <cmath>
 #include <iosfwd>
 #include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,13 +15,14 @@ namespace benchmark {
 namespace internal {
 
 // Information kept per benchmark we may want to run
-struct Benchmark::Instance {
-  std::string name;
+struct BenchmarkInstance {
+  BenchmarkName name;
   Benchmark* benchmark;
-  ReportMode report_mode;
+  AggregationReportMode aggregation_report_mode;
   std::vector<int64_t> arg;
   TimeUnit time_unit;
   int range_multiplier;
+  bool measure_process_cpu_time;
   bool use_real_time;
   bool use_manual_time;
   BigO complexity;
@@ -29,12 +32,15 @@ struct Benchmark::Instance {
   bool last_benchmark_instance;
   int repetitions;
   double min_time;
-  size_t iterations;
+  IterationCount iterations;
   int threads;  // Number of concurrent threads to us
+
+  State Run(IterationCount iters, int thread_id, internal::ThreadTimer* timer,
+            internal::ThreadManager* manager) const;
 };
 
 bool FindBenchmarksInternal(const std::string& re,
-                            std::vector<Benchmark::Instance>* benchmarks,
+                            std::vector<BenchmarkInstance>* benchmarks,
                             std::ostream* Err);
 
 bool IsZero(double n);

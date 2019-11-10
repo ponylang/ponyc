@@ -16,10 +16,10 @@
 #include "internal_macros.h"
 
 #ifdef BENCHMARK_OS_WINDOWS
-#include <Shlwapi.h>
+#include <shlwapi.h>
 #undef StrCat  // Don't let StrCat in string_util.h be renamed to lstrcatA
-#include <VersionHelpers.h>
-#include <Windows.h>
+#include <versionhelpers.h>
+#include <windows.h>
 #else
 #include <fcntl.h>
 #ifndef BENCHMARK_OS_FUCHSIA
@@ -28,8 +28,7 @@
 #include <sys/time.h>
 #include <sys/types.h>  // this header must be included before 'sys/sysctl.h' to avoid compilation error on FreeBSD
 #include <unistd.h>
-#if defined BENCHMARK_OS_FREEBSD || defined BENCHMARK_OS_MACOSX || \
-    defined BENCHMARK_OS_OPENBSD
+#if defined BENCHMARK_OS_FREEBSD || defined BENCHMARK_OS_MACOSX
 #include <sys/sysctl.h>
 #endif
 #if defined(BENCHMARK_OS_MACOSX)
@@ -194,7 +193,6 @@ std::string DateTimeString(bool local) {
         std::strftime(storage, sizeof(storage), "%x %X", ::localtime(&now));
 #else
     std::tm timeinfo;
-    std::memset(&timeinfo, 0, sizeof(std::tm));
     ::localtime_r(&now, &timeinfo);
     written = std::strftime(storage, sizeof(storage), "%F %T", &timeinfo);
 #endif
@@ -203,7 +201,6 @@ std::string DateTimeString(bool local) {
     written = std::strftime(storage, sizeof(storage), "%x %X", ::gmtime(&now));
 #else
     std::tm timeinfo;
-    std::memset(&timeinfo, 0, sizeof(std::tm));
     ::gmtime_r(&now, &timeinfo);
     written = std::strftime(storage, sizeof(storage), "%F %T", &timeinfo);
 #endif
