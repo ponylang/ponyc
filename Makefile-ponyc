@@ -616,7 +616,8 @@ libponyc.benchmarks.buildoptions += -DLLVM_BUILD_MODE=$(LLVM_BUILD_MODE)
 
 libgbenchmark.buildoptions := \
   -Wshadow -pedantic -pedantic-errors \
-  -Wfloat-equal -fstrict-aliasing -Wstrict-aliasing -Wno-invalid-offsetof \
+  -fstrict-aliasing -Wstrict-aliasing \
+  -Wno-invalid-offsetof -Wno-deprecated-declarations \
   -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK
 
 ifneq ($(ALPINE),)
