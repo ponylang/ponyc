@@ -21,6 +21,8 @@
 #include <limits>
 
 namespace benchmark {
+namespace {
+
 // Parses 'str' for a 32-bit signed integer.  If successful, writes
 // the result to *value and returns true; otherwise leaves *value
 // unchanged and returns false.
@@ -45,7 +47,7 @@ bool ParseInt32(const std::string& src_text, const char* str, int32_t* value) {
       // LONG_MAX or LONG_MIN when the input overflows.)
       result != long_value
       // The parsed value overflows as an Int32.
-      ) {
+  ) {
     std::cerr << src_text << " is expected to be a 32-bit integer, "
               << "but actually has value \"" << str << "\", "
               << "which overflows.\n";
@@ -87,6 +89,8 @@ static std::string FlagToEnvVar(const char* flag) {
 
   return "BENCHMARK_" + env_var;
 }
+
+}  // namespace
 
 // Reads and returns the Boolean environment variable corresponding to
 // the given flag; if it's not set, returns default_value.

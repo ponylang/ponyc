@@ -41,6 +41,10 @@ macro(compile_benchmark_test name)
   target_link_libraries(${name} benchmark ${CMAKE_THREAD_LIBS_INIT})
 endmacro(compile_benchmark_test)
 
+macro(compile_benchmark_test_with_main name)
+  add_executable(${name} "${name}.cc")
+  target_link_libraries(${name} benchmark_main)
+endmacro(compile_benchmark_test_with_main)
 
 macro(compile_output_test name)
   add_executable(${name} "${name}.cc" output_test.h)
@@ -59,14 +63,23 @@ macro(add_filter_test name filter expect)
 endmacro(add_filter_test)
 
 add_filter_test(filter_simple "Foo" 3)
+add_filter_test(filter_simple_negative "-Foo" 2)
 add_filter_test(filter_suffix "BM_.*" 4)
+add_filter_test(filter_suffix_negative "-BM_.*" 1)
 add_filter_test(filter_regex_all ".*" 5)
+add_filter_test(filter_regex_all_negative "-.*" 0)
 add_filter_test(filter_regex_blank "" 5)
+add_filter_test(filter_regex_blank_negative "-" 0)
 add_filter_test(filter_regex_none "monkey" 0)
+add_filter_test(filter_regex_none_negative "-monkey" 5)
 add_filter_test(filter_regex_wildcard ".*Foo.*" 3)
+add_filter_test(filter_regex_wildcard_negative "-.*Foo.*" 2)
 add_filter_test(filter_regex_begin "^BM_.*" 4)
+add_filter_test(filter_regex_begin_negative "-^BM_.*" 1)
 add_filter_test(filter_regex_begin2 "^N" 1)
+add_filter_test(filter_regex_begin2_negative "-^N" 4)
 add_filter_test(filter_regex_end ".*Ba$" 1)
+add_filter_test(filter_regex_end_negative "-.*Ba$" 4)
 
 compile_benchmark_test(options_test)
 add_test(options_benchmarks options_test --benchmark_min_time=0.01)
@@ -100,6 +113,9 @@ add_test(map_test map_test --benchmark_min_time=0.01)
 compile_benchmark_test(multiple_ranges_test)
 add_test(multiple_ranges_test multiple_ranges_test --benchmark_min_time=0.01)
 
+compile_benchmark_test_with_main(link_main_test)
+add_test(link_main_test link_main_test --benchmark_min_time=0.01)
+
 compile_output_test(reporter_output_test)
 add_test(reporter_output_test reporter_output_test --benchmark_min_time=0.01)
 
@@ -109,8 +125,23 @@ add_test(templated_fixture_test templated_fixture_test --benchmark_min_time=0.01
 compile_output_test(user_counters_test)
 add_test(user_counters_test user_counters_test --benchmark_min_time=0.01)
 
+compile_output_test(internal_threading_test)
+add_test(internal_threading_test internal_threading_test --benchmark_min_time=0.01)
+
+compile_output_test(report_aggregates_only_test)
+add_test(report_aggregates_only_test report_aggregates_only_test --benchmark_min_time=0.01)
+
+compile_output_test(display_aggregates_only_test)
+add_test(display_aggregates_only_test display_aggregates_only_test --benchmark_min_time=0.01)
+
 compile_output_test(user_counters_tabular_test)
 add_test(user_counters_tabular_test user_counters_tabular_test --benchmark_counters_tabular=true --benchmark_min_time=0.01)
+
+compile_output_test(user_counters_thousands_test)
+add_test(user_counters_thousands_test user_counters_thousands_test --benchmark_min_time=0.01)
+
+compile_output_test(memory_manager_test)
+add_test(memory_manager_test memory_manager_test --benchmark_min_time=0.01)
 
 check_cxx_compiler_flag(-std=c++03 BENCHMARK_HAS_CXX03_FLAG)
 if (BENCHMARK_HAS_CXX03_FLAG)
@@ -147,14 +178,8 @@ add_test(complexity_benchmark complexity_test --benchmark_min_time=${COMPLEXITY_
 if (BENCHMARK_ENABLE_GTEST_TESTS)
   macro(compile_gtest name)
     add_executable(${name} "${name}.cc")
-    if (TARGET googletest)
-      add_dependencies(${name} googletest)
-    endif()
-    if (GTEST_INCLUDE_DIRS)
-      target_include_directories(${name} PRIVATE ${GTEST_INCLUDE_DIRS})
-    endif()
     target_link_libraries(${name} benchmark
-        ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        gmock_main ${CMAKE_THREAD_LIBS_INIT})
   endmacro(compile_gtest)
 
   macro(add_gtest name)
@@ -163,7 +188,10 @@ if (BENCHMARK_ENABLE_GTEST_TESTS)
   endmacro()
 
   add_gtest(benchmark_gtest)
+  add_gtest(benchmark_name_gtest)
+  add_gtest(commandlineflags_gtest)
   add_gtest(statistics_gtest)
+  add_gtest(string_util_gtest)
 endif(BENCHMARK_ENABLE_GTEST_TESTS)
 
 ###############################################################################

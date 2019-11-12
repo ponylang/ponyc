@@ -1,22 +1,28 @@
-cmake_minimum_required (VERSION 2.8.12)
-
-project (benchmark)
+cmake_minimum_required (VERSION 3.5.1)
 
 foreach(p
+    CMP0048 # OK to clear PROJECT_VERSION on project()
     CMP0054 # CMake 3.1
     CMP0056 # export EXE_LINKER_FLAGS to try_run
     CMP0057 # Support no if() IN_LIST operator
+    CMP0063 # Honor visibility properties for all targets
     )
   if(POLICY ${p})
     cmake_policy(SET ${p} NEW)
   endif()
 endforeach()
 
+project (benchmark CXX)
+
 option(BENCHMARK_ENABLE_TESTING "Enable testing of the benchmark library." ON)
 option(BENCHMARK_ENABLE_EXCEPTIONS "Enable the use of exceptions in the benchmark library." ON)
 option(BENCHMARK_ENABLE_LTO "Enable link time optimisation of the benchmark library." OFF)
 option(BENCHMARK_USE_LIBCXX "Build and test using libc++ as the standard library." OFF)
-option(BENCHMARK_BUILD_32_BITS "Build a 32 bit version of the library." OFF)
+if(NOT MSVC)
+  option(BENCHMARK_BUILD_32_BITS "Build a 32 bit version of the library." OFF)
+else()
+  set(BENCHMARK_BUILD_32_BITS OFF CACHE BOOL "Build a 32 bit version of the library - unsupported when using MSVC)" FORCE)
+endif()
 option(BENCHMARK_ENABLE_INSTALL "Enable installation of benchmark. (Projects embedding benchmark may want to turn this OFF.)" ON)
 
 # Allow unmet dependencies to be met using CMake's ExternalProject mechanics, which
@@ -75,7 +81,7 @@ get_git_version(GIT_VERSION)
 
 # Tell the user what versions we are using
 string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" VERSION ${GIT_VERSION})
-message("-- Version: ${VERSION}")
+message(STATUS "Version: ${VERSION}")
 
 # The version of the libraries
 set(GENERIC_LIB_VERSION ${VERSION})
@@ -90,7 +96,7 @@ if (BENCHMARK_BUILD_32_BITS)
   add_required_cxx_compiler_flag(-m32)
 endif()
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+if (MSVC)
   # Turn compiler warnings up to 11
   string(REGEX REPLACE "[-/]W[1-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
@@ -99,6 +105,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   if (NOT BENCHMARK_ENABLE_EXCEPTIONS)
     add_cxx_compiler_flag(-EHs-)
     add_cxx_compiler_flag(-EHa-)
+    add_definitions(-D_HAS_EXCEPTIONS=0)
   endif()
   # Link time optimisation
   if (BENCHMARK_ENABLE_LTO)
@@ -130,7 +137,6 @@ else()
 
   # Turn compiler warnings up to 11
   add_cxx_compiler_flag(-Wall)
-
   add_cxx_compiler_flag(-Wextra)
   add_cxx_compiler_flag(-Wshadow)
   add_cxx_compiler_flag(-Werror RELEASE)
@@ -139,8 +145,20 @@ else()
   add_cxx_compiler_flag(-pedantic)
   add_cxx_compiler_flag(-pedantic-errors)
   add_cxx_compiler_flag(-Wshorten-64-to-32)
-  add_cxx_compiler_flag(-Wfloat-equal)
   add_cxx_compiler_flag(-fstrict-aliasing)
+  # Disable warnings regarding deprecated parts of the library while building
+  # and testing those parts of the library.
+  add_cxx_compiler_flag(-Wno-deprecated-declarations)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    # Intel silently ignores '-Wno-deprecated-declarations',
+    # warning no. 1786 must be explicitly disabled.
+    # See #631 for rationale.
+    add_cxx_compiler_flag(-wd1786)
+  endif()
+  # Disable deprecation warnings for release builds (when -Werror is enabled).
+  add_cxx_compiler_flag(-Wno-deprecated RELEASE)
+  add_cxx_compiler_flag(-Wno-deprecated RELWITHDEBINFO)
+  add_cxx_compiler_flag(-Wno-deprecated MINSIZEREL)
   if (NOT BENCHMARK_ENABLE_EXCEPTIONS)
     add_cxx_compiler_flag(-fno-exceptions)
   endif()
@@ -152,7 +170,7 @@ else()
   endif()
   # ICC17u2: overloaded virtual function "benchmark::Fixture::SetUp" is only partially overridden
   # (because of deprecated overload)
-  add_cxx_compiler_flag(-wd654)  
+  add_cxx_compiler_flag(-wd654)
   add_cxx_compiler_flag(-Wthread-safety)
   if (HAVE_CXX_FLAG_WTHREAD_SAFETY)
     cxx_feature_check(THREAD_SAFETY_ATTRIBUTES)
@@ -166,10 +184,14 @@ else()
     add_definitions(-D_GNU_SOURCE=1)
   endif()
 
+  if (QNXNTO)
+    add_definitions(-D_QNX_SOURCE)
+  endif()
+
   # Link time optimisation
   if (BENCHMARK_ENABLE_LTO)
     add_cxx_compiler_flag(-flto)
-    if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
       find_program(GCC_AR gcc-ar)
       if (GCC_AR)
         set(CMAKE_AR ${GCC_AR})
@@ -178,7 +200,7 @@ else()
       if (GCC_RANLIB)
         set(CMAKE_RANLIB ${GCC_RANLIB})
       endif()
-    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
       include(llvm-toolchain)
     endif()
   endif()
@@ -203,12 +225,12 @@ else()
 endif()
 
 if (BENCHMARK_USE_LIBCXX)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     add_cxx_compiler_flag(-stdlib=libc++)
   elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
           "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     add_cxx_compiler_flag(-nostdinc++)
-    message("libc++ header path must be manually specified using CMAKE_CXX_FLAGS")
+    message(WARNING "libc++ header path must be manually specified using CMAKE_CXX_FLAGS")
     # Adding -nodefaultlibs directly to CMAKE_<TYPE>_LINKER_FLAGS will break
     # configuration checks such as 'find_package(Threads)'
     list(APPEND BENCHMARK_CXX_LINKER_FLAGS -nodefaultlibs)
@@ -216,7 +238,7 @@ if (BENCHMARK_USE_LIBCXX)
     # linker flags appear before all linker inputs and -lc++ must appear after.
     list(APPEND BENCHMARK_CXX_LIBRARIES c++)
   else()
-    message(FATAL "-DBENCHMARK_USE_LIBCXX:BOOL=ON is not supported for compiler")
+    message(FATAL_ERROR "-DBENCHMARK_USE_LIBCXX:BOOL=ON is not supported for compiler")
   endif()
 endif(BENCHMARK_USE_LIBCXX)
 
@@ -234,6 +256,7 @@ if (NOT BENCHMARK_ENABLE_EXCEPTIONS AND HAVE_STD_REGEX
 endif()
 cxx_feature_check(STEADY_CLOCK)
 # Ensure we have pthreads
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # Set up directories
@@ -244,8 +267,10 @@ add_subdirectory(src)
 
 if (BENCHMARK_ENABLE_TESTING)
   enable_testing()
-  if (BENCHMARK_ENABLE_GTEST_TESTS)
-    include(HandleGTest)
+  if (BENCHMARK_ENABLE_GTEST_TESTS AND
+      NOT (TARGET gtest AND TARGET gtest_main AND
+           TARGET gmock AND TARGET gmock_main))
+    include(GoogleTest)
   endif()
   add_subdirectory(test)
 endif()

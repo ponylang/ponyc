@@ -29,14 +29,16 @@ struct TestCase {
   typedef benchmark::BenchmarkReporter::Run Run;
 
   void CheckRun(Run const& run) const {
-    CHECK(name == run.benchmark_name) << "expected " << name << " got "
-                                      << run.benchmark_name;
+    // clang-format off
+    CHECK(name == run.benchmark_name()) << "expected " << name << " got "
+                                      << run.benchmark_name();
     if (label) {
       CHECK(run.report_label == label) << "expected " << label << " got "
                                        << run.report_label;
     } else {
       CHECK(run.report_label == "");
     }
+    // clang-format on
   }
 };
 
