@@ -294,8 +294,6 @@ ifeq ($(OSTYPE),osx)
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.12
 endif
 
-ALL_CXXFLAGS += -stdlib=libc++
-
 # If we are not cleaning we need LLVM_CONFIG
 ifneq ($(MAKECMDGOALS),clean)
   ifndef LLVM_CONFIG
