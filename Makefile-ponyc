@@ -151,8 +151,12 @@ ifeq ($(BITS),64)
   endif
 endif
 
-BUILD_FLAGS += -mcx16
-LINKER_FLAGS += -mcx16
+$(warning: BITS is $(bits))
+$(warning: UNAME_M is $(UNAME_M))
+$(warning: arch is $(arch))
+
+#BUILD_FLAGS += -mcx16
+#LINKER_FLAGS += -mcx16
 
 ifneq ($(fpu),)
   BUILD_FLAGS += -mfpu=$(fpu)
