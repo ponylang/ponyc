@@ -9,5 +9,5 @@ set -o nounset
 
 DOCKERFILE_DIR="$(dirname "$0")"
 
-docker build -t "ponylang/ponyc:latest" "${DOCKERFILE_DIR}"
+docker build --pull -t "ponylang/ponyc:latest" "${DOCKERFILE_DIR}"
 docker push "ponylang/ponyc:latest"

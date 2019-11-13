@@ -21,10 +21,10 @@ TAG=$1
 
 # Build and push :TAG tag e.g. ponyc:0.32.1.
 DOCKER_TAG=ponylang/ponyc:"${TAG}"
-docker build --file=Dockerfile -t "${DOCKER_TAG}" .
+docker build --pull --file=Dockerfile -t "${DOCKER_TAG}" .
 docker push "${DOCKER_TAG}"
 
 # Build and push "release" tag e.g. ponyc:release
 DOCKER_TAG=ponylang/ponyc:release
-docker build --file=Dockerfile -t "${DOCKER_TAG}" .
+docker build --pull --file=Dockerfile -t "${DOCKER_TAG}" .
 docker push "${DOCKER_TAG}"
