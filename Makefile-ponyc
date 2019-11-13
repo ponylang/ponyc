@@ -143,20 +143,13 @@ BITS := $(bits)
 UNAME_M := $(shell uname -m)
 
 ifeq ($(BITS),64)
-  ifeq ($(UNAME_M),x86_64)
+  ifneq (,$(filter $(UNAME_M), x86_64 amd64))
     ifeq (,$(filter $(arch), armv8-a))
       BUILD_FLAGS += -mcx16
       LINKER_FLAGS += -mcx16
     endif
   endif
 endif
-
-$(warning BITS is $(bits))
-$(warning UNAME_M is $(UNAME_M))
-$(warning arch is $(arch))
-
-BUILD_FLAGS += -mcx16
-LINKER_FLAGS += -mcx16
 
 ifneq ($(fpu),)
   BUILD_FLAGS += -mfpu=$(fpu)
