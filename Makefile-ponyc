@@ -151,6 +151,9 @@ ifeq ($(BITS),64)
   endif
 endif
 
+BUILD_FLAGS += -mcx16
+LINKER_FLAGS += -mcx16
+
 ifneq ($(fpu),)
   BUILD_FLAGS += -mfpu=$(fpu)
   LINKER_FLAGS += -mfpu=$(fpu)
