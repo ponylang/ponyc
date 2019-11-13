@@ -1,7 +1,7 @@
 # Build image
 
 ```bash
-docker build -t ponylang/ponyc-ci:llvm-7.0.1 .
+docker build --pull -t ponylang/ponyc-ci:llvm-7.0.1 .
 ```
 
 # Run image to test
