@@ -49,17 +49,29 @@ task:
 task:
   freebsd_instance:
     image: freebsd-12-0-release-amd64
+    cpu: 8
+    memory: 24
 
-  name: "FreeBSD 12"
+  name: "lib/llvm: x86-64-unknown-freebsd12.0"
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y gmake libunwind llvm70 git
+    - pkg install -y cmake gmake libunwind git
+
+  clone_script: |
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    fi
 
   test_script:
-    - LLVM_CONFIG=llvm-config70 gmake all config=release -j3
-    - LLVM_CONFIG=llvm-config70 gmake test-ci config=release
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
+    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
 
   only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release'
 
