@@ -81,6 +81,9 @@ task:
 
   name: "lib/llvm: macOS"
 
+  install_script:
+    - brew install coreutils
+
   clone_script: |
     if [ -z "$CIRRUS_PR" ]; then
       git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
