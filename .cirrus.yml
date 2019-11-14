@@ -26,6 +26,8 @@ task:
   test_script:
     -  bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
 
+  only_if: $CIRRUS_BRANCH == 'dontrunnow'
+
 task:
   container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
@@ -49,6 +51,8 @@ task:
 
   test_script:
     -  bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
+
+  only_if: $CIRRUS_BRANCH == 'dontrunnow'
 
 #
 # Pull Request Tasks
