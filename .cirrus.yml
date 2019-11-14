@@ -77,7 +77,7 @@ task:
 
 task:
   osx_instance:
-    image: mojave-xcode-11.1
+    image: mojave-xcode-11.2.1
 
   name: "macOS"
 
