@@ -186,7 +186,7 @@ endif
 
 ifneq (,$(filter $(link),static llvm-static))
   LLVM_LINKING =--link-static
-  ifneq ($(OSTYPE),bsd)
+  ifeq (,$(filter $(OSTYPE),bsd osx))
     LINKER_FLAGS += -static-libstdc++
   endif
   ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
