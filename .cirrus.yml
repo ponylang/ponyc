@@ -1,3 +1,59 @@
+#
+# Nightly build tasks
+#
+
+task:
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
+    cpu: 8
+    memory: 24
+
+  name: "x86-64-unknown-linux-gnu-nightly"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  clone_script: |
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    fi
+
+  test_script:
+    -  bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
+
+task:
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
+    cpu: 8
+    memory: 24
+
+  name: "x86-64-unknown-linux-musl-nightly"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  clone_script: |
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --recursive --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone --recursive https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    fi
+
+  test_script:
+    -  bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
+
+#
+# Pull Request Tasks
+#
+
 task:
   container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
