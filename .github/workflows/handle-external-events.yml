@@ -7,7 +7,7 @@ jobs:
     name: Log all incoming events
     runs-on: ubuntu-latest
     steps:
-      - name: echo it
+      - name: Log event
         run: echo "$EVENT"
         env:
           EVENT: ${{ toJson(github.event) }}
