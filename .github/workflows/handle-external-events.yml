@@ -4,12 +4,12 @@ on: repository_dispatch
 
 jobs:
   external-event-test:
-    if: github.event.action == 'cloudsmith-event'
+    if: github.event.action == 'cloudsmith-ping'
 
-    name: External event test
+    name: Cloudsmith ping handler
     runs-on: ubuntu-latest
     steps:
-      - run: echo "hello"
+      - run: echo "runs on pings for testing purposes"
 
   build-latest-docker-image:
     if: github.event.action == 'cloudsmith-package-synchronised' && github.event.client_payload.data.filename == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
