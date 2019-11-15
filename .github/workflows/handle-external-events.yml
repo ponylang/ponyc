@@ -47,3 +47,43 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Build and push
         run: bash .dockerfiles/x86-64-unknown-linux-musl/build-and-push.bash
+
+  build-release-docker-image:
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'releases' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
+
+    name: Build latest Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .ci-scripts/build-docker-images-on-release.bash
+        env:
+          VERSION: ${{ github.event.client_payload.data.version }}
+
+  build-release-alpine-docker-image:
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'releases' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
+
+    name: Build latest Alpine based Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .ci-scripts/build-alpine-docker-images-on-release.bash
+        env:
+          VERSION: ${{ github.event.client_payload.data.version }}
