@@ -4,24 +4,6 @@ orbs:
   zulip: ponylang/zulip@1
 
 jobs:
-  x86-64-unknown-linux-gnu-nightly:
-    docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
-    steps:
-      - checkout
-      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
-      - zulip/status:
-          fail_only: true
-
-  x86-64-unknown-linux-musl-nightly:
-    docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
-    steps:
-      - checkout
-      - run: bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
-      - zulip/status:
-          fail_only: true
-
   x86-64-unknown-linux-gnu-release:
     docker:
       - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
@@ -120,19 +102,6 @@ jobs:
 
 workflows:
   version: 2.1
-
-  build-nightlies:
-    triggers:
-      - schedule:
-          cron: "15 0 * * *"
-          filters:
-            branches:
-              only: master
-    jobs:
-      - x86-64-unknown-linux-gnu-nightly:
-          context: org-global
-      - x86-64-unknown-linux-musl-nightly:
-          context: org-global
 
   # Build docker images on release
   # We don't need to build `latest` here as there's another commit
