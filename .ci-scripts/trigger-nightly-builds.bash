@@ -24,6 +24,9 @@ fi
 # allow above so we can display nice error messages for expected unset variables
 set -o nounset
 
+# Use today's date as the clientMutationId.
+# If we send another request with the same clientMutationId
+# it will be ignored as a duplicate.
 TODAY=$(date +%Y%m%d)
 
 curl -X POST https://api.cirrus-ci.com/graphql \
