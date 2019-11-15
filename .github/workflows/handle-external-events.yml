@@ -9,7 +9,7 @@ jobs:
     name: External event test
     runs-on: ubuntu-latest
     steps:
-      - echo "hello"
+      - run: echo "hello"
 
   build-latest-docker-image:
     if: github.event.action == 'cloudsmith-package-synchronised' && github.event.client_payload.data.filename == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
