@@ -5,12 +5,12 @@ on:
     - cron: "15 0 * * *"
 
 jobs:
-  trigger-x86-64-unknown-linux-musl-nightly:
-    name: Trigger musl
+  trigger-nightly-builds-on-cirrusci:
+    name: Trigger nightly builds on CirrusCI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - name: Send curl request
-        run: bash trigger-x86-64-linux-musl-nightly.bash
+        run: bash trigger-nightly-builds.bash
         env:
           CIRRUS_ACCESS_TOKEN: ${{ secrets.CIRRUS_ACCESS_TOKEN }}
