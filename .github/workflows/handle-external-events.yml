@@ -13,7 +13,10 @@ jobs:
           EVENT: ${{ toJson(github.event) }}
 
   build-latest-docker-image:
-    if: github.event.action == 'cloudsmith-package-synchronised' && github.event.client_payload.data.repository == 'nightlies' && github.event.client_payload.data.filename == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
 
     name: Build latest Docker image
     runs-on: ubuntu-latest
@@ -28,7 +31,10 @@ jobs:
         run: bash .dockerfiles/x86-64-unknown-linux-gnu/build-and-push.bash
 
   build-latest-alpine-docker-image:
-    if: github.event.action == 'cloudsmith-package-synchronised' && github.event.client_payload.data.repository == 'nightlies' && github.event.client_payload.data.filename == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
 
     name: Build latest Alpine based Docker image
     runs-on: ubuntu-latest
