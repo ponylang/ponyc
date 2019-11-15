@@ -1,0 +1,16 @@
+name: Trigger nightly builds
+
+on:
+  schedule:
+    - cron: "15 0 * * *"
+
+jobs:
+  trigger-x86-64-unknown-linux-musl-nightly:
+    name: Trigger musl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Send curl request
+        run: bash trigger-x86-64-linux-musl-nightly.bash
+        env:
+          CIRRUS_ACCESS_TOKEN: ${{ secrets.CIRRUS_ACCESS_TOKEN }}
