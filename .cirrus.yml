@@ -8,7 +8,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "x86-64-unknown-linux-gnu-nightly"
+  name: "nightly: x86-64-unknown-linux-gnu"
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
@@ -24,7 +24,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "x86-64-unknown-linux-musl-nightly"
+  name: "nightly: x86-64-unknown-linux-musl"
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
@@ -44,7 +44,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "lib/llvm: x86-64-unknown-linux-gnu"
+  name: "PR: x86-64-unknown-linux-gnu"
 
   test_script:
     - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
@@ -58,7 +58,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "lib/llvm: x86-64-unknown-linux-musl"
+  name: "PR: x86-64-unknown-linux-musl"
 
   test_script:
     - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release link=static -j8
@@ -72,7 +72,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "lib/llvm: x86-64-unknown-freebsd12.0"
+  name: "PR: x86-64-unknown-freebsd12.0"
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
@@ -89,7 +89,7 @@ task:
   osx_instance:
     image: mojave-xcode-11.2.1
 
-  name: "lib/llvm: macOS"
+  name: "PR: macOS"
 
   install_script:
     - brew install coreutils
