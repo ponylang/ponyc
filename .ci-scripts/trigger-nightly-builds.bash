@@ -29,7 +29,7 @@ set -o nounset
 # it will be ignored as a duplicate.
 TODAY=$(date +%Y%m%d)
 
-curl -X POST https://api.cirrus-ci.com/graphql \
+curl -s -X POST https://api.cirrus-ci.com/graphql \
   -H 'authorization: Bearer $CIRRUS_ACCESS_TOKEN' \
   -d '{
     "query": "mutation($input: RepositoryCreateBuildInput!) { createBuild(input: $input) { build { id, repositoryId, status }, clientMutationId } }",
