@@ -7,6 +7,7 @@
 #
 # - bash
 # - curl
+# - jq
 
 set -o errexit
 
@@ -29,7 +30,7 @@ set -o nounset
 # it will be ignored as a duplicate.
 TODAY=$(date +%Y%m%d)
 
-curl -s -X POST https://api.cirrus-ci.com/graphql \
+result=$(curl -s -X POST https://api.cirrus-ci.com/graphql \
   -H "authorization: Bearer $CIRRUS_ACCESS_TOKEN" \
   -d "{
     \"query\": \"mutation(\$input: RepositoryCreateBuildInput!) { createBuild(input: \$input) { build { id, repositoryId, status }, clientMutationId } }\",
@@ -40,4 +41,13 @@ curl -s -X POST https://api.cirrus-ci.com/graphql \
         \"branch\": \"master\"
       }
     }
-  }"
+  }")
+
+rslt_scan=$(echo "${result}" | jq -r '.data.createBuild.build.id')
+if [ "$rslt_scan" != null ]; then
+  echo -e "\e[34mBuild triggered.\e[0m"
+else
+  echo -e "\e[31mUnable to trigger build. Here's the curl output..."
+  echo -e "\e[31m${result}\e[0m"
+  exit 1
+fi

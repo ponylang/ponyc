@@ -8,6 +8,8 @@ jobs:
   trigger-nightly-builds-on-cirrusci:
     name: Trigger nightly builds on CirrusCI
     runs-on: ubuntu-latest
+    container:
+      image: ponylang/shared-docker-ci-release:20191107
     steps:
       - uses: actions/checkout@v1
       - name: Send curl request
