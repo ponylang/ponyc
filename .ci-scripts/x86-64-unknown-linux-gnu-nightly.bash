@@ -21,7 +21,7 @@ OS=linux-gnu
 TRIPLE=${ARCH}-${VENDOR}-${OS}
 
 # Build parameters
-MAKE_PARALLELISM=4
+MAKE_PARALLELISM=8
 BUILD_PREFIX=$(mktemp -d)
 DESTINATION=${BUILD_PREFIX}/lib/pony
 PONY_VERSION="nightly-${TODAY}"
