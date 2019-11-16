@@ -4,8 +4,8 @@
 #
 # Builds docker release images with two tags:
 #
-# - release
-# - X.Y.Z for example 0.32.1
+# - release-alpine
+# - X.Y.Z-alpine for example 0.32.1-alpine
 #
 # Tools required in the environment that runs this:
 #
@@ -39,12 +39,14 @@ fi
 # allow above so we can display nice error messages for expected unset variables
 set -o nounset
 
-# Build and push :VERSION tag e.g. ponylang/ponyup:0.32.1
-DOCKER_TAG=${GITHUB_REPOSITORY}:"${VERSION}"
-docker build --pull --file Dockerfile -t "${DOCKER_TAG}" .
+DOCKERFILE_DIR="$(dirname "$0")"
+
+# Build and push :VERSION tag e.g. ponylang/ponyup:0.32.1-alpine
+DOCKER_TAG=${GITHUB_REPOSITORY}:"${VERSION}-alpine"
+docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
 docker push "${DOCKER_TAG}"
 
-# Build and push "release" tag e.g. ponylang/ponyup:release
-DOCKER_TAG=${GITHUB_REPOSITORY}:release
-docker build --pull --file Dockerfile -t "${DOCKER_TAG}" .
+# Build and push "release" tag e.g. ponylang/ponyup:release-alpine
+DOCKER_TAG=${GITHUB_REPOSITORY}:release-alpine
+docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
 docker push "${DOCKER_TAG}"
