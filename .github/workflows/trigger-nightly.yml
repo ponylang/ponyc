@@ -2,7 +2,7 @@ name: Trigger nightly builds
 
 on:
   schedule:
-    - cron: "15 0 * * *"
+    - cron: '25 0 * * *'
 
 jobs:
   trigger-nightly-builds-on-cirrusci:
