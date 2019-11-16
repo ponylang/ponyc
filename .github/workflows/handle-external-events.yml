@@ -34,7 +34,7 @@ jobs:
     if: |
       github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'nightlies' &&
-      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
 
     name: Build latest Alpine based Docker image
     runs-on: ubuntu-latest
