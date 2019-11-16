@@ -4,24 +4,6 @@ orbs:
   zulip: ponylang/zulip@1
 
 jobs:
-  x86-64-unknown-linux-gnu-release:
-    docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
-    steps:
-      - checkout
-      - run: bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
-      - zulip/status:
-          fail_only: true
-
-  x86-64-unknown-linux-musl-release:
-    docker:
-      - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
-    steps:
-      - checkout
-      - run: bash .ci-scripts/x86-64-unknown-linux-musl-release.bash ${CLOUDSMITH_API_KEY}
-      - zulip/status:
-          fail_only: true
-
   # Jobs for building and testing with ponyc system installed cross-llvm
   cross-llvm-701-arm:
     docker:
@@ -79,25 +61,6 @@ jobs:
 
 workflows:
   version: 2.1
-
-  # Build release packages to upload to Cloudsmith
-  build-cloudsmith-release-packages:
-    jobs:
-      - x86-64-unknown-linux-gnu-release:
-          context: org-global
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
-            branches:
-              ignore: /.*/
-
-      - x86-64-unknown-linux-musl-release:
-          context: org-global
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
-            branches:
-              ignore: /.*/
 
   # PR acceptance tests, shouldn't run on `master` or `release` branches
   pr-acceptance-tests:
