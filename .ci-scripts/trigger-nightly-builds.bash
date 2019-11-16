@@ -30,14 +30,14 @@ set -o nounset
 TODAY=$(date +%Y%m%d)
 
 curl -s -X POST https://api.cirrus-ci.com/graphql \
-  -H 'authorization: Bearer $CIRRUS_ACCESS_TOKEN' \
-  -d '{
-    "query": "mutation($input: RepositoryCreateBuildInput!) { createBuild(input: $input) { build { id, repositoryId, status }, clientMutationId } }",
-    "variables": {
-      "input": {
-        "repositoryId": 5677320443527168,
-        "clientMutationId": "${TODAY}",
-        "branch": "master"
+  -H "authorization: Bearer $CIRRUS_ACCESS_TOKEN" \
+  -d "{
+    \"query\": \"mutation($input: RepositoryCreateBuildInput!) { createBuild(input: $input) { build { id, repositoryId, status }, clientMutationId } }\",
+    \"variables\": {
+      \"input\": {
+        \"repositoryId\": 5677320443527168,
+        \"clientMutationId\": \"${TODAY}\",
+        \"branch\": \"master\"
       }
     }
-  }'
+  }"
