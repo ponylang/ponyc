@@ -14,4 +14,6 @@ RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/po
  && ponyup update corral nightly \
  && ponyup update changelog-tool nightly
 
+WORKDIR /src/main
+
 CMD ponyc
