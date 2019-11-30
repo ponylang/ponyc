@@ -44,7 +44,7 @@ BENCHMARK_DEFINE_F(HeapBench, HeapAlloc$)(benchmark::State& st) {
     ponyint_heap_init(&_heap);
     st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(HeapBench, HeapAlloc$)->RangeMultiplier(2)->Ranges({{32, 1024<<10}});
@@ -68,7 +68,7 @@ BENCHMARK_DEFINE_F(HeapBench, HeapAlloc$_)(benchmark::State& st) {
     ponyint_heap_init(&_heap);
     st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)st.iterations() * num_allocs);
 }
 
 BENCHMARK_REGISTER_F(HeapBench, HeapAlloc$_)->RangeMultiplier(2)->Ranges({{32, 1024<<10}, {1<<10, 1<<10}});
@@ -88,7 +88,7 @@ BENCHMARK_DEFINE_F(HeapBench, HeapDestroy$)(benchmark::State& st) {
     st.ResumeTiming();
     ponyint_heap_destroy(&_heap);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   ponyint_heap_init(&_heap);
 }
 
@@ -112,7 +112,7 @@ BENCHMARK_DEFINE_F(HeapBench, HeapDestroyMultiple$)(benchmark::State& st) {
     st.ResumeTiming();
     ponyint_heap_destroy(&_heap);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   ponyint_heap_init(&_heap);
 }
 
@@ -131,7 +131,7 @@ BENCHMARK_DEFINE_F(HeapBench, HeapInitAllocDestroy)(benchmark::State& st) {
       ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size));
     ponyint_heap_destroy(&_heap);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   ponyint_heap_init(&_heap);
 }
 
