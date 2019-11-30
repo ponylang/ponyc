@@ -43,7 +43,7 @@ public:
         if (symbol) return symbol;
 
         auto err = symbol.takeError();
-        if (err) return std::move(err);
+        if (err) return JITSymbol(std::move(err));
 
         auto symaddr = RTDyldMemoryManager::getSymbolAddressInProcess(name);
         if (symaddr)
