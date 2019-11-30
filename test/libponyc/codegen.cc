@@ -107,7 +107,7 @@ static uint32_t num_objects = 0;
 
 EXPORT_SYMBOL void codegentest_small_finalisers_increment_num_objects() {
   num_objects++;
-  pony_exitcode(num_objects);
+  pony_exitcode((int)num_objects);
 }
 
 }
