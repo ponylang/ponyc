@@ -1,10 +1,11 @@
-#include <platform.h>
 #include <stdio.h>
 #include "process.h"
 
+PONY_EXTERN_C_BEGIN
+
 #ifdef PLATFORM_IS_WINDOWS
 
-PONY_EXTERN_C_BEGIN
+
 
 /**
  * Create an anonymous pipe for communicating with another (most likely child)
@@ -107,21 +108,34 @@ PONY_API size_t ponyint_win_process_create(
  * This does block if the process is still running.
  *
  * // https://stackoverflow.com/questions/5487249/how-write-posix-waitpid-analog-for-windows
+ *
+ * possible return values:
+ * 0: all ok, extract the exitcode from exit_code_ptr
+ * 1: process didnt finish yet
+ * anything else: error waiting or getting the process exit code.
  */
-PONY_API int32_t ponyint_win_process_wait(size_t hProcess)
+PONY_API int32_t ponyint_win_process_wait(size_t hProcess, int32_t* exit_code_ptr)
 {
-    // Infinite wait here could be 0 to just poll.
-    if (WaitForSingleObject((HANDLE) hProcess, INFINITE) != 0) {
-        return -1;
+
+    int32_t retval = 0;
+    // just poll
+    DWORD wait_result = WaitForSingleObject((HANDLE) hProcess, 0);
+    if(wait_result == 0) {
+      // process exited
+      if (!GetExitCodeProcess((HANDLE) hProcess, (DWORD*)exit_code_ptr)) { // != 0 is good
+          retval = GetLastError();
+      }
+    } else if(wait_result == 0x80) {
+      // waiting timed out
+      retval = 1;
+    } else {
+      // some other error
+      retval = GetLastError();
     }
 
-    DWORD exit_code = -1;
-    if (!GetExitCodeProcess((HANDLE) hProcess, &exit_code)) { // != 0 is good
-        exit_code = GetLastError();
-    }
     CloseHandle((HANDLE) hProcess);
 
-    return exit_code;
+    return retval;
 }
 
 /**
@@ -137,6 +151,11 @@ PONY_API int32_t ponyint_win_process_kill(size_t hProcess)
     }
 }
 
-PONY_EXTERN_C_END
+#elif defined(PLATFORM_IS_POSIX_BASED)
 
+PONY_API int32_t ponyint_wnohang() {
+  return WNOHANG;
+}
 #endif // PLATFORM_IS_WINDOWS
+
+PONY_EXTERN_C_END

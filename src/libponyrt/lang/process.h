@@ -1,6 +1,8 @@
 #ifndef lang_process_h
 #define lang_process_h
 
+#include <platform.h>
+
 PONY_EXTERN_C_BEGIN
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -15,6 +17,10 @@ PONY_API size_t ponyint_win_process_create(char* appname, char* cmdline,
 PONY_API int32_t ponyint_win_process_wait(size_t hProcess);
 
 PONY_API int32_t ponyint_win_process_kill(size_t hProcess);
+
+#elif defined(PLATFORM_IS_POSIX_BASED)
+
+PONY_API int32_t ponyint_wnohang();
 
 #endif
 

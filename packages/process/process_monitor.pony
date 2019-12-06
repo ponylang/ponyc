@@ -104,7 +104,7 @@ actor ProcessMonitor
   var _done_writing: Bool = false
 
   var _closed: Bool = false
-  var _timers: (Timers tag | None) = None  // For windows only
+  var _timers: (Timers tag | None) = None
 
   new create(
     auth: ProcessMonitorAuth,
@@ -207,26 +207,17 @@ actor ProcessMonitor
       _stdin.begin(this)
       _stdout.begin(this)
       _stderr.begin(this)
-
-      // Asio is not wired up for Windows, so use a timer for now.
-      ifdef windows then
-        let timers = Timers
-        let pm: ProcessMonitor tag = this
-        let tn =
-          object iso is TimerNotify
-            fun ref apply(timer: Timer, count: U64): Bool =>
-              pm.timer_notify()
-              true
-          end
-        let timer = Timer(consume tn, 50_000_000, 10_000_000)
-        timers(consume timer)
-        _timers = timers
-      end
     else
       _notifier.failed(this, ProcessError(ForkError))
       return
     end
+
+    // Asio is not wired up for Windows, so use a timer for now.
+    ifdef windows then
+      _setup_windows_timers()
+    end
     _notifier.created(this)
+
 
   be print(data: ByteSeq) =>
     """
@@ -339,18 +330,60 @@ actor ProcessMonitor
       _stdin.close()
       _stdout.close()
       _stderr.close()
-      let exit_code = _child.wait()
-      if exit_code < 0 then
-        // An error waiting for pid
-        _notifier.failed(this, ProcessError(WaitpidError))
-      else
-        // process child exit code
-        _notifier.dispose(this, exit_code)
-      end
-      match _timers
-      | let t: Timers => t.dispose()
-      end
+      _wait_for_child()
     end
+
+  be _wait_for_child() =>
+    match _child.wait()
+    | _StillRunning =>
+      let timers = _ensure_timers()
+      let pm: ProcessMonitor tag = this
+      let tn =
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            pm._wait_for_child()
+            true
+        end
+      // TODO: make polling interval configurable
+      let timer = Timer(consume tn, 100_000_000, 100_000_000)
+      timers(consume timer)
+    | let ec: _ExitCode =>
+      // process child exit code
+      _notifier.dispose(this, ec.code)
+      _dispose_timers()
+    | let wpe: _WaitPidError =>
+      @printf[None]("wait errored with code: ".cstring(), wpe.error_code.string().cstring())
+      _notifier.failed(this, ProcessError(WaitpidError))
+      _dispose_timers()
+    end
+
+  fun ref _ensure_timers(): Timers tag =>
+    match _timers
+    | None =>
+      let ts = Timers
+      _timers = ts
+      ts
+    | let ts: Timers => ts
+    end
+
+  fun ref _dispose_timers() =>
+    match _timers
+    | let ts: Timers =>
+      ts.dispose()
+      _timers = None
+    end
+
+  fun ref _setup_windows_timers() =>
+    let timers = _ensure_timers()
+    let pm: ProcessMonitor tag = this
+    let tn =
+      object iso is TimerNotify
+        fun ref apply(timer: Timer, count: U64): Bool =>
+          pm.timer_notify()
+          true
+      end
+    let timer = Timer(consume tn, 50_000_000, 10_000_000)
+    timers(consume timer)
 
   fun ref _try_shutdown() =>
     """
