@@ -70,11 +70,64 @@ primitive WNOHANG
       compile_error "no clue what WNOHANG is on this platform."
     end
 
-class val _ExitCode
-  let code: I32
+class val Exited is (Stringable & Equatable[ProcessExitStatus])
+  """
+  Process exit status: Process exited with an exit code.
+  """
+  let _exit_code: I32
 
-  new val create(code': I32) =>
-    code = code'
+  new val create(code: I32) =>
+    _exit_code = code
+
+  fun exit_code(): I32 =>
+    _exit_code
+
+  fun string(): String iso^ =>
+    recover iso
+      String(10)
+        .>append("Exited(")
+        .>append(_exit_code.string())
+        .>append(")")
+    end
+
+  fun eq(other: ProcessExitStatus): Bool =>
+    match other
+    | let e: Exited =>
+      e._exit_code == _exit_code
+    else
+      false
+    end
+
+class val Signaled is (Stringable & Equatable[ProcessExitStatus])
+  """
+  Process exit status: Process was terminated by a signal.
+  """
+  let _signal: U32
+
+  new val create(sig: U32) =>
+    _signal = sig
+
+  fun signal(): U32 =>
+    _signal
+
+  fun string(): String iso^ =>
+    recover iso
+      String(12)
+        .>append("Signaled(")
+        .>append(_signal.string())
+        .>append(")")
+    end
+
+  fun eq(other: ProcessExitStatus): Bool =>
+    match other
+    | let s: Signaled =>
+      s._signal == _signal
+    else
+      false
+    end
+
+
+type ProcessExitStatus is (Exited | Signaled)
 
 class val _WaitPidError
   let error_code: I32
@@ -86,7 +139,8 @@ class val _WaitPidError
     error_code = -1
 
 primitive _StillRunning
-type _WaitResult is (_ExitCode | _WaitPidError | _StillRunning)
+
+type _WaitResult is (ProcessExitStatus | _WaitPidError | _StillRunning)
 
 
 interface _Process
@@ -100,7 +154,7 @@ interface _Process
 
 class _ProcessNone is _Process
   fun kill() => None
-  fun ref wait(): _WaitResult => _ExitCode(0)
+  fun ref wait(): _WaitResult => Exited(0)
 
 class _ProcessPosix is _Process
   let pid: I32
@@ -221,8 +275,19 @@ class _ProcessPosix is _Process
         let wpe = _WaitPidError(@pony_os_errno())
         @pony_os_clear_errno()
         wpe
-      | let exited_pid: I32 if exited_pid == pid => // our process finished
-        _ExitCode((wstatus >> 8) and 0xff)
+      | let exited_pid: I32 if exited_pid == pid => // our process changed state
+        if _WaitPidStatus.exited(wstatus) then
+          Exited(_WaitPidStatus.exit_code(wstatus))
+        elseif _WaitPidStatus.signaled(wstatus) then
+          Signaled(_WaitPidStatus.termsig(wstatus).u32())
+        elseif _WaitPidStatus.stopped(wstatus) then
+          Signaled(_WaitPidStatus.stopsig(wstatus).u32())
+        elseif _WaitPidStatus.continued(wstatus) then
+          _StillRunning
+        else
+          // *shrug*
+          _WaitPidError.unknown_error()
+        end
       | 0 => _StillRunning
       else
         _WaitPidError.unknown_error()
@@ -230,6 +295,33 @@ class _ProcessPosix is _Process
     else
       _WaitPidError.unknown_error()
     end
+
+primitive _WaitPidStatus
+
+  fun exited(wstatus: I32): Bool =>
+    termsig(wstatus) == 0
+
+  fun exit_code(wstatus: I32): I32 =>
+    (wstatus and 0xff00) >> 8
+
+  fun signaled(wstatus: I32): Bool =>
+    ((termsig(wstatus) + 1) >> 1).i8() > 0
+
+  fun termsig(wstatus: I32): I32 =>
+    (wstatus and 0x7f)
+
+  fun stopped(wstatus: I32): Bool =>
+    (wstatus and 0xff) == 0x7f
+
+  fun stopsig(wstatus: I32): I32 =>
+    exit_code(wstatus)
+
+  fun coredumped(wstatus: I32): Bool =>
+    (wstatus and 0x80) != 0
+
+  fun continued(wstatus: I32): Bool =>
+    wstatus == 0xffff
+
 
 class _ProcessWindows is _Process
   let hProcess: USize
@@ -319,10 +411,9 @@ class _ProcessWindows is _Process
     if hProcess != 0 then
       var exit_code: I32 = 0
       match @ponyint_win_process_wait[I32](hProcess, addressof exit_code)
-      | 0 => _ExitCode(exit_code)
+      | 0 => Exited(exit_code)
       | 1 => _StillRunning
       | let code: I32 =>
-        @printf[None]("_ProcessWindows wait returned: ".cstring(), code.string().cstring())
         _WaitPidError(code)
       end
     else

@@ -34,8 +34,14 @@ interface ProcessNotify
     """
     qty
 
-  fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+  fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
     """
     Call when ProcessMonitor terminates to cleanup ProcessNotify.
-    We return the exit code of the child process.
+    We return the exit status of the child process, it can be either an instance of
+    [Exited](process-Exited.md) if the process finished. The childs exit code can be retrieved
+    using [Exited.exit_code()](process-Exited.md#exit_code).
+
+    On Posix systems, if the process has been killed by a signal (e.g. through the `kill` command),
+    `child_exit_status` will be an instance of [Signaled](process-Signaled.md) with the signal number
+    that terminated the process available via [Signaled.signal()](process-Signaled.md#signal).
     """

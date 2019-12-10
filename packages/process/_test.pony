@@ -22,17 +22,71 @@ actor Main is TestList
     test(_TestChdir)
     test(_TestBadChdir)
     test(_TestBadExec)
+    test(_TestLongRunningChild)
+    test(_TestKillLongRunningChild)
 
-primitive _CatPath
-  fun apply(): String =>
+class _PathResolver
+  let _path: Array[FilePath] val
+
+  new create(env_vars: Array[String] val, auth: AmbientAuth) =>
+    let path =
+      for env_var in env_vars.values() do
+        try
+          if env_var.find("PATH=")? == 0 then
+            let paths = Path.split_list(env_var.trim(5))
+            let size = paths.size()
+
+            break
+              recover val
+                Iter[String]((consume paths).values())
+                  .map[FilePath]({(str_path)? => FilePath(auth, str_path)? })
+                  .collect[Array[FilePath] ref](Array[FilePath](size))
+              end
+          end
+        end
+      end
+    match path
+    | let paths: Array[FilePath] val => _path = paths
+    else
+      _path = []
+    end
+
+  fun resolve(name: String): FilePath ? =>
+    for path_candidate in _path.values() do
+      try
+        let candidate = path_candidate.join(name)?
+        if candidate.exists() then
+          // TODO: check if executable for current user
+          return candidate
+        end
+      end
+    end
+    error
+
+primitive _SleepCommand
+  fun path(path_resolver: _PathResolver): String ? =>
+    ifdef windows then
+      "C:\\Windows\\System32\\timeout.exe"
+    else
+      path_resolver.resolve("sleep")?.path
+    end
+
+  fun args(seconds: USize): Array[String] val =>
+    ifdef windows then
+      ["timeout"; "/t"; seconds.string(); "/nobreak"]
+    else
+      ["sleep"; seconds.string()]
+    end
+
+primitive _CatCommand
+  fun path(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\find.exe"
     else
-      "/bin/cat"
+      path_resolver.resolve("cat")?.path
     end
 
-primitive _CatArgs
-  fun apply(): Array[String] val =>
+  fun args(): Array[String] val =>
     ifdef windows then
       ["find"; "/v"; "\"\""]
     else
@@ -40,11 +94,11 @@ primitive _CatArgs
     end
 
 primitive _EchoPath
-  fun apply(): String =>
+  fun apply(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c echo ..."
     else
-      "/bin/echo"
+      path_resolver.resolve("echo")?.path
     end
 
 primitive _BadExecPath
@@ -82,8 +136,11 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h,
       ProcessError(CapError))
     try
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
       let path =
-        FilePath(h.env.root as AmbientAuth, _CatPath(),
+        FilePath(
+          h.env.root as AmbientAuth,
+          _CatCommand.path(path_resolver)?,
           recover val FileCaps .> all() .> unset(FileExec) end)?
       let args: Array[String] val = ["dontcare"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
@@ -140,7 +197,7 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
         end
         _cleanup()
 
-      fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+      fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
         _h.fail("Dispose shouldn't have been called.")
         _h.complete(false)
         _cleanup()
@@ -161,8 +218,9 @@ class iso _TestStdinStdout is UnitTest
     let size: USize = input.size() + ifdef windows then 2 else 0 end
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
-      let args: Array[String] val = _CatArgs()
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
+      let path = FilePath(h.env.root as AmbientAuth, _CatCommand.path(path_resolver)?)?
+      let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -198,12 +256,8 @@ class iso _TestStderr is UnitTest
     let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth,
-        ifdef windows then
-          "C:\\Windows\\System32\\cmd.exe"
-        else
-          _CatPath()
-        end)?
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
+      let path = FilePath(h.env.root as AmbientAuth, _CatCommand.path(path_resolver)?)?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
       else
@@ -252,20 +306,26 @@ class iso _TestExpect is UnitTest
           process.expect(if _expect == 2 then 4 else 2 end)
           _out.push(String.from_array(consume data))
 
-        fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
-          _h.assert_eq[I32](child_exit_code, 0)
-          let expected: Array[String] val = ifdef windows then
-            ["he"; "llo "; "ca"; "rl \r"]
+        fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
+          match child_exit_status
+          | Exited(0) =>
+            let expected: Array[String] val = ifdef windows then
+              ["he"; "llo "; "ca"; "rl \r"]
+            else
+              ["he"; "llo "; "th"; "ere!"]
+            end
+            _h.assert_array_eq[String](_out, expected)
+            _h.complete(true)
           else
-            ["he"; "llo "; "th"; "ere!"]
+            _h.fail("child exited with: " + child_exit_status.string())
+            _h.complete(false)
           end
-          _h.assert_array_eq[String](_out, expected)
-          _h.complete(true)
       end
     end
 
     try
-      let path = FilePath(h.env.root as AmbientAuth, _EchoPath())?
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
+      let path = FilePath(h.env.root as AmbientAuth, _EchoPath(path_resolver)?)?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "echo"; "hello carl"]
       else
@@ -297,8 +357,9 @@ class iso _TestWritevOrdering is UnitTest
     let expected: USize = ifdef windows then 13 else 11 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
-      let args: Array[String] val = _CatArgs()
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
+      let path = FilePath(h.env.root as AmbientAuth, _CatCommand.path(path_resolver)?)?
+      let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -328,8 +389,9 @@ class iso _TestPrintvOrdering is UnitTest
     let expected: USize = ifdef windows then 17 else 14 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
-      let args: Array[String] val = _CatArgs()
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
+      let path = FilePath(h.env.root as AmbientAuth, _CatCommand.path(path_resolver)?)?
+      let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -369,8 +431,9 @@ class iso _TestStdinWriteBuf is UnitTest
 
     let notifier: ProcessNotify iso = _ProcessClient(out_size, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
-      let args: Array[String] val = _CatArgs()
+      let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
+      let path = FilePath(h.env.root as AmbientAuth, _CatCommand.path(path_resolver)?)?
+      let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
@@ -487,6 +550,101 @@ class _TestBadExec is UnitTest
       h.fail("Could not create FilePath!")
     end
 
+class iso _TestLongRunningChild is UnitTest
+  fun name(): String => "process/long-running-child"
+  fun exclusion_group(): String => "process-monitor"
+  fun apply(h: TestHelper)? =>
+    let auth = h.env.root as AmbientAuth
+    let notifier =
+      object iso is ProcessNotify
+        fun ref created(process: ProcessMonitor ref) =>
+          h.log("created")
+        fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+          match err
+          | ExecveError => h.log("execve-error")
+          | ForkError => h.log("fork-error")
+          | PipeError => h.log("pipe-error")
+          | WaitpidError => h.log("waitpid-error")
+          | WriteError => h.log("write-error")
+          | CapError => h.log("cap-error")
+          end
+          h.fail("process failed.")
+
+        fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
+          match child_exit_status
+          | Exited(0) => h.complete(true)
+          else
+            h.fail("process exited with " + child_exit_status.string())
+          end
+      end
+
+    try
+      let path_resolver = _PathResolver(h.env.vars, auth)
+      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)?
+      h.log(path.path)
+      let args = _SleepCommand.args(where seconds = 2)
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(5_000_000_000)
+    else
+      h.fail("failed to set up calling sleep/timeout.")
+    end
+
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class iso _TestKillLongRunningChild is UnitTest
+  fun name(): String => "process/kill-long-running-child"
+  fun exclusion_group(): String => "process-monitor"
+  fun apply(h: TestHelper)? =>
+    let auth = h.env.root as AmbientAuth
+    let notifier =
+      object iso is ProcessNotify
+        fun ref created(process: ProcessMonitor ref) =>
+          h.log("created")
+        fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+          match err
+          | ExecveError => h.log("execve-error")
+          | ForkError => h.log("fork-error")
+          | PipeError => h.log("pipe-error")
+          | WaitpidError => h.log("waitpid-error")
+          | WriteError => h.log("write-error")
+          | CapError => h.log("cap-error")
+          end
+          h.fail("process failed.")
+
+        fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
+          match child_exit_status
+          | Signaled(15) => h.complete(true)
+          else
+            h.fail("process exited with " + child_exit_status.string())
+            h.complete(false)
+          end
+      end
+
+    try
+      let path_resolver = _PathResolver(h.env.vars, auth)
+      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)?
+      h.log(path.path)
+      let args = _SleepCommand.args(where seconds = 2)
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      pm.dispose()
+      pm.done_writing()
+      h.long_test(3_000_000_000)
+    else
+      h.fail("failed to set up calling sleep/timeout.")
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
@@ -555,13 +713,20 @@ class _ProcessClient is ProcessNotify
       _h.fail(actual.string())
     end
 
-  fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+  fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
     """
     Called when ProcessMonitor terminates to cleanup ProcessNotify
     We receive the exit code of the child process from ProcessMonitor.
     """
     let last_data: U64 = Time.nanos()
-    _h.log("dispose: child exit code: " + child_exit_code.string())
+    match child_exit_status
+    | let e: Exited =>
+      _h.log("dispose: child exit code: " + e.exit_code().string())
+      _h.assert_eq[I32](_exit_code, e.exit_code())
+    | let s: Signaled =>
+      _h.log("dispose: child terminated by signal: " + s.signal().string())
+      _h.fail("didn't expect that.")
+    end
     _h.log("dispose: stdout: " + _d_stdout_chars.string() + " bytes")
     _h.log("dispose: stderr: '" + _d_stderr + "'")
     if (_first_data > 0) then
@@ -576,5 +741,4 @@ class _ProcessClient is ProcessNotify
     _h.assert_eq[USize](_out, _d_stdout_chars)
     _h.assert_eq[USize](_err.size(), _d_stderr.size())
     _h.assert_eq[String box](_err, _d_stderr)
-    _h.assert_eq[I32](_exit_code, child_exit_code)
     _h.complete(true)
