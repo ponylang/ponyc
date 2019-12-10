@@ -3,6 +3,15 @@
 
 PONY_EXTERN_C_BEGIN
 
+#ifdef PLATFORM_IS_POSIX_BASED
+
+#include <sys/wait.h>
+
+PONY_API int32_t ponyint_wnohang() {
+  return WNOHANG;
+}
+#endif
+
 #ifdef PLATFORM_IS_WINDOWS
 
 
@@ -149,12 +158,6 @@ PONY_API int32_t ponyint_win_process_kill(size_t hProcess)
     } else {
         return GetLastError();
     }
-}
-
-#elif defined(PLATFORM_IS_POSIX_BASED)
-
-PONY_API int32_t ponyint_wnohang() {
-  return WNOHANG;
 }
 #endif // PLATFORM_IS_WINDOWS
 
