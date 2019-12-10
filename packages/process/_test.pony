@@ -5,6 +5,7 @@ use "collections"
 use "files"
 use "itertools"
 use "time"
+use "signals"
 
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -619,7 +620,7 @@ class iso _TestKillLongRunningChild is UnitTest
 
         fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
           match child_exit_status
-          | Signaled(15) => h.complete(true)
+          | Signaled(Sig.term()) => h.complete(true)
           else
             h.fail("process exited with " + child_exit_status.string())
             h.complete(false)
