@@ -67,14 +67,14 @@ class _PathResolver
 primitive _SleepCommand
   fun path(path_resolver: _PathResolver): String ? =>
     ifdef windows then
-      "C:\\Windows\\System32\\timeout.exe"
+      "C:\\Windows\\System32\\ping.exe"
     else
       path_resolver.resolve("sleep")?.path
     end
 
   fun args(seconds: USize): Array[String] val =>
     ifdef windows then
-      ["timeout"; "/t"; seconds.string(); "/nobreak"]
+      ["ping"; "127.0.0.1"; "-n"; seconds.string()]
     else
       ["sleep"; seconds.string()]
     end
