@@ -560,6 +560,12 @@ class iso _TestLongRunningChild is UnitTest
       object iso is ProcessNotify
         fun ref created(process: ProcessMonitor ref) =>
           h.log("created")
+
+        fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+          h.log("[STDOUT] " + recover val String.from_iso_array(consume data) end)
+        fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
+          h.log("[STDERR] " + recover val String.from_iso_array(consume data) end)
+
         fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
           match err
           | ExecveError => h.log("execve-error")
@@ -607,6 +613,12 @@ class iso _TestKillLongRunningChild is UnitTest
       object iso is ProcessNotify
         fun ref created(process: ProcessMonitor ref) =>
           h.log("created")
+
+        fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+          h.log("[STDOUT] " + recover val String.from_iso_array(consume data) end)
+        fun ref stderr(process: ProcessMonitor ref, data: Array[U8] iso) =>
+          h.log("[STDERR] " + recover val String.from_iso_array(consume data) end)
+
         fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
           match err
           | ExecveError => h.log("execve-error")
@@ -620,7 +632,18 @@ class iso _TestKillLongRunningChild is UnitTest
 
         fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
           match child_exit_status
-          | Signaled(Sig.term()) => h.complete(true)
+          | Signaled(Sig.term()) =>
+            ifdef posix then
+              h.complete(true)
+            elseif windows then
+              h.fail("should not happen on windows.")
+            end
+          | Exited(0) =>
+            ifdef windows then
+              h.complete(true)
+            else
+              h.fail("should be signaled on posix.")
+            end
           else
             h.fail("process exited with " + child_exit_status.string())
             h.complete(false)
