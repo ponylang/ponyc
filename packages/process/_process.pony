@@ -1,7 +1,6 @@
 use "signals"
 use "files"
 use @pony_os_errno[I32]()
-use @pony_os_clear_errno[None]()
 
 // for Windows System Error Codes see: https://docs.microsoft.com/de-de/windows/desktop/Debug/system-error-codes
 primitive _ERRORBADEXEFORMAT
@@ -128,19 +127,15 @@ class val Signaled is (Stringable & Equatable[ProcessExitStatus])
 
 
 type ProcessExitStatus is (Exited | Signaled)
-
-class val _WaitPidError
-  let error_code: I32
-
-  new val create(code: I32) =>
-    error_code = code
-
-  new val unknown_error() =>
-    error_code = -1
+  """
+  Representing possible exit states of processes.
+  A process either exited with an exit code or, only on posix systems,
+  has been terminated by a signal.
+  """
 
 primitive _StillRunning
 
-type _WaitResult is (ProcessExitStatus | _WaitPidError | _StillRunning)
+type _WaitResult is (ProcessExitStatus | WaitpidError | _StillRunning)
 
 
 interface _Process
@@ -272,9 +267,9 @@ class _ProcessPosix is _Process
       // poll, do not block
       match @waitpid[I32](pid, addressof wstatus, options)
       | let err: I32 if err < 0 =>
-        let wpe = _WaitPidError(@pony_os_errno())
-        @pony_os_clear_errno()
-        wpe
+        // one could possibly do at some point:
+        //let wpe = WaitPidError(@pony_os_errno())
+        WaitpidError
       | let exited_pid: I32 if exited_pid == pid => // our process changed state
         if _WaitPidStatus.exited(wstatus) then
           Exited(_WaitPidStatus.exit_code(wstatus))
@@ -286,14 +281,14 @@ class _ProcessPosix is _Process
           _StillRunning
         else
           // *shrug*
-          _WaitPidError.unknown_error()
+          WaitpidError
         end
       | 0 => _StillRunning
       else
-        _WaitPidError.unknown_error()
+        WaitpidError
       end
     else
-      _WaitPidError.unknown_error()
+      WaitpidError
     end
 
 primitive _WaitPidStatus
@@ -414,9 +409,11 @@ class _ProcessWindows is _Process
       | 0 => Exited(exit_code)
       | 1 => _StillRunning
       | let code: I32 =>
-        _WaitPidError(code)
+        // we might want to propagate that code to the user, but should it do
+        // for other errors too
+        WaitpidError
       end
     else
-      _WaitPidError.unknown_error()
+      WaitpidError
     end
 

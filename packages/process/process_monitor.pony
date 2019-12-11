@@ -123,6 +123,7 @@ actor ProcessMonitor
 
   var _closed: Bool = false
   var _timers: (Timers tag | None) = None
+  let _process_poll_interval: U64
 
   new create(
     auth: ProcessMonitorAuth,
@@ -131,7 +132,8 @@ actor ProcessMonitor
     filepath: FilePath,
     args: Array[String] val,
     vars: Array[String] val,
-    wdir: (FilePath | None) = None)
+    wdir: (FilePath | None) = None),
+    process_poll_interval: U64 = Nanos.from_millis(100))
   =>
     """
     Create infrastructure to communicate with a forked child process and
@@ -140,6 +142,7 @@ actor ProcessMonitor
     """
     _backpressure_auth = backpressure_auth
     _notifier = consume notifier
+    _process_poll_interval = process_poll_interval
 
     // We need permission to execute and the
     // file itself needs to be an executable
@@ -363,13 +366,13 @@ actor ProcessMonitor
             true
         end
       // TODO: make polling interval configurable
-      let timer = Timer(consume tn, 100_000_000, 100_000_000)
+      let timer = Timer(consume tn, _process_poll_interval, _process_poll_interval)
       timers(consume timer)
     | let exit_status: ProcessExitStatus =>
       // process child exit code or termination signal
       _notifier.dispose(this, exit_status)
       _dispose_timers()
-    | let wpe: _WaitPidError =>
+    | let wpe: WaitpidError =>
       _notifier.failed(this, ProcessError(WaitpidError))
       _dispose_timers()
     end
