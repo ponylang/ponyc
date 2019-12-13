@@ -154,7 +154,7 @@ The images are built via GitHub action after Cloudsmith releases have been uploa
 
 Once the DockerHub images have been updated, visit the [Pony Playground](https://playground.ponylang.io/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
 
-If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, or @plietar.
+If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, @mfelsche, @aturley, @kubali or @theodus.
 
 ### Merge the release blog post PR for the ponylang website
 
