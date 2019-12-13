@@ -14,7 +14,6 @@ In order to do a release, you absolutely must have:
 While not strictly required, you probably be unable to deal with any errors that arise without:
 
 * A [bintray account](https://bintray.com/) and have been granted access `pony-language` organization by a "release admin".
-* Read and write access to the ponylang [circleci](https://circleci.com) account
 * Read and write access to the ponylang [appveyor](https://www.appveyor.com) account
 * Read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
@@ -24,7 +23,6 @@ We rely on both CircleCI and Appveyor as part of our release process. Both need 
 
 * [Appveyor Status](https://appveyor.statuspage.io)
 * [Bintray Status](http://status.bintray.com)
-* [CircleCI Status](https://status.circleci.com/)
 
 ### A GitHub issue exists for the release
 
@@ -150,7 +148,7 @@ As part of every release, 4 Docker images are built:
   - release-alpine
   - 0.3.1-alpine
 
-The images are built on [CircleCI](https://circleci.com/gh/ponylang/ponyc). You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
+The images are built via GitHub action after Cloudsmith releases have been uploaded. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
 
 ### Verify that the Pony Playground updated to the new version
 
