@@ -1,7 +1,7 @@
 # Build image
 
 ```bash
-docker build -t ponylang/ponyc-ci:cross-llvm-7.0.1-arm .
+docker build --pull -t ponylang/ponyc-ci:cross-llvm-7.0.1-arm .
 ```
 
 # Run image to test

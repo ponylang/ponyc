@@ -7,7 +7,6 @@ This document is aimed at members of the Pony team who might be cutting a releas
 In order to do a release, you absolutely must have:
 
 * Commit access to the `ponyc` repo
-* Verison 0.3.x of the [changelog tool](https://github.com/ponylang/changelog-tool/releases) installed
 * Access to the ponylang twitter account
 * Accounts on reddit/hacker news/lobste.rs for posting release notes
 * An account on the [Pony Zulip](https://ponylang.zulipchat.com)
@@ -15,34 +14,17 @@ In order to do a release, you absolutely must have:
 While not strictly required, you probably be unable to deal with any errors that arise without:
 
 * A [bintray account](https://bintray.com/) and have been granted access `pony-language` organization by a "release admin".
-* Read and write access to the ponylang [travis-ci](https://travis-ci.org) account
 * Read and write access to the ponylang [circleci](https://circleci.com) account
 * Read and write access to the ponylang [appveyor](https://www.appveyor.com) account
 * Read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
-## Prerequisites for specific releases
-
-Before getting started, you will need a number for the version that you will be releasing as well as an agreed upon "golden commit" that will form the basis of the release.  Any commit is eligible to be a "golden commit" so long as:
-
-* It passed all CI checks
-
-While not strictly necessary, it is recommended to ensure one of the following to confirm that packaging isn't broken:
-
-* Confirm that the last Travis CI daily cron triggered jobs ran successfully (https://travis-ci.org/ponylang/ponyc/builds)
-* Manually kick off a run via an "API request" using the "Trigger Build" functionality in the Travis Web UI and wait to confirm all the jobs run successfully (https://travis-ci.org/ponylang/ponyc/builds)
-
-Both of these go through the motions to build all the packages we normally create to confirm there aren't any issues. While this will not guarantee no errors in other parts of the "release" CI run, it does confirm that there will not be any packaging related errors.
-
-If these jobs are not passing, you should get the issues resolved prior to releasing as both DEB and RPM packaging work off of the tag in GitHub and any changes or fixes made after tagging will not be included and will require a new release to be tagged.
-
 ### Validate external services are functional
 
-We rely on both Travis CI and Appveyor as part of our release process. Both need to be up and functional in order to do a release. Check the status of each before starting a release. If either is reporting issues, push the release back a day or until whenever they both are reporting no problems.
+We rely on both CircleCI and Appveyor as part of our release process. Both need to be up and functional in order to do a release. Check the status of each before starting a release. If either is reporting issues, push the release back a day or until whenever they both are reporting no problems.
 
-* [Travis CI Status](https://www.traviscistatus.com)
 * [Appveyor Status](https://appveyor.statuspage.io)
-* [COPR Build System](https://status.fedoraproject.org/)
 * [Bintray Status](http://status.bintray.com)
+* [CircleCI Status](https://status.circleci.com/)
 
 ### A GitHub issue exists for the release
 
@@ -50,20 +32,23 @@ All releases should have a corresponding issue in the [ponyc repo](https://githu
 
 ## Releasing
 
-Please note that the release script was written with the assumption that you are using a clone of the `ponylang/ponyc` repo. You have to be using a clone rather than a fork. Further, due to how git works, you need to make sure that both your `master` and `release` branches are up-to-date. It is advised to your do this but making a fresh clone of the ponyc repo from which you will release. For example:
+Please note that this document was written with the assumption that you are using a clone of the `ponyc` repo. You have to be using a clone rather than a fork. It is advised that you do this by making a fresh clone of the `ponyc` repo from which you will release.
 
 ```bash
 git clone git@github.com:ponylang/ponyc.git ponyc-release-clean
 cd ponyc-release-clean
 ```
 
-For the duration of this document, we will pretend the "golden commit" version is `8a8ee28` and the version is `0.3.1`. Any place you see those values, please substitute your own version.
+Before getting started, you will need a number for the version that you will be releasing as well as an agreed upon "golden commit" that will form the basis of the release.
 
-With that in mind, run the release script:
+The "golden commit" must be `HEAD` on the `master` branch of this repository. At this time, releasing from any other location is not supported.
 
-- bash release.bash 0.3.1 8a8ee28
+For the duration of this document, that we are releasing version is `0.3.1`. Any place you see those values, please substitute your own version.
 
-If the golden commit does not include the most recent CHANGELOG updates, you will have to answer `n` to the second prompt and merge the changes manually.
+```bash
+git tag release-0.3.1
+git push origin release-0.3.1
+```
 
 ### Update the GitHub issue
 
@@ -72,10 +57,6 @@ Leave a comment on the GitHub issue for this release to let everyone know you ar
 ### "Update" PRs for CHANGELOG
 
 Go through all open PRs and check to see if they are updating the CHANGELOG. If they are, leave a note asking them to merge the latest CHANGELOG into their branch because of the recent versioning for release and to move their additions into the appropriate area of "unreleased".
-
-### Add CHANGELOG entries to GitHub releases
-
-By now GitHub should have a listing of this new release under [releases](https://github.com/ponylang/ponyc/releases). Click the `0.3.1` then do "Edit Release". Paste the CHANGELOG entries for this release into the box and update.
 
 ### Update Homebrew
 
@@ -117,35 +98,17 @@ Additionally, any breaking changes that require end users to change their code s
 
 [Examples of prior release posts](https://www.ponylang.io/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponylang.github.io/pull/284/files))
 
-### Wait on Travis and Appveyor
+### Wait on Appveyor
 
-During the time since you push to the release branch, Travis CI and Appveyor have been busy building release artifacts. This can take up to a couple hours depending on how busy they are. Periodically check bintray to see if the releases are there yet.
+During the time since you push to the release branch, Appveyor has been busy building the Windows release artifact. This can take up to a couple hours depending on how busy Appveyor is. Periodically check Bintray to see if the release is up yet.
 
-* [Travis CI](https://travis-ci.org/ponylang/ponyc/builds) (confirm that the Travis jobs for the `release` branch ran successfully)
-* [Debian](https://bintray.com/pony-language/ponylang-debian/ponyc)
 * [Windows](https://bintray.com/pony-language/ponyc-win/ponyc)
 
-The pattern for releases is similar as what we previously saw. In the case of Deb, the version looks something like:
-
-`0.3.1`
-
-It is recommended to check the files for the Deb version to ensure that every distribution we support has a file successfully uploaded.
-
-For windows, the versions look something like:
+The pattern for releases is similar as what we previously saw:
 
 `ponyc-release-0.3.1-1526.8a8ee28`
 
 where the `1526` is the AppVeyor build number and the `8a8ee28` is the abbreviated SHA for the commit we built from.
-
-### Wait on COPR
-
-The Travis CI build for the release branch kicks off packaging builds on Fedora COPR. These packaging builds can take some time but are usually quick. Periodically check to see if the releases are finished and published on this site:
-
-* [Fedora COPR](https://copr.fedorainfracloud.org/coprs/ponylang/ponylang/builds/)
-
-The pattern for packaging release builds is similar as what we previously saw. The version looks something like:
-
-`0.3.1-1.fc27` (confirm `status` is `succeeded`)
 
 ### Wait on Cloudsmith releases
 
@@ -178,14 +141,12 @@ Note that its often quite quick to get everything through Homebrew's CI and merg
 
 ### Wait on Docker images to be built
 
-As part of every release, 6 Docker images are built:
+As part of every release, 4 Docker images are built:
 
 - Ubuntu images
-  - latest
   - release
   - 0.3.1
 - Alpine images
-  - alpine
   - release-alpine
   - 0.3.1-alpine
 

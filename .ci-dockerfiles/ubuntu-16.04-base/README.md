@@ -5,7 +5,7 @@ This docker image is used as a base for most of the other images for testing dif
 # Build image
 
 ```bash
-docker build -t ponylang/ponyc-ci:ubuntu-16.04-base .
+docker build --pull -t ponylang/ponyc-ci:ubuntu-16.04-base .
 ```
 
 # Run image to test

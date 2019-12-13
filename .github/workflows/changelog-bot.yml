@@ -1,16 +1,18 @@
 name: Changelog Bot
 
 on:
-  pull_request:
-    types: [closed]
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - CHANGELOG.md
 
 jobs:
   changelog-bot:
     runs-on: ubuntu-latest
     name: Update CHANGELOG.md
     steps:
-      - uses: actions/checkout@v1
-      - name: Update Changelog if applicable
-        uses: ponylang/changelog-bot-action@0.0.1
+      - name: Update Changelog
+        uses: ponylang/changelog-bot-action@0.1.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

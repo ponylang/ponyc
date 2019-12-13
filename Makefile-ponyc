@@ -40,6 +40,28 @@ else
   endif
 endif
 
+# By default, CC is cc and CXX is g++
+# So if you use standard alternatives on many Linuxes
+# You can get clang and g++ and then bad things will happen
+ifneq (,$(shell $(CC) --version 2>&1 | grep clang))
+  ifneq (,$(shell $(CXX) --version 2>&1 | grep "Free Software Foundation"))
+    CXX = c++
+  endif
+
+  ifneq (,$(shell $(CXX) --version 2>&1 | grep "Free Software Foundation"))
+    $(error CC is clang but CXX is g++. They must be from matching compilers.)
+  endif
+else ifneq (,$(shell $(CC) --version 2>&1 | grep "Free Software Foundation"))
+  ifneq (,$(shell $(CXX) --version 2>&1 | grep clang))
+    CXX = c++
+  endif
+
+  ifneq (,$(shell $(CXX) --version 2>&1 | grep clang))
+    $(error CC is gcc but CXX is clang++. They must be from matching compilers.)
+  endif
+endif
+
+
 ifdef LTO_PLUGIN
   lto := yes
 endif
@@ -143,7 +165,7 @@ BITS := $(bits)
 UNAME_M := $(shell uname -m)
 
 ifeq ($(BITS),64)
-  ifeq ($(UNAME_M),x86_64)
+  ifneq (,$(filter $(UNAME_M), x86_64 amd64))
     ifeq (,$(filter $(arch), armv8-a))
       BUILD_FLAGS += -mcx16
       LINKER_FLAGS += -mcx16
@@ -164,7 +186,9 @@ endif
 
 ifneq (,$(filter $(link),static llvm-static))
   LLVM_LINKING =--link-static
-  LINKER_FLAGS += -static-libstdc++
+  ifeq (,$(filter $(OSTYPE),bsd osx))
+    LINKER_FLAGS += -static-libstdc++
+  endif
   ifneq (,$(shell $(CC) -v 2>&1 | grep gcc))
     LINKER_FLAGS += -static-libgcc
   endif
@@ -336,10 +360,10 @@ ifneq ($(MAKECMDGOALS),clean)
   ifeq ($(llvm_version),3.9.1)
   else ifeq ($(llvm_version),5.0.2)
   else ifeq ($(llvm_version),6.0.1)
-  else ifeq ($(llvm_version),7.0.1)
+  else ifeq ($(llvm_version),7.1.0)
   else
     $(warning WARNING: Unsupported LLVM version: $(llvm_version))
-    $(warning Please use LLVM 3.9.1, 5.0.2, 6.0.1, 7.0.1)
+    $(warning Please use LLVM 3.9.1, 5.0.2, 6.0.1, 7.1.0)
   endif
 
   # Third party, but prebuilt. Prebuilt libraries are defined as
@@ -594,7 +618,8 @@ libponyc.benchmarks.buildoptions += -DLLVM_BUILD_MODE=$(LLVM_BUILD_MODE)
 
 libgbenchmark.buildoptions := \
   -Wshadow -pedantic -pedantic-errors \
-  -Wfloat-equal -fstrict-aliasing -Wstrict-aliasing -Wno-invalid-offsetof \
+  -fstrict-aliasing -Wstrict-aliasing \
+  -Wno-invalid-offsetof -Wno-deprecated-declarations \
   -DHAVE_POSIX_REGEX -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK
 
 ifneq ($(ALPINE),)
@@ -1051,9 +1076,6 @@ test-cross-ci: test-ci
 
 docs: all
 	$(SILENT)$(PONY_BUILD_DIR)/ponyc packages/stdlib --docs-public --pass expr
-
-docs-online: docs
-	$(SILENT)$(SED_INPLACE) 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
 
 # Note: linux only
 define EXPAND_DEPLOY

@@ -1,0 +1,18 @@
+name: Start a release
+
+on:
+  push:
+    tags: release-*.*.*
+
+jobs:
+  start-a-release:
+    name: Start a release
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/shared-docker-ci-release:20191107
+    steps:
+      - uses: actions/checkout@v1
+      - name: Start release process
+        run: bash .ci-scripts/release.bash "${GITHUB_REF}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,89 @@
+name: Handle external events
+
+on: repository_dispatch
+
+jobs:
+  log-external-event:
+    name: Log all incoming events
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log event
+        run: echo "$EVENT"
+        env:
+          EVENT: ${{ toJson(github.event) }}
+
+  build-latest-gnu-docker-image:
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
+
+    name: Build latest GNU Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .dockerfiles/latest/x86-64-unknown-linux-gnu/build-and-push.bash
+
+  build-latest-musl-docker-image:
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
+
+    name: Build latest musl Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .dockerfiles/latest/x86-64-unknown-linux-musl/build-and-push.bash
+
+  build-release-gnu-docker-image:
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'releases' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-gnu.tar.gz'
+
+    name: Build release GNU Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .dockerfiles/release/x86-64-unknown-linux-gnu/build-and-push.bash
+        env:
+          VERSION: ${{ github.event.client_payload.data.version }}
+
+  build-release-musl-docker-image:
+    if: |
+      github.event.action == 'cloudsmith-package-synchronised' &&
+      github.event.client_payload.data.repository == 'releases' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
+
+    name: Build release musl Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .dockerfiles/release/x86-64-unknown-linux-musl/build-and-push.bash
+        env:
+          VERSION: ${{ github.event.client_payload.data.version }}

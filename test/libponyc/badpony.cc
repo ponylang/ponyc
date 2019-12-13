@@ -1072,3 +1072,15 @@ TEST_F(BadPonyTest, AllowAliasForNonEphemeralReturn)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(BadPonyTest, AllowNestedTupleAccess)
+{
+  // From issue #3354
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "        let x = (1, (2, 3))._2._1";
+
+  TEST_ERRORS_1(src,
+    "Cannot look up member _2 on a literal")
+}
