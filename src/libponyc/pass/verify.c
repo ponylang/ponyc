@@ -96,19 +96,19 @@ static bool verify_assign_lvalue(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static size_t funref_hash(ast_t** key)
+static size_t funref_hash(ast_t* key)
 {
-  return ponyint_hash_ptr(*key);
+  return ponyint_hash_ptr(key);
 }
 
-static bool funref_cmp(ast_t** a, ast_t** b)
+static bool funref_cmp(ast_t* a, ast_t* b)
 {
-  return *a == *b;
+  return a == b;
 }
 
-DECLARE_HASHMAP(consume_funs, consume_funs_t, ast_t*);
+DECLARE_HASHMAP(consume_funs, consume_funs_t, ast_t);
 
-DEFINE_HASHMAP(consume_funs, consume_funs_t, ast_t*, funref_hash,
+DEFINE_HASHMAP(consume_funs, consume_funs_t, ast_t, funref_hash,
   funref_cmp, NULL);
 
 // This function generates the fully qualified string (without the `this`) for a
@@ -269,13 +269,13 @@ static bool verify_fun_field_not_referenced(pass_opt_t* opt, ast_t* ast,
 
       size_t index = HASHMAP_UNKNOWN;
 
-      ast_t** fref = consume_funs_get(consume_funs_map, &fun_def, &index);
+      ast_t* fref = consume_funs_get(consume_funs_map, fun_def, &index);
 
       // add to hashmap and evaluate if we haven't seen this function yet
       if(fref == NULL)
       {
         // add to hashmap
-        consume_funs_putindex(consume_funs_map, &fun_def, index);
+        consume_funs_putindex(consume_funs_map, fun_def, index);
 
         // recursive check child
         // TODO: open question, print full function call tree?
