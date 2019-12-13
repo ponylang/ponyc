@@ -2,20 +2,17 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.33.1] - 2019-12-13
 
 ### Fixed
 
 - Fix building ponyc with clang on Ubuntu ([PR #3378](https://github.com/ponylang/ponyc/pull/3378))
 - Fix error using latest VS2019 to build ponyc ([PR #3369](https://github.com/ponylang/ponyc/pull/3369))
 
-### Added
-
-
 ### Changed
 
-
 - Update default LLVM 7.1.0 ([PR #3377](https://github.com/ponylang/ponyc/pull/3377))
+
 ## [0.33.0] - 2019-11-01
 
 ### Fixed
