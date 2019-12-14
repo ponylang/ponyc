@@ -5,21 +5,21 @@ orbs:
 
 jobs:
   # Jobs for building and testing with ponyc system installed cross-llvm
-  cross-llvm-701-arm:
+  arm:
     docker:
-      - image: ponylang/ponyc-ci:cross-llvm-7.0.1-arm
+      - image: ponylang/ponyc-ci-cross-arm:20191214
         user: pony
     steps:
       - checkout
       # build and test for x86_64 first
-      - run: make config=release verbose=1 -j3 all
-      - run: make config=release verbose=1 test-ci
+      #- run: make config=release verbose=1 -j3 all
+      #- run: make config=release verbose=1 test-ci
       # build libponyrt for target arch
-      - run: make config=release verbose=1 CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a tune=cortex-a9 bits=32 CFLAGS="-idirafter /usr/cross/include/" CXXFLAGS="-idirafter /usr/cross/include/" LDFLAGS="-idirafter /usr/cross/include/" PONYPATH=/usr/cross/lib -j3 libponyrt
+      - run: make -f Makefile-lib-llvm config=release verbose=1 CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a tune=cortex-a9 bits=32 CFLAGS="-idirafter /usr/cross/include/" CXXFLAGS="-idirafter /usr/cross/include/" LDFLAGS="-idirafter /usr/cross/include/" PONYPATH=/usr/cross/lib -j3 libponyrt
       # build ponyc for target cross compilation
-      - run: make config=release verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" -j3 all
+      - run: make -f Makefile-lib-llvm config=release verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" -j3 all
       # run tests for cross built stdlib using ponyc cross building support
-      - run: make config=release verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" test-cross-ci
+      - run: make -f Makefile-lib-llvm  config=release verbose=1 PONYPATH=/usr/cross/lib cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc QEMU_RUNNER="qemu-arm-static --cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" test-cross-ci
       - zulip/status:
           fail_only: true
 
@@ -66,7 +66,7 @@ workflows:
   pr-acceptance-tests:
     jobs:
       # p2 cross compilation tests
-      - cross-llvm-701-arm:
+      - arm:
           context: org-global
           filters:
             branches:
