@@ -6,7 +6,8 @@ RUN apk add --update \
     curl \
     build-base \
     binutils-gold \
-    libexecinfo-dev
+    libexecinfo-dev \
+    libexecinfo-static
 
 RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
  && ponyup update ponyc release --libc=musl \
