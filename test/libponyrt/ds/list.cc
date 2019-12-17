@@ -151,7 +151,7 @@ TEST_F(ListTest, ListPop)
  */
 TEST_F(ListTest, ListIndexAbsolute)
 {
-  size_t i = 1;
+  ssize_t i = 1;
 
   elem_t e1;
   elem_t e2;

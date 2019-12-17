@@ -84,7 +84,7 @@ void HashMapBench::delete_elements(size_t del_pct, size_t count)
   // delete random items until map size is as small as required
   while(testmap_size(&_map) > final_count)
   {
-    e1->key = rand() % count;
+    e1->key = (size_t)rand() % count;
 
     hash_elem_t* d = testmap_remove(&_map, e1);
     if(d != NULL)
@@ -132,7 +132,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashDestroy$)(benchmark::State& st) {
     testmap_destroy(&_map);
   }
   testmap_init(&_map, sz);
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashDestroy$)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {0, 0}});
@@ -164,7 +164,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashResize$)(benchmark::State& st) {
     st.ResumeTiming();
     testmap_put(&_map, curr);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashResize$)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {0, 0}});
@@ -187,7 +187,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashNext)(benchmark::State& st) {
       break; // Needed to skip the rest of the iteration.
     }
   }
-  st.SetItemsProcessed(st.iterations() * (testmap_size(&_map) + 1));
+  st.SetItemsProcessed((int64_t)(st.iterations() * (testmap_size(&_map) + 1)));
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashNext)->RangeMultiplier(2)->Ranges({{1, 32<<10}, {1, 32}});
@@ -204,7 +204,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashPut)(benchmark::State& st) {
     testmap_put(&_map, curr);
     i++;
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   for(i = 0; i < _map.contents.size; i++)
     testmap_clearindex(&_map, i);
   free_elem(curr);
@@ -222,7 +222,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashPutResize)(benchmark::State& st) {
     testmap_put(&_map, curr);
     i++;
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   for(i = 0; i < _map.contents.size; i++)
     testmap_clearindex(&_map, i);
   free_elem(curr);
@@ -245,7 +245,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashPutNew)(benchmark::State& st) {
   }
   if(curr != NULL)
     free_elem(curr);
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashPutNew)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}});
@@ -261,7 +261,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashPutNewResize)(benchmark::State& st) {
     testmap_put(&_map, curr);
     i++;
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashPutNewResize)->RangeMultiplier(2)->Ranges({{1, 1}, {0, 0}});
@@ -288,7 +288,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
       testmap_remove(&_map, curr);
     }
   }
-  st.SetItemsProcessed(st.iterations() * sz);
+  st.SetItemsProcessed((int64_t)(st.iterations() * sz));
   for(size_t i = 0; i < sz; i++)
     free_elem(a[i]);
   free_elem(curr);
@@ -314,14 +314,14 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
     size_t t = 0;
     size_t r = 0;
     for(size_t i = 0; i < map_count; i++) {
-      r = rand() & map_count_mask;
+      r = (size_t)rand() & map_count_mask;
       t = a[r];
       a[r] = a[i];
       a[i] = t;
     }
   } else {
     for(size_t i = 0; i < map_count; i++) {
-      a[i] = rand() + incr;
+      a[i] = (size_t)rand() + incr;
     }
   }
 
@@ -332,7 +332,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
     testmap_get(&_map, e1, &index);
     j++;
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   ponyint_pool_free_size(map_count, a);
   free_elem(e1);
   e1 = nullptr;
@@ -378,20 +378,20 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
           a[i] = n->key;
         }
       } else {
-        a[i] = a[rand() % map_count];
+        a[i] = a[(size_t)rand() % map_count];
       }
     }
     size_t t = 0;
     size_t r = 0;
     for(size_t i = 0; i < array_size; i++) {
-      r = rand() & array_size_mask;
+      r = (size_t)rand() & array_size_mask;
       t = a[r];
       a[r] = a[i];
       a[i] = t;
     }
   } else {
     for(size_t i = 0; i < array_size; i++) {
-      a[i] = rand() + count;
+      a[i] = (size_t)rand() + count;
     }
   }
 
@@ -402,7 +402,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
     testmap_get(&_map, e1, &ind);
     j++;
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
   ponyint_pool_free_size(array_size, a);
   free_elem(e1);
   e1 = nullptr;

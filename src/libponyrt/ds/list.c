@@ -49,7 +49,7 @@ list_t* ponyint_list_next(list_t* list)
 list_t* ponyint_list_index(list_t* list, ssize_t index)
 {
   if(index < 0)
-    index = ponyint_list_length(list) + index;
+    index = (ssize_t)ponyint_list_length(list) + index;
 
   for(int i = 0; (list != NULL) && (i < index); i++)
     list = list->next;
