@@ -1,6 +1,6 @@
 FROM alpine:3.10
 
-ENV PATH "/root/.pony/ponyup/bin:$PATH"
+ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
 RUN apk add --update \
     curl \
