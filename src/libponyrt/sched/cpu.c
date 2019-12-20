@@ -417,5 +417,9 @@ uint64_t ponyint_cpu_tick()
 # elif defined(PLATFORM_IS_WINDOWS)
   return __rdtsc();
 # endif
+#elif defined PLATFORM_IS_RISCV
+  uint64_t cycles;
+  asm("rdcycle %0" : "=r"(cycles));
+  return cycles;
 #endif
 }

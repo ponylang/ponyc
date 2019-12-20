@@ -877,6 +877,9 @@ bool codegen_pass_init(pass_opt_t* opt)
 
   opt->triple = triple;
 
+  if(opt->abi != NULL)
+    opt->abi = LLVMCreateMessage(opt->abi);
+
   if(opt->cpu != NULL)
     opt->cpu = LLVMCreateMessage(opt->cpu);
   else
@@ -890,6 +893,11 @@ void codegen_pass_cleanup(pass_opt_t* opt)
   LLVMDisposeMessage(opt->triple);
   LLVMDisposeMessage(opt->cpu);
   LLVMDisposeMessage(opt->features);
+  if(opt->abi != NULL)
+  {
+    LLVMDisposeMessage(opt->abi);
+    opt->abi = NULL;
+  }
   opt->triple = NULL;
   opt->cpu = NULL;
   opt->features = NULL;

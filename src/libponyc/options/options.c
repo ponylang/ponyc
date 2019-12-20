@@ -38,6 +38,7 @@ enum
   OPT_DOCS_PUBLIC,
 
   OPT_SAFE,
+  OPT_ABI,
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -86,6 +87,7 @@ static opt_arg_t std_args[] =
   {"docs-public", '\0', OPT_ARG_NONE, OPT_DOCS_PUBLIC},
 
   {"safe", '\0', OPT_ARG_OPTIONAL, OPT_SAFE},
+  {"abi", '\0', OPT_ARG_REQUIRED, OPT_ABI},
   {"cpu", '\0', OPT_ARG_REQUIRED, OPT_CPU},
   {"features", '\0', OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -153,6 +155,8 @@ static void usage(void)
     "Rarely needed options:\n"
     "  --safe           Allow only the listed packages to use C FFI.\n"
     "    =package       With no packages listed, only builtin is allowed.\n"
+    "  --abi            Set the target ABI.\n"
+    "    =name          Default is the host ABI.\n"
     "  --cpu            Set the target CPU.\n"
     "    =name          Default is the host CPU.\n"
     "  --features       CPU features to enable or disable.\n"
@@ -326,6 +330,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         }
         break;
 
+      case OPT_ABI: opt->abi = s->arg_val; break;
       case OPT_CPU: opt->cpu = s->arg_val; break;
       case OPT_FEATURES: opt->features = s->arg_val; break;
       case OPT_TRIPLE: opt->triple = s->arg_val; break;

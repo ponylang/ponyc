@@ -302,6 +302,7 @@ typedef struct pass_opt_t
 #endif
 
   char* triple;
+  char* abi;
   char* cpu;
   char* features;
 

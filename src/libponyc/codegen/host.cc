@@ -33,6 +33,9 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
   TargetOptions options;
   options.TrapUnreachable = true;
 
+  if(opt->abi != NULL)
+    options.MCOptions.ABIName = opt->abi;
+
   Target* t = reinterpret_cast<Target*>(target);
 
 #if PONY_LLVM < 600
