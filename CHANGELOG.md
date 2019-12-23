@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- LLVM 9.0.x support ([PR #3320](https://github.com/ponylang/ponyc/pull/3320))
 
 ### Changed
 
