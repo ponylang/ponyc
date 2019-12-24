@@ -1,53 +1,34 @@
-[![Backers on Open Collective](https://opencollective.com/ponyc/backers/badge.svg)](#backers)
- [![Sponsors on Open Collective](https://opencollective.com/ponyc/sponsors/badge.svg)](#sponsors)
+# Pony
 
-# Contributors
+Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-performance programming language.
 
-This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
-<a href="https://github.com/ponylang/ponyc/graphs/contributors"><img src="https://opencollective.com/ponyc/contributors.svg?width=890&button=false" /></a>
+## Resources
 
+- [Learn more about Pony](https://www.ponylang.io/discover/)
+- [Start learning Pony](https://www.ponylang.io/learn/)
+- [Beginner Help](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help)
+- [Try Pony online](https://playground.ponylang.io)
+- [Frequently Asked Questions](https://www.ponylang.io/faq/)
+- [Community](https://www.ponylang.io/community/)
+- [Install Pony](INSTALL.md)
+- [Build Pony from source](BUILD.md)
 
-# Backers
+## Supported platforms
 
-Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/ponyc#backer)]
+### Operating Systems
 
-<a href="https://opencollective.com/ponyc#backers" target="_blank"><img src="https://opencollective.com/ponyc/backers.svg?width=890"></a>
+- FreeBSD
+- Linux
+- macOS
+- Windows 10
 
+### CPUs
 
-# Sponsors
-
-Support this project by becoming a sponsor. Your logo will show up here with a link to your website. [[Become a sponsor](https://opencollective.com/ponyc#sponsor)]
-
-<a href="https://opencollective.com/ponyc/sponsor/0/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/0/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/1/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/1/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/2/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/2/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/3/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/3/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/4/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/4/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/5/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/5/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/6/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/6/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/7/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/7/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/8/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/8/avatar.svg"></a>
-<a href="https://opencollective.com/ponyc/sponsor/9/website" target="_blank"><img src="https://opencollective.com/ponyc/sponsor/9/avatar.svg"></a>
-
-# Getting help
-
-Need help? Not to worry, we have you covered.
-
-We have a couple resources designed to help you learn, we suggest starting with the tutorial and from there, moving on to the Pony Patterns book. Additionally, standard library documentation is available online.
-
-* [Tutorial](http://tutorial.ponylang.io).
-* [Pony Patterns](http://patterns.ponylang.io) cookbook is in progress
-* [Standard library docs](http://stdlib.ponylang.io/).
-* [Build Problems, see FAQ Compiling](https://www.ponylang.io/faq/#compiling).
-
-If you are looking for an answer "right now", we suggest you give our [Zulip](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help) community a try. Whatever your question is, it isn't dumb, and we won't get annoyed.
-
-Think you've found a bug? Check your understanding first by writing the mailing list. Once you know it's a bug, open an issue.
-* [Open an issue](https://github.com/ponylang/ponyc/issues)
-
-# Trying it online
-
-If you want a quick way to test or run code, checkout the [Playground](https://playground.ponylang.io/).
+- Full support for 64-bit platforms
+  - x86 and ARM CPUs only
+- Partial support for 32-bit platforms
+  - The `arm` and `armhf` architectures are tested via CI (Continuous
+    Integration testing)
 
 # Editor support
 
@@ -70,26 +51,7 @@ If you want a quick way to test or run code, checkout the [Playground](https://p
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
 * CudaText: lexer in Addon Manager
 
-# Installation
 
-Pony supports LLVM 7.0.
-
-Pony's prerequisites for CPU platforms are:
-
-- Full support for 64-bit platforms
-  - x86 and ARM CPUs only
-  - See platforms listed in the Circle-CI build list at
-    https://circleci.com/gh/ponylang/ponyc
-- Partial support for 32-bit platforms
-  - The `arm` and `armhf` architectures are tested via CI (Continuous
-    Integration testing)
-  - See platforms listed in the Circle-CI build list at
-    https://circleci.com/gh/ponylang/ponyc
-  - See also: GitHub issues
-    [#2836](https://github.com/ponylang/ponyc/issues/2836)
-    and
-    [#1576](https://github.com/ponylang/ponyc/issues/1576)
-    for more information.
 
 ## Using Docker
 
@@ -114,9 +76,6 @@ Note that if your host doesn't match the docker container, you'll probably have 
 ```bash
 docker run -v /path/to/my-code:/src/main ponylang/ponyc ./main
 ```
-
-If you're using `docker-machine` instead of native docker, make sure you aren't using [an incompatible version of Virtualbox](#virtualbox).
-
 ### Docker for Windows
 
 Pull the latest image as above.
@@ -146,10 +105,6 @@ To compile and run in one step run a command like this:
 ```bash
 docker run -v c:/path/to/my-code:/src/main ponylang/ponyc sh -c "ponyc && ./main"
 ```
-
-
-## Building ponyc using LLVM sources:
-
 
 ## Building Pony on Non-x86 platforms
 
