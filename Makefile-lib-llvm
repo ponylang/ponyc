@@ -16,9 +16,16 @@ root_dir := $(shell pwd)
 pony_lib_llvm_dir := $(root_dir)/lib/llvm
 
 llvm_target := all
+llvm_archs_to_target ?= X86
 
 ifneq ($(llvm_proj),)
   $(error "llvm_proj is now named llvm_target")
+endif
+
+ifndef verbose
+  SILENT = @
+else
+  SILENT =
 endif
 
 llvm_config := $(pony_lib_llvm_dir)/dist/bin/llvm-config
@@ -26,27 +33,27 @@ new_path := $(pony_lib_llvm_dir)/dist/bin:$(PATH)
 
 pony_targets := libponyc libponyrt libponyrt-pic libponyc.tests libponyrt.tests libponyc.benchmarks
 pony_targets += libponyrt.benchmarks ponyc benchmark install uninstall stats test all
-pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples test-ci docs-online
+pony_targets += stdlib test-stdlib stdlib-debug test-stdlib-debug test-examples test-cross-ci test-ci docs-online
 
 .PHONY: $(pony_targets)
 $(pony_targets): $(llvm_config)
-	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS)
+	$(SILENT)PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) LLVM_CONFIG=$(llvm_config) $(MAKECMDGOALS)
 
 .PHONY: $(llvm_config)
 $(llvm_config):
-	@$(MAKE) -C $(pony_lib_llvm_dir) $(llvm_target)
+	$(SILENT)$(MAKE) -C $(pony_lib_llvm_dir) $(llvm_target) LLVM_ARCHS_TO_TARGET="$(llvm_archs_to_target)" LLVM_BUILD_TYPE=$(llvm_build_type)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild
 rebuild: clean
-	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
-	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
+	$(SILENT)$(MAKE) -C $(pony_lib_llvm_dir) rebuild
+	$(SILENT)PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Clean is needed otherwise the rebuild of llvm won't be linked
 .PHONY: rebuild-test
 rebuild-test: clean
-	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
-	@PATH="$(new_path)" $(MAKE)  test -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
+	$(SILENT)$(MAKE) -C $(pony_lib_llvm_dir) rebuild
+	$(SILENT)PATH="$(new_path)" $(MAKE)  test -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
 
 # Rebuild and then run some tests as passed in the command line parameter gtest_filter.
 # Note, the clean is needed otherwise the rebuild of llvm won't be linked.
@@ -57,30 +64,30 @@ rebuild-test: clean
 #  gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering 2>&1 | tee clang-rebuild-some-tests.txt
 .PHONY: rebuild-some-tests
 rebuild-some-tests: clean
-	@$(MAKE) -C $(pony_lib_llvm_dir) rebuild
-	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
-	@$(MAKE) -f Makefile-lib-llvm some-tests
+	$(SILENT)$(MAKE) -C $(pony_lib_llvm_dir) rebuild
+	$(SILENT)PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config)
+	$(SILENT)$(MAKE) -f Makefile-lib-llvm some-tests
 
 # Run the some passing gtest_filter on command line, for example:
 #  make -f Makefile-lib-llvm some-tests gtest_filter=--gtest_filter=CodegenOptimisationTest.MergeSendMessageReordering
 .PHONY: some-tests
 some-tests:
-	@PATH="$(new_path)" ./build/debug/libponyc.tests $(gtest_filter)
+	$(SILENT)PATH="$(new_path)" ./build/debug/libponyc.tests $(gtest_filter)
 
 # Clean just ponyc
 .PHONY: clean
 clean:
-	@PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) clean
+	$(SILENT)PATH="$(new_path)" $(MAKE) -f Makefile-ponyc LLVM_VENDOR=true config=$(config) clean
 
 # Clean ponyc and lib/llvm
 .PHONY: clean-all
 clean-all: clean
-	@$(MAKE) -C lib/llvm clean
+	$(SILENT)$(MAKE) -C lib/llvm clean
 
 # Clean ponyc and distclean llvm
 .PHONY: distclean
 distclean: clean
-	@$(MAKE) -C lib/llvm distclean
+	$(SILENT)$(MAKE) -C lib/llvm distclean
 
 .PHONY: help
 help:
