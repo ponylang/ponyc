@@ -9,7 +9,6 @@ then
   exit 1
 fi
 
-TODAY=$(date +%Y%m%d)
 
 # Compiler target parameters
 ARCH=x86-64
