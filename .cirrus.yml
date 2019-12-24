@@ -51,6 +51,7 @@ task:
     - pip3 install --upgrade cloudsmith-cli
 
   nightly_script:
+    - export TZ=utc
     - bash .ci-scripts/x86-64-apple-darwin-nightly.bash ${CLOUDSMITH_API_KEY}
 
 #
