@@ -2,6 +2,10 @@
 
 Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-performance programming language.
 
+## Status
+
+Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. These changes are usually fairly easy to adapt to. Applications written in Pony are currently used in production environments.
+
 ## Resources
 
 - [Learn more about Pony](https://www.ponylang.io/discover/)
@@ -51,8 +55,6 @@ Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-
 * Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
 * CudaText: lexer in Addon Manager
-
-
 
 
 ## Building Pony on Non-x86 platforms
