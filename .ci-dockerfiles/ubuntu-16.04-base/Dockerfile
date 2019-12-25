@@ -12,6 +12,7 @@ RUN apt-get update \
   xz-utils \
   zlib1g-dev \
   curl \
+  cmake \
  && apt-get remove -y llvm-6.0 \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
