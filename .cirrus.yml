@@ -165,7 +165,7 @@ task:
   osx_instance:
     image: mojave-xcode-11.2.1
 
-  name: "PR: macOS"
+  name: "PR: x86-64-apple-darwin"
 
   install_script:
     - brew install coreutils
