@@ -80,7 +80,15 @@ Other commands include `clean`, which will clean a specified configuration; and 
 
 # Additional Build options
 
-## Building with link-time optimisation (LTO)
+## arch
+
+You can specify the CPU architecture to build Pony for via the `arch` make option:
+
+```bash
+make arch=arm7
+```
+
+## lto
 
 Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
 
@@ -88,7 +96,7 @@ Link-time optimizations provide a performance improvement. You should strongly c
 
 - If you are on MacOS, turning on LTO means that if you upgrade your version of XCode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of XCode used to build the Pony runtime and the version of XCode you currently have installed.
 
-You can enable LTO when building the compiler in release mode. There are slight differences between platforms so you'll need to do a manual setup. LTO is enabled by setting `lto` to `yes` in the build command line:
+You can enable LTO when building the compiler in release mode. There are slight differences between platforms so you'll need to do a manual setup. LTO is enabled by setting `lto` to `yes` in the build command line like:
 
 ```bash
 make lto=yes
@@ -102,7 +110,7 @@ make LTO_PLUGIN=/usr/lib/LLVMgold.so
 
 Refer to your compiler documentation for the plugin to use in your case.
 
-## Building the runtime as an LLVM bitcode file
+## runtime-bitcode
 
 If you're compiling with Clang, you can build the Pony runtime as an LLVM bitcode file by setting `runtime-bitcode` to `yes` in the build command line:
 

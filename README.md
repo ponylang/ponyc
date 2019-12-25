@@ -55,19 +55,3 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 * Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
 * CudaText: lexer in Addon Manager
-
-
-## Building Pony on Non-x86 platforms
-
-On ARM platforms, the default gcc architecture specification used in the Makefile of _native_ does not work correctly, and can even result in the gcc compiler crashing.  You will have to override the compiler architecture specification on the _make_ command line.  For example, on a RaspberryPi2 you would say:
-```bash
-make arch=armv7
-```
-
-To get a complete list of acceptable architecture names, use the gcc command:
-
-```bash
-gcc -march=none
-```
-
-This will result in an error message plus a listing of all architecture types acceptable on your platform.
