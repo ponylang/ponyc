@@ -11,7 +11,7 @@ RUN apk add --update \
     git
 
 RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
- && ponyup update ponyc release --libc=musl \
+ && ponyup update ponyc release --platform=musl \
  && ponyup update stable release \
  && ponyup update corral release \
  && ponyup update changelog-tool release
