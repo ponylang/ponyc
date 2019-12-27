@@ -6,6 +6,18 @@ Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-
 
 Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. These changes are usually fairly easy to adapt to. Applications written in Pony are currently used in production environments.
 
+## Installation
+
+See [INSTALL.md](INSTALL.md).
+
+## Building from source
+
+See [BUILD.md](BUILD.md).
+
+## Docker images
+
+See [INSTALL_DOCKER.md](INSTALL_DOCKER.md)
+
 ## Resources
 
 - [Learn more about Pony](https://www.ponylang.io/discover/)
@@ -14,9 +26,6 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 - [Try Pony online](https://playground.ponylang.io)
 - [Frequently Asked Questions](https://www.ponylang.io/faq/)
 - [Community](https://www.ponylang.io/community/)
-- [Install Pony](INSTALL.md)
-- [Build Pony from source](BUILD.md)
-- [Docker images](DOCKER.md)
 
 ## Supported platforms
 

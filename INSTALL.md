@@ -6,17 +6,19 @@ Prebuilt Pony binaries are available on a number of platforms. They are built us
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
 
-To install the most recent ponyc on a Glibc distribution:
+To install the most recent ponyc on a Glibc distribution (for example, Debian, Ubuntu, and most distros):
 
 ```bash
 ponyup update ponyc release --libc=gnu
 ```
 
-To install on a musl libc distribution:
+To install on a musl libc distribution (for example, Alpine Linux):
 
 ```bash
 ponyup update ponyc release --libc=musl
 ```
+
+If you don't know if your distro uses musl as the default libc implementation, [check this list](https://wiki.musl-libc.org/projects-using-musl.html#Linux_distributions_using_musl).
 
 Additional requirements:
 
@@ -27,6 +29,8 @@ Distribution | Requires
 alpine | libexecinfo
 
 ## macOS
+
+Pony can be installed as a Homebrew package.
 
 ```bash
 brew update
