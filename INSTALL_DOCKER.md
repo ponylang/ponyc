@@ -10,7 +10,7 @@ If you prefer to use the Alpine images, you can use the following tags:
 
 - alpine (most recent build of the `master` branch)
 - release-alpine (most recent release)
-- x.y.z-alpine (tagged release e.g. 0.33.1)t
+- x.y.z-alpine (tagged release e.g. 0.33.1)
 
 The docker images also include common Pony tools like [ponyup](https://github.com/ponylang/ponyup), [corral](https://github.com/ponylang/corral), and [changelog-tool](https://github.com/ponylang/changelog-tool).
 
