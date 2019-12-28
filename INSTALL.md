@@ -9,13 +9,13 @@ Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/p
 To install the most recent ponyc on a Glibc distribution (for example, Debian, Ubuntu, and most distros):
 
 ```bash
-ponyup update ponyc release --libc=gnu
+ponyup update ponyc release
 ```
 
 To install on a musl libc distribution (for example, Alpine Linux):
 
 ```bash
-ponyup update ponyc release --libc=musl
+ponyup update ponyc release --platform=musl
 ```
 
 If you don't know if your distro uses musl as the default libc implementation, [check this list](https://wiki.musl-libc.org/projects-using-musl.html#Linux_distributions_using_musl).
