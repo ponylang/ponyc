@@ -12,21 +12,14 @@ To install the most recent ponyc on a Glibc distribution (for example, Debian, U
 ponyup update ponyc release
 ```
 
-To install on a musl libc distribution (for example, Alpine Linux):
-
-```bash
-ponyup update ponyc release --platform=musl
-```
-
-If you don't know if your distro uses musl as the default libc implementation, [check this list](https://wiki.musl-libc.org/projects-using-musl.html#Linux_distributions_using_musl).
-
 Additional requirements:
 
-All ponyc Linux installations need a C compiler such as gcc or clang installed. The following distributions have additional requirements
+All ponyc Linux installations need a C compiler such as gcc or clang installed. The following distributions have additional requirements:
 
 Distribution | Requires
 --- | ---
 alpine | libexecinfo
+fedora | libatomic
 
 ## macOS
 
