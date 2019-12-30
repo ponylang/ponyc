@@ -64,3 +64,11 @@ See [INSTALL_DOCKER.md](INSTALL_DOCKER.md)
 * Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
 * CudaText: lexer in Addon Manager
+
+## Contributing
+
+We welcome contributions to Pony. Please read through [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started.
+
+## License
+
+Pony is distributed under the terms of the [2-Clause BSD License](https://opensource.org/licenses/BSD-2-Clause). See [LICENSE.md](LICENSE.md) for details.
