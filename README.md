@@ -44,7 +44,7 @@ See [INSTALL_DOCKER.md](INSTALL_DOCKER.md)
   - The `arm` and `armhf` architectures are tested via CI (Continuous
     Integration testing)
 
-# Editor support
+## Editor support
 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
 * Atom: [language-pony](https://atom.io/packages/language-pony)
