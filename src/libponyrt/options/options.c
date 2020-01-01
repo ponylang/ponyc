@@ -247,5 +247,5 @@ int ponyint_opt_next(opt_state_t* s)
 
   strip_accepted_opts(s);
 
-  return m->id;
+  return (int)m->id;
 }

@@ -76,6 +76,13 @@ typedef struct opt_state_t
 void ponyint_opt_init(const opt_arg_t* args, opt_state_t* s, int* argc,
   char** argv);
 
+/** Find the unsigned identifier of the next option.
+ *
+ * Special return values:
+ *
+ * -1 when there are no more options to process.
+ * -2 when an error is detected and an error message is printed.
+ */
 int ponyint_opt_next(opt_state_t* s);
 
 #endif
