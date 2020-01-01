@@ -232,15 +232,36 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
  *
  */
 #ifdef PLATFORM_IS_CLANG_OR_GCC
-#  define __pony_popcount(X) (uint32_t)__builtin_popcount((X))
-#  define __pony_ffs(X) (uint32_t)__builtin_ffs((X))
-#  define __pony_ffsll(X) (uint32_t)__builtin_ffsll((X))
-#  define __pony_ctz(X) (uint32_t)__builtin_ctz((X))
-#  define __pony_clz(X) (uint32_t)__builtin_clz((X))
-#  define __pony_clzll(X) (uint32_t)__builtin_clzll((X))
+inline uint32_t __pony_popcount(uint32_t x) {
+  return (uint32_t)__builtin_popcount(x);
+}
+
+inline uint32_t __pony_ffs(uint32_t x) {
+  return (uint32_t)__builtin_ffs((int)x);
+}
+
+inline uint32_t __pony_ffsll(uint64_t x) {
+  return (uint32_t)__builtin_ffsll((long long int)x);
+}
+
+inline uint32_t __pony_ctz(uint32_t x) {
+  return (uint32_t)__builtin_ctz(x);
+}
+
+inline uint32_t __pony_clz(uint32_t x) {
+  return (uint32_t)__builtin_clz(x);
+}
+
+inline uint32_t __pony_clzll(uint64_t x) {
+  return (uint32_t)__builtin_clzll(x);
+}
+
 #else
 #  include <intrin.h>
-#  define __pony_popcount(X) __popcnt((X))
+
+inline uint32_t __pony_popcount(uint32_t x) {
+  return __popcnt(x);
+}
 
 inline uint32_t __pony_ffs(uint32_t x)
 {
