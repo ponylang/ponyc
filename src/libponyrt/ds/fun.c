@@ -210,7 +210,7 @@ size_t ponyint_next_pow2(size_t i)
     i = 32;
   else
 #  endif
-    i = __pony_clzll(i);
+    i = __pony_clzzu(i);
   return 1 << (i == 0 ? 0 : 32 - i);
 #else
   i--;
@@ -219,7 +219,7 @@ size_t ponyint_next_pow2(size_t i)
     i = 64;
   else
 #  endif
-    i = __pony_clzll(i);
+    i = __pony_clzzu(i);
   // Cast is needed for optimal code generation (avoids an extension).
   return (size_t)1 << (i == 0 ? 0 : 64 - i);
 #endif

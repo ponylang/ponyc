@@ -270,21 +270,12 @@ inline uint32_t __pony_clz(uint32_t x)
   return 31 - i;
 }
 
-#  ifdef PLATFORM_IS_ILP32
-inline uint32_t __pony_clzll(uint32_t x)
-{
-  DWORD i = 0;
-  _BitScanReverse(&i, x);
-  return 31 - i;
-}
-#  else
 inline uint32_t __pony_clzll(uint64_t x)
 {
   DWORD i = 0;
   _BitScanReverse64(&i, x);
   return 63 - i;
 }
-#  endif
 
 #endif
 
@@ -293,6 +284,14 @@ inline uint32_t __pony_ffszu(size_t x) {
   return __pony_ffs(x);
 #else
   return __pony_ffsll(x);
+#endif
+}
+
+inline uint32_t __pony_clzzu(size_t x) {
+#ifdef PLATFORM_IS_ILP32
+  return __pony_clz(x);
+#else
+  return __pony_clzll(x);
 #endif
 }
 
