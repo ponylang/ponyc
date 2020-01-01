@@ -156,7 +156,14 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_VERSION: opt->version = true; break;
       case OPT_PONYHELP: opt->ponyhelp = true; break;
 
-      default: exit(-1);
+      case -2:
+        // an error message has been printed by ponyint_opt_next
+        exit(-1);
+        break;
+
+      default:
+        exit(-1);
+        break;
     }
   }
 
