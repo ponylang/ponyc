@@ -250,21 +250,12 @@ inline uint32_t __pony_ffs(uint32_t x)
   return non_zero ? i + 1 : 0;
 }
 
-#  ifdef PLATFORM_IS_ILP32
-inline uint32_t __pony_ffsll(uint32_t x)
-{
-  DWORD i = 0;
-  unsigned char non_zero = _BitScanForward(&i, x);
-  return non_zero ? i + 1 : 0;
-}
-#  else
 inline uint32_t __pony_ffsll(uint64_t x)
 {
   DWORD i = 0;
   unsigned char non_zero = _BitScanForward64(&i, x);
   return non_zero ? i + 1 : 0;
 }
-#  endif
 
 inline uint32_t __pony_ctz(uint32_t x)
 {
@@ -313,6 +304,14 @@ inline uint32_t __pony_clzll(uint64_t x)
 #  endif
 
 #endif
+
+inline uint32_t __pony_ffszu(size_t x) {
+#ifdef PLATFORM_IS_ILP32
+  return __pony_ffs(x);
+#else
+  return __pony_ffsll(x);
+#endif
+}
 
 /** Static assert
  *
