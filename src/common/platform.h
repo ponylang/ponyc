@@ -236,7 +236,6 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
 #  define __pony_ffs(X) (uint32_t)__builtin_ffs((X))
 #  define __pony_ffsll(X) (uint32_t)__builtin_ffsll((X))
 #  define __pony_ctz(X) (uint32_t)__builtin_ctz((X))
-#  define __pony_ctzll(X) (uint32_t)__builtin_ctzll((X))
 #  define __pony_clz(X) (uint32_t)__builtin_clz((X))
 #  define __pony_clzll(X) (uint32_t)__builtin_clzll((X))
 #else
@@ -263,22 +262,6 @@ inline uint32_t __pony_ctz(uint32_t x)
   _BitScanForward(&i, x);
   return i;
 }
-
-#  ifdef PLATFORM_IS_ILP32
-inline uint32_t __pony_ctzll(uint32_t x)
-{
-  DWORD i = 0;
-  _BitScanForward(&i, x);
-  return i;
-}
-#  else
-inline uint32_t __pony_ctzll(uint64_t x)
-{
-  DWORD i = 0;
-  _BitScanForward64(&i, x);
-  return i;
-}
-#  endif
 
 inline uint32_t __pony_clz(uint32_t x)
 {
