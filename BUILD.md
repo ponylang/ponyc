@@ -76,6 +76,8 @@ Note that you need to provide these options each time you run make.bat; the syst
 
 Other commands include `clean`, which will clean a specified configuration; and `distclean`, which will wipe out the entire build directory.  You will need to run `make configure` after a distclean.
 
+Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release-llvm-7.0.1"`
+
 ----
 
 # Additional Build options
