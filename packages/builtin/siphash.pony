@@ -1,4 +1,11 @@
 
+interface val _ReadAsNumerics
+  fun read_u8[B: U8 = U8](offset: USize): U8 ?
+  fun read_u16[B: U8 = U8](offset: USize): U16 ?
+  fun read_u32[B: U8 = U8](offset: USize): U32 ?
+  fun read_u64[B: U8 = U8](offset: USize): U64 ?
+  fun read_u128[B: U8 = U8](offset: USize): U128 ?
+
 class ref SipHash24Streaming
   """
   Provides SipHash24 for non-array data
@@ -115,7 +122,7 @@ primitive SipHash24
       var i = USize(0)
       while i < endi do
         let m: U64 =
-          iftype T <: ReadAsNumerics then
+          iftype T <: _ReadAsNumerics then
             data.read_u64(i)?
           elseif T <: String val then
             data.array().read_u64(i)?
@@ -259,7 +266,7 @@ primitive HalfSipHash24
       var i = USize(0)
       while i < endi do
         let m: U32 =
-          iftype T <: ReadAsNumerics then
+          iftype T <: _ReadAsNumerics then
             data.read_u32(i)?
           elseif T <: String val then
             data.array().read_u32(i)?

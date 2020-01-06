@@ -1,15 +1,3 @@
-interface Hashable
-  """
-  Anything with a hash method is hashable.
-  """
-  fun hash(): USize
-
-interface Hashable64
-  """
-  A version of Hashable that returns 64-bit hashes on every platform.
-  """
-  fun hash64(): U64
-
 interface val HashFunction[A]
   """
   A pluggable hash function.

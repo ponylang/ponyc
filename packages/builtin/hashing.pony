@@ -1,3 +1,16 @@
+interface Hashable
+  """
+  Anything with a hash method is hashable.
+  """
+  fun hash(): USize
+
+interface Hashable64
+  """
+  A version of Hashable that returns 64-bit hashes on every platform.
+  """
+  fun hash64(): U64
+
+
 primitive Hashing
 
   fun hash_bytes(bytes: ByteSeq box): USize =>
@@ -16,19 +29,21 @@ primitive Hashing
     iftype T <: U8 then
       hash_bytes(arr)
     else
-      ifdef ilp32
-        let sip = HalfSipHash24Streaming.create()
-        for elem in arr.values() do
-          sip.update(elem.hash().u32())
+      (
+        ifdef ilp32 then
+          let sip = HalfSipHash24Streaming.create()
+          for elem in arr.values() do
+            sip.update(elem.hash().u32())
+          end
+          sip.finish()
+        else
+          let sip = SipHash24Streaming.create()
+          for elem in arr.values() do
+            sip.update(elem.hash().u64())
+          end
+          sip.finish()
         end
-        sip.finish()
-      else
-        let sip = SipHash24Streaming.create()
-        for elem in arr.values() do
-          sip.update(elem.hash().u64())
-        end
-        sip.finish()
-      end
+      ).usize()
     end
 
   fun hash64_array[T: Hashable64 #read](arr: Array[T] box): U64 =>
@@ -43,49 +58,55 @@ primitive Hashing
     end
 
   fun hash_2(a: Hashable box, b: Hashable box): USize =>
-    ifdef ilp32 then
-      let sip = HalfSipHash24Streaming.create()
-      sip.update(a.hash().u32())
-      sip.update(b.hash().u32())
-      sip.finish()
-    else
-      let sip = SipHash24Streaming.create()
-      sip.update(a.hash().u64())
-      sip.update(b.hash().u64())
-      sip.finish()
-    end
+    (
+      ifdef ilp32 then
+        let sip = HalfSipHash24Streaming.create()
+        sip.update(a.hash().u32())
+        sip.update(b.hash().u32())
+        sip.finish()
+      else
+        let sip = SipHash24Streaming.create()
+        sip.update(a.hash().u64())
+        sip.update(b.hash().u64())
+        sip.finish()
+      end
+    ).usize()
 
   fun hash_3(a: Hashable box, b: Hashable box, c: Hashable box): USize =>
-    ifdef ilp32 then
-      let sip = HalfSipHash24Streaming.create()
-      sip.update(a.hash().u32())
-      sip.update(b.hash().u32())
-      sip.update(c.hash().u32())
-      sip.finish()
-    else
-      let sip = SipHash24Streaming.create()
-      sip.update(a.hash().u64())
-      sip.update(b.hash().u64())
-      sip.update(c.hash().u64())
-      sip.finish()
-    end
+    (
+      ifdef ilp32 then
+        let sip = HalfSipHash24Streaming.create()
+        sip.update(a.hash().u32())
+        sip.update(b.hash().u32())
+        sip.update(c.hash().u32())
+        sip.finish()
+      else
+        let sip = SipHash24Streaming.create()
+        sip.update(a.hash().u64())
+        sip.update(b.hash().u64())
+        sip.update(c.hash().u64())
+        sip.finish()
+      end
+    ).usize()
 
   fun hash_4(a: Hashable box, b: Hashable box, c: Hashable box, d: Hashable box): USize =>
-    ifdef ilp32 then
-      let sip = HalfSipHash24Streaming.create()
-      sip.update(a.hash().u32())
-      sip.update(b.hash().u32())
-      sip.update(c.hash().u32())
-      sip.update(d.hash().u32())
-      sip.finish()
-    else
-      let sip = SipHash24Streaming.create()
-      sip.update(a.hash().u64())
-      sip.update(b.hash().u64())
-      sip.update(c.hash().u64())
-      sip.update(d.hash().u64())
-      sip.finish()
-    end
+    (
+      ifdef ilp32 then
+        let sip = HalfSipHash24Streaming.create()
+        sip.update(a.hash().u32())
+        sip.update(b.hash().u32())
+        sip.update(c.hash().u32())
+        sip.update(d.hash().u32())
+        sip.finish()
+      else
+        let sip = SipHash24Streaming.create()
+        sip.update(a.hash().u64())
+        sip.update(b.hash().u64())
+        sip.update(c.hash().u64())
+        sip.update(d.hash().u64())
+        sip.finish()
+      end
+    ).usize()
 
   // TODO: add functions for up to 16 arguments
 
