@@ -338,7 +338,19 @@ class Array[A] is Seq[A]
     """
     Insert an element into the array. Elements after this are moved up by one
     index, extending the array.
-    An out of bounds index raises an error.
+
+    When inserting right beyond the last element, at index `this.size()`,
+    the element will be appended, similar to `push()`,
+    an insert at index `0` prepends the value to the array.
+    An insert into an index beyond `this.size()` raises an error.
+
+    ```pony
+    let array = Array[U8](4)              // []
+    array.insert(0, 0xDE)?                // prepend: [0xDE]
+    array.insert(array.size(), 0xBE)?     // append:  [0xDE; 0xBE]
+    array.insert(1, 0xAD)?                // insert:  [0xDE; 0xAD; 0xBE]
+    array.insert(array.size() + 1, 0xEF)? // error
+    ```
     """
     if i <= _size then
       reserve(_size + 1)
