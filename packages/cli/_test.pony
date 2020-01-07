@@ -26,6 +26,7 @@ actor Main is TestList
     test(_TestChat)
     test(_TestMustBeLeaf)
     test(_TestHelp)
+    test(_TestHelpFalse)
     test(_TestHelpMultipleArgs)
 
 class iso _TestMinimal is UnitTest
@@ -513,6 +514,28 @@ class iso _TestHelp is UnitTest
     let help = ch.help_string()
     h.log(help)
     h.assert_true(help.contains("Address of the server"))
+
+class iso _TestHelpFalse is UnitTest
+  fun name(): String => "ponycli/help-false"
+
+  fun apply(h: TestHelper) ? =>
+    let cs =
+      CommandSpec.leaf("bools", "A sample CLI with four bool options", [
+        OptionSpec.string("name" where short' = 'n', default' = "John")
+      ])?.>add_help()?
+    let args = [
+       "ignored"
+       "--help=false"
+    ]
+    let cmd = CommandParser(cs).parse(args)
+    match cmd
+    | let c: Command =>
+      h.assert_false(c.option("help").bool())
+      h.assert_eq[String]("John", c.option("name").string())
+    | let ch: CommandHelp => h.fail("--help=false is interpretet as demanding help output.")
+    | let se: SyntaxError =>
+      h.fail("--help=false is not handled correctly: " + se.string())
+    end
 
 class iso _TestHelpMultipleArgs is UnitTest
   fun name(): String => "ponycli/help-multiple-args"
