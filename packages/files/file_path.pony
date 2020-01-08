@@ -246,7 +246,7 @@ class val FilePath
 
     0 == @rename[I32](path.cstring(), new_path.path.cstring())
 
-  fun symlink(link_name: FilePath): Bool =>
+  fun val symlink(link_name: FilePath): Bool =>
     """
     Create a symlink to a file or directory.
     """
@@ -255,7 +255,16 @@ class val FilePath
     end
 
     ifdef windows then
-      0 != @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring())
+      try
+        let dword: U32 = if FileInfo(this)?.directory then
+          1
+        else
+          0
+        end
+        0 != @CreateSymbolicLinkA[U8](link_name.path.cstring(), path.cstring(), dword)
+      else
+        false
+      end
     else
       0 == @symlink[I32](path.cstring(), link_name.path.cstring())
     end
