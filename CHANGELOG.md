@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- fix cli issue when providing --help=false. ([PR #3442](https://github.com/ponylang/ponyc/pull/3442))
 
 ### Added
 
