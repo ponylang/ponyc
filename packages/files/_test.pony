@@ -12,6 +12,7 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestMkdtemp)
+    test(_TestSymlink)
     test(_TestWalk)
     test(_TestDirectoryOpen)
     test(_TestDirectoryFileOpen)
@@ -136,6 +137,17 @@ class iso _TestWalk is UnitTest
       h.assert_true(top.remove())
     end
 
+class iso _TestSymlink is UnitTest
+  fun name(): String => "files/FilePath.symlink"
+  fun apply(h: TestHelper) ? =>
+    let link_to = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp.symlink.")?
+    let link = FilePath(h.env.root as AmbientAuth, "link_to_it")?
+    try
+      h.assert_true(link_to.symlink(link))
+    then
+      link.remove()
+      link_to.remove()
+    end
 
 class iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
