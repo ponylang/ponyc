@@ -53,7 +53,7 @@ class _StructWords
   var usize: USize = 1 << (USize(0).bitwidth() - 1)
 
   fun eq(that: _StructWords box): Bool =>
-    (u8 == that.u8) 
+    (u8 == that.u8)
       and (u16 == that.u16)
       and (u32 == that.u32)
       and (u64 == that.u64)
@@ -113,7 +113,7 @@ class iso _TestSimple is UnitTest
   fun name(): String => "serialise/Simple"
 
   fun apply(h: TestHelper) ? =>
-    let ambient = h.env.root as AmbientAuth
+    let ambient = h.env.root
     let serialise = SerialiseAuth(ambient)
     let deserialise = DeserialiseAuth(ambient)
 
@@ -130,7 +130,7 @@ class iso _TestArrays is UnitTest
   fun name(): String => "serialise/Arrays"
 
   fun apply(h: TestHelper) ? =>
-    let ambient = h.env.root as AmbientAuth
+    let ambient = h.env.root
     let serialise = SerialiseAuth(ambient)
     let deserialise = DeserialiseAuth(ambient)
 
@@ -199,8 +199,8 @@ class iso _TestFailures is UnitTest
   """
   fun name(): String => "serialise/Failures"
 
-  fun apply(h: TestHelper) ? =>
-    let ambient = h.env.root as AmbientAuth
+  fun apply(h: TestHelper) =>
+    let ambient = h.env.root
     let serialise = SerialiseAuth(ambient)
 
     h.assert_error({() ? => Serialised(serialise, _HasActor)? })
@@ -215,7 +215,7 @@ class iso _TestBoxedMachineWord is UnitTest
   fun name(): String => "serialise/BoxedMachineWord"
 
   fun apply(h: TestHelper) ? =>
-    let ambient = h.env.root as AmbientAuth
+    let ambient = h.env.root
     let serialise = SerialiseAuth(ambient)
     let deserialise = DeserialiseAuth(ambient)
 

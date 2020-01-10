@@ -117,12 +117,10 @@ class Send is TimerNotify
 
 actor Main
   new create(env: Env) =>
-    try
-      let auth = env.root as AmbientAuth
-      let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
-        "", "7669")
+    let auth = env.root
+    let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
+      "", "7669")
 
-      let timers = Timers
-      let t = Timer(Send(socket), 0, 5_000_000)
-      timers(consume t)
-    end
+    let timers = Timers
+    let t = Timer(Send(socket), 0, 5_000_000)
+    timers(consume t)

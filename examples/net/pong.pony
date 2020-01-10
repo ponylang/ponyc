@@ -13,7 +13,7 @@ class Pong is UDPNotify
       _env.out.print("Pong: listening on " + host + ":" + service)
 
       let env = _env
-      let auth = env.root as AmbientAuth
+      let auth = env.root
 
       if ip.ip4() then
         UDPSocket.ip4(auth, recover Ping(env, ip) end)

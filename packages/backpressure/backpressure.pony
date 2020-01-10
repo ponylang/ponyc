@@ -69,11 +69,9 @@ class SlowDown is TCPConnectionNotify
 
 actor Main
   new create(env: Env) =>
-    try
-      let auth = env.root as AmbientAuth
-      let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
-        "", "7669")
-    end
+    let auth = env.root
+    let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
+      "", "7669")
 ```
 
 ## Caveat
