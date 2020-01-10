@@ -22,7 +22,7 @@ See [INSTALL_DOCKER.md](INSTALL_DOCKER.md)
 
 - [Learn more about Pony](https://www.ponylang.io/discover/)
 - [Start learning Pony](https://www.ponylang.io/learn/)
-- [Beginner Help](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help)
+  - [Getting help](https://www.ponylang.io/learn/#getting-help)
 - [Try Pony online](https://playground.ponylang.io)
 - [Frequently Asked Questions](https://www.ponylang.io/faq/)
 - [Community](https://www.ponylang.io/community/)
