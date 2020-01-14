@@ -12,7 +12,9 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestMkdtemp)
+  ifdef not windows then
     test(_TestSymlink)
+  end
     test(_TestWalk)
     test(_TestDirectoryOpen)
     test(_TestDirectoryFileOpen)
@@ -138,16 +140,50 @@ class iso _TestWalk is UnitTest
     end
 
 class iso _TestSymlink is UnitTest
-  fun name(): String => "files/FilePath.symlink"
-  fun apply(h: TestHelper) ? =>
-    let link_to = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp.symlink.")?
-    let link = FilePath(h.env.root as AmbientAuth, "link_to_it")?
+  var tmp_dir: (FilePath | None) = None
+
+  fun ref set_up(h: TestHelper) ? =>
+    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "symlink")?
+
+  fun ref tear_down(h: TestHelper) =>
     try
-      h.assert_true(link_to.symlink(link))
-    then
-      link.remove()
-      link_to.remove()
+      (tmp_dir as FilePath).remove()
     end
+
+  fun name(): String => "files/FilePath.symlink"
+
+  fun ref apply(h: TestHelper) ? =>
+    test_file(h)?
+    test_directory(h)?
+
+  fun ref test_file(h: TestHelper) ? =>
+    let target_path = (tmp_dir as FilePath).join("target_file")?
+    let content = "abcdef"
+    with target_file = CreateFile(target_path) as File do
+      h.assert_true(
+        target_file.write(content),
+        "could not write to file: " + target_path.path)
+    end
+
+    let link_path = (tmp_dir as FilePath).join("symlink_file")?
+    h.assert_true(
+      target_path.symlink(link_path),
+      "could not create symbolic link to: " + target_path.path)
+
+    with link_file = OpenFile(link_path) as File do
+      let fl = FileLines(link_file)
+      h.assert_true(fl.has_next())
+      h.assert_eq[String](fl.next()?, content)
+    end
+
+  fun ref test_directory(h: TestHelper) ? =>
+    let target_path = (tmp_dir as FilePath).join("target_dir")?
+    h.assert_true(target_path.mkdir(true))
+
+    let link_path = (tmp_dir as FilePath).join("symlink_dir")?
+    h.assert_true(
+      target_path.symlink(link_path),
+      "could not create symbolic link to: " + target_path.path)
 
 class iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
