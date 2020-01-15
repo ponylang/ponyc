@@ -30,7 +30,8 @@ DECL(pattern);
 DECL(idseq_in_seq);
 DECL(members);
 DECL(thisliteral);
-
+DECL(cond);
+DECL(whileloop);
 
 /* Precedence
  *
@@ -519,18 +520,19 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
+// atom
 // ref | this | literal | tuple | array | object | lambda | barelambda | ffi |
 // location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    barelambda, ffi, location);
+    barelambda, ffi, location, cond, whileloop);
   DONE();
 
 // ref | this | literal | tuple | array | object | lambda | barelambda| ffi |
 // location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, barelambda, ffi, location);
+    lambda, barelambda, ffi, location, cond, whileloop);
   DONE();
 
 // DOT ID
