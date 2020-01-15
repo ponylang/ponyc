@@ -32,6 +32,7 @@ DECL(members);
 DECL(thisliteral);
 DECL(cond);
 DECL(whileloop);
+DECL(forloop);
 
 /* Precedence
  *
@@ -521,18 +522,18 @@ DEF(ffi);
   DONE();
 
 // atom
-// ref | this | literal | tuple | array | object | lambda | barelambda | ffi |
+// ref | this | literal | tuple | array | object | lambda | barelambda | ffi | cond | whileloop | forloop
 // location
 DEF(atom);
   RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
-    barelambda, ffi, location, cond, whileloop);
+    barelambda, ffi, location, cond, whileloop, forloop);
   DONE();
 
-// ref | this | literal | tuple | array | object | lambda | barelambda| ffi |
+// ref | this | literal | tuple | array | object | lambda | barelambda| ffi | cond | whileloop | forloop
 // location
 DEF(nextatom);
   RULE("value", ref, thisliteral, literal, nextgroupedexpr, nextarray, object,
-    lambda, barelambda, ffi, location, cond, whileloop);
+    lambda, barelambda, ffi, location, cond, whileloop, forloop);
   DONE();
 
 // DOT ID
