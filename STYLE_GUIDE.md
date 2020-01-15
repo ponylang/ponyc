@@ -429,9 +429,9 @@ end
 
   // Not OK
   output
-  .> append(file_name)
-  .> append(":")
-  .> append(msg)
+    .>append(file_name)
+    .>append(":")
+    .>append(msg)
   ```
 
 - Function arguments mostly follow the same rules as arguments in method declarations. However, all arguments may be placed on the following line with an additional level of indentation if all arguments would fit on that line. Otherwise, arguments must be placed on individual lines. These rules also apply to FFI calls. A `where` keyword and the following arguments may all exist on their own line.
