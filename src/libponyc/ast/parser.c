@@ -33,6 +33,8 @@ DECL(thisliteral);
 DECL(cond);
 DECL(whileloop);
 DECL(forloop);
+DECL(caseatom);
+DECL(caseparampattern);
 
 /* Precedence
  *
@@ -529,6 +531,14 @@ DEF(atom);
     barelambda, ffi, location, cond, whileloop, forloop);
   DONE();
 
+// caseatom:
+// ref | this | literal | tuple | array | object | lambda | barelambda | ffi | whileloop | forloop
+// location
+DEF(caseatom);
+  RULE("value", ref, thisliteral, literal, groupedexpr, array, object, lambda,
+    barelambda, ffi, location, whileloop, forloop);
+  DONE();
+
 // ref | this | literal | tuple | array | object | lambda | barelambda| ffi | cond | whileloop | forloop
 // location
 DEF(nextatom);
@@ -582,6 +592,12 @@ DEF(postfix);
   DONE();
 
 // atom {dot | tilde | chain | qualify | call}
+DEF(casepostfix);
+  RULE("value", caseatom);
+  SEQ("postfix expression", dot, tilde, chain, qualify, call);
+  DONE();
+
+// atom {dot | tilde | chain | qualify | call}
 DEF(nextpostfix);
   RULE("value", nextatom);
   SEQ("postfix expression", dot, tilde, chain, qualify, call);
@@ -608,6 +624,19 @@ DEF(prefix);
   RULE("expression", parampattern);
   DONE();
 
+// (NOT | AMP | MINUS | MINUS_TILDE | MINUS_NEW | MINUS_TILDE_NEW | DIGESTOF)
+// casepattern
+DEF(caseprefix);
+  PRINT_INLINE();
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_TILDE, TK_MINUS_NEW,
+    TK_MINUS_TILDE_NEW, TK_DIGESTOF);
+  MAP_ID(TK_MINUS, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_TILDE, TK_UNARY_MINUS_TILDE);
+  MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_TILDE_NEW, TK_UNARY_MINUS_TILDE);
+  RULE("expression", caseparampattern);
+  DONE();
+
 // (NOT | AMP | MINUS_NEW | MINUS_TILDE_NEW | DIGESTOF) pattern
 DEF(nextprefix);
   PRINT_INLINE();
@@ -623,6 +652,11 @@ DEF(parampattern);
   RULE("pattern", prefix, postfix);
   DONE();
 
+// (caseprefix | casepostfix)
+DEF(caseparampattern);
+  RULE("pattern", caseprefix, casepostfix);
+  DONE();
+
 // (prefix | postfix)
 DEF(nextparampattern);
   RULE("pattern", nextprefix, nextpostfix);
@@ -630,7 +664,12 @@ DEF(nextparampattern);
 
 // (local | prefix | postfix)
 DEF(pattern);
-RULE("pattern", local, parampattern);
+  RULE("pattern", local, parampattern);
+  DONE();
+
+// (local | prefix | postfix)
+DEF(casepattern);
+  RULE("pattern", local, caseparampattern);
   DONE();
 
 // (local | prefix | postfix)
@@ -766,13 +805,13 @@ DEF(iftypeset);
   TERMINATE("iftype expression", TK_END);
   DONE();
 
-// PIPE [annotations] [infix] [WHERE rawseq] [ARROW rawseq]
+// PIPE [annotations] [infix] [IF rawseq] [ARROW rawseq]
 DEF(caseexpr);
   AST_NODE(TK_CASE);
   SCOPE();
   SKIP(NULL, TK_PIPE);
   ANNOTATE(annotations);
-  OPT RULE("case pattern", pattern);
+  OPT RULE("case pattern", casepattern);
   IF(TK_IF, RULE("guard expression", rawseq));
   IF(TK_DBLARROW, RULE("case body", rawseq));
   DONE();
