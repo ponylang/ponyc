@@ -403,8 +403,18 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
 
     ast_error_frame(&frame, ast,
       "receiver type is not a subtype of target type");
-    ast_error_frame(&frame, ast_child(lhs),
-      "receiver type: %s", ast_print_type(a_type));
+
+    switch (ast_id(a_type)) { // provide better information if the refcap is `this->*`
+      case TK_ARROW:
+        ast_error_frame(&frame, ast_child(lhs),
+          "receiver type: %s (which becomes '%s' in this context)", ast_print_type(a_type), ast_print_type(viewpoint_upper(a_type)));
+        break;
+
+      default:
+        ast_error_frame(&frame, ast_child(lhs),
+          "receiver type: %s", ast_print_type(a_type));
+    }
+
     ast_error_frame(&frame, cap,
       "target type: %s", ast_print_type(t_type));
     errorframe_append(&frame, &info);
