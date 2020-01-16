@@ -4,10 +4,12 @@
 #include "literal.h"
 #include "reference.h"
 #include "../ast/astbuild.h"
+#include "../ast/lexer.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../pass/sugar.h"
 #include "../type/alias.h"
+#include "../type/cap.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/reify.h"
@@ -428,6 +430,22 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
       ast_error_frame(&frame, ast,
         "this would be possible if the arguments and return value "
         "were all sendable");
+    }
+
+    ast_t* fn = ast_nearest(lhs, TK_FUN);
+    if (fn != NULL && ast_id(a_type) == TK_ARROW)
+    {
+      ast_t* iso = ast_child(fn);
+      pony_assert(iso != NULL);
+      token_id iso_id = ast_id(iso);
+
+      ast_t* t_cap = cap_fetch(t_type);
+      pony_assert(t_cap != NULL);
+
+      if (ast_id(t_cap) == TK_REF && (iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG))
+      {
+        ast_error_frame(&frame, iso, "you are trying to change state in a %s function; this would be possible in a ref function", lexer_print(iso_id));
+      }
     }
 
     errorframe_report(&frame, opt->check.errors);
