@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Better error message for check_receiver_cap ([PR #3450](https://github.com/ponylang/ponyc/pull/3450))
 
 ## [0.33.1] - 2019-12-13
 
