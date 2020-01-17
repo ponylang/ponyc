@@ -723,6 +723,7 @@ bool refer_qualify(pass_opt_t* opt, ast_t* ast)
 
 static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
 {
+  // Prints an info about why the lvalue is needed
   ast_t* parent = ast_parent(ast);
   pony_assert(parent != NULL);
   token_id parent_id = ast_id(parent);
@@ -734,6 +735,7 @@ static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
 
 static void error_consumed_but_used(pass_opt_t* opt, ast_t* ast)
 {
+  // Prints an error about an lvalue's old value being needed, but consumed (it is unknown wether or not this code can be reached in any pratical case)
   errorframe_t frame = NULL;
   ast_error_frame(&frame, ast,
     "the left side is consumed but its value is used");
@@ -745,6 +747,7 @@ static void error_consumed_but_used(pass_opt_t* opt, ast_t* ast)
 
 static void error_undefined_but_used(pass_opt_t* opt, ast_t* ast)
 {
+  // Prints an error about an lvalue's old value being needed, but undefined
   errorframe_t frame = NULL;
   ast_error_frame(&frame, ast,
     "the left side is undefined but its value is used");
