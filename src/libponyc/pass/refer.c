@@ -5,6 +5,13 @@
 #include "ponyassert.h"
 #include <string.h>
 
+enum lvalue_t {
+  NOT_LVALUE, // when the left value is something that cannot be assigned to
+  LVALUE, // when the left value is something that can be assigned to
+  ERR_LVALUE // when there is an issue with the left value (undefined, consumed)
+};
+typedef enum lvalue_t lvalue_t;
+
 /**
  * Make sure the definition of something occurs before its use. This is for
  * both fields and local variable.
@@ -714,7 +721,40 @@ bool refer_qualify(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static bool assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
+static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+  pony_assert(parent != NULL);
+  token_id parent_id = ast_id(parent);
+
+  if (parent_id == TK_VAR || parent_id == TK_LET) {
+    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the return value of this %s declaration", ast_print_type(ast), ast_print_type(parent));
+  }
+}
+
+static void error_consumed_but_used(pass_opt_t* opt, ast_t* ast)
+{
+  errorframe_t frame = NULL;
+  ast_error_frame(&frame, ast,
+    "the left side is consumed but its value is used");
+
+  error_check_used_decl(&frame, ast);
+
+  errorframe_report(&frame, opt->check.errors);
+}
+
+static void error_undefined_but_used(pass_opt_t* opt, ast_t* ast)
+{
+  errorframe_t frame = NULL;
+  ast_error_frame(&frame, ast,
+    "the left side is undefined but its value is used");
+
+  error_check_used_decl(&frame, ast);
+
+  errorframe_report(&frame, opt->check.errors);
+}
+
+static lvalue_t assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
 {
   pony_assert(ast_id(ast) == TK_DOT);
 
@@ -729,27 +769,25 @@ static bool assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
     case SYM_UNDEFINED:
       if(need_value)
       {
-        ast_error(opt->check.errors, ast,
-          "the left side is undefined but its value is used");
-        return false;
+        error_undefined_but_used(opt, ast);
+        return ERR_LVALUE;
       }
 
       ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
+      return LVALUE;
 
     case SYM_DEFINED:
-      return true;
+      return LVALUE;
 
     case SYM_CONSUMED:
     case SYM_CONSUMED_SAME_EXPR:
     {
-      bool ok = true;
+      lvalue_t ok = LVALUE;
 
       if(need_value)
       {
-        ast_error(opt->check.errors, ast,
-          "the left side is consumed but its value is used");
-        ok = false;
+        error_consumed_but_used(opt, ast);
+        ok = ERR_LVALUE;
       }
 
       if(opt->check.frame->try_expr != NULL)
@@ -759,13 +797,13 @@ static bool assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
           ast_error(opt->check.errors, ast,
             "can't reassign to a consumed identifier in a try expression unless"
             " it is reassigned in the same expression");
-          ok = false;
+          ok = ok == ERR_LVALUE ? ERR_LVALUE : NOT_LVALUE;
         }
         // SYM_CONSUMED_SAME_EXPR is allowed to pass; verify pass will check if
         // there are any partial calls/errors and throw an error if necessary
       }
 
-      if(ok)
+      if(ok == LVALUE)
         ast_setstatus(ast, name, SYM_DEFINED);
 
       return ok;
@@ -773,16 +811,16 @@ static bool assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
 
     case SYM_NONE:
       pony_assert(ast_id(ast) == TK_DOT);
-      return true;
+      return LVALUE;
 
     default: {}
   }
 
   pony_assert(0);
-  return false;
+  return NOT_LVALUE;
 }
 
-static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
+static lvalue_t assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
 {
   pony_assert(ast_id(ast) == TK_ID);
   const char* name = ast_name(ast);
@@ -795,41 +833,39 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
     case SYM_UNDEFINED:
       if(need_value)
       {
-        ast_error(opt->check.errors, ast,
-          "the left side is undefined but its value is used");
-        return false;
+        error_undefined_but_used(opt, ast);
+        return ERR_LVALUE;
       }
 
       ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
+      return LVALUE;
 
     case SYM_DEFINED:
       if(let)
       {
         ast_error(opt->check.errors, ast,
           "can't assign to a let or embed definition more than once");
-        return false;
+        return NOT_LVALUE;
       }
 
-      return true;
+      return LVALUE;
 
     case SYM_CONSUMED:
     case SYM_CONSUMED_SAME_EXPR:
     {
-      bool ok = true;
+      lvalue_t ok = LVALUE;
 
       if(need_value)
       {
-        ast_error(opt->check.errors, ast,
-          "the left side is consumed but its value is used");
-        ok = false;
+        error_consumed_but_used(opt, ast);
+        ok = ERR_LVALUE;
       }
 
       if(let)
       {
         ast_error(opt->check.errors, ast,
           "can't assign to a let or embed definition more than once");
-        ok = false;
+        ok = ok == ERR_LVALUE ? ERR_LVALUE : NOT_LVALUE;
       }
 
       if(opt->check.frame->try_expr != NULL)
@@ -839,13 +875,13 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
           ast_error(opt->check.errors, ast,
             "can't reassign to a consumed identifier in a try expression unless"
             " it is reassigned in the same expression");
-          ok = false;
+          ok = ok == ERR_LVALUE ? ERR_LVALUE : NOT_LVALUE;
         }
         // SYM_CONSUMED_SAME_EXPR is allowed to pass; verify pass will check if
         // there are any partial calls/errors and throw an error if necessary
       }
 
-      if(ok)
+      if(ok == LVALUE)
         ast_setstatus(ast, name, SYM_DEFINED);
 
       return ok;
@@ -855,19 +891,19 @@ static bool assign_id(pass_opt_t* opt, ast_t* ast, bool let, bool need_value)
   }
 
   pony_assert(0);
-  return false;
+  return NOT_LVALUE;
 }
 
-static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
+static lvalue_t is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 {
   switch(ast_id(ast))
   {
     case TK_DONTCARE:
-      return true;
+      return LVALUE;
 
     case TK_DONTCAREREF:
       // Can only assign to it if we don't need the value.
-      return !need_value;
+      return need_value ? NOT_LVALUE : LVALUE;
 
     case TK_VAR:
     case TK_LET:
@@ -882,7 +918,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
     case TK_LETREF:
     {
       ast_error(opt->check.errors, ast, "can't reassign to a let local");
-      return false;
+      return NOT_LVALUE;
     }
 
     case TK_DOT:
@@ -896,14 +932,14 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
           ast_t* def = (ast_t*)ast_data(ast);
 
           if(def == NULL)
-            return false;
+            return NOT_LVALUE;
 
           switch(ast_id(def))
           {
-            case TK_FVAR:  return assign_id(opt, right, false, need_value);
+            case TK_FVAR:  return assign_id(opt, right, false, need_value) ? LVALUE : NOT_LVALUE;
             case TK_FLET:
-            case TK_EMBED: return assign_id(opt, right, true, need_value);
-            default:       return false;
+            case TK_EMBED: return assign_id(opt, right, true, need_value) ? LVALUE : NOT_LVALUE;
+            default:       return NOT_LVALUE;
           }
         }
         case TK_VARREF:
@@ -915,7 +951,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
         default: {}
       }
 
-      return true;
+      return LVALUE;
     }
 
     case TK_TUPLE:
@@ -925,13 +961,16 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
 
       while(child != NULL)
       {
-        if(!is_lvalue(opt, child, need_value))
-          return false;
+        switch (is_lvalue(opt, child, need_value)) {
+          case LVALUE: break;
+          case ERR_LVALUE: return ERR_LVALUE;
+          case NOT_LVALUE: return NOT_LVALUE;
+        }
 
         child = ast_sibling(child);
       }
 
-      return true;
+      return LVALUE;
     }
 
     case TK_SEQ:
@@ -941,7 +980,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
       ast_t* child = ast_child(ast);
 
       if(ast_sibling(child) != NULL)
-        return false;
+        return NOT_LVALUE;
 
       return is_lvalue(opt, child, need_value);
     }
@@ -949,7 +988,7 @@ static bool is_lvalue(pass_opt_t* opt, ast_t* ast, bool need_value)
     default: {}
   }
 
-  return false;
+  return NOT_LVALUE;
 }
 
 static bool refer_pre_call(pass_opt_t* opt, ast_t* ast)
@@ -984,17 +1023,20 @@ static bool refer_assign(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_ASSIGN);
   AST_GET_CHILDREN(ast, left, right);
 
-  if(!is_lvalue(opt, left, is_result_needed(ast)))
+  switch(is_lvalue(opt, left, is_result_needed(ast)))
   {
-    if(ast_id(left) == TK_DONTCAREREF)
-    {
-      ast_error(opt->check.errors, left,
-        "can't read from '_'");
-    } else {
-      ast_error(opt->check.errors, ast,
-        "left side must be something that can be assigned to");
-    }
-    return false;
+    case NOT_LVALUE:
+      if(ast_id(left) == TK_DONTCAREREF)
+      {
+        ast_error(opt->check.errors, left,
+          "can't read from '_'");
+      } else {
+        ast_error(opt->check.errors, ast,
+          "left side must be something that can be assigned to");
+      }
+      return false;
+    case ERR_LVALUE: return false;
+    case LVALUE: break;
   }
 
   return true;
