@@ -61,7 +61,7 @@ primitive _StepChdir
 primitive _StepExecve
   fun apply(): U8 => 2
 
-primitive WNOHANG
+primitive _WNOHANG
   fun apply(): I32 =>
     ifdef posix then
       @ponyint_wnohang[I32]()
@@ -263,7 +263,7 @@ class _ProcessPosix is _Process
     """Only polls, does not block."""
     if pid > 0 then
       var wstatus: I32 = 0
-      let options: I32 = 0 or WNOHANG()
+      let options: I32 = 0 or _WNOHANG()
       // poll, do not block
       match @waitpid[I32](pid, addressof wstatus, options)
       | let err: I32 if err < 0 =>
