@@ -232,16 +232,36 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
  *
  */
 #ifdef PLATFORM_IS_CLANG_OR_GCC
-#  define __pony_popcount(X) (unsigned int)__builtin_popcount((X))
-#  define __pony_ffs(X) (unsigned int)__builtin_ffs((X))
-#  define __pony_ffsl(X) (unsigned int)__builtin_ffsl((X))
-#  define __pony_ctz(X) (unsigned int)__builtin_ctz((X))
-#  define __pony_ctzl(X) (unsigned int)__builtin_ctzl((X))
-#  define __pony_clz(X) (unsigned int)__builtin_clz((X))
-#  define __pony_clzl(X) (unsigned int)__builtin_clzl((X))
+inline uint32_t __pony_popcount(uint32_t x) {
+  return (uint32_t)__builtin_popcount(x);
+}
+
+inline uint32_t __pony_ffs(uint32_t x) {
+  return (uint32_t)__builtin_ffs((int)x);
+}
+
+inline uint32_t __pony_ffsll(uint64_t x) {
+  return (uint32_t)__builtin_ffsll((long long int)x);
+}
+
+inline uint32_t __pony_ctz(uint32_t x) {
+  return (uint32_t)__builtin_ctz(x);
+}
+
+inline uint32_t __pony_clz(uint32_t x) {
+  return (uint32_t)__builtin_clz(x);
+}
+
+inline uint32_t __pony_clzll(uint64_t x) {
+  return (uint32_t)__builtin_clzll(x);
+}
+
 #else
 #  include <intrin.h>
-#  define __pony_popcount(X) __popcnt((X))
+
+inline uint32_t __pony_popcount(uint32_t x) {
+  return __popcnt(x);
+}
 
 inline uint32_t __pony_ffs(uint32_t x)
 {
@@ -250,21 +270,12 @@ inline uint32_t __pony_ffs(uint32_t x)
   return non_zero ? i + 1 : 0;
 }
 
-#  ifdef PLATFORM_IS_ILP32
-inline uint32_t __pony_ffsl(uint32_t x)
-{
-  DWORD i = 0;
-  unsigned char non_zero = _BitScanForward(&i, x);
-  return non_zero ? i + 1 : 0;
-}
-#  else
-inline uint64_t __pony_ffsl(uint64_t x)
+inline uint32_t __pony_ffsll(uint64_t x)
 {
   DWORD i = 0;
   unsigned char non_zero = _BitScanForward64(&i, x);
   return non_zero ? i + 1 : 0;
 }
-#  endif
 
 inline uint32_t __pony_ctz(uint32_t x)
 {
@@ -273,22 +284,6 @@ inline uint32_t __pony_ctz(uint32_t x)
   return i;
 }
 
-#  ifdef PLATFORM_IS_ILP32
-inline uint32_t __pony_ctzl(uint32_t x)
-{
-  DWORD i = 0;
-  _BitScanForward(&i, x);
-  return i;
-}
-#  else
-inline uint64_t __pony_ctzl(uint64_t x)
-{
-  DWORD i = 0;
-  _BitScanForward64(&i, x);
-  return i;
-}
-#  endif
-
 inline uint32_t __pony_clz(uint32_t x)
 {
   DWORD i = 0;
@@ -296,23 +291,30 @@ inline uint32_t __pony_clz(uint32_t x)
   return 31 - i;
 }
 
-#  ifdef PLATFORM_IS_ILP32
-inline uint32_t __pony_clzl(uint32_t x)
-{
-  DWORD i = 0;
-  _BitScanReverse(&i, x);
-  return 31 - i;
-}
-#  else
-inline uint64_t __pony_clzl(uint64_t x)
+inline uint32_t __pony_clzll(uint64_t x)
 {
   DWORD i = 0;
   _BitScanReverse64(&i, x);
   return 63 - i;
 }
-#  endif
 
 #endif
+
+inline uint32_t __pony_ffszu(size_t x) {
+#ifdef PLATFORM_IS_ILP32
+  return __pony_ffs(x);
+#else
+  return __pony_ffsll(x);
+#endif
+}
+
+inline uint32_t __pony_clzzu(size_t x) {
+#ifdef PLATFORM_IS_ILP32
+  return __pony_clz(x);
+#else
+  return __pony_clzll(x);
+#endif
+}
 
 /** Static assert
  *

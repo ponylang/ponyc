@@ -13,11 +13,10 @@ PONY_EXTERN_C_BEGIN
 #define HASHMAP_BEGIN ((size_t)-1)
 #define HASHMAP_UNKNOWN ((size_t)-1)
 
+typedef size_t bitmap_t;
 #ifdef PLATFORM_IS_ILP32
-  typedef uint32_t bitmap_t;
   #define HASHMAP_BITMAP_TYPE_BITS 5 // 2^5 = 32
 #else
-  typedef uint64_t bitmap_t;
   #define HASHMAP_BITMAP_TYPE_BITS 6 // 2^6 = 64
 #endif
 
