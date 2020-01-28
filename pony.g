@@ -128,7 +128,7 @@ withelem
   ;
 
 caseexpr
-  : '|' ('\\' ID (',' ID)* '\\')? pattern? ('if' rawseq)? ('=>' rawseq)?
+  : '|' ('\\' ID (',' ID)* '\\')? casepattern? ('if' rawseq)? ('=>' rawseq)?
   ;
 
 elseiftype
@@ -162,6 +162,11 @@ nextpattern
   | nextparampattern
   ;
 
+casepattern
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | caseparampattern
+  ;
+
 pattern
   : ('var' | 'let' | 'embed') ID (':' type)?
   | parampattern
@@ -170,6 +175,11 @@ pattern
 nextparampattern
   : ('not' | 'addressof' | MINUS_NEW | MINUS_TILDE_NEW | 'digestof') parampattern
   | nextpostfix
+  ;
+
+caseparampattern
+  : ('not' | 'addressof' | '-' | '-~' | MINUS_NEW | MINUS_TILDE_NEW | 'digestof') caseparampattern
+  | casepostfix
   ;
 
 parampattern
@@ -181,8 +191,12 @@ nextpostfix
   : nextatom antlr_2*
   ;
 
+casepostfix
+  : caseatom antlr_3*
+  ;
+
 postfix
-  : atom antlr_3*
+  : atom antlr_4*
   ;
 
 call
@@ -212,6 +226,24 @@ nextatom
   | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
+  | 'if' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
+  | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\\' ID (',' ID)* '\\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  ;
+
+caseatom
+  : ID
+  | 'this'
+  | literal
+  | ('(' | LPAREN_NEW) rawseq tuple? ')'
+  | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq? ']'
+  | 'object' ('\\' ID (',' ID)* '\\')? cap? ('is' type)? members 'end'
+  | '{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
+  | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
+  | '__loc'
+  | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\\' ID (',' ID)* '\\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
   ;
 
 atom
@@ -225,6 +257,9 @@ atom
   | '@{' ('\\' ID (',' ID)* '\\')? cap? ID? typeparams? ('(' | LPAREN_NEW) lambdaparams? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq '}' cap?
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   | '__loc'
+  | 'if' ('\\' ID (',' ID)* '\\')? rawseq 'then' rawseq (elseif | ('else' annotatedrawseq))? 'end'
+  | 'while' ('\\' ID (',' ID)* '\\')? rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
+  | 'for' ('\\' ID (',' ID)* '\\')? idseq 'in' rawseq 'do' rawseq ('else' annotatedrawseq)? 'end'
   ;
 
 tuple
@@ -285,7 +320,7 @@ tupletype
   ;
 
 infixtype
-  : type antlr_4*
+  : type antlr_5*
   ;
 
 isecttype
@@ -380,6 +415,14 @@ antlr_3
   ;
 
 antlr_4
+  : dot
+  | tilde
+  | chain
+  | typeargs
+  | call
+  ;
+
+antlr_5
   : uniontype
   | isecttype
   ;
