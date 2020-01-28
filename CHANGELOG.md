@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - fix cli issue when providing --help=false. ([PR #3442](https://github.com/ponylang/ponyc/pull/3442))
 - Fix linker error when creating symlinks on Windows ([PR #3444](https://github.com/ponylang/ponyc/pull/3444))
+- Fix "not match" and "not if" causing a syntax error ([PR #3449](https://github.com/ponylang/ponyc/pull/3449))
 
 ### Added
 
