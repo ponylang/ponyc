@@ -19,21 +19,21 @@ primitive Sort[A: Seq[B] ref, B: Comparable[B] #read]
   
   It outputs:
     
-    first
-    second
-    third
+  > first
+  > second
+  > third
   
   ```pony
-     use "collections"
+  use "collections"
 
-     actor Main 
-       new create(env:Env) => 
-         let array = [ "third"; "second"; "first" ]
-         let sorted_array = Sort[Array[String], String](array)
-         for e in sorted_array.values() do
-           env.out.print(e) // prints "first \n second \n third"
-         end
-    ```
+  actor Main 
+    new create(env:Env) => 
+      let array = [ "third"; "second"; "first" ]
+      let sorted_array = Sort[Array[String], String](array)
+      for e in sorted_array.values() do
+        env.out.print(e) // prints "first \n second \n third"
+      end
+  ```
   """
   fun apply(a: A): A^ =>
     """
