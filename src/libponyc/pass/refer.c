@@ -729,7 +729,7 @@ static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
   token_id parent_id = ast_id(parent);
 
   if (parent_id == TK_VAR || parent_id == TK_LET) {
-    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the return value of this %s declaration", ast_print_type(ast), ast_print_type(parent));
+    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the resulting value of this %s declaration", ast_print_type(ast), ast_print_type(parent));
   }
 }
 
