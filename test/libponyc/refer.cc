@@ -405,6 +405,20 @@ TEST_F(ReferTest, RepeatLoopDeclareLetAndUseOutside)
     "can't find declaration of 'c3'");
 }
 
+TEST_F(ReferTest, UndefinedVarValueNeeded)
+{
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) => None\n"
+      "fun apply(): C =>\n"
+        "var c = C";
+
+  TEST_ERRORS_1(src,
+    "the left side is undefined but its value is used");
+}
+
 TEST_F(ReferTest, RepeatLoopDefineVarAndUseOutside)
 {
   const char* src =
