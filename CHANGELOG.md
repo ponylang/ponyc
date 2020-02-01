@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Better error message for check_receiver_cap ([PR #3450](https://github.com/ponylang/ponyc/pull/3450))
+- Improved error for undefined but used left side of declarations ([PR #3451](https://github.com/ponylang/ponyc/pull/3451))
 
 ## [0.33.1] - 2019-12-13
 
