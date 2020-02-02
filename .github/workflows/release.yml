@@ -26,4 +26,4 @@ jobs:
         with:
           formula-name: ponyc
         env:
-          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }}
