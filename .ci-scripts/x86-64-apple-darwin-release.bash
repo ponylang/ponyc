@@ -29,7 +29,7 @@ PACKAGE_DIR=$(mktemp -d)
 PACKAGE=ponyc-${TRIPLE}
 
 # Cloudsmith configuration
-CLOUDSMITH_VERSION=${cat VERSION}
+CLOUDSMITH_VERSION=$(cat VERSION)
 ASSET_OWNER=ponylang
 ASSET_REPO=releases
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
