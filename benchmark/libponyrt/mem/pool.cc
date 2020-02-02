@@ -34,7 +34,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_index)(benchmark::State& st) {
   while (st.KeepRunning()) {
     ponyint_pool_index(static_cast<size_t>(st.range(0)));
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_index)->RangeMultiplier(3)->Ranges({{1, 1024<<10}});
@@ -46,7 +46,7 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC$)(benchmark::State& st) {
     POOL_FREE(block_t, p);
     st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC$);
@@ -62,7 +62,7 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_multiple$_)(benchmark::State& st) {
       POOL_FREE(block_t, p[i-1]);
     st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)(st.iterations() * num_allocs));
 }
 
 BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC_multiple$_)->Arg(1<<10);
@@ -74,7 +74,7 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_FREE$)(benchmark::State& st) {
     st.ResumeTiming();
     POOL_FREE(block_t, p);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, POOL_FREE$);
@@ -84,7 +84,7 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_FREE)(benchmark::State& st) {
     void* p = POOL_ALLOC(block_t);
     POOL_FREE(block_t, p);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC_FREE);
@@ -100,7 +100,7 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_FREE_multiple$_)(benchmark::State& st) {
     for(size_t i = num_allocs; i > 0; i--)
       POOL_FREE(block_t, p[i-1]);
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)(st.iterations() * num_allocs));
 }
 
 BENCHMARK_REGISTER_F(PoolBench, POOL_FREE_multiple$_)->Arg(1<<10);
@@ -114,7 +114,7 @@ BENCHMARK_DEFINE_F(PoolBench, POOL_ALLOC_FREE_multiple)(benchmark::State& st) {
     for(size_t i = num_allocs; i > 0; i--)
       POOL_FREE(block_t, p[i-1]);
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)(st.iterations() * num_allocs));
 }
 
 BENCHMARK_REGISTER_F(PoolBench, POOL_ALLOC_FREE_multiple)->Arg(1<<10);
@@ -126,7 +126,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_alloc_size$)(benchmark::State& st) {
     ponyint_pool_free_size(LARGE_ALLOC, p);
     st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_alloc_size$);
@@ -142,7 +142,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_alloc_size_multiple$_)(benchmark::State& st) 
       ponyint_pool_free_size(LARGE_ALLOC, p[i-1]);
     st.ResumeTiming();
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)(st.iterations() * num_allocs));
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_alloc_size_multiple$_)->Arg((int)(POOL_MMAP/LARGE_ALLOC));
@@ -154,7 +154,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_free_size$)(benchmark::State& st) {
     st.ResumeTiming();
     ponyint_pool_free_size(LARGE_ALLOC, p);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_free_size$);
@@ -164,7 +164,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_alloc_free_size)(benchmark::State& st) {
     void* p = ponyint_pool_alloc_size(LARGE_ALLOC);
     ponyint_pool_free_size(LARGE_ALLOC, p);
   }
-  st.SetItemsProcessed(st.iterations());
+  st.SetItemsProcessed((int64_t)st.iterations());
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_alloc_free_size);
@@ -180,7 +180,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_free_size_multiple$_)(benchmark::State& st) {
     for(size_t i = num_allocs; i > 0; i--)
       ponyint_pool_free_size(LARGE_ALLOC, p[i-1]);
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)(st.iterations() * num_allocs));
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_free_size_multiple$_)->Arg((int)(POOL_MMAP/LARGE_ALLOC));
@@ -194,7 +194,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_alloc_free_size_multiple)(benchmark::State& s
     for(size_t i = num_allocs; i > 0; i--)
       ponyint_pool_free_size(LARGE_ALLOC, p[i-1]);
   }
-  st.SetItemsProcessed(st.iterations()*num_allocs);
+  st.SetItemsProcessed((int64_t)(st.iterations() * num_allocs));
 }
 
 BENCHMARK_REGISTER_F(PoolBench, pool_alloc_free_size_multiple)->Arg((int)(POOL_MMAP/LARGE_ALLOC));

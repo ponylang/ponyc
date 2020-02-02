@@ -120,13 +120,16 @@ class CommandParser
     end
 
     // If it's a help option, return a general or specific CommandHelp.
-    if options.contains(_help_name()) then
-      return
-        if _spec is _root_spec() then
-          Help.general(_root_spec())
-        else
-          Help.for_command(_root_spec(), [_spec.name()])
-        end
+    try
+      let help_option = options(_help_name())?
+      if help_option.bool() then
+        return
+          if _spec is _root_spec() then
+            Help.general(_root_spec())
+          else
+            Help.for_command(_root_spec(), [_spec.name()])
+          end
+      end
     end
 
     // If it's a help command, return a general or specific CommandHelp.

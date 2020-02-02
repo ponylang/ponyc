@@ -644,6 +644,18 @@ TEST_F(SugarTest, IfWithElse)
 }
 
 
+TEST_F(SugarTest, NotIf)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    let a = true\n"
+    "    if not if a then not a else a end then a end";
+
+  TEST_COMPILE(short_form);
+}
+
+
 TEST_F(SugarTest, WhileWithoutElse)
 {
   const char* short_form =
@@ -670,6 +682,18 @@ TEST_F(SugarTest, WhileWithElse)
     "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    while 1 do 2 else 3 end";
+
+  TEST_COMPILE(short_form);
+}
+
+
+TEST_F(SugarTest, NotWhileWithElse)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  fun f(): U32 val =>\n"
+    "    let a = true\n"
+    "    not while a do true else false end";
 
   TEST_COMPILE(short_form);
 }
@@ -803,6 +827,17 @@ TEST_F(SugarTest, ForWithElse)
     "  )";
 
   TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, NotForWithElse)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  fun f()=>\n"
+    "    not for i in 1 do true else false end";
+
+  TEST_COMPILE(short_form);
 }
 
 

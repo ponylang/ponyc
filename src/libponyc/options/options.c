@@ -382,6 +382,10 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         }
         break;
 
+      case -2:
+        // ponyint_opt_next already took care of printing the error message
+        return EXIT_255;
+
       default:
         printf("BUG: unprocessed option id %d\n", id);
         return EXIT_255;

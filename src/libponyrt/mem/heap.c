@@ -102,7 +102,7 @@ static void final_small(chunk_t* chunk, uint32_t mark)
   // if there's a finaliser to run for a used slot
   while(finalisers != 0)
   {
-    bit = __pony_ctzl(finalisers);
+    bit = __pony_ctz(finalisers);
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser
@@ -130,7 +130,7 @@ static void final_small_freed(chunk_t* chunk)
   // if there's a finaliser to run for a used slot
   while(finalisers != 0)
   {
-    bit = __pony_ctzl(finalisers);
+    bit = __pony_ctz(finalisers);
     p = chunk->m + (bit << HEAP_MINBITS);
 
     // run finaliser

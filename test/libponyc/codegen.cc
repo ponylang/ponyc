@@ -107,7 +107,7 @@ static uint32_t num_objects = 0;
 
 EXPORT_SYMBOL void codegentest_small_finalisers_increment_num_objects() {
   num_objects++;
-  pony_exitcode(num_objects);
+  pony_exitcode((int)num_objects);
 }
 
 }
@@ -451,7 +451,7 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 //
 // This test is disabled on LLVM 3.9 and 4.0 because exceptions crossing JIT
 // boundaries are broken with the ORC JIT on these versions.
-#if !defined(PLATFORM_IS_WINDOWS) && (PONY_LLVM >= 500)
+#if !defined(PLATFORM_IS_WINDOWS) && (PONY_LLVM >= 500) && (PONY_LLVM < 900)
 TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
 {
   const char* src =
@@ -946,4 +946,3 @@ TEST_F(CodegenTest, TryThenClauseContinueNested)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 42);
 }
-

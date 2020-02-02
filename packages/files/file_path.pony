@@ -246,16 +246,75 @@ class val FilePath
 
     0 == @rename[I32](path.cstring(), new_path.path.cstring())
 
-  fun symlink(link_name: FilePath): Bool =>
+  fun val symlink(link_name: FilePath): Bool =>
     """
     Create a symlink to a file or directory.
+
+    Note that on Windows a program must be running with elevated priviledges to
+    be able to create symlinks.
     """
     if not caps(FileLink) or not link_name.caps(FileCreate) then
       return false
     end
 
     ifdef windows then
-      0 != @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring())
+      try
+        var err: U32 = 0
+
+        // look up the ID of the SE_CREATE_SYMBOLIC_LINK privilege
+        let priv_name = "SeCreateSymbolicLinkPrivilege"
+        var luid: U64 = 0
+        var ret = @LookupPrivilegeValueA[U8](
+          USize(0),
+          priv_name.cstring(),
+          addressof luid)
+        if ret == 0 then
+          return false
+        end
+
+        // get current process pseudo-handle
+        let handle = @GetCurrentProcess[USize]()
+        if handle == 0 then
+          return false
+        end
+
+        // get security token
+        var token: USize = 0
+        let rights: U32 = 0x0020 // TOKEN_ADJUST_PRIVILEGES
+        ret = @OpenProcessToken[U8](handle, rights, addressof token)
+        if ret == 0 then
+          return false
+        end
+
+        // try to turn on SE_CREATE_SYMBOLIC_LINK privilege
+        // this won't work unless we are administrator or have Developer Mode on
+        // https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/
+        var privileges: _TokenPrivileges ref = _TokenPrivileges
+        privileges.privilege_count = 1
+        privileges.privileges_0.luid = luid
+        privileges.privileges_0.attributes = 0x00000002 // SE_PRIVILEGE_ENABLED
+        ret = @AdjustTokenPrivileges[U8](
+          token,
+          U8(0),
+          privileges,
+          U32(0),
+          USize(0),
+          USize(0))
+        @CloseHandle[U8](token)
+        if ret == 0 then
+          return false
+        end
+
+        // now actually try to create the link
+        let flags: U32 = if FileInfo(this)?.directory then 3 else 0 end
+        ret = @CreateSymbolicLinkA[U8](
+          link_name.path.cstring(),
+          path.cstring(),
+          flags)
+        ret != 0
+      else
+        false
+      end
     else
       0 == @symlink[I32](path.cstring(), link_name.path.cstring())
     end
@@ -314,3 +373,11 @@ class val FilePath
 
       0 == @utimes[I32](path.cstring(), addressof tv)
     end
+
+struct ref _TokenPrivileges
+  var privilege_count: U32 = 1
+  embed privileges_0: _LuidAndAttributes = _LuidAndAttributes
+
+struct ref _LuidAndAttributes
+  var luid: U64 = 0
+  var attributes: U32 = 0

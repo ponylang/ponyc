@@ -14,7 +14,6 @@ In order to do a release, you absolutely must have:
 While not strictly required, you probably be unable to deal with any errors that arise without:
 
 * A [bintray account](https://bintray.com/) and have been granted access `pony-language` organization by a "release admin".
-* Read and write access to the ponylang [circleci](https://circleci.com) account
 * Read and write access to the ponylang [appveyor](https://www.appveyor.com) account
 * Read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
@@ -24,7 +23,6 @@ We rely on both CircleCI and Appveyor as part of our release process. Both need 
 
 * [Appveyor Status](https://appveyor.statuspage.io)
 * [Bintray Status](http://status.bintray.com)
-* [CircleCI Status](https://status.circleci.com/)
 
 ### A GitHub issue exists for the release
 
@@ -59,6 +57,10 @@ Leave a comment on the GitHub issue for this release to let everyone know you ar
 Go through all open PRs and check to see if they are updating the CHANGELOG. If they are, leave a note asking them to merge the latest CHANGELOG into their branch because of the recent versioning for release and to move their additions into the appropriate area of "unreleased".
 
 ### Update Homebrew
+
+The [ponyc Homebrew formula](https://github.com/Homebrew/homebrew-core/blob/master/Formula/ponyc.rb) is updated via a GitHub action called: ["Bump Homebrew formula"\(https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Release%22).
+
+If for some reason the GitHub action fails, you can use the following instructions to manually update:
 
 Fork the [homebrew-core repo](https://github.com/Homebrew/homebrew-core) and then clone it locally. You are going to be editing "Formula/ponyc.rb". If you already have a local copy of homebrew-core, make sure you sync up with the main Homebrew repo otherwise you might change an older version of the formula and end up with merge conflicts.
 
@@ -125,20 +127,6 @@ and should have a version field listing that matches the current release e.g. `0
 
 In general, you should expect it to take about 30 to 50 minutes to build each package once CircleCI starts running the task.
 
-### Wait on Homebrew
-
-Periodically check on your Homebrew PR. They have a CI process and everything should flow through smoothly. If it doesn't attempt to fix the problem. If you can't fix the problem, leave a comment on the GitHub issue for this release asking for assistance.
-
-Your PR will be closed once your change has been merged to master. Note, that your PR itself will not show as merged in GitHub- just closed. You can use the following command to verify that your change is on Homebrew master:
-
-```bash
-curl -sL https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula/ponyc.rb | grep url
-```
-
-If the formulae has been successfully updated, you'll see the new download url in the output of the command. If it hasn't, you'll see the old url.
-
-Note that its often quite quick to get everything through Homebrew's CI and merge process, however its often quite slow as well. We've seen their Jenkins CI often fail with errors that are unrelated to PR in question. Don't wait too long on Homebrew. If it hasn't passed CI and been merged within a couple hours move ahead without it having passed. If Homebrew is being slow about merging, when you inform Zulip, and pony-user of the release, note that the Homebrew version isn't available yet and include a link to the Homebrew PR and the ponyc Github release issue so that people can follow along. When the Homebrew PR is eventually merged, update pony-user and Zulip.
-
 ### Wait on Docker images to be built
 
 As part of every release, 4 Docker images are built:
@@ -150,13 +138,13 @@ As part of every release, 4 Docker images are built:
   - release-alpine
   - 0.3.1-alpine
 
-The images are built on [CircleCI](https://circleci.com/gh/ponylang/ponyc). You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
+The images are built via GitHub action after Cloudsmith releases have been uploaded. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
 
 ### Verify that the Pony Playground updated to the new version
 
 Once the DockerHub images have been updated, visit the [Pony Playground](https://playground.ponylang.io/) and verify that it has been updated to the correct version by compiling some code and checking the compiler version number in the output.
 
-If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, or @plietar.
+If it doesn't update automatically, it will need to be done manually. Ping @jemc, @seantallen, @mfelsche, @aturley, @kubali or @theodus.
 
 ### Merge the release blog post PR for the ponylang website
 

@@ -1,5 +1,6 @@
 #include "options.h"
 
+#include "ponyassert.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -103,8 +104,9 @@ static void strip_accepted_opts(opt_state_t* s)
   {
     *s->argc -= s->remove;
 
+    pony_assert(*s->argc >= s->idx);
     memmove(&s->argv[s->idx], &s->argv[s->idx + s->remove],
-      (*s->argc - s->idx) * sizeof(char*));
+      (unsigned int)(*s->argc - s->idx) * sizeof(char*));
 
     s->idx--;
 
@@ -245,5 +247,5 @@ int ponyint_opt_next(opt_state_t* s)
 
   strip_accepted_opts(s);
 
-  return m->id;
+  return (int)m->id;
 }

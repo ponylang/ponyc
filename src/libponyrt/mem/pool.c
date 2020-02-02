@@ -1037,7 +1037,7 @@ size_t ponyint_pool_index(size_t size)
   // The condition is in that order for better branch prediction: non-zero pool
   // indices are more likely than zero pool indices.
   if(size > POOL_MIN)
-    return (size_t)BITS - __pony_clzl(size) - (!(size & (size - 1)));
+    return (size_t)BITS - __pony_clzzu(size) - (!(size & (size - 1)));
 
   return 0;
 }
