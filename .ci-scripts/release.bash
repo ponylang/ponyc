@@ -73,12 +73,15 @@ then
   echo "ERROR! There are local-only changes on branch 'release'!"
   exit 1
 fi
+echo "Merging changes into release"
 git merge "prep-release-${VERSION}" -m "Release ${VERSION}"
 
 # tag release
+echo "Tagging version"
 git tag "${VERSION}"
 
 # push to release branch
+echo "Pushing to release branch"
 git push ${PUSH_TO} release
 git push ${PUSH_TO} "${VERSION}"
 
