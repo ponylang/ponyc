@@ -2,23 +2,6 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [0.33.2] - 2020-02-02
-
-### Fixed
-
-- fix cli issue when providing --help=false. ([PR #3442](https://github.com/ponylang/ponyc/pull/3442))
-- Fix linker error when creating symlinks on Windows ([PR #3444](https://github.com/ponylang/ponyc/pull/3444))
-- Fix "not match" and "not if" causing a syntax error ([PR #3449](https://github.com/ponylang/ponyc/pull/3449))
-
-### Added
-
-- LLVM 9.0.x support ([PR #3320](https://github.com/ponylang/ponyc/pull/3320))
-
-### Changed
-
-- Better error message for check_receiver_cap ([PR #3450](https://github.com/ponylang/ponyc/pull/3450))
-- Improved error for undefined but used left side of declarations ([PR #3451](https://github.com/ponylang/ponyc/pull/3451))
-
 ## [0.33.1] - 2019-12-13
 
 ### Fixed
