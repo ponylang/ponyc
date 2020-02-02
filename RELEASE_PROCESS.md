@@ -58,7 +58,7 @@ Go through all open PRs and check to see if they are updating the CHANGELOG. If 
 
 ### Update Homebrew
 
-The [ponyc Homebrew formula](https://github.com/Homebrew/homebrew-core/blob/master/Formula/ponyc.rb) is updated via a GitHub action called: ["Bump Homebrew formula"\(https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Release%22).
+The [ponyc Homebrew formula](https://github.com/Homebrew/homebrew-core/blob/master/Formula/ponyc.rb) is updated via a GitHub action called: ["Bump Homebrew formula"](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Release%22).
 
 If for some reason the GitHub action fails, you can use the following instructions to manually update:
 
