@@ -53,6 +53,7 @@ PUSH_TO="https://${RELEASE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 VERSION="${GITHUB_REF/refs\/tags\/release-/}"
 
 # create release prep branch
+echo "Creating release prep"
 git checkout -b "prep-release-${VERSION}"
 
 # update VERSION
@@ -68,11 +69,6 @@ git commit -m "${VERSION} release"
 
 # merge into release
 git checkout release
-if ! git diff --exit-code release origin/release
-then
-  echo "ERROR! There are local-only changes on branch 'release'!"
-  exit 1
-fi
 echo "Merging changes into release"
 git merge "prep-release-${VERSION}" -m "Release ${VERSION}"
 
