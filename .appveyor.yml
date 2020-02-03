@@ -80,7 +80,7 @@ deploy:
     package: ponyc
     on:
         branch: release
-        llvm: 7.0.1
+        llvm: 7.1.0
         configuration: release
     publish: true
 
