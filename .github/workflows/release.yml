@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Build and push
-        run: "bash .ci-scripts/build-and-push-stdlib-documentation,bash $STDLIB_TOKEN"
+        run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
         env:
           STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
 
