@@ -6,7 +6,7 @@ Prebuilt Pony binaries are available on a number of platforms. They are built us
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
 
-To install the most recent ponyc on a Glibc distribution (for example, Debian, Ubuntu, and most distros):
+To install the most recent ponyc:
 
 ```bash
 ponyup update ponyc release
