@@ -8,7 +8,6 @@ In order to do a release, you absolutely must have:
 
 * Commit access to the `ponyc` repo
 * Access to the ponylang twitter account
-* Accounts on reddit/hacker news/lobste.rs for posting release notes
 * An account on the [Pony Zulip](https://ponylang.zulipchat.com)
 
 While not strictly required, you probably be unable to deal with any errors that arise without:
@@ -164,8 +163,6 @@ Last Week in Pony is our weekly newsletter. Add information about the release, i
 
 All Pony releases should be posted to:
 
-- [/r/ponylang](https://www.reddit.com/r/ponylang/) ([example](https://www.reddit.com/r/ponylang/comments/8m85p9/0222_released/))
-- [Hacker News](https://news.ycombinator.com/) ([example](https://news.ycombinator.com/item?id=17150567))
 - [ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
 - [Lobste.rs](https://lobste.rs/) ([example](https://lobste.rs/s/znbqba/pony_0_32_0_has_been_released))
 
