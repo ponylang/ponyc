@@ -164,7 +164,7 @@ Last Week in Pony is our weekly newsletter. Add information about the release, i
 All Pony releases should be posted to:
 
 - [ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
-- [Lobste.rs](https://lobste.rs/) ([example](https://lobste.rs/s/znbqba/pony_0_32_0_has_been_released))
+
 
 ### Close the GitHub issue
 
