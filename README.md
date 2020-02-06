@@ -71,4 +71,4 @@ We welcome contributions to Pony. Please read through [CONTRIBUTING.md](CONTRIBU
 
 ## License
 
-Pony is distributed under the terms of the [2-Clause BSD License](https://opensource.org/licenses/BSD-2-Clause). See [LICENSE.md](LICENSE.md) for details.
+Pony is distributed under the terms of the [2-Clause BSD License](https://opensource.org/licenses/BSD-2-Clause). See [LICENSE](LICENSE) for details.
