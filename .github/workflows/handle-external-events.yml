@@ -87,3 +87,32 @@ jobs:
         run: bash .dockerfiles/release/x86-64-unknown-linux-musl/build-and-push.bash
         env:
           VERSION: ${{ github.event.client_payload.data.version }}
+
+  update-stdlib-builder-image:
+    needs: build-release-gnu-docker-image
+
+    name: Updates stdlib-builder Docker image with newly released ponyc version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
+
+  build-and-push-stdlib-documentation:
+    needs: update-stdlib-builder-image
+
+    name: Build and Push standard library documentation
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/ponyc-ci-stdlib-builder:latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build and push
+        run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
+        env:
+          STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
