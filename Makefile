@@ -20,12 +20,12 @@ endif
 
 symlink := yes
 ifdef DESTDIR
-	prefix := $(DESTDIR)
-	ponydir := $(prefix)
-	symlink := no
+  prefix := $(DESTDIR)
+  ponydir := $(prefix)
+  symlink := no
 else
-	prefix ?= /usr/local
-	ponydir ?= $(prefix)/lib/pony/$(tag)
+  prefix ?= /usr/local
+  ponydir ?= $(prefix)/lib/pony/$(tag)
 endif
 
 # By default, CC is cc and CXX is g++
@@ -58,26 +58,26 @@ libsBuildDir := $(srcDir)/build/build_libs
 libsOutDir := $(srcDir)/build/libs
 
 ifndef verbose
-	SILENT = @
-	CMAKE_VERBOSE_FLAGS :=
+  SILENT = @
+  CMAKE_VERBOSE_FLAGS :=
 else
-	SILENT =
-	CMAKE_VERBOSE_FLAGS := -DCMAKE_VERBOSE_MAKEFILE=ON
+  SILENT =
+  CMAKE_VERBOSE_FLAGS := -DCMAKE_VERBOSE_MAKEFILE=ON
 endif
 
 ifeq ($(lto),yes)
-	LTO_CONFIG_FLAGS = -DPONY_USE_LTO=true
+  LTO_CONFIG_FLAGS = -DPONY_USE_LTO=true
 else
-	LTO_CONFIG_FLAGS =
+  LTO_CONFIG_FLAGS =
 endif
 
 ifeq ($(runtime-bitcode),yes)
-	ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
-		$(error Compiling the runtime as a bitcode file requires clang)
-	endif
-	BITCODE_FLAGS = -DPONY_RUNTIME_BITCODE=true
+  ifeq (,$(shell $(CC) -v 2>&1 | grep clang))
+    $(error Compiling the runtime as a bitcode file requires clang)
+  endif
+  BITCODE_FLAGS = -DPONY_RUNTIME_BITCODE=true
 else
-	BITCODE_FLAGS =
+  BITCODE_FLAGS =
 endif
 
 .DEFAULT_GOAL := build
