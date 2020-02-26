@@ -1545,6 +1545,19 @@ bool target_is_arm(char* t)
   return (!strcmp("arm", arch) || !strcmp("aarch64", arch));
 }
 
+bool target_is_riscv(char* t)
+{
+  Triple triple = Triple(t);
+
+#if PONY_LLVM >= 400
+  const char* arch = Triple::getArchTypePrefix(triple.getArch()).data();
+#else
+  const char* arch = Triple::getArchTypePrefix(triple.getArch());
+#endif
+
+  return (!strcmp("riscv32", arch) || !strcmp("riscv64", arch));
+}
+
 // This function is used to safeguard against potential oversights on the size
 // of Bool on any future port to PPC32.
 // We do not currently support compilation to PPC. It could work, but no

@@ -158,7 +158,7 @@ ALL_CFLAGS = -std=gnu11 -fexceptions \
   -DPONY_VERSION_STR=\"$(version_str)\" \
   -D_FILE_OFFSET_BITS=64
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
-LL_FLAGS = -mcpu=$(cpu)
+LL_FLAGS = -mcpu=$(cpu) $(cross_llc_args)
 
 # Determine pointer size in bits.
 BITS := $(bits)
@@ -166,7 +166,7 @@ UNAME_M := $(shell uname -m)
 
 ifeq ($(BITS),64)
   ifneq (,$(filter $(UNAME_M), x86_64 amd64))
-    ifeq (,$(filter $(arch), armv8-a))
+    ifeq (,$(filter $(arch), armv8-a rv64gc))
       BUILD_FLAGS += -mcx16
       LINKER_FLAGS += -mcx16
     endif
@@ -1071,7 +1071,7 @@ validate-grammar: all
 
 test-ci: all check-version test-core test-stdlib-debug test-stdlib test-examples validate-grammar
 
-test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)'
+test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: cross_runner=$(QEMU_RUNNER)
 test-cross-ci: test-ci
 
