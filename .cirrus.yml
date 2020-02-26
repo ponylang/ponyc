@@ -233,6 +233,28 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-unknown-linux-gnu [debug]"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    populate_script: make libs build_flags=-j8
+
+  configure_script:
+    - make configure config=debug
+  build_script:
+    - make build config=debug build_flags=-j8
+  test_script:
+    - make test-ci config=debug
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
     cpu: 8
     memory: 24
@@ -250,6 +272,28 @@ task:
     - make build build_flags=-j8
   test_script:
     - make test-ci
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-unknown-linux-musl"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
+    populate_script: make libs build_flags=-j8
+
+  configure_script:
+    - make configure config=debug
+  build_script:
+    - make build config=debug build_flags=-j8
+  test_script:
+    - make test-ci config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
