@@ -281,7 +281,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "PR: x86-64-unknown-linux-musl"
+  name: "PR: x86-64-unknown-linux-musl [debug]"
 
   libs_cache:
     folder: build/libs
