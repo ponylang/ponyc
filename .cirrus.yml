@@ -180,7 +180,7 @@ task:
     cpu: 8
     memory: 24
 
-  name: "nightly: x86-64-pc-windows-msvc"
+  name: "release: x86-64-pc-windows-msvc"
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
@@ -276,28 +276,6 @@ task:
 task:
   only_if: $CIRRUS_PR != ''
 
-  container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
-    cpu: 8
-    memory: 24
-
-  name: "PR: x86-64-unknown-linux-musl [debug]"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
-    populate_script: make libs build_flags=-j8
-
-  configure_script:
-    - make configure config=debug
-  build_script:
-    - make build config=debug build_flags=-j8
-  test_script:
-    - make test-ci config=debug
-
-task:
-  only_if: $CIRRUS_PR != ''
-
   freebsd_instance:
     image: freebsd-12-0-release-amd64
     cpu: 8
@@ -375,6 +353,32 @@ task:
 task:
   only_if: $CIRRUS_PR != ''
 
+  windows_container:
+    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-pc-windows-msvc [debug]"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+
+  config_script:
+    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019" -Prefix "build\install\debug"
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019" -Prefix "build\install\debug"
+  test_script:
+    - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019" -Prefix "build\install\debug"
+
+
+task:
+  only_if: $CIRRUS_PR != ''
+
   container:
     image: ponylang/ponyc-ci-cross-arm:20200127
     cpu: 8
@@ -423,30 +427,3 @@ task:
     - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a tune=cortex-a9 llc_arch=arm
   test_stdlib_cross_script:
     - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
-
-# AArch64 has been broken for some time
-# task:
-#   only_if: $CIRRUS_PR != ''
-
-#   container:
-#     image: ponylang/ponyc-ci-cross-aarch64:20200212
-#     cpu: 8
-#     memory: 24
-
-#   name: "PR: cross-compile: aarch64-unknown-linux-gnu"
-
-#   libs_cache:
-#     folder: build/libs
-#     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross aarch64"
-#     populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM;AArch64"
-
-#   configure_script:
-#     - make configure
-#   build_script:
-#     - make build build_flags=-j8
-#   test_script:
-#     - make test-ci
-#   libponyrt_cross_script:
-#     - make cross-libponyrt CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a tune=cortex-a53 llc_arch=arm
-#   test_stdlib_cross_script:
-#     - make test-cross-ci PONYPATH=../armv8-a/release cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"

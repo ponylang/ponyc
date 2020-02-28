@@ -144,7 +144,6 @@ distclean:
 	$(SILENT)([ -d build ] && rm -rf build) || true
 
 install: build
-	echo $(symlink)
 	@mkdir -p $(ponydir)/bin
 	@mkdir -p $(ponydir)/lib/$(arch)
 	@mkdir -p $(ponydir)/include/pony/detail

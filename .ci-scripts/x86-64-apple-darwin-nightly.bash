@@ -41,6 +41,10 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
+make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
+  version="${PONY_VERSION}"
+make build arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
+  version="${PONY_VERSION}"
 make install DESTDIR=${DESTINATION} arch=${ARCH} \
   build_flags=-j${MAKE_PARALLELISM} version="${PONY_VERSION}"
 
