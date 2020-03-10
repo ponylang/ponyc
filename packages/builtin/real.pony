@@ -195,6 +195,9 @@ trait val Real[A: Real[A] val] is
       hash64().usize()
     end
 
+  fun hash_with(state': HashState): HashState =>
+    Hashing.update(/* TODO */u64(), state')
+
   fun hash64(): U64 =>
     var x = u64()
 
@@ -207,6 +210,8 @@ trait val Real[A: Real[A] val] is
     x = x + (x << 31)
 
     x
+  fun hash_with64(state': HashState64): HashState64 =>
+    Hashing.update_64(/* TODO */u64(), state')
 
   fun _value(): A => compile_intrinsic
 

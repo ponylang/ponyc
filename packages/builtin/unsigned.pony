@@ -70,6 +70,12 @@ primitive U8 is UnsignedInteger[U8]
   fun divrem_partial(y: U8): (U8, U8) ? =>
     _UnsignedPartialArithmetic.divrem_partial[U8](this, y)?
 
+  fun hash_with(state': HashState): HashState =>
+    Hashing.update_usize(usize(), state')
+
+  fun hash_with(state': HashState64): HashState64 =>
+    Hashing.update(u64(), state')
+
 primitive U16 is UnsignedInteger[U16]
   new create(value: U16) => value
   new from[A: (Number & Real[A] val)](a: A) => a.u16()

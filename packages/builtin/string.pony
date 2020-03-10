@@ -1099,7 +1099,7 @@ actor Main
     """
     Split the string into an array of strings that are delimited by `delim` in
     the original string. If `n > 0`, then the split count is limited to n.
-    
+
     Example:
 
     ```pony
@@ -1147,7 +1147,7 @@ actor Main
     Split the string into an array of strings with any character in the
     delimiter string. By default, the string is split with whitespace
     characters. If `n > 0`, then the split count is limited to n.
-    
+
     Example:
 
     ```pony
@@ -1654,9 +1654,13 @@ actor Main
 
   fun hash(): USize =>
     @ponyint_hash_block[USize](_ptr, _size)
+  fun hash_with(state': HashState): HashState =>
+    Hashing.update_bytes(_ptr, _size, state')
 
   fun hash64(): U64 =>
     @ponyint_hash_block64[U64](_ptr, _size)
+  fun hash_with64(state': HashState64): HashState64 =>
+    Hashing.update_bytes_64(_ptr, _size, state')
 
   fun string(): String iso^ =>
     clone()

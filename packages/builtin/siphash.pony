@@ -6,82 +6,263 @@ interface val _ReadAsNumerics
   fun read_u64[B: U8 = U8](offset: USize): U64 ?
   fun read_u128[B: U8 = U8](offset: USize): U128 ?
 
-class ref SipHash24Streaming
+
+interface StreamingHash[State, Input, Result]
+  fun initial(): State
+  fun update(m: Input, state: State): State
+  fun finish(state: State): Result
+
+type SipHash24HashState is (USize, USize, USize, USize)
+
+
+// TODO: equivalence with normal SipHash operation and ponyint_hash_block
+primitive SipHash24Streaming is StreamingHash[SipHash24HashState, U64, USize]
   """
-  Provides SipHash24 for non-array data
-  given as separate `U64`s.
+  unifying siphash 2-4 and half-siphash 2-4
+  """
+  fun initial(): SipHash24HashState =>
+    ifdef ilp32 then
+      (
+        (HalfSipHash24._k0() xor 0x736f6d65).usize(),
+        (HalfSipHash24._k1() xor 0x646f7261).usize(),
+        (HalfSipHash24._k0() xor 0x6c796765).usize(),
+        (HalfSipHash24._k1() xor 0x74656462).usize()
+      )
+    else
+      (
+        (SipHash24._k0() xor 0x736f6d6570736575).usize(),
+        (SipHash24._k1() xor 0x646f72616e646f6d).usize(),
+        (SipHash24._k0() xor 0x6c7967656e657261).usize(),
+        (SipHash24._k1() xor 0x7465646279746573).usize()
+      )
+    end
 
-  ### Usage:
+  fun update(m: U64, state: SipHash24HashState): SipHash24HashState =>
+    """
+    Hash the given `m` and update the given state accordingly.
+    """
+    ifdef ilp32 then
+      _update_32(
+        (m << 32).u32(),
+        _update_32(m.u32(), state)
+      )
+    else
+      _update_64(m, state)
+    end
 
-  ```pony
-  use "collections"
+  fun update_usize(m: USize, state: SipHash24HashState): SipHash24HashState =>
+    ifdef ilp32 then
+      _update_32(m.u32(), state)
+    else
+      _update_64(m.u64(), state)
+    end
 
-  actor Main
-    new create(env: Env) =>
-      try
-        let sip = SipHash24Streaming.create()
-        for x in Range[U64](1, 100).values() do
-          // feed consecutive U64s to be hashed
-          sip.update(x)
-        end
-        // execute finishing steps, reset internal state so this instance can be
-        // reused, and output the computed hash
-        let hash = sip.finish()
-        env.out.print("HASHED: " + hash.string())
+  fun _update_64(m: U64, state: SipHash24HashState): SipHash24HashState =>
+    var v3: U64 = state._4.u64() xor m
+    (var v0, var v1, var v2, v3) = SipHash24._sipround64(state._1.u64(), state._2.u64(), state._3.u64(), state._4.u64())
+    (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+    v0 = v0 xor m.u64()
+    (v0.usize(), v1.usize(), v2.usize(), v3.usize())
+
+
+  fun _update_32(m: U32, state: SipHash24HashState): SipHash24HashState =>
+    var v3 = state._4.u32() xor m
+    (var v0, var v1, var v2, v3) = HalfSipHash24._sipround32(state._1.u32(), state._2.u32(), state._3.u32(), state._4.u32())
+    (v0, v1, v2, v3)             = HalfSipHash24._sipround32(v0, v1, v2, v3)
+    v0 = v0 xor m.u32()
+    (v0.usize(), v1.usize(), v2.usize(), v3.usize())
+
+  fun update_bytes(pointer: Pointer[U8], size: USize, state: SipHash24HashState): SipHash24HashState =>
+    ifdef ilp32 then
+      var b: U32  = (size << USize(24)).u32()
+
+      var v0 = state._1.u32()
+      var v1 = state._2.u32()
+      var v2 = state._3.u32()
+      var v3 = state._4.u32()
+
+      let endi: USize = size - (size % 4)
+
+      var i = USize(0)
+      while i < endi do
+        let m: U64 = pointer._offset(i)._convert[U32]()._apply(0)
+        v3 = v3 xor m
+        (v0, v1, v2, v3) = HalfSipHash24._sipround32(v0, v1, v2, v3)
+        (v0, v1, v2, v3) = HalfSipHash24._sipround32(v0, v1, v2, v3)
+        v0 = v0 xor m
+
+        i = i + 4
       end
-  ```
 
-  """
-  var _v0: U64 = 0
-  var _v1: U64 = 0
-  var _v2: U64 = 0
-  var _v3: U64 = 0
+      // bad emulation of a C switch statement with  fallthrough
+      let rest = size and 3
+      if rest >= 1 then
+        if rest >= 2 then
+          if rest >= 3 then
+            b = b or (pointer._apply(endi + 2).u32() << 16)
+          end
+          b = b or (pointer._apply(endi + 1).u32() << 8)
+        end
+        b = b or pointer._apply(endi).u32()
+      end
 
-  var _size: USize = 0
+      v3 = v3 xor b
+      (v0, v1, v2, v3) = HalfSipHash24._sipround32(v0, v1, v2, v3)
+      (v0, v1, v2, v3) = HalfSipHash24._sipround32(v0, v1, v2, v3)
+      v0 = v0 xor b
+      (v0.usize(), v1.usize(), v2.usize(), v3.usize())
+    else
+      var b: U64  = (size << USize(56)).u64()
 
-  new ref create() =>
-    reset()
+      var v0 = state._1.u64()
+      var v1 = state._2.u64()
+      var v2 = state._3.u64()
+      var v3 = state._4.u64()
 
-  fun ref reset() =>
+      let endi: USize = size - (size % 8)
+
+      var i = USize(0)
+      while i < endi do
+        let m: U64 = pointer._offset(i)._convert[U64]()._apply(0)
+        v3 = v3 xor m
+        (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+        (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+        v0 = v0 xor m
+
+        i = i + 8
+      end
+
+      // bad emulation of a C switch statement with  fallthrough
+      let rest = size and 7
+      if rest >= 1 then
+        if rest >= 2 then
+          if rest >= 3 then
+            if rest >= 4 then
+              if rest >= 5 then
+                if rest >= 6 then
+                  if rest == 7 then
+                    b = b or (pointer._apply(endi + 6).u64() << 48)
+                  end
+                  b = b or (pointer._apply(endi + 5).u64() << 40)
+                end
+                b = b or (pointer._apply(endi + 4).u64() << 32)
+              end
+              b = b or (pointer._apply(endi + 3).u64() << 24)
+            end
+            b = b or (pointer._apply(endi + 2).u64() << 16)
+          end
+          b = b or (pointer._apply(endi + 1).u64() << 8)
+        end
+        b = b or pointer._apply(endi).u64()
+      end
+
+      v3 = v3 xor b
+      (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+      (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+      v0 = v0 xor b
+      (v0.usize(), v1.usize(), v2.usize(), v3.usize())
+    end
+
+  fun finish(state: SipHash24HashState): USize =>
     """
-    Reset the internal state.
+    This method finally computes the hash from all the data added with `update`.
     """
-    _v0 = SipHash24._k0() xor 0x736f6d6570736575
-    _v1 = SipHash24._k1() xor 0x646f72616e646f6d
-    _v2 = SipHash24._k0() xor 0x6c7967656e657261
-    _v3 = SipHash24._k1() xor 0x7465646279746573
-    _size = 0
+    (ifdef ilp32 then
+      var v2 = state._3.u32() xor 0xFF
+      (var v0, var v1, v2, var v3) = HalfSipHash24._sipround32(state._1.u32(), state._2.u32(), v2, state._4.u32())
+      (v0, v1, v2, v3)             = HalfSipHash24._sipround32(v0, v1, v2, v3)
+      (v0, v1, v2, v3)             = HalfSipHash24._sipround32(v0, v1, v2, v3)
+      (v0, v1, v2, v3)             = HalfSipHash24._sipround32(v0, v1, v2, v3)
+      v0 xor v1 xor v2 xor v3
+    else
+      var v2 = state._3.u64() xor 0xFF
+      (var v0, var v1, v2, var v3) = SipHash24._sipround64(state._1.u64(), state._2.u64(), v2, state._4.u64())
+      (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+      (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+      (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
 
-  fun ref update(m: U64) =>
-    """
-    Hash the given `m` and update the internal state accordingly.
-    """
-    _v3 = _v3 xor m
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    _v0 = _v0 xor m
-    _size = _size + 8
+      v0 xor v1 xor v2 xor v3
+    end).usize()
 
-  fun ref finish(): U64 =>
-    """
-    This method finally computes the hash from all the data added with `update`,
-    and resets the internal state,
-    so this instance can be conveniently reused for another hash calculation.
-    """
-    let b = (_size << USize(56)).u64()
-    _v3 = _v3 xor b
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    _v0 = _v0 xor b
-    _v2 = _v2 xor 0xFF
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
-    (_v0, _v1, _v2, _v3) = SipHash24._sipround64(_v0, _v1, _v2, _v3)
 
-    let result = _v0 xor _v1 xor _v2 xor _v3
-    reset() // BEWARE
-    result
+type SipHash24HashState64 is (U64, U64, U64, U64)
+
+primitive SipHash24Streaming64 is StreamingHash[SipHash24HashState64, U64, U64]
+  fun initial(): SipHash24HashState64 =>
+    (
+      (SipHash24._k0() xor 0x736f6d6570736575),
+      (SipHash24._k1() xor 0x646f72616e646f6d),
+      (SipHash24._k0() xor 0x6c7967656e657261),
+      (SipHash24._k1() xor 0x7465646279746573)
+    )
+
+  fun update(m: U64, state: SipHash24HashState64): SipHash24HashState64 =>
+    var v3: U64 = state._4 xor m
+    (var v0, var v1, var v2, v3) = SipHash24._sipround64(state._1, state._2, state._3, state._4)
+    (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+    v0 = v0 xor m
+    (v0, v1, v2, v3)
+
+  fun update_bytes(pointer: Pointer[U8], size: USize, state: SipHash24HashState64): SipHash24HashState64 =>
+    var b: U64  = (size << USize(56)).u64()
+
+    var v0 = state._1
+    var v1 = state._2
+    var v2 = state._3
+    var v3 = state._4
+
+    let endi: USize = size - (size % 8)
+
+    var i = USize(0)
+    while i < endi do
+      let m: U64 = pointer._offset(i)._convert[U64]()._apply(0)
+      v3 = v3 xor m
+      (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+      (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+      v0 = v0 xor m
+
+      i = i + 8
+    end
+
+    // bad emulation of a C switch statement with  fallthrough
+    let rest = size and 7
+    if rest >= 1 then
+      if rest >= 2 then
+        if rest >= 3 then
+          if rest >= 4 then
+            if rest >= 5 then
+              if rest >= 6 then
+                if rest == 7 then
+                  b = b or (pointer._apply(endi + 6).u64() << 48)
+                end
+                b = b or (pointer._apply(endi + 5).u64() << 40)
+              end
+              b = b or (pointer._apply(endi + 4).u64() << 32)
+            end
+            b = b or (pointer._apply(endi + 3).u64() << 24)
+          end
+          b = b or (pointer._apply(endi + 2).u64() << 16)
+        end
+        b = b or (pointer._apply(endi + 1).u64() << 8)
+      end
+      b = b or pointer._apply(endi).u64()
+    end
+
+    v3 = v3 xor b
+    (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+    (v0, v1, v2, v3) = SipHash24._sipround64(v0, v1, v2, v3)
+    v0 = v0 xor b
+    (v0, v1, v2, v3)
+
+  fun finish(state: SipHash24HashState64): U64 =>
+    var v2 = state._3 xor 0xFF
+    (var v0, var v1, v2, var v3) = SipHash24._sipround64(state._1, state._2, v2, state._4)
+    (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+    (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+    (v0, v1, v2, v3)             = SipHash24._sipround64(v0, v1, v2, v3)
+
+    v0 xor v1 xor v2 xor v3
+
 
 primitive SipHash24
 
