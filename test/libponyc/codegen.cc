@@ -451,7 +451,7 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 //
 // This test is disabled on LLVM 3.9 and 4.0 because exceptions crossing JIT
 // boundaries are broken with the ORC JIT on these versions.
-#if !defined(PLATFORM_IS_WINDOWS) && (PONY_LLVM >= 500) && (PONY_LLVM < 900)
+#if (PONY_LLVM >= 500) && !defined(PLATFORM_IS_WINDOWS)
 TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
 {
   const char* src =

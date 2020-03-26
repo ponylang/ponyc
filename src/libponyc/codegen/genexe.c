@@ -378,6 +378,10 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
+#ifdef PONY_USE_LTO
+  if (strcmp(arch, "x86_64") == 0)
+    arch = "x86-64";
+#endif
   snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
     "%s "
 #ifdef PONY_USE_LTO

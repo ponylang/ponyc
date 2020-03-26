@@ -798,3 +798,13 @@ size_t ponyint_heap_size(chunk_t* chunk)
 
   return SIZECLASS_SIZE(chunk->size);
 }
+
+// C99 requires inline symbols to be present in a compilation unit for un-
+// optimized code
+
+uint32_t __pony_clzzu(size_t x);
+uint32_t __pony_ffszu(size_t x);
+uint32_t __pony_ctz(uint32_t x);
+uint32_t __pony_ffsll(uint64_t x);
+uint32_t __pony_clzll(uint64_t x);
+uint32_t __pony_popcount(uint32_t x);

@@ -156,7 +156,13 @@ public:
     raw_string_ostream mangled_stream(mangled);
     Mangler::getNameWithPrefix(mangled_stream, name, _dl);
     JITSymbol symbol = _compile_layer.findSymbol(mangled_stream.str(), false);
-    return cantFail(symbol.getAddress());
+    auto address = symbol.getAddress();
+    if (address) {
+      return *address;
+    } else {
+      auto message = address.takeError();
+      return 0;
+    }
   }
 };
 #endif

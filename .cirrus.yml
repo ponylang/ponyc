@@ -6,7 +6,7 @@ task:
   only_if: $CIRRUS_API_CREATED == "true"
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
     cpu: 8
     memory: 24
 
@@ -14,6 +14,11 @@ task:
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    populate_script: make libs build_flags=-j8
 
   nightly_script:
     - bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
@@ -23,7 +28,7 @@ task:
   only_if: $CIRRUS_API_CREATED == "true"
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
     cpu: 8
     memory: 24
 
@@ -31,6 +36,11 @@ task:
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
+    populate_script: make libs build_flags=-j8
 
   nightly_script:
     - bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
@@ -46,6 +56,11 @@ task:
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos"
+    populate_script: make libs build_flags=-j8
+
   install_script:
     - brew install coreutils python
     - pip3 install --upgrade cloudsmith-cli
@@ -53,6 +68,39 @@ task:
   nightly_script:
     - export TZ=utc
     - bash .ci-scripts/x86-64-apple-darwin-nightly.bash ${CLOUDSMITH_API_KEY}
+
+task:
+  only_if: $CIRRUS_API_CREATED == "true"
+
+  windows_container:
+    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  name: "nightly: x86-64-pc-windows-msvc"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+
+  config_script:
+    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version nightly
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version nightly
+  install_script:
+    - ps: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
+  package_script:
+    - ps: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version nightly
+  upload_script:
+    - ps: $version = (Get-Date).ToString("yyyyMMdd"); cloudsmith push raw --version $version --api-key ${CLOUDSMITH_API_KEY} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-x86_64-pc-windows-msvc-nightly-$version-Release.zip
+
 
 #
 # Release build tasks
@@ -62,7 +110,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
     cpu: 8
     memory: 24
 
@@ -71,6 +119,11 @@ task:
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    populate_script: make libs build_flags=-j8
+
   release_script:
     - bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
 
@@ -78,7 +131,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
     cpu: 8
     memory: 24
 
@@ -86,6 +139,11 @@ task:
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
+    populate_script: make libs build_flags=-j8
 
   release_script:
     - bash .ci-scripts/x86-64-unknown-linux-musl-release.bash ${CLOUDSMITH_API_KEY}
@@ -101,12 +159,49 @@ task:
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos"
+    populate_script: make libs build_flags=-j8
+
   install_script:
     - brew install coreutils python
     - pip3 install --upgrade cloudsmith-cli
 
   release_script:
     - bash .ci-scripts/x86-64-apple-darwin-release.bash ${CLOUDSMITH_API_KEY}
+
+task:
+  only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+
+  windows_container:
+    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  name: "release: x86-64-pc-windows-msvc"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+
+  config_script:
+    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+  install_script:
+    - ps: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
+  package_script:
+    - ps: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+  upload_script:
+    - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${CLOUDSMITH_API_KEY} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86_64-pc-windows-msvc.zip
 
 #
 # Pull Request Tasks
@@ -116,29 +211,67 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191105
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
     cpu: 8
     memory: 24
 
   name: "PR: x86-64-unknown-linux-gnu"
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    populate_script: make libs build_flags=-j8
+
+  configure_script:
+    - make configure
+  build_script:
+    - make build build_flags=-j8
   test_script:
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
+    - make test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191105
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-unknown-linux-gnu [debug]"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    populate_script: make libs build_flags=-j8
+
+  configure_script:
+    - make configure config=debug
+  build_script:
+    - make build config=debug build_flags=-j8
+  test_script:
+    - make test-ci config=debug
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
     cpu: 8
     memory: 24
 
   name: "PR: x86-64-unknown-linux-musl"
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
+    populate_script: make libs build_flags=-j8
+
+  configure_script:
+    - make configure
+  build_script:
+    - make build build_flags=-j8
   test_script:
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release link=static -j8
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release link=static test-ci
+    - make test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -152,12 +285,21 @@ task:
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
+    - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
     - pkg install -y cmake gmake libunwind git
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd12"
+    populate_script: gmake libs build_flags=-j8
+
+  configure_script:
+    - gmake configure
+  build_script:
+    - gmake build build_flags=-j8
   test_script:
-    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
-    - gmake -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
+    - gmake test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -170,6 +312,119 @@ task:
   install_script:
     - brew install coreutils
 
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos"
+    populate_script: make libs build_flags=-j8
+
+  configure_script:
+    - make configure
+  build_script:
+    - make build build_flags=-j8
   test_script:
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release -j8
-    - make -f Makefile-lib-llvm default_pic=true arch=x86-64 config=release test-ci
+    - make test-ci
+
+  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release' && $CIRRUS_API_CREATED != "true"
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  windows_container:
+    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-pc-windows-msvc"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+
+  config_script:
+    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release"
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release"
+  test_script:
+    - ps: .\make.ps1 -Command test -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release"
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  windows_container:
+    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-pc-windows-msvc [debug]"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+
+  config_script:
+    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019" -Prefix "build\install\debug"
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019" -Prefix "build\install\debug"
+  test_script:
+    - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019" -Prefix "build\install\debug"
+
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
+    image: ponylang/ponyc-ci-cross-arm:20200127
+    cpu: 8
+    memory: 24
+
+  name: "PR: cross-compile: arm-unknown-linux-gnueabi"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm"
+    populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
+
+  configure_script:
+    - make configure
+  build_script:
+    - make build build_flags=-j8
+  test_script:
+    - make test-ci
+  libponyrt_cross_script:
+    - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a tune=cortex-a9 llc_arch=arm
+  test_stdlib_cross_script:
+    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
+    image: ponylang/ponyc-ci-cross-armhf:20200212
+    cpu: 8
+    memory: 24
+
+  name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm"
+    populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
+
+  configure_script:
+    - make configure
+  build_script:
+    - make build build_flags=-j8
+  test_script:
+    - make test-ci
+  libponyrt_cross_script:
+    - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a tune=cortex-a9 llc_arch=arm
+  test_stdlib_cross_script:
+    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
