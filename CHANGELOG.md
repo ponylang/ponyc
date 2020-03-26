@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Build PonyC using CMake ([PR #3234](https://github.com/ponylang/ponyc/pull/3234))
 
 ## [0.33.2] - 2020-02-03
 
