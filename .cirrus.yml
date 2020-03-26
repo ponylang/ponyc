@@ -285,7 +285,7 @@ task:
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - evho "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
+    - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
     - pkg install -y cmake gmake libunwind git
 
