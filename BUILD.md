@@ -81,6 +81,7 @@ In a PowerShell prompt, run:
 .\make.ps1 libs
 .\make.ps1 configure
 .\make.ps1 build
+```
 
 Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release"`
 
