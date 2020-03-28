@@ -3,6 +3,19 @@
 #
 
 task:
+  only_if: $CIRRUS_CRON == "master-midnight"
+
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    cpu: 8
+    memory: 24
+
+  name: "nightly: test of cirrus ci cron"
+
+  nightly_script:
+    - echo "Hello from ${CIRRUS_CRON}"
+
+task:
   only_if: $CIRRUS_API_CREATED == "true"
 
   container:
@@ -22,7 +35,6 @@ task:
 
   nightly_script:
     - bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
-
 
 task:
   only_if: $CIRRUS_API_CREATED == "true"
