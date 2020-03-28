@@ -99,7 +99,7 @@ task:
   package_script:
     - ps: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version nightly
   upload_script:
-    - ps: $version = (Get-Date).ToString("yyyyMMdd"); cloudsmith push raw --version $version --api-key ${CLOUDSMITH_API_KEY} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\build\ponyc-x86_64-pc-windows-msvc.zip
+    - ps: $version = (Get-Date).ToString("yyyyMMdd"); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\build\ponyc-x86_64-pc-windows-msvc.zip
 
 #
 # Release build tasks
@@ -200,7 +200,7 @@ task:
   package_script:
     - ps: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
   upload_script:
-    - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${CLOUDSMITH_API_KEY} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\build\ponyc-x86_64-pc-windows-msvc.zip
+    - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\build\ponyc-x86_64-pc-windows-msvc.zip
 
 #
 # Pull Request Tasks
