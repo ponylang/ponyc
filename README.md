@@ -1,5 +1,7 @@
 # Pony
 
+ignore
+
 Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-performance programming language.
 
 ## Status
