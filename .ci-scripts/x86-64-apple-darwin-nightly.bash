@@ -45,7 +45,7 @@ make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
   version="${PONY_VERSION}"
 make build arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
   version="${PONY_VERSION}"
-make install DESTDIR=${DESTINATION} arch=${ARCH} \
+make install prefix=${BUILD_PREFIX} symlink=no arch=${ARCH} \
   build_flags=-j${MAKE_PARALLELISM} version="${PONY_VERSION}"
 
 # Package it all up
