@@ -323,8 +323,6 @@ task:
   test_script:
     - make test-ci
 
-  only_if: $CIRRUS_BRANCH != 'master' && $CIRRUS_BRANCH != 'release' && $CIRRUS_API_CREATED != "true"
-
 task:
   only_if: $CIRRUS_PR != ''
 
