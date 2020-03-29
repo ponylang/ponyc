@@ -59,6 +59,19 @@ add_library(libponyrt STATIC
     ${_c_src}
     ${_ll_except_obj}
 )
+
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64")
+    target_compile_options(libponyrt PUBLIC -mcx16)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+    target_compile_options(libponyrt PUBLIC -mcx16)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64")
+   target_compile_options(libponyrt PUBLIC -mcx16)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+   target_compile_options(libponyrt PUBLIC -mcx16)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+   target_compile_options(libponyrt PUBLIC -mcx16)
+endif()
+
 set_source_files_properties(${ll_obj} PROPERTIES EXTERNAL_OBJECT True)
 
 add_custom_command(
