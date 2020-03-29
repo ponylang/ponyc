@@ -10,19 +10,6 @@ task:
     cpu: 8
     memory: 24
 
-  name: "nightly: test of cirrus ci cron"
-
-  nightly_script:
-    - echo "Hello from ${CIRRUS_CRON}"
-
-task:
-  only_if: $CIRRUS_API_CREATED == "true"
-
-  container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
-    cpu: 8
-    memory: 24
-
   name: "nightly: x86-64-unknown-linux-gnu"
 
   environment:
@@ -37,7 +24,7 @@ task:
     - bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
 
 task:
-  only_if: $CIRRUS_API_CREATED == "true"
+  only_if: $CIRRUS_CRON == "master-midnight"
 
   container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
@@ -58,7 +45,7 @@ task:
     - bash .ci-scripts/x86-64-unknown-linux-musl-nightly.bash ${CLOUDSMITH_API_KEY}
 
 task:
-  only_if: $CIRRUS_API_CREATED == "true"
+  only_if: $CIRRUS_CRON == "master-midnight"
 
   osx_instance:
     image: mojave-xcode-11.2.1
@@ -82,7 +69,7 @@ task:
     - bash .ci-scripts/x86-64-apple-darwin-nightly.bash ${CLOUDSMITH_API_KEY}
 
 task:
-  only_if: $CIRRUS_API_CREATED == "true"
+  only_if: $CIRRUS_CRON == "master-midnight"
 
   windows_container:
     dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
