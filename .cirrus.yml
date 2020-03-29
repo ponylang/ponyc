@@ -48,7 +48,7 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   osx_instance:
-    image: mojave-xcode-11.2.1
+    image: catalina-xcode-11.4
 
   name: "nightly: x86-64-apple-darwin"
 
@@ -150,7 +150,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   osx_instance:
-    image: mojave-xcode-11.2.1
+    image: catalina-xcode-11.4
 
   name: "release: x86-64-apple-darwin"
 
@@ -303,7 +303,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   osx_instance:
-    image: mojave-xcode-11.2.1
+    image: catalina-xcode-11.4
 
   name: "PR: x86-64-apple-darwin"
 
