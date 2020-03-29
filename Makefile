@@ -150,7 +150,8 @@ install: build
 	$(SILENT)if [ -f $(outDir)/libponyrt.a ]; then cp $(outDir)/libponyrt.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(ponydir)/bin/libponyrt.a; fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
-	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt-pic.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt-pic.a $(ponydir)/bin/libponyrt-pic.a; fi
+	$(SLIENT)cp $(buildDir)/src/libponyc/libponyc.a $(ponydir)/lib/$(arch)
+	$(SLIENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/lib/$(arch)
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
