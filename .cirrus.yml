@@ -325,13 +325,13 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos"
-    populate_script: make libs build_flags=-j8
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos-pr3"
+    populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure
+    - make configure arch=x86-64
   build_script:
-    - make build build_flags=-j8
+    - make build arch=x86-64 build_flags=-j8
   test_script:
     - make test-ci
 
