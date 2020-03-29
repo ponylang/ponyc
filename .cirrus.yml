@@ -218,14 +218,14 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure
+    - make configure arch=x86-64
   build_script:
-    - make build build_flags=-j8
+    - make build arch=x86-64 build_flags=-j8
   test_script:
-    - make test-ci
+    - make test-ci arch=x86-64
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -240,14 +240,14 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure config=debug
+    - make configure arch=x86-64 config=debug
   build_script:
-    - make build config=debug build_flags=-j8
+    - make build arch=x86-64 config=debug build_flags=-j8
   test_script:
-    - make test-ci config=debug
+    - make test-ci arch=x86-64 config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -262,14 +262,14 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure
+    - make configure arch=x86-64
   build_script:
-    - make build build_flags=-j8
+    - make build arch=x86-64 build_flags=-j8
   test_script:
-    - make test-ci
+    - make test-ci arch=x86-64
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -290,14 +290,14 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd12"
-    populate_script: gmake libs build_flags=-j8
+    populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - gmake configure
+    - gmake configure arch=x86-64
   build_script:
-    - gmake build build_flags=-j8
+    - gmake build arch=x86-64 build_flags=-j8
   test_script:
-    - gmake test-ci
+    - gmake test-ci arch=x86-64
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -313,14 +313,14 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure
+    - make configure arch=x86-64
   build_script:
-    - make build build_flags=-j8
+    - make build arch=x86-64 build_flags=-j8
   test_script:
-    - make test-ci
+    - make test-ci arch=x86-64
 
 task:
   only_if: $CIRRUS_PR != ''
