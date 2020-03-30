@@ -85,4 +85,13 @@ else()
     message(FATAL_ERROR "Git not found!")
 endif()
 
+if (NOT DEFINED LLVM_TARGETS_TO_BUILD)
+  set(LLVM_TARGETS_TO_BUILD X86)
+endif()
+
+set(LLVM_INCLUDE_BENCHMARKS OFF)
+set(LLVM_ENABLE_WARNINGS OFF)
+set(LLVM_ENABLE_TERMINFO OFF)
+set(LLVM_ENABLE_OCAMLDOC OFF)
+
 add_subdirectory(llvm/src/llvm)
