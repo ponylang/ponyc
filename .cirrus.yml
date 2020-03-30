@@ -358,6 +358,8 @@ task:
 
   name: "PR: x86-64-pc-windows-msvc [debug]"
 
+  timeout_in: 120m
+
   libs_cache:
     folder: build/libs
     fingerprint_script:
