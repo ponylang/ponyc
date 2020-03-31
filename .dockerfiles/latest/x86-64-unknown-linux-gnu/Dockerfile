@@ -6,7 +6,8 @@ RUN apt-get update \
  && apt-get install -y \
     curl \
     g++ \
-    git
+    git \
+    make
 
 RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
  && ponyup update ponyc nightly --platform=gnu \
