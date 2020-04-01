@@ -98,6 +98,10 @@ add_library(libponyc STATIC
     verify/type.c
 )
 
+target_compile_definitions(libponyc PRIVATE
+    PONY_ALWAYS_ASSERT
+)
+
 target_include_directories(libponyc
     PUBLIC ../common
     PRIVATE ../../build/libs/include
