@@ -147,11 +147,10 @@ install: build
 	@mkdir -p $(ponydir)/bin
 	@mkdir -p $(ponydir)/lib/$(arch)
 	@mkdir -p $(ponydir)/include/pony/detail
-	$(SLIENT)cp $(buildDir)/src/libponyc/libponyc.a $(ponydir)/lib/$(arch)
-	$(SLIENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/lib/$(arch)
-	$(SLIENT)cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch)
-	$(SLIENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/bin
-	$(SLIENT)cp $(outDir)/libponyrt-pic.a $(ponydir)/bin
+	$(SILENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/lib/$(arch)
+	$(SILENT)cp $(buildDir)/src/libponyc/libponyc.a $(ponydir)/lib/$(arch)
+	$(SILENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/bin
+	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); cp $(outDir)/libponyrt-pic.a $(ponydir)/bin; fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
