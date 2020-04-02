@@ -94,7 +94,7 @@ cleanlibs:
 
 configure:
 	$(SILENT)mkdir -p '$(buildDir)'
-	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_VERBOSE_FLAGS)
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_VERBOSE_FLAGS)
 
 all: build
 
@@ -149,8 +149,7 @@ install: build
 	@mkdir -p $(ponydir)/include/pony/detail
 	$(SILENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/lib/$(arch)
 	$(SILENT)cp $(buildDir)/src/libponyc/libponyc.a $(ponydir)/lib/$(arch)
-	$(SILENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/bin
-	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); cp $(outDir)/libponyrt-pic.a $(ponydir)/bin; fi
+	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
@@ -160,8 +159,8 @@ ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/bin/libponyrt.a; fi
-	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt-pic.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt-pic.a $(prefix)/bin/libponyrt-pic.a; fi
+	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/$(arch)/libponyrt.a; fi
+	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt-pic.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt-pic.a $(prefix)/lib/$(arch)/libponyrt-pic.a; fi
 	$(SILENT)ln -s -f $(ponydir)/include/pony.h $(prefix)/include/pony.h
 	$(SILENT)ln -s -f $(ponydir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
 endif
@@ -169,6 +168,6 @@ endif
 uninstall:
 	-$(SILENT)rm -rf $(ponydir) ||:
 	-$(SILENT)rm -f $(prefix)/bin/ponyc ||:
-	-$(SILENT)rm -f $(prefix)/bin/libponyrt*.a ||:
+	-$(SILENT)rm -f $(prefix)/lib/$(arch)/libponyrt*.a ||:
 	-$(SILENT)rm -f $(prefix)/include/pony.h ||:
 	-$(SILENT)rm -rf $(prefix)/include/pony ||:

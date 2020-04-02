@@ -4,7 +4,7 @@ file(STRINGS "VERSION" PONYC_PROJECT_VERSION)
 project(Pony VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 # Grab the PonyC version number from the "VERSION" source file.
-if (NOT DEFINED PONYC_VERSION)
+if(NOT DEFINED PONYC_VERSION)
     execute_process(
         COMMAND git rev-parse --short HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -19,7 +19,7 @@ endif()
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # We require LLVM, Google Test and Google Benchmark
-if (NOT PONY_CROSS_LIBPONYRT)
+if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
     find_package(GTest REQUIRED CONFIG PATHS "build/libs/lib/cmake/GTest" "build/libs/lib64/cmake/GTest" NO_DEFAULT_PATH)
     find_package(benchmark REQUIRED CONFIG PATHS "build/libs/lib/cmake/benchmark" "build/libs/lib64/cmake/benchmark" NO_DEFAULT_PATH)
@@ -34,6 +34,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/../relwith
 # Libs are now always built in release mode.
 set(PONY_LLVM_BUILD_MODE "1")
 
+if(NOT DEFINED PONY_ARCH)
+    set(PONY_ARCH "native")
+endif()
+
+set(_compiler_arch ${CMAKE_C_COMPILER_ARCHITECTURE_ID})
+if("${_compiler_arch}" STREQUAL "")
+    set(_compiler_arch ${CMAKE_SYSTEM_PROCESSOR})
+endif()
+
 # Required definitions.  We use these generators so that the defines are correct for both *nix (where the config applies at configuration time) and Windows (where the config applies at build time).
 add_compile_definitions(
     BUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}"
@@ -44,7 +53,7 @@ add_compile_definitions(
     LLVM_BUILD_MODE=${PONY_LLVM_BUILD_MODE}
     LLVM_VERSION="${LLVM_VERSION}"
     PONY_COMPILER="${CMAKE_C_COMPILER}"
-    PONY_ARCH="${CMAKE_SYSTEM_PROCESSOR}"
+    PONY_ARCH="${PONY_ARCH}"
     PONY_DEFAULT_PIC=true
     $<$<CONFIG:Debug>:PONY_BUILD_CONFIG="debug">
     $<$<CONFIG:Release>:PONY_BUILD_CONFIG="release">
@@ -56,10 +65,10 @@ add_compile_definitions(
     $<$<CONFIG:Release>:NDEBUG>
     $<$<CONFIG:RelWithDebInfo>:NDEBUG>
     $<$<CONFIG:MinSizeRel>:NDEBUG>
-    $<$<CONFIG:Debug>:PONY_VERSION_STR="${PONYC_VERSION} [debug]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${CMAKE_C_COMPILER_ARCHITECTURE_ID}">
-    $<$<CONFIG:Release>:PONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${CMAKE_C_COMPILER_ARCHITECTURE_ID}">
-    $<$<CONFIG:RelWithDebInfo>:PONY_VERSION_STR="${PONYC_VERSION} [relwithdebinfo]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${CMAKE_C_COMPILER_ARCHITECTURE_ID}">
-    $<$<CONFIG:MinSizeRel>:PONY_VERSION_STR="${PONYC_VERSION} [minsizerel]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${CMAKE_C_COMPILER_ARCHITECTURE_ID}">
+    $<$<CONFIG:Debug>:PONY_VERSION_STR="${PONYC_VERSION} [debug]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
+    $<$<CONFIG:Release>:PONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
+    $<$<CONFIG:RelWithDebInfo>:PONY_VERSION_STR="${PONYC_VERSION} [relwithdebinfo]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
+    $<$<CONFIG:MinSizeRel>:PONY_VERSION_STR="${PONYC_VERSION} [minsizerel]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
 )
 
 include(CheckIPOSupported)
