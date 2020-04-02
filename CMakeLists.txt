@@ -93,6 +93,11 @@ else()
     add_link_options(-rdynamic)
 endif()
 
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.12 -DUSE_SCHEDULER_SCALING_PTHREADS")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.12")
+endif()
+
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
 if (PONY_CROSS_LIBPONYRT)
