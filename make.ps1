@@ -105,14 +105,14 @@ Write-Output "Temp directory:   $env:TEMP"
 
 if ($Prefix -eq "default")
 {
-    $Prefix = Join-Path -Path $srcDir -ChildPath "build\install\$config_lower"
+    $Prefix = Join-Path -Path $srcDir -ChildPath "build\install"
 }
 elseif (![System.IO.Path]::IsPathRooted($Prefix))
 {
     $Prefix = Join-Path -Path $srcDir -ChildPath $Prefix
 }
 
-Write-Output "make.ps1 $Command -Config $Config -Generator `"$Generator`" -InstallPath `"$Prefix`" -Version `"$Version`""
+Write-Output "make.ps1 $Command -Config $Config -Generator `"$Generator`" -Prefix `"$Prefix`" -Version `"$Version`""
 
 if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -and !(Test-Path -Path $libsDir))
 {
@@ -323,9 +323,10 @@ switch ($Command.ToLower())
     "package"
     {
         $package = "ponyc-x86_64-pc-windows-msvc.zip"
-        Write-Output "Creating $buildDir\$package"
+        Write-Output "Creating $buildDir\..\$package"
 
-        Compress-Archive -Path "$Prefix\ponyc", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\$package" -Force
+        Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
+        break
     }
     default
     {

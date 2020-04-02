@@ -120,10 +120,12 @@ else()
         ponyc
         libponyc.tests
         libponyc.benchmarks
-        libponyrt
         libponyrt.benchmarks
         libponyrt.tests
-        DESTINATION ponyc/bin)
+        DESTINATION bin)
+    install(TARGETS
+        libponyrt
+        DESTINATION lib)
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
 endif()
