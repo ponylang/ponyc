@@ -353,7 +353,7 @@ static bool find_executables(compile_t *c, const vsinfo_t *info, vcvars_t *vcvar
 }
 
 static const TCHAR* VSWHERE_PATH =
-  "\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -products *\"";
+  "\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -prerelease -latest -products *\"";
 
 static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
   errors_t *errors)
