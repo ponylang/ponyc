@@ -18,6 +18,9 @@
 // default actor batch size
 #define PONY_SCHED_BATCH 100
 
+// number of app messages processed before GC is forced
+#define ACTOR_MSGS_TIL_GC (PONY_SCHED_BATCH * 100)
+
 // Ignore padding at the end of the type.
 pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
@@ -287,7 +290,11 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
 static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!ponyint_heap_startgc(&actor->heap))
+  // only run GC is the heap has grow sufficiently
+  // or if the actor has processed a sufficient number of application messages
+  //    and the actor heap is > 0
+  if(!ponyint_heap_startgc(&actor->heap)
+    && ((actor->msgs_since_gc < ACTOR_MSGS_TIL_GC) || (actor->heap.used == 0)))
     return;
 
   DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
@@ -299,6 +306,8 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
   ponyint_mark_done(ctx);
   ponyint_heap_endgc(&actor->heap);
+
+  actor->msgs_since_gc = 0;
 
   DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
 }
@@ -369,6 +378,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     {
       // If we handle an application message, try to gc.
       app++;
+      actor->msgs_since_gc++;
       try_gc(ctx, actor);
 
       // maybe mute actor
@@ -396,6 +406,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     {
       // If we handle an application message, try to gc.
       app++;
+      actor->msgs_since_gc++;
       try_gc(ctx, actor);
 
       // maybe mute actor; returns true if mute occurs
@@ -855,7 +866,10 @@ void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
-  ctx->current->heap.next_gc = 0;
+
+  // only trigger gc if actor allocated something on the heap
+  if(ctx->current->heap.used > 0)
+    ctx->current->heap.next_gc = 0;
 }
 
 PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
