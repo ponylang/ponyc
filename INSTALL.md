@@ -40,6 +40,6 @@ Windows users will need to install:
   - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `C++ core features` individual component.
   - Install the latest `Windows 10 SDK (10.x.x.x) for Desktop` component.
 
-Once you have installed the prerequisites, you can download the latest ponyc release from [Cloudsmith](https://cloudsmith.io/~ponylang/repos/releases/packages/detail/raw/ponyc-x86_64-pc-windows-msvc.zip).
+Once you have installed the prerequisites, you can download the latest ponyc release from [Cloudsmith](https://dl.cloudsmith.io/public/ponylang/releases/raw/versions/latest/ponyc-x86-64-pc-windows-msvc.zip).
 
-Unzip the release file in a convenient location, and you will find `ponyc.exe` in the `ponyc\bin` directory. Following extraction, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<directory you unzipped to>\ponyc\bin"`
+Unzip the release file in a convenient location, and you will find `ponyc.exe` in the `bin` directory. Following extraction, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<directory you unzipped to>\bin"`

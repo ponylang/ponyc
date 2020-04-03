@@ -322,7 +322,7 @@ switch ($Command.ToLower())
     }
     "package"
     {
-        $package = "ponyc-x86_64-pc-windows-msvc.zip"
+        $package = "ponyc-x86-64-pc-windows-msvc.zip"
         Write-Output "Creating $buildDir\..\$package"
 
         Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
