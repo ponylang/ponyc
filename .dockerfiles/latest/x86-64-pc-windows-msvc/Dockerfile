@@ -1,6 +1,6 @@
 #escape=`
 
-FROM mcr.microsoft.com/windows/servercore:1909
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
@@ -8,7 +8,7 @@ ADD https://download.visualstudio.microsoft.com/download/pr/220fe621-dd35-4fc0-a
 ADD https://dl.cloudsmith.io/public/ponylang/nightlies/raw/versions/latest/ponyc-x86-64-pc-windows-msvc.zip C:\ponyc.zip
 
 RUN Expand-Archive -Path C:\ponyc.zip -DestinationPath C:\ponyc; `
-    & C:\vs_BuildTools.exe --quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --installPath C:\BuildTools; `    
+    & C:\vs_BuildTools.exe --quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --installPath C:\BuildTools; `
     setx /M PATH $($env:PATH + ';C:\ponyc\bin')
 
 CMD C:\ponyc\bin\ponyc.exe
