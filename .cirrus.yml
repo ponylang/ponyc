@@ -341,6 +341,7 @@ task:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
   config_script:
+    - ps: cmake --help
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
   build_script:
     - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019"
