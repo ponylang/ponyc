@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Build Docker images for windows builds ([PR #3492](https://github.com/ponylang/ponyc/pull/3492))
+- Added support for VS Preview ([PR #3487](https://github.com/ponylang/ponyc/pull/3487))
 
 ### Changed
 
