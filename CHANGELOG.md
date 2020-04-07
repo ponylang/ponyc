@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Build Docker images for windows builds ([PR #3492](https://github.com/ponylang/ponyc/pull/3492))
 
 ### Changed
 
