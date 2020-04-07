@@ -72,7 +72,7 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200406
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
@@ -173,7 +173,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200406
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
@@ -326,7 +326,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200406
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
@@ -341,7 +341,6 @@ task:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
   config_script:
-    - ps: cmake --help
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
   build_script:
     - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019"
@@ -352,7 +351,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200406
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
