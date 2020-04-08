@@ -275,11 +275,11 @@ task:
   only_if: $CIRRUS_PR != ''
 
   freebsd_instance:
-    image: freebsd-12-0-release-amd64
+    image: freebsd-12-1-release-amd64
     cpu: 8
     memory: 24
 
-  name: "PR: x86-64-unknown-freebsd12.0"
+  name: "PR: x86-64-unknown-freebsd12.1"
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
@@ -289,7 +289,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd12"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd12.1"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   configure_script:
