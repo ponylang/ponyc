@@ -72,7 +72,7 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   windows_container:
-    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
@@ -173,7 +173,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   windows_container:
-    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
@@ -326,7 +326,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   windows_container:
-    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
@@ -351,7 +351,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   windows_container:
-    dockerfile: .ci-dockerfiles/windowsservercore/Dockerfile
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20200407
     os_version: 2019
     cpu: 8
     memory: 24
