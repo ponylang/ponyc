@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Docker build
-        run: "docker build --pull --file=.dockerfiles/latest/x86-64-pc-windows-msvc/Dockerfile ."
+        run: "docker build --pull .dockerfiles/latest/x86-64-pc-windows-msvc"
 
   validate-musl-docker-release-image-builds:
     name: Validate musl Docker release image builds
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Docker build
-        run: "docker build --pull --file=.dockerfiles/release/x86-64-pc-windows-msvc/Dockerfile ."
+        run: "docker build --pull .dockerfiles/release/x86-64-pc-windows-msvc"
 
   verify-changelog:
     name: Verify CHANGELOG is valid
