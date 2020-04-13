@@ -80,6 +80,49 @@ else
   BITCODE_FLAGS =
 endif
 
+PONY_USES =
+
+define USE_CHECK
+  $$(info Enabling use option: $1)
+  ifeq ($1,valgrind)
+    PONY_USES += -DPONY_USE_VALGRIND=true
+  else ifeq ($1,thread_sanitizer)
+    PONY_USES += -DPONY_USE_THREAD_SANITIZER=true
+  else ifeq ($1,address_sanitizer)
+    PONY_USES += -DPONY_USE_ADDRESS_SANITIZER=true
+  else ifeq ($1,undefined_behavior_sanitizer)
+    PONY_USES += -DPONY_USE_UNDEFINED_BEHAVIOR_SANITIZER=true
+  else ifeq ($1,coverage)
+    PONY_USES += -DPONY_USE_COVERAGE=true
+  else ifeq ($1,pooltrack)
+    PONY_USES += -DPONY_USE_POOLTRACK=true
+  else ifeq ($1,dtrace)
+    DTRACE ?= $(shell which dtrace)
+    ifeq (, $$(DTRACE))
+      $$(error No dtrace compatible user application static probe generation tool found)
+    endif
+    PONY_USES += -DPONY_USE_DTRACE=true
+  else ifeq ($1,actor_continuations)
+    PONY_USES += -DPONY_USE_ACTOR_CONTINUATIONS=true
+  else ifeq ($1,scheduler_scaling_pthreads)
+    PONY_USES += -DPONY_USE_SCHEDULER_SCALING_PTHREADS=true
+  else ifeq ($1,memtrack)
+    PONY_USES += -DPONY_USE_MEMTRACK=true
+  else ifeq ($1,memtrack_messages)
+    PONY_USES += -DPONY_USE_MEMTRACK_MESSAGES=true
+  else
+    $$(error ERROR: Unknown use option specified: $1)
+  endif
+endef
+
+ifdef use
+  ifneq (${MAKECMDGOALS}, configure)
+    $(error You can only specify use= for 'make configure')
+	else
+    $(foreach useitem,$(sort $(subst $(comma),$(space),$(use))),$(eval $(call USE_CHECK,$(useitem))))
+  endif
+endif
+
 .DEFAULT_GOAL := build
 .PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-validate-grammar clean
 
@@ -94,7 +137,7 @@ cleanlibs:
 
 configure:
 	$(SILENT)mkdir -p '$(buildDir)'
-	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_VERBOSE_FLAGS)
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_VERBOSE_FLAGS) $(PONY_USES)
 
 all: build
 
@@ -136,9 +179,9 @@ test-validate-grammar: all
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true
-	$(SILENT)rm -rf '$(crossBuildDir)'
-	$(SILENT)rm -rf '$(buildDir)'
-	$(SILENT)rm -rf '$(outDir)'
+	$(SILENT)rm -rf $(crossBuildDir)
+	$(SILENT)rm -rf $(buildDir)
+	$(SILENT)rm -rf $(outDir)*
 
 distclean:
 	$(SILENT)([ -d build ] && rm -rf build) || true
