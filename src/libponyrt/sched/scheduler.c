@@ -38,6 +38,7 @@ static uint64_t scheduler_suspend_threshold;
 static PONY_ATOMIC(uint32_t) active_scheduler_count;
 static PONY_ATOMIC(uint32_t) active_scheduler_count_check;
 static scheduler_t* scheduler;
+static pony_ctx_t* inject_context;
 static PONY_ATOMIC(bool) detect_quiescence;
 static bool use_yield;
 static mpmcq_t inject;
@@ -847,7 +848,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     {
       // trigger cycle detector by sending it a message if it is time
       uint64_t current_tsc = ponyint_cpu_tick();
-      if(ponyint_cycle_check_blocked(&sched->ctx, last_cd_tsc, current_tsc))
+      if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
       {
         last_cd_tsc = current_tsc;
 
@@ -880,6 +881,7 @@ static void run(scheduler_t* sched)
     last_cd_tsc = 0;
 
   pony_actor_t* actor = pop_global(sched);
+
   if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
     DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
   }
@@ -894,7 +896,7 @@ static void run(scheduler_t* sched)
       {
         // trigger cycle detector by sending it a message if it is time
         uint64_t current_tsc = ponyint_cpu_tick();
-        if(ponyint_cycle_check_blocked(&sched->ctx, last_cd_tsc, current_tsc))
+        if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
         {
           last_cd_tsc = current_tsc;
 
@@ -1018,7 +1020,7 @@ static void ponyint_sched_shutdown()
     ponyint_thread_join(scheduler[i].tid);
 
   DTRACE0(RT_END);
-  ponyint_cycle_terminate(&scheduler[0].ctx);
+  ponyint_cycle_terminate();
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
@@ -1053,6 +1055,7 @@ static void ponyint_sched_shutdown()
     * sizeof(scheduler_t)));
 #endif
   scheduler = NULL;
+  inject_context = NULL;
   scheduler_count = 0;
   atomic_store_explicit(&active_scheduler_count, 0, memory_order_relaxed);
 
@@ -1143,7 +1146,9 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   ponyint_mpmcq_init(&inject);
   ponyint_asio_init(asio_cpu);
 
-  return pony_ctx();
+  inject_context = pony_ctx();
+
+  return inject_context;
 }
 
 bool ponyint_sched_start(bool library)
@@ -1277,6 +1282,10 @@ void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id)
       }
     }
   }
+}
+
+pony_ctx_t* ponyint_sched_get_inject_context() {
+  return inject_context;
 }
 
 // Maybe wake up a scheduler thread if possible

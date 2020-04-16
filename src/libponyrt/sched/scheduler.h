@@ -125,6 +125,10 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
 // threads are asleep
 void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
 
+// Retrieves the global main thread context for scheduling
+// special actors on the inject queue.
+pony_ctx_t* ponyint_sched_get_inject_context();
+
 #ifdef USE_MEMTRACK
 /** Get the static memory used by the scheduler subsystem.
  */

@@ -83,11 +83,11 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
-static void send_unblock(pony_ctx_t* ctx, pony_actor_t* actor)
+static void send_unblock(pony_actor_t* actor)
 {
   // Send unblock before continuing.
   unset_flag(actor, FLAG_BLOCKED | FLAG_BLOCKED_SENT);
-  ponyint_cycle_unblock(ctx, actor);
+  ponyint_cycle_unblock(actor);
 }
 
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -120,7 +120,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         has_flag(actor, FLAG_BLOCKED_SENT))
       {
         // send unblock if we've sent a block
-        send_unblock(ctx, actor);
+        send_unblock(actor);
       }
 
       return false;
@@ -147,7 +147,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         has_flag(actor, FLAG_BLOCKED_SENT))
       {
         // send unblock if we've sent a block
-        send_unblock(ctx, actor);
+        send_unblock(actor);
       }
 
       return false;
@@ -178,7 +178,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       {
         // We've sent a block message, send confirm.
         pony_msgi_t* m = (pony_msgi_t*)msg;
-        ponyint_cycle_ack(ctx, m->i);
+        ponyint_cycle_ack(m->i);
       }
 
       return false;
@@ -196,7 +196,8 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       {
         // We're blocked, send block message.
         set_flag(actor, FLAG_BLOCKED_SENT);
-        ponyint_cycle_block(ctx, actor, &actor->gc);
+        pony_assert(ctx->current == actor);
+        ponyint_cycle_block(actor, &actor->gc);
       }
 
       return false;
@@ -275,7 +276,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       if(has_flag(actor, FLAG_BLOCKED_SENT))
       {
         // send unblock if we've sent a block
-        send_unblock(ctx, actor);
+        send_unblock(actor);
       }
 
       DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
@@ -595,7 +596,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 
   // tell the cycle detector we exist if block messages are enabled
   if(!actor_noblock)
-    ponyint_cycle_actor_created(ctx, actor);
+    ponyint_cycle_actor_created(actor);
 
   DTRACE2(ACTOR_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   return actor;
@@ -603,11 +604,12 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 
 PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor)
 {
+  (void)ctx;
   // This destroys an actor immediately.
   // The finaliser is not called.
 
   // Notify cycle detector of actor being destroyed
-  ponyint_cycle_actor_destroyed(ctx, actor);
+  ponyint_cycle_actor_destroyed(actor);
 
   ponyint_actor_setpendingdestroy(actor);
   ponyint_actor_destroy(actor);
@@ -869,11 +871,13 @@ PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 
 PONY_API void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
+  (void)ctx;
+  
   if(has_flag(actor, FLAG_BLOCKED_SENT))
   {
     // send unblock if we've sent a block
     if(!actor_noblock)
-      send_unblock(ctx, actor);
+      send_unblock(actor);
   }
 
   set_flag(actor, FLAG_UNSCHEDULED);
