@@ -25,11 +25,76 @@ if(NOT PONY_CROSS_LIBPONYRT)
     find_package(benchmark REQUIRED CONFIG PATHS "build/libs/lib/cmake/benchmark" "build/libs/lib64/cmake/benchmark" NO_DEFAULT_PATH)
 endif()
 
+# Uses
+if(PONY_USE_VALGRIND)
+    set(PONY_OUTPUT_SUFFIX "-valgrind")
+    add_compile_options(-DUSE_VALGRIND)
+endif()
+
+if(PONY_USE_THREAD_SANITIZER)
+    set(PONY_OUTPUT_SUFFIX "-thread_sanitizer")
+    add_compile_options(-fsanitize=thread -DPONY_SANITIZER=\"thread\")
+    add_link_options(-fsanitize=thread -DPONY_SANITIZER=\"thread\")
+endif()
+
+if(PONY_USE_ADDRESS_SANITIZER)
+    set(PONY_OUTPUT_SUFFIX "-address_sanitizer")
+    add_compile_options(-fsanitize=address -DPONY_SANITIZER=\"address\")
+    add_link_options(-fsanitize=address -DPONY_SANITIZER=\"address\")
+endif()
+
+if(PONY_USE_UNDEFINED_BEHAVIOR_SANITIZER)
+    set(PONY_OUTPUT_SUFFIX "-undefined_behavior_sanitizer")
+    add_compile_options(-fsanitize=undefined -DPONY_SANITIZER=\"undefined\")
+    add_link_options(-fsanitize=undefined -DPONY_SANITIZER=\"undefined\")
+endif()
+
+if(PONY_USE_COVERAGE)
+    set(PONY_OUTPUT_SUFFIX "-coverage")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(-O0 -fprofile-instr-generate -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate -fcoverage-mapping)
+    else()
+        add_compile_options(-O0 -fprofile-arcs -ftest-coverage)
+        add_link_options(-fprofile-arcs)
+    endif()
+endif()
+
+if(PONY_USE_POOLTRACK)
+    set(PONY_OUTPUT_SUFFIX "-pooltrack")
+    add_compile_options(-DUSE_POOLTRACK)
+endif()
+
+if(PONY_USE_DTRACE)
+    set(PONY_OUTPUT_SUFFIX "-dtrace")
+    add_compile_options(-DUSE_DYNAMIC_TRACE)
+endif()
+
+if(PONY_USE_ACTOR_CONTINUATIONS)
+    set(PONY_OUTPUT_SUFFIX "-actor_continuations")
+    add_compile_options(-DUSE_ACTOR_CONTINUATIONS)
+endif()
+
+if(PONY_USE_MEMTRACK)
+    set(PONY_OUTPUT_SUFFIX "-memtrack")
+    add_compile_options(-DUSE_MEMTRACK)
+endif()
+
+if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
+    set(PONY_OUTPUT_SUFFIX "-scheduler_scaling_pthreads")
+    add_compile_options(-DUSE_SCHEDULER_SCALING_PTHREADS)
+endif()
+
+if(PONY_USE_MEMTRACK_MESSAGES)
+    set(PONY_OUTPUT_SUFFIX "-memtrack_messages")
+    add_compile_options(-DUSE_MEMTRACK -DUSE_MEMTRACK_MESSAGES)
+endif()
+
 # LibPonyC tests assume that our outputs are two directories above the root directory.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../debug)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../release)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR}/../minsizerel)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/../relwithdebinfo)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}")
 
 # Libs are now always built in release mode.
 set(PONY_LLVM_BUILD_MODE "1")

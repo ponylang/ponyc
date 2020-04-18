@@ -175,7 +175,7 @@ static void pool_event_print(int thread, void* op, size_t event, size_t tsc,
       thread, event, tsc, (size_t)addr, size);
 }
 
-static void pool_track(int thread_filter, void* addr_filter, int op_filter,
+static void pool_track(int thread_filter, void* addr_filter, size_t op_filter,
   size_t event_filter)
 {
   for(int i = 0; i < POOL_TRACK_MAX_THREADS; i++)
@@ -224,7 +224,7 @@ static void pool_track(int thread_filter, void* addr_filter, int op_filter,
             op = t->data[j];
             state = 0;
 
-            if((op_filter != -1) && (op_filter != (int)op))
+            if((op_filter != (size_t)-1) && (op_filter != (size_t)op))
               print = false;
 
             if((event_filter != (size_t)-1) && (event_filter != event))
