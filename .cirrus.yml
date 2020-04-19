@@ -6,7 +6,7 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
     cpu: 8
     memory: 24
 
@@ -27,7 +27,7 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200419
     cpu: 8
     memory: 24
 
@@ -136,7 +136,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
     cpu: 8
     memory: 24
 
@@ -157,7 +157,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200419
     cpu: 8
     memory: 24
 
@@ -237,7 +237,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
     cpu: 8
     memory: 24
 
@@ -259,7 +259,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
     cpu: 8
     memory: 24
 
@@ -281,7 +281,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200419
     cpu: 8
     memory: 24
 
@@ -407,7 +407,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-arm:20200127
+    image: ponylang/ponyc-ci-cross-arm:20200419
     cpu: 8
     memory: 24
 
@@ -433,7 +433,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-armhf:20200212
+    image: ponylang/ponyc-ci-cross-armhf:20200419
     cpu: 8
     memory: 24
 

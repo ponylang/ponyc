@@ -4,6 +4,7 @@ RUN apt-get update \
  && apt-get install -y \
   apt-transport-https \
   build-essential \
+  clang \
   g++-6 \
   git \
   make \
