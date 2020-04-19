@@ -199,7 +199,7 @@ install: build
 	$(SILENT)cp -r packages $(ponydir)/
 ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/bin
-	@mkdir -p $(prefix)/lib
+	@mkdir -p $(prefix)/lib/$(arch)
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/$(arch)/libponyrt.a; fi
