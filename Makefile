@@ -28,10 +28,24 @@ else
   ponydir ?= $(prefix)/lib/pony/$(tag)
 endif
 
+# Use clang by default; because CC defaults to 'cc'
+# you must explicitly set CC=gcc to use gcc
+ifndef CC
+  ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
+    CC = clang
+    CXX = clang++
+  endif
+else ifeq ($(CC), cc)
+  ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
+    CC = clang
+    CXX = clang++
+  endif
+endif
+
 # By default, CC is cc and CXX is g++
 # So if you use standard alternatives on many Linuxes
 # You can get clang and g++ and then bad things will happen
-ifneq (,$(shell $(CC) --version 2>&1 | grep clang))
+ifneq (,$(shell $(CC) --version 2>&1 | grep 'clang version'))
   ifneq (,$(shell $(CXX) --version 2>&1 | grep "Free Software Foundation"))
     CXX = c++
   endif
@@ -40,11 +54,11 @@ ifneq (,$(shell $(CC) --version 2>&1 | grep clang))
     $(error CC is clang but CXX is g++. They must be from matching compilers.)
   endif
 else ifneq (,$(shell $(CC) --version 2>&1 | grep "Free Software Foundation"))
-  ifneq (,$(shell $(CXX) --version 2>&1 | grep clang))
+  ifneq (,$(shell $(CXX) --version 2>&1 | grep 'clang version'))
     CXX = c++
   endif
 
-  ifneq (,$(shell $(CXX) --version 2>&1 | grep clang))
+  ifneq (,$(shell $(CXX) --version 2>&1 | grep 'clang version'))
     $(error CC is gcc but CXX is clang++. They must be from matching compilers.)
   endif
 endif

@@ -14,7 +14,7 @@ ponyup update ponyc release
 
 Additional requirements:
 
-All ponyc Linux installations need a C compiler such as gcc or clang installed. The following distributions have additional requirements:
+All ponyc Linux installations need to have a C compiler such as clang installed. Compilers other than clang might work, but clang is the officially supported C compiler. The following distributions have additional requirements:
 
 Distribution | Requires
 --- | ---
