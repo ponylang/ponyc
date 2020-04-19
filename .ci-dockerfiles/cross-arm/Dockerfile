@@ -1,4 +1,4 @@
-FROM ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+FROM ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
 
 ARG CROSS_TRIPLE=arm-unknown-linux-gnueabi
 ARG CROSS_CC=arm-linux-gnueabi-gcc

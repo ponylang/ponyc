@@ -5,6 +5,7 @@ RUN apk update \
   && apk add --update \
   alpine-sdk \
   binutils-gold \
+  clang \
   libexecinfo-dev \
   libexecinfo-static \
   coreutils \
