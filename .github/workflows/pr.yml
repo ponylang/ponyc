@@ -7,7 +7,7 @@ jobs:
     name: Clang GNU
     runs-on: ubuntu-latest
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20191106
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200417
     steps:
       - uses: actions/checkout@v1
       - name: clang?
@@ -17,7 +17,7 @@ jobs:
     name: Clang Musl
     runs-on: ubuntu-latest
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20191106
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200417
     steps:
       - uses: actions/checkout@v1
       - name: clang?
