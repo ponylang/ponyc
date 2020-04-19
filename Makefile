@@ -28,6 +28,19 @@ else
   ponydir ?= $(prefix)/lib/pony/$(tag)
 endif
 
+# Use clang by default
+ifndef CC
+  ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
+    CC = clang
+    CXX = clang++
+  endif
+else ifeq ($(CC), cc)
+  ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
+    CC = clang
+    CXX = clang++
+  endif
+endif
+
 # By default, CC is cc and CXX is g++
 # So if you use standard alternatives on many Linuxes
 # You can get clang and g++ and then bad things will happen
