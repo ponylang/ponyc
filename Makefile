@@ -28,7 +28,8 @@ else
   ponydir ?= $(prefix)/lib/pony/$(tag)
 endif
 
-# Use clang by default
+# Use clang by default; because CC defaults to 'cc'
+# you must explicitly set CC=gcc to use gcc
 ifndef CC
   ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
     CC = clang

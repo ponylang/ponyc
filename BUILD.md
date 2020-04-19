@@ -1,11 +1,11 @@
 # Building ponyc from source
 
-First of all, you need a compiler with decent C11 support. The following compilers are supported, though we recommend to use the most recent versions.
+First of all, you need a compiler with decent C11 support. We officially support Clang on Unix and MSVC on Windows; the following are known to work:
 
-- GCC >= 4.7
 - Clang >= 3.4
-- MSVC >= 2017
 - XCode Clang >= 6.0
+- MSVC >= 2017
+- GCC >= 4.7
 
 You also need [CMake](https://cmake.org/download/) version 3.15 or higher.
 
@@ -17,11 +17,14 @@ The build system is divided into several stages:
 
 - Build the vendored LLVM libraries that are included in the `lib/llvm/src` Git submodule by running `make libs` (`.\make.ps1 libs` on Windows).  This stage only needs to be run once the first time you build (or if the vendored LLVM submodule changes, or if you run `make distclean`).
 
-- `make build` will build ponyc and put it in `build/release`.  Use `make build config=debug` (`.\make.ps1 build -Config Debug` on Windows) for a debug build.
+- `make configure` to configure the CMake build directory.  Use `make configure config=debug` (`.\make.ps1 configure -Config Debug`) for a debug build.
+- `make build` will build ponyc and put it in `build/release`.  Use `make build config=debug` (`.\make.ps1 build -Config Debug` on Windows) for a debug build that goes in `build/debug`.
 - `make test` will run the test suite.
 - `make install` will install ponyc to `/usr/local` by default (`make install prefix=/foo` to install elsewhere; `make install -Prefix foo` on Windows).
 - `make clean` will clean your ponyc build, but not the libraries.
-- `make distclean` will delete the `build` directory, including the libraries.
+- `make distclean` will delete the entire `build` directory, including the libraries.
+
+The build system defaults to using Clang on Unix.  In order to use GCC, you must explicitly set it in the `configure` step: `make configure CC=gcc`.
 
 ## FreeBSD
 
