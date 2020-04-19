@@ -24,7 +24,7 @@ The build system is divided into several stages:
 - `make clean` will clean your ponyc build, but not the libraries.
 - `make distclean` will delete the entire `build` directory, including the libraries.
 
-The build system defaults to using Clang on Unix.  In order to use GCC, you must explicitly set it in the `configure` step: `make configure CC=gcc`.
+The build system defaults to using Clang on Unix.  In order to use GCC, you must explicitly set it in the `configure` step: `make configure CC=gcc CXX=g++`.
 
 ## FreeBSD
 
