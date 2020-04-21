@@ -281,7 +281,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200419
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
     cpu: 8
     memory: 24
 
