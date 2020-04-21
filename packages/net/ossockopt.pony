@@ -1320,3 +1320,7 @@ primitive OSSockOpt
   fun udp_no_check6_rx():I32 => @pony_os_sockopt_option(I32(1095))
   fun udp_no_check6_tx():I32 => @pony_os_sockopt_option(I32(1096))
   fun udp_vendor():I32 => @pony_os_sockopt_option(I32(1097))
+  fun so_rcvtimeo_old():I32 => @pony_os_sockopt_option(I32(1098))
+  fun so_rcvtimeo_new():I32 => @pony_os_sockopt_option(I32(1099))
+  fun so_sndtimeo_old():I32 => @pony_os_sockopt_option(I32(1100))
+  fun so_sndtimeo_new():I32 => @pony_os_sockopt_option(I32(1101))

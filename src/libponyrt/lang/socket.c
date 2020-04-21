@@ -5103,6 +5103,18 @@ PONY_API int pony_os_sockopt_option(int option)
 #ifdef UDP_VENDOR
     case 1097: return UDP_VENDOR;
 #endif
+#ifdef SO_RCVTIMEO_OLD
+    case 1098: return SO_RCVTIMEO_OLD;
+#endif
+#ifdef SO_RCVTIMEO_NEW
+    case 1099: return SO_RCVTIMEO_NEW;
+#endif
+#ifdef SO_SNDTIMEO_OLD
+    case 1100: return SO_SNDTIMEO_OLD;
+#endif
+#ifdef SO_SNDTIMEO_NEW
+    case 1101: return SO_SNDTIMEO_NEW;
+#endif
     default: return -1;
   }
 }
