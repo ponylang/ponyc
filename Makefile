@@ -216,6 +216,7 @@ ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc.a $(prefix)/lib/libponyc.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/libponyrt.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt-pic.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a; fi
 	$(SILENT)ln -s -f $(ponydir)/include/pony.h $(prefix)/include/pony.h
@@ -225,6 +226,7 @@ endif
 uninstall:
 	-$(SILENT)rm -rf $(ponydir) ||:
 	-$(SILENT)rm -f $(prefix)/bin/ponyc ||:
+	-$(SILENT)rm -f $(prefix)/lib/libponyc.a ||:
 	-$(SILENT)rm -f $(prefix)/lib/libponyrt*.a ||:
 	-$(SILENT)rm -rf $(prefix)/lib/pony ||:
 	-$(SILENT)rm -f $(prefix)/include/pony.h ||:
