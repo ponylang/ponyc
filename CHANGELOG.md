@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Build PonyC using CMake ([PR #3234](https://github.com/ponylang/ponyc/pull/3234))
 - Update  supported FreeBSD version to 12.1 ([PR #3495](https://github.com/ponylang/ponyc/pull/3495))
 - Make clang our default compiler on Linux, macOS, and FreeBSD ([PR #3506](https://github.com/ponylang/ponyc/pull/3506))
+- schedule the cycle detector with higher priority using the inject queue ([PR #3507](https://github.com/ponylang/ponyc/pull/3507))
 
 ## [0.33.2] - 2020-02-03
 
