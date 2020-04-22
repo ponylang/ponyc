@@ -3,12 +3,13 @@ FROM alpine:3.11
 ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
 RUN apk add --update \
-    curl \
-    build-base \
     binutils-gold \
+    build-base \
+    clang \
+    curl \
+    git \
     libexecinfo-dev \
-    libexecinfo-static \
-    git
+    libexecinfo-static
 
 RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
  && ponyup update ponyc nightly --platform=musl\

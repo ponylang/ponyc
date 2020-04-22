@@ -4,6 +4,7 @@ ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
 RUN apt-get update \
  && apt-get install -y \
+    clang \
     curl \
     g++ \
     git \
