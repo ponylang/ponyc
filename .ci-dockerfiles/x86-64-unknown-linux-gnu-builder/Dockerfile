@@ -1,25 +1,26 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+
+# Keep annoying tzdata prompt from coming up
+# Thanks cmake!
+ENV DEBIAN_FRONTEND noninteractive
+ENV DEBCONF_NONINTERACTIVE_SEEN true
 
 RUN apt-get update \
  && apt-get install -y \
   apt-transport-https \
   build-essential \
   clang \
-  g++-6 \
+  cmake \
   git \
   make \
   xz-utils \
   zlib1g-dev \
-  python-pip \
   curl \
+  python3-pip \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \
- && pip install cloudsmith-cli
-
-# install a newer cmake
-RUN curl --output cmake-3.15.3-Linux-x86_64.sh https://cmake.org/files/v3.15/cmake-3.15.3-Linux-x86_64.sh \
- && sh cmake-3.15.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
+ && pip3 install cloudsmith-cli
 
 # add user pony in order to not run tests as root
 RUN useradd -ms /bin/bash -d /home/pony -g root pony

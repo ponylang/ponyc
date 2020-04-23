@@ -6,7 +6,7 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
     memory: 24
 
@@ -17,7 +17,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
     populate_script: make libs build_flags=-j8
 
   nightly_script:
@@ -136,7 +136,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
     memory: 24
 
@@ -147,7 +147,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
     populate_script: make libs build_flags=-j8
 
   release_script:
@@ -265,7 +265,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
     memory: 24
 
@@ -273,7 +273,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
     populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
@@ -287,7 +287,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200419
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
     memory: 24
 
@@ -295,7 +295,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
     populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
@@ -435,7 +435,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-arm:20200419
+    image: ponylang/ponyc-ci-cross-arm:20200423
     cpu: 8
     memory: 24
 
@@ -443,7 +443,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20200423"
     populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
 
   configure_script:
@@ -461,7 +461,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-armhf:20200419
+    image: ponylang/ponyc-ci-cross-armhf:20200423
     cpu: 8
     memory: 24
 
@@ -469,7 +469,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20200423"
     populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
 
   configure_script:
