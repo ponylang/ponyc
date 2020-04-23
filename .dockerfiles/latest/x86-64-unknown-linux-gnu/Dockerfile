@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
