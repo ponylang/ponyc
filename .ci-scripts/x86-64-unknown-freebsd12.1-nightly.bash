@@ -16,7 +16,7 @@ ARCH=x86-64
 PIC=true
 
 # Triple construction
-VENDOR=unkown
+VENDOR=unknown
 OS=freebsd12.1
 TRIPLE=${ARCH}-${VENDOR}-${OS}
 
