@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Added support for VS Preview ([PR #3487](https://github.com/ponylang/ponyc/pull/3487))
 - Add nightly FreeBSD 12.1 builds ([PR #3502](https://github.com/ponylang/ponyc/pull/3502))
 - Add OSSockOpt constants added by Linux 5.1 kernel ([PR #3515](https://github.com/ponylang/ponyc/pull/3515))
+- Add prebuilt FreeBSD 12.1 builds for releases ([PR #3525](https://github.com/ponylang/ponyc/pull/3525))
 
 ### Changed
 
