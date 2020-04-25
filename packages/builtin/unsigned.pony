@@ -73,8 +73,8 @@ primitive U8 is UnsignedInteger[U8]
   fun hash_with(state': HashState): HashState =>
     Hashing.update_usize(usize(), state')
 
-  fun hash_with(state': HashState64): HashState64 =>
-    Hashing.update(u64(), state')
+  fun hash_with64(state': HashState64): HashState64 =>
+    Hashing.update_64(u64(), state')
 
 primitive U16 is UnsignedInteger[U16]
   new create(value: U16) => value

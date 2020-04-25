@@ -72,7 +72,7 @@ primitive SipHash24Streaming is StreamingHash[SipHash24HashState, U64, USize]
     v0 = v0 xor m.u32()
     (v0.usize(), v1.usize(), v2.usize(), v3.usize())
 
-  fun update_bytes(pointer: Pointer[U8], size: USize, state: SipHash24HashState): SipHash24HashState =>
+  fun update_bytes(pointer: Pointer[U8] box, size: USize, state: SipHash24HashState): SipHash24HashState =>
     ifdef ilp32 then
       var b: U32  = (size << USize(24)).u32()
 
@@ -85,7 +85,7 @@ primitive SipHash24Streaming is StreamingHash[SipHash24HashState, U64, USize]
 
       var i = USize(0)
       while i < endi do
-        let m: U64 = pointer._offset(i)._convert[U32]()._apply(0)
+        let m: U32 = pointer._offset(i)._convert[U32]()._apply(0)
         v3 = v3 xor m
         (v0, v1, v2, v3) = HalfSipHash24._sipround32(v0, v1, v2, v3)
         (v0, v1, v2, v3) = HalfSipHash24._sipround32(v0, v1, v2, v3)
@@ -203,7 +203,7 @@ primitive SipHash24Streaming64 is StreamingHash[SipHash24HashState64, U64, U64]
     v0 = v0 xor m
     (v0, v1, v2, v3)
 
-  fun update_bytes(pointer: Pointer[U8], size: USize, state: SipHash24HashState64): SipHash24HashState64 =>
+  fun update_bytes(pointer: Pointer[U8] box, size: USize, state: SipHash24HashState64): SipHash24HashState64 =>
     var b: U64  = (size << USize(56)).u64()
 
     var v0 = state._1

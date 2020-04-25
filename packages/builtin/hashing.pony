@@ -23,7 +23,7 @@ primitive Hashing
     SipHash24Streaming.update(m, state)
   fun update_usize(m: USize, state: HashState): HashState =>
     SipHash24Streaming.update_usize(m, state)
-  fun update_bytes(pointer: Pointer[U8], size: USize, state: HashState): HashState =>
+  fun update_bytes(pointer: Pointer[U8] box, size: USize, state: HashState): HashState =>
     SipHash24Streaming.update_bytes(pointer, size, state)
   fun finish(state: HashState): USize =>
     SipHash24Streaming.finish(state)
@@ -31,7 +31,7 @@ primitive Hashing
   fun begin_64(): HashState64 => SipHash24Streaming64.initial()
   fun update_64(m: U64, state: HashState64): HashState64 =>
     SipHash24Streaming64.update(m, state)
-  fun update_bytes_64(pointer: Pointer[U8], size: USize, state: HashState64): HashState =>
+  fun update_bytes_64(pointer: Pointer[U8] box, size: USize, state: HashState64): HashState64 =>
     SipHash24Streaming64.update_bytes(pointer, size, state)
   fun finish_64(state: HashState64): U64 =>
     SipHash24Streaming64.finish(state)
