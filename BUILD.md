@@ -30,10 +30,10 @@ The build system defaults to using Clang on Unix.  In order to use GCC, you must
 
 ```bash
 pkg install -y cmake gmake libunwind git
-make libs
-make configure
-make build
-sudo make install
+gmake libs
+gmake configure
+gmake build
+sudo gmake install
 ```
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
