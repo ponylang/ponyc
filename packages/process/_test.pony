@@ -197,7 +197,12 @@ class iso _TestStderr is UnitTest
     let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, ifdef windows then "C:\\Windows\\System32\\cmd.exe" else _CatPath() end)?
+      let path = FilePath(h.env.root as AmbientAuth,
+        ifdef windows then
+          "C:\\Windows\\System32\\cmd.exe"
+        else
+          _CatPath()
+        end)?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
       else
@@ -354,8 +359,14 @@ class iso _TestStdinWriteBuf is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let pipe_cap: USize = 65536
-    let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 2,
-      "", 0, h)
+
+    // create a message larger than pipe_cap bytes
+    let message: Array[U8] val = recover Array[U8].init('\n', pipe_cap + 1) end
+
+    // Windows stdin will turn "\n" into "\r\n"
+    let out_size = ifdef windows then message.size() * 2 else message.size() end
+
+    let notifier: ProcessNotify iso = _ProcessClient(out_size, "", 0, h)
     try
       let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
       let args: Array[String] val = _CatArgs()
@@ -364,9 +375,6 @@ class iso _TestStdinWriteBuf is UnitTest
       // fork the child process and attach a ProcessMonitor
       let auth = h.env.root as AmbientAuth
       _pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
-
-      // create a message larger than pipe_cap bytes
-      let message: Array[U8] val = recover Array[U8].init('\n', pipe_cap + 1) end
 
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
@@ -402,11 +410,12 @@ class _TestChdir is UnitTest
   fun ref apply(h: TestHelper) =>
     let parent = Path.dir(Path.cwd())
     // expect path length + \n
-    let notifier: ProcessNotify iso = _ProcessClient(parent.size() + (ifdef windows then 2 else 1 end), "", 0, h)
+    let notifier: ProcessNotify iso = _ProcessClient(parent.size()
+      + (ifdef windows then 2 else 1 end), "", 0, h)
     try
       let auth = h.env.root as AmbientAuth
-      
-      let path = FilePath(auth, _PwdPath())? 
+
+      let path = FilePath(auth, _PwdPath())?
       let args: Array[String] val = _PwdArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -562,13 +571,13 @@ class _ProcessClient is ProcessNotify
     _h.log("dispose: stdout: " + _d_stdout_chars.string() + " bytes")
     _h.log("dispose: stderr: '" + _d_stderr + "'")
     if (_first_data > 0) then
-      _h.log("dispose: received first data after: \t" + (_first_data - _created).string()
-        + " ns")
+      _h.log("dispose: received first data after: \t"
+        + (_first_data - _created).string() + " ns")
     end
-    _h.log("dispose: total data process_time: \t" + (last_data - _first_data).string()
-      + " ns")
-    _h.log("dispose: ProcessNotify lifetime: \t" + (last_data - _created).string()
-      + " ns")
+    _h.log("dispose: total data process_time: \t"
+      + (last_data - _first_data).string() + " ns")
+    _h.log("dispose: ProcessNotify lifetime: \t"
+      + (last_data - _created).string() + " ns")
 
     _h.assert_eq[USize](_out, _d_stdout_chars)
     _h.assert_eq[USize](_err.size(), _d_stderr.size())

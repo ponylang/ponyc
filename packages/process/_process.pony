@@ -234,7 +234,16 @@ class _ProcessWindows is _Process
   fun tag _make_cmdline(args: Array[String] val): String =>
     var cmdline: String = ""
     for arg in args.values() do
-      cmdline = cmdline + arg + " "
+      // quote args with spaces on Windows
+      var next = arg
+      ifdef windows then
+        try
+          if arg.contains(" ") and (not arg(0)? == '"') then
+            next = "\"" + arg + "\""
+          end
+        end
+      end
+      cmdline = cmdline + next + " "
     end
     cmdline
 
