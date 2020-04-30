@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - schedule the cycle detector with higher priority using the inject queue ([PR #3507](https://github.com/ponylang/ponyc/pull/3507))
 - Update glibc Docker image based to Ubuntu 20 ([PR #3522](https://github.com/ponylang/ponyc/pull/3522))
 - Change supported Ubuntu version to Ubuntu 20 ([PR #3522](https://github.com/ponylang/ponyc/pull/3522))
+- Let processmonitor chdir before exec ([PR #3530](https://github.com/ponylang/ponyc/pull/3530))
 
 ## [0.33.2] - 2020-02-03
 
