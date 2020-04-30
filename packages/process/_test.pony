@@ -19,8 +19,11 @@ actor Main is TestList
     test(_TestWritevOrdering)
     test(_TestPrintvOrdering)
     test(_TestStdinWriteBuf)
+    test(_TestChdir)
+    test(_TestBadChdir)
+    test(_TestBadExec)
 
-primitive CatPath
+primitive _CatPath
   fun apply(): String =>
     ifdef windows then
       "C:\\Windows\\System32\\find.exe"
@@ -28,7 +31,7 @@ primitive CatPath
       "/bin/cat"
     end
 
-primitive CatArgs
+primitive _CatArgs
   fun apply(): Array[String] val =>
     ifdef windows then
       ["find"; "/v"; "\"\""]
@@ -36,12 +39,36 @@ primitive CatArgs
       ["cat"]
     end
 
-primitive EchoPath
+primitive _EchoPath
   fun apply(): String =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c echo ..."
     else
       "/bin/echo"
+    end
+
+primitive _BadExecPath
+  fun apply(): String =>
+    ifdef windows then
+       "C:\\Windows\\system.ini" // not exeutable
+    else
+      "./_test.sh" // has non-existent interpreter in shebang
+    end
+
+primitive _PwdPath
+  fun apply(): String =>
+    ifdef windows then
+      "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c cd"
+    else
+      "/bin/pwd"
+    end
+
+primitive _PwdArgs
+  fun apply(): Array[String] val =>
+    ifdef windows then
+      ["cmd"; "/c"; "cd"]
+    else
+      ["pwd"]
     end
 
 class iso _TestFileExecCapabilityIsRequired is UnitTest
@@ -52,10 +79,10 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     "process-monitor"
 
   fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h)
+    let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h, CapError)
     try
       let path =
-        FilePath(h.env.root as AmbientAuth, CatPath(),
+        FilePath(h.env.root as AmbientAuth, _CatPath(),
           recover val FileCaps .> all() .> unset(FileExec) end)?
       let args: Array[String] val = ["dontcare"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
@@ -133,8 +160,8 @@ class iso _TestStdinStdout is UnitTest
     let size: USize = input.size() + ifdef windows then 2 else 0 end
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -163,16 +190,21 @@ class iso _TestStderr is UnitTest
   fun ref apply(h: TestHelper) =>
     let errmsg =
       ifdef windows then
-        "FIND: Invalid switch\r\n"
+        "message-to-stderr\r\n"
       else
         "cat: file_does_not_exist: No such file or directory\n"
       end
-    let exit_code: I32 = ifdef windows then 2 else 1 end
+    let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
+      let path = FilePath(h.env.root as AmbientAuth,
+        ifdef windows then
+          "C:\\Windows\\System32\\cmd.exe"
+        else
+          _CatPath()
+        end)?
       let args: Array[String] val = ifdef windows then
-        ["find"; "/q"]
+        ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
       else
         ["cat"; "file_does_not_exist"]
       end
@@ -232,7 +264,7 @@ class iso _TestExpect is UnitTest
     end
 
     try
-      let path = FilePath(h.env.root as AmbientAuth, EchoPath())?
+      let path = FilePath(h.env.root as AmbientAuth, _EchoPath())?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "echo"; "hello carl"]
       else
@@ -264,8 +296,8 @@ class iso _TestWritevOrdering is UnitTest
     let expected: USize = ifdef windows then 13 else 11 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -295,8 +327,8 @@ class iso _TestPrintvOrdering is UnitTest
     let expected: USize = ifdef windows then 17 else 14 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let auth = h.env.root as AmbientAuth
@@ -327,23 +359,25 @@ class iso _TestStdinWriteBuf is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let pipe_cap: USize = 65536
-    let notifier: ProcessNotify iso = _ProcessClient((pipe_cap + 1) * 2,
-      "", 0, h)
+
+    // create a message larger than pipe_cap bytes
+    let message: Array[U8] val = recover Array[U8].init('\n', pipe_cap + 1) end
+
+    // Windows stdin will turn "\n" into "\r\n"
+    let out_size = ifdef windows then message.size() * 2 else message.size() end
+
+    let notifier: ProcessNotify iso = _ProcessClient(out_size, "", 0, h)
     try
-      let path = FilePath(h.env.root as AmbientAuth, CatPath())?
-      let args: Array[String] val = CatArgs()
+      let path = FilePath(h.env.root as AmbientAuth, _CatPath())?
+      let args: Array[String] val = _CatArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
       let auth = h.env.root as AmbientAuth
       _pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
 
-      // create a message larger than pipe_cap bytes
-      let message: Array[U8] val = recover Array[U8].>undefined(pipe_cap + 1) end
-
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
-        pm.write(message)
         pm.write(message)
         pm.done_writing() // closing stdin allows "cat" to terminate
         h.dispose_when_done(pm)
@@ -366,6 +400,92 @@ class iso _TestStdinWriteBuf is UnitTest
     end
     h.complete(false)
 
+class _TestChdir is UnitTest
+  fun name(): String =>
+    "process/Chdir"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let parent = Path.dir(Path.cwd())
+    // expect path length + \n
+    let notifier: ProcessNotify iso = _ProcessClient(parent.size()
+      + (ifdef windows then 2 else 1 end), "", 0, h)
+    try
+      let auth = h.env.root as AmbientAuth
+
+      let path = FilePath(auth, _PwdPath())?
+      let args: Array[String] val = _PwdArgs()
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path,
+          args, vars, FilePath(auth, parent)?)
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+class _TestBadChdir is UnitTest
+  fun name(): String =>
+    "process/BadChdir"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let badpath = Path.abs(Path.random(10))
+    let notifier: ProcessNotify iso =
+      _ProcessClient(0, "", _EXOSERR(), h, ChdirError)
+    try
+      let auth = h.env.root as AmbientAuth
+
+      let path = FilePath(auth, _PwdPath())?
+      let args: Array[String] val = _PwdArgs()
+      let vars: Array[String] iso = recover Array[String](0) end
+
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path,
+          args, consume vars, FilePath(auth, badpath)?)
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
+class _TestBadExec is UnitTest
+  fun name(): String =>
+    "process/BadExec"
+
+  fun exclusion_group(): String =>
+    "process-monitor"
+
+  fun ref apply(h: TestHelper) =>
+    let notifier: ProcessNotify iso =
+      _ProcessClient(0, "", _EXOSERR(), h, ExecveError)
+    try
+      let auth = h.env.root as AmbientAuth
+      let path = FilePath(auth, _BadExecPath())?
+      ifdef posix then
+        try
+          if not File(path).chmod(FileMode.>exec()) then error end
+        else
+          h.fail("Unable to ensure _test.sh is executable")
+        end
+      end
+      let pm: ProcessMonitor =
+        ProcessMonitor(auth, auth, consume notifier, path, [], [])
+      pm.done_writing()
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not create FilePath!")
+    end
+
 class _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
@@ -378,16 +498,19 @@ class _ProcessClient is ProcessNotify
   let _d_stderr: String ref = String
   let _created: U64
   var _first_data: U64 = 0
+  let _expected_err: (ProcessError | None)
 
   new iso create(
     out: USize,
     err: String,
     exit_code: I32,
-    h: TestHelper)
+    h: TestHelper,
+    expected_err: (ProcessError | None) = None)
   =>
     _out = out
     _err = err
     _exit_code = exit_code
+    _expected_err = expected_err
     _h = h
     _created = Time.nanos()
 
@@ -419,6 +542,13 @@ class _ProcessClient is ProcessNotify
     ProcessMonitor calls this if we run into errors with the
     forked process.
     """
+    match _expected_err
+    | let perr: ProcessError =>
+      if err is perr then
+        _h.complete(true)
+        return None
+      end
+    end
     match err
     | ExecveError => _h.fail("ProcessError: ExecveError")
     | PipeError => _h.fail("ProcessError: PipeError")
@@ -426,8 +556,9 @@ class _ProcessClient is ProcessNotify
     | WaitpidError => _h.fail("ProcessError: WaitpidError")
     | WriteError => _h.fail("ProcessError: WriteError")
     | KillError => _h.fail("ProcessError: KillError")
-    | Unsupported => _h.fail("ProcessError: Unsupported")
-    | CapError => _h.complete(true) // used in _TestFileExec
+    | CapError => _h.fail("ProcessError: CapError")
+    | ChdirError => _h.fail("ProcessError: ChdirError")
+    | UnknownError => _h.fail("ProcessError: UnknownError")
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
@@ -440,13 +571,13 @@ class _ProcessClient is ProcessNotify
     _h.log("dispose: stdout: " + _d_stdout_chars.string() + " bytes")
     _h.log("dispose: stderr: '" + _d_stderr + "'")
     if (_first_data > 0) then
-      _h.log("dispose: received first data after: \t" + (_first_data - _created).string()
-        + " ns")
+      _h.log("dispose: received first data after: \t"
+        + (_first_data - _created).string() + " ns")
     end
-    _h.log("dispose: total data process_time: \t" + (last_data - _first_data).string()
-      + " ns")
-    _h.log("dispose: ProcessNotify lifetime: \t" + (last_data - _created).string()
-      + " ns")
+    _h.log("dispose: total data process_time: \t"
+      + (last_data - _first_data).string() + " ns")
+    _h.log("dispose: ProcessNotify lifetime: \t"
+      + (last_data - _created).string() + " ns")
 
     _h.assert_eq[USize](_out, _d_stdout_chars)
     _h.assert_eq[USize](_err.size(), _d_stderr.size())

@@ -1,5 +1,22 @@
 use "signals"
+use "files"
 use @pony_os_errno[I32]()
+
+// for Windows System Error Codes see: https://docs.microsoft.com/de-de/windows/desktop/Debug/system-error-codes
+primitive _ERRORBADEXEFORMAT
+  fun apply(): U32 =>
+    """
+    ERROR_BAD_EXE_FORMAT
+    %1 is not a valid Win32 application.
+    """
+    193 // 0xC1
+
+primitive _ERRORDIRECTORY
+  fun apply(): U32 =>
+    """
+    The directory name is invalid.
+    """
+    267 // 0x10B
 
 primitive _STDINFILENO
   fun apply(): U32 => 0
@@ -34,6 +51,16 @@ primitive _EAGAIN
 primitive _EINVAL
   fun apply(): I32 => 22
 
+primitive _EXOSERR
+  fun apply(): I32 => 71
+
+// For handling errors between @fork and @execve
+primitive _StepChdir
+  fun apply(): U8 => 1
+
+primitive _StepExecve
+  fun apply(): U8 => 2
+
 interface _Process
   fun kill()
   fun ref wait(): I32
@@ -49,6 +76,8 @@ class _ProcessPosix is _Process
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
+    wdir: (FilePath | None),
+    err: _Pipe,
     stdin: _Pipe,
     stdout: _Pipe,
     stderr: _Pipe) ?
@@ -61,7 +90,7 @@ class _ProcessPosix is _Process
     pid = @fork[I32]()
     match pid
     | -1 => error
-    | 0 => _child_fork(path, argp, envp, stdin, stdout, stderr)
+    | 0 => _child_fork(path, argp, envp, wdir, err, stdin, stdout, stderr)
     end
 
   fun tag _make_argv(args: Array[String] box): Array[Pointer[U8] tag] =>
@@ -80,7 +109,8 @@ class _ProcessPosix is _Process
     path: String,
     argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag],
-    stdin: _Pipe, stdout: _Pipe, stderr: _Pipe)
+    wdir: (FilePath | None),
+    err: _Pipe, stdin: _Pipe, stdout: _Pipe, stderr: _Pipe)
   =>
     """
     We are now in the child process. We redirect STDIN, STDOUT and STDERR
@@ -93,10 +123,25 @@ class _ProcessPosix is _Process
     _dup2(stdin.far_fd, _STDINFILENO())   // redirect stdin
     _dup2(stdout.far_fd, _STDOUTFILENO()) // redirect stdout
     _dup2(stderr.far_fd, _STDERRFILENO()) // redirect stderr
+
+    var step: U8 = _StepChdir()
+
+    match wdir
+    | let d: FilePath =>
+      let dir: Pointer[U8] tag = d.path.cstring()
+      if 0 > @chdir[I32](dir) then
+        @write[ISize](err.far_fd, addressof step, USize(1))
+        @_exit[None](_EXOSERR())
+      end
+    | None => None
+    end
+
+    step = _StepExecve()
     if 0 > @execve[I32](path.cstring(), argp.cpointer(),
       envp.cpointer())
     then
-      @_exit[None](I32(-1))
+      @write[ISize](err.far_fd, addressof step, USize(1))
+      @_exit[None](_EXOSERR())
     end
 
   fun tag _dup2(oldfd: U32, newfd: U32) =>
@@ -148,21 +193,40 @@ class _ProcessPosix is _Process
 
 class _ProcessWindows is _Process
   let hProcess: USize
+  let processError: (ProcessError | None)
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
+    wdir: (FilePath | None),
     stdin: _Pipe,
     stdout: _Pipe,
     stderr: _Pipe)
   =>
     ifdef windows then
+      let wdir_ptr =
+        match wdir
+          | let wdir_fp: FilePath => wdir_fp.path.cstring()
+          | None => Pointer[U8].create() // NULL -> use parent directory
+        end
+      var error_code: U32 = 0
       hProcess = @ponyint_win_process_create[USize](
           path.cstring(),
           _make_cmdline(args).cstring(),
           _make_environ(vars).cpointer(),
-          stdin.far_fd, stdout.far_fd, stderr.far_fd)
+          wdir_ptr,
+          stdin.far_fd, stdout.far_fd, stderr.far_fd,
+          addressof error_code)
+      processError =
+        if hProcess == 0 then
+          match error_code
+          | _ERRORBADEXEFORMAT() => ExecveError
+          | _ERRORDIRECTORY() => ChdirError
+          else
+            UnknownError // TODO: what other errors can we distinguish here?
+          end
+        end
     else
       compile_error "unsupported platform"
     end
@@ -170,7 +234,16 @@ class _ProcessWindows is _Process
   fun tag _make_cmdline(args: Array[String] val): String =>
     var cmdline: String = ""
     for arg in args.values() do
-      cmdline = cmdline + arg + " "
+      // quote args with spaces on Windows
+      var next = arg
+      ifdef windows then
+        try
+          if arg.contains(" ") and (not arg(0)? == '"') then
+            next = "\"" + arg + "\""
+          end
+        end
+      end
+      cmdline = cmdline + next + " "
     end
     cmdline
 

@@ -64,7 +64,6 @@ class ProcessClient is ProcessNotify
     | WriteError => _env.out.print("ProcessError: WriteError")
     | KillError => _env.out.print("ProcessError: KillError")
     | CapError => _env.out.print("ProcessError: CapError")
-    | Unsupported => _env.out.print("ProcessError: Unsupported")
     else _env.out.print("Unknown ProcessError!")
     end
 
@@ -95,18 +94,20 @@ primitive ForkError
 primitive WaitpidError
 primitive WriteError
 primitive KillError   // Not thrown at this time
-primitive Unsupported // we throw this on non POSIX systems
 primitive CapError
+primitive ChdirError
+primitive UnknownError
 
 type ProcessError is
   ( ExecveError
   | ForkError
   | KillError
   | PipeError
-  | Unsupported
   | WaitpidError
   | WriteError
   | CapError
+  | ChdirError
+  | UnknownError
   )
 
 type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
@@ -122,6 +123,7 @@ actor ProcessMonitor
   var _stdin: _Pipe = _Pipe.none()
   var _stdout: _Pipe = _Pipe.none()
   var _stderr: _Pipe = _Pipe.none()
+  var _err: _Pipe = _Pipe.none()
   var _child: _Process = _ProcessNone
 
   let _max_size: USize = 4096
@@ -141,7 +143,8 @@ actor ProcessMonitor
     notifier: ProcessNotify iso,
     filepath: FilePath,
     args: Array[String] val,
-    vars: Array[String] val)
+    vars: Array[String] val,
+    wdir: (FilePath | None) = None)
   =>
     """
     Create infrastructure to communicate with a forked child process and
@@ -174,10 +177,12 @@ actor ProcessMonitor
       _stdin = _Pipe.outgoing()?
       _stdout = _Pipe.incoming()?
       _stderr = _Pipe.incoming()?
+      _err = _Pipe.incoming()?
     else
       _stdin.close()
       _stdout.close()
       _stderr.close()
+      _err.close()
       _notifier.failed(this, PipeError)
       return
     end
@@ -185,13 +190,21 @@ actor ProcessMonitor
     try
       ifdef posix then
         _child = _ProcessPosix.create(
-          filepath.path, args, vars, _stdin, _stdout, _stderr)?
+          filepath.path, args, vars, wdir, _err, _stdin, _stdout, _stderr)?
       elseif windows then
-        _child = _ProcessWindows.create(
-          filepath.path, args, vars, _stdin, _stdout, _stderr)
+        let windows_child = _ProcessWindows.create(
+          filepath.path, args, vars, wdir, _stdin, _stdout, _stderr)
+        _child = windows_child
+        // notify about errors
+        match windows_child.processError
+        | let pe: ProcessError =>
+          _notifier.failed(this, pe)
+          return
+        end
       else
         compile_error "unsupported platform"
       end
+      _err.begin(this)
       _stdin.begin(this)
       _stdout.begin(this)
       _stderr.begin(this)
@@ -300,6 +313,12 @@ actor ProcessMonitor
       elseif AsioEvent.disposable(flags) then
         _stderr.dispose()
       end
+    | _err.event =>
+      if AsioEvent.readable(flags) then
+        _pending_reads(_err)
+      elseif AsioEvent.disposable(flags) then
+        _err.dispose()
+      end
     end
     _try_shutdown()
 
@@ -384,6 +403,16 @@ actor ProcessMonitor
         end
       | _stderr.near_fd =>
         _notifier.stderr(this, consume data)
+      | _err.near_fd =>
+        let step: U8 = try data.read_u8(0)? else -1 end
+        match step
+        | _StepChdir() =>
+          _notifier.failed(this, ChdirError)
+        | _StepExecve() =>
+          _notifier.failed(this, ExecveError)
+        else
+          _notifier.failed(this, UnknownError)
+        end
       end
 
       _read_len = 0
