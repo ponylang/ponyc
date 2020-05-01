@@ -88,28 +88,6 @@ use "collections"
 use "files"
 use "time"
 
-primitive ExecveError
-primitive PipeError
-primitive ForkError
-primitive WaitpidError
-primitive WriteError
-primitive KillError   // Not thrown at this time
-primitive CapError
-primitive ChdirError
-primitive UnknownError
-
-type ProcessError is
-  ( ExecveError
-  | ForkError
-  | KillError
-  | PipeError
-  | WaitpidError
-  | WriteError
-  | CapError
-  | ChdirError
-  | UnknownError
-  )
-
 type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
 
 actor ProcessMonitor
@@ -157,7 +135,8 @@ actor ProcessMonitor
     // We need permission to execute and the
     // file itself needs to be an executable
     if not filepath.caps(FileExec) then
-      _notifier.failed(this, CapError)
+      _notifier.failed(this, CapError(filepath.path
+        + " is not an executable or we do not have execute capability."))
       return
     end
 
@@ -169,21 +148,46 @@ actor ProcessMonitor
     if not ok then
       // unable to stat the file path given so it may not exist
       // or may be a directory.
-      _notifier.failed(this, ExecveError)
+      _notifier.failed(this, ExecveError(filepath.path
+        + " does not exist or is a directory."))
       return
     end
 
     try
       _stdin = _Pipe.outgoing()?
+    else
+      _stdin.close()
+      _notifier.failed(this, PipeError("Failed to open pipe for stdin."))
+      return
+    end
+
+    try
       _stdout = _Pipe.incoming()?
+    else
+      _stdin.close()
+      _stdout.close()
+      _notifier.failed(this, PipeError("Failed to open pipe for stdout."))
+      return
+    end
+
+    try
       _stderr = _Pipe.incoming()?
+    else
+      _stdin.close()
+      _stdout.close()
+      _stderr.close()
+      _notifier.failed(this, PipeError("Failed to open pipe for stderr."))
+      return
+    end
+
+    try
       _err = _Pipe.incoming()?
     else
       _stdin.close()
       _stdout.close()
       _stderr.close()
       _err.close()
-      _notifier.failed(this, PipeError)
+      _notifier.failed(this, PipeError("Failed to open auxiliary error pipe."))
       return
     end
 
@@ -224,7 +228,7 @@ actor ProcessMonitor
         _timers = timers
       end
     else
-      _notifier.failed(this, ForkError)
+      _notifier.failed(this, ForkError("Failed to create child process."))
       return
     end
     _notifier.created(this)
@@ -343,7 +347,7 @@ actor ProcessMonitor
       let exit_code = _child.wait()
       if exit_code < 0 then
         // An error waiting for pid
-        _notifier.failed(this, WaitpidError)
+        _notifier.failed(this, WaitpidError("Failed to wait for process exit."))
       else
         // process child exit code
         _notifier.dispose(this, exit_code)
@@ -407,9 +411,9 @@ actor ProcessMonitor
         let step: U8 = try data.read_u8(0)? else -1 end
         match step
         | _StepChdir() =>
-          _notifier.failed(this, ChdirError)
+          _notifier.failed(this, ChdirError("Failed to change directory."))
         | _StepExecve() =>
-          _notifier.failed(this, ExecveError)
+          _notifier.failed(this, ExecveError("Invalid executable."))
         else
           _notifier.failed(this, UnknownError)
         end
@@ -459,7 +463,7 @@ actor ProcessMonitor
           Backpressure.apply(_backpressure_auth)
         else
           // Notify caller of error, close fd and done.
-          _notifier.failed(this, WriteError)
+          _notifier.failed(this, WriteError("Failed to write to pipe."))
           _stdin.close_near()
         end
       elseif len.usize() < data.size() then
@@ -494,7 +498,7 @@ actor ProcessMonitor
             return
           else
             // Close pipe and bail out.
-            _notifier.failed(this, WriteError)
+            _notifier.failed(this, WriteError("Failed to write to pipe."))
             _stdin.close_near()
             return
           end
@@ -515,7 +519,7 @@ actor ProcessMonitor
         end
       else
         // handle error
-        _notifier.failed(this, WriteError)
+        _notifier.failed(this, WriteError("Failed to write to pipe."))
         return
       end
     end

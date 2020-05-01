@@ -207,24 +207,32 @@ class _ProcessWindows is _Process
     ifdef windows then
       let wdir_ptr =
         match wdir
-          | let wdir_fp: FilePath => wdir_fp.path.cstring()
-          | None => Pointer[U8].create() // NULL -> use parent directory
+        | let wdir_fp: FilePath => wdir_fp.path.cstring()
+        | None => Pointer[U8] // NULL -> use parent directory
         end
       var error_code: U32 = 0
+      var error_message = Pointer[U8]
       hProcess = @ponyint_win_process_create[USize](
           path.cstring(),
           _make_cmdline(args).cstring(),
           _make_environ(vars).cpointer(),
           wdir_ptr,
           stdin.far_fd, stdout.far_fd, stderr.far_fd,
-          addressof error_code)
+          addressof error_code, addressof error_message)
       processError =
         if hProcess == 0 then
           match error_code
-          | _ERRORBADEXEFORMAT() => ExecveError
-          | _ERRORDIRECTORY() => ChdirError
+          | _ERRORBADEXEFORMAT() => ExecveError("Invalid executable.")
+          | _ERRORDIRECTORY() =>
+            let wdirpath =
+              match wdir
+              | let wdir_fp: FilePath => wdir_fp.path
+              | None => "?"
+              end
+            ChdirError("Failed to change directory to " + wdirpath)
           else
-            UnknownError // TODO: what other errors can we distinguish here?
+            let message = String.from_cstring(error_message)
+            ForkError(recover message.clone() end)
           end
         end
     else
