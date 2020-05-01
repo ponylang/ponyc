@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Change supported Ubuntu version to Ubuntu 20 ([PR #3522](https://github.com/ponylang/ponyc/pull/3522))
 - Let processmonitor chdir before exec ([PR #3530](https://github.com/ponylang/ponyc/pull/3530))
 - Removed unused Unsupported error from ProcessMonitor([PR #3530](https://github.com/ponylang/ponyc/pull/3530))
+- Update ProcessMonitor errors to contain error messages ([PR #3532](https://github.com/ponylang/ponyc/pull/3532))
 
 ## [0.33.2] - 2020-02-03
 
