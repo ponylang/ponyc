@@ -132,7 +132,7 @@ actor ProcessMonitor
     filepath: FilePath,
     args: Array[String] val,
     vars: Array[String] val,
-    wdir: (FilePath | None) = None),
+    wdir: (FilePath | None) = None,
     process_poll_interval: U64 = Nanos.from_millis(100))
   =>
     """
