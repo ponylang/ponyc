@@ -1,4 +1,20 @@
-type ProcessError is
+class val ProcessError
+  let error_type: ProcessErrorType
+  let message: (String | None)
+
+  new val create(error_type': ProcessErrorType,
+    message': (String | None) = None)
+  =>
+    error_type = error_type'
+    message = message'
+
+  fun string(): String =>
+    match message
+    | let m: String => error_type.string() + ": " + m
+    else error_type.string()
+    end
+
+type ProcessErrorType is
   ( ExecveError
   | PipeError
   | ForkError
@@ -10,69 +26,29 @@ type ProcessError is
   | UnknownError
   )
 
-class val ExecveError
-  let _message: String
+primitive ExecveError
+  fun string(): String => "ExecveError"
 
-  new val create(message: String) =>
-    _message = message
+primitive PipeError
+  fun string(): String => "PipeError"
 
-  fun string(): String => _message
+primitive ForkError
+  fun string(): String => "ForkError"
 
-class val PipeError
-  let _message: String
+primitive WaitpidError
+  fun string(): String => "WaitpidError"
 
-  new val create(message: String) =>
-    _message = message
+primitive WriteError
+  fun string(): String => "WriteError"
 
-  fun string(): String => _message
+primitive KillError   // Not thrown at this time
+  fun string(): String => "KillError"
 
-class val ForkError
-  let _message: String
+primitive CapError
+  fun string(): String => "CapError"
 
-  new val create(message: String) =>
-    _message = message
+primitive ChdirError
+  fun string(): String => "ChdirError"
 
-  fun string(): String => _message
-
-class val WaitpidError
-  let _message: String
-
-  new val create(message: String) =>
-    _message = message
-
-  fun string(): String => _message
-
-class val WriteError
-  let _message: String
-
-  new val create(message: String) =>
-    _message = message
-
-  fun string(): String => _message
-
-class val KillError   // Not thrown at this time
-  let _message: String
-
-  new val create(message: String) =>
-    _message = message
-
-  fun string(): String => _message
-
-class val CapError
-  let _message: String
-
-  new val create(message: String) =>
-    _message = message
-
-  fun string(): String => _message
-
-class val ChdirError
-  let _message: String
-
-  new val create(message: String) =>
-    _message = message
-
-  fun string(): String => _message
-
-class val UnknownError
-  fun string(): String => "Unknown error."
+primitive UnknownError
+  fun string(): String => "UnknownError"

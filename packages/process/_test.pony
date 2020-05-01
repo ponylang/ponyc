@@ -80,7 +80,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
 
   fun apply(h: TestHelper) =>
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h,
-      CapError("is not an executable or we do not have execute capability"))
+      ProcessError(CapError))
     try
       let path =
         FilePath(h.env.root as AmbientAuth, _CatPath(),
@@ -131,11 +131,11 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
       let _h: TestHelper = h
       let _path: FilePath = path
 
-     fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
-        match err
-        | let ee: ExecveError => _h.complete(true)
+      fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+        if err.error_type is ExecveError then
+          _h.complete(true)
         else
-          _h.fail("Unexpected process error")
+          _h.fail("Unexpected process error " + err.string())
           _h.complete(false)
         end
         _cleanup()
@@ -440,8 +440,7 @@ class _TestBadChdir is UnitTest
   fun ref apply(h: TestHelper) =>
     let badpath = Path.abs(Path.random(10))
     let notifier: ProcessNotify iso =
-      _ProcessClient(0, "", _EXOSERR(), h,
-        ChdirError("Failed to change directory"))
+      _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ChdirError))
     try
       let auth = h.env.root as AmbientAuth
 
@@ -468,7 +467,7 @@ class _TestBadExec is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let notifier: ProcessNotify iso =
-      _ProcessClient(0, "", _EXOSERR(), h, ExecveError("Invalid executable"))
+      _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ExecveError))
     try
       let auth = h.env.root as AmbientAuth
       let path = FilePath(auth, _BadExecPath())?
@@ -546,14 +545,14 @@ class _ProcessClient is ProcessNotify
     """
     match _expected_err
     | let expected: ProcessError =>
-      if actual.string().contains(expected.string()) then
+      if actual.error_type is expected.error_type then
         _h.complete(true)
       else
-        _h.fail("Expected ProcessError '" + expected.string()
-          + "'; actual was '" + actual.string() + "'")
+        _h.fail("Expected '" + expected.string() + "'; actual was '"
+          + actual.string() + "'")
       end
     else
-      _h.fail("ProcessError: " + actual.string())
+      _h.fail(actual.string())
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>

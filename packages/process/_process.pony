@@ -222,17 +222,18 @@ class _ProcessWindows is _Process
       processError =
         if hProcess == 0 then
           match error_code
-          | _ERRORBADEXEFORMAT() => ExecveError("Invalid executable.")
+          | _ERRORBADEXEFORMAT() => ProcessError(ExecveError)
           | _ERRORDIRECTORY() =>
             let wdirpath =
               match wdir
               | let wdir_fp: FilePath => wdir_fp.path
               | None => "?"
               end
-            ChdirError("Failed to change directory to " + wdirpath)
+            ProcessError(ChdirError, "Failed to change directory to "
+              + wdirpath)
           else
             let message = String.from_cstring(error_message)
-            ForkError(recover message.clone() end)
+            ProcessError(ForkError, recover message.clone() end)
           end
         end
     else

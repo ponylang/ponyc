@@ -56,16 +56,7 @@ class ProcessClient is ProcessNotify
     _env.out.print("STDERR: " + err)
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
-    match err
-    | ExecveError => _env.out.print("ProcessError: ExecveError")
-    | PipeError => _env.out.print("ProcessError: PipeError")
-    | ForkError => _env.out.print("ProcessError: ForkError")
-    | WaitpidError => _env.out.print("ProcessError: WaitpidError")
-    | WriteError => _env.out.print("ProcessError: WriteError")
-    | KillError => _env.out.print("ProcessError: KillError")
-    | CapError => _env.out.print("ProcessError: CapError")
-    else _env.out.print("Unknown ProcessError!")
-    end
+    _env.out.print(err.string())
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
     let code: I32 = consume child_exit_code
@@ -135,7 +126,7 @@ actor ProcessMonitor
     // We need permission to execute and the
     // file itself needs to be an executable
     if not filepath.caps(FileExec) then
-      _notifier.failed(this, CapError(filepath.path
+      _notifier.failed(this, ProcessError(CapError, filepath.path
         + " is not an executable or we do not have execute capability."))
       return
     end
@@ -148,7 +139,7 @@ actor ProcessMonitor
     if not ok then
       // unable to stat the file path given so it may not exist
       // or may be a directory.
-      _notifier.failed(this, ExecveError(filepath.path
+      _notifier.failed(this, ProcessError(ExecveError, filepath.path
         + " does not exist or is a directory."))
       return
     end
@@ -157,7 +148,8 @@ actor ProcessMonitor
       _stdin = _Pipe.outgoing()?
     else
       _stdin.close()
-      _notifier.failed(this, PipeError("Failed to open pipe for stdin."))
+      _notifier.failed(this, ProcessError(PipeError,
+        "Failed to open pipe for stdin."))
       return
     end
 
@@ -166,7 +158,8 @@ actor ProcessMonitor
     else
       _stdin.close()
       _stdout.close()
-      _notifier.failed(this, PipeError("Failed to open pipe for stdout."))
+      _notifier.failed(this, ProcessError(PipeError,
+        "Failed to open pipe for stdout."))
       return
     end
 
@@ -176,7 +169,8 @@ actor ProcessMonitor
       _stdin.close()
       _stdout.close()
       _stderr.close()
-      _notifier.failed(this, PipeError("Failed to open pipe for stderr."))
+      _notifier.failed(this, ProcessError(PipeError,
+        "Failed to open pipe for stderr."))
       return
     end
 
@@ -187,7 +181,8 @@ actor ProcessMonitor
       _stdout.close()
       _stderr.close()
       _err.close()
-      _notifier.failed(this, PipeError("Failed to open auxiliary error pipe."))
+      _notifier.failed(this, ProcessError(PipeError,
+        "Failed to open auxiliary error pipe."))
       return
     end
 
@@ -228,7 +223,7 @@ actor ProcessMonitor
         _timers = timers
       end
     else
-      _notifier.failed(this, ForkError("Failed to create child process."))
+      _notifier.failed(this, ProcessError(ForkError))
       return
     end
     _notifier.created(this)
@@ -347,7 +342,7 @@ actor ProcessMonitor
       let exit_code = _child.wait()
       if exit_code < 0 then
         // An error waiting for pid
-        _notifier.failed(this, WaitpidError("Failed to wait for process exit."))
+        _notifier.failed(this, ProcessError(WaitpidError))
       else
         // process child exit code
         _notifier.dispose(this, exit_code)
@@ -411,11 +406,11 @@ actor ProcessMonitor
         let step: U8 = try data.read_u8(0)? else -1 end
         match step
         | _StepChdir() =>
-          _notifier.failed(this, ChdirError("Failed to change directory."))
+          _notifier.failed(this, ProcessError(ChdirError))
         | _StepExecve() =>
-          _notifier.failed(this, ExecveError("Invalid executable."))
+          _notifier.failed(this, ProcessError(ExecveError))
         else
-          _notifier.failed(this, UnknownError)
+          _notifier.failed(this, ProcessError(UnknownError))
         end
       end
 
@@ -463,7 +458,7 @@ actor ProcessMonitor
           Backpressure.apply(_backpressure_auth)
         else
           // Notify caller of error, close fd and done.
-          _notifier.failed(this, WriteError("Failed to write to pipe."))
+          _notifier.failed(this, ProcessError(WriteError))
           _stdin.close_near()
         end
       elseif len.usize() < data.size() then
@@ -498,7 +493,7 @@ actor ProcessMonitor
             return
           else
             // Close pipe and bail out.
-            _notifier.failed(this, WriteError("Failed to write to pipe."))
+            _notifier.failed(this, ProcessError(WriteError))
             _stdin.close_near()
             return
           end
@@ -519,7 +514,7 @@ actor ProcessMonitor
         end
       else
         // handle error
-        _notifier.failed(this, WriteError("Failed to write to pipe."))
+        _notifier.failed(this, ProcessError(WriteError))
         return
       end
     end
