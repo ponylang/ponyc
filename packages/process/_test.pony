@@ -79,7 +79,8 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     "process-monitor"
 
   fun apply(h: TestHelper) =>
-    let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h, CapError)
+    let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h,
+      ProcessError(CapError))
     try
       let path =
         FilePath(h.env.root as AmbientAuth, _CatPath(),
@@ -130,11 +131,11 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
       let _h: TestHelper = h
       let _path: FilePath = path
 
-     fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
-        match err
-        | ExecveError => _h.complete(true)
+      fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+        if err.error_type is ExecveError then
+          _h.complete(true)
         else
-          _h.fail("Unexpected process error")
+          _h.fail("Unexpected process error " + err.string())
           _h.complete(false)
         end
         _cleanup()
@@ -439,7 +440,7 @@ class _TestBadChdir is UnitTest
   fun ref apply(h: TestHelper) =>
     let badpath = Path.abs(Path.random(10))
     let notifier: ProcessNotify iso =
-      _ProcessClient(0, "", _EXOSERR(), h, ChdirError)
+      _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ChdirError))
     try
       let auth = h.env.root as AmbientAuth
 
@@ -466,7 +467,7 @@ class _TestBadExec is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let notifier: ProcessNotify iso =
-      _ProcessClient(0, "", _EXOSERR(), h, ExecveError)
+      _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ExecveError))
     try
       let auth = h.env.root as AmbientAuth
       let path = FilePath(auth, _BadExecPath())?
@@ -537,28 +538,21 @@ class _ProcessClient is ProcessNotify
     _h.log("\tReceived from stderr: " + data.size().string() + " bytes")
     _d_stderr.append(consume data)
 
-  fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+  fun ref failed(process: ProcessMonitor ref, actual: ProcessError) =>
     """
     ProcessMonitor calls this if we run into errors with the
     forked process.
     """
     match _expected_err
-    | let perr: ProcessError =>
-      if err is perr then
+    | let expected: ProcessError =>
+      if actual.error_type is expected.error_type then
         _h.complete(true)
-        return None
+      else
+        _h.fail("Expected '" + expected.string() + "'; actual was '"
+          + actual.string() + "'")
       end
-    end
-    match err
-    | ExecveError => _h.fail("ProcessError: ExecveError")
-    | PipeError => _h.fail("ProcessError: PipeError")
-    | ForkError => _h.fail("ProcessError: ForkError")
-    | WaitpidError => _h.fail("ProcessError: WaitpidError")
-    | WriteError => _h.fail("ProcessError: WriteError")
-    | KillError => _h.fail("ProcessError: KillError")
-    | CapError => _h.fail("ProcessError: CapError")
-    | ChdirError => _h.fail("ProcessError: ChdirError")
-    | UnknownError => _h.fail("ProcessError: UnknownError")
+    else
+      _h.fail(actual.string())
     end
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>

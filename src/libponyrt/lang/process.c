@@ -58,10 +58,11 @@ PONY_API size_t ponyint_win_process_create(
     char* cmdline,
     char* environ,
     char* wdir,
-    uint32_t stdin_fd, 
-    uint32_t stdout_fd, 
+    uint32_t stdin_fd,
+    uint32_t stdout_fd,
     uint32_t stderr_fd,
-    uint32_t* error_code)
+    uint32_t* error_code,
+    char** error_message)
 {
     STARTUPINFO si;
     ZeroMemory(&si, sizeof(si));
@@ -93,6 +94,10 @@ PONY_API size_t ponyint_win_process_create(
         return (size_t) pi.hProcess;
     } else {
         *error_code = GetLastError();
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
+            | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL, *error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPSTR)error_message, 0, NULL);
         return 0;  // Null handle return on non-success.
     }
 }
