@@ -258,7 +258,13 @@ class iso _TestStderr is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
       let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
-      let path = FilePath(h.env.root as AmbientAuth, _CatCommand.path(path_resolver)?)?
+      let path = FilePath(
+        h.env.root as AmbientAuth, 
+        ifdef windows then
+          "C:\\Windows\\System32\\cmd.exe"
+        else
+          _CatCommand.path(path_resolver)?
+        end)?
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
       else
