@@ -567,14 +567,7 @@ class iso _TestLongRunningChild is UnitTest
           h.log("[STDERR] " + recover val String.from_iso_array(consume data) end)
 
         fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
-          match err
-          | ExecveError => h.log("execve-error")
-          | ForkError => h.log("fork-error")
-          | PipeError => h.log("pipe-error")
-          | WaitpidError => h.log("waitpid-error")
-          | WriteError => h.log("write-error")
-          | CapError => h.log("cap-error")
-          end
+          h.log(err.string())
           h.fail("process failed.")
 
         fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
@@ -620,14 +613,7 @@ class iso _TestKillLongRunningChild is UnitTest
           h.log("[STDERR] " + recover val String.from_iso_array(consume data) end)
 
         fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
-          match err
-          | ExecveError => h.log("execve-error")
-          | ForkError => h.log("fork-error")
-          | PipeError => h.log("pipe-error")
-          | WaitpidError => h.log("waitpid-error")
-          | WriteError => h.log("write-error")
-          | CapError => h.log("cap-error")
-          end
+          h.log(err.string())
           h.fail("process failed.")
 
         fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
