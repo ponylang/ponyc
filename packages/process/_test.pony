@@ -102,14 +102,6 @@ primitive _EchoPath
       path_resolver.resolve("echo")?.path
     end
 
-primitive _BadExecPath
-  fun apply(): String =>
-    ifdef windows then
-       "C:\\Windows\\system.ini" // not exeutable
-    else
-      "./_test.sh" // has non-existent interpreter in shebang
-    end
-
 primitive _PwdPath
   fun apply(): String =>
     ifdef windows then
@@ -259,7 +251,7 @@ class iso _TestStderr is UnitTest
     try
       let path_resolver = _PathResolver(h.env.vars, h.env.root as AmbientAuth)
       let path = FilePath(
-        h.env.root as AmbientAuth, 
+        h.env.root as AmbientAuth,
         ifdef windows then
           "C:\\Windows\\System32\\cmd.exe"
         else
@@ -529,32 +521,57 @@ class _TestBadChdir is UnitTest
     end
 
 class _TestBadExec is UnitTest
+
+  let _bad_exec_sh_contents: String =
+    """
+    #!/usr/bin/please-dont-exist
+
+    true
+    """
+  var _tmp_dir: ( FilePath | None ) = None
+  var _bad_exec_path: ( FilePath | None ) = None
+
   fun name(): String =>
     "process/BadExec"
 
   fun exclusion_group(): String =>
     "process-monitor"
 
+
+  fun ref set_up(h: TestHelper) ? =>
+    let auth = h.env.root as AmbientAuth
+    ifdef windows then
+      _bad_exec_path = FilePath(auth, "C:\\Windows\\system.ini")?
+    else
+      let tmp_dir = FilePath.mkdtemp(auth, "pony_stdlib_test_process_bad_exec")?
+      _tmp_dir = tmp_dir
+      let bad_exec_path = tmp_dir.join("_bad_exec.sh")?
+      _bad_exec_path = bad_exec_path
+
+      // create file with non-existing shebang in temporary directory
+      let file = File(bad_exec_path)
+      file.write(_bad_exec_sh_contents)
+      if not file.chmod(FileMode.>exec()) then error end
+    end
+
+  fun ref tear_down(h: TestHelper) =>
+    try
+      (_tmp_dir as FilePath).remove()
+    end
+
   fun ref apply(h: TestHelper) =>
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ExecveError))
     try
       let auth = h.env.root as AmbientAuth
-      let path = FilePath(auth, _BadExecPath())?
-      ifdef posix then
-        try
-          if not File(path).chmod(FileMode.>exec()) then error end
-        else
-          h.fail("Unable to ensure _test.sh is executable")
-        end
-      end
+      let path = _bad_exec_path as FilePath
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, [], [])
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
     else
-      h.fail("Could not create FilePath!")
+      h.fail("bad_exec_path not set!")
     end
 
 class iso _TestLongRunningChild is UnitTest
