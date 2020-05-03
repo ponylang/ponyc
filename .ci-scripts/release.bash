@@ -103,7 +103,7 @@ echo -e "\e[34mUploading release notes...\e[0m"
 
 result=$(curl -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -u "${GITHUB_ACTOR}:${GITHUB_TOKEN}" \
+  -u "${GITHUB_ACTOR}:${RELEASE_TOKEN}" \
   --data "${json}")
 
 rslt_scan=$(echo "${result}" | jq -r '.id')
