@@ -52,37 +52,31 @@ PUSH_TO="https://${RELEASE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 # Version: "1.0.0"
 VERSION="${GITHUB_REF/refs\/tags\/release-/}"
 
-# create release prep branch
-echo "Creating release prep"
-git checkout -b "prep-release-${VERSION}"
-
 # update VERSION
+echo -e "\e[34mUpdating VERSION to ${VERSION}\e[0m"
 echo "${VERSION}" > VERSION
-echo "VERSION set to ${VERSION}"
 
 # version the changelog
+echo -e "\e[34mUpdating CHANGELOG.md for release\e[0m"
 changelog-tool release "${VERSION}" -e
 
 # commit CHANGELOG and VERSION updates
+echo -e "\e[34mCommiting VERSION and CHANGELOG.md changes\e[0m"
 git add CHANGELOG.md VERSION
 git commit -m "${VERSION} release"
 
-# merge into release
-git checkout release
-echo "Merging changes into release"
-git merge "prep-release-${VERSION}" -m "Release ${VERSION}"
-
 # tag release
-echo "Tagging version"
+echo -e "\e[34mTagging for release to kick off building artifacts\e[0m"
 git tag "${VERSION}"
 
-# push to release branch
-echo "Pushing to release branch"
-git push ${PUSH_TO} release
+# push release to remote
+echo -e "\e[34mPushing commited changes back to master\e[0m"
+git push ${PUSH_TO} master
+echo -e "\e[34mPushing ${VERSION} tag\e[0m"
 git push ${PUSH_TO} "${VERSION}"
 
 # release body
-echo "Preparing to update GitHub release notes..."
+echo -e "\e[34mPreparing to update GitHub release notes...\e[0m"
 
 body=$(changelog-tool get "$VERSION")
 
@@ -99,7 +93,7 @@ json=$(jq -n \
 --arg body "$body" \
 "${jsontemplate}")
 
-echo "Uploading release notes..."
+echo -e "\e[34mUploading release notes...\e[0m"
 
 result=$(curl -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -109,24 +103,25 @@ result=$(curl -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/release
 rslt_scan=$(echo "${result}" | jq -r '.id')
 if [ "$rslt_scan" != null ]
 then
-  echo "Release notes uploaded"
+  echo -e "\e[34mRelease notes uploaded\e[0m"
 else
-  echo "Unable to upload release notes, here's the curl output..."
+  echo "\e[31mUnable to upload release notes, here's the curl output...\e[0m"
   echo "${result}"
   exit 1
 fi
 
+# pull again, just in case, odds of this being needed are really slim
+git pull
+
 # update CHANGELOG for new entries
-git checkout master
-git merge "prep-release-${VERSION}"
+echo -e "\e[34mAdding new 'unreleased' section to CHANGELOG.md\e[0m"
 changelog-tool unreleased -e
 
 # commit changelog and push to master
+echo -e "\e[34mCommiting CHANGELOG.md change\e[0m"
 git add CHANGELOG.md
-git commit -m "Add unreleased section to CHANGELOG post ${VERSION} release prep
-
-[skip ci]"
-git push ${PUSH_TO} master
+git commit -m "Add unreleased section to CHANGELOG post ${VERSION} release [skip ci]"
 
 # delete release-VERSION tag
+echo -e "\e[34mDeleting no longer needed remote tag release-${VERSION}\e[0m"
 git push --delete ${PUSH_TO} "release-${VERSION}"
