@@ -52,6 +52,12 @@ PUSH_TO="https://${RELEASE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 # Version: "1.0.0"
 VERSION="${GITHUB_REF/refs\/tags\/release-/}"
 
+### this doesn't account for master changing commit, assumes we are HEAD
+# or can otherwise push without issue. that shouldl error out without issue.
+# leaving us to restart from a different HEAD commit
+git checkout master
+git pull
+
 # update VERSION
 echo -e "\e[34mUpdating VERSION to ${VERSION}\e[0m"
 echo "${VERSION}" > VERSION
@@ -66,13 +72,13 @@ git add CHANGELOG.md VERSION
 git commit -m "${VERSION} release"
 
 # tag release
-echo -e "\e[34mTagging for release to kick off building artifacts\e[0m"
+echo -e "\e[34mTagging for release\e[0m"
 git tag "${VERSION}"
 
 # push release to remote
 echo -e "\e[34mPushing commited changes back to master\e[0m"
 git push ${PUSH_TO} master
-echo -e "\e[34mPushing ${VERSION} tag\e[0m"
+echo -e "\e[34mPushing ${VERSION} tag. Release artifact building will start on success.\e[0m"
 git push ${PUSH_TO} "${VERSION}"
 
 # release body
