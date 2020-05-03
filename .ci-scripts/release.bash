@@ -128,6 +128,9 @@ echo -e "\e[34mCommiting CHANGELOG.md change\e[0m"
 git add CHANGELOG.md
 git commit -m "Add unreleased section to CHANGELOG post ${VERSION} release [skip ci]"
 
+echo -e "\e[34mPushing CHANGELOG.md\e[0m"
+git push ${PUSH_TO} master
+
 # delete release-VERSION tag
 echo -e "\e[34mDeleting no longer needed remote tag release-${VERSION}\e[0m"
 git push --delete ${PUSH_TO} "release-${VERSION}"
