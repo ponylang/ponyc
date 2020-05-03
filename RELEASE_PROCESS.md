@@ -18,7 +18,7 @@ While not strictly required, you probably be unable to deal with any errors that
 
 We rely on CirrusCI, Cloudsmith, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
 
-* [CirrusCI Status]
+* [CirrusCI Status](https://twitter.com/cirrus_labs)
 * [Cloudsmith](https://status.cloudsmith.io/)
 * [GitHub](https://www.githubstatus.com/)
 
