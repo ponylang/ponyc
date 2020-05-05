@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix unneeded dependency on Linux glibc systems ([PR #3538](https://github.com/ponylang/ponyc/pull/3538))
 
 ### Added
 
