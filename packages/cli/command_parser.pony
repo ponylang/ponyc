@@ -64,7 +64,7 @@ class CommandParser
 
     while tokens.size() > 0 do
       let token = try tokens.shift()? else "" end
-      if token == "--" then
+      if (token == "--") and (opt_stop == false) then
         opt_stop = true
 
       elseif not opt_stop and (token.compare_sub("--", 2, 0) == Equal) then
