@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.34.1] - 2020-05-07
 
 ### Fixed
 
 - Fix unneeded dependency on Linux glibc systems ([PR #3538](https://github.com/ponylang/ponyc/pull/3538))
-
-### Added
-
-
-### Changed
-
 
 ## [0.34.0] - 2020-05-03
 
