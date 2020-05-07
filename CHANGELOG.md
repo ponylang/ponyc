@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix CommandParser incorrectly handling multiple end-of-option delimiters ([PR #3541](https://github.com/ponylang/ponyc/pull/3541))
 
 ### Added
 
