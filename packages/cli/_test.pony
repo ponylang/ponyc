@@ -28,6 +28,7 @@ actor Main is TestList
     test(_TestHelp)
     test(_TestHelpFalse)
     test(_TestHelpMultipleArgs)
+    test(_TestMultipleEndOfOptions)
 
 class iso _TestMinimal is UnitTest
   fun name(): String => "ponycli/minimal"
@@ -548,6 +549,25 @@ class iso _TestHelpMultipleArgs is UnitTest
     h.assert_true(
       help.contains("simple <words> <argz>"))
 
+class iso _TestMultipleEndOfOptions is UnitTest
+  fun name(): String => "ponycli/multiple-end-of-options"
+
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.corral_spec()?
+
+    let args: Array[String] = ["ignored"; "exec"; "--"; "lldb"; "ponyc"; "--"; "-v" ]
+    let cmdErr = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmdErr.string())
+
+    let cmd = cmdErr as Command
+    h.assert_eq[String]("corral/exec", cmd.fullname())
+    
+    let argss = cmd.arg("args").string_seq()
+    h.assert_eq[String]("lldb", argss(0)?)
+    h.assert_eq[String]("ponyc", argss(1)?)
+    h.assert_eq[String]("--", argss(2)?)
+    h.assert_eq[String]("-v", argss(3)?)
+
 primitive _Fixtures
   fun bools_cli_spec(): CommandSpec box ? =>
     """
@@ -605,4 +625,25 @@ primitive _Fixtures
           ArgSpec.string("address", "Address of the server")
         ])?
       ])?
+    ])?
+    
+  
+  fun corral_spec(): CommandSpec box ? =>
+    """
+    A snippet from Corral's command spec to demonstrate multiple end of option arguments
+    """
+    CommandSpec.parent("corral", "", [
+        OptionSpec.u64(
+          "debug",
+          "Configure debug output: 0=off, 1=err, 2=warn, 3=info, 4=fine."
+          where short'='g',
+          default' = 0)
+      ], [
+      CommandSpec.leaf(
+        "exec",
+        "For executing shell commands which require user interaction",
+        Array[OptionSpec](),
+        [
+          ArgSpec.string_seq("args", "Arguments to run.")
+        ])?
     ])?
