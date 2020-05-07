@@ -7,12 +7,14 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix CommandParser incorrectly handling multiple end-of-option delimiters ([PR #3541](https://github.com/ponylang/ponyc/pull/3541))
+- Correctly report process termination status in ProcessNotify.dispose() ([PR #3419](https://github.com/ponylang/ponyc/pull/3419))
 
 ### Added
 
 
 ### Changed
 
+- Ensure that waiting on a child process when using ProcessMonitor is non-blocking ([PR #3419](https://github.com/ponylang/ponyc/pull/3419))
 
 ## [0.34.1] - 2020-05-07
 
@@ -41,8 +43,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Let processmonitor chdir before exec ([PR #3530](https://github.com/ponylang/ponyc/pull/3530))
 - Removed unused Unsupported error from ProcessMonitor([PR #3530](https://github.com/ponylang/ponyc/pull/3530))
 - Update ProcessMonitor errors to contain error messages ([PR #3532](https://github.com/ponylang/ponyc/pull/3532))
-- Correctly report process termination status in ProcessNotify.dispose() ([PR #3419](https://github.com/ponylang/ponyc/pull/3419))
-- Ensure that waiting on a child process when using ProcessMonitor is non-blocking ([PR #3419](https://github.com/ponylang/ponyc/pull/3419))
 
 ## [0.33.2] - 2020-02-03
 
