@@ -320,7 +320,7 @@ task:
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   nightly_script:
-    - bash .ci-scripts/x86-64-unknown-freebsd12.1-nightly.bash ${CLOUDSMITH_API_KEY}
+    - bash .ci-scripts/x86-64-unknown-freebsd12.1-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -344,7 +344,7 @@ task:
 
   nightly_script:
     - export TZ=utc
-    - bash .ci-scripts/x86-64-apple-darwin-nightly.bash ${CLOUDSMITH_API_KEY}
+    - bash .ci-scripts/x86-64-apple-darwin-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -474,7 +474,7 @@ task:
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   release_script:
-    - bash .ci-scripts/x86-64-unknown-freebsd12.1-release.bash ${CLOUDSMITH_API_KEY}
+    - bash .ci-scripts/x86-64-unknown-freebsd12.1-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
@@ -497,7 +497,7 @@ task:
     - pip3 install --upgrade cloudsmith-cli
 
   release_script:
-    - bash .ci-scripts/x86-64-apple-darwin-release.bash ${CLOUDSMITH_API_KEY}
+    - bash .ci-scripts/x86-64-apple-darwin-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
