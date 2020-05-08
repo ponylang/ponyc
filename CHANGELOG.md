@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Ubuntu18.04 builds ([PR #3545](https://github.com/ponylang/ponyc/pull/3545))
 
 ### Changed
 
