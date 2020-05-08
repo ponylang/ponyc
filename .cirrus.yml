@@ -239,6 +239,7 @@ task:
   name: "nightly: x86-64-unknown-linux-gnu"
 
   environment:
+    TRIPLE_VENDOR: unknown
     TRIPLE_OS: linux-gnu
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -248,7 +249,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   nightly_script:
-    - bash .ci-scripts/x86-64-unknown-linux-nightly.bash
+    - bash .ci-scripts/x86-64-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -261,6 +262,7 @@ task:
   name: "nightly: x86-64-unknown-linux-ubuntu18.04"
 
   environment:
+    TRIPLE_VENDOR: unknown
     TRIPLE_OS: linux-ubuntu18.04
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -270,7 +272,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   nightly_script:
-    - bash .ci-scripts/x86-64-unknown-linux-nightly.bash
+    - bash .ci-scripts/x86-64-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -283,6 +285,7 @@ task:
   name: "nightly: x86-64-unknown-linux-musl"
 
   environment:
+    TRIPLE_VENDOR: unknown
     TRIPLE_OS: linux-musl
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -292,7 +295,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   nightly_script:
-    - bash .ci-scripts/x86-64-unknown-linux-nightly.bash
+    - bash .ci-scripts/x86-64-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -331,6 +334,8 @@ task:
   name: "nightly: x86-64-apple-darwin"
 
   environment:
+    TRIPLE_VENDOR: apple
+    TRIPLE_OS: darwin
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
   libs_cache:
@@ -344,7 +349,7 @@ task:
 
   nightly_script:
     - export TZ=utc
-    - bash .ci-scripts/x86-64-apple-darwin-nightly.bash
+    - bash .ci-scripts/x86-64-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -393,6 +398,7 @@ task:
   name: "release: x86-64-unknown-linux-gnu"
 
   environment:
+    TRIPLE_VENDOR: unknown
     TRIPLE_OS: linux-gnu
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -402,7 +408,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   release_script:
-    - bash .ci-scripts/x86-64-unknown-linux-release.bash
+    - bash .ci-scripts/x86-64-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
@@ -415,6 +421,7 @@ task:
   name: "release: x86-64-unknown-linux-ubuntu18.04"
 
   environment:
+    TRIPLE_VENDOR: unknown
     TRIPLE_OS: linux-ubuntu18.04
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -424,7 +431,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   release_script:
-    - bash .ci-scripts/x86-64-unknown-linux-release.bash
+    - bash .ci-scripts/x86-64-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
@@ -437,6 +444,7 @@ task:
   name: "release: x86-64-unknown-linux-musl"
 
   environment:
+    TRIPLE_VENDOR: unknown
     TRIPLE_OS: linux-musl
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -446,7 +454,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   release_script:
-    - bash .ci-scripts/x86-64-unknown-linux-release.bash
+    - bash .ci-scripts/x86-64-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
@@ -485,6 +493,8 @@ task:
   name: "release: x86-64-apple-darwin"
 
   environment:
+    TRIPLE_VENDOR: apple
+    TRIPLE_OS: darwin
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
   libs_cache:
@@ -497,7 +507,7 @@ task:
     - pip3 install --upgrade cloudsmith-cli
 
   release_script:
-    - bash .ci-scripts/x86-64-apple-darwin-release.bash
+    - bash .ci-scripts/x86-64-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'

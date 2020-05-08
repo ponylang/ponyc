@@ -12,31 +12,38 @@ if [[ -z "${CLOUDSMITH_API_KEY}" ]]; then
   exit 1
 fi
 
-TODAY=$(date +%Y%m%d)
+if [[ -z "${TRIPLE_VENODR}" ]]; then
+  echo -e "\e[31mVendor needs to be set in TRIPLE_VENDOR."
+  echo -e "Exiting.\e[0m"
+  exit 1
+fi
+
+if [[ -z "${TRIPLE_OS}" ]]; then
+  echo -e "\e[31mOperating system needs to be set in TRIPLE_OS."
+  echo -e "Exiting.\e[0m"
+  exit 1
+fi
 
 # Compiler target parameters
 ARCH=x86-64
 PIC=true
 
 # Triple construction
-VENDOR=apple
-OS=darwin
-TRIPLE=${ARCH}-${VENDOR}-${OS}
+TRIPLE=${ARCH}-${TRIPLE_VENDOR}-${TRIPLE_OS}
 
 # Build parameters
 MAKE_PARALLELISM=8
 BUILD_PREFIX=$(mktemp -d)
 DESTINATION=${BUILD_PREFIX}/lib/pony
-PONY_VERSION="nightly-${TODAY}"
 
 # Asset information
 PACKAGE_DIR=$(mktemp -d)
 PACKAGE=ponyc-${TRIPLE}
 
 # Cloudsmith configuration
-CLOUDSMITH_VERSION=${TODAY}
+CLOUDSMITH_VERSION=$(cat VERSION)
 ASSET_OWNER=ponylang
-ASSET_REPO=nightlies
+ASSET_REPO=releases
 ASSET_PATH=${ASSET_OWNER}/${ASSET_REPO}
 ASSET_FILE=${PACKAGE_DIR}/${PACKAGE}.tar.gz
 ASSET_SUMMARY="Pony compiler"
@@ -44,12 +51,10 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
-make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
-  version="${PONY_VERSION}"
-make build arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
-  version="${PONY_VERSION}"
+make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM}
+make build arch=${ARCH} build_flags=-j${MAKE_PARALLELISM}
 make install prefix=${BUILD_PREFIX} symlink=no arch=${ARCH} \
-  build_flags=-j${MAKE_PARALLELISM} version="${PONY_VERSION}"
+  build_flags=-j${MAKE_PARALLELISM}
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
