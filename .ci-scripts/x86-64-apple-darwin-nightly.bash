@@ -2,10 +2,13 @@
 
 set -e
 
-API_KEY=$1
-if [[ ${API_KEY} == "" ]]
-then
-  echo "API_KEY needs to be supplied as first script argument."
+# Verify ENV is set up correctly
+# We validate all that need to be set in case, in an absolute emergency,
+# we need to run this by hand. Otherwise the CI environment should
+# provide all of these if properly configured
+if [[ -z "${CLOUDSMITH_API_KEY}" ]]; then
+  echo -e "\e[31mCloudsmith API key needs to be set in CLOUDSMITH_API_KEY."
+  echo -e "Exiting.\e[0m"
   exit 1
 fi
 
@@ -56,6 +59,6 @@ popd || exit 1
 
 # Ship it off to cloudsmith
 echo "Uploading package to cloudsmith..."
-cloudsmith push raw --version "${CLOUDSMITH_VERSION}" --api-key ${API_KEY} \
-  --summary "${ASSET_SUMMARY}" --description "${ASSET_DESCRIPTION}" \
-  ${ASSET_PATH} ${ASSET_FILE}
+cloudsmith push raw --version "${CLOUDSMITH_VERSION}" \
+  --api-key ${CLOUDSMITH_API_KEY} --summary "${ASSET_SUMMARY}" \
+  --description "${ASSET_DESCRIPTION}" ${ASSET_PATH} ${ASSET_FILE}
