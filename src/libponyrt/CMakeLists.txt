@@ -22,6 +22,7 @@ set(_c_src
     gc/serialise.c
     gc/trace.c
     lang/directory.c
+    lang/errno.c
     lang/io.c
     lang/lsda.c
     lang/paths.c

@@ -58,26 +58,44 @@ class ProcessClient is ProcessNotify
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     _env.out.print(err.string())
 
-  fun ref dispose(process: ProcessMonitor ref, child_exit_code: I32) =>
+  fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
     let code: I32 = consume child_exit_code
-    _env.out.print("Child exit code: " + code.string())
+    match child_exit_status
+    | let exited: Exited =>
+      _env.out.print("Child exit code: " + exited.exit_code().string())
+    | let signaled: Signaled =>
+      _env.out.print("Child terminated by signal: " + signaled.signal().string())
+    end
 ```
 
 ## Process portability
 
-The ProcessMonitor supports spawning processes on Linux, FreeBSD and OSX.
-Processes are not supported on Windows and attempting to use them will cause
-a runtime error.
+The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX and Windows.
 
 ## Shutting down ProcessMonitor and external process
 
-Document waitpid behaviour (stops world)
+When a process is spawned using ProcessMonitor, and it is not necessary to communicate to it any further
+using `stdin` and `stdout` or `stderr`, calling [done_writing()](process-ProcessMonitor.md#done_writing)
+will close stdin to the child process. Processes expecting input will be notified of an `EOF` on their `stdin`
+and can terminate.
+
+If a running program needs to be canceled and the [ProcessMonitor](process-ProcessMonitor.md) should be shut down,
+calling [dispose](process-ProcessMonitor.md#dispose) will terminate the child
+process and clean up all resources.
+
+Once the child process is detected to be closed, the process exit status is retrieved and
+[ProcessNotify.dispose](process-ProcessNotify.md#dispose) is called.
+
+The process exit status can be either an instance of [Exited](process-Exited.md) containing
+the process exit code in case the program exited on its own,
+or (only on posix systems like linux, osx or bsd) an instance of [Signaled](process-Signaled.md) containing the signal number that terminated the process.
 
 """
 use "backpressure"
 use "collections"
 use "files"
 use "time"
+
 
 type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
 
@@ -104,7 +122,8 @@ actor ProcessMonitor
   var _done_writing: Bool = false
 
   var _closed: Bool = false
-  var _timers: (Timers tag | None) = None  // For windows only
+  var _timers: (Timers tag | None) = None
+  let _process_poll_interval: U64
 
   new create(
     auth: ProcessMonitorAuth,
@@ -113,7 +132,8 @@ actor ProcessMonitor
     filepath: FilePath,
     args: Array[String] val,
     vars: Array[String] val,
-    wdir: (FilePath | None) = None)
+    wdir: (FilePath | None) = None,
+    process_poll_interval: U64 = Nanos.from_millis(100))
   =>
     """
     Create infrastructure to communicate with a forked child process and
@@ -122,6 +142,7 @@ actor ProcessMonitor
     """
     _backpressure_auth = backpressure_auth
     _notifier = consume notifier
+    _process_poll_interval = process_poll_interval
 
     // We need permission to execute and the
     // file itself needs to be an executable
@@ -207,26 +228,17 @@ actor ProcessMonitor
       _stdin.begin(this)
       _stdout.begin(this)
       _stderr.begin(this)
-
-      // Asio is not wired up for Windows, so use a timer for now.
-      ifdef windows then
-        let timers = Timers
-        let pm: ProcessMonitor tag = this
-        let tn =
-          object iso is TimerNotify
-            fun ref apply(timer: Timer, count: U64): Bool =>
-              pm.timer_notify()
-              true
-          end
-        let timer = Timer(consume tn, 50_000_000, 10_000_000)
-        timers(consume timer)
-        _timers = timers
-      end
     else
       _notifier.failed(this, ProcessError(ForkError))
       return
     end
+
+    // Asio is not wired up for Windows, so use a timer for now.
+    ifdef windows then
+      _setup_windows_timers()
+    end
     _notifier.created(this)
+
 
   be print(data: ByteSeq) =>
     """
@@ -339,18 +351,58 @@ actor ProcessMonitor
       _stdin.close()
       _stdout.close()
       _stderr.close()
-      let exit_code = _child.wait()
-      if exit_code < 0 then
-        // An error waiting for pid
-        _notifier.failed(this, ProcessError(WaitpidError))
-      else
-        // process child exit code
-        _notifier.dispose(this, exit_code)
-      end
-      match _timers
-      | let t: Timers => t.dispose()
-      end
+      _wait_for_child()
     end
+
+  be _wait_for_child() =>
+    match _child.wait()
+    | _StillRunning =>
+      let timers = _ensure_timers()
+      let pm: ProcessMonitor tag = this
+      let tn =
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            pm._wait_for_child()
+            true
+        end
+      let timer = Timer(consume tn, _process_poll_interval, _process_poll_interval)
+      timers(consume timer)
+    | let exit_status: ProcessExitStatus =>
+      // process child exit code or termination signal
+      _notifier.dispose(this, exit_status)
+      _dispose_timers()
+    | let wpe: WaitpidError =>
+      _notifier.failed(this, ProcessError(WaitpidError))
+      _dispose_timers()
+    end
+
+  fun ref _ensure_timers(): Timers tag =>
+    match _timers
+    | None =>
+      let ts = Timers
+      _timers = ts
+      ts
+    | let ts: Timers => ts
+    end
+
+  fun ref _dispose_timers() =>
+    match _timers
+    | let ts: Timers =>
+      ts.dispose()
+      _timers = None
+    end
+
+  fun ref _setup_windows_timers() =>
+    let timers = _ensure_timers()
+    let pm: ProcessMonitor tag = this
+    let tn =
+      object iso is TimerNotify
+        fun ref apply(timer: Timer, count: U64): Bool =>
+          pm.timer_notify()
+          true
+      end
+    let timer = Timer(consume tn, 50_000_000, 10_000_000)
+    timers(consume timer)
 
   fun ref _try_shutdown() =>
     """
