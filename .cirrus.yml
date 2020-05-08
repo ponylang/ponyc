@@ -268,7 +268,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   nightly_script:
-    - bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
+    - bash .ci-scripts/x86-64-unknown-linux-ubuntu18.04-nightly.bash ${CLOUDSMITH_API_KEY}
 
 task:
   only_if: $CIRRUS_CRON == "master-midnight"
@@ -419,7 +419,7 @@ task:
     populate_script: make libs build_flags=-j8
 
   release_script:
-    - bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
+    - bash .ci-scripts/x86-64-unknown-linux-ubuntu18.04-release.bash ${CLOUDSMITH_API_KEY}
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
