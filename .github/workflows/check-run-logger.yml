@@ -1,10 +1,10 @@
-name: Log check suite events
+name: Log check run events
 
-on: check_suite
+on: check_run
 
 jobs:
-  log-check-suite:
-    name: Log all check suite events
+  log-check-run:
+    name: Log all check run events
     runs-on: ubuntu-latest
     steps:
       - name: Log event
