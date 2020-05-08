@@ -27,6 +27,27 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
+    cpu: 8
+    memory: 24
+
+  name: "nightly: x86-64-unknown-linux-ubuntu18.04"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` ubuntu18.04 20200507"
+    populate_script: make libs build_flags=-j8
+
+  nightly_script:
+    - bash .ci-scripts/x86-64-unknown-linux-gnu-nightly.bash ${CLOUDSMITH_API_KEY}
+
+task:
+  only_if: $CIRRUS_CRON == "master-midnight"
+
+  container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
     cpu: 8
     memory: 24
@@ -148,6 +169,27 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
+    populate_script: make libs build_flags=-j8
+
+  release_script:
+    - bash .ci-scripts/x86-64-unknown-linux-gnu-release.bash ${CLOUDSMITH_API_KEY}
+
+task:
+  only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+
+  container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
+    cpu: 8
+    memory: 24
+
+  name: "release: x86-64-unknown-linux-ubuntu18.04"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` ubuntu18.04 20200507"
     populate_script: make libs build_flags=-j8
 
   release_script:
