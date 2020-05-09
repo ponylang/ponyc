@@ -12,7 +12,7 @@ if [[ -z "${CLOUDSMITH_API_KEY}" ]]; then
   exit 1
 fi
 
-if [[ -z "${TRIPLE_VENODR}" ]]; then
+if [[ -z "${TRIPLE_VENDOR}" ]]; then
   echo -e "\e[31mVendor needs to be set in TRIPLE_VENDOR."
   echo -e "Exiting.\e[0m"
   exit 1
