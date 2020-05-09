@@ -325,7 +325,7 @@ static bool maybe_mute(pony_actor_t* actor)
   //   a behavior.
   //   2. We should bail out from running the actor and return false so that
   //   it won't be rescheduled.
-  if(atomic_load_explicit(&actor->muted, memory_order_relaxed) > 0)
+  if(atomic_load_explicit(&actor->muted, memory_order_acquire) > 0)
   {
     ponyint_mute_actor(actor);
     return true;
@@ -872,7 +872,7 @@ PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 PONY_API void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   (void)ctx;
-  
+
   if(has_flag(actor, FLAG_BLOCKED_SENT))
   {
     // send unblock if we've sent a block
@@ -967,20 +967,20 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 // We have far more relaxed usage of atomics in `ponyint_mute_actor` given the
 // far more relaxed rule #2.
 //
-// An actor's `is_muted` field is effectly a `bool` value. However, by using a
-// `uint8_t`, we use the same amount of space that we would for a boolean but
-// can use more efficient atomic operations. Given how often these methods are
-// called (at least once per message send), efficiency is of primary
-// importance.
+// An actor's `is_muted` field is effectively a `bool` value. However, by
+// using a `uint8_t`, we use the same amount of space that we would for a
+// boolean but can use more efficient atomic operations. Given how often
+// these methods are called (at least once per message send), efficiency is
+// of primary importance.
 
 bool ponyint_is_muted(pony_actor_t* actor)
 {
-  return (atomic_load_explicit(&actor->is_muted, memory_order_relaxed) > 0);
+  return (atomic_load_explicit(&actor->is_muted, memory_order_acquire) > 0);
 }
 
 void ponyint_mute_actor(pony_actor_t* actor)
 {
-   uint8_t is_muted = atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_relaxed);
+   uint8_t is_muted = atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_acq_rel);
    pony_assert(is_muted == 0);
    DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
    (void)is_muted;
@@ -988,7 +988,7 @@ void ponyint_mute_actor(pony_actor_t* actor)
 
 void ponyint_unmute_actor(pony_actor_t* actor)
 {
-  uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_relaxed);
+  uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_acq_rel);
   pony_assert(is_muted == 1);
   DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
   (void)is_muted;
