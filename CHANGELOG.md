@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix CommandParser incorrectly handling multiple end-of-option delimiters ([PR #3541](https://github.com/ponylang/ponyc/pull/3541))
 - Correctly report process termination status in ProcessNotify.dispose() ([PR #3419](https://github.com/ponylang/ponyc/pull/3419))
 - Ensure non-blocking process wait and correctly report process exit status ([PR #3419](https://github.com/ponylang/ponyc/pull/3419))
+- Fix atomics usage related to actor muting for ARM ([PR #3552](https://github.com/ponylang/ponyc/pull/3552))
 
 ### Added
 
