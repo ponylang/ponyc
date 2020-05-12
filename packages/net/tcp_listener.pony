@@ -33,7 +33,7 @@ actor TCPListener
   actor Main
     new create(env: Env) =>
       try
-        TCPListener(env.root as AmbientAuth,
+        TCPListener(env.root,
           recover MyTCPListenNotify end, "", "8989")
       end
   ```

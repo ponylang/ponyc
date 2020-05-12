@@ -3,11 +3,9 @@ class val Env
   An environment holds the command line and other values injected into the
   program by default by the runtime.
   """
-  let root: (AmbientAuth | None)
+  let root: AmbientAuth
     """
     The root capability.
-
-    Can be `None` for artificially constructed `Env` instances.
     """
 
   let input: InputStream
@@ -55,14 +53,14 @@ class val Env
     exitcode = {(code: I32) => @pony_exitcode[None](code) }
 
   new val create(
-    root': (AmbientAuth | None),
+    root': AmbientAuth,
     input': InputStream, out': OutStream,
     err': OutStream, args': Array[String] val,
     vars': Array[String] val,
     exitcode': {(I32)} val)
   =>
     """
-    Build an artificial environment. A root capability may be supplied.
+    Build an artificial environment. A root capability must be supplied.
     """
     root = root'
     input = input'

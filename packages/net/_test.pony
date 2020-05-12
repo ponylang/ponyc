@@ -27,7 +27,7 @@ class _TestPing is UDPNotify
     _h = h
 
     _ip = try
-      let auth = h.env.root as AmbientAuth
+      let auth = h.env.root
       (_, let service) = ip.name()?
 
       let list = if ip.ip4() then
@@ -86,7 +86,7 @@ class _TestPong is UDPNotify
     let ip = sock.local_address()
 
     try
-      let auth = _h.env.root as AmbientAuth
+      let auth = _h.env.root
       let h = _h
       if ip.ip4() then
         _h.dispose_when_done(
@@ -129,7 +129,7 @@ class iso _TestBroadcast is UnitTest
     h.expect_action("ping receive")
 
     try
-      let auth = h.env.root as AmbientAuth
+      let auth = h.env.root
       h.dispose_when_done(UDPSocket(auth, recover _TestPong(h) end))
     else
       h.fail_action("pong create")
@@ -167,7 +167,7 @@ class _TestTCP is TCPListenNotify
     h.expect_action("server accept")
 
     try
-      let auth = h.env.root as AmbientAuth
+      let auth = h.env.root
       h.dispose_when_done(TCPListener(auth, consume this))
       h.complete_action("server create")
     else
@@ -183,7 +183,7 @@ class _TestTCP is TCPListenNotify
     _h.complete_action("server listen")
 
     try
-      let auth = _h.env.root as AmbientAuth
+      let auth = _h.env.root
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()?
       _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
@@ -649,8 +649,8 @@ class _TestTCPProxy is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
-    h.expect_action("sender connected") 
-    h.expect_action("sender proxy request") 
+    h.expect_action("sender connected")
+    h.expect_action("sender proxy request")
 
     _TestTCP(h)(_TestTCPProxyNotify(h),
       _TestTCPProxyNotify(h))
@@ -663,7 +663,7 @@ class _TestTCPProxyNotify is TCPConnectionNotify
   fun ref proxy_via(host: String, service: String): (String, String) =>
     _h.complete_action("sender proxy request")
     (host, service)
-    
+
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("sender connected")
 
