@@ -45,16 +45,11 @@ class Listener is TCPListenNotify
     _count = _count + 1
     _env.out.print("spawn " + _count.string())
 
-    try
-      let env = _env
+    let env = _env
 
-      _env.out.print("Client starting")
-      TCPConnection(
-        _env.root as AmbientAuth,
-        ClientSide(env),
-        _host,
-        _service)
-    else
-      _env.out.print("couldn't create client side")
-      listen.close()
-    end
+    _env.out.print("Client starting")
+    TCPConnection(
+      _env.root,
+      ClientSide(env),
+      _host,
+      _service)
