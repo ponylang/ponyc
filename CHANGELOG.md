@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Rename FreeBSD artifacts ([PR #3556](https://github.com/ponylang/ponyc/pull/3556))
 
 ## [0.35.0] - 2020-05-11
 
