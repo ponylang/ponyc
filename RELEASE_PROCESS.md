@@ -72,7 +72,7 @@ You can verify that the release artifacts were successfully built and uploaded b
 Package names will be:
 
 - ponyc-x86-64-apple-darwin.tar.gz
-- ponyc-x86-64-unknown-freebsd12.1.tar.gz
+- ponyc-x86-64-unknown-freebsd-12.1.tar.gz
 - ponyc-x86-64-pc-windows-msvc.zip
 - ponyc-x86-64-unknown-linux-gnu.tar.gz
 - ponyc-x86-64-unknown-linux-musl.tar.gz
