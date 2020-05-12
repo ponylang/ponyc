@@ -85,18 +85,13 @@ class _TestPong is UDPNotify
     sock.set_broadcast(true)
     let ip = sock.local_address()
 
-    try
-      let auth = _h.env.root
-      let h = _h
-      if ip.ip4() then
-        _h.dispose_when_done(
-          UDPSocket.ip4(auth, recover _TestPing(h, ip) end))
-      else
-        _h.dispose_when_done(
-          UDPSocket.ip6(auth, recover _TestPing(h, ip) end))
-      end
+    let h = _h
+    if ip.ip4() then
+      _h.dispose_when_done(
+        UDPSocket.ip4(h.env.root, recover _TestPing(h, ip) end))
     else
-      _h.fail_action("ping create")
+      _h.dispose_when_done(
+        UDPSocket.ip6(h.env.root, recover _TestPing(h, ip) end))
     end
 
   fun ref received(
@@ -128,12 +123,7 @@ class iso _TestBroadcast is UnitTest
     h.expect_action("pong receive")
     h.expect_action("ping receive")
 
-    try
-      let auth = h.env.root
-      h.dispose_when_done(UDPSocket(auth, recover _TestPong(h) end))
-    else
-      h.fail_action("pong create")
-    end
+    h.dispose_when_done(UDPSocket(h.env.root, recover _TestPong(h) end))
 
     h.long_test(2_000_000_000) // 2 second timeout
 
@@ -166,13 +156,8 @@ class _TestTCP is TCPListenNotify
     h.expect_action("client create")
     h.expect_action("server accept")
 
-    try
-      let auth = h.env.root
-      h.dispose_when_done(TCPListener(auth, consume this))
-      h.complete_action("server create")
-    else
-      h.fail_action("server create")
-    end
+    h.dispose_when_done(TCPListener(h.env.root, consume this))
+    h.complete_action("server create")
 
     h.long_test(2_000_000_000)
 
@@ -183,10 +168,9 @@ class _TestTCP is TCPListenNotify
     _h.complete_action("server listen")
 
     try
-      let auth = _h.env.root
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()?
-      _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
+      _h.dispose_when_done(TCPConnection(_h.env.root, consume notify, host, port))
       _h.complete_action("client create")
     else
       _h.fail_action("client create")

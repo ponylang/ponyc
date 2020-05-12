@@ -322,7 +322,7 @@ TEST_F(CodegenTest, StringSerialization)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    try\n"
-    "      let auth = env.root as AmbientAuth\n"
+    "      let auth = env.root\n"
     "      let v: V = V\n"
     "      Serialised(SerialiseAuth(auth), v)?\n"
     "      @pony_exitcode[None](I32(1))\n"
@@ -371,7 +371,7 @@ TEST_F(CodegenTest, CustomSerialization)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    try\n"
-    "      let ambient = env.root as AmbientAuth\n"
+    "      let ambient = env.root\n"
     "      let serialise = SerialiseAuth(ambient)\n"
     "      let deserialise = DeserialiseAuth(ambient)\n"
 

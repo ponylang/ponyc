@@ -199,7 +199,7 @@ class iso _TestFailures is UnitTest
   """
   fun name(): String => "serialise/Failures"
 
-  fun apply(h: TestHelper) ? =>
+  fun apply(h: TestHelper) =>
     let ambient = h.env.root
     let serialise = SerialiseAuth(ambient)
 

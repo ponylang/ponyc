@@ -106,7 +106,7 @@ trait iso _NonRootTest is UnitTest
 class iso _TestMkdtemp is UnitTest
   fun name(): String => "files/FilePath.mkdtemp"
   fun apply(h: TestHelper) ? =>
-    let tmp = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp.TestMkdtemp.")?
+    let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestMkdtemp.")?
     try
       h.assert_true(FileInfo(tmp)?.directory)
     then
@@ -143,7 +143,7 @@ class iso _TestSymlink is UnitTest
   var tmp_dir: (FilePath | None) = None
 
   fun ref set_up(h: TestHelper) ? =>
-    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "symlink")?
+    tmp_dir = FilePath.mkdtemp(h.env.root, "symlink")?
 
   fun ref tear_down(h: TestHelper) =>
     try
@@ -188,7 +188,7 @@ class iso _TestSymlink is UnitTest
 class iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
   fun apply(h: TestHelper) ? =>
-    let tmp = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp.TestDiropen.")?
+    let tmp = FilePath.mkdtemp(h.env.root, "tmp.TestDiropen.")?
 
     try
       h.assert_true(FileInfo(tmp)?.directory)

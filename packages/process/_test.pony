@@ -577,7 +577,7 @@ class _TestBadExec is UnitTest
 class iso _TestLongRunningChild is UnitTest
   fun name(): String => "process/long-running-child"
   fun exclusion_group(): String => "process-monitor"
-  fun apply(h: TestHelper)? =>
+  fun apply(h: TestHelper) =>
     let auth = h.env.root
     let notifier =
       object iso is ProcessNotify
@@ -623,7 +623,7 @@ class iso _TestLongRunningChild is UnitTest
 class iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
-  fun apply(h: TestHelper)? =>
+  fun apply(h: TestHelper) =>
     let auth = h.env.root
     let notifier =
       object iso is ProcessNotify
