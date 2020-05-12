@@ -63,7 +63,7 @@ actor Main is TestList
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
-    let top = Directory(FilePath.mkdtemp(h.env.root as AmbientAuth,
+    let top = Directory(FilePath.mkdtemp(h.env.root,
       "tmp._FileHelper.")?)?
     for f in files.values() do
       try
@@ -264,7 +264,7 @@ class iso _TestDirectoryFileOpen is UnitTest
   try
     // make a temporary directory
     let dir_path = FilePath.mkdtemp(
-      h.env.root as AmbientAuth,
+      h.env.root,
       "tmp.directory.open-file")?
     try
       let dir = Directory(dir_path)?
@@ -458,7 +458,7 @@ class iso _TestFileEOF is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.eof"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = File(filepath) do
         file.write("foobar")
         file.sync()
@@ -480,7 +480,7 @@ class iso _TestFileCreate is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.create"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
@@ -499,6 +499,9 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
     let path = "tmp.create-not-writeable"
     let filepath = FilePath(h.env.root as AmbientAuth, path)
     try
+      let content = "unwriteable"
+      let path = "tmp.create-not-writeable"
+      let filepath = FilePath(h.env.root, path)?
       let mode: FileMode ref = FileMode.>private()
       mode.owner_read = true
       mode.owner_write = false
@@ -530,7 +533,7 @@ class iso _TestFileCreateDirNotWriteable is _NonRootTest
       try
         let dir_path =
           FilePath.mkdtemp(
-            h.env.root as AmbientAuth,
+            h.env.root,
             "tmp.create-dir-not-writeable")?
         let mode: FileMode ref = FileMode.>private()
         mode.owner_read = true
@@ -563,7 +566,7 @@ class iso _TestFileOpenInDirNotWriteable is UnitTest
       try
         // make a temporary directory
         let dir_path = FilePath.mkdtemp(
-          h.env.root as AmbientAuth,
+          h.env.root,
           "tmp.open-dir-not-writeable")?
         try
           let dir = Directory(dir_path)?
@@ -598,7 +601,7 @@ class iso _TestFileCreateMissingCaps is UnitTest
       let no_write_caps = FileCaps.>all().>unset(FileRead)
 
       let file_path1 = FilePath(
-        h.env.root as AmbientAuth,
+        h.env.root,
         "tmp.create-missing-caps1",
         consume no_create_caps)
       let file1 = File(file_path1)
@@ -606,7 +609,7 @@ class iso _TestFileCreateMissingCaps is UnitTest
       h.assert_is[FileErrNo](file1.errno(), FileError)
 
       let file_path2 = FilePath(
-        h.env.root as AmbientAuth,
+        h.env.root,
         "tmp.create-missing-caps2",
         consume no_read_caps)
       let file2 = File(file_path2)
@@ -614,7 +617,7 @@ class iso _TestFileCreateMissingCaps is UnitTest
       h.assert_is[FileErrNo](file2.errno(), FileError)
 
       let file_path3 = FilePath(
-        h.env.root as AmbientAuth,
+        h.env.root,
         "tmp.create-missing-caps3",
         consume no_write_caps)
       let file3 = File(file_path3)
@@ -630,7 +633,7 @@ class iso _TestFileOpen is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.open"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
@@ -653,7 +656,7 @@ class iso _TestFileOpenError is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.openerror"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       h.assert_false(filepath.exists())
       let file = OpenFile(filepath)
       h.assert_true(file is FileError)
@@ -666,7 +669,7 @@ class _TestFileOpenWrite is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.open-write"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.print("write on file opened read-only")
       end
@@ -689,7 +692,7 @@ class iso _TestFileOpenPermissionDenied is _NonRootTest
         // on windows all files are always writeable
         // with chmod there is no way to make a file not readable
       try
-        let filepath = FilePath(h.env.root as AmbientAuth, "tmp.open-not-readable")
+        let filepath = FilePath(h.env.root, "tmp.open-not-readable")?
         with file = CreateFile(filepath) as File do
           file.print("unreadable")
         end
@@ -717,7 +720,7 @@ class iso _TestFileLongLine is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.longline"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = File(filepath) do
         var longline = "foobar"
         for d in Range(0, 10) do
@@ -739,7 +742,7 @@ class iso _TestFileWrite is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.write"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.write("foobar\n")
       end
@@ -762,7 +765,7 @@ class iso _TestFileWritev is UnitTest
       wb.write(line1)
       wb.write(line2)
       let path = "tmp.writev"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         h.assert_true(file.writev(wb.done()))
       end
@@ -782,7 +785,7 @@ class iso _TestFileQueue is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.queue"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.queue("foobar\n")
       end
@@ -804,7 +807,7 @@ class iso _TestFileQueuev is UnitTest
       wb.write(line1)
       wb.write(line2)
       let path = "tmp.queuev"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.queuev(wb.done())
       end
@@ -837,7 +840,7 @@ class iso _TestFileMixedWriteQueue is UnitTest
       wb.write(line6)
       let queuev_data = wb.done()
       let path = "tmp.mixedwrite"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         file.print(line3)
         file.queue(line5)
@@ -878,7 +881,7 @@ class iso _TestFileWritevLarge is UnitTest
         count = count + 1
       end
       let path = "tmp.writevlarge"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)
+      let filepath = FilePath(h.env.root, path)?
       with file = CreateFile(filepath) as File do
         h.assert_true(file.writev(wb.done()))
       end
@@ -899,7 +902,7 @@ class iso _TestFileFlush is UnitTest
   fun name(): String => "files/File.flush"
   fun apply(h: TestHelper) =>
     try
-      let path = FilePath(h.env.root as AmbientAuth, "tmp.flush")
+      let path = FilePath(h.env.root, "tmp.flush")?
       with file = CreateFile(path) as File do
         // Flush with no writes succeeds trivially, but does nothing.
         h.assert_true(file.flush())
@@ -926,7 +929,7 @@ class iso _TestFileFlush is UnitTest
 class iso _TestFileReadMore is UnitTest
   fun name(): String => "files/File.read-more"
   fun apply(h: TestHelper)? =>
-    let path = FilePath(h.env.root as AmbientAuth, "tmp-read-more")
+    let path = FilePath(h.env.root, "tmp-read-more")?
     with file = CreateFile(path) as File do
       h.assert_true(file.write("foobar"))
     end
@@ -993,7 +996,7 @@ class iso _TestFileLinesEmptyFile is UnitTest
   var tmp_dir: (FilePath | None) = None
 
   fun ref set_up(h: TestHelper) ? =>
-    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "empty")?
+    tmp_dir = FilePath.mkdtemp(h.env.root, "empty")?
 
   fun ref tear_down(h: TestHelper) =>
     try (tmp_dir as FilePath).remove() end
@@ -1039,7 +1042,7 @@ class iso _TestFileLinesSingleLine is UnitTest
   var tmp_dir: (FilePath | None) = None
 
   fun ref set_up(h: TestHelper) ? =>
-    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "single-line")?
+    tmp_dir = FilePath.mkdtemp(h.env.root, "single-line")?
 
   fun ref tear_down(h: TestHelper) =>
     try
@@ -1106,7 +1109,7 @@ class _TestFileLinesMultiLine is UnitTest
   ]
 
   fun ref set_up(h: TestHelper) ? =>
-    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "multi-line")?
+    tmp_dir = FilePath.mkdtemp(h.env.root, "multi-line")?
 
   fun ref tear_down(h: TestHelper) =>
     try
@@ -1151,7 +1154,7 @@ class _TestFileLinesMovingCursor is UnitTest
   var tmp_dir: (FilePath | None) = None
 
   fun ref set_up(h: TestHelper) ? =>
-    tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "moving-cursor")?
+    tmp_dir = FilePath.mkdtemp(h.env.root, "moving-cursor")?
 
   fun ref tear_down(h: TestHelper) =>
     try

@@ -66,7 +66,7 @@ actor TCPConnection
   actor Main
     new create(env: Env) =>
       try
-        TCPConnection(env.root as AmbientAuth,
+        TCPConnection(env.root,
           recover MyTCPConnectionNotify(env.out) end, "", "8989")
       end
   ```
@@ -137,7 +137,7 @@ actor TCPConnection
   actor Main
     new create(env: Env) =>
       try
-        let auth = env.root as AmbientAuth
+        let auth = env.root
         let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
           "", "7669")
       end
@@ -180,7 +180,7 @@ actor TCPConnection
   actor Main
     new create(env: Env) =>
       try
-        TCPConnection(env.root as AmbientAuth,
+        TCPConnection(env.root,
           recover ThrowItAway end, "", "7669")
       end
   ```
@@ -231,7 +231,7 @@ actor TCPConnection
   actor MyClient
     new create(host: String, service: String, proxy: Proxy = NoProxy) =>
       let conn: TCPConnection = TCPConnection.create(
-        env.root as AmbientAuth,
+        env.root,
         proxy.apply(MyConnectionNotify.create()),
         host,
         service)
