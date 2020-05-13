@@ -137,9 +137,9 @@ PONY_API int32_t ponyint_win_process_wait(size_t hProcess, int32_t* exit_code_pt
                 if (retval == 0) retval = -1;
             }
             break;
-        case WAIT_ABANDONED: // shouldn't happen to a process
         case WAIT_TIMEOUT: // process is still going
             return 1; // don't close the handle
+        case WAIT_ABANDONED: // shouldn't happen to a process
         case WAIT_FAILED:
             retval = GetLastError();
             if (retval == 0) retval = -1;
