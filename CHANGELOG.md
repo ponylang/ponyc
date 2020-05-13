@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix incorrect Windows process waiting ([PR #3559](https://github.com/ponylang/ponyc/pull/3559))
 
 ### Added
 
