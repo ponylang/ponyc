@@ -252,7 +252,7 @@ task:
       environment:
         CACHE_BUSTER: 20200421
         TRIPLE_VENDOR: unknown
-        TRIPLE_VENDOR: linux-musl
+        TRIPLE_OS: linux-musl
 
   container:
     cpu: 8
@@ -386,7 +386,7 @@ task:
       environment:
         CACHE_BUSTER: 20200421
         TRIPLE_VENDOR: unknown
-        TRIPLE_VENDOR: linux-musl
+        TRIPLE_OS: linux-musl
 
   container:
     cpu: 8
