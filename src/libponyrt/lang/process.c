@@ -125,25 +125,28 @@ PONY_API size_t ponyint_win_process_create(
  */
 PONY_API int32_t ponyint_win_process_wait(size_t hProcess, int32_t* exit_code_ptr)
 {
-
     int32_t retval = 0;
+
     // just poll
-    DWORD wait_result = WaitForSingleObject((HANDLE) hProcess, 0);
-    if(wait_result == 0) {
-      // process exited
-      if (!GetExitCodeProcess((HANDLE) hProcess, (DWORD*)exit_code_ptr)) { // != 0 is good
-          retval = GetLastError();
-      }
-    } else if(wait_result == 0x80) {
-      // waiting timed out
-      retval = 1;
-    } else {
-      // some other error
-      retval = GetLastError();
+    switch (WaitForSingleObject((HANDLE)hProcess, 0))
+    {
+        case WAIT_OBJECT_0: // process exited
+            if (GetExitCodeProcess((HANDLE)hProcess, (DWORD*)exit_code_ptr) == 0)
+            {
+                retval = GetLastError();
+                if (retval == 0) retval = -1;
+            }
+            break;
+        case WAIT_ABANDONED: // shouldn't happen to a process
+        case WAIT_TIMEOUT: // process is still going
+            return 1; // don't close the handle
+        case WAIT_FAILED:
+            retval = GetLastError();
+            if (retval == 0) retval = -1;
+            break;
     }
 
-    CloseHandle((HANDLE) hProcess);
-
+    CloseHandle((HANDLE)hProcess);
     return retval;
 }
 
