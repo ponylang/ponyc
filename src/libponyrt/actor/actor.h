@@ -33,9 +33,6 @@ typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
-#ifdef USE_ACTOR_CONTINUATIONS
-  pony_msg_t* continuation;
-#endif
   PONY_ATOMIC(size_t) muted;
   PONY_ATOMIC(uint8_t) flags;
   PONY_ATOMIC(uint8_t) is_muted;
