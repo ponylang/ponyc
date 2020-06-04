@@ -116,8 +116,6 @@ define USE_CHECK
       $$(error No dtrace compatible user application static probe generation tool found)
     endif
     PONY_USES += -DPONY_USE_DTRACE=true
-  else ifeq ($1,actor_continuations)
-    PONY_USES += -DPONY_USE_ACTOR_CONTINUATIONS=true
   else ifeq ($1,scheduler_scaling_pthreads)
     PONY_USES += -DPONY_USE_SCHEDULER_SCALING_PTHREADS=true
   else ifeq ($1,memtrack)

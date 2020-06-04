@@ -70,11 +70,6 @@ if(PONY_USE_DTRACE)
     add_compile_options(-DUSE_DYNAMIC_TRACE)
 endif()
 
-if(PONY_USE_ACTOR_CONTINUATIONS)
-    set(PONY_OUTPUT_SUFFIX "-actor_continuations")
-    add_compile_options(-DUSE_ACTOR_CONTINUATIONS)
-endif()
-
 if(PONY_USE_MEMTRACK)
     set(PONY_OUTPUT_SUFFIX "-memtrack")
     add_compile_options(-DUSE_MEMTRACK)

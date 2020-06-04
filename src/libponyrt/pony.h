@@ -281,17 +281,6 @@ PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
 PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   intptr_t i);
 
-/** Store a continuation.
- *
- * This puts a message at the front of the current actor's queue, instead of at
- * the back.
- *
- * Not used in Pony.
- */
-#ifdef USE_ACTOR_CONTINUATIONS
-PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m);
-#endif
-
 /** Allocate memory on the current actor's heap.
  *
  * This is garbage collected memory. This can only be done while an actor is

@@ -357,33 +357,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   pony_msg_t* msg;
   size_t app = 0;
 
-#ifdef USE_ACTOR_CONTINUATIONS
-  while(actor->continuation != NULL)
-  {
-    msg = actor->continuation;
-    actor->continuation = atomic_load_explicit(&msg->next,
-      memory_order_relaxed);
-    bool ret = handle_message(ctx, actor, msg);
-    ponyint_pool_free(msg->index, msg);
-
-    if(ret)
-    {
-      // If we handle an application message, try to gc.
-      app++;
-      try_gc(ctx, actor);
-
-      // maybe mute actor
-      if(maybe_mute(actor))
-        return false;
-
-      // if we've reached our batch limit
-      // or if we're polling where we want to stop after one app message
-      if(app == batch || polling)
-        return batch_limit_reached(actor, polling);
-    }
-  }
-#endif
-
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
 
@@ -785,16 +758,6 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
 
   pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);
 }
-
-#ifdef USE_ACTOR_CONTINUATIONS
-PONY_API void pony_continuation(pony_ctx_t* ctx, pony_msg_t* m)
-{
-  pony_assert(ctx->current != NULL);
-  pony_actor_t* self = ctx->current;
-  atomic_store_explicit(&m->next, self->continuation, memory_order_relaxed);
-  self->continuation = m;
-}
-#endif
 
 PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
