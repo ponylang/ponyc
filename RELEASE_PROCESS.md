@@ -113,7 +113,7 @@ Once all the release steps have been confirmed as successful, merge the PR you c
 
 ### Inform the Pony Zulip
 
-Once Travis, Appveyor and Homebrew are all finished, drop a note in the [#announce stream](https://ponylang.zulipchat.com/#narrow/stream/189932-announce) with a topic like "0.3.1 has been released" of the Pony Zulip letting everyone know that the release is out and include a link the release blog post.
+Once CirrusCI, Cloudsmith, and GitHub Actions are all finished, drop a note in the [#announce stream](https://ponylang.zulipchat.com/#narrow/stream/189932-announce) with a topic like "0.3.1 has been released" of the Pony Zulip letting everyone know that the release is out and include a link the release blog post.
 
 If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
 
