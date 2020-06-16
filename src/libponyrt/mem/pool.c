@@ -83,6 +83,8 @@ typedef struct pool_block_t
   };
   size_t size;
   PONY_ATOMIC(bool) acquired;
+
+  pool_block_t() { }
 } pool_block_t;
 
 /// A thread local list of free blocks header.
