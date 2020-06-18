@@ -1,3 +1,13 @@
+[![GitHub license](https://img.shields.io/github/license/ponylang/ponyc?color=2f4f4f)](https://github.com/ponylang/ponyc/blob/master/LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/ponylang/ponyc)](https://github.com/ponylang/ponyc/releases)
+[![GitHub contributors](https://img.shields.io/github/contributors/ponylang/ponyc)](https://github.com/ponylang/ponyc/graphs/contributors)
+[![PR's Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](https://github.com/ponylang/ponyc/pull/new)
+
+[![GitHub issues open](https://img.shields.io/github/issues/ponylang/ponyc)](https://github.com/ponylang/ponyc/issues?q=is%3Aissue+label%3A%22help+wanted%22+is%3Aopen)
+[![GitHub issues help wanted](https://img.shields.io/github/labels/ponylang/ponyc/help%20wanted)](https://github.com/ponylang/ponyc/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+[![GitHub issues triggers release](https://img.shields.io/github/issues/ponylang/ponyc/triggers%20release?color=008b8b)](https://github.com/ponylang/ponyc/issues?q=is%3Aissue+is%3Aopen+label%3A%22triggers+release%22)
+[![GitHub issues good first](https://img.shields.io/github/issues/ponylang/ponyc/good%20first%20issue?color=228b22)](https://github.com/ponylang/ponyc/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+
 # Pony
 
 Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-performance programming language.
