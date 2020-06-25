@@ -13,7 +13,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-/** We use a simple recursive decent parser. Each grammar rule is specified
+/** We use a simple recursive descent parser. Each grammar rule is specified
  * using the macros defined below. Whilst it is perfectly possible to mix
  * normal C code in with the macros it should not be necessary. The underlying
  * functions that the macros use should not be called outside of the macros.
