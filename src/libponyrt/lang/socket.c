@@ -898,7 +898,6 @@ PONY_API bool pony_os_sockname(int fd, ipaddress_t* ipaddr)
   if(getsockname((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) != 0)
     return false;
 
-  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
   return true;
 }
 
