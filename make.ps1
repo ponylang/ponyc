@@ -53,7 +53,7 @@ if ($null -eq (Get-Command "cmake.exe" -ErrorAction SilentlyContinue)) {
 	Push-Location
 	$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 	if (Test-Path $vswhere -PathType Leaf ) {
-    	$cmakePath = $(Get-Item $( Invoke-Expression '& "$vswhere" -latest -requires Microsoft.VisualStudio.Component.VC.CMake.Project -find Common7/IDE/**/cmake.exe ' )).Directory.FullName
+    	$cmakePath = $(Get-Item $( Invoke-Expression '& "$vswhere" -prerelease -latest -requires Microsoft.VisualStudio.Component.VC.CMake.Project -find Common7/IDE/**/cmake.exe ' )).Directory.FullName
 	    if ($null -ne $cmakePath) {
 			$env:Path = "$env:Path;$cmakePath"
 			Write-Output "Success, CMake added to current PATH from $cmakePath"
