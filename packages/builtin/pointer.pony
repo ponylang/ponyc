@@ -119,10 +119,16 @@ struct Pointer[A]
     """
     Returns a hash of the address.
     """
-    usize().hash()
+    Hashing.finish(hash_with(Hashing.begin()))
+
+  fun tag hash_with(state': HashState): HashState =>
+    Hashing.update_usize(usize(), state')
 
   fun tag hash64(): U64 =>
     """
     Returns a 64-bit hash of the address.
     """
-    usize().hash64()
+    Hashing.finish_64(hash_with64(Hashing.begin_64()))
+
+  fun tag hash_with64(state': HashState64): HashState64 =>
+    Hashing.update_64(usize().u64(), state')

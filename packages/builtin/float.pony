@@ -195,11 +195,9 @@ primitive F32 is FloatingPoint[F32]
 
   fun copysign(sign: F32): F32 => @"llvm.copysign.f32"[F32](this, sign)
 
-  fun hash(): USize => bits().hash()
   fun hash_with(state': HashState): HashState =>
     bits().hash_with(state')
 
-  fun hash64(): U64 => bits().hash64()
   fun hash_with64(state': HashState64): HashState64 =>
     bits().hash_with64(state')
 
@@ -417,11 +415,9 @@ primitive F64 is FloatingPoint[F64]
 
   fun copysign(sign: F64): F64 => @"llvm.copysign.f64"[F64](this, sign)
 
-  fun hash(): USize => bits().hash()
   fun hash_with(state': HashState): HashState =>
     bits().hash_with(state')
 
-  fun hash64(): U64 => bits().hash64()
   fun hash_with64(state': HashState64): HashState64 =>
     bits().hash_with64(state')
 

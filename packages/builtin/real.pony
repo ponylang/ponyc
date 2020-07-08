@@ -131,7 +131,7 @@ trait val _ArithmeticConvertible
     compile_intrinsic
 
 trait val Real[A: Real[A] val] is
-  (Stringable & _ArithmeticConvertible & Comparable[A])
+  (Stringable & _ArithmeticConvertible & Comparable[A] & Hashable & Hashable64)
   new val create(value: A)
 
   new val from[B: (Number & Real[B] val)](a: B)
@@ -179,6 +179,7 @@ trait val Real[A: Real[A] val] is
   fun min(y: A): A
   fun max(y: A): A
 
+  /*
   fun hash(): USize =>
     var x = usize()
 
@@ -194,10 +195,12 @@ trait val Real[A: Real[A] val] is
     else
       hash64().usize()
     end
+  */
 
   fun hash_with(state': HashState): HashState =>
-    Hashing.update(/* TODO */u64(), state')
+    Hashing.update_usize(usize(), state')
 
+  /**
   fun hash64(): U64 =>
     var x = u64()
 
@@ -210,6 +213,8 @@ trait val Real[A: Real[A] val] is
     x = x + (x << 31)
 
     x
+  */
+
   fun hash_with64(state': HashState64): HashState64 =>
     Hashing.update_64(/* TODO */u64(), state')
 

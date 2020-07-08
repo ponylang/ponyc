@@ -322,7 +322,8 @@ primitive I64 is SignedInteger[I64, U64]
   fun mod_unsafe(y: I64): I64 =>
     _SignedUnsafeArithmetic.mod_unsafe[I64, U64](this, y)
 
-  fun hash(): USize => u64().hash()
+  fun hash_with(state': HashState): HashState => u64().hash_with(state')
+  fun hash_with64(state': HashState64): HashState64 => u64().hash_with64(state')
 
   fun addc(y: I64): (I64, Bool) =>
     @"llvm.sadd.with.overflow.i64"[(I64, Bool)](this, y)
@@ -457,7 +458,8 @@ primitive ILong is SignedInteger[ILong, ULong]
   fun mod_unsafe(y: ILong): ILong =>
     _SignedUnsafeArithmetic.mod_unsafe[ILong, ULong](this, y)
 
-  fun hash(): USize => ulong().hash()
+  fun hash_with(state': HashState): HashState => ulong().hash_with(state')
+  fun hash_with64(state': HashState64): HashState64 => ulong().hash_with64(state')
 
   fun addc(y: ILong): (ILong, Bool) =>
     ifdef ilp32 or llp64 then
@@ -707,8 +709,8 @@ primitive I128 is SignedInteger[I128, U128]
   fun mod_unsafe(y: I128): I128 =>
     _SignedUnsafeArithmetic.mod_unsafe[I128, U128](this, y)
 
-  fun hash(): USize => u128().hash()
-  fun hash64(): U64 => u128().hash64()
+  fun hash_with(state': HashState): HashState => u128().hash_with(state')
+  fun hash_with64(state': HashState64): HashState64 => u128().hash_with64(state')
 
   fun string(): String iso^ =>
     _ToString._u128(abs().u128(), this < 0)

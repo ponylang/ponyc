@@ -43,7 +43,7 @@ primitive SipHash24Streaming is StreamingHash[SipHash24HashState, U64, USize]
     """
     ifdef ilp32 then
       _update_32(
-        (m << 32).u32(),
+        (m >> 32).u32(),
         _update_32(m.u32(), state)
       )
     else

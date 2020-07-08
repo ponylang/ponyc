@@ -94,10 +94,10 @@ primitive HashByteSeq is
   Hash and equality functions for arbitrary ByteSeq.
   """
   fun hash(x: ByteSeq box): USize =>
-    @ponyint_hash_block[USize](x.cpointer(), x.size())
+    Hashing.hash_bytes(x)
 
   fun hash64(x: ByteSeq box): U64 =>
-    @ponyint_hash_block64[U64](x.cpointer(), x.size())
+    Hashing.hash64_bytes(x)
 
   fun eq(x: ByteSeq box, y: ByteSeq box): Bool =>
     if x.size() == y.size() then

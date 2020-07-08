@@ -6,7 +6,7 @@ use @strtod[F64](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
 use @pony_os_clear_errno[None]()
 use @pony_os_errno[I32]()
 
-class val String is (Seq[U8] & Comparable[String box] & Stringable)
+class val String is (Seq[U8] & Comparable[String box] & Stringable & Hashable & Hashable64)
   """
   A String is an ordered collection of characters.
 
@@ -1652,13 +1652,9 @@ actor Main
       error
     end
 
-  fun hash(): USize =>
-    @ponyint_hash_block[USize](_ptr, _size)
   fun hash_with(state': HashState): HashState =>
     Hashing.update_bytes(_ptr, _size, state')
 
-  fun hash64(): U64 =>
-    @ponyint_hash_block64[U64](_ptr, _size)
   fun hash_with64(state': HashState64): HashState64 =>
     Hashing.update_bytes_64(_ptr, _size, state')
 
