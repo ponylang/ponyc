@@ -70,48 +70,24 @@ primitive Hashing
       SipHash24Streaming64.finish(state)
     end
 
-  fun hash_2(a: Hashable box, b: Hashable box): USize =>
-    var state = SipHash24Streaming.initial()
-    state = SipHash24Streaming.update_usize(a.hash(), state)
-    state = SipHash24Streaming.update_usize(b.hash(), state)
-    SipHash24Streaming.finish(state)
+  fun hash_2(a: Hashable box, b: Hashable box, state': HashState): HashState =>
+    b.hash_with(a.hash_with(state'))
 
-  fun hash_3(a: Hashable box, b: Hashable box, c: Hashable box): USize =>
-    var state = SipHash24Streaming.initial()
-    state = SipHash24Streaming.update_usize(a.hash(), state)
-    state = SipHash24Streaming.update_usize(b.hash(), state)
-    state = SipHash24Streaming.update_usize(c.hash(), state)
-    SipHash24Streaming.finish(state)
+  fun hash_3(a: Hashable box, b: Hashable box, c: Hashable box): HashState =>
+    c.hash_with(b.hash_with(a.hash_with(state')))
 
-  fun hash_4(a: Hashable box, b: Hashable box, c: Hashable box, d: Hashable box): USize =>
-    var state = SipHash24Streaming.initial()
-    state = SipHash24Streaming.update_usize(a.hash(), state)
-    state = SipHash24Streaming.update_usize(b.hash(), state)
-    state = SipHash24Streaming.update_usize(c.hash(), state)
-    state = SipHash24Streaming.update_usize(d.hash(), state)
-    SipHash24Streaming.finish(state)
+  fun hash_4(a: Hashable box, b: Hashable box, c: Hashable box, d: Hashable box): HashState =>
+    d.hash_with(c.hash_with(b.hash_with(a.hash_with(state'))))
 
   // TODO: add functions for up to 16 arguments
 
-  fun hash64_2(a: Hashable64 box, b: Hashable64 box): U64 =>
-    var state = SipHash24Streaming64.initial()
-    state = SipHash24Streaming64.update(a.hash64(), state)
-    state = SipHash24Streaming64.update(b.hash64(), state)
-    SipHash24Streaming64.finish(state)
+  fun hash64_2(a: Hashable64 box, b: Hashable64 box, state': HashState64): HashState64 =>
+    b.hash_with64(a.hash_with64(state'))
 
   fun hash64_3(a: Hashable64 box, b: Hashable64 box, c: Hashable64 box): U64 =>
-    var state = SipHash24Streaming64.initial()
-    state = SipHash24Streaming64.update(a.hash64(), state)
-    state = SipHash24Streaming64.update(b.hash64(), state)
-    state = SipHash24Streaming64.update(c.hash64(), state)
-    SipHash24Streaming64.finish(state)
+    c.hash_with64(b.hash_with64(a.hash_with64(state')))
 
   fun hash64_4(a: Hashable64 box, b: Hashable64 box, c: Hashable64 box, d: Hashable64 box): U64 =>
-    var state = SipHash24Streaming64.initial()
-    state = SipHash24Streaming64.update(a.hash64(), state)
-    state = SipHash24Streaming64.update(b.hash64(), state)
-    state = SipHash24Streaming64.update(c.hash64(), state)
-    state = SipHash24Streaming64.update(d.hash64(), state)
-    SipHash24Streaming64.finish(state)
+    d.hash_with64(c.hash_with64(b.hash_with64(a.hash_with64(state'))))
 
   // TODO: add functions for up to 16 arguments
