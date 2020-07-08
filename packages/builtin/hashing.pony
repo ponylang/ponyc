@@ -73,10 +73,10 @@ primitive Hashing
   fun hash_2(a: Hashable box, b: Hashable box, state': HashState): HashState =>
     b.hash_with(a.hash_with(state'))
 
-  fun hash_3(a: Hashable box, b: Hashable box, c: Hashable box): HashState =>
+  fun hash_3(a: Hashable box, b: Hashable box, c: Hashable box, state': HashState): HashState =>
     c.hash_with(b.hash_with(a.hash_with(state')))
 
-  fun hash_4(a: Hashable box, b: Hashable box, c: Hashable box, d: Hashable box): HashState =>
+  fun hash_4(a: Hashable box, b: Hashable box, c: Hashable box, d: Hashable box, state': HashState): HashState =>
     d.hash_with(c.hash_with(b.hash_with(a.hash_with(state'))))
 
   // TODO: add functions for up to 16 arguments
@@ -84,10 +84,10 @@ primitive Hashing
   fun hash64_2(a: Hashable64 box, b: Hashable64 box, state': HashState64): HashState64 =>
     b.hash_with64(a.hash_with64(state'))
 
-  fun hash64_3(a: Hashable64 box, b: Hashable64 box, c: Hashable64 box): U64 =>
+  fun hash64_3(a: Hashable64 box, b: Hashable64 box, c: Hashable64 box, state': HashState64): HashState64 =>
     c.hash_with64(b.hash_with64(a.hash_with64(state')))
 
-  fun hash64_4(a: Hashable64 box, b: Hashable64 box, c: Hashable64 box, d: Hashable64 box): U64 =>
+  fun hash64_4(a: Hashable64 box, b: Hashable64 box, c: Hashable64 box, d: Hashable64 box, state': HashState64): HashState64 =>
     d.hash_with64(c.hash_with64(b.hash_with64(a.hash_with64(state'))))
 
   // TODO: add functions for up to 16 arguments
