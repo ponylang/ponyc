@@ -220,6 +220,9 @@ class val FilePath
       end
 
       ifdef windows then
+        // _unlink() on Windows can't remove readonly files
+        // so we change mode to _S_IWRITE just in case
+        @_chmod[I32](path.cstring(), I32(0x0080))
         if info.directory and not info.symlink then
           0 == @_rmdir[I32](path.cstring())
         else
