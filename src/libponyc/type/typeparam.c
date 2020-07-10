@@ -327,11 +327,9 @@ static token_id cap_from_constraint(ast_t* type)
       return cap;
     }
 
+    case TK_TYPEPARAMREF:
     case TK_NOMINAL:
       return cap_single(type);
-
-    case TK_TYPEPARAMREF:
-      return cap_from_constraint(typeparam_constraint(type));
 
     default: {}
   }
