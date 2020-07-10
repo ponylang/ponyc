@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Compile fix for the latest MSVC compiler (MSVC 19.26.28806.0, from Visual Studio 16.6.2) ([PR #3576](https://github.com/ponylang/ponyc/pull/3576))
+- Fix with expressions using tuple destructuring. ([PR #3586](https://github.com/ponylang/ponyc/pull/3586))
 
 ### Added
 
