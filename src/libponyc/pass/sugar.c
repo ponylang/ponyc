@@ -542,7 +542,11 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
   pony_assert(ast_id(idseq) == TK_TUPLE);
 
   for(ast_t* p = ast_child(idseq); p != NULL; p = ast_sibling(p))
-    build_with_dispose(dispose_clause, p);
+  {
+    pony_assert(ast_id(p) == TK_SEQ);
+    ast_t* let = ast_child(p);
+    build_with_dispose(dispose_clause, let);
+  }
 }
 
 
