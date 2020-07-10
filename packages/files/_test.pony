@@ -50,6 +50,7 @@ actor Main is TestList
     test(_TestFileWritevLarge)
     test(_TestFileFlush)
     test(_TestFileReadMore)
+    test(_TestFileRemoveReadOnly)
     test(_TestFileLinesEmptyFile)
     test(_TestFileLinesSingleLine)
     test(_TestFileLinesMultiLine)
@@ -473,7 +474,7 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
       mode.owner_read = true
       mode.owner_write = true // required on Windows to delete the file
       filepath.chmod(mode)
-      filepath.remove()
+      h.assert_true(filepath.remove())
     else
       h.fail("Unhandled error!")
     end
@@ -905,6 +906,27 @@ class iso _TestFileReadMore is UnitTest
         "File errno is not EOF after reading past the last byte")
     end
     path.remove()
+
+class iso _TestFileRemoveReadOnly is UnitTest
+  fun name(): String => "files/File.remove-readonly"
+  fun apply(h: TestHelper) ? =>
+    let path = FilePath(h.env.root as AmbientAuth, "tmp-read-only")?
+    try
+      with file = CreateFile(path) as File do
+        None
+      end
+
+      let mode: FileMode ref = FileMode
+      mode.owner_read = true
+      mode.owner_write = false
+      mode.group_read = true
+      mode.group_write = false
+      mode.any_read = true
+      mode.any_write = false
+      h.assert_true(path.chmod(mode))
+    then
+      h.assert_true(path.remove())
+    end
 
 class iso _TestFileLinesEmptyFile is UnitTest
   var tmp_dir: (FilePath | None) = None
