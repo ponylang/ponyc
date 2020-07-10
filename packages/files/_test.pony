@@ -51,6 +51,7 @@ actor Main is TestList
     test(_TestFileFlush)
     test(_TestFileReadMore)
     test(_TestFileRemoveReadOnly)
+    test(_TestDirectoryRemoveReadOnly)
     test(_TestFileLinesEmptyFile)
     test(_TestFileLinesSingleLine)
     test(_TestFileLinesMultiLine)
@@ -448,11 +449,11 @@ class iso _TestFileCreate is UnitTest
 
 class iso _TestFileCreateExistsNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-exists-not-writeable"
-  fun apply_as_non_root(h: TestHelper) =>
+  fun apply_as_non_root(h: TestHelper) ? =>
+    let content = "unwriteable"
+    let path = "tmp.create-not-writeable"
+    let filepath = FilePath(h.env.root as AmbientAuth, path)?
     try
-      let content = "unwriteable"
-      let path = "tmp.create-not-writeable"
-      let filepath = FilePath(h.env.root as AmbientAuth, path)?
       let mode: FileMode ref = FileMode.>private()
       mode.owner_read = true
       mode.owner_write = false
@@ -471,12 +472,10 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
         let line = file2.read(6)
         h.assert_eq[USize](0, line.size(), "read on invalid file succeeded")
       end
-      mode.owner_read = true
-      mode.owner_write = true // required on Windows to delete the file
-      filepath.chmod(mode)
-      h.assert_true(filepath.remove())
     else
       h.fail("Unhandled error!")
+    then
+      h.assert_true(filepath.remove())
     end
 
 
@@ -908,7 +907,7 @@ class iso _TestFileReadMore is UnitTest
     path.remove()
 
 class iso _TestFileRemoveReadOnly is UnitTest
-  fun name(): String => "files/File.remove-readonly"
+  fun name(): String => "files/File.remove-readonly-file"
   fun apply(h: TestHelper) ? =>
     let path = FilePath(h.env.root as AmbientAuth, "tmp-read-only")?
     try
@@ -916,6 +915,24 @@ class iso _TestFileRemoveReadOnly is UnitTest
         None
       end
 
+      let mode: FileMode ref = FileMode
+      mode.owner_read = true
+      mode.owner_write = false
+      mode.group_read = true
+      mode.group_write = false
+      mode.any_read = true
+      mode.any_write = false
+      h.assert_true(path.chmod(mode))
+    then
+      h.assert_true(path.remove())
+    end
+
+class iso _TestDirectoryRemoveReadOnly is UnitTest
+  fun name(): String => "files/File.remove-readonly-directory"
+  fun apply(h: TestHelper) ? =>
+    let path = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp-read-only-dir")?
+    let dir = Directory(path)?
+    try
       let mode: FileMode ref = FileMode
       mode.owner_read = true
       mode.owner_write = false
