@@ -929,6 +929,7 @@ class iso _TestFileRemoveReadOnly is UnitTest
 
 class iso _TestDirectoryRemoveReadOnly is UnitTest
   fun name(): String => "files/File.remove-readonly-directory"
+
   fun apply(h: TestHelper) ? =>
     let path = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp-read-only-dir")?
     let dir = Directory(path)?
@@ -936,10 +937,13 @@ class iso _TestDirectoryRemoveReadOnly is UnitTest
       let mode: FileMode ref = FileMode
       mode.owner_read = true
       mode.owner_write = false
+      mode.owner_exec = true
       mode.group_read = true
       mode.group_write = false
+      mode.group_exec = true
       mode.any_read = true
       mode.any_write = false
+      mode.any_exec = true
       h.assert_true(path.chmod(mode))
     then
       h.assert_true(path.remove())
