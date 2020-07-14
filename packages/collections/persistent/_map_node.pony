@@ -14,14 +14,14 @@ class val _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 class val _MapCollisions[
   K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
-  embed bins: Array[Array[_MapEntry[K, V, H]] trn] trn
+  embed bins: Array[Array[_MapEntry[K, V, H]] iso] iso
 
-  new trn create() =>
-    bins = recover Array[Array[_MapEntry[K, V, H]] trn](4) end
+  new iso create() =>
+    bins = recover Array[Array[_MapEntry[K, V, H]] iso](4) end
     bins .> push([]) .> push([]) .> push([]) .> push([])
 
-  fun val clone(): _MapCollisions[K, V, H] trn^ =>
-    let cs = recover trn _MapCollisions[K, V, H] end
+  fun val clone(): _MapCollisions[K, V, H] iso^ =>
+    let cs = _MapCollisions[K, V, H]
     try
       for i in bins.keys() do
         for e in bins(i)?.values() do
@@ -29,9 +29,9 @@ class val _MapCollisions[
         end
       end
     end
-    consume cs
+    cs
 
-  fun apply(hash: U32, k: K): (V | None) ? =>
+  fun val apply(hash: U32, k: K): (V | None) ? =>
     let idx = _Bits.mask32(hash, _Bits.collision_depth())
     let bin = bins(idx.usize_unsafe())?
     for node in bin.values() do
@@ -96,16 +96,16 @@ type _MapNode[K: Any #share, V: Any #share, H: mut.HashFunction[K] val] is
   )
 
 class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
-  embed nodes: Array[_MapNode[K, V, H]] trn
+  embed nodes: Array[_MapNode[K, V, H]] iso
   var node_map: U32
   var data_map: U32
 
-  new trn create(size: USize = 0, nm: U32 = 0, dm: U32 = 0) =>
+  new iso create(size: USize = 0, nm: U32 = 0, dm: U32 = 0) =>
     nodes = recover Array[_MapNode[K, V, H]](size) end
     node_map = nm
     data_map = dm
 
-  fun val clone(): _MapSubNodes[K, V, H] trn^ =>
+  fun val clone(): _MapSubNodes[K, V, H] iso^ =>
     let ns = _MapSubNodes[K, V, H](nodes.size(), node_map, data_map)
     for node in nodes.values() do ns.nodes.push(node) end
     ns
@@ -118,14 +118,14 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     end
     data_map.popcount() + (node_map and msk).popcount()
 
-  fun apply(depth: U32, hash: U32, k: K): (V | None) ? =>
+  fun val apply(depth: U32, hash: U32, k: K): (V | None) ? =>
     let idx = _Bits.mask32(hash, depth)
     let c_idx = compressed_idx(idx)
     if c_idx == -1 then return None end
     match nodes(c_idx.usize_unsafe())?
-    | let entry: _MapEntry[K, V, H] box => entry(k)
-    | let sns: _MapSubNodes[K, V, H] box => sns(depth + 1, hash, k)?
-    | let cs: _MapCollisions[K, V, H] box => cs(hash, k)?
+    | let entry: _MapEntry[K, V, H] => entry(k)
+    | let sns: _MapSubNodes[K, V, H] => sns(depth + 1, hash, k)?
+    | let cs: _MapCollisions[K, V, H] => cs(hash, k)?
     end
 
   fun val update(depth: U32, hash: U32, k: K, v: V)
