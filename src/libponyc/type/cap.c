@@ -880,6 +880,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
   return true;
 }
 
+
 bool cap_sendable(token_id cap)
 {
   switch(cap)
@@ -936,6 +937,48 @@ bool cap_safetowrite(token_id into, token_id cap)
       {
         case TK_ISO:
         case TK_TRN:
+        case TK_VAL:
+        case TK_TAG:
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}
+
+bool cap_safetoextract(token_id from, token_id cap)
+{
+  switch(from)
+  {
+    case TK_ISO:
+      switch(cap)
+      {
+        case TK_ISO:
+        case TK_VAL:
+        case TK_TAG:
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(cap)
+      {
+        case TK_ISO:
+        case TK_BOX:
         case TK_VAL:
         case TK_TAG:
         case TK_CAP_SEND:
