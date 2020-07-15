@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change trn->trn to box to fix a soundness hole ([PR #3591](https://github.com/ponylang/ponyc/pull/3591))
 
 ## [0.35.1] - 2020-05-13
 
