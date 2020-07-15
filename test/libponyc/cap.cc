@@ -40,6 +40,20 @@ protected:
   {
     return is_cap_compat_cap(left, none, right, none);
   }
+
+  token_id lower_viewpoint(token_id left, token_id right)
+  {
+    token_id eph = none;
+    cap_view_lower(left, none, &right, &eph);
+    return right;
+  }
+
+  token_id upper_viewpoint(token_id left, token_id right)
+  {
+    token_id eph = none;
+    cap_view_upper(left, none, &right, &eph);
+    return right;
+  }
 };
 
 const token_id CapTest::iso;
@@ -657,4 +671,88 @@ TEST_F(CapTest, Compat)
   EXPECT_FALSE(is_compat(any, share));
   EXPECT_FALSE(is_compat(any, alias));
   EXPECT_FALSE(is_compat(any, any));
+}
+TEST_F(CapTest, ViewpointLower)
+{
+  // iso->
+  ASSERT_EQ(lower_viewpoint(iso, iso), iso);
+  ASSERT_EQ(lower_viewpoint(iso, trn), tag);
+  ASSERT_EQ(lower_viewpoint(iso, ref), tag);
+  ASSERT_EQ(lower_viewpoint(iso, val), val);
+  ASSERT_EQ(lower_viewpoint(iso, box), tag);
+  ASSERT_EQ(lower_viewpoint(iso, tag), tag);
+
+  // trn->
+  ASSERT_EQ(lower_viewpoint(trn, iso), iso);
+  ASSERT_EQ(lower_viewpoint(trn, trn), box);
+  ASSERT_EQ(lower_viewpoint(trn, ref), box);
+  ASSERT_EQ(lower_viewpoint(trn, val), val);
+  ASSERT_EQ(lower_viewpoint(trn, box), box);
+  ASSERT_EQ(lower_viewpoint(trn, tag), tag);
+
+  // ref->
+  ASSERT_EQ(lower_viewpoint(ref, iso), iso);
+  ASSERT_EQ(lower_viewpoint(ref, trn), trn);
+  ASSERT_EQ(lower_viewpoint(ref, ref), ref);
+  ASSERT_EQ(lower_viewpoint(ref, val), val);
+  ASSERT_EQ(lower_viewpoint(ref, box), box);
+  ASSERT_EQ(lower_viewpoint(ref, tag), tag);
+
+  // val->
+  ASSERT_EQ(lower_viewpoint(val, iso), val);
+  ASSERT_EQ(lower_viewpoint(val, trn), val);
+  ASSERT_EQ(lower_viewpoint(val, ref), val);
+  ASSERT_EQ(lower_viewpoint(val, val), val);
+  ASSERT_EQ(lower_viewpoint(val, box), val);
+  ASSERT_EQ(lower_viewpoint(val, tag), tag);
+
+  // box->
+  ASSERT_EQ(lower_viewpoint(box, iso), tag);
+  ASSERT_EQ(lower_viewpoint(box, trn), box);
+  ASSERT_EQ(lower_viewpoint(box, ref), box);
+  ASSERT_EQ(lower_viewpoint(box, val), val);
+  ASSERT_EQ(lower_viewpoint(box, box), box);
+  ASSERT_EQ(lower_viewpoint(box, tag), tag);
+}
+TEST_F(CapTest, ViewpointUpper)
+{
+  // iso->
+  ASSERT_EQ(upper_viewpoint(iso, iso), iso);
+  ASSERT_EQ(upper_viewpoint(iso, trn), tag);
+  ASSERT_EQ(upper_viewpoint(iso, ref), tag);
+  ASSERT_EQ(upper_viewpoint(iso, val), val);
+  ASSERT_EQ(upper_viewpoint(iso, box), tag);
+  ASSERT_EQ(upper_viewpoint(iso, tag), tag);
+
+  // trn->
+  ASSERT_EQ(upper_viewpoint(trn, iso), iso);
+  ASSERT_EQ(upper_viewpoint(trn, trn), box);
+  ASSERT_EQ(upper_viewpoint(trn, ref), box);
+  ASSERT_EQ(upper_viewpoint(trn, val), val);
+  ASSERT_EQ(upper_viewpoint(trn, box), box);
+  ASSERT_EQ(upper_viewpoint(trn, tag), tag);
+
+  // ref->
+  ASSERT_EQ(upper_viewpoint(ref, iso), iso);
+  ASSERT_EQ(upper_viewpoint(ref, trn), trn);
+  ASSERT_EQ(upper_viewpoint(ref, ref), ref);
+  ASSERT_EQ(upper_viewpoint(ref, val), val);
+  ASSERT_EQ(upper_viewpoint(ref, box), box);
+  ASSERT_EQ(upper_viewpoint(ref, tag), tag);
+
+  // val->
+  ASSERT_EQ(upper_viewpoint(val, iso), val);
+  ASSERT_EQ(upper_viewpoint(val, trn), val);
+  ASSERT_EQ(upper_viewpoint(val, ref), val);
+  ASSERT_EQ(upper_viewpoint(val, val), val);
+  ASSERT_EQ(upper_viewpoint(val, box), val);
+  ASSERT_EQ(upper_viewpoint(val, tag), tag);
+
+  // box->
+  ASSERT_EQ(upper_viewpoint(box, iso), tag);
+  ASSERT_EQ(upper_viewpoint(box, trn), box);
+  ASSERT_EQ(upper_viewpoint(box, ref), box);
+  ASSERT_EQ(upper_viewpoint(box, val), val);
+  ASSERT_EQ(upper_viewpoint(box, box), box);
+  ASSERT_EQ(upper_viewpoint(box, tag), tag);
 }
