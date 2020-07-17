@@ -43,7 +43,12 @@ static bool safe_field_move(token_id cap, ast_t* type, direction direction)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return cap_safetowrite(cap, cap_single(type));
+      switch (direction) {
+        case WRITE:
+          return cap_safetowrite(cap, cap_single(type));
+        case EXTRACT:
+          return cap_safetoextract(cap, cap_single(type));
+      }
 
     default: {}
   }
