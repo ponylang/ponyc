@@ -78,6 +78,7 @@ override the standard formatting, you can create an object that implements:
 ```pony
 interface val LogFormatter
   fun apply(
+    level: LogLevel,
     msg: String,
     file_name: String,
     file_linenum: String,
@@ -97,15 +98,19 @@ type LogLevel is
 
 primitive Fine
   fun apply(): U32 => 0
+  fun string(): String iso^ => recover "FINE".clone() end
 
 primitive Info
   fun apply(): U32 => 1
+  fun string(): String iso^ => recover "INFO".clone() end
 
 primitive Warn
   fun apply(): U32 => 2
+  fun string(): String iso^ => recover "WARN".clone() end
 
 primitive Error
   fun apply(): U32 => 3
+  fun string(): String iso^ => recover "ERRR".clone() end
 
 class val Logger[A]
   let _level: LogLevel
@@ -128,7 +133,7 @@ class val Logger[A]
     level() >= _level()
 
   fun log(value: A, loc: SourceLoc = __loc): Bool =>
-    _out.print(_formatter(_f(consume value), loc))
+    _out.print(_formatter(_level, _f(consume value), loc))
     true
 
 primitive StringLogger
@@ -149,10 +154,10 @@ interface val LogFormatter
 
   See `DefaultLogFormatter` for an example of how to implement a LogFormatter.
   """
-  fun apply(msg: String, loc: SourceLoc): String
+  fun apply(lvl: LogLevel, msg: String, loc: SourceLoc): String
 
 primitive DefaultLogFormatter is LogFormatter
-  fun apply(msg: String, loc: SourceLoc): String =>
+  fun apply(lvl: LogLevel, msg: String, loc: SourceLoc): String =>
     let file_name: String = loc.file()
     let file_linenum: String  = loc.line().string()
     let file_linepos: String  = loc.pos().string()
