@@ -1084,20 +1084,3 @@ TEST_F(BadPonyTest, AllowNestedTupleAccess)
   TEST_ERRORS_1(src,
     "Cannot look up member _2 on a literal")
 }
-TEST_F(BadPonyTest, TrnTrnViewpointAdaptation)
-{
-  const char* src =
-    "class A\n"
-    "class BadExtract\n"
-    "  var a: A trn = A\n"
-    "  fun ref extract_trn(): A trn^ =>\n"
-    "    a = A\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let bad = recover trn BadExtract end\n"
-    "    let a_ref: A trn = bad.extract_trn()\n";
-
-  TEST_ERRORS_1(src,
-    "receiver type is not a subtype of target type")
-}
