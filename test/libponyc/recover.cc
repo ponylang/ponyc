@@ -577,7 +577,7 @@ TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
     "left side must be something that can be assigned to");
 }
 
-TEST_F(BadPonyTest, CantReturnTrn_TrnAutoRecovery)
+TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
 {
   const char* src =
     "class A\n"
