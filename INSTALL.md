@@ -14,20 +14,50 @@ Starting with the next ponyc release, you'll also be able to download prebuilt p
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
 
-To install the most recent ponyc:
+### Select your Linux platform
 
 ```bash
+ponyup platform PLATFORM
+```
+
+where `PLATFORM` is from the table below
+
+Distribution | PLATFORM String
+--- | ---
+Alpine | musl
+CentOS 8 | centos8
+Linux Mint 19.3 | ubuntu18.04
+Ubuntu 18.04 | ubuntu18.04
+Ubuntu 20.04 | ubuntu20.04
+
+N.B. If you platform isn't listed, skip to the next section and ponyup will install, as appropriate a Glibc or musl libc build of ponyc.
+
+### Install the latest release
+
+```bash
+
 ponyup update ponyc release
 ```
 
-Additional requirements:
+### Additional requirements
 
 All ponyc Linux installations need to have a C compiler such as clang installed. Compilers other than clang might work, but clang is the officially supported C compiler. The following distributions have additional requirements:
 
 Distribution | Requires
 --- | ---
-alpine | libexecinfo
-fedora | libatomic
+Alpine | libexecinfo
+CentOS | libatomic
+Fedora | libatomic
+
+### Troubleshooting Glibc compatibility
+
+Most Linux distributions are based on Glibc and all software for them must use the same version of Glibc. You might see an error like the following when trying to use ponyc:
+
+```console
+ponyc: /lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.29' not found (required by ponyc)
+```
+
+If you get that error, it means that the Glibc we compiled ponyc with isn't compatible with your distribution. If your distribution is a long term support release, please [open an issue](https://github.com/ponylang/ponyc/issues) and we'll work towards adding prebuilt images for your distribution. Otherwise, you'll have to [build ponyc from source](BUILD.md).
 
 ## macOS
 
