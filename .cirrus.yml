@@ -6,6 +6,28 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
+    image: ponylang/ponyc-ci-x86-64-unknown-linux-linuxmint19.3-builder:20200720
+    cpu: 8
+    memory: 24
+
+  name: "PR: x86-64-unknown-linux-linuxmint19.3"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` linuxmint19.3 20200720"
+    populate_script: make libs arch=x86-64 build_flags=-j8
+
+  configure_script:
+    - make configure arch=x86-64
+  build_script:
+    - make build arch=x86-64 build_flags=-j8
+  test_script:
+    - make test-ci arch=x86-64
+
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
     memory: 24
@@ -239,6 +261,13 @@ task:
         CACHE_BUSTER: 20200423
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
+    - name: "nightly: x86-64-unknown-linux-linuxmint19.3"
+      container:
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-linuxmint19.3-builder:20200720
+      environment:
+        CACHE_BUSTER: 20200720
+        TRIPLE_VENDOR: unknown
+        TRIPLE_OS: linux-linuxmint19.3
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
@@ -373,6 +402,13 @@ task:
         CACHE_BUSTER: 20200423
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
+    - name: "release: x86-64-unknown-linux-linuxmint19.3"
+      container:
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-linuxmint19.3-builder:20200720
+      environment:
+        CACHE_BUSTER: 20200720
+        TRIPLE_VENDOR: unknown
+        TRIPLE_OS: linux-linuxmint19.3
     - name: "release: x86-64-unknown-linux-ubuntu18.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
