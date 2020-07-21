@@ -8,7 +8,7 @@ use @pony_os_errno[I32]()
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
-  A String is an ordered collection of characters.
+  A String is an ordered collection of bytes.
 
   Strings don't specify an encoding.
 
@@ -209,7 +209,7 @@ actor Main
   fun box _copy_to(ptr: Pointer[U8] ref, copy_len: USize,
     from_offset: USize = 0, to_offset: USize = 0) =>
     """
-    Copy copy_len characters from this to that at specified offsets.
+    Copy `copy_len` bytes from this to that at specified offsets.
     """
     _ptr._offset(from_offset)._copy_to(ptr._offset(to_offset), copy_len)
 
@@ -1099,7 +1099,7 @@ actor Main
     """
     Split the string into an array of strings that are delimited by `delim` in
     the original string. If `n > 0`, then the split count is limited to n.
-    
+
     Example:
 
     ```pony
@@ -1147,7 +1147,7 @@ actor Main
     Split the string into an array of strings with any character in the
     delimiter string. By default, the string is split with whitespace
     characters. If `n > 0`, then the split count is limited to n.
-    
+
     Example:
 
     ```pony
@@ -1479,7 +1479,7 @@ actor Main
   =>
     """
     Read an integer from the specified location in this string. The integer
-    value read and the number of characters consumed are reported.
+    value read and the number of bytes consumed are reported.
     The base parameter specifies the base to use, 0 indicates using the prefix,
     if any, to detect base 2, 10 or 16.
     If no integer is found at the specified location, then (0, 0) is returned,
@@ -1560,7 +1560,8 @@ actor Main
     specifying prefix, if any, to detect base 2 or 16.
     If no base is specified and no prefix is found default to decimal.
     Note that a leading 0 does NOT imply octal.
-    Report the base found and the number of characters in the prefix.
+    Report the base found and the number of single-byte characters in
+    the prefix.
     """
     if base > 0 then
       return (A(0).from[U8](base), 0)
