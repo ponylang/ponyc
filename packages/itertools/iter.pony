@@ -15,6 +15,16 @@ class Iter[A] is Iterator[A]
   fun ref next(): A ? =>
     _iter.next()?
 
+  new maybe(value: (A | None)) =>
+    _iter =
+      object is Iterator[A]
+        var _value: (A | None) = consume value
+
+        fun has_next(): Bool => _value isnt None
+
+        fun ref next(): A ? => (_value = None) as A
+      end
+
   new chain(outer_iterator: Iterator[Iterator[A]]) =>
     """
     Take an iterator of iterators and return an Iter containing the
@@ -88,6 +98,24 @@ class Iter[A] is Iterator[A]
 
         fun ref next(): A => _v
       end
+
+  fun ref next_or(default: A): A =>
+    """
+    Return the next value, or the given default.
+
+    ## Example
+
+    ```pony
+    let x: (U64 | None) = 42
+    Iter[U64].maybe(x).next_or(0)
+    ```
+    `42`
+    """
+    if has_next() then
+      try next()? else default end
+    else
+      default
+    end
 
   fun ref map_stateful[B](f: {ref(A!): B^ ?}): Iter[B]^ =>
     """

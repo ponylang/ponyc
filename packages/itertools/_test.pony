@@ -22,6 +22,7 @@ actor Main is TestList
     test(_TestIterFold)
     test(_TestIterLast)
     test(_TestIterMap)
+    test(_TestIterNextOr)
     test(_TestIterNth)
     test(_TestIterRun)
     test(_TestIterSkip)
@@ -344,6 +345,22 @@ class iso _TestIterMap is UnitTest
     end
 
     h.assert_array_eq[String](actual, expected)
+
+class iso _TestIterNextOr is UnitTest
+  fun name(): String => "itertools/Iter.next_or"
+
+  fun apply(h: TestHelper) =>
+    let input: (U64 | None) = 42
+    var iter = Iter[U64].maybe(input)
+    h.assert_true(iter.has_next())
+    h.assert_eq[U64](42, iter.next_or(0))
+    h.assert_false(iter.has_next())
+    h.assert_eq[U64](0, iter.next_or(0))
+    h.assert_error({()? => Iter[U64].maybe(None).next()? })
+
+    iter = Iter[U64].maybe(None)
+    h.assert_false(iter.has_next())
+    h.assert_eq[U64](1, iter.next_or(1))
 
 class iso _TestIterNth is UnitTest
   fun name(): String => "itertools/Iter.nth"
