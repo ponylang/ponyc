@@ -688,10 +688,20 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
   const char* version = "ponyc-" PONY_VERSION;
   LLVMMetadataRef fileRef = LLVMDIBuilderCreateFile(c->di, filename,
     strlen(filename), dirname, strlen(dirname));
+#  if PONY_LLVM >= 1101
+  c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
+    LLVMDWARFSourceLanguageC_plus_plus, fileRef,
+    version, strlen(version), opt->release,
+    opt->all_args ? opt->all_args : "",
+    opt->all_args ? strlen(opt->all_args) : 0,
+    0, "", 0, LLVMDWARFEmissionFull, 0,
+    false, false, "", 0, "", 0);
+#  else
   c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
     LLVMDWARFSourceLanguageC_plus_plus, fileRef, version, strlen(version),
     opt->release, "", 0, 0, "", 0, LLVMDWARFEmissionFull,
     0, false, false);
+#  endif
 #endif
 
   // Empty frame stack.
@@ -832,7 +842,7 @@ bool codegen_pass_init(pass_opt_t* opt)
   {
     triple = LLVMCreateMessage(opt->triple);
   } else {
-#ifdef PLATFORM_IS_MACOSX
+#if defined(PLATFORM_IS_MACOSX) && !defined(PLATFORM_IS_ARM)
     // This is to prevent XCode 7+ from claiming OSX 14.5 is required.
     triple = LLVMCreateMessage("x86_64-apple-macosx");
 #else

@@ -4481,6 +4481,9 @@ PONY_API int pony_os_sockopt_option(int option)
     case 886: return SO_RCVLOWAT;
 #endif
 #ifdef SO_RCVTIMEO
+#  ifndef SO_RCVTIMEO_OLD
+#    define SO_RCVTIMEO_OLD 20 // for musl
+#  endif
     case 887: return SO_RCVTIMEO;
 #endif
 #ifdef SO_RDS_TRANSPORT
@@ -4538,6 +4541,9 @@ PONY_API int pony_os_sockopt_option(int option)
     case 905: return SO_SNDLOWAT;
 #endif
 #ifdef SO_SNDTIMEO
+#  ifndef SO_SNDTIMEO_OLD
+#    define SO_SNDTIMEO_OLD 21 // for musl
+#  endif
     case 906: return SO_SNDTIMEO;
 #endif
 #ifdef SO_TIMESTAMP

@@ -12,6 +12,9 @@
 #elif defined(PLATFORM_IS_MACOSX)
   #include <unistd.h>
   #include <mach/mach.h>
+#  if defined(PLATFORM_IS_ARM)
+  #include <mach/mach_time.h>
+#  endif
   #include <mach/thread_policy.h>
 #elif defined(PLATFORM_IS_WINDOWS)
   #include <processtopologyapi.h>

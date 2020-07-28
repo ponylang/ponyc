@@ -334,17 +334,45 @@ LLVMValueRef LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
   unsigned line, unsigned col, LLVMMetadataRef scope, LLVMBasicBlockRef block)
 {
   DIBuilder* pd = unwrap(d);
+  MDNode* sc = unwrap<MDNode>(scope);
 
+#if PONY_LLVM >= 1200
+  if (sc)
+  {
+    DILocation* loc = DILocation::get(sc->getContext(), line, col, sc,
+      nullptr);
+
+    Instruction* inst = pd->insertDeclare(unwrap(value),
+      unwrap <DILocalVariable>(info), unwrap<DIExpression>(expr), loc,
+      unwrap(block));
+
+    return wrap(inst);
+  }
+  else
+  {
+    return nullptr;
+  }
+#else
   return wrap(pd->insertDeclare(unwrap(value),
     unwrap<DILocalVariable>(info), unwrap<DIExpression>(expr),
     DebugLoc::get(line, col, scope ? unwrap<MDNode>(scope) : nullptr, nullptr),
     unwrap(block)));
+#endif
 }
 
 void LLVMSetCurrentDebugLocation2(LLVMBuilderRef b,
   unsigned line, unsigned col, LLVMMetadataRef scope)
 {
-  unwrap(b)->SetCurrentDebugLocation(
-    DebugLoc::get(line, col,
+#if PONY_LLVM >= 1200
+  MDNode* sc = unwrap<MDNode>(scope);
+  if (sc)
+  {
+    DILocation* loc = DILocation::get(sc->getContext(), line, col, sc,
+      nullptr);
+    unwrap(b)->SetCurrentDebugLocation(loc);
+  }
+#else
+  unwrap(b)->SetCurrentDebugLocation(DebugLoc::get(line, col,
       scope ? unwrap<MDNode>(scope) : nullptr, nullptr));
+#endif
 }

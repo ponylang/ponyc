@@ -293,7 +293,11 @@ static bool link_exe(compile_t* c, ast_t* program,
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
+#if defined(PLATFORM_IS_ARM)
+    "%s -execute -arch %.*s "
+#else
     "%s -execute -no_pie -arch %.*s "
+#endif
     "-o %s %s %s %s "
     "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
@@ -374,11 +378,15 @@ static bool link_exe(compile_t* c, ast_t* program,
     "";
 #endif
 
+  const char* arm32_linker_args = target_is_arm32(c->opt->triple)
+    ? " -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libgnustl_shared.so -Wl,--exclude-libs,libunwind.a"
+    : "";
+
   size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
                   + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg);
+                  + strlen(sanitizer_arg) + strlen(arm32_linker_args);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -399,13 +407,17 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 #ifdef PLATFORM_IS_OPENBSD
     // On OpenBSD, the unwind symbols are contained within libc++abi.
-    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s",
+    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s"
 #else
-    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s",
+    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s"
 #endif
+    "%s",
     linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
+    arm32_linker_args,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
+
+  fprintf(stdout, "LINK FLAGS:\n%s\n", ld_cmd);
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
     fprintf(stderr, "%s\n", ld_cmd);

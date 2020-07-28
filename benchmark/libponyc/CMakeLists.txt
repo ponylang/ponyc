@@ -13,8 +13,6 @@ target_include_directories(libponyc.benchmarks
     PRIVATE ../../build/libs/include
 )
 
-llvm_config(libponyc.benchmarks all)
-
 target_link_directories(libponyc.benchmarks
     PRIVATE ../../build/libs/lib
 )
@@ -33,14 +31,12 @@ if (MSVC)
         PRIVATE Ws2_32
         PRIVATE Shlwapi
     )
-
-    get_target_property(TARGET_LIBRARIES libponyc.benchmarks LINK_LIBRARIES)
-    LIST(REMOVE_ITEM TARGET_LIBRARIES LTO)
-    set_property(TARGET libponyc.benchmarks PROPERTY LINK_LIBRARIES ${TARGET_LIBRARIES})
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(libponyc.benchmarks PRIVATE dl)
-elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD|DragonFly")
+elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
     target_link_libraries(libponyc.benchmarks PRIVATE execinfo)
+elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
+    target_link_libraries(libponyc.benchmarks PRIVATE execinfo atomic)
 else()
     target_link_libraries(libponyc.benchmarks PRIVATE atomic dl)
     target_link_options(libponyc.benchmarks PRIVATE "-static-libstdc++")
@@ -48,4 +44,8 @@ endif ()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(libponyc.benchmarks PRIVATE "-static-libgcc")
+endif()
+
+if(NOT PONY_CROSS_LIBPONYRT)
+    target_link_libraries(libponyc.benchmarks PRIVATE ${PONYC_LLVM_LIBS})
 endif()

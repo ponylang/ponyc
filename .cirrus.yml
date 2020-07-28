@@ -29,9 +29,9 @@ task:
       TRIPLE_OS: linux-gnu
   - name: "PR: x86-64-unknown-linux-ubuntu18.04"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210427
     environment:
-      CACHE_BUSTER: 20210224
+      CACHE_BUSTER: 20210427
       TRIPLE_VENDOR: unknown
       TRIPLE_OS: linux-ubuntu18.04
   - name: "PR: x86-64-unknown-linux-ubuntu20.04"
@@ -43,7 +43,7 @@ task:
       TRIPLE_OS: linux-ubuntu20.04
   - name: "PR: x86-64-unknown-linux-musl"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
       CACHE_BUSTER: 20210224
       TRIPLE_VENDOR: unknown
@@ -143,17 +143,19 @@ task:
   only_if: $CIRRUS_PR != ''
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
     os_version: 2019
     cpu: 8
     memory: 24
 
   name: "PR: x86-64-pc-windows-msvc"
 
+  timeout_in: 120m
+
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
@@ -168,7 +170,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
     os_version: 2019
     cpu: 8
     memory: 24
@@ -180,7 +182,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
@@ -191,58 +193,58 @@ task:
   test_script:
     - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
 
+# TODO: re-enable these (and add aarch64) once 32-bit ARM and M1 fixes have been made
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-task:
-  only_if: $CIRRUS_PR != ''
+#   container:
+#     image: ponylang/ponyc-ci-cross-arm:20210430
+#     cpu: 8
+#     memory: 24
 
-  container:
-    image: ponylang/ponyc-ci-cross-arm:20210430
-    cpu: 8
-    memory: 24
+#   name: "PR: cross-compile: arm-unknown-linux-gnueabi"
 
-  name: "PR: cross-compile: arm-unknown-linux-gnueabi"
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
+#     populate_script: make libs build_flags=-j8
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
-    populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
+#   configure_script:
+#     - make configure
+#   build_script:
+#     - make build build_flags=-j8
+#   test_script:
+#     - make test-ci
+#   libponyrt_cross_script:
+#     - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+#   test_stdlib_cross_script:
+#     - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
 
-  configure_script:
-    - make configure
-  build_script:
-    - make build build_flags=-j8
-  test_script:
-    - make test-ci
-  libponyrt_cross_script:
-    - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a tune=cortex-a9 llc_arch=arm
-  test_stdlib_cross_script:
-    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-task:
-  only_if: $CIRRUS_PR != ''
+#   container:
+#     image: ponylang/ponyc-ci-cross-armhf:20210430
+#     cpu: 8
+#     memory: 24
 
-  container:
-    image: ponylang/ponyc-ci-cross-armhf:20210430
-    cpu: 8
-    memory: 24
+#   name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
 
-  name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
+#     populate_script: make libs build_flags=-j8
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
-    populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
-
-  configure_script:
-    - make configure
-  build_script:
-    - make build build_flags=-j8
-  test_script:
-    - make test-ci
-  libponyrt_cross_script:
-    - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a tune=cortex-a9 llc_arch=arm
-  test_stdlib_cross_script:
-    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+#   configure_script:
+#     - make configure
+#   build_script:
+#     - make build build_flags=-j8
+#   test_script:
+#     - make test-ci
+#   libponyrt_cross_script:
+#     - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+#   test_stdlib_cross_script:
+#     - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
 
 #
 # Nightly build tasks
@@ -275,9 +277,9 @@ task:
         TRIPLE_OS: linux-gnu
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210427
       environment:
-        CACHE_BUSTER: 20210224
+        CACHE_BUSTER: 20210427
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
@@ -289,7 +291,7 @@ task:
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
       environment:
         CACHE_BUSTER: 20210224
         TRIPLE_VENDOR: unknown
@@ -369,7 +371,7 @@ task:
   only_if: $CIRRUS_CRON == "nightly"
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
     os_version: 2019
     cpu: 8
     memory: 24
@@ -382,7 +384,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
@@ -428,9 +430,9 @@ task:
         TRIPLE_OS: linux-gnu
     - name: "release: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210427
       environment:
-        CACHE_BUSTER: 20200507
+        CACHE_BUSTER: 20210427
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "release: x86-64-unknown-linux-ubuntu20.04"
@@ -442,7 +444,7 @@ task:
         TRIPLE_OS: linux-ubuntu20.04
     - name: "release: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
       environment:
         CACHE_BUSTER: 20200421
         TRIPLE_VENDOR: unknown
@@ -522,7 +524,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
     os_version: 2019
     cpu: 8
     memory: 24
@@ -535,7 +537,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 

@@ -232,6 +232,15 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
  *
  */
 #ifdef PLATFORM_IS_CLANG_OR_GCC
+
+#  ifdef PLATFORM_IS_ARM32
+uint32_t __pony_popcount(uint32_t x);
+uint32_t __pony_ffs(uint32_t x);
+uint32_t __pony_ffsll(uint64_t x);
+uint32_t __pony_ctz(uint32_t x);
+uint32_t __pony_clz(uint32_t x);
+uint32_t __pony_clzll(uint64_t x);
+#  else
 inline uint32_t __pony_popcount(uint32_t x) {
   return (uint32_t)__builtin_popcount(x);
 }
@@ -255,6 +264,7 @@ inline uint32_t __pony_clz(uint32_t x) {
 inline uint32_t __pony_clzll(uint64_t x) {
   return (uint32_t)__builtin_clzll(x);
 }
+#endif
 
 #else
 #  include <intrin.h>
