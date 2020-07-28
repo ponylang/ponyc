@@ -1,6 +1,6 @@
 #include "genopt.h"
 
-#if PONY_LLVM >= 1100
+#if PONY_LLVM < 1100
 
 #include <string.h>
 
@@ -24,7 +24,9 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
+#if PONY_LLVM >= 600
 #include <llvm-c/DebugInfo.h>
+#endif
 
 #include "llvm_config_end.h"
 
@@ -79,6 +81,15 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
   }
 }
 
+// TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
+#if PONY_LLVM == 600
+PONY_EXTERN_C_BEGIN
+void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R) {
+  initializeInstructionCombiningPassPass(*unwrap(R));
+}
+PONY_EXTERN_C_END
+#endif
+
 class HeapToStack : public FunctionPass
 {
 public:
@@ -115,6 +126,7 @@ public:
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
     DominatorTree& dt, Function& f)
   {
+#if PONY_LLVM >= 1100
     auto call_base = dyn_cast<CallBase>(inst);
     if (!call_base)
     {
@@ -122,6 +134,11 @@ public:
     }
 
     CallBase& call = *call_base;
+#else
+    CallSite call(inst);
+    if(!call.getInstruction())
+      return false;
+#endif
 
     Function* fun = call.getCalledFunction();
 
@@ -139,7 +156,11 @@ public:
       return false;
     }
 
+#if PONY_LLVM >= 1100
     Value* size = call.getArgOperand(1);
+#else
+    Value* size = call.getArgument(1);
+#endif
     c->opt->check.stats.heap_alloc++;
     ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
 
@@ -178,28 +199,59 @@ public:
 
     unsigned int align = target_is_ilp32(c->opt->triple) ? 4 : 8;
 
+#if PONY_LLVM < 500
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), int_size, align,
+      "", begin);
+#elif PONY_LLVM < 1100
+    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
+      align, "", begin);
+#else
     AllocaInst* replace = new AllocaInst(builder.getInt1Ty(), 0, int_size,
       Align(align), "", begin);
+#endif
 
+#if PONY_LLVM >= 1100
     replace->setDebugLoc(inst->getDebugLoc());
+#else
+    replace->setDebugLoc(call->getDebugLoc());
+#endif
 
     inst->replaceAllUsesWith(replace);
 
+#if PONY_LLVM >= 400
+#  if PONY_LLVM >= 1100
     auto invoke = dyn_cast<InvokeInst>(static_cast<Instruction*>(&call));
     if (invoke)
     {
       BranchInst::Create(invoke->getNormalDest(), invoke);
       invoke->getUnwindDest()->removePredecessor(call.getParent());
     }
-
+#  else
+    if (call.isInvoke())
+    {
+      InvokeInst* invoke = cast<InvokeInst>(call.getInstruction());
+      BranchInst::Create(invoke->getNormalDest(), invoke);
+      invoke->getUnwindDest()->removePredecessor(call->getParent());
+    }
+#  endif
     CallGraphWrapperPass* cg_pass =
       getAnalysisIfAvailable<CallGraphWrapperPass>();
     CallGraph* cg = cg_pass ? &cg_pass->getCallGraph() : nullptr;
     CallGraphNode* cg_node = cg ? (*cg)[&f] : nullptr;
     if (cg_node)
     {
+#  if PONY_LLVM >= 1100
       cg_node->removeCallEdgeFor(call);
+#  elif PONY_LLVM >= 900
+      CallInst* callInst = cast<CallInst>(call.getInstruction());
+      cg_node->removeCallEdgeFor(*callInst);
+#  else
+      cg_node->removeCallEdgeFor(call);
+#  endif
     }
+#else
+    (void)f;
+#endif
 
     inst->eraseFromParent();
 
@@ -208,11 +260,15 @@ public:
       // Force constructor inlining to see if fields can be stack-allocated.
       InlineFunctionInfo ifi{};
 
+#if PONY_LLVM >= 1100
       auto new_call_base = dyn_cast<CallBase>(new_call);
       if (new_call_base)
       {
         InlineFunction(*new_call_base, ifi);
       }
+#else
+      InlineFunction(CallSite(new_call), ifi);
+#endif
     }
 
     print_transform(c, replace, "stack allocation");
@@ -248,6 +304,7 @@ public:
         case Instruction::Call:
         case Instruction::Invoke:
         {
+#if PONY_LLVM >= 1100
           auto call_base = dyn_cast<CallBase>(inst);
           if (!call_base)
           {
@@ -255,6 +312,9 @@ public:
           }
 
           CallBase& call = *call_base;
+#else
+          CallSite call(inst);
+#endif
 
           if(call.onlyReadsMemory())
           {
@@ -289,11 +349,21 @@ public:
                 return false;
               }
 
+#if PONY_LLVM >= 1100
               auto ci = dyn_cast<CallInst>(inst);
               if (ci && ci->isTailCall())
               {
                 tail.push_back(ci);
               }
+#else
+              if(call.isCall())
+              {
+                CallInst* ci = cast<CallInst>(inst);
+
+                if(ci->isTailCall())
+                  tail.push_back(ci);
+              }
+#endif
             }
           }
           break;
@@ -425,7 +495,11 @@ public:
         continue;
       }
 
+#if PONY_LLVM >= 800
       Instruction* term = bb->getTerminator();
+#else
+      TerminatorInst* term = bb->getTerminator();
+#endif
       unsigned count = term->getNumSuccessors();
 
       for(unsigned i = 0; i < count; i++)
@@ -518,6 +592,7 @@ public:
 
   bool runOnInstruction(Instruction* inst, Value* ctx)
   {
+#if PONY_LLVM >= 1100
     auto call_base = dyn_cast<CallBase>(inst);
     if (!call_base)
     {
@@ -525,6 +600,13 @@ public:
     }
 
     CallBase& call = *call_base;
+#else
+    CallSite call(inst);
+
+    if(!call.getInstruction())
+      return false;
+#endif
+
     Function* fun = call.getCalledFunction();
 
     if(fun == NULL)
@@ -630,6 +712,7 @@ public:
     if(std::find(removed.begin(), removed.end(), inst) != removed.end())
       return false;
 
+#if PONY_LLVM >= 1100
     auto call_base = dyn_cast<CallBase>(inst);
     if (!call_base)
     {
@@ -637,6 +720,13 @@ public:
     }
 
     CallBase& call = *call_base;
+#else
+    CallSite call(inst);
+
+    if(!call.getInstruction())
+      return false;
+#endif
+
     Function* fun = call.getCalledFunction();
 
     if(fun == NULL)
@@ -644,8 +734,13 @@ public:
 
     int alloc_type;
 
+#if PONY_LLVM >= 1100
     Value* arg0 = call.getArgOperand(0);
     Value* arg1 = call.getArgOperand(1);
+#else
+    Value* arg0 = call.getArgument(0);
+    Value* arg1 = call.getArgument(1);
+#endif
 
     if(fun->getName().compare("pony_alloc") == 0)
     {
@@ -655,7 +750,12 @@ public:
     } else if(fun->getName().compare("pony_alloc_large") == 0) {
       alloc_type = -1;
     } else if(fun->getName().compare("pony_realloc") == 0) {
+#if PONY_LLVM >= 1100
       Value* arg2 = call.getArgOperand(2);
+#else
+      Value* arg2 = call.getArgument(2);
+#endif
+
       Value* old_ptr = arg1;
 
       if(dyn_cast_or_null<ConstantPointerNull>(old_ptr) == NULL)
@@ -773,10 +873,15 @@ public:
   }
 
   Value* mergeReallocChain(IRBuilder<>& builder,
+#if PONY_LLVM >= 1100
     CallBase & alloc,
+#else
+    CallSite alloc,
+#endif
     CallInst** last_realloc, size_t alloc_size,
     SmallVector<Instruction*, 16>& new_allocs)
   {
+#if PONY_LLVM >= 1100
     Value* arg0 = alloc.getArgOperand(0);
 
     auto inst = static_cast<Instruction *>(&alloc);
@@ -784,6 +889,10 @@ public:
     {
       builder.SetInsertPoint(inst);
     }
+#else
+    Value* arg0 = alloc.getArgument(0);
+    builder.SetInsertPoint(alloc.getInstruction());
+#endif
     Value* replace = mergeConstant(builder, arg0, alloc_size);
 
     while(alloc_size == 0)
@@ -869,12 +978,21 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
       &m);
 
+#if PONY_LLVM < 500
+    unsigned functionIndex = AttributeSet::FunctionIndex;
+    unsigned returnIndex = AttributeSet::ReturnIndex;
+#else
     unsigned functionIndex = AttributeList::FunctionIndex;
     unsigned returnIndex = AttributeList::ReturnIndex;
+#endif
 
     fn->addAttribute(functionIndex, Attribute::NoUnwind);
     fn->addAttribute(functionIndex,
       Attribute::InaccessibleMemOrArgMemOnly);
+
+#if PONY_LLVM < 500
+    fn->setDoesNotAlias(0);
+#endif
 
     if(can_be_null)
       fn->addDereferenceableOrNullAttr(returnIndex, min_size);
@@ -883,7 +1001,12 @@ public:
 
     AttrBuilder attr;
     attr.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
+#if PONY_LLVM < 500
+    fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(),
+      returnIndex, attr));
+#else
     fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(), attr));
+#endif
     return fn;
   }
 
@@ -913,7 +1036,7 @@ static void addMergeReallocPass(const PassManagerBuilder& pmb,
     pm.add(new MergeRealloc());
 }
 
-class MergeMessageSend : public FunctionPass
+class MergeMessageSend : public BasicBlockPass
 {
 public:
   struct MsgFnGroup
@@ -934,7 +1057,7 @@ public:
   Function* msg_chain_fn;
   Function* sendv_single_fn;
 
-  MergeMessageSend() : FunctionPass(ID)
+  MergeMessageSend() : BasicBlockPass(ID)
   {
     c = the_compiler;
     send_next_fn = nullptr;
@@ -961,17 +1084,6 @@ public:
   {
     (void)f;
     return false;
-  }
-
-  bool runOnFunction(Function& f)
-  {
-    bool changed = false;
-    for (auto block = f.begin(), end = f.end(); block != end; ++block)
-    {
-      changed = changed || runOnBasicBlock(*block);
-    }
-
-    return changed;
   }
 
   bool runOnBasicBlock(BasicBlock& b)
@@ -1093,12 +1205,7 @@ public:
     {
       if(iter->getMetadata("pony.msgsend") != NULL)
       {
-        auto call_base = dyn_cast<CallBase>(&*iter);
-        if (!call_base)
-          continue;
-
-        CallBase& call = *call_base;
-
+        CallSite call(&(*iter));
         Function* fun = call.getCalledFunction();
         pony_assert(fun != NULL);
 
@@ -1134,11 +1241,7 @@ public:
         if(prev->getMetadata("pony.msgsend") == NULL)
           break;
 
-        auto call_base = dyn_cast<CallBase>(&*prev);
-        if (!call_base)
-          break;
-        CallBase& call = *call_base;
-
+        CallSite call(&(*prev));
         auto fun = call.getCalledFunction();
         pony_assert(fun != NULL);
 
@@ -1181,10 +1284,7 @@ public:
 
         iter++;
         first.done->eraseFromParent();
-
-        auto call_base = dyn_cast<CallBase>(&*next.trace);
-        CallBase& call = *call_base;
-
+        CallSite call(&(*next.trace));
         call.setCalledFunction(send_next_fn);
 
         auto first_send_post = std::next(first.send);
@@ -1379,17 +1479,17 @@ static void optimise(compile_t* c, bool pony_specific)
   pmb.LoadCombine = true;
 #endif
 
-  // if(pony_specific)
-  // {
-  //   pmb.addExtension(PassManagerBuilder::EP_Peephole,
-  //     addMergeReallocPass);
-  //   pmb.addExtension(PassManagerBuilder::EP_Peephole,
-  //     addHeapToStackPass);
-  //   pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-  //     addDispatchPonyCtxPass);
-  //   pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-  //     addMergeMessageSendPass);
-  // }
+  if(pony_specific)
+  {
+    pmb.addExtension(PassManagerBuilder::EP_Peephole,
+      addMergeReallocPass);
+    pmb.addExtension(PassManagerBuilder::EP_Peephole,
+      addHeapToStackPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addDispatchPonyCtxPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addMergeMessageSendPass);
+  }
 
   pmb.populateFunctionPassManager(fpm);
 

@@ -198,7 +198,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20200423"
-    populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
+    populate_script: make libs build_flags=-j8
 
   configure_script:
     - make configure
@@ -224,7 +224,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20200423"
-    populate_script: make libs build_flags=-j8 llvm_archs="X86;ARM"
+    populate_script: make libs build_flags=-j8
 
   configure_script:
     - make configure

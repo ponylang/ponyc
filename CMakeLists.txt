@@ -18,6 +18,10 @@ endif()
 # Uncomment this to show build commands
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# We require C++14 (because LLVM does)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # We require LLVM, Google Test and Google Benchmark
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
@@ -103,6 +107,29 @@ if("${_compiler_arch}" STREQUAL "")
     set(_compiler_arch ${CMAKE_SYSTEM_PROCESSOR})
 endif()
 
+# LLVM component setup
+set(LLVM_COMPONENTS core demangle objcarcopts orcjit)
+
+if(${_compiler_arch} MATCHES "x64")
+    list(APPEND LLVM_COMPONENTS
+        x86asmparser
+        x86codegen
+        x86desc
+        x86info
+    )
+elseif(${_compiler_arch} MATCHES "arm")
+    # TODO
+endif()
+
+if(MSVC)
+    list(APPEND LLVM_COMPONENTS debuginfopdb)
+else()
+    list(APPEND LLVM_COMPONENTS debuginfodwarf)
+endif()
+
+llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
+# message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
+
 # Required definitions.  We use these generators so that the defines are correct for both *nix (where the config applies at configuration time) and Windows (where the config applies at build time).
 add_compile_definitions(
     BUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}"
@@ -165,8 +192,8 @@ else()
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.12 -DUSE_SCHEDULER_SCALING_PTHREADS")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.12")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=11.0.0 -DUSE_SCHEDULER_SCALING_PTHREADS")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=11.0.0")
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
@@ -174,9 +201,6 @@ if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isystem /usr/local/cxx_atomics")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem /usr/local/cxx_atomics")
 endif()
-
-
-
 
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 

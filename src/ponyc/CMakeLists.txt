@@ -14,6 +14,8 @@ target_link_directories(ponyc
     PRIVATE ../../build/libs/lib
 )
 
+target_link_libraries(ponyc PRIVATE ${PONYC_LLVM_LIBS})
+
 if (MSVC)
     target_link_libraries(ponyc
         PRIVATE libponyc
@@ -26,12 +28,6 @@ if (MSVC)
     )
 
     set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
-
-    llvm_config(ponyc all)
-
-    get_target_property(TARGET_LIBRARIES ponyc LINK_LIBRARIES)
-    LIST(REMOVE_ITEM TARGET_LIBRARIES LTO)
-    set_property(TARGET ponyc PROPERTY LINK_LIBRARIES ${TARGET_LIBRARIES})
 else()
     target_link_libraries(ponyc PRIVATE
         libponyc
@@ -39,11 +35,9 @@ else()
         blake2
     )
 
-    llvm_config(ponyc all)
-
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-        target_link_libraries(ponyc PRIVATE dl)
-    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
+        target_link_libraries(ponyc PRIVATE dl z)
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD|DragonFly")
         target_link_libraries(ponyc PRIVATE execinfo)
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
         target_link_libraries(ponyc PRIVATE execinfo atomic)

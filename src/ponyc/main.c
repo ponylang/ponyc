@@ -81,6 +81,16 @@ int main(int argc, char* argv[])
   opt.ast_print_width = get_width();
   opt.argv0 = argv[0];
 
+  size_t args_size = 0;
+  for (int i = 1; i < argc; i++)
+    args_size += strlen(argv[i]) + 1;
+  opt.all_args = (const char*)calloc(args_size, sizeof(const char));
+  for (int i = 1; i < argc; i++)
+  {
+    strncat((char*)opt.all_args, argv[i], strlen(argv[i]));
+    strncat((char*)opt.all_args, " ", 1);
+  }
+
   ponyc_opt_process_t exit_code;
   bool print_program_ast;
   bool print_package_ast;

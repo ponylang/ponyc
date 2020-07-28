@@ -28,7 +28,7 @@ void* ponyint_virt_alloc(size_t bytes)
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 #elif defined(PLATFORM_IS_MACOSX)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
-    MAP_PRIVATE | MAP_ANON | VM_FLAGS_SUPERPAGE_SIZE_ANY, -1, 0);
+    MAP_PRIVATE | MAP_ANON, -1, 0);
 #elif defined(PLATFORM_IS_DRAGONFLY)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANON, -1, 0);

@@ -292,6 +292,7 @@ typedef struct pass_opt_t
   magic_package_t* magic_packages;
 
   const char* argv0;
+  const char* all_args;
   const char* output;
   const char* bin_name;
   char* link_arch;

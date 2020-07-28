@@ -15,7 +15,7 @@ ExternalProject_Add(gbenchmark
 )
 
 ExternalProject_Add(googletest
-    URL https://github.com/google/googletest/archive/release-1.8.1.tar.gz
+    URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=-fpic -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
@@ -30,8 +30,8 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "c1a0a213378a458fbea1a5c77b315c7dce08fd05")
-set(PATCHES_DESIRED_HASH "9063f83d727bf042a1232420e168c1ea192bf6a2960d35e57123245b630eb923")
+set(LLVM_DESIRED_HASH "1fdec59bffc11ae37eb51a1b9869f0696bfd5312")
+set(PATCHES_DESIRED_HASH "74f0f23e681e01e4453cd5e1a278b53a827056bbbe836c14b9792f2bc9f66703")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -65,12 +65,17 @@ if(GIT_FOUND)
     file(GLOB PONY_LLVM_PATCHES "${PROJECT_SOURCE_DIR}/llvm/patches/*.diff")
 
     # check to see if the patch hashes match
+    message("Checking patches ${PONY_LLVM_PATCHES}")
     set(PATCHES_ACTUAL_HASH "")
     foreach (PATCH ${PONY_LLVM_PATCHES})
         file(SHA256 ${PATCH} patch_file_hash)
-        string(CONCAT PATCHES_ACTUAL_HASH patch_file_hash)
+        #message("${PATCH}: ${patch_file_hash}")
+        string(CONCAT PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH} ${patch_file_hash})
+        #message("concat is ${PATCHES_ACTUAL_HASH}")
     endforeach()
     string(SHA256 PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH})
+    #message("Desired hash ${PATCHES_DESIRED_HASH}")
+    #message("Actual hash  ${PATCHES_ACTUAL_HASH}")
     if(NOT PATCHES_ACTUAL_HASH EQUAL "${PATCHES_DESIRED_HASH}")
         message(FATAL_ERROR "Patch hash actual ${PATCHES_ACTUAL_HASH} does not match desired ${PATCHES_DESIRED_HASH}")
     endif()
@@ -98,7 +103,7 @@ else()
 endif()
 
 if (NOT DEFINED LLVM_TARGETS_TO_BUILD)
-  set(LLVM_TARGETS_TO_BUILD X86)
+  set(LLVM_TARGETS_TO_BUILD "X86;ARM")
 endif()
 
 set(LLVM_ENABLE_BINDINGS OFF)

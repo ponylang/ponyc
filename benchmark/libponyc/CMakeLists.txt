@@ -13,8 +13,6 @@ target_include_directories(libponyc.benchmarks
     PRIVATE ../../build/libs/include
 )
 
-llvm_config(libponyc.benchmarks all)
-
 target_link_directories(libponyc.benchmarks
     PRIVATE ../../build/libs/lib
 )
@@ -26,6 +24,8 @@ target_link_libraries(libponyc.benchmarks
     PRIVATE benchmark::benchmark
 )
 
+target_link_libraries(libponyc.benchmarks PRIVATE ${PONYC_LLVM_LIBS})
+
 if (MSVC)
     target_link_libraries(libponyc.benchmarks
         PRIVATE dbghelp
@@ -33,12 +33,8 @@ if (MSVC)
         PRIVATE Ws2_32
         PRIVATE Shlwapi
     )
-
-    get_target_property(TARGET_LIBRARIES libponyc.benchmarks LINK_LIBRARIES)
-    LIST(REMOVE_ITEM TARGET_LIBRARIES LTO)
-    set_property(TARGET libponyc.benchmarks PROPERTY LINK_LIBRARIES ${TARGET_LIBRARIES})
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    target_link_libraries(libponyc.benchmarks PRIVATE dl)
+    target_link_libraries(libponyc.benchmarks PRIVATE dl z)
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD|DragonFly")
     target_link_libraries(libponyc.benchmarks PRIVATE execinfo)
 else()
