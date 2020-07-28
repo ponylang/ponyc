@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Added vs2019 preview support for building ponyc ([PR #3587](https://github.com/ponylang/ponyc/pull/3587))
+- Implement RFC 66: Iter maybe ([PR #3603](https://github.com/ponylang/ponyc/pull/3603))
 
 ### Changed
 
