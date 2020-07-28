@@ -16,7 +16,7 @@ RUN apk update \
   zlib-dev \
   bash \
   curl \
-  py-pip \
+  py3-pip \
 && pip install cloudsmith-cli
 
 # add user pony in order to not run tests as root

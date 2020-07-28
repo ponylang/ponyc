@@ -20,7 +20,7 @@ ExternalProject_Add(gbenchmark
 )
 
 ExternalProject_Add(googletest
-    URL https://github.com/google/googletest/archive/release-1.8.1.tar.gz
+    URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=-fpic -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
@@ -35,8 +35,8 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "c1a0a213378a458fbea1a5c77b315c7dce08fd05")
-set(PATCHES_DESIRED_HASH "9063f83d727bf042a1232420e168c1ea192bf6a2960d35e57123245b630eb923")
+set(LLVM_DESIRED_HASH "fed41342a82f5a3a9201819a82bf7a48313e296b")
+set(PATCHES_DESIRED_HASH "3a655193262fd9b2e87340e096efcbd96726a07fe6dd42a263f3a4fc2dc0192e")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -70,12 +70,19 @@ if(GIT_FOUND)
     file(GLOB PONY_LLVM_PATCHES "${PROJECT_SOURCE_DIR}/llvm/patches/*.diff")
 
     # check to see if the patch hashes match
+    message("Checking patches ${PONY_LLVM_PATCHES}")
     set(PATCHES_ACTUAL_HASH "")
     foreach (PATCH ${PONY_LLVM_PATCHES})
-        file(SHA256 ${PATCH} patch_file_hash)
-        string(CONCAT PATCHES_ACTUAL_HASH patch_file_hash)
+        file(STRINGS ${PATCH} patch_file NEWLINE_CONSUME)
+        string(REPLACE "\n" " " patch_file ${patch_file})
+        string(SHA256 patch_file_hash ${patch_file})
+        # message("${PATCH}: '${patch_file_hash}'")
+        string(CONCAT PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH} ${patch_file_hash})
+        # message("concat is '${PATCHES_ACTUAL_HASH}'")
     endforeach()
     string(SHA256 PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH})
+    # message("Desired hash ${PATCHES_DESIRED_HASH}")
+    # message("Actual hash  ${PATCHES_ACTUAL_HASH}")
     if(NOT PATCHES_ACTUAL_HASH EQUAL "${PATCHES_DESIRED_HASH}")
         message(FATAL_ERROR "Patch hash actual ${PATCHES_ACTUAL_HASH} does not match desired ${PATCHES_DESIRED_HASH}")
     endif()
@@ -102,9 +109,7 @@ else()
     message(FATAL_ERROR "Git not found!")
 endif()
 
-if (NOT DEFINED LLVM_TARGETS_TO_BUILD)
-  set(LLVM_TARGETS_TO_BUILD X86)
-endif()
+message("Building targets: ${LLVM_TARGETS_TO_BUILD}")
 
 set(LLVM_ENABLE_BINDINGS OFF)
 set(LLVM_ENABLE_OCAMLDOC OFF)
@@ -116,5 +121,10 @@ set(LLVM_INCLUDE_BENCHMARKS OFF)
 set(LLVM_INCLUDE_TESTS OFF)
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF)
 set(LLVM_ENABLE_ZLIB OFF)
+
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.14 -DUSE_SCHEDULER_SCALING_PTHREADS")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
+endif()
 
 add_subdirectory(llvm/src/llvm)

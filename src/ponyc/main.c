@@ -81,6 +81,20 @@ int main(int argc, char* argv[])
   opt.ast_print_width = get_width();
   opt.argv0 = argv[0];
 
+  // we collect the entire argument string for LLVM debugging info
+  // see init_module() in src/libponyc/codegen.c
+  size_t args_size = 1;
+  for (int i = 1; i < argc; i++)
+    args_size += strlen(argv[i]) + 1;
+  opt.all_args = (const char*)calloc(args_size, sizeof(const char));
+  size_t size_left = args_size;
+  for (int i = 1; i < argc; i++)
+  {
+    strncat((char*)opt.all_args, argv[i], size_left);
+    strncat((char*)opt.all_args, " ", 1);
+    size_left -= strlen(argv[i]) + 1;
+  }
+
   ponyc_opt_process_t exit_code;
   bool print_program_ast;
   bool print_package_ast;

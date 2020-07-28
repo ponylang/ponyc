@@ -281,3 +281,29 @@ int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
 #endif
   return ret;
 }
+
+#ifdef PLATFORM_IS_ARM32
+uint32_t __pony_popcount(uint32_t x) {
+  return (uint32_t)__builtin_popcount(x);
+}
+
+uint32_t __pony_ffs(uint32_t x) {
+  return (uint32_t)__builtin_ffs((int)x);
+}
+
+uint32_t __pony_ffsll(uint64_t x) {
+  return (uint32_t)__builtin_ffsll((long long int)x);
+}
+
+uint32_t __pony_ctz(uint32_t x) {
+  return (uint32_t)__builtin_ctz(x);
+}
+
+uint32_t __pony_clz(uint32_t x) {
+  return (uint32_t)__builtin_clz(x);
+}
+
+uint32_t __pony_clzll(uint64_t x) {
+  return (uint32_t)__builtin_clzll(x);
+}
+#endif

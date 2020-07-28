@@ -26,20 +26,12 @@ if (MSVC)
     )
 
     set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
-
-    llvm_config(ponyc all)
-
-    get_target_property(TARGET_LIBRARIES ponyc LINK_LIBRARIES)
-    LIST(REMOVE_ITEM TARGET_LIBRARIES LTO)
-    set_property(TARGET ponyc PROPERTY LINK_LIBRARIES ${TARGET_LIBRARIES})
 else()
     target_link_libraries(ponyc PRIVATE
         libponyc
         libponyrt
         blake2
     )
-
-    llvm_config(ponyc all)
 
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         target_link_libraries(ponyc PRIVATE dl)
@@ -56,3 +48,7 @@ else()
         target_link_options(ponyc PRIVATE "-static-libgcc")
     endif()
 endif (MSVC)
+
+if(NOT PONY_CROSS_LIBPONYRT)
+    target_link_libraries(ponyc PRIVATE ${PONYC_LLVM_LIBS})
+endif()

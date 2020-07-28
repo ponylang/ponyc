@@ -92,12 +92,6 @@ if (MSVC)
     )
 
     set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
-
-    llvm_config(libponyc.tests all)
-
-    get_target_property(TARGET_LIBRARIES libponyc.tests LINK_LIBRARIES)
-    LIST(REMOVE_ITEM TARGET_LIBRARIES LTO)
-    set_property(TARGET libponyc.tests PROPERTY LINK_LIBRARIES ${TARGET_LIBRARIES})
     set_property(TARGET libponyc.tests PROPERTY LINK_OPTIONS "/WHOLEARCHIVE:libponyrt.lib")
 else()
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
@@ -118,8 +112,6 @@ else()
         )
     endif()
 
-    llvm_config(libponyc.tests all)
-
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         target_link_libraries(libponyc.tests PRIVATE dl)
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
@@ -136,3 +128,7 @@ else()
     endif()
 
 endif (MSVC)
+
+if(NOT PONY_CROSS_LIBPONYRT)
+    target_link_libraries(libponyc.tests PRIVATE ${PONYC_LLVM_LIBS})
+endif()
