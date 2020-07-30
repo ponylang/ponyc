@@ -249,87 +249,121 @@ class File
       recover Array[U8] end
     end
 
-  fun ref read_string(len: USize): String iso^ =>
-    """
-    Returns up to len bytes. The resulting string may have internal null
-    characters.
-    """
-    if _fd != -1 then
-      let result = recover String(len) end
+    fun ref read_string[D: StringDecoder = UTF8StringDecoder](len: USize): String iso^ =>
+      """
+      Returns up to len bytes. The resulting string may have internal null
+      characters. The length parameter is the number of bytes to read, not the
+      number of characters to read.
+      """
+      if _fd != -1 then
+        let bytes = recover Array[U8](len) end
 
-      let r = (ifdef windows then
-        @_read(_fd, result.cpointer(), result.space().i32())
+        let r = (ifdef windows then
+          @_read(_fd, bytes.cpointer(), len.i32())
+        else
+          @read(_fd, bytes.cpointer(), len)
+        end).isize()
+
+        match r
+        | 0  => _errno = FileEOF
+        | -1 => _errno = _get_error()
+        end
+
+        bytes.truncate(r.usize())
+        let result = recover String.from_iso_array[D](consume bytes) end
+        result
       else
-        @read(_fd, result.cpointer(), result.space())
-      end).isize()
-
-      match r
-      | 0  => _errno = FileEOF
-      | -1 => _errno = _get_error()
+        recover String end
       end
 
-      result.truncate(r.usize())
-      result
-    else
-      recover String end
-    end
-
-  fun ref print(data: ByteSeq box): Bool =>
+  fun ref print[E: StringEncoder val = UTF8StringEncoder](data: (String ref | String val | ByteSeq box)): Bool =>
     """
     Same as write, buts adds a newline.
     """
-    queue(data)
-    queue(_newline)
+    queue[E](data)
+    queue[E](_newline)
 
     _pending_writes()
 
-  fun ref printv(data: ByteSeqIter box): Bool =>
+  fun ref printv[E: StringEncoder val = UTF8StringEncoder](data: (StringIter box | ByteSeqIter box)): Bool =>
     """
     Print an iterable collection of ByteSeqs.
     """
-    for bytes in data.values() do
-      queue(bytes)
-      queue(_newline)
+    match data
+    | let si: StringIter box =>
+      for string in si.values() do
+        queue[E](string)
+        queue[E](_newline)
+      end
+    | let bsi: ByteSeqIter box =>
+      for bytes in bsi.values() do
+        queue(bytes)
+        queue(_newline)
+      end
     end
-
     _pending_writes()
 
-  fun ref write(data: ByteSeq box): Bool =>
+  fun ref write[E: StringEncoder val = UTF8StringEncoder](data: (String box | ByteSeq box)): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
     Returns false and closes the file if not all the bytes were written.
     """
-    queue(data)
+    queue[E](data)
 
     _pending_writes()
 
-  fun ref writev(data: ByteSeqIter box): Bool =>
+  fun ref writev[E: StringEncoder val = UTF8StringEncoder](data: (StringIter box | ByteSeqIter box)): Bool =>
     """
     Write an iterable collection of ByteSeqs.
     """
-    for bytes in data.values() do
-      queue(bytes)
+    match data
+    | let si: StringIter box =>
+      for string in si.values() do
+        queue(string)
+      end
+    | let bsi: ByteSeqIter box =>
+      for bytes in bsi.values() do
+        queue(bytes)
+      end
     end
-
     _pending_writes()
 
-  fun ref queue(data: ByteSeq box) =>
+  fun ref queue[E: StringEncoder val = UTF8StringEncoder](data: (String box | ByteSeq box)) =>
     """
     Queue data to be written
     NOTE: Queue'd data will always be written before normal print/write
     requested data
     """
-    _pending_writev .> push((data.cpointer(), data.size()))
-    _pending_writev_total = _pending_writev_total + data.size()
+    match data
+    | let s: (String box) =>
+      let a: Array[U8] val = s.clone().array[E]() // TODO: We need to avoid this cloning if possible
+      _pending_writev .> push((a.cpointer(), a.size()))
+      _pending_writev_total = _pending_writev_total + a.size()
+    else
+      _pending_writev .> push((data.cpointer(), data.size()))
+      _pending_writev_total = _pending_writev_total + data.size()
+    end
 
-  fun ref queuev(data: ByteSeqIter box) =>
+  fun ref queuev_string[E: StringEncoder val = UTF8StringEncoder](si: StringIter) =>
+    for string in si.values() do
+      queue(string.array[E]())
+    end
+
+  fun ref queuev(data: (StringIter box | ByteSeqIter box)) =>
     """
     Queue an iterable collection of ByteSeqs to be written
     NOTE: Queue'd data will always be written before normal print/write
     requested data
     """
-    for bytes in data.values() do
-      queue(bytes)
+    match data
+    | let si: StringIter box =>
+      for string in si.values() do
+        queue(string)
+      end
+    | let bsi: ByteSeqIter box =>
+      for bytes in bsi.values() do
+        queue(bytes)
+      end
     end
 
   fun ref flush(): Bool =>

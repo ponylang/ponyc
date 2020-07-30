@@ -1,4 +1,4 @@
-actor FileStream is OutStream
+actor FileStream[E: StringEncoder val = UTF8StringEncoder] is OutStream
   """
   Asynchronous access to a File object. Wraps file operations print, write,
   printv and writev. The File will be disposed through File._final.
@@ -8,29 +8,30 @@ actor FileStream is OutStream
   new create(file: File iso) =>
     _file = consume file
 
-  be print(data: ByteSeq) =>
+  be print(data: (String | ByteSeq)) =>
     """
     Print some bytes and insert a newline afterwards.
     """
-    _file.print(data)
+    _file.write[E](data)
+    _file.write[E]("\n")
 
-  be write(data: ByteSeq) =>
+  be write(data: (String | ByteSeq)) =>
     """
     Print some bytes without inserting a newline afterwards.
     """
-    _file.write(data)
+    _file.write[E](data)
 
-  be printv(data: ByteSeqIter) =>
+  be printv(data: (StringIter | ByteSeqIter)) =>
     """
     Print an iterable collection of ByteSeqs.
     """
-    _file.printv(data)
+    _file.printv[E](data)
 
-  be writev(data: ByteSeqIter) =>
+  be writev(data: (StringIter | ByteSeqIter)) =>
     """
     Write an iterable collection of ByteSeqs.
     """
-    _file.writev(data)
+    _file.writev[E](data)
 
   be flush() =>
     """

@@ -380,7 +380,12 @@ class Array[A] is Seq[A]
     Truncate an array to the given length, discarding excess elements. If the
     array is already smaller than len, do nothing.
     """
-    _size = _size.min(len)
+    if len >= _alloc then
+      _size = len.min(_alloc)
+      reserve(_alloc)
+    else
+      _size = len.min(_alloc)
+    end
 
   fun ref trim_in_place(from: USize = 0, to: USize = -1) =>
     """

@@ -240,38 +240,64 @@ actor ProcessMonitor
     _notifier.created(this)
 
 
-  be print(data: ByteSeq) =>
+  be print[E: StringEncoder val = UTF8StringEncoder](data: (String | ByteSeq)) =>
     """
     Print some bytes and append a newline.
     """
     if not _done_writing then
-      _write_final(data)
-      _write_final("\n")
+      match data
+      | let s: String =>
+        _write_final(s.array[E]())
+        _write_final("\n".array[E]())
+      | let bs: ByteSeq =>
+        _write_final(bs)
+        _write_final("\n".array[E]())
+      end
     end
 
-  be write(data: ByteSeq) =>
+  be write[E: StringEncoder val = UTF8StringEncoder](data: (String | ByteSeq)) =>
     """
     Write to STDIN of the child process.
     """
     if not _done_writing then
-      _write_final(data)
+      match data
+      | let s: String =>
+        _write_final(s.array[E]())
+      | let bs: ByteSeq =>
+        _write_final(bs)
+      end
     end
 
-  be printv(data: ByteSeqIter) =>
+  be printv[E: StringEncoder val = UTF8StringEncoder](data: (StringIter | ByteSeqIter)) =>
     """
     Print an iterable collection of ByteSeqs.
     """
-    for bytes in data.values() do
-      _write_final(bytes)
-      _write_final("\n")
+    match data
+    | let si: StringIter =>
+      for s in si.values() do
+        _write_final(s.array[E]())
+        _write_final("\n".array[E]())
+      end
+    | let bsi: ByteSeqIter =>
+      for bytes in bsi.values() do
+        _write_final(bytes)
+        _write_final("\n".array[E]())
+      end
     end
 
-  be writev(data: ByteSeqIter) =>
+  be writev[E: StringEncoder val = UTF8StringEncoder](data: (StringIter | ByteSeqIter)) =>
     """
     Write an iterable collection of ByteSeqs.
     """
-    for bytes in data.values() do
-      _write_final(bytes)
+    match data
+    | let si: StringIter =>
+      for s in si.values() do
+        _write_final(s.array[E]())
+      end
+    | let bsi: ByteSeqIter =>
+      for bytes in bsi.values() do
+        _write_final(bytes)
+      end
     end
 
   be done_writing() =>

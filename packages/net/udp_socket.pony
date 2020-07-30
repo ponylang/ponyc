@@ -149,18 +149,30 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  be write(data: ByteSeq, to: NetAddress) =>
+  be write[E: StringEncoder val = UTF8StringEncoder](data: (String | ByteSeq), to: NetAddress) =>
     """
     Write a single sequence of bytes.
     """
-    _write(data, to)
+    match data
+    | let s: String =>
+      _write(s.array[E](), to)
+    | let b: ByteSeq =>
+      _write(b, to)
+    end
 
-  be writev(data: ByteSeqIter, to: NetAddress) =>
+  be writev[E: StringEncoder val = UTF8StringEncoder](data: (StringIter | ByteSeqIter), to: NetAddress) =>
     """
     Write a sequence of sequences of bytes.
     """
-    for bytes in data.values() do
-      _write(bytes, to)
+    match data
+    | let si: StringIter =>
+      for s in si.values() do
+        _write(s.array[E](), to)
+      end
+    | let bsi: ByteSeqIter =>
+      for bytes in bsi.values() do
+        _write(bytes, to)
+      end
     end
 
   be set_notify(notify: UDPNotify iso) =>
@@ -358,7 +370,7 @@ actor UDPSocket
       end
     end
 
-  fun ref _write(data: ByteSeq, to: NetAddress) =>
+  fun ref _write(data: (ByteSeq), to: NetAddress) =>
     """
     Write the datagram to the socket.
     """

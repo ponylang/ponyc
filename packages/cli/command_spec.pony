@@ -167,7 +167,7 @@ class val OptionSpec
   """
   let _name: String
   let _descr: String
-  let _short: (U8 | None)
+  let _short: (U32 | None)
   let _typ: _ValueType
   let _default: _Value
   let _required: Bool
@@ -183,7 +183,7 @@ class val OptionSpec
   new val bool(
     name': String,
     descr': String = "",
-    short': (U8 | None) = None,
+    short': (U32 | None) = None,
     default': (Bool | None) = None)
   =>
     """
@@ -200,7 +200,7 @@ class val OptionSpec
   new val string(
     name': String,
     descr': String = "",
-    short': (U8 | None) = None,
+    short': (U32 | None) = None,
     default': (String | None) = None)
   =>
     """
@@ -216,7 +216,7 @@ class val OptionSpec
 
   new val i64(name': String,
     descr': String = "",
-    short': (U8 | None) = None,
+    short': (U32 | None) = None,
     default': (I64 | None) = None)
   =>
     """
@@ -232,7 +232,7 @@ class val OptionSpec
 
   new val u64(name': String,
     descr': String = "",
-    short': (U8 | None) = None,
+    short': (U32 | None) = None,
     default': (U64 | None) = None)
   =>
     """
@@ -248,7 +248,7 @@ class val OptionSpec
 
   new val f64(name': String,
     descr': String = "",
-    short': (U8 | None) = None,
+    short': (U32 | None) = None,
     default': (F64 | None) = None)
   =>
     """
@@ -265,7 +265,7 @@ class val OptionSpec
   new val string_seq(
     name': String,
     descr': String = "",
-    short': (U8 | None) = None)
+    short': (U32 | None) = None)
   =>
     """
     Creates an Option with a ReadSeq[String] typed value that can be used like
@@ -316,9 +316,9 @@ class val OptionSpec
       false
     end
 
-  fun _has_short(sh: U8): Bool =>
+  fun _has_short(sh: U32): Bool =>
     match _short
-    | let ss: U8 => sh == ss
+    | let ss: U32 => sh == ss
     else
       false
     end
@@ -329,7 +329,7 @@ class val OptionSpec
     """
     let s =
       match _short
-      | let ss: U8 => "-" + String.from_utf32(ss.u32()) + ", "
+      | let ss: U32 => "-" + String.from_utf32(ss) + ", "
       else
         "    "
       end

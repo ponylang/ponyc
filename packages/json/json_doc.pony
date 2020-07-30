@@ -73,14 +73,14 @@ class JsonDoc
     """
     _dump_whitespace()
     match _peek_char(context)?
-    | let c: U8 if (c >= 'a') and (c <= 'z') => _parse_keyword()?
-    | let c: U8 if (c >= '0') and (c <= '9') => _parse_number()?
+    | let c: U32 if (c >= 'a') and (c <= 'z') => _parse_keyword()?
+    | let c: U32 if (c >= '0') and (c <= '9') => _parse_number()?
     | '-' => _parse_number()?
     | '{' => _parse_object()?
     | '[' => _parse_array()?
     | '"' => _parse_string("string value")?
     else
-      _error("Unexpected character '" + _last_char() + "'")
+      _error("Unexpected character '" + _last_char() + " '")
       error
     end
 
@@ -182,7 +182,7 @@ class JsonDoc
     end
 
     if digit_count == 0 then
-      _error("Expected number got '" + _last_char() + "'")
+      _error("Expected number got '" + _last_char() + " '")
       error
     end
 
@@ -211,7 +211,7 @@ class JsonDoc
       _dump_whitespace()
 
       if _get_char("object element value")? != ':' then
-        _error("Expected ':' after object key, got '" + _last_char() + "'")
+        _error("Expected ':' after object key, got '" + _last_char() + " '")
         error
       end
 
@@ -224,7 +224,7 @@ class JsonDoc
       | '}' => break // End of object
       | ',' => None  // Next element
       else
-        _error("Expected ',' after object element, got '" + _last_char() + "'")
+        _error("Expected ',' after object element, got '" + _last_char() + " '")
         error
       end
     end
@@ -257,7 +257,7 @@ class JsonDoc
       | ']' => break // End of array
       | ',' => None // Next element
       else
-        _error("Expected ',' after array element, got '" + _last_char() + "'")
+        _error("Expected ',' after array element, got '" + _last_char() + " '")
         error
       end
     end
@@ -271,7 +271,7 @@ class JsonDoc
     _dump_whitespace()
 
     if _get_char(context)? != '"' then
-      _error("Expected " + context + ", got '" + _last_char() + "'")
+      _error("Expected " + context + ", got '" + _last_char() + " '")
       error
     end
 
@@ -323,7 +323,7 @@ class JsonDoc
     // Value is one half of a UTF-16 surrogate pair, get the other half
     if (_get_char("Unicode escape sequence")? != '\\') or
       (_get_char("Unicode escape sequence")? != 'u') then
-      _error("Expected UTF-16 trailing surrogate, got '" + _last_char() + "'")
+      _error("Expected UTF-16 trailing surrogate, got '" + _last_char() + " '")
       error
     end
 
@@ -351,12 +351,12 @@ class JsonDoc
     while i < 4 do
       let d =
         match _get_char("Unicode escape sequence")?
-        | let c: U8 if (c >= '0') and (c <= '9') => c - '0'
-        | let c: U8 if (c >= 'a') and (c <= 'f') => (c - 'a') + 10
-        | let c: U8 if (c >= 'A') and (c <= 'F') => (c - 'A') + 10
+        | let c: U32 if (c >= '0') and (c <= '9') => c - '0'
+        | let c: U32 if (c >= 'a') and (c <= 'f') => (c - 'a') + 10
+        | let c: U32 if (c >= 'A') and (c <= 'F') => (c - 'A') + 10
         else
           _error("Invalid character '" + _last_char() +
-            "' in Unicode escape sequence")
+            " ' in Unicode escape sequence")
           error
         end
 
@@ -386,7 +386,7 @@ class JsonDoc
       end
     end
 
-  fun ref _peek_char(eof_context: (String | None) = None): U8 ? =>
+  fun ref _peek_char(eof_context: (String | None) = None): U32 ? =>
     """
     Peek the next char in the source, without consuming it.
     If an eof_context is given then an error is thrown on eof, setting a
@@ -413,7 +413,7 @@ class JsonDoc
       error
     end
 
-  fun ref _get_char(eof_context: (String | None) = None): U8 ? =>
+  fun ref _get_char(eof_context: (String | None) = None): U32 ? =>
     """
     Get and consume the next char in the source.
     If an eof_context is given then an error is thrown on eof, setting a

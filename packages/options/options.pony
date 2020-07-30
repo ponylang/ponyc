@@ -267,7 +267,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
         (let start: ISize, let offset: ISize) =
           match (candidate(0)?, candidate(1)?)
           | ('-', '-') => (2, 0)
-          | ('-', let char: U8) => (1, 1)
+          | ('-', let char: U32) => (1, 1)
           else (0, 0) // unreachable
           end
 

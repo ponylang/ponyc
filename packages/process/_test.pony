@@ -727,7 +727,8 @@ class _ProcessClient is ProcessNotify
     Called when new data is received on STDERR of the forked process
     """
     _h.log("\tReceived from stderr: " + data.size().string() + " bytes")
-    _d_stderr.append(consume data)
+    let data_string = String.from_iso_array(consume data)
+    _d_stderr.append(consume data_string)
 
   fun ref failed(process: ProcessMonitor ref, actual: ProcessError) =>
     """

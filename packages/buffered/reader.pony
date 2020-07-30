@@ -81,14 +81,8 @@ class Reader
     """
     Add a chunk of data.
     """
-    let data_array =
-      match data
-      | let data': Array[U8] val => data'
-      | let data': String => data'.array()
-      end
-
-    _available = _available + data_array.size()
-    _chunks.push((data_array, 0))
+    _available = _available + data.size()
+    _chunks.push((data, 0))
 
   fun ref skip(n: USize) ? =>
     """
@@ -167,16 +161,64 @@ class Reader
     u8()?
     b
 
-  fun ref line(keep_line_breaks: Bool = false): String iso^ ? =>
+  fun ref codepoint[D: StringDecoder = UTF8StringDecoder](): (U32, U8) ? =>
     """
-    Return a \n or \r\n terminated line as a string. By default the newline is not
+    Return a pair containing a unicode codepoint, and the number of bytes consumed to produce
+    the codepoint. Depending on how bytes are decoded into characters, the number of bytes consumed
+    may be greater than one. If the bytes cannot be converted to a codepoint, codepoint 0xFFFD
+    is returned, and 1 byte is consumed.
+    """
+    let decoder_bytes = StringDecoderBytes.create()
+    while (decoder_bytes.bytes_loaded() < 4) do
+      try
+        decoder_bytes.pushByte(peek_u8(decoder_bytes.bytes_loaded().usize())?)
+      else
+        if decoder_bytes.bytes_loaded() > 0 then
+          (let c, let sz) = D.decode(decoder_bytes.decode_bytes())
+          block(sz.usize())? // We ignore the bytes returned, but this will mark the bytes decoded into a character as consumed
+          return (c, sz)
+        else
+          error
+        end
+      end
+    end
+
+    try
+      (let c, let sz) = D.decode(decoder_bytes.decode_bytes())
+      block(sz.usize())? // We ignore the bytes returned, but this will mark the bytes decoded into a character as consumed
+      return (c, sz)
+    end
+    (0,0) // This should never happen
+
+  fun ref string[D: StringDecoder = UTF8StringDecoder](len: USize): (String iso^, USize) ? =>
+    """
+    Return a pair containing a string of the specified length in characters, and the number of bytes consumed
+    to produce the string. Depending on how bytes are decoded into characters, the number of bytes consumed
+    may be greater than the number of characters in the string. Invalid byte sequences may result in 0xFFFD
+    codepoints appearing in the string.
+    """
+    var chars_read: USize = 0
+    var bytes_read: USize = 0
+    var result: String iso = recover String(len) end
+    while (chars_read < len) do
+      (let c, let sz) = codepoint[D]()?
+      result.push(c)
+      chars_read = chars_read + 1
+      bytes_read = bytes_read + sz.usize()
+    end
+    (consume result, bytes_read)
+
+  fun ref line[D: StringDecoder = UTF8StringDecoder](keep_line_breaks: Bool = false): (String iso^, USize) ? =>
+    """
+    Return a pair containing a \n or \r\n terminated line as a string, and the number
+    of bytes consumed to produce the string.  By default the newline is not
     included in the returned string, but it is removed from the buffer.
     Set `keep_line_breaks` to `true` to keep the line breaks in the returned line.
     """
     let len = _search_length()?
 
     _available = _available - len
-    var out = recover String(len) end
+    var outb = recover Array[U8](len) end
     var i = USize(0)
 
     while i < len do
@@ -187,7 +229,7 @@ class Reader
       let need = len - i
       let copy_len = need.min(avail)
 
-      out.append(data, offset, copy_len)
+      outb.append(data, offset, copy_len)
 
       if avail > need then
         node()? = (data, offset + need)
@@ -201,14 +243,16 @@ class Reader
     let trunc_len: USize =
       if keep_line_breaks then
         0
-      elseif (len >= 2) and (out.at_offset(-2)? == '\r') then
+      elseif (len >= 2) and (outb.apply(outb.size()-2)? == '\r') then
         2
       else
         1
       end
-    out.truncate(len - trunc_len)
+    outb.truncate(len - trunc_len)
 
-    consume out
+    var out = recover String.from_iso_array[D](consume outb) end
+
+    (consume out, len)
 
   fun ref u8(): U8 ? =>
     """
@@ -758,6 +802,7 @@ class Reader
 
     error
 
+  // TODO: Fix to handle multi-byte sequences
   fun ref _distance_of(byte: U8): USize ? =>
     """
     Get the distance to the first occurrence of the given byte

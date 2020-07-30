@@ -66,7 +66,7 @@ class _TestPing is UDPNotify
   =>
     _h.complete_action("ping receive")
 
-    let s = String .> append(consume data)
+    let s = recover val String.from_iso_array(consume data) end
     _h.assert_eq[String box](s, "pong!")
     _h.complete(true)
 
@@ -106,7 +106,7 @@ class _TestPong is UDPNotify
   =>
     _h.complete_action("pong receive")
 
-    let s = String .> append(consume data)
+    let s = recover val String.from_iso_array(consume data) end
     _h.assert_eq[String box](s, "ping!")
     sock.writev(
       recover val [[U8('p'); U8('o'); U8('n'); U8('g'); U8('!')]] end,
@@ -316,7 +316,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     buf = recover Array[U8] end
     buf.push((len >> 8).u8())
     buf.push((len >> 0).u8())
-    buf.append(data)
+    buf.append(data.array())
     conn.write(consume buf)
 
 class _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
@@ -369,7 +369,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
 
   fun ref sentv(conn: TCPConnection ref, data: ByteSeqIter): ByteSeqIter =>
     recover
-      Array[ByteSeq] .> concat(data.values()) .> push(" (from client)")
+      Array[ByteSeq] .> concat(data.values()) .> push(" (from client)".array())
     end
 
   fun ref connected(conn: TCPConnection ref) =>
@@ -392,7 +392,7 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
     times: USize)
     : Bool
   =>
-    _buffer.append(consume data)
+    _buffer.append(String.from_iso_array(consume data))
 
     let expected = "hello, hello (from client)"
 
@@ -649,8 +649,8 @@ class _TestTCPProxy is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
-    h.expect_action("sender connected") 
-    h.expect_action("sender proxy request") 
+    h.expect_action("sender connected")
+    h.expect_action("sender proxy request")
 
     _TestTCP(h)(_TestTCPProxyNotify(h),
       _TestTCPProxyNotify(h))
@@ -663,7 +663,7 @@ class _TestTCPProxyNotify is TCPConnectionNotify
   fun ref proxy_via(host: String, service: String): (String, String) =>
     _h.complete_action("sender proxy request")
     (host, service)
-    
+
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("sender connected")
 

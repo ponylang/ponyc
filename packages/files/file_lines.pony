@@ -1,6 +1,6 @@
 use "buffered"
 
-class FileLines is Iterator[String iso^]
+class FileLines[D: StringDecoder = UTF8StringDecoder] is Iterator[String iso^]
   """
   Iterate over the lines in a file.
 
@@ -69,8 +69,7 @@ class FileLines is Iterator[String iso^]
     end
 
   fun ref _read_line(): String iso^ ? =>
-    let line = _reader.line(where keep_line_breaks = true)?
-    let len = line.size()
+    (let line, let len) = _reader.line[D](where keep_line_breaks = true)?
     _last_line_length = len
 
     // advance the cursor to the end of the returned line
@@ -116,11 +115,8 @@ class FileLines is Iterator[String iso^]
   fun ref _read_last_line(): String iso^ ? =>
     let block = _reader.block(_reader.size())?
     _inc_public_file_cursor(block.size())
-    String.from_iso_array(consume block)
+    String.from_iso_array[D](consume block)
 
   fun ref _inc_public_file_cursor(amount: USize) =>
     _cursor = _cursor + amount
     _file.seek_start(_cursor)
-
-
-

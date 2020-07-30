@@ -270,27 +270,27 @@ class iso _TestIterFlatMap is UnitTest
   fun name(): String => "itertools/Iter.flat_map"
 
   fun apply(h: TestHelper) ? =>
-    h.assert_array_eq[U8](
+    h.assert_array_eq[U32](
       Iter[String](["alpha"; "beta"; "gamma"].values())
-        .flat_map[U8]({(s: String): Iterator[U8] => s.values() })
-        .collect(Array[U8]),
-      [ as U8:
+        .flat_map[U32]({(s: String): Iterator[U32] => s.values() })
+        .collect(Array[U32]),
+      [ as U32:
         'a'; 'l'; 'p'; 'h'; 'a'; 'b'; 'e'; 't'; 'a'; 'g'; 'a'; 'm'; 'm'; 'a'])
-    h.assert_array_eq[U8](
+    h.assert_array_eq[U32](
       Iter[String]([""; "ab"; ""].values())
-        .flat_map[U8]({(s: String): Iterator[U8] => s.values() })
-        .collect(Array[U8]),
-      [as U8: 'a'; 'b'])
-    h.assert_array_eq[U8](
+        .flat_map[U32]({(s: String): Iterator[U32] => s.values() })
+        .collect(Array[U32]),
+      [as U32: 'a'; 'b'])
+    h.assert_array_eq[U32](
       Iter[String](["ab"; ""; "cd"].values())
-        .flat_map[U8]({(s: String): Iterator[U8] => s.values() })
-        .collect(Array[U8]),
-      [as U8: 'a'; 'b'; 'c'; 'd'])
-    h.assert_array_eq[U8](
+        .flat_map[U32]({(s: String): Iterator[U32] => s.values() })
+        .collect(Array[U32]),
+      [as U32: 'a'; 'b'; 'c'; 'd'])
+    h.assert_array_eq[U32](
       Iter[String](["ab"; "cd"; ""].values())
-        .flat_map[U8]({(s: String): Iterator[U8] => s.values() })
-        .collect(Array[U8]),
-      [as U8: 'a'; 'b'; 'c'; 'd'])
+        .flat_map[U32]({(s: String): Iterator[U32] => s.values() })
+        .collect(Array[U32]),
+      [as U32: 'a'; 'b'; 'c'; 'd'])
 
     let iter =
       Iter[U8](Range[U8](1, 3))

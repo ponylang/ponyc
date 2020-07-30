@@ -251,10 +251,12 @@ class Writer
     """
     u128_be(data.u128())
 
-  fun ref write(data: ByteSeq) =>
+  fun ref write[E: StringEncoder val = UTF8StringEncoder](data: (String | ByteSeq)) =>
     """
-    Write a ByteSeq to the buffer.
+    Write a String or a ByteSeq to the buffer. String characters will be converted to bytes using
+    the specified encoding (UTF-8 by default).
     """
+
     // if `data` is 1 cacheline or less in size
     // copy it into the existing `_current` array
     // to coalesce multiple tiny arrays
@@ -262,24 +264,38 @@ class Writer
     if data.size() <= 64 then
       match data
       | let d: String =>
-         let a = d.array()
+         let a = d.array[E]()
          _current.copy_from(a, 0, _current.size(), a.size())
-      | let d: Array[U8] val =>
+         _size = _size + a.size()
+      | let d: ByteSeq =>
          _current.copy_from(d, 0, _current.size(), d.size())
+         _size = _size + data.size()
       end
-      _size = _size + data.size()
     else
       _append_current()
-      _chunks.push(data)
-      _size = _size + data.size()
+      match data
+      | let s: String =>
+        _chunks.push(s.array[E]())
+        _size = _size + s.byte_size()
+      | let d: ByteSeq =>
+        _chunks.push(d)
+        _size = _size + d.size()
+      end
     end
 
-  fun ref writev(data: ByteSeqIter) =>
+  fun ref writev(data: (StringIter | ByteSeqIter)) =>
     """
-    Write ByteSeqs to the buffer.
+    Write Strings or ByteSeqs to the buffer.
     """
-    for chunk in data.values() do
-      write(chunk)
+    match data
+    | let si: StringIter =>
+      for chunk in si.values() do
+        write(chunk)
+      end
+    | let bsi: ByteSeqIter =>
+      for chunk in bsi.values() do
+        write(chunk)
+      end
     end
 
   fun ref done(): Array[ByteSeq] iso^ =>

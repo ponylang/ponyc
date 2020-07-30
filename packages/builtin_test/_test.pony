@@ -23,6 +23,12 @@ actor Main is TestList
     test(_TestStringToU8)
     test(_TestStringToI8)
     test(_TestStringToIntLarge)
+    test(_TestStringToArray)
+    test(_TestStringToUTF16BEArray)
+    test(_TestStringToUTF16LEArray)
+    test(_TestStringToUTF32BEArray)
+    test(_TestStringToUTF32LEArray)
+    test(_TestStringToISO88591Array)
     test(_TestStringLstrip)
     test(_TestStringRstrip)
     test(_TestStringStrip)
@@ -44,14 +50,22 @@ actor Main is TestList
     test(_TestStringContains)
     test(_TestStringReadInt)
     test(_TestStringUTF32)
+    test(_TestStringFind)
     test(_TestStringRFind)
+    test(_TestStringDelete)
     test(_TestStringFromArray)
     test(_TestStringFromIsoArray)
+    test(_TestStringFromUTF16BEArray)
+    test(_TestStringFromUTF16LEArray)
+    test(_TestStringFromUTF32BEArray)
+    test(_TestStringFromUTF32LEArray)
+    test(_TestStringFromISO88591Array)
     test(_TestStringSpace)
     test(_TestStringRecalc)
-    test(_TestStringTruncate)
+    //test(_TestStringTruncate)
     test(_TestStringChop)
     test(_TestStringUnchop)
+    test(_TestStringReverse)
     test(_TestStringRepeatStr)
     test(_TestStringConcatOffsetLen)
     test(_TestSpecialValuesF32)
@@ -194,7 +208,7 @@ class iso _TestStringRunes is UnitTest
   fun apply(h: TestHelper) =>
     let result = Array[U32]
 
-    for c in "\u16ddx\ufb04".runes() do
+    for c in "\u16ddx\ufb04".values() do
       result.push(c)
     end
 
@@ -416,6 +430,98 @@ class iso _TestStringToIntLarge is UnitTest
     h.assert_eq[I128](-10, "-10".i128()?)
     h.assert_error({() ? => "30L".i128()? }, "I128 30L")
 
+class iso _TestStringToArray is UnitTest
+
+  fun name(): String => "builtin/String.toArray"
+
+  fun apply(h: TestHelper) =>
+    let s = "foo€🐎"
+    let a_utf8 = s.array()
+
+    let a_expected: Array[U8] val = recover val
+      ['f'; 'o'; 'o'; 0xe2; 0x82; 0xac; 0xf0; 0x9f; 0x90; 0x8e]
+    end
+
+    h.assert_array_eq[U8](a_expected, a_utf8 )
+
+class iso _TestStringToUTF16BEArray is UnitTest
+
+  fun name(): String => "builtin/String.toUTF16BEArray"
+
+  fun apply(h: TestHelper) =>
+    let s = "foo€🐎"
+    let a_utf16BE = s.array[UTF16BEStringEncoder]()
+
+    let a_expected: Array[U8] val = recover val
+      [0x00; 'f'; 0x00; 'o'; 0x00; 'o'; 0x20; 0xAC; 0xD8; 0x3D; 0xDC; 0x0E]
+    end
+
+    h.assert_array_eq[U8](a_expected, a_utf16BE )
+
+class iso _TestStringToUTF16LEArray is UnitTest
+
+  fun name(): String => "builtin/String.toUTF16LEArray"
+
+  fun apply(h: TestHelper) =>
+    let s = "foo€🐎"
+    let a_utf16LE = s.array[UTF16LEStringEncoder]()
+
+    let a_expected: Array[U8] val = recover val
+      ['f'; 0x00; 'o'; 0x00; 'o'; 0x00; 0xAC; 0x20; 0x3D; 0xD8; 0x0E; 0xDC]
+    end
+
+    h.assert_array_eq[U8](a_expected, a_utf16LE )
+
+class iso _TestStringToUTF32BEArray is UnitTest
+
+  fun name(): String => "builtin/String.toUTF32BEArray"
+
+  fun apply(h: TestHelper) =>
+    let s = "foo€🐎"
+    let a_utf32BE = s.array[UTF32BEStringEncoder]()
+
+    let a_expected: Array[U8] val = recover val
+      [0x00; 0x00; 0x00; 'f'
+       0x00; 0x00; 0x00; 'o'
+       0x00; 0x00; 0x00; 'o'
+       0x00; 0x00; 0x20; 0xAC
+       0x00; 0x01; 0xF4; 0x0E]
+    end
+
+    h.assert_array_eq[U8](a_expected, a_utf32BE )
+
+class iso _TestStringToUTF32LEArray is UnitTest
+
+  fun name(): String => "builtin/String.toUTF32LEArray"
+
+  fun apply(h: TestHelper) =>
+    let s = "foo€🐎"
+    let a_utf32LE = s.array[UTF32LEStringEncoder]()
+
+    let a_expected: Array[U8] val = recover val
+      ['f'; 0x00; 0x00; 0x00
+       'o'; 0x00; 0x00; 0x00
+       'o'; 0x00; 0x00; 0x00
+       0xAC; 0x20; 0x00; 0x00
+       0x0E; 0xF4; 0x01; 0x00]
+    end
+
+    h.assert_array_eq[U8](a_expected, a_utf32LE )
+
+class iso _TestStringToISO88591Array is UnitTest
+
+  fun name(): String => "builtin/String.toISO-8859-1Array"
+
+  fun apply(h: TestHelper) =>
+    let s = "fooÖ🐎"
+    let a_iso88591 = s.array[ISO88591StringEncoder]()
+
+    let a_expected: Array[U8] val = recover val
+      ['f'; 'o'; 'o'; 0xD6; 0x3F]
+    end
+
+    h.assert_array_eq[U8](a_expected, a_iso88591 )
+
 class iso _TestStringLstrip is UnitTest
   """
   Test stripping leading characters from a string.
@@ -490,21 +596,25 @@ class iso _TestStringRemove is UnitTest
     let s2 = recover "barfoobar".clone() end
     let s3 = recover "f-o-o-b-a-r!".clone() end
     let s4 = recover "f-o-o-b-a-r!".clone() end
+    let s5 = recover "€foo 🐎 €bar".clone() end
 
     let r1 = s1.remove(" ")
     let r2 = s2.remove("foo")
     let r3 = s3.remove("-")
     let r4 = s4.remove("-!")
+    let r5 = s5.remove("🐎")
 
-    h.assert_eq[USize](r1, 7)
-    h.assert_eq[USize](r2, 1)
-    h.assert_eq[USize](r3, 5)
-    h.assert_eq[USize](r4, 0)
+    h.assert_eq[USize](7, r1)
+    h.assert_eq[USize](1, r2)
+    h.assert_eq[USize](5, r3)
+    h.assert_eq[USize](0, r4)
+    h.assert_eq[USize](1, r5)
 
-    h.assert_eq[String](consume s1, "foobar")
-    h.assert_eq[String](consume s2, "barbar")
-    h.assert_eq[String](consume s3, "foobar!")
-    h.assert_eq[String](consume s4, "f-o-o-b-a-r!")
+    h.assert_eq[String]("foobar", consume s1)
+    h.assert_eq[String]("barbar", consume s2)
+    h.assert_eq[String]("foobar!", consume s3)
+    h.assert_eq[String]("f-o-o-b-a-r!", consume s4)
+    h.assert_eq[String]("€foo  €bar", consume s5)
 
 class iso _TestStringSubstring is UnitTest
   """
@@ -513,12 +623,12 @@ class iso _TestStringSubstring is UnitTest
   fun name(): String => "builtin/String.substring"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String]("3456", "0123456".substring(3, 99))
+    h.assert_eq[String]("3456", "\u20AC123456".substring(3, 99))
 
-    h.assert_eq[String]("345", "0123456".substring(3, 6))
-    h.assert_eq[String]("3456", "0123456".substring(3, 7))
-    h.assert_eq[String]("3456", "0123456".substring(3))
-    h.assert_eq[String]("345", "0123456".substring(3, -1))
+    h.assert_eq[String]("345", "\u20AC123456".substring(3, 6))
+    h.assert_eq[String]("3456", "\u20AC123456".substring(3, 7))
+    h.assert_eq[String]("3456", "\u20AC123456".substring(3))
+    h.assert_eq[String]("345", "\u20AC123456".substring(3, -1))
 
 class iso _TestStringCut is UnitTest
   """
@@ -603,7 +713,7 @@ class iso _TestStringTrimInPlaceWithAppend is UnitTest
 
   fun apply(h: TestHelper) =>
     let a: String ref = "Hello".clone()
-    let big: Array[U8] val = recover val Array[U8].init(U8(1), 12_000) end
+    let big: Array[U32] val = recover val Array[U32].init(U32(1), 12_000) end
     a.trim_in_place(a.size())
     h.assert_eq[String box]("", a)
     a.append(big)
@@ -611,6 +721,9 @@ class iso _TestStringTrimInPlaceWithAppend is UnitTest
     h.assert_eq[String box]("", a)
     a.append("Hello")
     h.assert_eq[String box]("Hello", a)
+    let small: Array[U32] val = [0x20AC; 0x61; 0x62; 0x63]
+    a.append(small)
+    h.assert_eq[String box]("Hello€abc", a)
 
 class iso _TestStringIsNullTerminated is UnitTest
   """
@@ -732,13 +845,14 @@ class iso _TestStringSplit is UnitTest
     h.assert_eq[String](r(2)?, "")
     h.assert_eq[String](r(3)?, "3")
     h.assert_eq[String](r(4)?, "")
+
     h.assert_eq[String](r(5)?, " 4")
 
     r = "1 2 3  4".split(where n = 3)
-    h.assert_eq[USize](r.size(), 3)
-    h.assert_eq[String](r(0)?, "1")
-    h.assert_eq[String](r(1)?, "2")
-    h.assert_eq[String](r(2)?, "3  4")
+    h.assert_eq[USize](3, r.size())
+    h.assert_eq[String]("1", r(0)?)
+    h.assert_eq[String]("2", r(1)?)
+    h.assert_eq[String]("3  4", r(2)?)
 
     r = "1.2,.3,, 4".split(".,", 4)
     h.assert_eq[USize](r.size(), 4)
@@ -1019,51 +1133,83 @@ class iso _TestStringUTF32 is UnitTest
   fun apply(h: TestHelper) ? =>
     var s = String.from_utf32(' ')
     h.assert_eq[USize](1, s.size())
-    h.assert_eq[U8](' ', s(0)?)
-    h.assert_eq[U32](' ', s.utf32(0)?._1)
+    h.assert_eq[U32](' ', s(0)?)
+    //h.assert_eq[U32](' ', s.utf32(0)?._1)
 
-    s.push_utf32('\n')
+    s.push('\n')
     h.assert_eq[USize](2, s.size())
-    h.assert_eq[U8]('\n', s(1)?)
-    h.assert_eq[U32]('\n', s.utf32(1)?._1)
+    h.assert_eq[U32]('\n', s(1)?)
+    //h.assert_eq[U32]('\n', s.utf32(1)?._1)
 
-    s = String.create()
-    s.push_utf32(0xA9) // (c)
-    h.assert_eq[USize](2, s.size())
-    h.assert_eq[U8](0xC2, s(0)?)
-    h.assert_eq[U8](0xA9, s(1)?)
-    h.assert_eq[U32](0xA9, s.utf32(0)?._1)
+    var s1: String val = recover
+      let a = String.create()
+      a.push(0xA9) // (c)
+      a
+    end
+    var s2 = s1.array()
+    h.assert_eq[USize](2, s2.size())
+    h.assert_eq[U8](0xC2, s2(0)?)
+    h.assert_eq[U8](0xA9, s2(1)?)
+    h.assert_eq[U32](0xA9, s1(0)?)
 
-    s = String.create()
-    s.push_utf32(0x4E0C) // a CJK Unified Ideographs which looks like Pi
-    h.assert_eq[USize](3, s.size())
-    h.assert_eq[U8](0xE4, s(0)?)
-    h.assert_eq[U8](0xB8, s(1)?)
-    h.assert_eq[U8](0x8C, s(2)?)
-    h.assert_eq[U32](0x4E0C, s.utf32(0)?._1)
+    s1 = recover
+      let a = String.create()
+      a.push(0x4E0C) // a CJK Unified Ideographs which looks like Pi
+      a
+    end
+    s2 = s1.array()
+    h.assert_eq[USize](3, s2.size())
+    h.assert_eq[U8](0xE4, s2(0)?)
+    h.assert_eq[U8](0xB8, s2(1)?)
+    h.assert_eq[U8](0x8C, s2(2)?)
+    h.assert_eq[U32](0x4E0C, s1(0)?)
 
-    s = String.create()
-    s.push_utf32(0x2070E) // first character found there: http://www.i18nguy.com/unicode/supplementary-test.html
-    h.assert_eq[USize](4, s.size())
-    h.assert_eq[U8](0xF0, s(0)?)
-    h.assert_eq[U8](0xA0, s(1)?)
-    h.assert_eq[U8](0x9C, s(2)?)
-    h.assert_eq[U8](0x8E, s(3)?)
-    h.assert_eq[U32](0x2070E, s.utf32(0)?._1)
+    s1 = recover
+      let a = String.create()
+      a.push(0x2070E) // first character found there: http://www.i18nguy.com/unicode/supplementary-test.html
+      a
+    end
+    s2 = s1.array()
+    h.assert_eq[USize](4, s2.size())
+    h.assert_eq[U8](0xF0, s2(0)?)
+    h.assert_eq[U8](0xA0, s2(1)?)
+    h.assert_eq[U8](0x9C, s2(2)?)
+    h.assert_eq[U8](0x8E, s2(3)?)
+    h.assert_eq[U32](0x2070E, s1(0)?)
+
+  class iso _TestStringFind is UnitTest
+    fun name(): String => "builtin/String.find"
+
+    fun apply(h: TestHelper) ? =>
+      let s = "-foo-bar-baz-"
+      h.assert_eq[ISize](0, s.find("-")?)
+      h.assert_eq[ISize](4, s.find("-", 2)?)
+      h.assert_eq[ISize](8, s.find("-baz")?)
 
 class iso _TestStringRFind is UnitTest
   fun name(): String => "builtin/String.rfind"
 
   fun apply(h: TestHelper) ? =>
     let s = "-foo-bar-baz-"
-    h.assert_eq[ISize](s.rfind("-")?, 12)
-    h.assert_eq[ISize](s.rfind("-", -2)?, 8)
-    h.assert_eq[ISize](s.rfind("-bar", 7)?, 4)
+    h.assert_eq[ISize](12, s.rfind("-")?)
+    h.assert_eq[ISize](8, s.rfind("-", -2)?)
+    h.assert_eq[ISize](4, s.rfind("-bar", 7)?)
+
+class iso _TestStringDelete is UnitTest
+  fun name(): String => "builtin/String.delete"
+
+  fun apply(h: TestHelper) =>
+    let s: String ref = "\u20AC-\U01F9DFfoo-bar-baz-".clone()
+    s.delete(6, 4)
+    h.assert_eq[USize](11, s.size())
+    h.assert_eq[String]("\u20AC-\U01F9DFfoo-baz-", s.string())
+    s.delete(0, 1)
+    h.assert_eq[String]("-\U01F9DFfoo-baz-", s.string())
 
 class iso _TestStringFromArray is UnitTest
   fun name(): String => "builtin/String.from_array"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let s_null = String.from_array(recover ['f'; 'o'; 'o'; 0] end)
     h.assert_eq[String](s_null, "foo\x00")
     h.assert_eq[USize](s_null.size(), 4)
@@ -1072,10 +1218,18 @@ class iso _TestStringFromArray is UnitTest
     h.assert_eq[String](s_no_null, "foo")
     h.assert_eq[USize](s_no_null.size(), 3)
 
+    let s_cp = recover val String.from_codepoint_array(recover ['f'; '€'; '🐎'] end) end
+    h.assert_eq[String]("f€🐎", s_cp)
+    h.assert_eq[USize](3, s_cp.size())
+    h.assert_eq[USize](8, s_cp.byte_size())
+
+    let s_invalid = String.from_array(recover [0x66; 0xF6] end)
+    h.assert_eq[U32](0xFFFD, s_invalid(1)?)
+
 class iso _TestStringFromIsoArray is UnitTest
   fun name(): String => "builtin/String.from_iso_array"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let s = recover val String.from_iso_array(recover ['f'; 'o'; 'o'] end) end
     h.assert_eq[String](s, "foo")
     h.assert_eq[USize](s.size(), 3)
@@ -1090,6 +1244,72 @@ class iso _TestStringFromIsoArray is UnitTest
     h.assert_eq[String](s2, "11111111")
     h.assert_eq[USize](s2.size(), 8)
     h.assert_true((s2.space() == 8) xor s2.is_null_terminated())
+
+    let s3 = recover val String.from_iso_codepoint_array(recover ['f'; '€'; '🐎'] end) end
+    h.assert_eq[String]("f€🐎", s3)
+    h.assert_eq[USize](3, s3.size())
+    h.assert_eq[USize](8, s3.byte_size())
+
+    let s_invalid = recover val String.from_iso_array(recover [0x66; 0xF6] end) end
+    h.assert_eq[U32](0xFFFD, s_invalid(1)?)
+
+class iso _TestStringFromUTF16BEArray is UnitTest
+  fun name(): String => "builtin/String.from_UTF16BE_array"
+
+  fun apply(h: TestHelper) =>
+    let s_utf16BE = String.from_array[UTF16BEStringDecoder](recover
+      [0x00; 'f'; 0x00; 'o'; 0x00; 'o'; 0x20; 0xAC; 0xD8; 0x3D; 0xDC; 0x0E]
+    end)
+    h.assert_eq[String]("foo€🐎", s_utf16BE )
+    h.assert_eq[USize](5, s_utf16BE.size())
+
+class iso _TestStringFromUTF16LEArray is UnitTest
+  fun name(): String => "builtin/String.from_UTF16LE_array"
+
+  fun apply(h: TestHelper) =>
+    let s_utf16BE = String.from_array[UTF16LEStringDecoder](recover
+      ['f'; 0x00; 'o'; 0x00; 'o'; 0x00; 0xAC; 0x20; 0x3D; 0xD8; 0x0E; 0xDC]
+    end)
+    h.assert_eq[String]("foo€🐎", s_utf16BE)
+    h.assert_eq[USize](5, s_utf16BE.size())
+
+class iso _TestStringFromUTF32BEArray is UnitTest
+  fun name(): String => "builtin/String.from_UTF32BE_array"
+
+  fun apply(h: TestHelper) =>
+    let s_utf32BE = String.from_array[UTF32BEStringDecoder](recover
+      [0x00; 0x00; 0x00; 'f'
+       0x00; 0x00; 0x00; 'o'
+       0x00; 0x00; 0x00; 'o'
+       0x00; 0x00; 0x20; 0xAC
+       0x00; 0x01; 0xF4; 0x0E]
+    end)
+    h.assert_eq[String]("foo€🐎", s_utf32BE )
+    h.assert_eq[USize](5, s_utf32BE.size())
+
+class iso _TestStringFromUTF32LEArray is UnitTest
+  fun name(): String => "builtin/String.from_UTF32LE_array"
+
+  fun apply(h: TestHelper) =>
+    let s_utf32LE = String.from_array[UTF32LEStringDecoder](recover
+      ['f'; 0x00; 0x00; 0x00
+       'o'; 0x00; 0x00; 0x00
+       'o'; 0x00; 0x00; 0x00
+       0xAC; 0x20; 0x00; 0x00
+       0x0E; 0xF4; 0x01; 0x00]
+    end)
+    h.assert_eq[String]("foo€🐎", s_utf32LE )
+    h.assert_eq[USize](5, s_utf32LE.size())
+
+class iso _TestStringFromISO88591Array is UnitTest
+  fun name(): String => "builtin/String.from_ISO-8859-1_array"
+
+  fun apply(h: TestHelper) =>
+    let s_iso88591 = String.from_array[ISO88591StringDecoder](recover
+      ['f'; 'o'; 'o'; 0xD6]
+    end)
+    h.assert_eq[String]("fooÖ", s_iso88591 )
+    h.assert_eq[USize](4, s_iso88591.size())
 
 class iso _TestStringSpace is UnitTest
   fun name(): String => "builtin/String.space"
@@ -1127,8 +1347,8 @@ class iso _TestStringRecalc is UnitTest
       String.from_iso_array(recover ['1'; 0; 0; 0; 0; 0; 0; '1'] end)
     s3.truncate(1)
     s3.recalc()
-    h.assert_eq[USize](s3.size(), 1)
-    h.assert_eq[USize](s3.space(), 7)
+    h.assert_eq[USize](1, s3.size())
+    h.assert_eq[USize](7, s3.space())
     h.assert_true(s3.is_null_terminated())
 
 class iso _TestStringTruncate is UnitTest
@@ -1141,22 +1361,26 @@ class iso _TestStringTruncate is UnitTest
           ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
         end)
       end
-    s.truncate(s.space())
-    h.assert_true(s.is_null_terminated())
+
+    h.assert_false(s.is_null_terminated())
+    //s.truncate(s.space().isize())
+    //h.assert_true(s.is_null_terminated())
     h.assert_eq[String](s.clone(), "11111111")
     h.assert_eq[USize](s.size(), 8)
     h.assert_eq[USize](s.space(), 15) // created extra allocation for null
 
+/** Truncating a String to a larger size is no longer supported see Bug #1427
     s.truncate(100)
     h.assert_true(s.is_null_terminated())
-    h.assert_eq[USize](s.size(), 16) // sized up to _alloc
-    h.assert_eq[USize](s.space(), 31) // created extra allocation for null
+    h.assert_eq[USize](16, s.size()) // sized up to _alloc
+    h.assert_eq[USize](31, s.space()) // created extra allocation for null
 
     s.truncate(3)
     h.assert_true(s.is_null_terminated())
-    h.assert_eq[String](s.clone(), "111")
-    h.assert_eq[USize](s.size(), 3)
-    h.assert_eq[USize](s.space(), 31)
+    h.assert_eq[String]("111", s.clone())
+    h.assert_eq[USize](3, s.size())
+    h.assert_eq[USize](31, s.space())
+*/
 
 class iso _TestStringChop is UnitTest
   """
@@ -1247,6 +1471,16 @@ class iso _TestStringUnchop is UnitTest
     else
       error
     end
+
+class iso _TestStringReverse is UnitTest
+  """
+  Test string reverse functions
+  """
+  fun name(): String => "builtin/String.reverse"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String box]("321", "123".reverse())
+    h.assert_eq[String box]("🐎€ba", "ab€🐎".reverse())
 
 class iso _TestStringRepeatStr is UnitTest
   """
