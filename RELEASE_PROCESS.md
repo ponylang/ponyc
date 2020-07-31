@@ -57,12 +57,11 @@ Leave a comment on the GitHub issue for this release letting @stefantalpalaru kn
 
 ### Work on the release notes
 
-We do a blog post announcing each release. The release notes blog post should include highlights of any particularly interesting changes that we want the community to be aware of.
+We do release notes for each release. The release notes should include highlights of any particularly interesting changes that we want the community to be aware of.
 
 Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
 
 [Examples of prior release posts](https://github.com/ponylang/ponyc/releases/) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponyc/releases/tag/0.35.0))
-
 
 ### Wait on release artifacts
 
@@ -108,10 +107,6 @@ cd pony-playground
 docker build docker --pull -t ponylang-playpen
 systemctl start playground
 ```
-
-### Merge the release blog post PR for the ponylang website
-
-Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.io/blog/).
 
 ### Inform the Pony Zulip
 
