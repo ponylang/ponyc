@@ -61,7 +61,7 @@ We do a blog post announcing each release. The release notes blog post should in
 
 Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
 
-[Examples of prior release posts](https://www.ponylang.io/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponylang.github.io/pull/284/files))
+[Examples of prior release posts](https://github.com/ponylang/ponyc/releases/) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponyc/releases/tag/0.35.0))
 
 
 ### Wait on release artifacts
