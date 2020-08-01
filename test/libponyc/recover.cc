@@ -581,16 +581,32 @@ TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
 {
   const char* src =
     "class A\n"
-    "class BadExtract\n"
+    "class Extract\n"
     "  var a: A trn = A\n"
     "  fun ref extract_trn(): A trn^ =>\n"
     "    a = A\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let bad = recover trn BadExtract end\n"
-    "    let a_ref: A trn = bad.extract_trn()\n";
+    "    let bad = recover trn Extract end\n"
+    "    let a_trn: A trn = bad.extract_trn()\n";
 
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
+}
+TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Extract\n"
+    "  var a: A trn = A\n"
+    "  fun ref extract_box(): A box =>\n"
+    "    a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let good = recover trn Extract end\n"
+    "    let a_box: A box = good.extract_box()\n";
+
+  TEST_COMPILE(src);
 }
