@@ -3,13 +3,9 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
+#include "cap.h"
 
 PONY_EXTERN_C_BEGIN
-
-typedef enum {
-  WRITE,
-  EXTRACT
-} direction;
 
 bool safe_to_move(ast_t* ast, ast_t* type, direction direction);
 

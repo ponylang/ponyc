@@ -87,7 +87,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap,
       if(rcap == TK_NONE)
         rcap = TK_ISO;
 
-      if((tuple_elem_recover != NULL) && !cap_safetowrite(rcap, tcap))
+      if((tuple_elem_recover != NULL) && !cap_safetomove(rcap, tcap, WRITE))
       {
         switch(rcap)
         {

@@ -912,7 +912,7 @@ bool cap_immutable_or_opaque(token_id cap)
   return false;
 }
 
-bool cap_safetowrite(token_id into, token_id cap)
+bool cap_safetomove(token_id into, token_id cap, direction direction)
 {
   switch(into)
   {
@@ -934,54 +934,22 @@ bool cap_safetowrite(token_id into, token_id cap)
       switch(cap)
       {
         case TK_ISO:
+        case TK_VAL:
+        case TK_TAG:
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+          return true;
+
         case TK_TRN:
-        case TK_VAL:
-        case TK_TAG:
-        case TK_CAP_SEND:
-        case TK_CAP_SHARE:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_REF:
-      return true;
-
-    default: {}
-  }
-
-  return false;
-}
-
-bool cap_safetoextract(token_id from, token_id cap)
-{
-  switch(from)
-  {
-    case TK_ISO:
-      switch(cap)
-      {
-        case TK_ISO:
-        case TK_VAL:
-        case TK_TAG:
-        case TK_CAP_SEND:
-        case TK_CAP_SHARE:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_TRN:
-      switch(cap)
-      {
-        case TK_ISO:
+          switch (direction) {
+            case WRITE: return true;
+            case EXTRACT: return false;
+          }
         case TK_BOX:
-        case TK_VAL:
-        case TK_TAG:
-        case TK_CAP_SEND:
-        case TK_CAP_SHARE:
-          return true;
+          switch (direction) {
+            case WRITE: return false;
+            case EXTRACT: return true;
+          }
 
         default: {}
       }
