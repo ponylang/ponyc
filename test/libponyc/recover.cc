@@ -610,3 +610,56 @@ TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+TEST_F(RecoverTest, CantWriteBox_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Store\n"
+    "  var _a: A box = A\n"
+    "  fun ref store(a: A box) =>\n"
+    "    _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let dest: Store trn = recover trn Store end\n"
+    "    let a_box: A box = A\n"
+    "    dest.store(a_box)\n";
+
+  TEST_ERRORS_1(src,
+    "receiver type is not a subtype of target type")
+}
+TEST_F(RecoverTest, CantWriteTrnAlias_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Store\n"
+    "  var _a: A box = A\n"
+    "  fun ref store(a: A box) =>\n"
+    "    _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let dest: Store trn = recover trn Store end\n"
+    "    let a_trn: A trn = A\n"
+    "    dest.store(a_trn)\n";
+
+  TEST_ERRORS_1(src,
+    "receiver type is not a subtype of target type")
+}
+TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Store\n"
+    "  var _a: A box = A\n"
+    "  fun ref store(a: A box) =>\n"
+    "    _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let dest: Store trn = recover trn Store end\n"
+    "    let a_trn: A trn = A\n"
+    "    dest.store(consume a_trn)\n";
+
+  TEST_COMPILE(src);
+}
