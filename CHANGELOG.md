@@ -6,6 +6,17 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+
+## [0.36.0] - 2020-07-31
+
+### Fixed
+
 - Compile fix for the latest MSVC compiler (MSVC 19.26.28806.0, from Visual Studio 16.6.2) ([PR #3576](https://github.com/ponylang/ponyc/pull/3576))
 - Fix with expressions using tuple destructuring. ([PR #3586](https://github.com/ponylang/ponyc/pull/3586))
 - Fix typeparam check endless recursion ([PR #3589](https://github.com/ponylang/ponyc/pull/3589))
@@ -14,9 +25,12 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Added vs2019 preview support for building ponyc ([PR #3587](https://github.com/ponylang/ponyc/pull/3587))
+- Implement RFC 66: Iter maybe ([PR #3603](https://github.com/ponylang/ponyc/pull/3603))
 
 ### Changed
 
+- Change trn->trn to box to fix a soundness hole ([PR #3591](https://github.com/ponylang/ponyc/pull/3591))
+- Add LogLevel as argument to LogFormatter ([PR #3597](https://github.com/ponylang/ponyc/pull/3597))
 
 ## [0.35.1] - 2020-05-13
 

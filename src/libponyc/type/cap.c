@@ -629,7 +629,6 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
       switch(*right_cap)
       {
         case TK_ISO:
-        case TK_TRN:
         case TK_CAP_SEND:
           if(left_eph == TK_EPHEMERAL)
             *right_eph = TK_EPHEMERAL;
@@ -769,7 +768,6 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
       switch(*right_cap)
       {
         case TK_ISO:
-        case TK_TRN:
         case TK_CAP_SEND:
           if(left_eph == TK_EPHEMERAL)
             *right_eph = TK_EPHEMERAL;

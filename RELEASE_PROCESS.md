@@ -16,10 +16,11 @@ While not strictly required, you probably be unable to deal with any errors that
 
 ### Validate external services are functional
 
-We rely on CirrusCI, Cloudsmith, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
+We rely on CirrusCI, Cloudsmith, DockerHub, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
 
 * [CirrusCI Status](https://twitter.com/cirrus_labs)
 * [Cloudsmith](https://status.cloudsmith.io/)
+* [DockerHub](https://status.docker.com/)
 * [GitHub](https://www.githubstatus.com/)
 
 ### A GitHub issue exists for the release
@@ -56,12 +57,11 @@ Leave a comment on the GitHub issue for this release letting @stefantalpalaru kn
 
 ### Work on the release notes
 
-We do a blog post announcing each release. The release notes blog post should include highlights of any particularly interesting changes that we want the community to be aware of.
+We do release notes for each release. The release notes should include highlights of any particularly interesting changes that we want the community to be aware of.
 
 Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
 
-[Examples of prior release posts](https://www.ponylang.io/categories/release) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponylang.github.io/pull/284/files))
-
+[Examples of prior release posts](https://github.com/ponylang/ponyc/releases/) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponyc/releases/tag/0.35.0))
 
 ### Wait on release artifacts
 
@@ -76,6 +76,7 @@ Package names will be:
 - ponyc-x86-64-pc-windows-msvc.zip
 - ponyc-x86-64-unknown-linux-gnu.tar.gz
 - ponyc-x86-64-unknown-linux-musl.tar.gz
+- ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
@@ -106,10 +107,6 @@ cd pony-playground
 docker build docker --pull -t ponylang-playpen
 systemctl start playground
 ```
-
-### Merge the release blog post PR for the ponylang website
-
-Once all the release steps have been confirmed as successful, merge the PR you created earlier for ponylang.github.io for the blog post announcing the release. Confirm it is successfully published to the [blog](https://www.ponylang.io/blog/).
 
 ### Inform the Pony Zulip
 
