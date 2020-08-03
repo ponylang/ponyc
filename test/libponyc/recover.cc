@@ -576,3 +576,90 @@ TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
   TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
     "left side must be something that can be assigned to");
 }
+
+TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Extract\n"
+    "  var a: A trn = A\n"
+    "  fun ref extract_trn(): A trn^ =>\n"
+    "    a = A\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let bad = recover trn Extract end\n"
+    "    let a_trn: A trn = bad.extract_trn()\n";
+
+  TEST_ERRORS_1(src,
+    "receiver type is not a subtype of target type")
+}
+TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Extract\n"
+    "  var a: A trn = A\n"
+    "  fun ref extract_box(): A box =>\n"
+    "    a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let good = recover trn Extract end\n"
+    "    let a_box: A box = good.extract_box()\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, CantWriteBox_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Store\n"
+    "  var _a: A box = A\n"
+    "  fun ref store(a: A box) =>\n"
+    "    _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let dest: Store trn = recover trn Store end\n"
+    "    let a_box: A box = A\n"
+    "    dest.store(a_box)\n";
+
+  TEST_ERRORS_1(src,
+    "receiver type is not a subtype of target type")
+}
+TEST_F(RecoverTest, CantWriteTrnAlias_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Store\n"
+    "  var _a: A box = A\n"
+    "  fun ref store(a: A box) =>\n"
+    "    _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let dest: Store trn = recover trn Store end\n"
+    "    let a_trn: A trn = A\n"
+    "    dest.store(a_trn)\n";
+
+  TEST_ERRORS_1(src,
+    "receiver type is not a subtype of target type")
+}
+TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "class Store\n"
+    "  var _a: A box = A\n"
+    "  fun ref store(a: A box) =>\n"
+    "    _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let dest: Store trn = recover trn Store end\n"
+    "    let a_trn: A trn = A\n"
+    "    dest.store(consume a_trn)\n";
+
+  TEST_COMPILE(src);
+}

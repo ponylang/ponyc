@@ -878,6 +878,7 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
   return true;
 }
 
+
 bool cap_sendable(token_id cap)
 {
   switch(cap)
@@ -911,7 +912,7 @@ bool cap_immutable_or_opaque(token_id cap)
   return false;
 }
 
-bool cap_safetowrite(token_id into, token_id cap)
+bool cap_safetomove(token_id into, token_id cap, direction direction)
 {
   switch(into)
   {
@@ -933,12 +934,22 @@ bool cap_safetowrite(token_id into, token_id cap)
       switch(cap)
       {
         case TK_ISO:
-        case TK_TRN:
         case TK_VAL:
         case TK_TAG:
         case TK_CAP_SEND:
         case TK_CAP_SHARE:
           return true;
+
+        case TK_TRN:
+          switch (direction) {
+            case WRITE: return true;
+            case EXTRACT: return false;
+          }
+        case TK_BOX:
+          switch (direction) {
+            case WRITE: return false;
+            case EXTRACT: return true;
+          }
 
         default: {}
       }

@@ -288,7 +288,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   // arguments are safe and the result is either safe or unused.
   // The result of a chained method is always unused.
   ast_t* call = ast_parent(ast);
-  if(is_result_needed(call) && !safe_to_autorecover(receiver_type, result))
+  if(is_result_needed(call) && !safe_to_autorecover(receiver_type, result, EXTRACT))
     return false;
 
   ast_t* arg = ast_child(positional);
@@ -303,7 +303,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
         return false;
 
       ast_t* a_type = alias(arg_type);
-      bool ok = safe_to_autorecover(receiver_type, a_type);
+      bool ok = safe_to_autorecover(receiver_type, a_type, WRITE);
       ast_free_unattached(a_type);
 
       if(!ok)

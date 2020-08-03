@@ -3,7 +3,7 @@
 #include "viewpoint.h"
 #include "ponyassert.h"
 
-static bool safe_field_write(token_id cap, ast_t* type)
+static bool safe_field_move(token_id cap, ast_t* type, direction direction)
 {
   switch(ast_id(type))
   {
@@ -16,7 +16,7 @@ static bool safe_field_write(token_id cap, ast_t* type)
 
       while(child != NULL)
       {
-        if(!safe_field_write(cap, child))
+        if(!safe_field_move(cap, child, direction))
           return false;
 
         child = ast_sibling(child);
@@ -33,7 +33,7 @@ static bool safe_field_write(token_id cap, ast_t* type)
       if(upper == NULL)
         return false;
 
-      bool ok = safe_field_write(cap, upper);
+      bool ok = safe_field_move(cap, upper, direction);
 
       if(upper != type)
         ast_free_unattached(upper);
@@ -43,7 +43,7 @@ static bool safe_field_write(token_id cap, ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return cap_safetowrite(cap, cap_single(type));
+      return cap_safetomove(cap, cap_single(type), direction);
 
     default: {}
   }
@@ -52,7 +52,7 @@ static bool safe_field_write(token_id cap, ast_t* type)
   return false;
 }
 
-bool safe_to_write(ast_t* ast, ast_t* type)
+bool safe_to_move(ast_t* ast, ast_t* type, direction direction)
 {
   switch(ast_id(ast))
   {
@@ -82,13 +82,13 @@ bool safe_to_write(ast_t* ast, ast_t* type)
       token_id l_cap = cap_single(l_type);
 
       // If the RHS is safe to write, we're done.
-      if(safe_field_write(l_cap, type))
+      if(safe_field_move(l_cap, type, direction))
         return true;
 
       // If the field type (without adaptation) is safe, then it's ok as
       // well. So iso.tag = ref should be allowed.
       ast_t* r_type = ast_type(right);
-      return safe_field_write(l_cap, r_type);
+      return safe_field_move(l_cap, r_type, direction);
     }
 
     case TK_TUPLE:
@@ -100,7 +100,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
 
       while(child != NULL)
       {
-        if(!safe_to_write(child, type_child))
+        if(!safe_to_move(child, type_child, direction))
           return false;
 
         child = ast_sibling(child);
@@ -116,7 +116,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
       // Occurs when there is a tuple on the left. Each child of the tuple will
       // be a sequence, but only sequences with a single writeable child are
       // valid. Other types won't appear here.
-      return safe_to_write(ast_child(ast), type);
+      return safe_to_move(ast_child(ast), type, direction);
     }
 
     default: {}
@@ -126,7 +126,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
   return false;
 }
 
-bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
+bool safe_to_autorecover(ast_t* receiver_type, ast_t* type, direction direction)
 {
   switch(ast_id(receiver_type))
   {
@@ -136,7 +136,7 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
 
       while(child != NULL)
       {
-        if(safe_to_autorecover(child, type))
+        if(safe_to_autorecover(child, type, direction))
           return true;
 
         child = ast_sibling(child);
@@ -151,7 +151,7 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
 
       while(child != NULL)
       {
-        if(!safe_to_autorecover(child, type))
+        if(!safe_to_autorecover(child, type, direction))
           return false;
 
         child = ast_sibling(child);
@@ -164,21 +164,21 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
     case TK_TYPEPARAMREF:
     {
       // An argument or result is safe for autorecover if it would be safe to
-      // write into the receiver.
-      return safe_field_write(cap_single(receiver_type), type);
+      // move into/out of the receiver, respectively.
+      return safe_field_move(cap_single(receiver_type), type, direction);
     }
 
     case TK_ARROW:
     {
       // If the receiver is an arrow type, it's safe to autorecover if the
-      // type being considered is safe to write into the upper bounds of the
+      // type being considered is safe to move into/out of the upper bounds of the
       // receiver.
       ast_t* upper = viewpoint_upper(receiver_type);
 
       if(upper == NULL)
         return false;
 
-      bool ok = safe_to_autorecover(upper, type);
+      bool ok = safe_to_autorecover(upper, type, direction);
 
       if(upper != receiver_type)
         ast_free_unattached(upper);
