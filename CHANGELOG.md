@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix unsound return types being allowed for autorecover ([PR #3595](https://github.com/ponylang/ponyc/pull/3595))
 
 ### Added
 
