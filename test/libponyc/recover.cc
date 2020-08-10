@@ -619,6 +619,22 @@ TEST_F(RecoverTest, CanAccess_LocalField)
 
   TEST_COMPILE(src);
 }
+TEST_F(RecoverTest, CanAccess_DeepLocalFields)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String = String\n"
+    "class StringRefRef\n"
+    "  var strref: StringRef = StringRef\n"
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      var local: StringRefRef ref = StringRefRef\n"
+    "      local.strref.str = String\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
 
   TEST_COMPILE(src);
 }
