@@ -616,6 +616,7 @@ TEST_F(RecoverTest, CanAccess_LocalField)
     "      var local: StringRef ref = StringRef\n"
     "      local.str = String\n"
     "    end";
+}
 
   TEST_COMPILE(src);
 }
