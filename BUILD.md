@@ -142,7 +142,7 @@ To ease development and support LSP tools like [clangd](https://clangd.llvm.org)
 2. symlink the generated `compile_commands.json` files into the project root directory:
 
   ```
-  ln -sf build/build_libs/compile_commands.json compile_commands.json
+  ln -sf build/build_debug/compile_commands.json compile_commands.json
   ```
 
   Replace `build_debug` with `build_release` is you are using a release configuration for compilation.
