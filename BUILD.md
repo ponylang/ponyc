@@ -133,3 +133,18 @@ ponyc --runtimebc
 ```
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
+
+# Compiler Development
+
+To ease development and support LSP tools like [clangd](https://clangd.llvm.org), create a `compile_commands.json` file with the following steps:
+
+1. Run the `make configure` step for building ponyc with the following variable defined: `CMAKE_FLAGS='-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'`
+2. symlink the generated `compile_commands.json` files into the project root directory:
+
+  ```
+  ln -sf build/build_libs/compile_commands.json compile_commands.json
+  ```
+
+  Replace `build_debug` with `build_release` is you are using a release configuration for compilation.
+
+Now [clangd](https://clangd.llvm.org) will pick up the generated file and will be able to respond much quicker than without `compile_commands.json` file.
