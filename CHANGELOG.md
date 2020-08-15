@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update to basing musl images off of Alpine 3.12 ([PR #3609](https://github.com/ponylang/ponyc/pull/3609))
 
 ## [0.36.0] - 2020-07-31
 
