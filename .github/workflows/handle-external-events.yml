@@ -126,8 +126,8 @@ jobs:
         env:
           VERSION: ${{ github.event.client_payload.data.version }}
 
-  update-stdlib-builder-image:
-    needs: build-release-gnu-docker-image
+  update-stdlib-builder-image-on-release:
+    needs: build-release-musl-docker-image
 
     name: Updates stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
@@ -141,13 +141,28 @@ jobs:
       - name: Build and push
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
 
+  update-stdlib-builder-image-on-nightly:
+    needs: build-latest-musl-docker-image
+
+    name: Updates stdlib-builder Docker image with nightly ponyc version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
+
   build-and-push-stdlib-documentation:
-    needs: update-stdlib-builder-image
+    needs: update-stdlib-builder-image-on-release
 
     name: Build and Push standard library documentation
     runs-on: ubuntu-latest
     container:
-      image: ponylang/ponyc-ci-stdlib-builder:latest
+      image: ponylang/ponyc-ci-stdlib-builder:release
     steps:
       - uses: actions/checkout@v1
       - name: Build and push

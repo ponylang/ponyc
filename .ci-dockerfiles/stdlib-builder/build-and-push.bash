@@ -9,5 +9,16 @@ set -o nounset
 
 DOCKERFILE_DIR="$(dirname "$0")"
 
-docker build --pull -t "ponylang/ponyc-ci-stdlib-builder:latest" "${DOCKERFILE_DIR}"
-docker push "ponylang/ponyc-ci-stdlib-builder:latest"
+# built from ponyc release tag
+FROM_TAG=release-alpine
+TAG_AS=release
+docker build --pull --build-arg FROM_TAG="${FROM_TAG}" \
+  -t ponylang/ponyc-ci-stdlib-builder:"${TAG_AS}" "${DOCKERFILE_DIR}"
+docker push ponylang/ponyc-ci-stdlib-builder:"${TAG_AS}"
+
+# built from ponyc latest tag
+FROM_TAG=alpine
+TAG_AS=latest
+docker build --pull --build-arg FROM_TAG="${FROM_TAG}" \
+  -t ponylang/ponyc-ci-stdlib-builder:"${TAG_AS}" "${DOCKERFILE_DIR}"
+docker push ponylang/ponyc-ci-stdlib-builder:"${TAG_AS}"
