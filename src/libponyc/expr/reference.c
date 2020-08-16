@@ -197,6 +197,7 @@ bool expr_contained_in(ast_t* ast, ast_t* expected_recover)
 {
   token_id id = ast_id(ast);
   ast_t* def;
+  ast_t* def_recover = NULL;
   while(true)
   {
     switch (id)
@@ -214,7 +215,7 @@ bool expr_contained_in(ast_t* ast, ast_t* expected_recover)
       case TK_PARAMREF:
         def = (ast_t*)ast_data(ast);
         pony_assert( def != NULL );
-        ast_t* def_recover = ast_nearest(def, TK_RECOVER);
+        def_recover = ast_nearest(def, TK_RECOVER);
         return def_recover == expected_recover;
 
       case TK_REFERENCE:
