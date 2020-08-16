@@ -623,7 +623,7 @@ TEST_F(RecoverTest, CanAccess_DeepLocalFields)
 {
   const char* src =
     "class StringRef\n"
-    "  var str: String = String\n"
+    "  var str: String ref = String\n"
     "class StringRefRef\n"
     "  var strref: StringRef = StringRef\n"
     "class Foo\n"
@@ -634,6 +634,21 @@ TEST_F(RecoverTest, CanAccess_DeepLocalFields)
     "    end";
 
   TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, CantAccess_This_NonSendable)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String ref = String\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      let str': String ref = String\n"
+    "      this.str = str'\n"
+    "    end";
+
+  TEST_ERRORS_2(src, "can't access field of non-sendable "
+            "object inside of a recover expression",
+    "left side must be something that can be assigned to");
 }
 
   TEST_COMPILE(src);

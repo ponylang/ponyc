@@ -193,6 +193,43 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+bool expr_contained_in(ast_t* ast, ast_t* expected_recover)
+{
+  token_id id = ast_id(ast);
+  ast_t* def;
+  while(true)
+  {
+    switch (id)
+    {
+      case TK_DOT:
+      case TK_FLETREF:
+      case TK_FVARREF:
+      case TK_EMBEDREF:
+        ast = ast_child(ast);
+        id = ast_id(ast);
+        continue;
+
+      case TK_LETREF:
+      case TK_VARREF:
+      case TK_PARAMREF:
+        def = (ast_t*)ast_data(ast);
+        pony_assert( def != NULL );
+        ast_t* def_recover = ast_nearest(def, TK_RECOVER);
+        return def_recover == expected_recover;
+
+      case TK_REFERENCE:
+        pony_assert(0);
+
+      case TK_THIS:
+        return false;
+
+      default:
+        return false;
+    }
+  }
+}
+
+
 bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
 {
   AST_GET_CHILDREN(ast, left, right);
@@ -228,27 +265,9 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   ast_t* nearest_recover = opt->check.frame->recover;
   if(nearest_recover != NULL)
   {
-    ast_t* def = (ast_t*)ast_data(left);
-    token_id left_id = ast_id(left);
-    pony_assert( def != NULL
-        ? (left_id != TK_VARREF || left_id != TK_LETREF)
-        : true);
-
-    if (def == NULL || nearest_recover != ast_nearest(def, TK_RECOVER)) {
-      if(!sendable(type))
-      {
-        if(!sendable(l_type))
-        {
-          errorframe_t frame = NULL;
-          ast_error_frame(&frame, ast, "can't access field of non-sendable "
-              "object inside of a recover expression");
-          ast_error_frame(&frame, find, "this would be possible if the field was "
-              "sendable");
-          errorframe_report(&frame, opt->check.errors);
-          return false;
-        }
-      }
-      else
+    if(!sendable(type) && !expr_contained_in(left, nearest_recover))
+    {
+      if(!sendable(l_type))
       {
         ast_t* parent = ast_parent(ast);
         ast_t* current = ast;
