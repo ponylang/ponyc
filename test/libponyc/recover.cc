@@ -443,7 +443,7 @@ TEST_F(RecoverTest, CanAccess_LocalAssigned)
   TEST_COMPILE(src);
 }
 
-TEST_F(RecoverTest, CantAccess_NonLocalField)
+TEST_F(RecoverTest, CantWrite_NonLocalField)
 {
   const char* src =
     "class StringRef\n"
