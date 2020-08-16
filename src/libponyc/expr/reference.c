@@ -260,7 +260,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   }
 
   // In a recover expression, we can access obj.field if field is sendable
-  // and not being assigned to, even if obj isn't sendable.
+  // even if obj isn't sendable.
 
   ast_t* nearest_recover = opt->check.frame->recover;
   if(nearest_recover != NULL)
@@ -269,23 +269,13 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
     {
       if(!sendable(l_type))
       {
-        ast_t* parent = ast_parent(ast);
-        ast_t* current = ast;
-        while(ast_id(parent) != TK_RECOVER && ast_id(parent) != TK_ASSIGN)
-        {
-          current = parent;
-          parent = ast_parent(parent);
-        }
-        if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
-        {
-          errorframe_t frame = NULL;
-          ast_error_frame(&frame, ast, "can't access field of non-sendable "
-              "object inside of a recover expression");
-          ast_error_frame(&frame, parent, "this would be possible if the field "
-              "wasn't assigned to");
-          errorframe_report(&frame, opt->check.errors);
-          return false;
-        }
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, ast, "can't access field of non-sendable "
+            "object inside of a recover expression");
+        ast_error_frame(&frame, find, "this would be possible if the field was "
+            "sendable");
+        errorframe_report(&frame, opt->check.errors);
+        return false;
       }
     }
   }
