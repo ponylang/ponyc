@@ -416,6 +416,96 @@ TEST_F(RecoverTest, CantAccess_MethodReturnNonSendable)
   TEST_ERRORS_1(src, "can't call method on non-sendable object");
 }
 
+TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    var nonlocal: String ref = String\n"
+    "    recover\n"
+    "      nonlocal = String\n"
+    "    end";
+
+  TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
+    "left side must be something that can be assigned to");
+}
+
+TEST_F(RecoverTest, CanAccess_LocalAssigned)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      var local: String ref = String\n"
+    "      local = String\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantAccess_NonLocalField)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String = String\n"
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    var nonlocal: StringRef ref = StringRef\n"
+    "    recover\n"
+    "      nonlocal.str = String\n"
+    "    end";
+
+  TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
+    "left side must be something that can be assigned to");
+}
+
+TEST_F(RecoverTest, CanAccess_LocalField)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String = String\n"
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      var local: StringRef ref = StringRef\n"
+    "      local.str = String\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, CanAccess_DeepLocalFields)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String ref = String\n"
+    "class StringRefRef\n"
+    "  var strref: StringRef = StringRef\n"
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      var local: StringRefRef ref = StringRefRef\n"
+    "      local.strref.str = String\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, CantWrite_This_NonSendable)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String ref = String\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      let str': String ref = String\n"
+    "      this.str = str'\n"
+    "    end";
+
+  TEST_ERRORS_2(src, "can't access field of non-sendable "
+            "object inside of a recover expression",
+    "left side must be something that can be assigned to");
+}
+
+
 TEST_F(RecoverTest, CanDoPartialApplication_TagWithLowerToTag)
 {
   const char* src =
@@ -546,97 +636,6 @@ TEST_F(RecoverTest, CantRecover_TupleInUnionMultipleLifts)
   TEST_ERRORS_1(src, "can't recover to this capability");
 }
 
-TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
-{
-  const char* src =
-    "class Foo\n"
-    "  fun apply() =>\n"
-    "    var nonlocal: String ref = String\n"
-    "    recover\n"
-    "      nonlocal = String\n"
-    "    end";
-
-  TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
-    "left side must be something that can be assigned to");
-}
-
-TEST_F(RecoverTest, CanAccess_LocalAssigned)
-{
-  const char* src =
-    "class Foo\n"
-    "  fun apply() =>\n"
-    "    recover\n"
-    "      var local: String ref = String\n"
-    "      local = String\n"
-    "    end";
-
-  TEST_COMPILE(src);
-}
-
-TEST_F(RecoverTest, CantAccess_NonLocalField)
-{
-  const char* src =
-    "class StringRef\n"
-    "  var str: String = String\n"
-    "class Foo\n"
-    "  fun apply() =>\n"
-    "    var nonlocal: StringRef ref = StringRef\n"
-    "    recover\n"
-    "      nonlocal.str = String\n"
-    "    end";
-
-  TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
-    "left side must be something that can be assigned to");
-}
-
-TEST_F(RecoverTest, CanAccess_LocalField)
-{
-  const char* src =
-    "class StringRef\n"
-    "  var str: String = String\n"
-    "class Foo\n"
-    "  fun apply() =>\n"
-    "    recover\n"
-    "      var local: StringRef ref = StringRef\n"
-    "      local.str = String\n"
-    "    end";
-
-  TEST_COMPILE(src);
-}
-TEST_F(RecoverTest, CanAccess_DeepLocalFields)
-{
-  const char* src =
-    "class StringRef\n"
-    "  var str: String ref = String\n"
-    "class StringRefRef\n"
-    "  var strref: StringRef = StringRef\n"
-    "class Foo\n"
-    "  fun apply() =>\n"
-    "    recover\n"
-    "      var local: StringRefRef ref = StringRefRef\n"
-    "      local.strref.str = String\n"
-    "    end";
-
-  TEST_COMPILE(src);
-}
-TEST_F(RecoverTest, CantAccess_This_NonSendable)
-{
-  const char* src =
-    "class StringRef\n"
-    "  var str: String ref = String\n"
-    "  fun apply() =>\n"
-    "    recover\n"
-    "      let str': String ref = String\n"
-    "      this.str = str'\n"
-    "    end";
-
-  TEST_ERRORS_2(src, "can't access field of non-sendable "
-            "object inside of a recover expression",
-    "left side must be something that can be assigned to");
-}
-
-  TEST_COMPILE(src);
-}
 TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
 {
   const char* src =
