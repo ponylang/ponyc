@@ -567,16 +567,58 @@ TEST_F(RecoverTest, CantAccess_NonSendableLocalAssigned)
   const char* src =
     "class Foo\n"
     "  fun apply() =>\n"
-    "    var a: String ref = String\n"
+    "    var nonlocal: String ref = String\n"
     "    recover\n"
-    "      let b: String ref = String\n"
-    "      a = b\n"
+    "      nonlocal = String\n"
     "    end";
 
   TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
     "left side must be something that can be assigned to");
 }
 
+TEST_F(RecoverTest, CanAccess_LocalAssigned)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      var local: String ref = String\n"
+    "      local = String\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantAccess_NonLocalField)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String = String\n"
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    var nonlocal: StringRef ref = StringRef\n"
+    "    recover\n"
+    "      nonlocal.str = String\n"
+    "    end";
+
+  TEST_ERRORS_2(src, "can't access a non-sendable local defined outside",
+    "left side must be something that can be assigned to");
+}
+
+TEST_F(RecoverTest, CanAccess_LocalField)
+{
+  const char* src =
+    "class StringRef\n"
+    "  var str: String = String\n"
+    "class Foo\n"
+    "  fun apply() =>\n"
+    "    recover\n"
+    "      var local: StringRef ref = StringRef\n"
+    "      local.str = String\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
 TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
 {
   const char* src =
