@@ -3,15 +3,20 @@ name: PR
 on: pull_request
 
 jobs:
-  shellcheck:
-    name: Shellcheck shell scripts
+  superlinter:
+    name: Lint bash, docker, markdown, and yaml
     runs-on: ubuntu-latest
-    container:
-      image: ponylang/shared-docker-ci-shellcheck:20191008
     steps:
-      - uses: actions/checkout@v1
-      - name: Shellcheck *.bash files
-        run: find . -name '*.bash' -exec shellcheck {} \;
+      - uses: actions/checkout@v2
+      - name: Lint codebase
+        uses: docker://github/super-linter:v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_BASH: true
+          VALIDATE_DOCKERFILE: true
+          VALIDATE_MD: true
+          VALIDATE_YAML: true
 
   validate-musl-docker-latest-image-builds:
     name: Validate musl Docker image builds

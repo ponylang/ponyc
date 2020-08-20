@@ -26,7 +26,6 @@ fi
 
 # Compiler target parameters
 ARCH=x86-64
-PIC=true
 
 # Triple construction
 TRIPLE=${ARCH}-${TRIPLE_VENDOR}-${TRIPLE_OS}
@@ -53,17 +52,17 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 echo "Building ponyc installation..."
 make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM}
 make build arch=${ARCH} build_flags=-j${MAKE_PARALLELISM}
-make install prefix=${BUILD_PREFIX} symlink=no arch=${ARCH} \
+make install prefix="${BUILD_PREFIX}" symlink=no arch=${ARCH} \
   build_flags=-j${MAKE_PARALLELISM}
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
-pushd ${DESTINATION} || exit 1
-tar -cvzf ${ASSET_FILE} *
+pushd "${DESTINATION}" || exit 1
+tar -cvzf "${ASSET_FILE}" ./*
 popd || exit 1
 
 # Ship it off to cloudsmith
 echo "Uploading package to cloudsmith..."
 cloudsmith push raw --version "${CLOUDSMITH_VERSION}" \
-  --api-key ${CLOUDSMITH_API_KEY} --summary "${ASSET_SUMMARY}" \
-  --description "${ASSET_DESCRIPTION}" ${ASSET_PATH} ${ASSET_FILE}
+  --api-key "${CLOUDSMITH_API_KEY}" --summary "${ASSET_SUMMARY}" \
+  --description "${ASSET_DESCRIPTION}" ${ASSET_PATH} "${ASSET_FILE}"

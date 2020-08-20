@@ -2,7 +2,7 @@
 
 Looking for help with Pony? Awesome. We are here to help. Before you open an issue against this repo, we ask you read the following to better direct you to the proper forum.
 
-## Should I open an issue?
+## Opening an issue
 
 We ask you to refrain from opening GitHub issues for non-actionable items. We use GitHub issues to track bugs and other problems that can be resolved. If you are not sure how to code a particular problem, how to decipher an error message, wondering about a benchmark, or anything of that sort, please use reach out via [our Zulip community][zulip].
 
@@ -16,7 +16,7 @@ Think you've found a bug? It's entirely possible. Pony is a relatively young lan
 
 * [Open an issue][issues]
 
-The Pony community while small is helpful and inviting. We think you'll find interacting with us to be an enjoyable experience. You can get a lot more community-related resources in the [community section][website community section] of this site. 
+The Pony community while small is helpful and inviting. We think you'll find interacting with us to be an enjoyable experience. You can get a lot more community-related resources in the [community section][website community section] of this site.
 
 [FAQ]: https://www.ponylang.io/faq/
 [zulip]: https://ponylang.zulipchat.com

@@ -71,12 +71,12 @@ You can verify that the release artifacts were successfully built and uploaded b
 
 Package names will be:
 
-- ponyc-x86-64-apple-darwin.tar.gz
-- ponyc-x86-64-unknown-freebsd-12.1.tar.gz
-- ponyc-x86-64-pc-windows-msvc.zip
-- ponyc-x86-64-unknown-linux-gnu.tar.gz
-- ponyc-x86-64-unknown-linux-musl.tar.gz
-- ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
+* ponyc-x86-64-apple-darwin.tar.gz
+* ponyc-x86-64-unknown-freebsd-12.1.tar.gz
+* ponyc-x86-64-pc-windows-msvc.zip
+* ponyc-x86-64-unknown-linux-gnu.tar.gz
+* ponyc-x86-64-unknown-linux-musl.tar.gz
+* ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
@@ -86,12 +86,12 @@ If not all files are presents after 10 to 15 minutes then either a build job is 
 
 As part of every release, 4 Docker images are built:
 
-- Ubuntu images
-  - release
-  - 0.3.1
-- Alpine images
-  - release-alpine
-  - 0.3.1-alpine
+* Ubuntu images
+  * release
+  * 0.3.1
+* Alpine images
+  * release-alpine
+  * 0.3.1-alpine
 
 The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
 
@@ -120,10 +120,7 @@ Last Week in Pony is our weekly newsletter. Add information about the release, i
 
 ### Announce on Twitter
 
-All Pony releases should be posted to:
-
-- [ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
-
+All Pony releases should be posted to the[ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
 
 ### Close the GitHub issue
 

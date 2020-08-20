@@ -3,7 +3,7 @@ FROM ponylang/ponyc:${FROM_TAG}
 
 RUN apk update \
   && apk upgrade \
-  && apk add --update \
+  && apk add --update --no-cache \
   bash \
   git-fast-import \
   libffi \

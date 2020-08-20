@@ -8,5 +8,5 @@ ADD https://download.visualstudio.microsoft.com/download/pr/220fe621-dd35-4fc0-a
 
 RUN C:\vs_BuildTools.exe --quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended
 RUN choco install cmake -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System'
-RUN choco install python3 -y --no-progress; `
-  C:\Python38\python.exe -m pip install --upgrade cloudsmith-cli
+RUN choco install python3 -y --no-progress
+RUN C:\Python38\python.exe -m pip install --upgrade cloudsmith-cli

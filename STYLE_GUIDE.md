@@ -2,7 +2,6 @@
 
 This is a document describing the preferred practices for writing code for the Pony standard library. Other projects are free to use the same style, but you are free to use any style in other projects. The following conventions are meant to ensure consistency and readability of Pony code. Any of the following rules may be broken in situations where the recommended practice would diminish readability.
 
-
 ## Formatting
 
 ### Line Length

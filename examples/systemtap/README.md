@@ -10,18 +10,19 @@ SystemTap documentation can be found
 
 ## Requirements
 
-*   Linux Kernel with UPROBES or UTRACE.
+* Linux Kernel with UPROBES or UTRACE.
 
   If your Linux kernel is version 3.5 or higher, it already includes UPROBES. To
   verify that the current kernel supports UPROBES natively, run the following
   command:
 
-  ```
+  ```bash
   # grep CONFIG_UPROBES /boot/config-`uname -r`
   ```
 
   If the kernel supports the probes this will be the output:
-  ```
+
+  ```bash
   CONFIG_UPROBES=y
   ```
 
@@ -30,19 +31,20 @@ SystemTap documentation can be found
   by the SystemTap user-space probing to track various user-space events. This
   can be verified with this command:
 
-  ```
+  ```bash
   # grep CONFIG_UTRACE /boot/config-`uname -r
   ```
+
   If the < 3.5 kernel supports user tracing this will be the output:
 
-  ```
+  ```bash
   CONFIG_UTRACE=y
   ```
 
   Note: UTRACE does not exist on kernel versions > 3.5 and has been replaced by
   UPROBES
 
-*   SystemTap > 2.6
+* SystemTap > 2.6
 
     You need the `dtrace` commandline tool to generate header and object files
     that are needed in the compilation and linking of PonyC compiler. This is
@@ -52,16 +54,16 @@ SystemTap documentation can be found
     and must be tested independently. In debian based systems, SystemTap can be
     installed with apt-get
 
-        ```
-        $sudo apt-get install systemtap systemtap-runtime
-        ```
+    ```bash
+    $sudo apt-get install systemtap systemtap-runtime
+    ```
 
 ## Using SystemTap scripts for PonyC
 
 You can find various example SystemTap scripts in `example/systemtap/`. To run
 these scripts, a sample command would be of the form:
 
-```
+```bash
 # stap [script path] -c [binary path]
 ```
 
@@ -88,7 +90,7 @@ list of all probes and their arguments in
 [`src/common/dtrace_probes.d`](../../src/common/dtrace_probes.d).  The following
 is a toy example of a SystemTap script:
 
-```
+```dtrace
 global gc_passes
 
 probe process.mark("gc-start")
@@ -115,7 +117,7 @@ them like they are in the
 
 All available probes in an executable can be listed like this:
 
-```
+```bash
 # stap -L 'process("<name_and_path_of_executable>").mark("*")'
 ```
 
