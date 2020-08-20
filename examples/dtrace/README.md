@@ -58,7 +58,7 @@ information of the probes. You can find a list of all probes and their arguments
 in [`src/common/dtrace_probes.d`](../../src/common/dtrace_probes.d).  The
 following is a toy example DTrace script:
 
-```
+```dtrace
 
 pony$target:::gc-start
 {

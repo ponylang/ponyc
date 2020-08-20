@@ -3,14 +3,16 @@ FROM ubuntu:20.04
 ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
 RUN apt-get update \
- && apt-get install -y \
+ && apt-get install -y --no-install-recommends \
+    ca-certificates \
     clang \
     curl \
     g++ \
     git \
-    make
+    make \
+  && rm -rf /var/lib/apt/lists/*
 
-RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
+RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
  && ponyup update ponyc nightly --platform=gnu \
  && ponyup update stable nightly \
  && ponyup update corral nightly \

@@ -80,7 +80,7 @@ Building on Windows requires the following:
 
 In a PowerShell prompt, run:
 
-```
+```powershell
 .\make.ps1 libs
 .\make.ps1 configure
 .\make.ps1 build
@@ -90,12 +90,11 @@ Following building, to make `ponyc.exe` globally available, add it to your `PATH
 
 Note that you only need to run `.\make.ps1 libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
+---
 
-----
+## Additional Build Options on Unix
 
-# Additional Build Options on Unix
-
-## arch
+### arch
 
 You can specify the CPU architecture to build Pony for via the `arch` make option:
 
@@ -103,7 +102,7 @@ You can specify the CPU architecture to build Pony for via the `arch` make optio
 make arch=arm7
 ```
 
-## lto
+### lto
 
 Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
 
@@ -118,7 +117,7 @@ make configure lto=yes
 make build
 ```
 
-## runtime-bitcode
+### runtime-bitcode
 
 If you're compiling with Clang, you can build the Pony runtime as an LLVM bitcode file by setting `runtime-bitcode` to `yes` in the build command line:
 
@@ -134,14 +133,14 @@ ponyc --runtimebc
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 
-# Compiler Development
+## Compiler Development
 
 To ease development and support LSP tools like [clangd](https://clangd.llvm.org), create a `compile_commands.json` file with the following steps:
 
 1. Run the `make configure` step for building ponyc with the following variable defined: `CMAKE_FLAGS='-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'`
 2. symlink the generated `compile_commands.json` files into the project root directory:
 
-  ```
+  ```bash
   ln -sf build/build_debug/compile_commands.json compile_commands.json
   ```
 

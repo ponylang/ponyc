@@ -2,7 +2,7 @@ FROM alpine:3.12
 
 ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
-RUN apk add --update \
+RUN apk add --update --no-cache \
     binutils-gold \
     build-base \
     clang \

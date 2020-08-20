@@ -77,9 +77,9 @@ git tag "${VERSION}"
 
 # push release to remote
 echo -e "\e[34mPushing commited changes back to master\e[0m"
-git push ${PUSH_TO} master
+git push "${PUSH_TO}" master
 echo -e "\e[34mPushing ${VERSION} tag. Release artifact building will start on success.\e[0m"
-git push ${PUSH_TO} "${VERSION}"
+git push "${PUSH_TO}" "${VERSION}"
 
 # release body
 echo -e "\e[34mPreparing to update GitHub release notes...\e[0m"
@@ -129,8 +129,8 @@ git add CHANGELOG.md
 git commit -m "Add unreleased section to CHANGELOG post ${VERSION} release [skip ci]"
 
 echo -e "\e[34mPushing CHANGELOG.md\e[0m"
-git push ${PUSH_TO} master
+git push "${PUSH_TO}" master
 
 # delete release-VERSION tag
 echo -e "\e[34mDeleting no longer needed remote tag release-${VERSION}\e[0m"
-git push --delete ${PUSH_TO} "release-${VERSION}"
+git push --delete "${PUSH_TO}" "release-${VERSION}"

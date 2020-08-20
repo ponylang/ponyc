@@ -38,7 +38,7 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc:TAG ./main
 
 To compile and run in one step run a command like this:
 
-```
+```bash
 docker run -v /path/to/my-code:/src/main ponylang/ponyc:TAG sh -c "ponyc && ./main"
 ```
 
