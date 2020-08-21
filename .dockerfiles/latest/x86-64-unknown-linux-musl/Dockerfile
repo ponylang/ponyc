@@ -11,7 +11,7 @@ RUN apk add --update --no-cache \
     libexecinfo-dev \
     libexecinfo-static
 
-RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/master/ponyup-init.sh | sh \
+RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
  && ponyup update ponyc nightly --platform=musl\
  && ponyup update stable nightly \
  && ponyup update corral nightly \
@@ -19,4 +19,4 @@ RUN curl -s --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/po
 
 WORKDIR /src/main
 
-CMD ponyc
+CMD ["ponyc"]
