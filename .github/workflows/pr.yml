@@ -12,7 +12,7 @@ jobs:
         uses: docker://github/super-linter:v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           VALIDATE_BASH: true
           VALIDATE_DOCKERFILE: true
           VALIDATE_MD: true

@@ -58,7 +58,7 @@ make install prefix="${BUILD_PREFIX}" symlink=no arch=${ARCH} \
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
 pushd "${DESTINATION}" || exit 1
-tar -cvzf "${ASSET_FILE}" ./*
+tar -cvzf "${ASSET_FILE}" -- *
 popd || exit 1
 
 # Ship it off to cloudsmith
