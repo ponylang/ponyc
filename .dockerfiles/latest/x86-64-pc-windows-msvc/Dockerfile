@@ -15,4 +15,4 @@ RUN C:\vs_BuildTools.exe --quiet --wait --norestart --nocache --add Microsoft.Vi
 RUN Expand-Archive -Path C:\ponyc.zip -DestinationPath C:\ponyc
 RUN setx /M PATH $($env:PATH + ';C:\ponyc\bin')
 
-CMD C:\ponyc\bin\ponyc.exe
+CMD ["C:\ponyc\bin\ponyc.exe"]

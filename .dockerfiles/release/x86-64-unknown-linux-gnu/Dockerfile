@@ -20,4 +20,4 @@ RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.
 
 WORKDIR /src/main
 
-CMD ponyc
+CMD ["ponyc"]
