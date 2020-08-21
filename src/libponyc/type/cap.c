@@ -941,16 +941,11 @@ bool cap_safetomove(token_id into, token_id cap, direction direction)
           return true;
 
         case TK_TRN:
-          switch (direction) {
-            case WRITE: return true;
-            case EXTRACT: return false;
-          }
+          return direction == WRITE;
+          
         case TK_BOX:
-          switch (direction) {
-            case WRITE: return false;
-            case EXTRACT: return true;
-          }
-
+          return direction == EXTRACT;
+          
         default: {}
       }
       break;
