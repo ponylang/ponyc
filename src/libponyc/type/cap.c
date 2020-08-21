@@ -942,6 +942,7 @@ bool cap_safetomove(token_id into, token_id cap, direction direction)
 
         case TK_TRN:
           return direction == WRITE;
+          
         case TK_BOX:
           return direction == EXTRACT;
           
