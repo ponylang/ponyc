@@ -290,7 +290,7 @@ TEST_F(RecoverTest, CantAccess_NonSendableField)
     "  fun apply(): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "can't access field of non-sendable object");
+  TEST_ERRORS_1(src, "can't access non-sendable field of non-sendable object");
 }
 
 TEST_F(RecoverTest, CantAccess_AssignedField)
@@ -305,7 +305,7 @@ TEST_F(RecoverTest, CantAccess_AssignedField)
     "  fun ref apply(): Wrap iso =>\n"
     "    recover Wrap(inner = recover Inner end) end";
 
-  TEST_ERRORS_2(src, "can't access field of non-sendable object",
+  TEST_ERRORS_2(src, "can't assign to field of non-sendable object",
     "left side must be something that can be assigned to");
 }
 
@@ -516,7 +516,7 @@ TEST_F(RecoverTest, CantWrite_This_NonSendable)
     "      this.str = str'\n"
     "    end";
 
-  TEST_ERRORS_2(src, "can't access field of non-sendable "
+  TEST_ERRORS_2(src, "can't access non-sendable field of non-sendable "
             "object inside of a recover expression",
     "left side must be something that can be assigned to");
 }

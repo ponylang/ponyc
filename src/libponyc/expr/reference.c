@@ -271,8 +271,8 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
       if(!sendable(l_type))
       {
         errorframe_t frame = NULL;
-        ast_error_frame(&frame, ast, "can't access field of non-sendable "
-            "object inside of a recover expression");
+        ast_error_frame(&frame, ast, "can't access non-sendable field of "
+            "non-sendable object inside of a recover expression");
         errorframe_report(&frame, opt->check.errors);
         return false;
       }
@@ -289,10 +289,8 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
       if(ast_id(parent) == TK_ASSIGN && ast_childidx(parent, 1) != current)
       {
         errorframe_t frame = NULL;
-        ast_error_frame(&frame, ast, "can't access field of non-sendable "
+        ast_error_frame(&frame, ast, "can't assign to field of non-sendable "
             "object inside of a recover expression");
-        ast_error_frame(&frame, parent, "this would be possible if the field "
-            "wasn't assigned to");
         errorframe_report(&frame, opt->check.errors);
         return false;
       }
