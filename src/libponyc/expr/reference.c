@@ -193,7 +193,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_contained_in(ast_t* ast, ast_t* expected_recover)
+static bool expr_contained_in_recover(ast_t* ast, ast_t* expected_recover)
 {
   token_id id = ast_id(ast);
   ast_t* def;
