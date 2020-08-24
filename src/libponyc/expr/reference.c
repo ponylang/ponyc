@@ -264,7 +264,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   // and not being assigned to, even if obj isn't sendable.
 
   ast_t* nearest_recover = opt->check.frame->recover;
-  if(nearest_recover != NULL && !expr_contained_in(left, nearest_recover))
+  if(nearest_recover != NULL && !expr_contained_in_recover(left, nearest_recover))
   {
     if(!sendable(type))
     {
