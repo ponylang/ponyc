@@ -64,6 +64,7 @@ See [INSTALL_DOCKER.md](INSTALL_DOCKER.md)
 * Nano: [pony.nanorc file](https://github.com/serialhex/nano-highlight/blob/master/pony.nanorc)
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
 * CudaText: lexer in Addon Manager
+* Vis: has a [lexer](https://github.com/martanne/vis/blob/master/lua/lexers/pony.lua) for Pony
 
 ## Contributing
 
