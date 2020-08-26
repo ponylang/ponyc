@@ -169,3 +169,18 @@ jobs:
         run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
         env:
           STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
+
+  trigger-release-announcement:
+    name: Trigger release announcement
+    runs-on: ubuntu-latest
+    needs: [build-and-push-stdlib-documentation]
+    steps:
+      - uses: actions/checkout@v1
+      - name: Trigger
+        uses: ponylang/release-bot-action@0.3.1
+        with:
+          step: trigger-release-announcement
+          git_user_name: "Ponylang Main Bot"
+          git_user_email: "ponylang.main@gmail.com"
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}

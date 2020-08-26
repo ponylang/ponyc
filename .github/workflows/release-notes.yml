@@ -1,0 +1,24 @@
+name: Release Notes
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+    paths-ignore:
+      - .release-notes/next-release.md
+      - .release-notes/\d+.\d+.\d+.md
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    name: Update release notes
+    steps:
+      - name: Update
+        uses: ponylang/release-notes-bot-action@0.3.0
+        with:
+          git_user_name: "Ponylang Main Bot"
+          git_user_email: "ponylang.main@gmail.com"
+        env:
+          API_CREDENTIALS: ${{ secrets.GITHUB_TOKEN }}

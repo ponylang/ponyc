@@ -1,20 +1,21 @@
-name: Start a release
+name: Announce a release
 
 on:
   push:
-    tags: release-\d+.\d+.\d+
+    tags: announce-\d+.\d+.\d+
 
 jobs:
-  start-a-release:
-    name: Start a release
+  announce-a-release:
+    name: Announce a release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: Start
+      - name: Announce
         uses: ponylang/release-bot-action@0.3.1
         with:
-          step: start-a-release
+          step: announce-a-release
           git_user_name: "Ponylang Main Bot"
           git_user_email: "ponylang.main@gmail.com"
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          ZULIP_TOKEN: ${{ secrets.ZULIP_TOKEN }}

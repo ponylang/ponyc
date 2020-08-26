@@ -1,0 +1,16 @@
+name: Release Notes Reminder
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  release-note-reminder:
+    runs-on: ubuntu-latest
+    name: Prompt to add release notes
+    steps:
+      - name: Prompt to add release notes
+        uses: ponylang/release-notes-reminder-bot-action@0.1.0
+        env:
+          API_CREDENTIALS: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+
