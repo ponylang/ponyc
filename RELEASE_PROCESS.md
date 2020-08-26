@@ -2,17 +2,10 @@
 
 This document is aimed at members of the Pony team who might be cutting a release of Pony. It serves as a checklist that can take you through doing a release step-by-step.
 
-## Prerequisites for doing any release
+## Prerequisites
 
-In order to do a release, you absolutely must have:
-
-* Commit access to the `ponyc` repo
-* Access to the ponylang twitter account
-* An account on the [Pony Zulip](https://ponylang.zulipchat.com)
-
-While not strictly required, you probably be unable to deal with any errors that arise without:
-
-* Read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
+* You must have commit access to the ponyup repository.
+* It would be helpful to have read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
 ### Validate external services are functional
 
@@ -22,10 +15,6 @@ We rely on CirrusCI, Cloudsmith, DockerHub, and GitHub Actions as part of our re
 * [Cloudsmith](https://status.cloudsmith.io/)
 * [DockerHub](https://status.docker.com/)
 * [GitHub](https://www.githubstatus.com/)
-
-### A GitHub issue exists for the release
-
-All releases should have a corresponding issue in the [ponyc repo](https://github.com/ponylang/ponyc/issues). This issue should be used to communicate the progress of the release (updated as checklist steps are completed). You can also use the issue to notify other pony team members of problems.
 
 ## Releasing
 
@@ -46,22 +35,6 @@ For the duration of this document, that we are releasing version is `0.3.1`. Any
 git tag release-0.3.1
 git push origin release-0.3.1
 ```
-
-### Update the GitHub issue
-
-Leave a comment on the GitHub issue that the release process has been started.
-
-### "Kick off" the Gentoo release
-
-Leave a comment on the GitHub issue for this release letting @stefantalpalaru know that a release is underway. He maintains the Gentoo release. We think it involves magic, but aren't really sure.
-
-### Work on the release notes
-
-We do release notes for each release. The release notes should include highlights of any particularly interesting changes that we want the community to be aware of.
-
-Additionally, any breaking changes that require end users to change their code should be discussed and examples of how to update their code should be included.
-
-[Examples of prior release posts](https://github.com/ponylang/ponyc/releases/) are available. If you haven't written release notes before, you should review prior examples to get a feel what should be included. ([example](https://github.com/ponylang/ponyc/releases/tag/0.35.0))
 
 ### Wait on release artifacts
 
@@ -108,20 +81,20 @@ docker build docker --pull -t ponylang-playpen
 systemctl start playground
 ```
 
-### Inform the Pony Zulip
+## If something goes wrong
 
-Once CirrusCI, Cloudsmith, and GitHub Actions are all finished, drop a note in the [#announce stream](https://ponylang.zulipchat.com/#narrow/stream/189932-announce) with a topic like "0.3.1 has been released" of the Pony Zulip letting everyone know that the release is out and include a link the release blog post.
+The release process can be restarted at various points in it's lifecycle by pushing specially crafted tags.
 
-If this is an "emergency release" that is designed to get a high priority bug fix out, be sure to note that everyone is advised to update ASAP. If the high priority bug only affects certain platforms, adjust the "update ASAP" note accordingly.
+### Start a release
 
-### Add to "Last Week in Pony"
+As documented above, a release is started by pushing a tag of the form `release-x.y.z`.
 
-Last Week in Pony is our weekly newsletter. Add information about the release, including a link to the release notes, to the [current Last Week in Pony](https://github.com/ponylang/ponylang-website/issues?q=is%3Aissue+is%3Aopen+label%3Alast-week-in-pony). ([example](https://github.com/ponylang/ponylang.github.io/issues/282#issuecomment-392230067))
+### Build artifacts
 
-### Announce on Twitter
+The release process can be manually restarted from here by pushing a tag of the form `x.y.z`. The pushed tag must be on the commit to build the release artifacts from. During the normal process, that commit is the same as the one that `release-x.y.z`.
 
-All Pony releases should be posted to the[ponylang twitter](https://www.twitter.com/ponylang) ([example](https://twitter.com/ponylang/status/952626693042311169))
+### Announce release
 
-### Close the GitHub issue
+The release process can be manually restarted from here by push a tag of the form `announce-x.y.z`. The tag must be on a commit that is after "Release x.y.z" commit that was generated during the `Start a release` portion of the process.
 
-Close the GitHub issue for this release.
+If you need to restart from here, you will need to pull the latest updates from the ponyc repo as it will have changed and the commit you need to tag will not be available in your copy of the repo with pulling.
