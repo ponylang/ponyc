@@ -126,6 +126,20 @@ jobs:
         env:
           VERSION: ${{ github.event.client_payload.data.version }}
 
+  update-playground-image-on-release:
+    needs: build-release-musl-docker-image
+
+    name: Update https://playground.ponylang.io/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote command
+        uses: appleboy/ssh-action@ffff33f8fe0318345a4f00f0e847325954b2a3ed
+        with:
+          host: ${{ secrets.PLAYGROUND_HOST }}
+          username: ${{ secrets.PLAYGROUND_ADMIN_USER }}
+          key: ${{ secrets.PLAYGROUND_KEY }}
+          script: bash update-playground.bash
+
   update-stdlib-builder-image-on-release:
     needs: build-release-musl-docker-image
 
@@ -173,7 +187,7 @@ jobs:
   trigger-release-announcement:
     name: Trigger release announcement
     runs-on: ubuntu-latest
-    needs: [build-and-push-stdlib-documentation]
+    needs: [build-and-push-stdlib-documentation, update-playground-image-on-release]
     steps:
       - uses: actions/checkout@v1
       - name: Trigger
