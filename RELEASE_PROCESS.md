@@ -70,16 +70,9 @@ The images are built via GitHub action after Linux releases have been uploaded t
 
 ### Verify that the Pony Playground updated to the new version
 
-Once the DockerHub images have been updated, the Pony playground will need to be updated. If you don't have access to the playground server, ping @jemc, @seantallen, @mfelsche, @aturley, @kubali or @theodus and let them know the update needs to be done.
+Once the DockerHub images have been updated, the Pony playground should automatically update. You can check the version running by compiling a small Pony program and verifying that the version listed in the output matches the newly released Pony version.
 
-To update, you currently must do the following after logging in:
-
-```bash
-systemctl stop playground
-cd pony-playground
-docker build docker --pull -t ponylang-playpen
-systemctl start playground
-```
+If the versions are different, you'll need to log in to the playground server as root and run `bash update-playground.bash`.
 
 ## If something goes wrong
 
