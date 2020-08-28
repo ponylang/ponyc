@@ -2,16 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.37.0] - 2020-08-28
 
 ### Fixed
 
 - Fix unsound return types being allowed for autorecover ([PR #3595](https://github.com/ponylang/ponyc/pull/3595))
 - Fix compile error with GCC 8.3 ([PR #3618](https://github.com/ponylang/ponyc/pull/3618))
 - Always allow field access for objects defined inside a recover block ([PR #3606](https://github.com/ponylang/ponyc/pull/3606))
-
-### Added
-
 
 ### Changed
 
