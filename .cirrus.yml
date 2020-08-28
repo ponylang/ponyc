@@ -232,6 +232,13 @@ task:
   only_if: $CIRRUS_CRON == "master-midnight"
 
   matrix:
+    - name: "nightly: x86-64-unknown-linux-centos8"
+      container:
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8:20200828
+      environment:
+        CACHE_BUSTER: 20200828
+        TRIPLE_VENDOR: unknown
+        TRIPLE_OS: centos8
     - name: "nightly: x86-64-unknown-linux-gnu"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
@@ -366,6 +373,13 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   matrix:
+    - name: "release: x86-64-unknown-linux-centos8"
+      container:
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20200828
+      environment:
+        CACHE_BUSTER: 20200828
+        TRIPLE_VENDOR: unknown
+        TRIPLE_OS: linux-centos8
     - name: "release: x86-64-unknown-linux-gnu"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423

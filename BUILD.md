@@ -51,9 +51,10 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-alpine | cmake, g++, make, libexecinfo
-ubuntu | cmake, g++, make
-fedora | cmake, gcc-c++, make, libatomic, libstdc++-static
+Alpine | cmake, g++, libexecinfo, make
+CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
+Fedora | cmake, gcc-c++, libatomic, libstdc++-static, make
+Ubuntu | cmake, g++, make
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
