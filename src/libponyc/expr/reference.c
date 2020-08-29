@@ -220,6 +220,7 @@ static bool expr_contained_in_recover(ast_t* ast, ast_t* expected_recover)
 
       case TK_REFERENCE:
         pony_assert(0);
+        return false;
 
       case TK_THIS:
         return false;
