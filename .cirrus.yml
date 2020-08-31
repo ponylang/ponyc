@@ -234,7 +234,7 @@ task:
   matrix:
     - name: "nightly: x86-64-unknown-linux-centos8"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8:20200828
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20200828
       environment:
         CACHE_BUSTER: 20200828
         TRIPLE_VENDOR: unknown
