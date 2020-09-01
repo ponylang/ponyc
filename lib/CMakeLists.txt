@@ -31,6 +31,7 @@ install(TARGETS blake2
 find_package(Git)
 
 set(LLVM_DESIRED_HASH "c1a0a213378a458fbea1a5c77b315c7dce08fd05")
+set(PATCHES_DESIRED_HASH "9063f83d727bf042a1232420e168c1ea192bf6a2960d35e57123245b630eb923")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -62,13 +63,24 @@ if(GIT_FOUND)
     # Apply patches
     message("Applying patches...")
     file(GLOB PONY_LLVM_PATCHES "${PROJECT_SOURCE_DIR}/llvm/patches/*.diff")
+
+    # check to see if the patch hashes match
+    set(PATCHES_ACTUAL_HASH "")
+    foreach (PATCH ${PONY_LLVM_PATCHES})
+        file(SHA256 ${PATCH} patch_file_hash)
+        string(CONCAT PATCHES_ACTUAL_HASH patch_file_hash)
+    endforeach()
+    string(SHA256 PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH})
+    if(NOT PATCHES_ACTUAL_HASH EQUAL "${PATCHES_DESIRED_HASH}")
+        message(FATAL_ERROR "Patch hash actual ${PATCHES_ACTUAL_HASH} does not match desired ${PATCHES_DESIRED_HASH}")
+    endif()
+
     foreach (PATCH ${PONY_LLVM_PATCHES})
         message("  Checking ${PATCH}")
         execute_process(COMMAND ${GIT_EXECUTABLE} apply --check -p 1 --ignore-whitespace --whitespace=nowarn ${PATCH}
                         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/llvm/src"
                         ERROR_VARIABLE _err_out
                         RESULT_VARIABLE git_apply_check_result)
-        #message("git_apply_check_result ${git_apply_check_result}")
         if(git_apply_check_result EQUAL "0")
             message("    Applying ${PATCH}")
             execute_process(COMMAND ${GIT_EXECUTABLE} apply -p 1 --ignore-whitespace --whitespace=nowarn ${PATCH}
