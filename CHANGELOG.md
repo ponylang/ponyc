@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix build failure under GCC 10.2 ([PR #3630](https://github.com/ponylang/ponyc/pull/3630))
+- Fix building libs with Visual Studio 16.7 ([PR #3635](https://github.com/ponylang/ponyc/pull/3635))
 
 ### Added
 
