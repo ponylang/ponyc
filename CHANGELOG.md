@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add prebuilt ponyc binaries for CentOS 8 ([PR #3629](https://github.com/ponylang/ponyc/pull/3629))
+- Add prebuilt ponyc binaries for Ubuntu 20.04 ([PR #3632](https://github.com/ponylang/ponyc/pull/3632))
 
 ### Changed
 
