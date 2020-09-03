@@ -98,6 +98,10 @@ endif
 
 PONY_USES =
 
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
+
 define USE_CHECK
   $$(info Enabling use option: $1)
   ifeq ($1,valgrind)
