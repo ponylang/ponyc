@@ -2,3 +2,6 @@
   path = lib/llvm/src
   url = https://github.com/llvm/llvm-project
   ignore = dirty
+[submodule "lib/snmalloc"]
+	path = lib/snmalloc
+	url = https://github.com/microsoft/snmalloc
