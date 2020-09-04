@@ -10,7 +10,6 @@ add_executable(libponyrt.tests
     lang/error.cc
     mem/heap.cc
     mem/pagemap.cc
-    mem/pool.cc
 )
 
 target_include_directories(libponyrt.tests

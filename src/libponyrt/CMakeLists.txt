@@ -34,7 +34,6 @@ set(_c_src
     lang/stdfd.c
     lang/time.c
     lang/win_except.c
-    mem/alloc.c
     mem/heap.c
     mem/pagemap.c
     mem/pool.c
@@ -60,6 +59,11 @@ add_library(libponyrt STATIC
     ${_c_src}
     ${_ll_except_obj}
 )
+
+set(SNMALLOC_PONY_SUPPORT ON)
+add_subdirectory(../../lib/snmalloc build_libs/snmalloc)
+target_link_libraries(libponyrt PRIVATE snmallocshim-pony)
+target_compile_options(libponyrt PRIVATE -Wno-error)
 
 if (NOT MSVC)
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64")

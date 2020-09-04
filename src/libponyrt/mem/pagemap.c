@@ -1,7 +1,6 @@
 #define PONY_WANT_ATOMIC_DEFS
 
 #include "pagemap.h"
-#include "alloc.h"
 #include "pool.h"
 #include <string.h>
 
