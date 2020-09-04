@@ -18,3 +18,7 @@ You can opt into using the Ubuntu binaries when using ponyup by running:
 ponyup default ubuntu20.04
 ```
 
+# Fix missing Makefile lines to re-enable multiple `use=` options
+
+When implementing the CMake build system, I missed copying a couple of lines from the old Makefile that meant that you could only specify one use= option when doing make configure on Posix. This change restores those lines, so you can specify multiple options for use, e.g. make configure use=memtrack_messages,address_sanitizer.
+
