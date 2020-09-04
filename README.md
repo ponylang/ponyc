@@ -6,27 +6,6 @@ Pony is an open-source, object-oriented, actor-model, capabilities-secure, high-
 
 Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. These changes are usually fairly easy to adapt to. Applications written in Pony are currently used in production environments.
 
-## Installation
-
-See [INSTALL.md](INSTALL.md).
-
-## Building from source
-
-See [BUILD.md](BUILD.md).
-
-## Docker images
-
-See [INSTALL_DOCKER.md](INSTALL_DOCKER.md).
-
-## Resources
-
-* [Learn more about Pony](https://www.ponylang.io/discover/)
-* [Start learning Pony](https://www.ponylang.io/learn/)
-  * [Getting help](https://www.ponylang.io/learn/#getting-help)
-* [Try Pony online](https://playground.ponylang.io)
-* [Frequently Asked Questions](https://www.ponylang.io/faq/)
-* [Community](https://www.ponylang.io/community/)
-
 ## Supported platforms
 
 ### Operating Systems
@@ -44,9 +23,21 @@ See [INSTALL_DOCKER.md](INSTALL_DOCKER.md).
   * The `arm` and `armhf` architectures are tested via CI (Continuous
     Integration testing)
 
-## Editor support
+## More Information
 
-See [EDITORS.md](EDITORS.md).
+* [Installation](INSTALL.md)
+* [Building from source](BUILD.md)
+* [Docker images](INSTALL_DOCKER.md)
+* [Editor support](EDITORS.md)
+
+## Resources
+
+* [Learn more about Pony](https://www.ponylang.io/discover/)
+* [Start learning Pony](https://www.ponylang.io/learn/)
+  * [Getting help](https://www.ponylang.io/learn/#getting-help)
+* [Try Pony online](https://playground.ponylang.io)
+* [Frequently Asked Questions](https://www.ponylang.io/faq/)
+* [Community](https://www.ponylang.io/community/)
 
 ## Contributing
 
