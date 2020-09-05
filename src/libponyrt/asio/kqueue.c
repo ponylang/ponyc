@@ -450,8 +450,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   ev->flags = ASIO_DISPOSABLE;
 
-  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(asio_msg_t)), 0);
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(sizeof(asio_msg_t), 0);
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
   ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg

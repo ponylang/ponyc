@@ -472,7 +472,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
   }
 
   size_t buf_size = (t->field_count + extra) * sizeof(LLVMTypeRef);
-  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
 
   // Create the type descriptor as element 0.
   if(extra > 0)
@@ -499,7 +499,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
   }
 
   LLVMStructSetBody(type, elements, t->field_count + extra, packed);
-  ponyint_pool_free_size(buf_size, elements);
+  ponyint_pool_free(buf_size, elements);
   return true;
 }
 
@@ -581,7 +581,7 @@ static void make_debug_fields(compile_t* c, reach_type_t* t)
   if(t->field_count > 0)
   {
     fields_buf_size = t->field_count * sizeof(LLVMMetadataRef);
-    fields = (LLVMMetadataRef*)ponyint_pool_alloc_size(fields_buf_size);
+    fields = (LLVMMetadataRef*)ponyint_pool_alloc(fields_buf_size);
 
     for(uint32_t i = 0; i < t->field_count; i++)
       fields[i] = make_debug_field(c, t, i);
@@ -620,7 +620,7 @@ static void make_debug_fields(compile_t* c, reach_type_t* t)
 #endif
 
   if(fields != NULL)
-    ponyint_pool_free_size(fields_buf_size, fields);
+    ponyint_pool_free(fields_buf_size, fields);
 
   if(t->underlying != TK_TUPLETYPE)
   {

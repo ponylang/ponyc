@@ -91,13 +91,13 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(c_t->custom_serialise_fn));
     size_t buf_size = 2 * sizeof(void *);
-    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
     LLVMGetParamTypes(f_type, params);
     args[0] = LLVMBuildBitCast(c->builder, object, params[0], "");
     args[1] = LLVMBuildBitCast(c->builder, f_offset, params[1], "");
     codegen_call(c, c_t->custom_serialise_fn, args, 2, true);
 
-    ponyint_pool_free_size(buf_size, params);
+    ponyint_pool_free(buf_size, params);
   }
 }
 

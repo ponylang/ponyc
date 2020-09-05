@@ -96,7 +96,7 @@ static bool name_record_cmp(name_record_t* a, name_record_t* b)
 
 static void name_record_free(name_record_t* p)
 {
-  ponyint_pool_free_size(p->typemap_size * sizeof(uint64_t), p->type_map);
+  ponyint_pool_free(p->typemap_size * sizeof(uint64_t), p->type_map);
   POOL_FREE(name_record_t, p);
 }
 
@@ -189,7 +189,7 @@ static name_record_t* add_name(painter_t* painter, const char* name)
   n->name = name;
   n->colour = UNASSIGNED_COLOUR;
   n->typemap_size = painter->typemap_size;
-  n->type_map = (uint64_t*)ponyint_pool_alloc_size(map_byte_count);
+  n->type_map = (uint64_t*)ponyint_pool_alloc(map_byte_count);
   memset(n->type_map, 0, map_byte_count);
 
   name_records_put(&painter->names, n);
@@ -206,7 +206,7 @@ static colour_record_t* add_colour(painter_t* painter)
 
   colour_record_t* n = POOL_ALLOC(colour_record_t);
   n->colour = painter->colour_count;
-  n->type_map = (uint64_t*)ponyint_pool_alloc_size(map_byte_count);
+  n->type_map = (uint64_t*)ponyint_pool_alloc(map_byte_count);
   n->next = NULL;
   memset(n->type_map, 0, map_byte_count);
 
@@ -402,7 +402,7 @@ static void painter_tidy(painter_t* painter)
   while(c != NULL)
   {
     colour_record_t* next = c->next;
-    ponyint_pool_free_size(map_byte_count, c->type_map);
+    ponyint_pool_free(map_byte_count, c->type_map);
     POOL_FREE(sizeof(colour_record_t), c);
     c = next;
   }

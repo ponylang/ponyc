@@ -161,7 +161,7 @@ void buildflagset_free(buildflagset_t* set)
     POOL_FREE(flagtab_t, set->flags);
 
     if(set->buffer_size > 0)
-      ponyint_pool_free_size(set->buffer_size, set->text_buffer);
+      ponyint_pool_free(set->buffer_size, set->text_buffer);
 
     POOL_FREE(buildflagset_t, set);
   }
@@ -559,9 +559,9 @@ const char* buildflagset_print(buildflagset_t* set)
   {
     // Buffer we have isn't big enough, make it bigger then go round again.
     if(set->buffer_size > 0)
-      ponyint_pool_free_size(set->buffer_size, set->text_buffer);
+      ponyint_pool_free(set->buffer_size, set->text_buffer);
 
-    set->text_buffer = (char*)ponyint_pool_alloc_size(size_needed);
+    set->text_buffer = (char*)ponyint_pool_alloc(size_needed);
     set->buffer_size = size_needed;
     set->text_buffer[0] = '\0';
     buildflagset_print(set);

@@ -348,7 +348,7 @@ static void append_to_token(lexer_t* lexer, char c)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
     lexer->buffer =
-      (char*)ponyint_pool_realloc_size(lexer->alloc, new_len, lexer->buffer);
+      (char*)ponyint_pool_realloc(lexer->alloc, new_len, lexer->buffer);
     lexer->alloc = new_len;
   }
 
@@ -1281,7 +1281,7 @@ void lexer_close(lexer_t* lexer)
     return;
 
   if(lexer->buffer != NULL)
-    ponyint_pool_free_size(lexer->alloc, lexer->buffer);
+    ponyint_pool_free(lexer->alloc, lexer->buffer);
 
   POOL_FREE(lexer_t, lexer);
 }

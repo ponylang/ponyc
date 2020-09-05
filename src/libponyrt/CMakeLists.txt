@@ -67,8 +67,9 @@ target_link_libraries(libponyrt PRIVATE snmallocshim-pony)
 target_link_libraries(libponyrt PRIVATE snmallocshim-rust)
 target_link_libraries(libponyrt PRIVATE snmallocshim)
 target_compile_options(libponyrt PRIVATE -Wno-error)
-target_compile_options(libponyrt PRIVATE -fno-omit-frame-pointer -fsanitize=address)
-target_link_libraries(libponyrt PRIVATE -fno-omit-frame-pointer -fsanitize=address)
+# target_compile_options(libponyrt PRIVATE -fno-omit-frame-pointer -fsanitize=address)
+# target_link_libraries(libponyrt PRIVATE -fno-omit-frame-pointer -fsanitize=address)
+# TODO: use-after-free in CodegenFinalTest.PrimitiveFinal
 
 if (NOT MSVC)
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64")

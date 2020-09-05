@@ -201,7 +201,7 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
 
 // Cat together the given strings into a newly allocated buffer.
 // Any unneeded strings should be passed as "", not NULL.
-// The returned buffer must be freed with ponyint_pool_free_size() when
+// The returned buffer must be freed with ponyint_pool_free() when
 // no longer needed.
 // The out_buf_size parameter returns the size of the buffer (which is needed
 // for freeing), not the length of the string.
@@ -222,7 +222,7 @@ static char* doc_cat(const char* a, const char* b, const char* c,
   size_t e_len = strlen(e);
   size_t buf_len = a_len + b_len + c_len + d_len + e_len + 1;
 
-  char* buffer = (char*)ponyint_pool_alloc_size(buf_len);
+  char* buffer = (char*)ponyint_pool_alloc(buf_len);
   char *p = buffer;
 
   if(a_len > 0) { memcpy(p, a, a_len); p += a_len; }
@@ -249,7 +249,7 @@ static char* doc_cat(const char* a, const char* b, const char* c,
 // Write the TQFN for the given type to a new buffer.
 // By default the type name is taken from the given AST, however this can be
 // overridden by the type_name parameter. Pass NULL to use the default.
-// The returned buffer must be freed using ponyint_pool_free_size when no longer
+// The returned buffer must be freed using ponyint_pool_free when no longer
 // needed. Note that the size reported is the size of the buffer and includes a
 // terminator.
 static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
@@ -311,7 +311,7 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
     errorf(docgen->errors, NULL,
       "Could not write documentation to file %s", buffer);
 
-  ponyint_pool_free_size(buf_len, buffer);
+  ponyint_pool_free(buf_len, buffer);
   return file;
 }
 
@@ -393,7 +393,7 @@ static void doc_type(docgen_t* docgen, docgen_opt_t* docgen_opt,
         // Links are of the form: [text](target)
         // mkdocs requires the full filename for creating proper links
         fprintf(docgen->type_file, "[%s](%s.md)", ast_nice_name(id), tqfn);
-        ponyint_pool_free_size(link_len, tqfn);
+        ponyint_pool_free(link_len, tqfn);
 
         doc_type_list(docgen, docgen_opt, tparams, "\\[", ", ", "\\]", true, false);
       }
@@ -805,7 +805,7 @@ static void doc_methods(docgen_t* docgen, docgen_opt_t* docgen_opt,
 static char* concat(const char *s1, const char *s2, size_t* allocated_size)
 {
   size_t str_size = strlen(s1) + strlen(s2) + 1;
-  char* result = (char*) ponyint_pool_alloc_size(str_size); //+1 for the null-terminator
+  char* result = (char*) ponyint_pool_alloc(str_size); //+1 for the null-terminator
   *allocated_size = str_size;
   strcpy(result, s1);
   strcat(result, s2);
@@ -819,14 +819,14 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   pony_assert(source != NULL);
   pony_assert(package_name != NULL);
 
-  doc_sources_t* result = (doc_sources_t*) ponyint_pool_alloc_size(sizeof(doc_sources_t));
+  doc_sources_t* result = (doc_sources_t*) ponyint_pool_alloc(sizeof(doc_sources_t));
 
   char filename_copy[FILENAME_MAX];
   strcpy(filename_copy, source->file);
 
   const char* just_filename = get_file_name(filename_copy);
   size_t filename_alloc_size = strlen(just_filename) + 1;
-  char* filename = (char*) ponyint_pool_alloc_size(filename_alloc_size);
+  char* filename = (char*) ponyint_pool_alloc(filename_alloc_size);
   strcpy(filename, just_filename);
   size_t filename_without_ext_alloc_size = 0;
   const char* filename_without_ext = remove_ext(filename, '.', 0, &filename_without_ext_alloc_size);
@@ -842,7 +842,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 
   // Get absolute path for [documentationDir]/src/[package_name]/[filename].md
   size_t file_path_alloc_size = FILENAME_MAX;
-  char* path = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
+  char* path = (char*) ponyint_pool_alloc(FILENAME_MAX);
   path_cat(source_dir, filename_md_extension, path);
 
   // Get relative path for [documentationDir]/src/[package_name]/
@@ -853,15 +853,15 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   const char* old_ptr = doc_source_dir_relative;
   size_t doc_source_dir_relative_alloc_size = 0;
   doc_source_dir_relative = concat(doc_source_dir_relative, "/", &doc_source_dir_relative_alloc_size);
-  ponyint_pool_free_size(old_ptr_alloc_size, (void*) old_ptr);
+  ponyint_pool_free(old_ptr_alloc_size, (void*) old_ptr);
 
   // Get relative path for [documentationDir]/src/[package_name]/[filename].md
   size_t doc_path_alloc_size = 0;
   const char* doc_path = concat(doc_source_dir_relative, filename_md_extension, &doc_path_alloc_size);
 
-  ponyint_pool_free_size(filename_without_ext_alloc_size, (void*) filename_without_ext);
-  ponyint_pool_free_size(filename_md_extension_alloc_size, (void*) filename_md_extension);
-  ponyint_pool_free_size(doc_source_dir_relative_alloc_size, (void*) doc_source_dir_relative);
+  ponyint_pool_free(filename_without_ext_alloc_size, (void*) filename_without_ext);
+  ponyint_pool_free(filename_md_extension_alloc_size, (void*) filename_md_extension);
+  ponyint_pool_free(doc_source_dir_relative_alloc_size, (void*) doc_source_dir_relative);
 
   // Section to copy source file to [documentationDir]/src/[package_name]/[filename].md
   FILE* file = fopen(path, "w");
@@ -889,9 +889,9 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 
     return result;
   } else {
-    ponyint_pool_free_size(filename_alloc_size, (void*) filename);
-    ponyint_pool_free_size(doc_path_alloc_size, (void*) doc_path);
-    ponyint_pool_free_size(file_path_alloc_size, (void*) path);
+    ponyint_pool_free(filename_alloc_size, (void*) filename);
+    ponyint_pool_free(doc_path_alloc_size, (void*) doc_path);
+    ponyint_pool_free(file_path_alloc_size, (void*) path);
     errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
     return NULL;
   }
@@ -900,7 +900,7 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 static char* replace_path_separator(const char* path, size_t* name_len) {
   size_t str_len = strlen(path);
   *name_len = str_len + 1;
-  char* buffer = (char*) ponyint_pool_alloc_size(*name_len);
+  char* buffer = (char*) ponyint_pool_alloc(*name_len);
   memcpy(buffer, path, str_len);
   for(char* p = buffer; *p != '\0'; p++)
   {
@@ -981,7 +981,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   if (source != NULL && package != NULL)
     include_source_if_needed(docgen, source, package_name);
 
-  ponyint_pool_free_size(package_name_len, package_name);
+  ponyint_pool_free(package_name_len, package_name);
 
   // First open a file
   size_t tqfn_len;
@@ -1008,7 +1008,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
            "* [%s %s](%s.md)\n",
            ast_get_print(ast), name, tqfn);
 
-  ponyint_pool_free_size(tqfn_len, tqfn);
+  ponyint_pool_free(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "# %s", name);
@@ -1150,7 +1150,7 @@ static void doc_package_home(docgen_t* docgen,
   }
 
 
-  ponyint_pool_free_size(tqfn_len, tqfn);
+  ponyint_pool_free(tqfn_len, tqfn);
 
   docgen->public_types = printbuf_new();
   docgen->private_types = printbuf_new();
@@ -1293,7 +1293,7 @@ static void doc_rm_star(const char* path)
 #else
       remove(buf);
 #endif
-      ponyint_pool_free_size(buf_len, buf);
+      ponyint_pool_free(buf_len, buf);
     }
   }
 
@@ -1361,7 +1361,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
 
-  docgen.doc_source_dir = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
+  docgen.doc_source_dir = (char*) ponyint_pool_alloc(FILENAME_MAX);
   path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
   pony_mkdir(docgen.doc_source_dir);
 
@@ -1389,12 +1389,12 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     doc_sources_t* current_source = docgen.included_sources;
     while (current_source != NULL) {
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
-      ponyint_pool_free_size(current_source->filename_alloc_size, (void*) current_source->filename);
-      ponyint_pool_free_size(current_source->doc_path_alloc_size, (void*) current_source->doc_path);
-      ponyint_pool_free_size(current_source->file_path_alloc_size, (void*) current_source->file_path);
+      ponyint_pool_free(current_source->filename_alloc_size, (void*) current_source->filename);
+      ponyint_pool_free(current_source->doc_path_alloc_size, (void*) current_source->doc_path);
+      ponyint_pool_free(current_source->file_path_alloc_size, (void*) current_source->file_path);
       doc_sources_t* current_source_ptr_copy = current_source;
       current_source = current_source->next;
-      ponyint_pool_free_size(sizeof(doc_sources_t), (void*) current_source_ptr_copy);
+      ponyint_pool_free(sizeof(doc_sources_t), (void*) current_source_ptr_copy);
     }
   }
 
@@ -1406,8 +1406,8 @@ void generate_docs(ast_t* program, pass_opt_t* options)
    fclose(docgen.home_file);
 
   if(docgen.base_dir != NULL)
-    ponyint_pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
+    ponyint_pool_free(docgen.base_dir_buf_len, (void*)docgen.base_dir);
 
   if(docgen.sub_dir != NULL)
-    ponyint_pool_free_size(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
+    ponyint_pool_free(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
 }

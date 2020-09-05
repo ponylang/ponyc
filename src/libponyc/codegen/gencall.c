@@ -25,14 +25,14 @@ typedef struct call_tuple_indices_t
 
 static void tuple_indices_init(call_tuple_indices_t* ti)
 {
-  ti->data = (size_t*)ponyint_pool_alloc_size(4 * sizeof(size_t));
+  ti->data = (size_t*)ponyint_pool_alloc(4 * sizeof(size_t));
   ti->count = 0;
   ti->alloc = 4;
 }
 
 static void tuple_indices_destroy(call_tuple_indices_t* ti)
 {
-  ponyint_pool_free_size(ti->alloc * sizeof(size_t), ti->data);
+  ponyint_pool_free(ti->alloc * sizeof(size_t), ti->data);
   ti->data = NULL;
   ti->count = 0;
   ti->alloc = 0;
@@ -44,7 +44,7 @@ static void tuple_indices_push(call_tuple_indices_t* ti, size_t idx)
   {
     size_t old_alloc = ti->alloc * sizeof(size_t);
     ti->data =
-      (size_t*)ponyint_pool_realloc_size(old_alloc, old_alloc * 2, ti->data);
+      (size_t*)ponyint_pool_realloc(old_alloc, old_alloc * 2, ti->data);
     ti->alloc *= 2;
   }
   ti->data[ti->count++] = idx;
@@ -526,18 +526,19 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 {
   // Allocate the message, setting its size and ID.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
-  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, c_m->msg_type);
+  uint32_t msg_size =
+    (uint32_t)LLVMABISizeOfType(c->target_data, c_m->msg_type);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
 
   size_t params_buf_size = (m->param_count + 3) * sizeof(LLVMTypeRef);
   LLVMTypeRef* param_types =
-    (LLVMTypeRef*)ponyint_pool_alloc_size(params_buf_size);
+    (LLVMTypeRef*)ponyint_pool_alloc(params_buf_size);
   LLVMGetStructElementTypes(c_m->msg_type, param_types);
   size_t args_buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
   LLVMValueRef* cast_args =
-    (LLVMValueRef*)ponyint_pool_alloc_size(args_buf_size);
+    (LLVMValueRef*)ponyint_pool_alloc(args_buf_size);
   size_t arg_types_buf_size = m->param_count * sizeof(ast_t*);
-  ast_t** arg_types = (ast_t**)ponyint_pool_alloc_size(arg_types_buf_size);
+  ast_t** arg_types = (ast_t**)ponyint_pool_alloc(arg_types_buf_size);
 
   ast_t* arg_ast = ast_child(args_ast);
 
@@ -553,7 +554,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   LLVMValueRef msg_args[5];
 
-  msg_args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
+  msg_args[0] = LLVMConstInt(c->i32, msg_size, false);
   msg_args[1] = LLVMConstInt(c->i32, m->vtable_index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", msg_args, 2, "");
   LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
@@ -610,13 +611,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   LLVMSetMetadataStr(send, "pony.msgsend", md);
 
-  ponyint_pool_free_size(params_buf_size, param_types);
-  ponyint_pool_free_size(args_buf_size, cast_args);
+  ponyint_pool_free(params_buf_size, param_types);
+  ponyint_pool_free(args_buf_size, cast_args);
 
   for(size_t i = 0; i < m->param_count; i++)
     ast_free_unattached(arg_types[i]);
 
-  ponyint_pool_free_size(arg_types_buf_size, arg_types);
+  ponyint_pool_free(arg_types_buf_size, arg_types);
 }
 
 static bool contains_boxable(ast_t* type)
@@ -766,7 +767,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   size_t count = m->param_count + 1;
   size_t buf_size = count * sizeof(void*);
 
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
   ast_t* arg = ast_child(positional);
   int i = 1;
 
@@ -776,7 +777,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     if(value == NULL)
     {
-      ponyint_pool_free_size(buf_size, args);
+      ponyint_pool_free(buf_size, args);
       return NULL;
     }
 
@@ -864,7 +865,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     }
   } else {
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
-    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
     LLVMGetParamTypes(f_type, params + (bare ? 1 : 0));
 
     arg = ast_child(positional);
@@ -904,7 +905,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       }
 
       codegen_debugloc(c, NULL);
-      ponyint_pool_free_size(buf_size, params);
+      ponyint_pool_free(buf_size, params);
     }
   }
 
@@ -922,7 +923,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if((ast_id(postfix) == TK_BECHAIN) || (ast_id(postfix) == TK_FUNCHAIN))
     r = args[0];
 
-  ponyint_pool_free_size(buf_size, args);
+  ponyint_pool_free(buf_size, args);
   return r;
 }
 
@@ -1005,7 +1006,7 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
     // Can't use the named type. Build an unnamed type with the same elements.
     unsigned int count = LLVMCountStructElementTypes(c_t->use_type);
     size_t buf_size = count * sizeof(LLVMTypeRef);
-    LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
     LLVMGetStructElementTypes(c_t->use_type, e_types);
 
     ast_t* child = ast_child(t->ast);
@@ -1023,7 +1024,7 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
 
     LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, e_types, count,
       false);
-    ponyint_pool_free_size(buf_size, e_types);
+    ponyint_pool_free(buf_size, e_types);
     return r_type;
   } else if(is_none(t->ast_cap)) {
     return c->void_type;
@@ -1052,7 +1053,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
 
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMTypeRef* f_params = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
   count = 0;
 
   ast_t* arg = ast_child(args);
@@ -1078,7 +1079,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
   LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count, false);
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
 
-  ponyint_pool_free_size(buf_size, f_params);
+  ponyint_pool_free(buf_size, f_params);
   return func;
 }
 
@@ -1219,7 +1220,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   // Generate the arguments.
   int count = (int)ast_childcount(args);
   size_t buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* f_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* f_args = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
 
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   LLVMTypeRef* f_params = NULL;
@@ -1240,7 +1241,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
       return NULL;
     }
 
-    f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    f_params = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
     LLVMGetParamTypes(f_type, f_params);
   }
 
@@ -1256,7 +1257,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     if(f_args[i] == NULL)
     {
-      ponyint_pool_free_size(buf_size, f_args);
+      ponyint_pool_free(buf_size, f_args);
       return NULL;
     }
 
@@ -1274,10 +1275,10 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     result = LLVMBuildCall(c->builder, func, f_args, count, "");
 
   codegen_debugloc(c, NULL);
-  ponyint_pool_free_size(buf_size, f_args);
+  ponyint_pool_free(buf_size, f_args);
 
   if(!vararg)
-    ponyint_pool_free_size(buf_size, f_params);
+    ponyint_pool_free(buf_size, f_params);
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 

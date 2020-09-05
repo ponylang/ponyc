@@ -37,7 +37,7 @@ static const char* const src =
 static void* s_alloc_fn(pony_ctx_t* ctx, size_t size)
 {
   (void)ctx;
-  return ponyint_pool_alloc_size(size);
+  return ponyint_pool_alloc(size);
 }
 
 static void s_throw_fn()
@@ -51,7 +51,7 @@ struct pool_size_deleter
 
   void operator()(void* ptr)
   {
-    ponyint_pool_free_size(size, ptr);
+    ponyint_pool_free(size, ptr);
   }
 };
 
@@ -68,7 +68,7 @@ struct pool_deleter
 
   void operator()(void* ptr)
   {
-    ponyint_pool_free_size(size, ptr);
+    ponyint_pool_free(size, ptr);
   }
 };
 
@@ -149,7 +149,7 @@ void CompilerSerialisationTest::test_pass_reach(const char* pass)
   reach_t* new_r = new_guard.get();
 
   ASSERT_NE(new_r, (void*)NULL);
-  
+
   new_guard.release();
   new_guard.reset(r);
   compile->reach = new_r;

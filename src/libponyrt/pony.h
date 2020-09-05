@@ -45,7 +45,7 @@ typedef struct pony_msg_t pony_msg_t;
 
 struct pony_msg_t
 {
-  uint32_t index;
+  uint32_t size;
   uint32_t id;
   PONY_ATOMIC(pony_msg_t*) next;
 };
@@ -219,11 +219,8 @@ PONY_API pony_ctx_t* pony_ctx();
 PONY_API ATTRIBUTE_MALLOC pony_actor_t* pony_create(pony_ctx_t* ctx,
   pony_type_t* type);
 
-/// Allocate a message and set up the header. The index is a POOL_INDEX.
-PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);
-
 /// Allocate a message and set up the header. The size is in bytes.
-PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
+PONY_API pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
 
 /** Send a chain of messages to an actor.
  *

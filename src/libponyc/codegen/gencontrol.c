@@ -738,9 +738,8 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
    unsigned int weights[], unsigned int count)
 {
-  uint32_t alloc_index = ponyint_pool_index((count + 1) * sizeof(LLVMValueRef));
-
-  LLVMValueRef* params = (LLVMValueRef*)ponyint_pool_alloc(alloc_index);
+  const size_t alloc_size = (count + 1) * sizeof(LLVMValueRef);
+  LLVMValueRef* params = (LLVMValueRef*)ponyint_pool_alloc(alloc_size);
 
   const char str[] = "branch_weights";
   params[0] = LLVMMDStringInContext(ctx, str, sizeof(str) - 1);
@@ -752,7 +751,7 @@ void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
   const char id[] = "prof";
   LLVMSetMetadata(branch, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
 
-  ponyint_pool_free(alloc_index, params);
+  ponyint_pool_free(alloc_size, params);
 }
 
 void handle_branch_prediction_default(LLVMContextRef ctx, LLVMValueRef branch,

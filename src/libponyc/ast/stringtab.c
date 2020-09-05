@@ -34,7 +34,7 @@ static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
 
 static void stringtab_free(stringtab_entry_t* a)
 {
-  ponyint_pool_free_size(a->buf_size, (char*)a->str);
+  ponyint_pool_free(a->buf_size, (char*)a->str);
   POOL_FREE(stringtab_entry_t, a);
 }
 
@@ -69,7 +69,7 @@ const char* stringtab_len(const char* string, size_t len)
   if(n != NULL)
     return n->str;
 
-  char* dst = (char*)ponyint_pool_alloc_size(len + 1);
+  char* dst = (char*)ponyint_pool_alloc(len + 1);
   memcpy(dst, string, len);
   dst[len] = '\0';
 
@@ -96,7 +96,7 @@ const char* stringtab_consume(const char* string, size_t buf_size)
 
   if(n != NULL)
   {
-    ponyint_pool_free_size(buf_size, (void*)string);
+    ponyint_pool_free(buf_size, (void*)string);
     return n->str;
   }
 

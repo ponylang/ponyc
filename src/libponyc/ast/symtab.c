@@ -38,7 +38,7 @@ DEFINE_HASHMAP_SERIALISE(symtab, symtab_t, symbol_t, sym_hash, sym_cmp,
 static const char* name_without_case(const char* name)
 {
   size_t len = strlen(name) + 1;
-  char* buf = (char*)ponyint_pool_alloc_size(len);
+  char* buf = (char*)ponyint_pool_alloc(len);
 
   if(is_name_type(name))
   {

@@ -40,7 +40,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   // Leave space for a receiver if it's a constructor vtable entry.
   size_t buf_size = (count + 1) * sizeof(LLVMTypeRef);
-  LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
@@ -71,7 +71,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
 
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
 
   if(ast_id(m->fun->ast) != TK_NEW)
   {
@@ -91,8 +91,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  ponyint_pool_free_size(buf_size, params);
-  ponyint_pool_free_size(buf_size, args);
+  ponyint_pool_free(buf_size, params);
+  ponyint_pool_free(buf_size, args);
   return LLVMConstBitCast(unbox_fun, c->void_ptr);
 }
 
@@ -108,7 +108,7 @@ static LLVMValueRef* trait_bitmap32(compile_t* c, reach_type_t* t)
 {
   size_t bm_size = c->trait_bitmap_size * sizeof(uint32_t);
 
-  uint32_t* bm = (uint32_t*)ponyint_pool_alloc_size(bm_size);
+  uint32_t* bm = (uint32_t*)ponyint_pool_alloc(bm_size);
   memset(bm, 0, bm_size);
 
   size_t i = HASHMAP_BEGIN;
@@ -123,13 +123,13 @@ static LLVMValueRef* trait_bitmap32(compile_t* c, reach_type_t* t)
     bm[index] |= 1 << bit;
   }
 
-  LLVMValueRef* bitmap = (LLVMValueRef*)ponyint_pool_alloc_size(
+  LLVMValueRef* bitmap = (LLVMValueRef*)ponyint_pool_alloc(
     c->trait_bitmap_size * sizeof(LLVMValueRef));
 
   for(i = 0; i < c->trait_bitmap_size; i++)
     bitmap[i] = LLVMConstInt(c->intptr, bm[i], false);
 
-  ponyint_pool_free_size(bm_size, bm);
+  ponyint_pool_free(bm_size, bm);
 
   return bitmap;
 }
@@ -138,7 +138,7 @@ static LLVMValueRef* trait_bitmap64(compile_t* c, reach_type_t* t)
 {
   size_t bm_size = c->trait_bitmap_size * sizeof(uint64_t);
 
-  uint64_t* bm = (uint64_t*)ponyint_pool_alloc_size(bm_size);
+  uint64_t* bm = (uint64_t*)ponyint_pool_alloc(bm_size);
   memset(bm, 0, bm_size);
 
   size_t i = HASHMAP_BEGIN;
@@ -153,13 +153,13 @@ static LLVMValueRef* trait_bitmap64(compile_t* c, reach_type_t* t)
     bm[index] |= (uint64_t)1 << bit;
   }
 
-  LLVMValueRef* bitmap = (LLVMValueRef*)ponyint_pool_alloc_size(
+  LLVMValueRef* bitmap = (LLVMValueRef*)ponyint_pool_alloc(
     c->trait_bitmap_size * sizeof(LLVMValueRef));
 
   for(i = 0; i < c->trait_bitmap_size; i++)
     bitmap[i] = LLVMConstInt(c->intptr, bm[i], false);
 
-  ponyint_pool_free_size(bm_size, bm);
+  ponyint_pool_free(bm_size, bm);
 
   return bitmap;
 }
@@ -180,7 +180,7 @@ static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
   LLVMValueRef bitmap_array = LLVMConstArray(c->intptr, bitmap,
     c->trait_bitmap_size);
 
-  ponyint_pool_free_size(c->trait_bitmap_size * sizeof(LLVMValueRef), bitmap);
+  ponyint_pool_free(c->trait_bitmap_size * sizeof(LLVMValueRef), bitmap);
 
   // Create a global to hold the array.
   const char* name = genname_traitmap(t->name);
@@ -237,7 +237,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 
   // Create a constant array of field descriptors.
   size_t buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* list = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* list = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   for(uint32_t i = 0; i < count; i++)
@@ -269,7 +269,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
   LLVMSetInitializer(global, field_array);
   LLVMSetUnnamedAddr(global, true);
 
-  ponyint_pool_free_size(buf_size, list);
+  ponyint_pool_free(buf_size, list);
   return global;
 }
 
@@ -279,7 +279,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
   size_t buf_size = t->vtable_size * sizeof(LLVMValueRef);
-  LLVMValueRef* vtable = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* vtable = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
   memset(vtable, 0, buf_size);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -312,7 +312,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
   }
 
   LLVMValueRef r = LLVMConstArray(c->void_ptr, vtable, t->vtable_size);
-  ponyint_pool_free_size(buf_size, vtable);
+  ponyint_pool_free(buf_size, vtable);
   return r;
 }
 
@@ -440,7 +440,7 @@ void gendesc_table(compile_t* c)
   uint32_t len = reach_max_type_id(c->reach);
 
   size_t size = len * sizeof(LLVMValueRef);
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc(size);
 
   LLVMValueRef null = LLVMConstNull(c->descriptor_ptr);
   for(size_t i = 0; i < len; i++)
@@ -473,7 +473,7 @@ void gendesc_table(compile_t* c)
   LLVMSetLinkage(table, LLVMPrivateLinkage);
   c->desc_table = table;
 
-  ponyint_pool_free_size(size, args);
+  ponyint_pool_free(size, args);
 }
 
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)

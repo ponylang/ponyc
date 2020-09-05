@@ -7,6 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
+// TODO: cleanup, inline all the things!
 extern uint32_t ponyint_size_to_sizeclass(size_t size);
 extern size_t ponyint_sizeclass_to_size(uint32_t sc);
 extern size_t ponyint_round_alloc_size(size_t size);
@@ -31,40 +32,19 @@ extern void* rust_realloc(void* ptr, size_t alignment, size_t old_size, size_t n
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
 #define POOL_COUNT (POOL_MAX_BITS - POOL_MIN_BITS + 1)
 
-__pony_spec_malloc__(void* ponyint_pool_alloc(uint32_t index));
-void ponyint_pool_free(uint32_t index, void* p);
-
-__pony_spec_malloc__(void* ponyint_pool_alloc_size(size_t size));
-void ponyint_pool_free_size(size_t size, void* p);
-
-void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p);
+__pony_spec_malloc__(void* ponyint_pool_alloc(size_t size));
+void ponyint_pool_free(size_t size, void* p);
+void* ponyint_pool_realloc(size_t old_size, size_t new_size, void* p);
 
 void ponyint_pool_thread_cleanup();
 
-uint32_t ponyint_pool_index(size_t size);
-
-size_t ponyint_pool_size(uint32_t index);
-
-size_t ponyint_pool_used_size(size_t size);
-
 size_t ponyint_pool_adjust_size(size_t size);
 
-#define POOL_INDEX(SIZE) \
-  ponyint_pool_index(SIZE)
-
 #define POOL_ALLOC(TYPE) \
-  (TYPE*) ponyint_pool_alloc(POOL_INDEX(sizeof(TYPE)))
+  (TYPE*) ponyint_pool_alloc(sizeof(TYPE))
 
 #define POOL_FREE(TYPE, VALUE) \
-  ponyint_pool_free(POOL_INDEX(sizeof(TYPE)), VALUE)
-
-#define POOL_SIZE(INDEX) \
-  ponyint_pool_size(INDEX)
-
-#ifdef USE_MEMTRACK
-#define POOL_ALLOC_SIZE(TYPE) \
-  POOL_SIZE(POOL_INDEX(sizeof(TYPE)))
-#endif
+  ponyint_pool_free(sizeof(TYPE), VALUE)
 
 PONY_EXTERN_C_END
 

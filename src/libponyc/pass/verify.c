@@ -189,7 +189,7 @@ static const char* get_multi_ref_name(ast_t* ast)
   // for the \0 at the end
   len = len + 1;
 
-  char* buf = (char*)ponyint_pool_alloc_size(len);
+  char* buf = (char*)ponyint_pool_alloc(len);
   size_t offset = 0;
   const char* name = ast_name(temp_ast);
   size_t slen = strlen(name);

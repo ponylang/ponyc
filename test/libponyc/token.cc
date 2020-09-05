@@ -11,7 +11,7 @@
     char* escaped = token_print_escaped(token); \
     EXPECT_TRUE(strcmp(expected, escaped) == 0) \
       << "Actual escaped string: " << escaped; \
-    ponyint_pool_free_size(strlen(escaped), escaped); \
+    ponyint_pool_free(strlen(escaped), escaped); \
     token_free(token); }
 
 

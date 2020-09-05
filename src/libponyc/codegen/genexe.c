@@ -151,8 +151,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   // Allocate the message, setting its size and ID.
   uint32_t index = reach_vtable_index(t_main, c->str_create);
-  size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, msg_type);
-  args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
+  uint32_t msg_size = (uint32_t)LLVMABISizeOfType(c->target_data, msg_type);
+  args[0] = LLVMConstInt(c->i32, msg_size, false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
@@ -289,7 +289,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t ld_len = 128 + arch_len + strlen(linker) + strlen(file_exe) +
     strlen(file_o) + strlen(lib_args) + strlen(sanitizer_arg);
 
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  char* ld_cmd = (char*)ponyint_pool_alloc(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "%s -execute -no_pie -arch %.*s "
@@ -304,16 +304,16 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(system(ld_cmd) != 0)
   {
     errorf(errors, NULL, "unable to link: %s", ld_cmd);
-    ponyint_pool_free_size(ld_len, ld_cmd);
+    ponyint_pool_free(ld_len, ld_cmd);
     return false;
   }
 
-  ponyint_pool_free_size(ld_len, ld_cmd);
+  ponyint_pool_free(ld_len, ld_cmd);
 
   if(!c->opt->strip_debug)
   {
     size_t dsym_len = 16 + strlen(file_exe);
-    char* dsym_cmd = (char*)ponyint_pool_alloc_size(dsym_len);
+    char* dsym_cmd = (char*)ponyint_pool_alloc(dsym_len);
 
     snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
     system(dsym_cmd);
@@ -323,7 +323,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     if(system(dsym_cmd) != 0)
       errorf(errors, NULL, "unable to create dsym");
 
-    ponyint_pool_free_size(dsym_len, dsym_cmd);
+    ponyint_pool_free(dsym_len, dsym_cmd);
   }
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
@@ -376,7 +376,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                   + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
                   + strlen(sanitizer_arg);
 
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  char* ld_cmd = (char*)ponyint_pool_alloc(ld_len);
 
 #ifdef PONY_USE_LTO
   if (strcmp(arch, "x86_64") == 0)
@@ -416,11 +416,11 @@ static bool link_exe(compile_t* c, ast_t* program,
     }
 
     errorf(errors, NULL, "unable to link: %s", ld_cmd);
-    ponyint_pool_free_size(ld_len, ld_cmd);
+    ponyint_pool_free(ld_len, ld_cmd);
     return false;
   }
 
-  ponyint_pool_free_size(ld_len, ld_cmd);
+  ponyint_pool_free(ld_len, ld_cmd);
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
@@ -447,7 +447,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+  char* ld_cmd = (char*)ponyint_pool_alloc(ld_len);
 
   char* linker = vcvars.link;
   if (c->opt->linker != NULL && strlen(c->opt->linker) > 0)
@@ -469,9 +469,9 @@ static bool link_exe(compile_t* c, ast_t* program,
     if (num_written < ld_len)
       break;
 
-    ponyint_pool_free_size(ld_len, ld_cmd);
+    ponyint_pool_free(ld_len, ld_cmd);
     ld_len += 256;
-    ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
+    ld_cmd = (char*)ponyint_pool_alloc(ld_len);
   }
 
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
@@ -481,11 +481,11 @@ static bool link_exe(compile_t* c, ast_t* program,
   if (result != 0)
   {
     errorf(errors, NULL, "unable to link: %s: %d", ld_cmd, result);
-    ponyint_pool_free_size(ld_len, ld_cmd);
+    ponyint_pool_free(ld_len, ld_cmd);
     return false;
   }
 
-  ponyint_pool_free_size(ld_len, ld_cmd);
+  ponyint_pool_free(ld_len, ld_cmd);
 #endif
 
   return true;

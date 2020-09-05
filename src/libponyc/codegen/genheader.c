@@ -107,7 +107,7 @@ static void print_params(compile_t* c, printbuf_t* buf, reach_param_t* params,
     const char* name = params[i].name;
     size_t len = strlen(name) + 1;
     size_t buf_size = len;
-    char* buffer = (char*)ponyint_pool_alloc_size(buf_size);
+    char* buffer = (char*)ponyint_pool_alloc(buf_size);
     memcpy(buffer, name, len);
 
     len--;
@@ -117,7 +117,7 @@ static void print_params(compile_t* c, printbuf_t* buf, reach_param_t* params,
 
     printbuf(buf, " %s", buffer);
 
-    ponyint_pool_free_size(buf_size, buffer);
+    ponyint_pool_free(buf_size, buffer);
   }
 }
 

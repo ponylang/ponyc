@@ -108,7 +108,7 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
 
     if(node == NULL)
     {
-      void* new_node = ponyint_pool_alloc_size(level[i].size);
+      void* new_node = ponyint_pool_alloc(level[i].size);
 #ifdef USE_MEMTRACK
       atomic_fetch_add_explicit(&mem_used, level[i].size, memory_order_relaxed);
       atomic_fetch_add_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
@@ -125,7 +125,7 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
 #ifdef USE_VALGRIND
         ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
-        ponyint_pool_free_size(level[i].size, new_node);
+        ponyint_pool_free(level[i].size, new_node);
 #ifdef USE_MEMTRACK
         atomic_fetch_sub_explicit(&mem_used, level[i].size, memory_order_relaxed);
         atomic_fetch_sub_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
@@ -166,7 +166,7 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
 
       if(node == NULL)
       {
-        void* new_node = ponyint_pool_alloc_size(level[i].size);
+        void* new_node = ponyint_pool_alloc(level[i].size);
 #ifdef USE_MEMTRACK
         atomic_fetch_add_explicit(&mem_used, level[i].size, memory_order_relaxed);
         atomic_fetch_add_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),
@@ -183,7 +183,7 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
 #ifdef USE_VALGRIND
           ANNOTATE_HAPPENS_AFTER(next_node);
 #endif
-          ponyint_pool_free_size(level[i].size, new_node);
+          ponyint_pool_free(level[i].size, new_node);
 #ifdef USE_MEMTRACK
           atomic_fetch_sub_explicit(&mem_used, level[i].size, memory_order_relaxed);
           atomic_fetch_sub_explicit(&mem_allocated, POOL_SIZE(level[i].size_index),

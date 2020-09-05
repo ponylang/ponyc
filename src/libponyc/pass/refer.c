@@ -154,7 +154,7 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
   // for the \0 at the end
   len = len + 1;
 
-  char* buf = (char*)ponyint_pool_alloc_size(len);
+  char* buf = (char*)ponyint_pool_alloc(len);
   size_t offset = 0;
   const char* name = ast_name(temp_ast);
   size_t slen = strlen(name);
@@ -352,7 +352,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   else
   {
     // Try with a leading underscore
-    char* buf = (char*)ponyint_pool_alloc_size(name_len + 2);
+    char* buf = (char*)ponyint_pool_alloc(name_len + 2);
     buf[0] = '_';
     memcpy(buf + 1, name, name_len + 1);
     const char* try_name = stringtab_consume(buf, name_len + 2);

@@ -177,7 +177,7 @@ static void destroy_large(chunk_t* chunk, uint32_t mark)
   large_pagemap(chunk->m, chunk->size, NULL);
 
   if(chunk->m != NULL)
-    ponyint_pool_free_size(chunk->size, chunk->m);
+    ponyint_pool_free(chunk->size, chunk->m);
 
   POOL_FREE(chunk_t, chunk);
 }
@@ -486,7 +486,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
   chunk->actor = actor;
   chunk->size = size;
-  chunk->m = (char*) ponyint_pool_alloc_size(size);
+  chunk->m = (char*) ponyint_pool_alloc(size);
 #ifdef USE_MEMTRACK
   heap->mem_used += sizeof(chunk_t);
   heap->mem_used += chunk->size;
@@ -516,7 +516,7 @@ void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
   chunk->actor = actor;
   chunk->size = size;
-  chunk->m = (char*) ponyint_pool_alloc_size(size);
+  chunk->m = (char*) ponyint_pool_alloc(size);
 #ifdef USE_MEMTRACK
   heap->mem_used += sizeof(chunk_t);
   heap->mem_used += chunk->size;
@@ -696,7 +696,7 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
       // run finaliser if needed
       final_large(chunk, 0);
 
-      ponyint_pool_free_size(chunk->size, chunk->m);
+      ponyint_pool_free(chunk->size, chunk->m);
       chunk->m = NULL;
       chunk->slots = 1;
     }

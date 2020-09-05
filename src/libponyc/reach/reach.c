@@ -53,7 +53,7 @@ static bool reach_mangled_cmp(reach_method_t* a, reach_method_t* b)
 static void reach_mangled_free(reach_method_t* m)
 {
   if(m->param_count > 0)
-    ponyint_pool_free_size(m->param_count * sizeof(reach_param_t), m->params);
+    ponyint_pool_free(m->param_count * sizeof(reach_param_t), m->params);
 
   if(m->c_method != NULL)
     m->c_method->free_fn(m->c_method);
@@ -115,7 +115,7 @@ static void reach_type_free(reach_type_t* t)
     for(uint32_t i = 0; i < t->field_count; i++)
       ast_free(t->fields[i].ast);
 
-    ponyint_pool_free_size(t->field_count * sizeof(reach_field_t), t->fields);
+    ponyint_pool_free(t->field_count * sizeof(reach_field_t), t->fields);
     t->field_count = 0;
     t->fields = NULL;
   }
@@ -181,7 +181,7 @@ static void set_method_types(reach_t* r, reach_method_t* m,
 
   if(m->param_count > 0)
   {
-    m->params = (reach_param_t*)ponyint_pool_alloc_size(
+    m->params = (reach_param_t*)ponyint_pool_alloc(
       m->param_count * sizeof(reach_param_t));
 
     ast_t* param = ast_child(params);
@@ -271,7 +271,7 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   mangled->forwarding = true;
 
   mangled->param_count = m->param_count;
-  mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
+  mangled->params = (reach_param_t*)ponyint_pool_alloc(
     mangled->param_count * sizeof(reach_param_t));
   memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
   mangled->result = m->result;
@@ -642,7 +642,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
   if(t->field_count == 0)
     return;
 
-  t->fields = (reach_field_t*)ponyint_pool_alloc_size(
+  t->fields = (reach_field_t*)ponyint_pool_alloc(
     t->field_count * sizeof(reach_field_t));
   member = ast_child(members);
   size_t index = 0;
@@ -795,7 +795,7 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t->can_be_boxed = true;
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
-  t->fields = (reach_field_t*)ponyint_pool_alloc_size(
+  t->fields = (reach_field_t*)ponyint_pool_alloc(
       t->field_count * sizeof(reach_field_t));
 
   add_traits_to_type(r, t, opt);

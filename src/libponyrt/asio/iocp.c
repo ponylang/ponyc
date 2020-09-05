@@ -47,8 +47,7 @@ static void send_request(asio_event_t* ev, int req)
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
 
-  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(asio_msg_t)), 0);
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(sizeof(asio_msg_t), 0);
   msg->event = ev;
   msg->flags = req;
 

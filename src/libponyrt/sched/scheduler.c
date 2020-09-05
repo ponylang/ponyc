@@ -151,8 +151,7 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 
 static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
 {
-  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_msgi_t)), msg);
+  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(sizeof(pony_msgi_t), msg);
 
 #ifdef USE_MEMTRACK_MESSAGES
   this_scheduler->ctx.num_messages--;
@@ -1048,7 +1047,7 @@ static void ponyint_sched_shutdown()
 #endif
   }
 
-  ponyint_pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
+  ponyint_pool_free(scheduler_count * sizeof(scheduler_t), scheduler);
 #ifdef USE_MEMTRACK
   mem_used -= (scheduler_count * sizeof(scheduler_t));
   mem_allocated -= (ponyint_pool_used_size(scheduler_count
@@ -1092,7 +1091,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
     memory_order_relaxed);
   atomic_store_explicit(&active_scheduler_count_check, scheduler_count,
     memory_order_relaxed);
-  scheduler = (scheduler_t*)ponyint_pool_alloc_size(
+  scheduler = (scheduler_t*)ponyint_pool_alloc(
     scheduler_count * sizeof(scheduler_t));
 #ifdef USE_MEMTRACK
   mem_used += (scheduler_count * sizeof(scheduler_t));

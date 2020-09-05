@@ -85,7 +85,7 @@ static void resize(hashmap_t* map, cmp_fn cmp)
   // use a single memory allocation to exploit spatial memory/cache locality
   size_t bitmap_size = (map->size >> HASHMAP_BITMAP_TYPE_BITS) +
     ((map->size& HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
-  void* mem_alloc = ponyint_pool_alloc_size((bitmap_size * sizeof(bitmap_t)) +
+  void* mem_alloc = ponyint_pool_alloc((bitmap_size * sizeof(bitmap_t)) +
     (map->size * sizeof(hashmap_entry_t)));
   memset(mem_alloc, 0, (bitmap_size * sizeof(bitmap_t)));
   map->item_bitmap = (bitmap_t*)mem_alloc;
@@ -104,7 +104,7 @@ static void resize(hashmap_t* map, cmp_fn cmp)
   {
     size_t old_bitmap_size = (s >> HASHMAP_BITMAP_TYPE_BITS) +
       ((s & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
-    ponyint_pool_free_size((old_bitmap_size * sizeof(bitmap_t)) +
+    ponyint_pool_free((old_bitmap_size * sizeof(bitmap_t)) +
       (s * sizeof(hashmap_entry_t)), old_item_bitmap);
   }
 
@@ -193,7 +193,7 @@ void ponyint_hashmap_init(hashmap_t* map, size_t size)
   // use a single memory allocation to exploit spatial memory/cache locality
   size_t bitmap_size = (size >> HASHMAP_BITMAP_TYPE_BITS) +
     ((size & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
-  void* mem_alloc = ponyint_pool_alloc_size((bitmap_size * sizeof(bitmap_t)) +
+  void* mem_alloc = ponyint_pool_alloc((bitmap_size * sizeof(bitmap_t)) +
     (size * sizeof(hashmap_entry_t)));
   memset(mem_alloc, 0, (bitmap_size * sizeof(bitmap_t)));
   map->item_bitmap = (bitmap_t*)mem_alloc;
@@ -220,7 +220,7 @@ void ponyint_hashmap_destroy(hashmap_t* map, free_fn free_elem)
   {
     size_t bitmap_size = (map->size >> HASHMAP_BITMAP_TYPE_BITS) +
       ((map->size & HASHMAP_BITMAP_TYPE_MASK)==0?0:1);
-    ponyint_pool_free_size((bitmap_size * sizeof(bitmap_t)) +
+    ponyint_pool_free((bitmap_size * sizeof(bitmap_t)) +
       (map->size * sizeof(hashmap_entry_t)), map->item_bitmap);
   }
 
@@ -521,11 +521,7 @@ size_t ponyint_hashmap_mem_size(hashmap_t* map)
 // alloc_size == size of bitmap + size of all buckets
 size_t ponyint_hashmap_alloc_size(hashmap_t* map)
 {
-  size_t size = ponyint_hashmap_mem_size(map);
-  if(size == 0)
-    return 0;
-
-  return ponyint_pool_used_size(size);
+  return ponyint_hashmap_mem_size(map);
 }
 
 void ponyint_hashmap_clearindex(hashmap_t* map, size_t index)

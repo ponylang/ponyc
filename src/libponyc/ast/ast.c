@@ -121,7 +121,7 @@ static void print_token(FILE* fp, token_t* token)
     {
       char* escaped = token_print_escaped(token);
       fprintf(fp, "\"%s\"", escaped);
-      ponyint_pool_free_size(strlen(escaped), escaped);
+      ponyint_pool_free(strlen(escaped), escaped);
       break;
     }
 

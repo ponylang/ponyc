@@ -226,7 +226,7 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
 
   int count = LLVMCountStructElementTypes(l_type);
   size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
   LLVMGetStructElementTypes(l_type, elements);
 
   LLVMValueRef result = LLVMGetUndef(l_type);
@@ -242,7 +242,7 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
 
     if(cast_value == NULL)
     {
-      ponyint_pool_free_size(buf_size, elements);
+      ponyint_pool_free(buf_size, elements);
       return NULL;
     }
 
@@ -251,7 +251,7 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
     i++;
   }
 
-  ponyint_pool_free_size(buf_size, elements);
+  ponyint_pool_free(buf_size, elements);
   return result;
 }
 

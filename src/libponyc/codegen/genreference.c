@@ -180,7 +180,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   int count = LLVMCountStructElementTypes(c_t->primitive);
   size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMTypeRef* elements = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
   LLVMGetStructElementTypes(c_t->primitive, elements);
 
   LLVMValueRef tuple = LLVMGetUndef(c_t->primitive);
@@ -192,7 +192,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
     if(value == NULL)
     {
-      ponyint_pool_free_size(buf_size, elements);
+      ponyint_pool_free(buf_size, elements);
       return NULL;
     }
 
@@ -201,7 +201,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     // used.
     if(value == GEN_NOVALUE || value == GEN_NOTNEEDED)
     {
-      ponyint_pool_free_size(buf_size, elements);
+      ponyint_pool_free(buf_size, elements);
       return value;
     }
 
@@ -212,7 +212,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     child = ast_sibling(child);
   }
 
-  ponyint_pool_free_size(buf_size, elements);
+  ponyint_pool_free(buf_size, elements);
   return tuple;
 }
 

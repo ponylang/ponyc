@@ -86,7 +86,7 @@ void token_free(token_t* token)
     return;
 
   if(token->printed != NULL)
-    ponyint_pool_free_size(64, token->printed);
+    ponyint_pool_free(64, token->printed);
 
   POOL_FREE(token_t, token);
 }
@@ -158,7 +158,7 @@ const char* token_print(token_t* token)
 
     case TK_INT:
       if (token->printed == NULL)
-        token->printed = (char*)ponyint_pool_alloc_size(64);
+        token->printed = (char*)ponyint_pool_alloc(64);
 
       snprintf(token->printed, 64, "%llu",
         (unsigned long long)token->integer.low);
@@ -167,7 +167,7 @@ const char* token_print(token_t* token)
     case TK_FLOAT:
     {
       if(token->printed == NULL)
-        token->printed = (char*)ponyint_pool_alloc_size(64);
+        token->printed = (char*)ponyint_pool_alloc(64);
 
       int r = snprintf(token->printed, 64, "%g", token->real);
 
@@ -189,7 +189,7 @@ const char* token_print(token_t* token)
     return p;
 
   if(token->printed == NULL)
-    token->printed = (char*)ponyint_pool_alloc_size(64);
+    token->printed = (char*)ponyint_pool_alloc(64);
 
   snprintf(token->printed, 64, "Unknown_token_%d", token->id);
   return token->printed;
@@ -223,7 +223,7 @@ char* token_print_escaped(token_t* token)
   // Return a simple copy of the current string if there are no escapes.
   if(escapes == 0)
   {
-    char* copy = (char*)ponyint_pool_alloc_size(str_len + 1);
+    char* copy = (char*)ponyint_pool_alloc(str_len + 1);
     memcpy(copy, str, str_len);
     copy[str_len] = 0;
     return copy;
@@ -231,7 +231,7 @@ char* token_print_escaped(token_t* token)
 
   // Allocate a new buffer for the escaped string.
   size_t escaped_len = str_len + escapes;
-  char* escaped = (char*)ponyint_pool_alloc_size(escaped_len + 1);
+  char* escaped = (char*)ponyint_pool_alloc(escaped_len + 1);
 
   // Fill the buffer of the escaped string, one unescaped character at a time.
   size_t escaped_idx = 0;

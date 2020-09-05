@@ -105,7 +105,7 @@ static void make_signature(compile_t* c, reach_type_t* t,
   if(message_type)
     tparam_size += tparam_size + (2 * sizeof(LLVMTypeRef));
 
-  LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(tparam_size);
+  LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc(tparam_size);
   LLVMTypeRef* mparams = NULL;
 
   if(message_type)
@@ -154,7 +154,7 @@ static void make_signature(compile_t* c, reach_type_t* t,
       false);
   }
 
-  ponyint_pool_free_size(tparam_size, tparams);
+  ponyint_pool_free(tparam_size, tparams);
 }
 
 static void make_function_debug(compile_t* c, reach_type_t* t,
@@ -170,7 +170,7 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
   }
 
   size_t md_size = count * sizeof(reach_type_t*);
-  LLVMMetadataRef* md = (LLVMMetadataRef*)ponyint_pool_alloc_size(md_size);
+  LLVMMetadataRef* md = (LLVMMetadataRef*)ponyint_pool_alloc(md_size);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   compile_method_t* c_m = (compile_method_t*)m->c_method;
 
@@ -216,7 +216,7 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
     m->full_name, c_m->di_file, (unsigned)ast_line(m->fun->ast), subroutine,
     func, c->opt->release);
 
-  ponyint_pool_free_size(md_size, md);
+  ponyint_pool_free(md_size, md);
 }
 
 static void make_prototype(compile_t* c, reach_type_t* t,
@@ -278,7 +278,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   } else {
     size_t count = LLVMCountParamTypes(c_m->func_type);
     size_t buf_size = count * sizeof(LLVMTypeRef);
-    LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc(buf_size);
     LLVMGetParamTypes(c_m->func_type, tparams);
 
     // Generate the sender prototype.
@@ -299,7 +299,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
       make_function_debug(c, t, m, c_m->func_handler);
     }
 
-    ponyint_pool_free_size(buf_size, tparams);
+    ponyint_pool_free(buf_size, tparams);
   }
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -359,11 +359,11 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
   size_t count = LLVMCountParamTypes(fun_type);
   size_t params_buf_size = count * sizeof(LLVMTypeRef);
   LLVMTypeRef* param_types =
-    (LLVMTypeRef*)ponyint_pool_alloc_size(params_buf_size);
+    (LLVMTypeRef*)ponyint_pool_alloc(params_buf_size);
   LLVMGetParamTypes(fun_type, param_types);
 
   size_t args_buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(args_buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc(args_buf_size);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, c_t->use_type, "");
 
   for(int i = 1; i < (int)count; i++)
@@ -400,8 +400,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
   codegen_call(c, handler, args, count, true);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
-  ponyint_pool_free_size(args_buf_size, args);
-  ponyint_pool_free_size(params_buf_size, param_types);
+  ponyint_pool_free(args_buf_size, args);
+  ponyint_pool_free(params_buf_size, param_types);
 }
 
 static void call_embed_finalisers(compile_t* c, reach_type_t* t,
@@ -528,7 +528,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   // Generate the sender.
   codegen_startfun(c, c_m->func, NULL, NULL, m->fun, false);
   size_t buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
-  LLVMValueRef* param_vals = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* param_vals = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
   LLVMGetParams(c_m->func, param_vals);
 
   // Send the arguments in a message to 'this'.
@@ -538,7 +538,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   LLVMBuildRet(c->builder, c->none_instance);
   codegen_finishfun(c);
 
-  ponyint_pool_free_size(buf_size, param_vals);
+  ponyint_pool_free(buf_size, param_vals);
 
   // Add the dispatch case.
   LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
@@ -608,7 +608,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   // Generate the sender.
   codegen_startfun(c, c_m->func, NULL, NULL, m->fun, false);
   size_t buf_size = (m->param_count + 1) * sizeof(LLVMValueRef);
-  LLVMValueRef* param_vals = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* param_vals = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
   LLVMGetParams(c_m->func, param_vals);
 
   // Send the arguments in a message to 'this'.
@@ -618,7 +618,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   LLVMBuildRet(c->builder, param_vals[0]);
   codegen_finishfun(c);
 
-  ponyint_pool_free_size(buf_size, param_vals);
+  ponyint_pool_free(buf_size, param_vals);
 
   // Add the dispatch case.
   LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
@@ -750,7 +750,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   int count = LLVMCountParams(c_m->func);
   size_t buf_size = count * sizeof(LLVMValueRef);
 
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc(buf_size);
   args[0] = LLVMGetParam(c_m->func, 0);
 
   for(int i = 1; i < count; i++)
@@ -768,7 +768,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
     m2->result->ast_cap);
   LLVMBuildRet(c->builder, ret);
   codegen_finishfun(c);
-  ponyint_pool_free_size(buf_size, args);
+  ponyint_pool_free(buf_size, args);
   return true;
 }
 

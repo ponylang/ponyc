@@ -250,7 +250,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 
   size_t count = 0;
   size_t buf_size = 4 * sizeof(const char*);
-  const char** entries = (const char**)ponyint_pool_alloc_size(buf_size);
+  const char** entries = (const char**)ponyint_pool_alloc(buf_size);
   PONY_DIRINFO* d;
 
   while((d = pony_dir_entry_next(dir)) != NULL)
@@ -269,7 +269,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
       if((count * sizeof(const char*)) == buf_size)
       {
         size_t new_buf_size = buf_size * 2;
-        entries = (const char**)ponyint_pool_realloc_size(buf_size,
+        entries = (const char**)ponyint_pool_realloc(buf_size,
           new_buf_size, entries);
         buf_size = new_buf_size;
       }
@@ -292,7 +292,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     r &= parse_source_file(package, fullpath, opt);
   }
 
-  ponyint_pool_free_size(buf_size, entries);
+  ponyint_pool_free(buf_size, entries);
   return r;
 }
 
@@ -468,7 +468,7 @@ static const char* id_to_string(const char* prefix, size_t id)
 
   size_t len = strlen(prefix);
   size_t buf_size = len + 32;
-  char* buffer = (char*)ponyint_pool_alloc_size(buf_size);
+  char* buffer = (char*)ponyint_pool_alloc(buf_size);
   snprintf(buffer, buf_size, "%s$" __zu, prefix, id);
   return stringtab_consume(buffer, buf_size);
 }
@@ -505,7 +505,7 @@ static const char* string_to_symbol(const char* string)
 
   size_t len = strlen(string);
   size_t buf_size = len + prefix + 1;
-  char* buf = (char*)ponyint_pool_alloc_size(buf_size);
+  char* buf = (char*)ponyint_pool_alloc(buf_size);
   memcpy(buf + prefix, string, len + 1);
 
   if(prefix)
@@ -537,7 +537,7 @@ static const char* symbol_suffix(const char* symbol, size_t suffix)
 {
   size_t len = strlen(symbol);
   size_t buf_size = len + 32;
-  char* buf = (char*)ponyint_pool_alloc_size(buf_size);
+  char* buf = (char*)ponyint_pool_alloc(buf_size);
   snprintf(buf, buf_size, "%s" __zu, symbol, suffix);
 
   return stringtab_consume(buf, buf_size);
@@ -694,24 +694,24 @@ static bool add_exec_dir(pass_opt_t* opt)
   const char* link_arch = opt->link_arch != NULL ? opt->link_arch
                                               : PONY_ARCH;
   size_t lib_len = 8 + strlen(link_arch);
-  char* lib_path = (char*)ponyint_pool_alloc_size(lib_len);
+  char* lib_path = (char*)ponyint_pool_alloc(lib_len);
   snprintf(lib_path, lib_len, "../lib/%s", link_arch);
 
   success = add_relative_path(path, lib_path, opt);
 
-  ponyint_pool_free_size(lib_len, lib_path);
+  ponyint_pool_free(lib_len, lib_path);
 
   if(!success)
     return false;
 
   // for when run from build directory
   lib_len = 5 + strlen(link_arch);
-  lib_path = (char*)ponyint_pool_alloc_size(lib_len);
+  lib_path = (char*)ponyint_pool_alloc(lib_len);
   snprintf(lib_path, lib_len, "lib/%s", link_arch);
 
   success = add_relative_path(path, lib_path, opt);
 
-  ponyint_pool_free_size(lib_len, lib_path);
+  ponyint_pool_free(lib_len, lib_path);
 #endif
 
   if(!success)
@@ -953,7 +953,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
         size_t base_name_len = strlen(base_name);
         size_t path_len = strlen(path);
         size_t len = base_name_len + path_len + 2;
-        char* q_name = (char*)ponyint_pool_alloc_size(len);
+        char* q_name = (char*)ponyint_pool_alloc(len);
         memcpy(q_name, base_name, base_name_len);
         q_name[base_name_len] = '/';
         memcpy(q_name + base_name_len + 1, path, path_len);
@@ -1198,7 +1198,7 @@ package_group_t* package_group_new()
 void package_group_free(package_group_t* group)
 {
   if(group->signature != NULL)
-    ponyint_pool_free_size(SIGNATURE_LENGTH, group->signature);
+    ponyint_pool_free(SIGNATURE_LENGTH, group->signature);
 
   package_set_destroy(&group->members);
   POOL_FREE(package_group_t, group);
@@ -1548,7 +1548,7 @@ pony_type_t* package_group_signature_pony_type()
 static void* s_alloc_fn(pony_ctx_t* ctx, size_t size)
 {
   (void)ctx;
-  return ponyint_pool_alloc_size(size);
+  return ponyint_pool_alloc(size);
 }
 
 
@@ -1567,7 +1567,7 @@ const char* package_group_signature(package_group_t* group)
     memset(&ctx, 0, sizeof(pony_ctx_t));
     ponyint_array_t array;
     memset(&array, 0, sizeof(ponyint_array_t));
-    char* buf = (char*)ponyint_pool_alloc_size(SIGNATURE_LENGTH);
+    char* buf = (char*)ponyint_pool_alloc(SIGNATURE_LENGTH);
 
     pony_serialise(&ctx, group, package_group_signature_pony_type(), &array,
       s_alloc_fn, s_throw_fn);
@@ -1576,7 +1576,7 @@ const char* package_group_signature(package_group_t* group)
     pony_assert(status == 0);
 
     group->signature = buf;
-    ponyint_pool_free_size(array.size, array.ptr);
+    ponyint_pool_free(array.size, array.ptr);
   }
 
   return group->signature;

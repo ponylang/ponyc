@@ -136,12 +136,12 @@ void ponyint_cpu_init()
       avail_cpu_size = numa_count;
 
     avail_cpu_list =
-      (uint32_t*)ponyint_pool_alloc_size(avail_cpu_size * sizeof(uint32_t));
+      (uint32_t*)ponyint_pool_alloc(avail_cpu_size * sizeof(uint32_t));
     avail_cpu_count =
       ponyint_numa_core_list(&hw_cpus, &ht_cpus, avail_cpu_list);
   } else {
     avail_cpu_list =
-      (uint32_t*)ponyint_pool_alloc_size(avail_cpu_size * sizeof(uint32_t));
+      (uint32_t*)ponyint_pool_alloc(avail_cpu_size * sizeof(uint32_t));
 
     uint32_t i = 0;
     i = cpu_add_mask_to_list(i, &hw_cpus);
@@ -170,12 +170,12 @@ void ponyint_cpu_init()
     if(GetLastError() == ERROR_INSUFFICIENT_BUFFER)
     {
       ptr = info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)
-        ponyint_pool_realloc_size(len, new_len, ptr);
+        ponyint_pool_realloc(len, new_len, ptr);
       len = new_len;
       continue;
     } else {
       if(ptr != NULL)
-        ponyint_pool_free_size(len, ptr);
+        ponyint_pool_free(len, ptr);
 
       return;
     }
@@ -197,7 +197,7 @@ void ponyint_cpu_init()
   }
 
   if(ptr != NULL)
-    ponyint_pool_free_size(len, ptr);
+    ponyint_pool_free(len, ptr);
 #endif
 }
 
@@ -235,7 +235,7 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   if(pinasio)
     asio_cpu = avail_cpu_list[count % avail_cpu_count];
 
-  ponyint_pool_free_size(avail_cpu_size * sizeof(uint32_t), avail_cpu_list);
+  ponyint_pool_free(avail_cpu_size * sizeof(uint32_t), avail_cpu_list);
   avail_cpu_list = NULL;
   avail_cpu_count = avail_cpu_size = 0;
 

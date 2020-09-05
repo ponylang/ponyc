@@ -852,12 +852,12 @@ bool codegen_pass_init(pass_opt_t* opt)
     {
       // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
       size_t temp_len = strlen(opt->features) + 10;
-      char* temp_str = (char*)ponyint_pool_alloc_size(temp_len);
+      char* temp_str = (char*)ponyint_pool_alloc(temp_len);
       snprintf(temp_str, temp_len, "%s,-avx512f", opt->features);
 
       opt->features = LLVMCreateMessage(temp_str);
 
-      ponyint_pool_free_size(temp_len, temp_str);
+      ponyint_pool_free(temp_len, temp_str);
     } else {
       opt->features = LLVMCreateMessage(opt->features);
     }
@@ -1353,7 +1353,7 @@ const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   // Copy to a string with space for a suffix.
   size_t len = strlen(dir) + strlen(prefix) + strlen(file) + strlen(extension)
     + 4;
-  char* filename = (char*)ponyint_pool_alloc_size(len);
+  char* filename = (char*)ponyint_pool_alloc(len);
 
   // Start with no suffix.
 #ifdef PLATFORM_IS_WINDOWS
@@ -1385,7 +1385,7 @@ const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
   if(suffix >= 100)
   {
     errorf(c->opt->check.errors, NULL, "couldn't pick an unused file name");
-    ponyint_pool_free_size(len, filename);
+    ponyint_pool_free(len, filename);
     return NULL;
   }
 

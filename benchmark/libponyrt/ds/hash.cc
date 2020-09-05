@@ -270,7 +270,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
   size_t sz = static_cast<size_t>(st.range(2));
   hash_elem_t* curr = get_element();
   hash_elem_t** a =
-    (hash_elem_t**)ponyint_pool_alloc_size(sz * sizeof(hash_elem_t*));
+    (hash_elem_t**)ponyint_pool_alloc(sz * sizeof(hash_elem_t*));
   for(size_t i = 0; i < sz; i++)
   {
     a[i] = get_element();
@@ -292,7 +292,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashRemove$_)(benchmark::State& st) {
   for(size_t i = 0; i < sz; i++)
     free_elem(a[i]);
   free_elem(curr);
-  ponyint_pool_free_size(sz, a);
+  ponyint_pool_free(sz, a);
 }
 
 BENCHMARK_REGISTER_F(HashMapBench, HashRemove$_)->RangeMultiplier(2)->Ranges({{32<<10, 32<<10}, {0, 0}, {1<<10, 64<<10}});
@@ -301,7 +301,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
   hash_elem_t* e1 = get_element();
   size_t map_count = testmap_size(&_map);
   size_t map_count_mask = map_count - 1;
-  size_t* a = (size_t*)ponyint_pool_alloc_size(map_count * sizeof(size_t));
+  size_t* a = (size_t*)ponyint_pool_alloc(map_count * sizeof(size_t));
   size_t index = HASHMAP_UNKNOWN;
   size_t incr = static_cast<size_t>(st.range(1));
   if(st.range(2) == 0) {
@@ -333,7 +333,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearch)(benchmark::State& st) {
     j++;
   }
   st.SetItemsProcessed((int64_t)st.iterations());
-  ponyint_pool_free_size(map_count, a);
+  ponyint_pool_free(map_count, a);
   free_elem(e1);
   e1 = nullptr;
 }
@@ -368,7 +368,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
   size_t array_size = ponyint_next_pow2(map_count);
   size_t array_size_mask = array_size - 1;
   array_size = array_size < 128 ? 128 : array_size;
-  a = (size_t*)ponyint_pool_alloc_size(array_size * sizeof(size_t));
+  a = (size_t*)ponyint_pool_alloc(array_size * sizeof(size_t));
   size_t ind = HASHMAP_UNKNOWN;
   if(st.range(3) == 0) {
     for(size_t i = 0; i < array_size; i++) {
@@ -403,7 +403,7 @@ BENCHMARK_DEFINE_F(HashMapBench, HashSearchDeletes)(benchmark::State& st) {
     j++;
   }
   st.SetItemsProcessed((int64_t)st.iterations());
-  ponyint_pool_free_size(array_size, a);
+  ponyint_pool_free(array_size, a);
   free_elem(e1);
   e1 = nullptr;
 }

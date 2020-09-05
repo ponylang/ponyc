@@ -1111,8 +1111,7 @@ void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
   pony_assert(&actor->gc == gc);
   pony_ctx_t* ctx = ponyint_sched_get_inject_context();
 
-  block_msg_t* m = (block_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
+  block_msg_t* m = (block_msg_t*)pony_alloc_msg(sizeof(block_msg_t), ACTORMSG_BLOCK);
 
 #ifdef USE_MEMTRACK_MESSAGES
   ctx->mem_used_messages += sizeof(block_msg_t);

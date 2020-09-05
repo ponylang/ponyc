@@ -34,9 +34,9 @@ static void append_to_args(program_t* program, const char* text)
   if(new_len > program->lib_args_alloced)
   {
     size_t new_alloc = 2 * new_len; // 2* so there's spare space for next arg
-    char* new_args = (char*)ponyint_pool_alloc_size(new_alloc);
+    char* new_args = (char*)ponyint_pool_alloc(new_alloc);
     memcpy(new_args, program->lib_args, program->lib_args_size + 1);
-    ponyint_pool_free_size(program->lib_args_alloced, program->lib_args);
+    ponyint_pool_free(program->lib_args_alloced, program->lib_args);
     program->lib_args = new_args;
     program->lib_args_alloced = new_alloc;
   }
@@ -68,13 +68,13 @@ void program_free(program_t* program)
   package_group_list_free(program->package_groups);
 
   if(program->signature != NULL)
-    ponyint_pool_free_size(SIGNATURE_LENGTH, program->signature);
+    ponyint_pool_free(SIGNATURE_LENGTH, program->signature);
 
   strlist_free(program->libpaths);
   strlist_free(program->libs);
 
   if(program->lib_args != NULL)
-    ponyint_pool_free_size(program->lib_args_alloced, program->lib_args);
+    ponyint_pool_free(program->lib_args_alloced, program->lib_args);
 
   POOL_FREE(program_t, program);
 }
@@ -111,7 +111,7 @@ static const char* quoted_locator(pass_opt_t* opt, ast_t* use,
   }
 
   size_t len = strlen(locator);
-  char* quoted = (char*)ponyint_pool_alloc_size(len + 3);
+  char* quoted = (char*)ponyint_pool_alloc(len + 3);
   quoted[0] = '"';
   memcpy(quoted + 1, locator, len);
   quoted[len + 1] = '"';
@@ -192,7 +192,7 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
 
   // Start with an arbitrary amount of space
   data->lib_args_alloced = 256;
-  data->lib_args = (char*)ponyint_pool_alloc_size(data->lib_args_alloced);
+  data->lib_args = (char*)ponyint_pool_alloc(data->lib_args_alloced);
   data->lib_args[0] = '\0';
   data->lib_args_size = 0;
 
@@ -298,7 +298,7 @@ const char* program_signature(ast_t* program)
       iter = package_group_list_next(iter);
     }
 
-    data->signature = (char*)ponyint_pool_alloc_size(SIGNATURE_LENGTH);
+    data->signature = (char*)ponyint_pool_alloc(SIGNATURE_LENGTH);
     status = blake2b_final(&hash_state, data->signature, SIGNATURE_LENGTH);
     pony_assert(status == 0);
   }

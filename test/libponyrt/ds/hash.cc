@@ -401,7 +401,7 @@ struct pool_size_deleter
 
   void operator()(void* ptr)
   {
-    ponyint_pool_free_size(size, ptr);
+    ponyint_pool_free(size, ptr);
   }
 };
 
@@ -427,7 +427,7 @@ TEST_F(HashMapTest, Serialisation)
   auto alloc_fn = [](pony_ctx_t* ctx, size_t size)
     {
       (void)ctx;
-      return ponyint_pool_alloc_size(size);
+      return ponyint_pool_alloc(size);
     };
   auto throw_fn = [](){throw std::exception{}; };
 

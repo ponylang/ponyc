@@ -81,7 +81,7 @@ static bool messageq_push_single(messageq_t* q,
 void ponyint_messageq_init(messageq_t* q)
 {
   pony_msg_t* stub = POOL_ALLOC(pony_msg_t);
-  stub->index = POOL_INDEX(sizeof(pony_msg_t));
+  stub->size = sizeof(pony_msg_t);
   atomic_store_explicit(&stub->next, NULL, memory_order_relaxed);
 
   atomic_store_explicit(&q->head, (pony_msg_t*)((uintptr_t)stub | 1),
@@ -102,7 +102,7 @@ void ponyint_messageq_destroy(messageq_t* q)
   ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
 
-  ponyint_pool_free(tail->index, tail);
+  ponyint_pool_free(tail->size, tail);
   atomic_store_explicit(&q->head, NULL, memory_order_relaxed);
   q->tail = NULL;
 }
@@ -119,7 +119,7 @@ bool ponyint_actor_messageq_push(messageq_t* q, pony_msg_t* first,
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
     pony_msg_t* m = first;
-    int32_t index = (sched == NULL) ? UNKNOWN_SCHEDULER : sched->index;
+    int32_t index = (sched == NULL) ? UNKNOWN_SCHEDULER : sched->size;
 
     while(m != last)
     {
@@ -177,7 +177,7 @@ bool ponyint_actor_messageq_push_single(messageq_t* q,
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
     pony_msg_t* m = first;
-    int32_t index = (sched == NULL) ? UNKNOWN_SCHEDULER : sched->index;
+    int32_t index = (sched == NULL) ? UNKNOWN_SCHEDULER : sched->size;
 
     while(m != last)
     {
@@ -235,14 +235,14 @@ pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
 
   if(next != NULL)
   {
-    DTRACE3(ACTOR_MSG_POP, sched->index, (uint32_t) next->id, (uintptr_t) actor);
+    DTRACE3(ACTOR_MSG_POP, sched->size, (uint32_t) next->id, (uintptr_t) actor);
     q->tail = next;
     atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND
     ANNOTATE_HAPPENS_AFTER(&tail->next);
     ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
-    ponyint_pool_free(tail->index, tail);
+    ponyint_pool_free(tail->size, tail);
   }
 
   return next;
@@ -266,7 +266,7 @@ pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
     ANNOTATE_HAPPENS_AFTER(&tail->next);
     ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
-    ponyint_pool_free(tail->index, tail);
+    ponyint_pool_free(tail->size, tail);
   }
 
   return next;

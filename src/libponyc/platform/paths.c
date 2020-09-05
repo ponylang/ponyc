@@ -118,7 +118,7 @@ void pony_mkdir(const char* path)
   // Copy the given path into a new buffer, one directory at a time, creating
   // each as we go
   size_t path_len = strlen(path);
-  char* buf = (char*)ponyint_pool_alloc_size(path_len + 1); // +1 for terminator
+  char* buf = (char*)ponyint_pool_alloc(path_len + 1); // +1 for terminator
 
   for(size_t i = 0; i < path_len; i++)
   {
@@ -148,7 +148,7 @@ void pony_mkdir(const char* path)
   mkdir(path, 0777);
 #endif
 
-  ponyint_pool_free_size(path_len + 1, buf);
+  ponyint_pool_free(path_len + 1, buf);
 }
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -179,7 +179,7 @@ char* get_file_name(char* filename)
 //   finished with it.
 // If you pass in NULL or the new string can't be allocated,
 //   it returns NULL.
-char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size) 
+char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size)
 {
     char *retstr, *lastdot, *lastsep;
     // Error checks and allocate string.
@@ -188,7 +188,7 @@ char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size)
 
     *allocated_size = strlen(path) + 1;
 
-    retstr = (char*) ponyint_pool_alloc_size(*allocated_size);
+    retstr = (char*) ponyint_pool_alloc(*allocated_size);
 
     // Make a copy and find the relevant characters.
     strcpy(retstr, path);

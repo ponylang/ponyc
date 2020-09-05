@@ -268,8 +268,8 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
     default:
     {
 #ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= POOL_SIZE(msg->index);
-      ctx->mem_allocated_messages -= POOL_SIZE(msg->index);
+      ctx->mem_used_messages -= POOL_SIZE(msg->size);
+      ctx->mem_allocated_messages -= POOL_SIZE(msg->size);
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
@@ -470,7 +470,7 @@ void ponyint_actor_destroy(pony_actor_t* actor)
 #endif
 
   // Free variable sized actors correctly.
-  ponyint_pool_free_size(actor->type->size, actor);
+  ponyint_pool_free(actor->type->size, actor);
 }
 
 gc_t* ponyint_actor_gc(pony_actor_t* actor)
@@ -541,7 +541,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
   pony_assert(type != NULL);
 
   // allocate variable sized actors correctly
-  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc_size(type->size);
+  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc(type->size);
   memset(actor, 0, type->size);
   actor->type = type;
 
@@ -588,28 +588,24 @@ PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor)
   ponyint_actor_destroy(actor);
 }
 
-PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
+PONY_API pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id)
 {
 #ifdef USE_MEMTRACK_MESSAGES
   pony_ctx_t* ctx = pony_ctx();
-  ctx->mem_used_messages += POOL_SIZE(index);
-  ctx->mem_allocated_messages += POOL_SIZE(index);
+  ctx->mem_used_messages += size;
+  ctx->mem_allocated_messages += size;
   ctx->num_messages++;
 #endif
 
-  pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
-  msg->index = index;
+  pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(size);
+  // TODO: shift msg size by min alloc, etc.
+  msg->size = size;
   msg->id = id;
 #ifndef PONY_NDEBUG
   atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
 #endif
 
   return msg;
-}
-
-PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id)
-{
-  return pony_alloc_msg((uint32_t)ponyint_pool_index(size), id);
 }
 
 PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
@@ -725,7 +721,7 @@ PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
   ctx->mem_used_messages -= POOL_ALLOC_SIZE(pony_msg_t);
 #endif
 
-  pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
+  pony_msg_t* m = pony_alloc_msg(sizeof(pony_msg_t), id);
   pony_sendv(ctx, to, m, m, id <= ACTORMSG_APPLICATION_START);
 }
 
@@ -737,8 +733,7 @@ PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   ctx->mem_used_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
 #endif
 
-  pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_msgp_t)), id);
+  pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(sizeof(pony_msgp_t), id);
   m->p = p;
 
   pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);
@@ -752,8 +747,7 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   ctx->mem_used_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
-  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_msgi_t)), id);
+  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(sizeof(pony_msgi_t), id);
   m->i = i;
 
   pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);

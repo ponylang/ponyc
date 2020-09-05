@@ -772,7 +772,7 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
     return NULL;
 
   size_t size = len * sizeof(LLVMValueRef);
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(size);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc(size);
 
   uint32_t count = 0;
   reach_type_t* t;
@@ -804,7 +804,7 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
   LLVMSetAlignment(table, 4);
   LLVMSetLinkage(table, LLVMPrivateLinkage);
 
-  ponyint_pool_free_size(size, args);
+  ponyint_pool_free(size, args);
 
   return table;
 }
