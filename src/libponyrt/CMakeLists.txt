@@ -61,11 +61,8 @@ add_library(libponyrt STATIC
 )
 
 set(SNMALLOC_PONY_SUPPORT ON)
-set(SNMALLOC_RUST_SUPPORT ON)
 add_subdirectory(../../lib/snmalloc build_libs/snmalloc)
 target_link_libraries(libponyrt PRIVATE snmallocshim-pony)
-target_link_libraries(libponyrt PRIVATE snmallocshim-rust)
-target_link_libraries(libponyrt PRIVATE snmallocshim)
 target_compile_options(libponyrt PRIVATE -Wno-error)
 # target_compile_options(libponyrt PRIVATE -fno-omit-frame-pointer -fsanitize=address)
 # target_link_libraries(libponyrt PRIVATE -fno-omit-frame-pointer -fsanitize=address)

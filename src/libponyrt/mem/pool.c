@@ -1,31 +1,12 @@
 #define PONY_WANT_ATOMIC_DEFS
 
 #include "pool.h"
-#include "../ds/fun.h"
-#include "../sched/cpu.h"
 #include "ponyassert.h"
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-
-#include <platform.h>
-#include <pony/detail/atomics.h>
-
-#ifdef USE_VALGRIND
-#include <valgrind/valgrind.h>
-#include <valgrind/helgrind.h>
-#endif
-
-/// Allocations this size and above are aligned on this size. This is needed
-/// so that the pagemap for the heap is aligned.
-#define POOL_ALIGN_INDEX (POOL_ALIGN_BITS - POOL_MIN_BITS)
-#define POOL_ALIGN_MASK (POOL_ALIGN - 1)
 
 size_t ponyint_pool_alloc_size(size_t size)
 {
-  #ifdef PLATFORM_IS_ILP32
+#ifdef PLATFORM_IS_ILP32
 #define BITS (32 - POOL_MIN_BITS)
 #else
 #define BITS (64 - POOL_MIN_BITS)
@@ -43,9 +24,11 @@ size_t ponyint_pool_alloc_size(size_t size)
 void* ponyint_pool_alloc(size_t size)
 {
   size = ponyint_pool_alloc_size(size);
-  size_t align = (size >= POOL_ALIGN) ? POOL_ALIGN : size;
+  // size_t align = (size >= POOL_ALIGN) ? POOL_ALIGN : size;
   // TODO: invalid use of aligned_alloc!
-  void* p = aligned_alloc(align, size);
+  // void* p = aligned_alloc(align, size);
+  void* p = ponyint_alloc(size);
+  // void* p = rust_alloc(align, size);
   if (p == NULL)
   {
     perror("out of memory: ");
@@ -56,30 +39,34 @@ void* ponyint_pool_alloc(size_t size)
 
 void ponyint_pool_free(size_t size, void* p)
 {
-  (void)size;
-  free(p);
+  // (void)size;
+  // free(p);
+  size = ponyint_pool_alloc_size(size);
+  // size_t align = (size >= POOL_ALIGN) ? POOL_ALIGN : size;
+  ponyint_dealloc(p, size);
+  // rust_dealloc(p, align, size);
 }
 
 void* ponyint_pool_realloc(size_t old_size, size_t new_size, void* p)
 {
-
   if(p == NULL)
     return ponyint_pool_alloc(new_size);
 
-  (void)old_size;
+  old_size = ponyint_pool_alloc_size(old_size);
   new_size = ponyint_pool_alloc_size(new_size);
-  return realloc(p, new_size);
+  // size_t align = (new_size >= POOL_ALIGN) ? POOL_ALIGN : new_size;
+  // return rust_realloc(p, align, old_size, new_size);
+  // return realloc(p, new_size);
+  return ponyint_realloc(p, old_size, new_size);
 }
 
-void ponyint_pool_thread_cleanup()
-{
-}
-
+/// Allocations this size and above are aligned on this size. This is needed
+/// so that the pagemap for the heap is aligned.
 size_t ponyint_pool_adjust_size(size_t size)
 {
   // align to `POOL_ALIGN`
-  if((size & POOL_ALIGN_MASK) != 0)
-    size = (size & ~POOL_ALIGN_MASK) + POOL_ALIGN;
+  if((size & (POOL_ALIGN - 1)) != 0)
+    size = (size & ~(POOL_ALIGN - 1)) + POOL_ALIGN;
 
   // we've overflowed the `size_t` datatype
   if(size == 0)

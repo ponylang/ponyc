@@ -1004,7 +1004,6 @@ static DECLARE_THREAD_FN(run_thread)
 #endif
 
   run(sched);
-  ponyint_pool_thread_cleanup();
 
   return 0;
 }
@@ -1230,8 +1229,6 @@ PONY_API void pony_unregister_thread()
 
   POOL_FREE(scheduler_t, this_scheduler);
   this_scheduler = NULL;
-
-  ponyint_pool_thread_cleanup();
 }
 
 PONY_API pony_ctx_t* pony_ctx()
