@@ -48,7 +48,7 @@ actor _Valtrace
     @pony_triggergc[None](@pony_ctx[Pointer[None]]())
     a1.gc(a1, h, s)
     a2.gc(a1, h, s)
-    a2.gc(a1, h, s)
+    a3.gc(a1, h, s)
     gc(a1, h, s)
 
   be gc(a: _Valtrace, h: TestHelper, s: String) =>
