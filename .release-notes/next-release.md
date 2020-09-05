@@ -22,3 +22,25 @@ ponyup default ubuntu20.04
 
 When implementing the CMake build system, I missed copying a couple of lines from the old Makefile that meant that you could only specify one use= option when doing make configure on Posix. This change restores those lines, so you can specify multiple options for use, e.g. make configure use=memtrack_messages,address_sanitizer.
 
+## Make Range.next partial
+
+Range.next used to return the final index over and over when you reached the end. It was decided that this was a confusing and error prone API.
+
+Range.next is now partial and will return error when you try to iterate past the end of the range.
+
+Where you previously had code like:
+
+```pony
+let r = Range(0,5)
+let a = r.next()
+```
+
+you now need (or similar based on your usage of Range.next
+
+```pony
+try
+  let r = Range(0,5)
+  let a = r.next()?
+end
+```
+
