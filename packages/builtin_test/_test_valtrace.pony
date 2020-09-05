@@ -8,7 +8,7 @@ class iso _TestValtrace is UnitTest
 
   fun apply(h: TestHelper) =>
     _Valtrace.one(h)
-    h.long_test(2_000_000_000) // 2 second timeout
+    h.long_test(10_000_000_000) // 10 second timeout
 
 actor _Valtrace
   var count: U32 = 0
