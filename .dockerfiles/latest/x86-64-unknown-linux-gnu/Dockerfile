@@ -13,7 +13,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
- && ponyup update ponyc nightly --platform=gnu \
+ && ponyup update ponyc nightly --platform=ubuntu20.04 \
  && ponyup update stable nightly \
  && ponyup update corral nightly \
  && ponyup update changelog-tool nightly
