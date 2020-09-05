@@ -8,11 +8,15 @@
 PONY_EXTERN_C_BEGIN
 
 extern uint32_t ponyint_size_to_sizeclass(size_t size);
-extern uint32_t ponyint_sizeclass_to_size(uint32_t sc);
+extern size_t ponyint_sizeclass_to_size(uint32_t sc);
 extern size_t ponyint_round_alloc_size(size_t size);
 extern void* ponyint_alloc(size_t size);
 extern void ponyint_dealloc(void* ptr, size_t size);
 extern void* ponyint_realloc(void* ptr, size_t old_size, size_t new_size);
+
+extern void* rust_alloc(size_t alignment, size_t size);
+extern void rust_dealloc(void* ptr, size_t alignment, size_t size);
+extern void* rust_realloc(void* ptr, size_t alignment, size_t old_size, size_t new_size);
 
 /* Because of the way free memory is reused as its own linked list container,
  * the minimum allocation size is 32 bytes.
@@ -27,8 +31,8 @@ extern void* ponyint_realloc(void* ptr, size_t old_size, size_t new_size);
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
 #define POOL_COUNT (POOL_MAX_BITS - POOL_MIN_BITS + 1)
 
-__pony_spec_malloc__(void* ponyint_pool_alloc(size_t index));
-void ponyint_pool_free(size_t index, void* p);
+__pony_spec_malloc__(void* ponyint_pool_alloc(uint32_t index));
+void ponyint_pool_free(uint32_t index, void* p);
 
 __pony_spec_malloc__(void* ponyint_pool_alloc_size(size_t size));
 void ponyint_pool_free_size(size_t size, void* p);
@@ -46,7 +50,7 @@ size_t ponyint_pool_used_size(size_t size);
 size_t ponyint_pool_adjust_size(size_t size);
 
 #define POOL_INDEX(SIZE) \
-  (uint32_t)ponyint_pool_index(SIZE)
+  ponyint_pool_index(SIZE)
 
 #define POOL_ALLOC(TYPE) \
   (TYPE*) ponyint_pool_alloc(POOL_INDEX(sizeof(TYPE)))

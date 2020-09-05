@@ -738,7 +738,7 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
    unsigned int weights[], unsigned int count)
 {
-  size_t alloc_index = ponyint_pool_index((count + 1) * sizeof(LLVMValueRef));
+  uint32_t alloc_index = ponyint_pool_index((count + 1) * sizeof(LLVMValueRef));
 
   LLVMValueRef* params = (LLVMValueRef*)ponyint_pool_alloc(alloc_index);
 
