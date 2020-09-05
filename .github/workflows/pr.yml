@@ -50,14 +50,6 @@ jobs:
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-musl/Dockerfile ."
 
-  validate-gnu-docker-release-image-builds:
-    name: Validate GNU Docker release image builds
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Docker build
-        run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-gnu/Dockerfile ."
-
   validate-windows-docker-release-image-builds:
     name: Validate Windows Docker release image builds
     runs-on: windows-latest
