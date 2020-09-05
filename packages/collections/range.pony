@@ -11,7 +11,9 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   // iterating over Range of U8 with while-loop
   let range = Range[U8](5, 100, 5)
   while range.has_next() do
-    handle_u8(range.next())
+    try
+      handle_u8(range.next()?)
+    end
   end
   ```
 
@@ -97,11 +99,11 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
       _idx > _max
     end
 
-  fun ref next(): A =>
+  fun ref next(): A ? =>
     if has_next() then
       _idx = _idx + _inc
     else
-      _idx
+      error
     end
 
   fun ref rewind() =>
