@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Make Range.next() partial ([PR #3639](https://github.com/ponylang/ponyc/pull/3639))
 
 ## [0.37.0] - 2020-08-28
 
