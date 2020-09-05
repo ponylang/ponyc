@@ -25,8 +25,8 @@
 
 void* ponyint_pool_alloc(size_t index)
 {
-  void* p = ponyint_alloc(POOL_SIZE(index));
-  memset(p, 0, POOL_SIZE(index));
+  size_t align = (POOL_SIZE(index) >= POOL_ALIGN) ? POOL_ALIGN : POOL_SIZE(index);
+  void* p = aligned_alloc(align, POOL_SIZE(index));
   if (p == NULL)
   {
     perror("out of memory: ");
@@ -42,7 +42,9 @@ void* ponyint_pool_alloc_size(size_t size)
 
 void ponyint_pool_free(size_t index, void* p)
 {
-  ponyint_dealloc(p, POOL_SIZE(index));
+  // ponyint_dealloc(p, POOL_SIZE(index));
+  (void)index;
+  free(p);
 }
 
 void ponyint_pool_free_size(size_t size, void* p)
@@ -66,14 +68,16 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p)
   // ponyint_pool_free_size(old_size, p);
   // return new_p;
 
-  return ponyint_realloc(p, old_size, new_size);
+  // return ponyint_realloc(p, old_size, new_size);
+  (void)old_size;
+  return realloc(p, new_size);
 }
 
 void ponyint_pool_thread_cleanup()
 {
 }
 
-size_t ponyint_pool_index(size_t size)
+uint32_t ponyint_pool_index(size_t size)
 {
 #ifdef PLATFORM_IS_ILP32
 #define BITS (32 - POOL_MIN_BITS)
@@ -89,18 +93,23 @@ size_t ponyint_pool_index(size_t size)
   return 0;
 }
 
+size_t ponyint_pool_size(uint32_t index)
+{
+  return ((size_t)1 << (POOL_MIN_BITS + index));
+}
+
 size_t ponyint_pool_used_size(size_t size)
 {
-  size_t index = ponyint_pool_index(size);
-
+  uint32_t index = ponyint_pool_index(size);
   if(index < POOL_COUNT)
-    return POOL_SIZE(index);
+    return ponyint_pool_size(index);
 
   return ponyint_pool_adjust_size(size);
 }
 
 size_t ponyint_pool_adjust_size(size_t size)
 {
+  // align to `POOL_ALIGN`
   if((size & POOL_ALIGN_MASK) != 0)
     size = (size & ~POOL_ALIGN_MASK) + POOL_ALIGN;
 
