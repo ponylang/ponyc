@@ -377,7 +377,7 @@ static matchtype_t is_typeparam_match_typeparam(ast_t* operand, ast_t* pattern,
 
   if(operand_def == pattern_def)
   {
-    r = is_cap_sub_cap_bound(ast_id(o_cap), ast_id(o_eph),
+    r = is_cap_sub_cap_bound(ast_id(o_cap), TK_EPHEMERAL,
       ast_id(p_cap), ast_id(p_eph)) ? MATCHTYPE_ACCEPT : MATCHTYPE_DENY;
   }
 
@@ -525,7 +525,7 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
 
   // If the operand does provide the pattern, but the operand refcap can't
   // match the pattern refcap, deny the match.
-  if(!is_cap_sub_cap(ast_id(o_cap), ast_id(o_eph),
+  if(!is_cap_sub_cap(ast_id(o_cap), TK_EPHEMERAL,
     ast_id(p_cap), ast_id(p_eph)))
   {
     if(errorf != NULL)
@@ -599,7 +599,7 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
 
   // If the operand does provide the pattern, but the operand refcap can't
   // match the pattern refcap, deny the match.
-  if(!is_cap_sub_cap(ast_id(o_cap), ast_id(o_eph),
+  if(!is_cap_sub_cap(ast_id(o_cap), TK_EPHEMERAL,
     ast_id(p_cap), ast_id(p_eph)))
   {
     if(errorf != NULL)
@@ -628,7 +628,7 @@ static matchtype_t is_trait_match_trait(ast_t* operand, ast_t* pattern,
   AST_GET_CHILDREN(pattern, p_pkg, p_id, p_typeargs, p_cap, p_eph);
 
   // If the operand refcap can't match the pattern refcap, deny the match.
-  if(!is_cap_sub_cap(ast_id(o_cap), ast_id(o_eph),
+  if(!is_cap_sub_cap(ast_id(o_cap), TK_EPHEMERAL,
     ast_id(p_cap), ast_id(p_eph)))
   {
     if(errorf != NULL)

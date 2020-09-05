@@ -136,7 +136,7 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
           ast_print_type(sub_cap), ast_print_type(sub_eph),
           ast_print_type(super_cap), ast_print_type(super_eph));
 
-        if(is_cap_sub_cap(ast_id(sub_cap), ast_id(super_eph), ast_id(super_cap),
+        if(is_cap_sub_cap(ast_id(sub_cap), TK_EPHEMERAL, ast_id(super_cap),
           ast_id(super_eph)))
           ast_error_frame(errorf, sub_cap,
             "this would be possible if the subcap were more ephemeral");
@@ -339,8 +339,9 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
   while((sub_param != NULL) && (super_param != NULL))
   {
-    ast_t* sub_type = ast_childidx(sub_param, 1);
-    ast_t* super_type = ast_childidx(super_param, 1);
+    // observational: must pass K^ to argument of type K
+    ast_t* sub_type = consume_type(ast_childidx(sub_param, 1), TK_NONE);
+    ast_t* super_type = consume_type(ast_childidx(super_param, 1), TK_NONE);
 
     // Contravariant: the super type must be a subtype of the sub type.
     if(!is_x_sub_x(super_type, sub_type, CHECK_CAP_SUB, errorf, opt))
@@ -351,8 +352,12 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
           ast_print_type(sub_type), ast_print_type(super_type));
       }
 
+      ast_free_unattached(sub_type);
+      ast_free_unattached(super_type);
       return false;
     }
+    ast_free_unattached(sub_type);
+    ast_free_unattached(super_type);
 
     sub_param = ast_sibling(sub_param);
     super_param = ast_sibling(super_param);

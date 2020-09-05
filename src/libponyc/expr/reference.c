@@ -166,7 +166,7 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     if(is_typecheck_error(init_type))
       return false;
 
-    init_type = alias(init_type);
+    type = consume_type(type, TK_NONE);
     errorframe_t err = NULL;
 
     if(!is_subtype(init_type, type, &err, opt))
@@ -179,7 +179,7 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
       ok = false;
     }
 
-    ast_free_unattached(init_type);
+    ast_free_unattached(type);
   }
 
   return ok;
@@ -530,7 +530,6 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   // Get the type of the local and attach it to our reference.
   // Automatically consume a local if the function is done.
   ast_t* r_type = type;
-
   if(is_method_return(&opt->check, ast))
     r_type = consume_type(type, TK_NONE);
 
@@ -562,7 +561,6 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
   // Get the type of the parameter and attach it to our reference.
   // Automatically consume a parameter if the function is done.
   ast_t* r_type = type;
-
   if(is_method_return(&opt->check, ast))
     r_type = consume_type(type, TK_NONE);
 
@@ -1010,15 +1008,10 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   if(ast_id(body_type) == TK_COMPILE_INTRINSIC)
     return true;
 
-  // The body type must match the return type, without subsumption, or an alias
-  // of the body type must be a subtype of the return type.
-  ast_t* a_type = alias(type);
-  ast_t* a_body_type = alias(body_type);
   bool ok = true;
 
   errorframe_t info = NULL;
-  if(!is_subtype(body_type, type, &info, opt) &&
-    !is_subtype(a_body_type, a_type, &info, opt))
+  if(!is_subtype(body_type, type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_t* last = ast_childlast(body);
@@ -1031,9 +1024,6 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
     errorframe_report(&frame, opt->check.errors);
     ok = false;
   }
-
-  ast_free_unattached(a_type);
-  ast_free_unattached(a_body_type);
   return ok;
 }
 

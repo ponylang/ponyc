@@ -360,6 +360,29 @@ bool expr_break(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+bool is_local_or_param(ast_t* ast)
+{
+  while(ast_id(ast) == TK_SEQ)
+  {
+    ast = ast_child(ast);
+    if (ast_sibling(ast) != NULL)
+      return false;
+  }
+  switch (ast_id(ast))
+  {
+    case TK_PARAMREF:
+    case TK_LETREF:
+    case TK_VARREF:
+      return true;
+
+    case TK_REFERENCE:
+      pony_assert(0);
+
+    default: {}
+  }
+  return false;
+}
+
 bool expr_return(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_RETURN);
@@ -413,14 +436,16 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
     default:
     {
-      // The body type must be a subtype of the return type, and an alias of
-      // the body type must be a subtype of an alias of the return type.
-      ast_t* a_type = alias(type);
-      ast_t* a_body_type = alias(body_type);
-
       errorframe_t info = NULL;
-      if(!is_subtype(body_type, type, &info, opt) ||
-        !is_subtype(a_body_type, a_type, &info, opt))
+
+      // If the experession is a local or parameter, auto-consume
+      ast_t* r_type = NULL;
+      if (is_local_or_param(body))
+      {
+          r_type = consume_type(body_type, TK_NONE);
+          body_type = r_type;
+      }
+      if(!is_subtype(body_type, type, &info, opt))
       {
         errorframe_t frame = NULL;
         ast_t* last = ast_childlast(body);
@@ -434,8 +459,9 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
         ok = false;
       }
 
-      ast_free_unattached(a_type);
-      ast_free_unattached(a_body_type);
+      if (r_type != NULL) {
+        ast_free_unattached(r_type);
+      }
     }
   }
 

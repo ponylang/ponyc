@@ -319,7 +319,7 @@ TEST_F(ArrayTest, InferFromValuesOfArrayInterface)
     "class iso C3 is T\n"
 
     "interface ArrayishOfArrayOfT\n"
-    "  fun values(): Iterator[Array[T]]^\n"
+    "  fun values(): Iterator[this->Array[T]]^\n"
 
     "primitive Foo\n"
     "  fun apply(): ArrayishOfArrayOfT =>\n"

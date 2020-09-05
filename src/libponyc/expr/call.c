@@ -235,17 +235,17 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       return false;
     }
 
-    ast_t* a_type = alias(arg_type);
+    ast_t* wp_type = consume_type(p_type, TK_NONE);
     errorframe_t info = NULL;
 
-    if(!is_subtype(a_type, p_type, &info, opt))
+    if(!is_subtype(arg_type, wp_type, &info, opt))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a subtype of parameter");
       ast_error_frame(&frame, arg, "argument type is %s",
-                      ast_print_type(a_type));
+                      ast_print_type(arg_type));
       ast_error_frame(&frame, param, "parameter type is %s",
-                      ast_print_type(p_type));
+                      ast_print_type(wp_type));
       errorframe_append(&frame, &info);
 
       if (ast_childcount(arg) > 1)
@@ -257,11 +257,11 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
           "this might be possible if all fields were already defined");
 
       errorframe_report(&frame, opt->check.errors);
-      ast_free_unattached(a_type);
+      ast_free_unattached(wp_type);
       return false;
     }
 
-    ast_free_unattached(a_type);
+    ast_free_unattached(wp_type);
     arg = ast_sibling(arg);
     param = ast_sibling(param);
   }
@@ -359,7 +359,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
   if(is_typecheck_error(r_type))
     return false;
 
-  ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_NONE);
+  ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_EPHEMERAL);
   ast_t* a_type;
 
   // If we can recover the receiver, we don't alias it here.
@@ -385,13 +385,13 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
 
   if(can_recover && cap_recover)
   {
-    a_type = r_type;
+    a_type = unisolated(r_type);
     if(recovered != NULL)
       *recovered = true;
   }
   else
   {
-    a_type = alias(r_type);
+    a_type = r_type;
     if(recovered != NULL)
       *recovered = false;
   }

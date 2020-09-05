@@ -362,12 +362,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
     default: {}
   }
+  ast_t* wl_type = consume_type(fl_type, TK_NONE);
 
   // Assignment is based on the alias of the right hand side.
-  ast_t* a_type = alias(r_type);
-
   errorframe_t info = NULL;
-  if(!is_subtype(a_type, fl_type, &info, opt))
+  if(!is_subtype(r_type, wl_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, ast, "right side must be a subtype of left side");
@@ -378,13 +377,13 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         "this might be possible if all fields were already defined");
 
     errorframe_report(&frame, opt->check.errors);
-    ast_free_unattached(a_type);
+    ast_free_unattached(wl_type);
     return false;
   }
 
-  if((ast_id(left) == TK_TUPLE) && (ast_id(a_type) != TK_TUPLETYPE))
+  if((ast_id(left) == TK_TUPLE) && (ast_id(r_type) != TK_TUPLETYPE))
   {
-    switch(ast_id(a_type))
+    switch(ast_id(r_type))
     {
       case TK_UNIONTYPE:
         ast_error(opt->check.errors, ast,
@@ -403,11 +402,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         break;
     }
 
-    ast_free_unattached(a_type);
+    ast_free_unattached(wl_type);
     return false;
   }
 
-  bool ok_safe = safe_to_move(left, a_type, WRITE);
+  bool ok_safe = safe_to_move(left, r_type, WRITE);
 
   if(!ok_safe)
   {
@@ -429,7 +428,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
             "cannot write to a field in a %s function. If you are trying to "
             "change state in a function use fun ref",
             lexer_print(iso_id));
-          ast_free_unattached(a_type);
+          ast_free_unattached(wl_type);
           return false;
         }
       }
@@ -437,13 +436,13 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
     ast_error(opt->check.errors, ast,
       "not safe to write right side to left side");
-    ast_error_continue(opt->check.errors, a_type, "right side type: %s",
-      ast_print_type(a_type));
-    ast_free_unattached(a_type);
+    ast_error_continue(opt->check.errors, wl_type, "right side type: %s",
+      ast_print_type(wl_type));
+    ast_free_unattached(wl_type);
     return false;
   }
 
-  ast_free_unattached(a_type);
+  ast_free_unattached(wl_type);
 
   if(!check_embed_construction(opt, left, right))
     return false;

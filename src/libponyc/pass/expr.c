@@ -139,13 +139,20 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
     case TK_IF:
     case TK_WHILE:
     case TK_MATCH:
+    case TK_IFDEF:
       // The condition is not the result.
+    case TK_WITH:
+      // The with variable is not the result
       if(ast_child(parent) == ast)
         return false;
       break;
 
     case TK_IFTYPE:
       // The subtype and the supertype are not the result.
+    case TK_FOR:
+      // The index variable and collection are not the result.
+    case TK_CASE:
+      // The pattern and the guard are not the result.
       if((ast_child(parent) == ast) || (ast_childidx(parent, 1) == ast))
         return false;
       break;
@@ -156,11 +163,6 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
         return false;
       break;
 
-    case TK_CASE:
-      // The pattern and the guard are not the result.
-      if(ast_childidx(parent, 2) != ast)
-        return false;
-      break;
 
     case TK_CASES:
     case TK_IFTYPE_SET:
