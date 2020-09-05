@@ -2,6 +2,23 @@
 #include <platform.h>
 
 #include <type/cap.h>
+#include <ast/token.h>
+
+#ifndef FOREACH_CAP
+#define FOREACH_CAP(cap_param, constraint) \
+token_id cap_param ## __array[6]; \
+int cap_param ## __length = reify_cap_bounds(constraint, cap_param ## __array); \
+int cap_param ## __i = 0; \
+token_id cap_param; \
+while(cap_param ## __i < cap_param ## __length) \
+  if(1) {\
+    cap_param = cap_param ## __array[cap_param ## __i]; \
+    cap_param ## __i ++; \
+    goto cap_param ## __label; \
+  } else \
+    cap_param ## __label :
+
+#endif
 
 class CapTest : public testing::Test
 {
@@ -20,10 +37,64 @@ protected:
   static const token_id any = TK_CAP_ANY;
 
   static const token_id none = TK_NONE;
+  static const token_id hat = TK_EPHEMERAL;
 
-  bool is_sub(token_id sub, token_id super)
+  int reify_cap_bounds(token_id cap, token_id dest_cap[6])
   {
-    return is_cap_sub_cap(sub, none, super, none);
+    for (int i = 0; i < 6; i++) {
+      dest_cap[i] = TK_NONE;
+    }
+    switch (cap) {
+      case TK_ISO:
+      case TK_TRN:
+      case TK_REF:
+      case TK_VAL:
+      case TK_BOX:
+      case TK_TAG:
+        dest_cap[0] = cap;
+        return 1;
+
+      case TK_CAP_SEND:
+        dest_cap[0] = TK_ISO;
+        dest_cap[1] = TK_VAL;
+        dest_cap[2] = TK_TAG;
+        return 3;
+
+      case TK_CAP_SHARE:
+        dest_cap[0] = TK_VAL;
+        dest_cap[1] = TK_TAG;
+        return 2;
+
+      case TK_CAP_READ:
+        dest_cap[0] = TK_REF;
+        dest_cap[1] = TK_VAL;
+        dest_cap[2] = TK_BOX;
+        return 3;
+
+      case TK_CAP_ALIAS:
+        dest_cap[0] = TK_REF;
+        dest_cap[1] = TK_VAL;
+        dest_cap[2] = TK_BOX;
+        dest_cap[3] = TK_TAG;
+        return 4;
+
+      case TK_CAP_ANY:
+        dest_cap[0] = TK_ISO;
+        dest_cap[1] = TK_TRN;
+        dest_cap[2] = TK_REF;
+        dest_cap[3] = TK_VAL;
+        dest_cap[4] = TK_BOX;
+        dest_cap[5] = TK_TAG;
+        return 6;
+
+      default:
+        return 0;
+    }
+  }
+
+  bool is_sub(token_id sub, token_id sub_eph, token_id super, token_id sup_eph)
+  {
+    return is_cap_sub_cap(sub, sub_eph, super, sup_eph);
   }
 
   bool is_sub_constraint(token_id sub, token_id super)
@@ -31,9 +102,9 @@ protected:
     return is_cap_sub_cap_constraint(sub, none, super, none);
   }
 
-  bool is_sub_bound(token_id sub, token_id super)
+  bool is_sub_bound(token_id sub, token_id sub_eph, token_id super, token_id sup_eph)
   {
-    return is_cap_sub_cap_bound(sub, none, super, none);
+    return is_cap_sub_cap_bound(sub, sub_eph, super, sup_eph);
   }
 
   bool is_compat(token_id left, token_id right)
@@ -71,153 +142,99 @@ const token_id CapTest::any;
 
 const token_id CapTest::none;
 
-TEST_F(CapTest, Sub)
+TEST_F(CapTest, SubChecksConstraints)
+{
+  // for capsets K1, K2
+  // K1 <= K2 if every instantation of K1 <= every instantation of K2
+  token_id caps[] = { iso, trn, ref, val, box, tag, read, send, share, alias, any};
+  int num_caps = sizeof(caps) / sizeof(token_id);
+  for (int i = 0; i < num_caps; i++) {
+    for (int j = 0; j < num_caps; j++) {
+      token_id subcap = caps[i];
+      token_id supcap = caps[j];
+
+      bool expected = true;
+      FOREACH_CAP(inst_subcap, subcap)
+      {
+        FOREACH_CAP(inst_supcap, supcap)
+        {
+          expected &= is_sub(inst_subcap, none, inst_supcap, none);
+        }
+      }
+      bool actual = is_sub(subcap, none, supcap, none);
+      ASSERT_EQ(expected, actual) <<
+        "is_cap_sub_cap(" <<
+        token_id_desc(subcap) << ", " <<
+        token_id_desc(supcap) << ") was " <<
+        actual << " but expected " <<
+        expected << " based on manual instantiation";
+    }
+  }
+}
+TEST_F(CapTest, SubConcrete)
 {
   // Every possible instantiation of sub must be a subtype of every possible
   // instantiation of super.
 
   // iso
-  EXPECT_TRUE(is_sub(iso, iso));
-  EXPECT_TRUE(is_sub(iso, trn));
-  EXPECT_TRUE(is_sub(iso, ref));
-  EXPECT_TRUE(is_sub(iso, val));
-  EXPECT_TRUE(is_sub(iso, box));
-  EXPECT_TRUE(is_sub(iso, tag));
-  EXPECT_TRUE(is_sub(iso, read));
-  EXPECT_TRUE(is_sub(iso, send));
-  EXPECT_TRUE(is_sub(iso, share));
-  EXPECT_TRUE(is_sub(iso, alias));
-  EXPECT_TRUE(is_sub(iso, any));
+  EXPECT_TRUE(is_sub(iso, hat, iso, hat));
+  EXPECT_TRUE(is_sub(iso, hat, iso, none));
+  EXPECT_TRUE(is_sub(iso, hat, trn, hat));
+  EXPECT_TRUE(is_sub(iso, hat, trn, none));
+  EXPECT_TRUE(is_sub(iso, hat, ref, none));
+  EXPECT_TRUE(is_sub(iso, hat, val, none));
+  EXPECT_TRUE(is_sub(iso, hat, box, none));
+  EXPECT_TRUE(is_sub(iso, hat, tag, none));
 
   // trn
-  EXPECT_FALSE(is_sub(trn, iso));
-  EXPECT_TRUE(is_sub(trn, trn));
-  EXPECT_TRUE(is_sub(trn, ref));
-  EXPECT_TRUE(is_sub(trn, val));
-  EXPECT_TRUE(is_sub(trn, box));
-  EXPECT_TRUE(is_sub(trn, tag));
-  EXPECT_TRUE(is_sub(trn, read));
-  EXPECT_FALSE(is_sub(trn, send));
-  EXPECT_TRUE(is_sub(trn, share));
-  EXPECT_TRUE(is_sub(trn, alias));
-  EXPECT_FALSE(is_sub(trn, any));
+  EXPECT_FALSE(is_sub(trn, hat, iso, hat));
+  EXPECT_FALSE(is_sub(trn, hat, iso, none));
+  EXPECT_TRUE(is_sub(trn, hat, trn, hat));
+  EXPECT_TRUE(is_sub(trn, hat, trn, none));
+  EXPECT_TRUE(is_sub(trn, hat, ref, none));
+  EXPECT_TRUE(is_sub(trn, hat, val, none));
+  EXPECT_TRUE(is_sub(trn, hat, box, none));
+  EXPECT_TRUE(is_sub(trn, hat, tag, none));
 
   // ref
-  EXPECT_FALSE(is_sub(ref, iso));
-  EXPECT_FALSE(is_sub(ref, trn));
-  EXPECT_TRUE(is_sub(ref, ref));
-  EXPECT_FALSE(is_sub(ref, val));
-  EXPECT_TRUE(is_sub(ref, box));
-  EXPECT_TRUE(is_sub(ref, tag));
-  EXPECT_FALSE(is_sub(ref, read));
-  EXPECT_FALSE(is_sub(ref, send));
-  EXPECT_FALSE(is_sub(ref, share));
-  EXPECT_FALSE(is_sub(ref, alias));
-  EXPECT_FALSE(is_sub(ref, any));
+  EXPECT_FALSE(is_sub(ref, none, iso, hat));
+  EXPECT_FALSE(is_sub(ref, none, iso, none));
+  EXPECT_FALSE(is_sub(ref, none, trn, hat));
+  EXPECT_FALSE(is_sub(ref, none, trn, none));
+  EXPECT_TRUE(is_sub(ref, none, ref, none));
+  EXPECT_FALSE(is_sub(ref, none, val, none));
+  EXPECT_TRUE(is_sub(ref, none, box, none));
+  EXPECT_TRUE(is_sub(ref, none, tag, none));
 
   // val
-  EXPECT_FALSE(is_sub(val, iso));
-  EXPECT_FALSE(is_sub(val, trn));
-  EXPECT_FALSE(is_sub(val, ref));
-  EXPECT_TRUE(is_sub(val, val));
-  EXPECT_TRUE(is_sub(val, box));
-  EXPECT_TRUE(is_sub(val, tag));
-  EXPECT_FALSE(is_sub(val, read));
-  EXPECT_FALSE(is_sub(val, send));
-  EXPECT_TRUE(is_sub(val, share));
-  EXPECT_FALSE(is_sub(val, alias));
-  EXPECT_FALSE(is_sub(val, any));
+  EXPECT_FALSE(is_sub(val, none, iso, hat));
+  EXPECT_FALSE(is_sub(val, none, iso, none));
+  EXPECT_FALSE(is_sub(val, none, trn, hat));
+  EXPECT_FALSE(is_sub(val, none, trn, none));
+  EXPECT_FALSE(is_sub(val, none, ref, none));
+  EXPECT_TRUE(is_sub(val, none, val, none));
+  EXPECT_TRUE(is_sub(val, none, box, none));
+  EXPECT_TRUE(is_sub(val, none, tag, none));
 
   // box
-  EXPECT_FALSE(is_sub(box, iso));
-  EXPECT_FALSE(is_sub(box, trn));
-  EXPECT_FALSE(is_sub(box, ref));
-  EXPECT_FALSE(is_sub(box, val));
-  EXPECT_TRUE(is_sub(box, box));
-  EXPECT_TRUE(is_sub(box, tag));
-  EXPECT_FALSE(is_sub(box, read));
-  EXPECT_FALSE(is_sub(box, send));
-  EXPECT_FALSE(is_sub(box, share));
-  EXPECT_FALSE(is_sub(box, alias));
-  EXPECT_FALSE(is_sub(box, any));
+  EXPECT_FALSE(is_sub(box, none, iso, hat));
+  EXPECT_FALSE(is_sub(box, none, iso, none));
+  EXPECT_FALSE(is_sub(box, none, trn, hat));
+  EXPECT_FALSE(is_sub(box, none, trn, none));
+  EXPECT_FALSE(is_sub(box, none, ref, none));
+  EXPECT_FALSE(is_sub(box, none, val, none));
+  EXPECT_TRUE(is_sub(box, none, box, none));
+  EXPECT_TRUE(is_sub(box, none, tag, none));
 
   // tag
-  EXPECT_FALSE(is_sub(tag, iso));
-  EXPECT_FALSE(is_sub(tag, trn));
-  EXPECT_FALSE(is_sub(tag, ref));
-  EXPECT_FALSE(is_sub(tag, val));
-  EXPECT_FALSE(is_sub(tag, box));
-  EXPECT_TRUE(is_sub(tag, tag));
-  EXPECT_FALSE(is_sub(tag, read));
-  EXPECT_FALSE(is_sub(tag, send));
-  EXPECT_FALSE(is_sub(tag, share));
-  EXPECT_FALSE(is_sub(tag, alias));
-  EXPECT_FALSE(is_sub(tag, any));
-
-  // #read {ref, val, box}
-  EXPECT_FALSE(is_sub(read, iso));
-  EXPECT_FALSE(is_sub(read, trn));
-  EXPECT_FALSE(is_sub(read, ref));
-  EXPECT_FALSE(is_sub(read, val));
-  EXPECT_TRUE(is_sub(read, box));
-  EXPECT_TRUE(is_sub(read, tag));
-  EXPECT_FALSE(is_sub(read, read));
-  EXPECT_FALSE(is_sub(read, send));
-  EXPECT_FALSE(is_sub(read, share));
-  EXPECT_FALSE(is_sub(read, alias));
-  EXPECT_FALSE(is_sub(read, any));
-
-  // #send {iso, val, tag}
-  EXPECT_FALSE(is_sub(send, iso));
-  EXPECT_FALSE(is_sub(send, trn));
-  EXPECT_FALSE(is_sub(send, ref));
-  EXPECT_FALSE(is_sub(send, val));
-  EXPECT_FALSE(is_sub(send, box));
-  EXPECT_TRUE(is_sub(send, tag));
-  EXPECT_FALSE(is_sub(send, read));
-  EXPECT_FALSE(is_sub(send, send));
-  EXPECT_FALSE(is_sub(send, share));
-  EXPECT_FALSE(is_sub(send, alias));
-  EXPECT_FALSE(is_sub(send, any));
-
-  // #share {val, tag}
-  EXPECT_FALSE(is_sub(share, iso));
-  EXPECT_FALSE(is_sub(share, trn));
-  EXPECT_FALSE(is_sub(share, ref));
-  EXPECT_FALSE(is_sub(share, val));
-  EXPECT_FALSE(is_sub(share, box));
-  EXPECT_TRUE(is_sub(share, tag));
-  EXPECT_FALSE(is_sub(share, read));
-  EXPECT_FALSE(is_sub(share, send));
-  EXPECT_FALSE(is_sub(share, share));
-  EXPECT_FALSE(is_sub(share, alias));
-  EXPECT_FALSE(is_sub(share, any));
-
-  // #alias {ref, val, box, tag}
-  EXPECT_FALSE(is_sub(alias, iso));
-  EXPECT_FALSE(is_sub(alias, trn));
-  EXPECT_FALSE(is_sub(alias, ref));
-  EXPECT_FALSE(is_sub(alias, val));
-  EXPECT_FALSE(is_sub(alias, box));
-  EXPECT_TRUE(is_sub(alias, tag));
-  EXPECT_FALSE(is_sub(alias, read));
-  EXPECT_FALSE(is_sub(alias, send));
-  EXPECT_FALSE(is_sub(alias, share));
-  EXPECT_FALSE(is_sub(alias, alias));
-  EXPECT_FALSE(is_sub(alias, any));
-
-  // #any {iso, trn, ref, val, box, tag}
-  EXPECT_FALSE(is_sub(any, iso));
-  EXPECT_FALSE(is_sub(any, trn));
-  EXPECT_FALSE(is_sub(any, ref));
-  EXPECT_FALSE(is_sub(any, val));
-  EXPECT_FALSE(is_sub(any, box));
-  EXPECT_TRUE(is_sub(any, tag));
-  EXPECT_FALSE(is_sub(any, read));
-  EXPECT_FALSE(is_sub(any, send));
-  EXPECT_FALSE(is_sub(any, share));
-  EXPECT_FALSE(is_sub(any, alias));
-  EXPECT_FALSE(is_sub(any, any));
+  EXPECT_FALSE(is_sub(tag, none, iso, hat));
+  EXPECT_FALSE(is_sub(tag, none, iso, none));
+  EXPECT_FALSE(is_sub(tag, none, trn, hat));
+  EXPECT_FALSE(is_sub(tag, none, trn, none));
+  EXPECT_FALSE(is_sub(tag, none, ref, none));
+  EXPECT_FALSE(is_sub(tag, none, val, none));
+  EXPECT_FALSE(is_sub(tag, none, box, none));
+  EXPECT_TRUE(is_sub(tag, none, tag, none));
 }
 
 TEST_F(CapTest, SubConstraint)
@@ -369,159 +386,99 @@ TEST_F(CapTest, SubConstraint)
   EXPECT_TRUE(is_sub_constraint(any, any));
 }
 
-TEST_F(CapTest, SubBound)
+TEST_F(CapTest, SubBoundConcrete)
 {
   // If either cap is a specific cap:
   // Every possible instantiation of sub must be a subtype of every possible
   // instantiation of super.
+  token_id caps[] = { iso, trn, ref, val, box, tag };
+  int num_caps = sizeof(caps) / sizeof(token_id);
+  for (int i = 0; i < num_caps; i++) {
+    for (int j = 0; j < num_caps; j++) {
+      ASSERT_EQ(is_sub_bound(caps[i], none, caps[j], none),
+                   is_sub(caps[i], none, caps[j], none));
+      ASSERT_EQ(is_sub_bound(caps[i], hat, caps[j], none),
+                   is_sub(caps[i], hat, caps[j], none));
+      ASSERT_EQ(is_sub_bound(caps[i], none, caps[j], hat),
+                   is_sub(caps[i], none, caps[j], hat));
+      ASSERT_EQ(is_sub_bound(caps[i], hat, caps[j], hat),
+                   is_sub(caps[i], hat, caps[j], hat));
+    }
+  }
+}
+
+TEST_F(CapTest, SubBound)
+{
   //
-  // If both caps are generic caps:
-  // Every possible instantiation of the super rcap must be a supertype of some
-  // instantiation of the sub rcap (but not necessarily the same instantiation
-  // of the sub rcap).
-
-  // iso
-  EXPECT_TRUE(is_sub_bound(iso, iso));
-  EXPECT_TRUE(is_sub_bound(iso, trn));
-  EXPECT_TRUE(is_sub_bound(iso, ref));
-  EXPECT_TRUE(is_sub_bound(iso, val));
-  EXPECT_TRUE(is_sub_bound(iso, box));
-  EXPECT_TRUE(is_sub_bound(iso, tag));
-  EXPECT_TRUE(is_sub_bound(iso, read));
-  EXPECT_TRUE(is_sub_bound(iso, send));
-  EXPECT_TRUE(is_sub_bound(iso, share));
-  EXPECT_TRUE(is_sub_bound(iso, alias));
-  EXPECT_TRUE(is_sub_bound(iso, any));
-
-  // trn
-  EXPECT_FALSE(is_sub_bound(trn, iso));
-  EXPECT_TRUE(is_sub_bound(trn, trn));
-  EXPECT_TRUE(is_sub_bound(trn, ref));
-  EXPECT_TRUE(is_sub_bound(trn, val));
-  EXPECT_TRUE(is_sub_bound(trn, box));
-  EXPECT_TRUE(is_sub_bound(trn, tag));
-  EXPECT_TRUE(is_sub_bound(trn, read));
-  EXPECT_FALSE(is_sub_bound(trn, send));
-  EXPECT_TRUE(is_sub_bound(trn, share));
-  EXPECT_TRUE(is_sub_bound(trn, alias));
-  EXPECT_FALSE(is_sub_bound(trn, any));
-
-  // ref
-  EXPECT_FALSE(is_sub_bound(ref, iso));
-  EXPECT_FALSE(is_sub_bound(ref, trn));
-  EXPECT_TRUE(is_sub_bound(ref, ref));
-  EXPECT_FALSE(is_sub_bound(ref, val));
-  EXPECT_TRUE(is_sub_bound(ref, box));
-  EXPECT_TRUE(is_sub_bound(ref, tag));
-  EXPECT_FALSE(is_sub_bound(ref, read));
-  EXPECT_FALSE(is_sub_bound(ref, send));
-  EXPECT_FALSE(is_sub_bound(ref, share));
-  EXPECT_FALSE(is_sub_bound(ref, alias));
-  EXPECT_FALSE(is_sub_bound(ref, any));
-
-  // val
-  EXPECT_FALSE(is_sub_bound(val, iso));
-  EXPECT_FALSE(is_sub_bound(val, trn));
-  EXPECT_FALSE(is_sub_bound(val, ref));
-  EXPECT_TRUE(is_sub_bound(val, val));
-  EXPECT_TRUE(is_sub_bound(val, box));
-  EXPECT_TRUE(is_sub_bound(val, tag));
-  EXPECT_FALSE(is_sub_bound(val, read));
-  EXPECT_FALSE(is_sub_bound(val, send));
-  EXPECT_TRUE(is_sub_bound(val, share));
-  EXPECT_FALSE(is_sub_bound(val, alias));
-  EXPECT_FALSE(is_sub_bound(val, any));
-
-  // box
-  EXPECT_FALSE(is_sub_bound(box, iso));
-  EXPECT_FALSE(is_sub_bound(box, trn));
-  EXPECT_FALSE(is_sub_bound(box, ref));
-  EXPECT_FALSE(is_sub_bound(box, val));
-  EXPECT_TRUE(is_sub_bound(box, box));
-  EXPECT_TRUE(is_sub_bound(box, tag));
-  EXPECT_FALSE(is_sub_bound(box, read));
-  EXPECT_FALSE(is_sub_bound(box, send));
-  EXPECT_FALSE(is_sub_bound(box, share));
-  EXPECT_FALSE(is_sub_bound(box, alias));
-  EXPECT_FALSE(is_sub_bound(box, any));
-
-  // tag
-  EXPECT_FALSE(is_sub_bound(tag, iso));
-  EXPECT_FALSE(is_sub_bound(tag, trn));
-  EXPECT_FALSE(is_sub_bound(tag, ref));
-  EXPECT_FALSE(is_sub_bound(tag, val));
-  EXPECT_FALSE(is_sub_bound(tag, box));
-  EXPECT_TRUE(is_sub_bound(tag, tag));
-  EXPECT_FALSE(is_sub_bound(tag, read));
-  EXPECT_FALSE(is_sub_bound(tag, send));
-  EXPECT_FALSE(is_sub_bound(tag, share));
-  EXPECT_FALSE(is_sub_bound(tag, alias));
-  EXPECT_FALSE(is_sub_bound(tag, any));
+  // If both caps are generic caps,
+  // we try to check aliasing and viewpoint adaptation
+  // knowing that it comes from the original constraint
+  // but the rules are fairly ad-hoc and subject to change
 
   // #read {ref, val, box}
-  EXPECT_FALSE(is_sub_bound(read, iso));
-  EXPECT_FALSE(is_sub_bound(read, trn));
-  EXPECT_FALSE(is_sub_bound(read, ref));
-  EXPECT_FALSE(is_sub_bound(read, val));
-  EXPECT_TRUE(is_sub_bound(read, box));
-  EXPECT_TRUE(is_sub_bound(read, tag));
-  EXPECT_TRUE(is_sub_bound(read, read));
-  EXPECT_FALSE(is_sub_bound(read, send));
-  EXPECT_TRUE(is_sub_bound(read, share));
-  EXPECT_TRUE(is_sub_bound(read, alias));
-  EXPECT_FALSE(is_sub_bound(read, any));
+  EXPECT_FALSE(is_sub_bound(read, none, iso, none));
+  EXPECT_FALSE(is_sub_bound(read, none, trn, none));
+  EXPECT_FALSE(is_sub_bound(read, none, ref, none));
+  EXPECT_FALSE(is_sub_bound(read, none, val, none));
+  EXPECT_TRUE(is_sub_bound(read, none, box, none));
+  EXPECT_TRUE(is_sub_bound(read, none, tag, none));
+  EXPECT_TRUE(is_sub_bound(read, none, read, none));
+  EXPECT_FALSE(is_sub_bound(read, none, send, none));
+  EXPECT_TRUE(is_sub_bound(read, none, share, none));
+  EXPECT_TRUE(is_sub_bound(read, none, alias, none));
+  EXPECT_FALSE(is_sub_bound(read, none, any, none));
 
   // #send {iso, val, tag}
-  EXPECT_FALSE(is_sub_bound(send, iso));
-  EXPECT_FALSE(is_sub_bound(send, trn));
-  EXPECT_FALSE(is_sub_bound(send, ref));
-  EXPECT_FALSE(is_sub_bound(send, val));
-  EXPECT_FALSE(is_sub_bound(send, box));
-  EXPECT_TRUE(is_sub_bound(send, tag));
-  EXPECT_TRUE(is_sub_bound(send, read));
-  EXPECT_TRUE(is_sub_bound(send, send));
-  EXPECT_TRUE(is_sub_bound(send, share));
-  EXPECT_TRUE(is_sub_bound(send, alias));
-  EXPECT_TRUE(is_sub_bound(send, any));
+  EXPECT_FALSE(is_sub_bound(send, none, iso, none));
+  EXPECT_FALSE(is_sub_bound(send, none, trn, none));
+  EXPECT_FALSE(is_sub_bound(send, none, ref, none));
+  EXPECT_FALSE(is_sub_bound(send, none, val, none));
+  EXPECT_FALSE(is_sub_bound(send, none, box, none));
+  EXPECT_TRUE(is_sub_bound(send, none, tag, none));
+  EXPECT_TRUE(is_sub_bound(send, none, read, none));
+  EXPECT_TRUE(is_sub_bound(send, none, send, none));
+  EXPECT_TRUE(is_sub_bound(send, none, share, none));
+  EXPECT_TRUE(is_sub_bound(send, none, alias, none));
+  EXPECT_TRUE(is_sub_bound(send, none, any, none));
 
   // #share {val, tag}
-  EXPECT_FALSE(is_sub_bound(share, iso));
-  EXPECT_FALSE(is_sub_bound(share, trn));
-  EXPECT_FALSE(is_sub_bound(share, ref));
-  EXPECT_FALSE(is_sub_bound(share, val));
-  EXPECT_FALSE(is_sub_bound(share, box));
-  EXPECT_TRUE(is_sub_bound(share, tag));
-  EXPECT_FALSE(is_sub_bound(share, read));
-  EXPECT_FALSE(is_sub_bound(share, send));
-  EXPECT_TRUE(is_sub_bound(share, share));
-  EXPECT_FALSE(is_sub_bound(share, alias));
-  EXPECT_FALSE(is_sub_bound(share, any));
+  EXPECT_FALSE(is_sub_bound(share, none, iso, none));
+  EXPECT_FALSE(is_sub_bound(share, none, trn, none));
+  EXPECT_FALSE(is_sub_bound(share, none, ref, none));
+  EXPECT_FALSE(is_sub_bound(share, none, val, none));
+  EXPECT_FALSE(is_sub_bound(share, none, box, none));
+  EXPECT_TRUE(is_sub_bound(share, none, tag, none));
+  EXPECT_FALSE(is_sub_bound(share, none, read, none));
+  EXPECT_FALSE(is_sub_bound(share, none, send, none));
+  EXPECT_TRUE(is_sub_bound(share, none, share, none));
+  EXPECT_FALSE(is_sub_bound(share, none, alias, none));
+  EXPECT_FALSE(is_sub_bound(share, none, any, none));
 
   // #alias {ref, val, box, tag}
-  EXPECT_FALSE(is_sub_bound(alias, iso));
-  EXPECT_FALSE(is_sub_bound(alias, trn));
-  EXPECT_FALSE(is_sub_bound(alias, ref));
-  EXPECT_FALSE(is_sub_bound(alias, val));
-  EXPECT_FALSE(is_sub_bound(alias, box));
-  EXPECT_TRUE(is_sub_bound(alias, tag));
-  EXPECT_TRUE(is_sub_bound(alias, read));
-  EXPECT_FALSE(is_sub_bound(alias, send));
-  EXPECT_TRUE(is_sub_bound(alias, share));
-  EXPECT_TRUE(is_sub_bound(alias, alias));
-  EXPECT_FALSE(is_sub_bound(alias, any));
+  EXPECT_FALSE(is_sub_bound(alias, none, iso, none));
+  EXPECT_FALSE(is_sub_bound(alias, none, trn, none));
+  EXPECT_FALSE(is_sub_bound(alias, none, ref, none));
+  EXPECT_FALSE(is_sub_bound(alias, none, val, none));
+  EXPECT_FALSE(is_sub_bound(alias, none, box, none));
+  EXPECT_TRUE(is_sub_bound(alias, none, tag, none));
+  EXPECT_TRUE(is_sub_bound(alias, none, read, none));
+  EXPECT_FALSE(is_sub_bound(alias, none, send, none));
+  EXPECT_TRUE(is_sub_bound(alias, none, share, none));
+  EXPECT_TRUE(is_sub_bound(alias, none, alias, none));
+  EXPECT_FALSE(is_sub_bound(alias, none, any, none));
 
   // #any {iso, trn, ref, val, box, tag}
-  EXPECT_FALSE(is_sub_bound(any, iso));
-  EXPECT_FALSE(is_sub_bound(any, trn));
-  EXPECT_FALSE(is_sub_bound(any, ref));
-  EXPECT_FALSE(is_sub_bound(any, val));
-  EXPECT_FALSE(is_sub_bound(any, box));
-  EXPECT_TRUE(is_sub_bound(any, tag));
-  EXPECT_TRUE(is_sub_bound(any, read));
-  EXPECT_TRUE(is_sub_bound(any, send));
-  EXPECT_TRUE(is_sub_bound(any, share));
-  EXPECT_TRUE(is_sub_bound(any, alias));
-  EXPECT_TRUE(is_sub_bound(any, any));
+  EXPECT_FALSE(is_sub_bound(any, none, iso, none));
+  EXPECT_FALSE(is_sub_bound(any, none, trn, none));
+  EXPECT_FALSE(is_sub_bound(any, none, ref, none));
+  EXPECT_FALSE(is_sub_bound(any, none, val, none));
+  EXPECT_FALSE(is_sub_bound(any, none, box, none));
+  EXPECT_TRUE(is_sub_bound(any, none, tag, none));
+  EXPECT_TRUE(is_sub_bound(any, none, read, none));
+  EXPECT_TRUE(is_sub_bound(any, none, send, none));
+  EXPECT_TRUE(is_sub_bound(any, none, share, none));
+  EXPECT_TRUE(is_sub_bound(any, none, alias, none));
+  EXPECT_TRUE(is_sub_bound(any, none, any, none));
 }
 
 TEST_F(CapTest, Compat)

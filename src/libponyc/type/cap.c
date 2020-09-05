@@ -1,5 +1,7 @@
 #include "cap.h"
+#include "../ast/ast.h"
 #include "../ast/token.h"
+#include "../ast/astbuild.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
 
@@ -73,39 +75,49 @@ bool is_cap_sub_cap(token_id sub, token_id subalias, token_id super,
   if(super == TK_TAG)
     return true;
 
+  if (subalias == TK_EPHEMERAL)
+  {
+    switch(sub)
+    {
+      case TK_ISO:
+        return true;
+      case TK_TRN:
+        switch(super)
+        {
+          case TK_TRN:
+          case TK_REF:
+          case TK_VAL:
+          case TK_BOX:
+          case TK_CAP_READ:  // {ref, val, box}
+          case TK_CAP_SHARE: // {val, tag}
+          case TK_CAP_ALIAS: // {ref, val, box, tag}
+            return true;
+
+          case TK_ISO:
+          case TK_CAP_SEND:  // {iso, val, tag}
+          case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
+            return false;
+
+          default: pony_assert(0);
+        }
+      default: {}
+    }
+    // fall through
+  }
+
   // Every possible instantiation of sub must be a subtype of every possible
   // instantiation of super.
   switch(sub)
   {
     case TK_ISO:
-      switch(super)
-      {
-        case TK_ISO:
-        case TK_TRN:
-        case TK_REF:
-        case TK_VAL:
-        case TK_BOX:
-        case TK_CAP_READ:  // {ref, val, box}
-        case TK_CAP_SHARE: // {val, tag}
-        case TK_CAP_SEND:  // {iso, val, tag}
-        case TK_CAP_ALIAS: // {ref, val, box, tag}
-        case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
-          return true;
-
-        default: {}
-      }
-      break;
+      // tag and iso^ handled above
+      return (super == TK_ISO);
 
     case TK_TRN:
       switch(super)
       {
         case TK_TRN:
-        case TK_REF:
-        case TK_VAL:
         case TK_BOX:
-        case TK_CAP_READ:  // {ref, val, box}
-        case TK_CAP_SHARE: // {val, tag}
-        case TK_CAP_ALIAS: // {ref, val, box, tag}
           return true;
 
         default: {}
@@ -247,6 +259,36 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
   if((sub == super) || (super == TK_TAG))
     return true;
 
+  if (subalias == TK_EPHEMERAL)
+  {
+    switch(sub)
+    {
+      case TK_ISO:
+        return true;
+      case TK_TRN:
+        switch(super)
+        {
+          case TK_TRN:
+          case TK_REF:
+          case TK_VAL:
+          case TK_BOX:
+          case TK_CAP_READ:  // {ref, val, box}
+          case TK_CAP_SHARE: // {val, tag}
+          case TK_CAP_ALIAS: // {ref, val, box, tag}
+            return true;
+
+          case TK_ISO:
+          case TK_CAP_SEND:  // {iso, val, tag}
+          case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
+            return false;
+
+          default: pony_assert(0);
+        }
+      default: {}
+    }
+    // fall through
+  }
+
   // Sub and super share the same initial bounds.
   //
   // If either rcap is a specific/singular capability, use the same rule
@@ -260,32 +302,14 @@ bool is_cap_sub_cap_bound(token_id sub, token_id subalias, token_id super,
   switch(sub)
   {
     case TK_ISO:
-      switch(super)
-      {
-        case TK_TRN:
-        case TK_REF:
-        case TK_VAL:
-        case TK_BOX:
-        case TK_CAP_READ:  // {ref, val, box}
-        case TK_CAP_SHARE: // {val, tag}
-        case TK_CAP_SEND:  // {iso, val, tag}
-        case TK_CAP_ALIAS: // {ref, val, box, tag}
-        case TK_CAP_ANY:   // {iso, trn, ref, val, box, tag}
-          return true;
-
-        default: {}
-      }
-      break;
+      // tag and iso^ handled above
+      return (super == TK_ISO);
 
     case TK_TRN:
       switch(super)
       {
-        case TK_REF:
-        case TK_VAL:
+        case TK_TRN:
         case TK_BOX:
-        case TK_CAP_READ:  // {ref, val, box}
-        case TK_CAP_SHARE: // {val, tag}
-        case TK_CAP_ALIAS: // {ref, val, box, tag}
           return true;
 
         default: {}
@@ -878,6 +902,53 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
   return true;
 }
 
+bool cap_safetomove(token_id into, token_id cap, direction direction)
+{
+  switch(into)
+  {
+    case TK_ISO:
+      switch(cap)
+      {
+        case TK_ISO:
+        case TK_VAL:
+        case TK_TAG:
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(cap)
+      {
+        case TK_ISO:
+        case TK_VAL:
+        case TK_TAG:
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+          return true;
+
+        case TK_TRN:
+          return direction == WRITE;
+
+        case TK_BOX:
+          return direction == EXTRACT;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}
+
 
 bool cap_sendable(token_id cap)
 {
@@ -912,49 +983,145 @@ bool cap_immutable_or_opaque(token_id cap)
   return false;
 }
 
-bool cap_safetomove(token_id into, token_id cap, direction direction)
+
+
+static ast_t* modified_cap_single(ast_t* type, cap_mutation* mutation)
 {
-  switch(into)
+  ast_t* cap = cap_fetch(type);
+  ast_t* ephemeral = ast_sibling(cap);
+
+  token_id cap_token = ast_id(cap);
+  token_id eph_token = ast_id(cap);
+
+  if (mutation(&cap_token, &eph_token))
   {
+    type = ast_dup(type);
+    cap = cap_fetch(type);
+    ephemeral = ast_sibling(cap);
+
+    ast_setid(cap, cap_token);
+    ast_setid(ephemeral, eph_token);
+  }
+  return type;
+}
+
+ast_t* modified_cap(ast_t* type, cap_mutation* mutation)
+{
+  token_id id = ast_id(type);
+  switch(id)
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, modified_cap(child, mutation));
+        child = ast_sibling(child);
+      }
+
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return modified_cap_single(type, mutation);
+
+    case TK_ARROW:
+    {
+      // Alias just the right side. The left side is either 'this' or a type
+      // parameter, and stays the same.
+      AST_GET_CHILDREN(type, left, right);
+
+      ast_t* new_left = modified_cap(left, mutation);
+      ast_t* new_right = modified_cap(right, mutation);
+
+      if (new_left != left || new_right != right)
+      {
+        BUILD(r_type, type,
+          NODE(TK_ARROW,
+            TREE(new_left)
+            TREE(new_right)));
+        return r_type;
+      }
+      return type;
+
+    }
+
     case TK_ISO:
-      switch(cap)
-      {
-        case TK_ISO:
-        case TK_VAL:
-        case TK_TAG:
-        case TK_CAP_SEND:
-        case TK_CAP_SHARE:
-          return true;
-
-        default: {}
-      }
-      break;
-
     case TK_TRN:
-      switch(cap)
-      {
-        case TK_ISO:
-        case TK_VAL:
-        case TK_TAG:
-        case TK_CAP_SEND:
-        case TK_CAP_SHARE:
-          return true;
-
-        case TK_TRN:
-          return direction == WRITE;
-          
-        case TK_BOX:
-          return direction == EXTRACT;
-          
-        default: {}
-      }
-      break;
-
+    case TK_VAL:
     case TK_REF:
-      return true;
+    case TK_BOX:
+    case TK_TAG:
+    {
+      token_id cap = id;
+      token_id eph = TK_NONE;
 
-    default: {}
+      if (mutation(&cap, &eph))
+      {
+        pony_assert(eph == TK_NONE);
+        type = ast_dup(type);
+
+        ast_setid(type, cap);
+      }
+      return type;
+    }
+
+
+    case TK_THIS:
+    case TK_THISTYPE:
+
+    case TK_LAMBDATYPE:
+    case TK_BARELAMBDATYPE:
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+    case TK_DONTCARETYPE:
+      return type;
+
+    default: {
+      ast_print(type, 80);
+      //ponyint_assert_fail(token_print(&id), __FILE__, __LINE__, __func__);
+      pony_assert(0);
+    }
   }
 
-  return false;
+  pony_assert(0);
+  return NULL;
 }
+
+
+bool unisolated_mod(token_id* cap, token_id* eph)
+{
+  // Ephemeral caps have no isolation guarantees
+  // to maintain
+  if (*eph == TK_EPHEMERAL)
+    return false;
+
+  switch(*cap)
+  {
+    case TK_ISO:
+    case TK_TRN:
+      *cap = TK_REF;
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+token_id unisolated_cap(token_id cap, token_id eph)
+{
+  unisolated_mod(&cap, &eph);
+  return cap;
+}
+
+ast_t* unisolated(ast_t* type)
+{
+  return modified_cap(type, unisolated_mod);
+}
+

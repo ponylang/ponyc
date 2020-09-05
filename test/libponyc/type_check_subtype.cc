@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 #include <type/subtype.h>
+#include <type/alias.h>
 #include "util.h"
 
 #define TEST_COMPILE(src) DO(test_compile(src, "expr"))
@@ -344,6 +345,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   pass_opt_t opt;
   pass_opt_init(&opt);
 
+
+  // intersections of caps
   ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1and2"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1"), type_of("t1and2"), NULL, &opt));
   ASSERT_TRUE(is_subtype(type_of("t3"), type_of("t1and2"), NULL, &opt));
@@ -353,21 +356,34 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1val"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("t1"), type_of("t1refand2box"), NULL, &opt));
-  ASSERT_TRUE(is_subtype(type_of("t3iso"), type_of("t1refand2box"), NULL, &opt));
-  ASSERT_TRUE(is_subtype(type_of("t3iso"), type_of("t1valand2box"), NULL, &opt));
-  ASSERT_TRUE(is_subtype(type_of("t3trn"), type_of("t1refand2box"), NULL, &opt));
-  ASSERT_TRUE(is_subtype(type_of("t3trn"), type_of("t1valand2box"), NULL, &opt));
+
+  ASSERT_FALSE(is_subtype(type_of("t3iso"), type_of("t1refand2box"), NULL, &opt));
+  ASSERT_FALSE(is_subtype(type_of("t3iso"), type_of("t1valand2box"), NULL, &opt));
+  ASSERT_FALSE(is_subtype(type_of("t3trn"), type_of("t1refand2box"), NULL, &opt));
+  ASSERT_FALSE(is_subtype(type_of("t3trn"), type_of("t1valand2box"), NULL, &opt));
+
   ASSERT_FALSE(is_subtype(type_of("t1val"), type_of("t1valand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(type_of("t1refand2box"), type_of("t1"), NULL, &opt));
   ASSERT_TRUE(is_subtype(type_of("t1valand2box"), type_of("t1val"), NULL, &opt));
-  ASSERT_TRUE(
-    is_subtype(type_of("t1isoand2iso"), type_of("t1refand2box"), NULL, &opt));
-  ASSERT_TRUE(
-    is_subtype(type_of("t1trnand2trn"), type_of("t1refand2box"), NULL, &opt));
-  ASSERT_TRUE(
-    is_subtype(type_of("t1isoand2iso"), type_of("t1valand2box"), NULL, &opt));
-  ASSERT_TRUE(
-    is_subtype(type_of("t1trnand2trn"), type_of("t1valand2box"), NULL, &opt));
+
+  // ephemerals
+  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE);
+  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE);
+  ASSERT_TRUE(is_subtype(t3isohat, type_of("t1refand2box"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(t3isohat, type_of("t1valand2box"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(t3trnhat, type_of("t1refand2box"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(t3trnhat, type_of("t1valand2box"), NULL, &opt));
+  ast_free_unattached(t3isohat);
+  ast_free_unattached(t3trnhat);
+
+  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE);
+  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE);
+  ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1refand2box"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(t1t2trn, type_of("t1refand2box"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1valand2box"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(t1t2trn, type_of("t1valand2box"), NULL, &opt));
+  ast_free_unattached(t1t2iso);
+  ast_free_unattached(t1t2trn);
 
   pass_opt_init(&opt);
 }
@@ -530,19 +546,19 @@ TEST_F(SubTypeTest, IsSubTypeCap)
   ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1iso"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1iso"), NULL, &opt));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1ref"), NULL, &opt));
+  ASSERT_FALSE(is_subtype(type_of("c1iso"), type_of("t1ref"), NULL, &opt));
   ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1ref"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1val"), type_of("t1ref"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1ref"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1ref"), NULL, &opt));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1val"), NULL, &opt));
+  ASSERT_FALSE(is_subtype(type_of("c1iso"), type_of("t1val"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1ref"), type_of("t1val"), NULL, &opt));
   ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1val"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1box"), type_of("t1val"), NULL, &opt));
   ASSERT_FALSE(is_subtype(type_of("c1tag"), type_of("t1val"), NULL, &opt));
 
-  ASSERT_TRUE (is_subtype(type_of("c1iso"), type_of("t1box"), NULL, &opt));
+  ASSERT_FALSE(is_subtype(type_of("c1iso"), type_of("t1box"), NULL, &opt));
   ASSERT_TRUE (is_subtype(type_of("c1ref"), type_of("t1box"), NULL, &opt));
   ASSERT_TRUE (is_subtype(type_of("c1val"), type_of("t1box"), NULL, &opt));
   ASSERT_TRUE (is_subtype(type_of("c1box"), type_of("t1box"), NULL, &opt));
@@ -1177,4 +1193,48 @@ TEST_F(SubTypeTest, BoxArrowTypeParamReifiedWithTypeParam)
     "    None";
 
   TEST_COMPILE(src);
+}
+TEST_F(SubTypeTest, ConsumeIsoSubRef)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: C iso) =>\n"
+    "    let x': C ref = consume x";
+
+  TEST_COMPILE(src);
+}
+TEST_F(SubTypeTest, IsoNotSubRef)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: C iso) =>\n"
+    "    let x': C ref = x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+TEST_F(SubTypeTest, CantConsumeRefToIso)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: C ref) =>\n"
+    "    let x': C ref = consume iso x";
+
+  TEST_ERRORS_1(src, "can't consume to this capability");
+}
+TEST_F(SubTypeTest, ConsumeRefNotIso)
+{
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: C ref) =>\n"
+    "    let x': C iso = consume x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }

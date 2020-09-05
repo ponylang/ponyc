@@ -411,11 +411,10 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
     ok = false;
   }
 
-  ast_t* r_type = set_cap_and_ephemeral(pattern_type, ast_id(cap), TK_NONE);
-  ast_t* a_type = alias(pattern_type);
+  ast_t* r_type = set_cap_and_ephemeral(pattern_type, ast_id(cap), TK_EPHEMERAL);
   errorframe_t info = NULL;
 
-  if(!is_subtype(a_type, r_type, &info, opt))
+  if(!is_subtype(pattern_type, r_type, &info, opt))
   {
     errorframe_t frame = NULL;
     ast_error_frame(&frame, pattern, "eq cannot be called on this pattern");
@@ -443,7 +442,6 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
   }
 
   ast_free_unattached(r_type);
-  ast_free_unattached(a_type);
   ast_free_unattached(r_fun);
   deferred_reify_free(fun);
 
@@ -506,11 +504,10 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
   ast_settype(ast, pattern_type);
 
-  ast_t* operand_type = alias(match_type);
   bool ok = true;
   errorframe_t info = NULL;
 
-  switch(is_matchtype(operand_type, pattern_type, &info, opt))
+  switch(is_matchtype(match_type, pattern_type, &info, opt))
   {
     case MATCHTYPE_ACCEPT:
       break;
@@ -520,7 +517,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
       errorframe_t frame = NULL;
       ast_error_frame(&frame, pattern, "this pattern can never match");
       ast_error_frame(&frame, match_type, "match type: %s",
-        ast_print_type(operand_type));
+        ast_print_type(match_type));
       // TODO report unaliased type when body is consume !
       ast_error_frame(&frame, pattern, "pattern type: %s",
         ast_print_type(pattern_type));
@@ -541,7 +538,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
       ast_error_frame(&frame, match_type, "the match type allows for more than "
         "one possibility with the same type as pattern type, but different "
         "capabilities. match type: %s",
-        ast_print_type(operand_type));
+        ast_print_type(match_type));
       ast_error_frame(&frame, pattern, "pattern type: %s",
         ast_print_type(pattern_type));
       errorframe_append(&frame, &info);
@@ -564,8 +561,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         "guard must be a boolean expression");
     }
   }
-
-  ast_free_unattached(operand_type);
   return ok;
 }
 

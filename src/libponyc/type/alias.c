@@ -212,7 +212,7 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
   }
 
   // We're only modifying the cap, not the type, so the bounds are the same.
-  if(!is_cap_sub_cap_bound(tcap, TK_NONE, ccap, TK_NONE))
+  if(!is_cap_sub_cap_bound(tcap, TK_EPHEMERAL, ccap, TK_NONE))
   {
     ast_free_unattached(type);
     return NULL;

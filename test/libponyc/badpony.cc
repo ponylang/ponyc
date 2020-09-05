@@ -401,6 +401,40 @@ TEST_F(BadPonyTest, RefCapViolationViaCapAnyTypeParameter)
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
 }
 
+TEST_F(BadPonyTest, AliasAny)
+{
+  // Safeguard ensuring #alias <= #any not allowed by
+  // is_cap_sub_cap_bound, related to PR #3643
+  const char* src =
+    "class Foo\n"
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: Foo val = Foo\n"
+        "alias_bound[Foo val](a)\n"
+
+      "fun alias_bound[A](x: A) =>\n"
+        "let x': A = x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+TEST_F(BadPonyTest, ReturnUnmovedIso)
+{
+  // Issue #1964
+  const char* src =
+    "class Bar\n"
+    "class Foo\n"
+      "let x: Bar iso = Bar\n"
+      "fun get_bad(): Bar val =>\n"
+        "x\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "None\n";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
 TEST_F(BadPonyTest, TypeParamArrowClass)
 {
   // From issue #1687

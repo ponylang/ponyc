@@ -609,7 +609,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(c, pattern);
 
-  if(!is_subtype(type, param_type, NULL, c->opt))
+  if(!is_subtype_ignore_cap(type, param_type, NULL, c->opt))
   {
     // Switch to dynamic value checking.
     pony_assert(LLVMTypeOf(value) == c->object_ptr);
@@ -635,7 +635,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
     c->opt);
 
-  bool is_sub = is_subtype(type, pattern_type, NULL, c->opt);
+  bool is_sub = is_subtype_ignore_cap(type, pattern_type, NULL, c->opt);
 
   ast_free_unattached(pattern_type);
 

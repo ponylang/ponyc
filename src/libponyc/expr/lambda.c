@@ -99,7 +99,8 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     // discarded.
     if(is_dontcare)
     {
-      ast_t* v_type = alias(ast_type(value));
+      ast_t* p_type = consume_type(type, TK_NONE);
+      ast_t* v_type = ast_type(value);
       errorframe_t info = NULL;
 
       if(!is_subtype(v_type, type, &info, opt))
@@ -109,14 +110,14 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
         ast_error_frame(&frame, value, "argument type is %s",
                         ast_print_type(v_type));
         ast_error_frame(&frame, id_node, "parameter type is %s",
-                        ast_print_type(type));
+                        ast_print_type(p_type));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
-        ast_free_unattached(v_type);
+        ast_free_unattached(p_type);
         return false;
       }
 
-      ast_free_unattached(v_type);
+      ast_free_unattached(p_type);
     }
   }
 

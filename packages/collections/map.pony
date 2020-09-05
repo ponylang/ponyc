@@ -75,7 +75,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       end
     end
 
-  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V =>
+  fun ref upsert(key: K, value: V, f: {(V, V): V^} box): V! =>
     """
     Combines a provided value with the current value for the provided key
     using the provided function. If the provided key has not been added to
@@ -153,7 +153,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       value'
     end
 
-  fun ref insert_if_absent(key: K, value: V): V =>
+  fun ref insert_if_absent(key: K, value: V): V! =>
     """
     Set a value in the map if the key doesn't already exist in the Map.
     Saves an extra lookup when doing a pattern like:

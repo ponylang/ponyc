@@ -17,7 +17,7 @@
 #include "ponyassert.h"
 
 static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
-  token_id cap)
+  token_id cap, token_id eph)
 {
   elem_type = ast_dup(elem_type);
 
@@ -26,6 +26,7 @@ static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
 
   ast_t* array_type = type_builtin_args(opt, scope, "Array", typeargs);
   ast_setid(ast_childidx(array_type, 3), cap);
+  ast_setid(ast_childidx(array_type, 4), eph);
 
   return array_type;
 }
@@ -152,7 +153,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
 
       // Construct a guess of the corresponding Array type.
       // Use iso^ so that the object cap isn't a concern for subtype checking.
-      ast_t* array_type = build_array_type(opt, ast, elem_type, TK_ISO);
+      ast_t* array_type = build_array_type(opt, ast, elem_type, TK_ISO, TK_EPHEMERAL);
 
       // The guess type must be a subtype of the interface type.
       if(!is_subtype(array_type, ast, NULL, opt))
@@ -319,6 +320,8 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
     astlist_t* cursor = possible_element_types;
     for(; cursor != NULL; cursor = astlist_next(cursor))
     {
+      ast_t* cursor_type = consume_type(astlist_data(cursor), TK_NONE);
+
       bool supertype_of_all = true;
       ast_t* elem = ast_child(ast_childidx(ast, 1));
       for(; elem != NULL; elem = ast_sibling(elem))
@@ -330,17 +333,15 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
         ast_t* elem_type = ast_type(elem);
         if(is_typecheck_error(elem_type) || ast_id(elem_type) == TK_LITERAL)
           break;
-
-        ast_t* a_type = alias(elem_type);
-
-        if(!is_subtype(a_type, astlist_data(cursor), NULL, opt))
+        if(!is_subtype(elem_type, cursor_type, NULL, opt))
           supertype_of_all = false;
 
-        ast_free_unattached(a_type);
       }
 
       if(supertype_of_all)
         new_list = astlist_push(new_list, astlist_data(cursor));
+
+      ast_free_unattached(cursor_type);
     }
 
     astlist_free(possible_element_types);
@@ -379,7 +380,7 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
   // If there is no recover statement between the antecedent type and here,
   // and if the array literal is not a subtype of the antecedent type,
   // but would be if the object cap were ignored, then recover it.
-  ast_t* array_type = build_array_type(opt, ast, type_spec, TK_REF);
+  ast_t* array_type = build_array_type(opt, ast, type_spec, TK_REF, TK_NONE);
   if((antecedent_type != NULL) && !is_recovered &&
     !is_subtype(array_type, antecedent_type, NULL, opt) &&
     is_subtype_ignore_cap(array_type, antecedent_type, NULL, opt))
@@ -450,10 +451,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return false;
 
       c_type = ast_type(ele); // May have changed due to literals
-      ast_t* a_type = alias(c_type);
+      ast_t* w_type = consume_type(type, TK_NONE);
 
       errorframe_t info = NULL;
-      if(!is_subtype(a_type, type, &info, opt))
+      if(!is_subtype(c_type, w_type, &info, opt))
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ele,
@@ -464,6 +465,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
           ast_print_type(c_type));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
+        ast_free_unattached(w_type);
         return false;
       }
     }
