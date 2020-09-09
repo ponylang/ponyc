@@ -1167,6 +1167,11 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
           return false;
         }
       }
+      else if (ast_id(left) == TK_CALL) {
+          ast_error(opt->check.errors, ast,
+              "Consume expressions must specify a single identifier");
+          return false;
+      }
       else
       {
         // get fully qualified string identifier without `this`
