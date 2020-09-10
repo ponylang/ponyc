@@ -423,17 +423,36 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   }
 
   bool empty = ponyint_messageq_markempty(&actor->q);
-  if (empty && actor_noblock && (actor->gc.rc == 0))
+  if (!ponyint_is_cycle(actor) && empty && (actor->gc.rc == 0))
   {
-    // when 'actor_noblock` is true, the cycle detector isn't running.
-    // this means actors won't be garbage collected unless we take special
-    // action. Here, we know that:
+    // Here, we know that:
     // - the actor has no messages in its queue
     // - there's no references to this actor
-    // therefore if `noblock` is on, we should garbage collect the actor.
-    ponyint_actor_setpendingdestroy(actor);
-    ponyint_actor_final(ctx, actor);
-    ponyint_actor_destroy(actor);
+    // therefore the actor is a zombie and can be reaped.
+    if (actor_noblock)
+    {
+      // when 'actor_noblock` is true, the cycle detector isn't running.
+      // this means actors won't be garbage collected unless we take special
+      // action.
+      // therefore if `noblock` is on, we should garbage collect the actor.
+      ponyint_actor_setpendingdestroy(actor);
+      ponyint_actor_final(ctx, actor);
+      ponyint_actor_destroy(actor);
+    } else {
+      // tell cycle detector that this actor is a zombie and will not get
+      // any more messages/work and can be reaped
+      // Mark the actor as FLAG_BLOCKED_SENT and send a BLOCKED message
+      // to speed up reaping otherwise waiting for the cycle detector
+      // to get around to asking if we're blocked would result in a
+      // huge memory leak
+      if(has_flag(actor, FLAG_BLOCKED) && !has_flag(actor, FLAG_BLOCKED_SENT))
+      {
+        // We're blocked, send block message.
+        set_flag(actor, FLAG_BLOCKED_SENT);
+        pony_assert(ctx->current == actor);
+        ponyint_cycle_block(actor, &actor->gc);
+      }
+    }
   }
 
   // Return true (i.e. reschedule immediately) if our queue isn't empty.

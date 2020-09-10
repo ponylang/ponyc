@@ -710,9 +710,55 @@ static void actor_destroyed(detector_t* d, pony_actor_t* actor)
   }
 }
 
-static void block(detector_t* d, pony_actor_t* actor,
+static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
   size_t rc, deltamap_t* map)
 {
+  if (rc == 0)
+  {
+    // if rc == 0 then this is a zombie actor with no references left to it
+    // - the actor blocked because it has no messages in its queue
+    // - there's no references to this actor because rc == 0
+    // therefore the actor is a zombie and can be reaped.
+
+    view_t* view = get_view(d, actor, false);
+
+    if (view != NULL)
+    {
+      // remove from the deferred set
+      if(view->deferred)
+        ponyint_viewmap_remove(&d->deferred, view);
+
+      // if we're in a perceived cycle, that cycle is invalid
+      expire(d, view);
+
+      // free the view on the actor
+      ponyint_viewmap_remove(&d->views, view);
+      view_free(view);
+    }
+
+    if (map != NULL)
+    {
+      // free deltamap
+      #ifdef USE_MEMTRACK
+        d->mem_used -= ponyint_deltamap_total_mem_size(map);
+        d->mem_allocated -= ponyint_deltamap_total_alloc_size(map);
+      #endif
+
+      ponyint_deltamap_free(map);
+    }
+
+    // invoke the actor's finalizer and destroy it
+    ponyint_actor_setpendingdestroy(actor);
+    ponyint_actor_final(ctx, actor);
+    ponyint_actor_sendrelease(ctx, actor);
+    ponyint_actor_destroy(actor);
+
+    d->destroyed++;
+
+    return;
+  }
+
+
   view_t* view = get_view(d, actor, true);
 
   // update reference count
@@ -989,7 +1035,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 #endif
 
       block_msg_t* m = (block_msg_t*)msg;
-      block(d, m->actor, m->rc, m->delta);
+      block(d, ctx, m->actor, m->rc, m->delta);
       break;
     }
 
