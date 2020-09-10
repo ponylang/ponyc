@@ -848,5 +848,5 @@ TEST_F(ReferTest, ConsumeTupleAccessorOfFunctionValResult)
           "consume a.chop(1)._1";
 
     TEST_ERRORS_1(src,
-        "Consume expressions must specify a single identifier");
+      "consume expressions must specify a single identifier");
 }
