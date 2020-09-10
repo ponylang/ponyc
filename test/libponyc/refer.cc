@@ -841,12 +841,62 @@ TEST_F(ReferTest, ConsumeParamVarSubfieldReassignSameExpressionReuse)
 
 TEST_F(ReferTest, ConsumeTupleAccessorOfFunctionValResult)
 {
-    const char* src =
-      "actor Main\n"
-        "new create(env: Env) =>\n"
-          "let a = \"I am a string\"\n"
-          "consume a.chop(1)._1";
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a = \"I am a string\"\n"
+        "consume a.chop(1)._1";
 
-    TEST_ERRORS_1(src,
-      "consume expressions must specify a single identifier");
+  TEST_ERRORS_1(src,
+    "Consume expressions must specify an identifier or field");
+}
+
+TEST_F(ReferTest, DoubleConsumeWithFieldAccessor)
+{
+  const char* src = 
+    "class Problem\n"
+      "let _unwrap_me: U8 = 0\n"
+      "fun iso unwrap() =>\n"
+        "let this_iso: Problem iso = consume this\n"
+        "consume (consume this_iso)._unwrap_me";
+
+  TEST_ERRORS_1(src,
+    "Consume expressions must specify an identifier or field");
+}
+
+TEST_F(ReferTest, ConsumeAfterMemberAccessWithConsumeLhs)
+{
+  const char* src =
+    "actor Main\n"
+      "new create(env:Env val) =>\n"
+        "let f : Foo iso = recover Foo end\n"
+        "(consume f).b = recover Bar end\n"
+        "let x:Foo tag = consume f\n"
+    "class Foo\n"
+      "var b: Bar iso\n"
+      "new create() =>\n"
+        "b = recover Bar end\n"
+    "class Bar\n"
+      "new create() => None\n";
+
+    TEST_ERRORS_2(src,
+      "can't use a consumed local or field in an expression",
+      "consume must take 'this', a local, or a parameter");
+}
+
+TEST_F(ReferTest, MemberAccessWithConsumeLhs)
+{
+  const char* src = 
+    "actor Main\n"
+      "new create(env:Env val) =>\n"
+        "let f : Foo iso = recover Foo end\n"
+        "(consume f).b = recover Bar end\n"
+    "class Foo\n"
+      "var b: Bar iso\n"
+        "new create() =>\n"
+          "b = recover Bar end\n"
+    "class Bar\n"
+      "new create() => None\n";
+
+  TEST_COMPILE(src);
 }
