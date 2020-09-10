@@ -2,6 +2,4 @@ rules:
   key-duplicates:
     ignore: |
       .cirrus.yml
-  line-length:
-    ignore: |
-      .cirrus.yml
+  line-length: disable
