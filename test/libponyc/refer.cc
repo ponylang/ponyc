@@ -841,10 +841,11 @@ TEST_F(ReferTest, ConsumeParamVarSubfieldReassignSameExpressionReuse)
 
 TEST_F(ReferTest, ConsumeTupleAccessorOfFunctionValResult)
 {
-    const char* src = "actor Main\n"
-                      "    new create(env: Env) =>\n"
-                      "       let a = \"I am a string\"\n"
-                      "       consume a.chop(1)._1\n";
+    const char* src =
+      "actor Main\n"
+        "new create(env: Env) =>\n"
+          "let a = \"I am a string\"\n"
+          "consume a.chop(1)._1";
 
     TEST_ERRORS_1(src,
         "Consume expressions must specify a single identifier");
