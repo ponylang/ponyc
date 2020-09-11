@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix building libs with Visual Studio 16.7 ([PR #3635](https://github.com/ponylang/ponyc/pull/3635))
 - Fix missing Makefile lines to re-enable multiple `use=` options ([PR #3637](https://github.com/ponylang/ponyc/pull/3637))
 - Consistent handling of  function calls in consume expressions ([PR #3647](https://github.com/ponylang/ponyc/pull/3647))
+- Speed up cycle detector reaping some actors ([PR #3649](https://github.com/ponylang/ponyc/pull/3649))
 
 ### Added
 
