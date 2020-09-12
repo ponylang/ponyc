@@ -107,7 +107,7 @@ else()
 
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         set(LIBPONYRT_ARCHIVE libponyrt.a)
-    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD|DragonFly")
         set(LIBPONYRT_ARCHIVE libponyrt.a)
     else()
         set(LIBPONYRT_ARCHIVE libponyrt-pic.a)
