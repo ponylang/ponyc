@@ -43,7 +43,7 @@ else()
 
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         target_link_libraries(ponyc PRIVATE dl)
-    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
+    elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD|DragonFly")
         target_link_libraries(ponyc PRIVATE execinfo)
     else()
         target_link_libraries(ponyc PRIVATE atomic dl)
