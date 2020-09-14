@@ -148,7 +148,6 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
   if(def_found != NULL)
   {
     *def_found = def;
-  
     if(def == NULL)
       return stringtab("");
   }
