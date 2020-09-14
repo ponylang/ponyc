@@ -698,11 +698,11 @@ static ast_result_t syntax_consume(pass_opt_t* opt, ast_t* ast)
     case TK_REFERENCE:
       return AST_OK;
     case TK_DOT: {
-        AST_GET_CHILDREN(term, left, right);
-        if (ast_id(left) != TK_CALL && ast_id(left) != TK_SEQ) 
-        {
-          return AST_OK;
-        }
+      AST_GET_CHILDREN(term, left, right);
+      if (ast_id(left) != TK_CALL && ast_id(left) != TK_SEQ)
+      {
+        return AST_OK;
+      }
     }
     default: {}
   }
