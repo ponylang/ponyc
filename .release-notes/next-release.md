@@ -113,3 +113,9 @@ This is not a complete solution to the problem as issue #1007 is still a problem
 
 It should also be noted that in the process of developing this patch, we discovered a use after free race condition in the runtime mpmcq implementation. That race condition can and will result in segfaults when running the above example program. There's no issue opened yet for that problem, but one will be coming.
 
+## Handling compiler crashes in some `consume` expressions
+
+Previously  an expression of the form `consume (consume variable).field` resulted in the compiler crashing down with an assertion failure. With this fix, we get a friendly error message pointing to the erroneous line.
+
+Likewise, a valid assignment of the form `(consume f).b =  recover Bar end` resulted in a compiler crash. With the fix, the compiler successfuly type checks the assignment and ensures that `f` is _consumed_.
+
