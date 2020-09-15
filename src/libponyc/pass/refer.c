@@ -139,6 +139,8 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
 
     default:
     {
+      if (def == NULL)
+        return stringtab("");
       pony_assert(0);
     }
   }
@@ -146,7 +148,6 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
   if(def_found != NULL)
   {
     *def_found = def;
-
     if(def == NULL)
       return stringtab("");
   }
@@ -1166,10 +1167,6 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
             "can't consume a let or embed field");
           return false;
         }
-      } else if (ast_id(left) == TK_CALL) {
-        ast_error(opt->check.errors, ast,
-          "consume expressions must specify a single identifier");
-        return false;
       }
       else
       {
