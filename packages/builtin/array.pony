@@ -440,8 +440,10 @@ class Array[A] is Seq[A]
     returned as the left portion. If the split point is larger than the
     array, the left portion is the original array and the right portion
     is a new empty array.
-    Both arrays are isolated and mutable, as they do not share memory.
     The operation does not allocate a new array pointer nor copy elements.
+
+    The entry type must be sendable so that the two array pieces can
+    be deeply isolated from each other.
     """
     let start_ptr = cpointer(split_point)
     let size' = _size - _size.min(split_point)
