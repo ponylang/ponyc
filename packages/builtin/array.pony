@@ -433,7 +433,7 @@ class Array[A] is Seq[A]
       end
     end
 
-  fun iso chop(split_point: USize): (Array[A] iso^, Array[A] iso^) =>
+  fun iso chop[B: (A & Any #send) = A](split_point: USize): (Array[A] iso^, Array[A] iso^) =>
     """
     Chops the array in half at the split point requested and returns both
     the left and right portions. The original array is trimmed in place and
