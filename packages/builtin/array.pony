@@ -433,15 +433,31 @@ class Array[A] is Seq[A]
       end
     end
 
-  fun iso chop(split_point: USize): (Array[A] iso^, Array[A] iso^) =>
+  fun iso chop[B: (A & Any #send) = A](split_point: USize): (Array[A] iso^, Array[A] iso^) =>
     """
     Chops the array in half at the split point requested and returns both
     the left and right portions. The original array is trimmed in place and
     returned as the left portion. If the split point is larger than the
     array, the left portion is the original array and the right portion
     is a new empty array.
-    Both arrays are isolated and mutable, as they do not share memory.
     The operation does not allocate a new array pointer nor copy elements.
+
+    The entry type must be sendable so that the two halves can be isolated.
+    Otherwise, two entries may have shared references to mutable data,
+    or even to each other, such as in the code below:
+
+    ```pony
+      class Example
+         var other: (Example | None) = None
+
+      let arr: Array[Example] iso = recover
+         let obj1 = Example
+         let obj2 = Example
+         obj1.other = obj2
+         obj2.other = obj1
+         [obj1; obj2]
+      end
+    ```
     """
     let start_ptr = cpointer(split_point)
     let size' = _size - _size.min(split_point)
