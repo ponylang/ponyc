@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Consistent handling of  function calls in consume expressions ([PR #3647](https://github.com/ponylang/ponyc/pull/3647))
 - Speed up cycle detector reaping some actors ([PR #3649](https://github.com/ponylang/ponyc/pull/3649))
 - Prevent compiler crashes on certain `consume` expressions ([PR #3650](https://github.com/ponylang/ponyc/pull/3650))
+- Fix soundness problem with Array.chop ([PR #3657](https://github.com/ponylang/ponyc/pull/3657))
 
 ### Added
 
