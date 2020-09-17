@@ -444,7 +444,20 @@ class Array[A] is Seq[A]
 
     The entry type must be sendable so that the two halves can be isolated.
     Otherwise, two entries may have shared references to mutable data,
-    or even to each other.
+    or even to each other, such as in the code below:
+
+    ```pony
+      class Example
+         var other: (Example | None) = None
+
+      let arr: Array[Example] iso = recover
+         let obj1 = Example
+         let obj2 = Example
+         obj1.other = obj2
+         obj2.other = obj1
+         [obj1; obj2]
+      end
+    ```
     """
     let start_ptr = cpointer(split_point)
     let size' = _size - _size.min(split_point)
