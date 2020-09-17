@@ -442,8 +442,9 @@ class Array[A] is Seq[A]
     is a new empty array.
     The operation does not allocate a new array pointer nor copy elements.
 
-    The entry type must be sendable so that the two array pieces can
-    be deeply isolated from each other.
+    The entry type must be sendable so that the two halves can be isolated.
+    Otherwise, two entries may have shared references to mutable data,
+    or even to each other.
     """
     let start_ptr = cpointer(split_point)
     let size' = _size - _size.min(split_point)
