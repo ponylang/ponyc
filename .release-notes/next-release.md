@@ -119,3 +119,16 @@ Previously  an expression of the form `consume (consume variable).field` resulte
 
 Likewise, a valid assignment of the form `(consume f).b =  recover Bar end` resulted in a compiler crash. With the fix, the compiler successfuly type checks the assignment and ensures that `f` is _consumed_.
 
+## Fix soundness problem with Array.chop
+
+Previously, the `chop` method on arrays could be used for any element type,
+and return two isolated halves. While this is fine for sendable data,
+`ref` elements could have shared references between elements which could
+violate this isolation and make the method unsound. This change now
+requires that the argument is sendable to call the method.
+
+This is a breaking change. Because the array itself is isolated,
+a usage that is genuinely sound can likely be fixed by ensuring
+that the element type is `iso` instead of `ref` or `trn`, or `val`
+instead of `box`, and recovering when elements are constructed.
+
