@@ -13,8 +13,6 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval);
 
 bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2);
 
-void ponyint_cycle_actor_created(pony_actor_t* actor);
-
 void ponyint_cycle_actor_destroyed(pony_actor_t* actor);
 
 void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc);

@@ -217,7 +217,7 @@ PONY_API pony_ctx_t* pony_ctx();
  * handles received messages.
  */
 PONY_API ATTRIBUTE_MALLOC pony_actor_t* pony_create(pony_ctx_t* ctx,
-  pony_type_t* type);
+  pony_type_t* type, bool orphaned);
 
 /// Allocate a message and set up the header. The index is a POOL_INDEX.
 PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);

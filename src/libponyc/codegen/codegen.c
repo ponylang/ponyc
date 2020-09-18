@@ -290,10 +290,11 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readnone_attr);
 
-  // __object* pony_create(i8*, __Desc*)
+  // __object* pony_create(i8*, __Desc*, i1)
   params[0] = c->void_ptr;
   params[1] = c->descriptor_ptr;
-  type = LLVMFunctionType(c->object_ptr, params, 2, false);
+  params[2] = c->i1;
+  type = LLVMFunctionType(c->object_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_create", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);

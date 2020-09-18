@@ -11,6 +11,7 @@
 #include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
+#include "../pass/expr.h"
 #include "../../libponyrt/mem/pool.h"
 #include "../../libponyrt/mem/heap.h"
 #include "ponyassert.h"
@@ -422,7 +423,7 @@ static LLVMValueRef gen_constructor_receiver(compile_t* c, reach_type_t* t,
     set_descriptor(c, t, receiver);
     return receiver;
   } else {
-    return gencall_alloc(c, t);
+    return gencall_alloc(c, t, call);
   }
 }
 
@@ -1310,19 +1311,26 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   return LLVMBuildCall(c->builder, func, args, count, ret);
 }
 
-LLVMValueRef gencall_create(compile_t* c, reach_type_t* t)
+LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef args[2];
+  // If it's statically known that the calling actor can't possibly capture a
+  // reference to the new actor, because the result value of the constructor
+  // call is discarded at the immediate syntax level, we can make certain
+  // optimizations related to the actor reference count and the cycle detector.
+  bool no_inc_rc = call && !is_result_needed(call);
+
+  LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
   args[1] = LLVMConstBitCast(c_t->desc, c->descriptor_ptr);
+  args[2] = LLVMConstInt(c->i1, no_inc_rc ? 1 : 0, false);
 
-  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 2, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 3, "");
   return LLVMBuildBitCast(c->builder, result, c_t->use_type, "");
 }
 
-LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
+LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t, ast_t* call)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -1339,7 +1347,7 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t)
     return c_t->instance;
 
   if(t->underlying == TK_ACTOR)
-    return gencall_create(c, t);
+    return gencall_create(c, t, call);
 
   return gencall_allocstruct(c, t);
 }

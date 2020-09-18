@@ -715,12 +715,12 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
     case TK_STRUCT:
     case TK_CLASS:
       // Allocate the object or return the global instance.
-      result = gencall_alloc(c, t);
+      result = gencall_alloc(c, t, NULL);
       break;
 
     case TK_ACTOR:
       // Allocate the actor.
-      result = gencall_create(c, t);
+      result = gencall_create(c, t, NULL);
       break;
 
     default:

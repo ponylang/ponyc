@@ -34,12 +34,6 @@ pony$target:::actor-msg-send
 }
 
 pony$target:::actor-msg-send
-/ (unsigned int)arg1 == (unsigned int)ACTORMSG_CREATED /
-{
-  @counts[arg0, "Created Messages Sent"] = count();
-}
-
-pony$target:::actor-msg-send
 / (unsigned int)arg1 == (unsigned int)ACTORMSG_ISBLOCKED /
 {
   @counts[arg0, "Is Blocked Messages Sent"] = count();

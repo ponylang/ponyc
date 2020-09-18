@@ -686,12 +686,6 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
   deferred(ctx, d);
 }
 
-static void actor_created(detector_t* d, pony_actor_t* actor)
-{
-  // get view (and add actor to view map at that time)
-  get_view(d, actor, true);
-}
-
 static void actor_destroyed(detector_t* d, pony_actor_t* actor)
 {
   // this would only called by a manual destroy of an actor
@@ -1013,13 +1007,6 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
-    case ACTORMSG_CREATED:
-    {
-      pony_msgp_t* m = (pony_msgp_t*)msg;
-      actor_created(d, (pony_actor_t*)m->p);
-      break;
-    }
-
     case ACTORMSG_DESTROYED:
     {
       pony_msgp_t* m = (pony_msgp_t*)msg;
@@ -1096,7 +1083,7 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
     detect_interval = 10;
 
   cycle_detector = NULL;
-  cycle_detector = pony_create(ctx, &cycle_type);
+  cycle_detector = pony_create(ctx, &cycle_type, false);
   ponyint_actor_setsystem(cycle_detector);
 
   detector_t* d = (detector_t*)cycle_detector;
@@ -1129,16 +1116,6 @@ bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2)
   }
 
   return false;
-}
-
-void ponyint_cycle_actor_created(pony_actor_t* actor)
-{
-  // this will only be false during the creation of the cycle detector
-  // and after the runtime has been shut down
-  if(cycle_detector) {
-    pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-    pony_sendp(ctx, cycle_detector, ACTORMSG_CREATED, actor);
-  }
 }
 
 void ponyint_cycle_actor_destroyed(pony_actor_t* actor)
