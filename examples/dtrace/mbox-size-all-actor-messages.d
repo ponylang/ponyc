@@ -14,7 +14,6 @@ inline unsigned int UINT32_MAX = 4294967295;
 inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 11); /* -12 */
 inline unsigned int ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);      /* -11 */
 inline unsigned int ACTORMSG_DESTROYED = (UINT32_MAX - 9);          /* -10 */
-inline unsigned int ACTORMSG_CREATED = (UINT32_MAX - 8);            /* -9 */
 inline unsigned int ACTORMSG_ISBLOCKED = (UINT32_MAX - 7);          /* -8 */
 inline unsigned int ACTORMSG_BLOCK = (UINT32_MAX - 6);              /* -7 */
 inline unsigned int ACTORMSG_UNBLOCK = (UINT32_MAX - 5);            /* -6 */

@@ -23,11 +23,12 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
   // Create the main actor and become it.
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
   args[0] = ctx;
   args[1] = LLVMConstBitCast(((compile_type_t*)t->c_type)->desc,
     c->descriptor_ptr);
-  LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 2, "");
+  args[2] = LLVMConstInt(c->i1, 0, false);
+  LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 3, "");
 
   args[0] = ctx;
   args[1] = actor;
@@ -128,7 +129,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   reach_method_t* m = reach_method(t_env, TK_NONE, c->str__create, NULL);
 
   LLVMValueRef env_args[4];
-  env_args[0] = gencall_alloc(c, t_env);
+  env_args[0] = gencall_alloc(c, t_env, NULL);
   env_args[1] = args[0];
   env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
   env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");

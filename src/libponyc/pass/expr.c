@@ -106,6 +106,11 @@ bool is_result_needed(ast_t* ast)
 
     case TK_BECHAIN:
     case TK_FUNCHAIN:
+      // Result of the receiver expression is needed if the chain result is
+      // needed
+      if(ast_childidx(parent, 0) == ast)
+        return is_result_needed(parent);
+
       // Result of a chained method isn't needed.
       return false;
 
