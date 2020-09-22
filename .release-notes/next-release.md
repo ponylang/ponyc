@@ -132,3 +132,6 @@ a usage that is genuinely sound can likely be fixed by ensuring
 that the element type is `iso` instead of `ref` or `trn`, or `val`
 instead of `box`, and recovering when elements are constructed.
 
+## Allow for building on DragonFlyBSD again
+
+When the ponyc build system was switched from make to cmake, the ability to build on DragonFlyBSD was inadvertenyly removed. The build system has been updated so that ponyc can be built again on DragonFly.
