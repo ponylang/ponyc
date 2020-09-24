@@ -135,6 +135,7 @@ instead of `box`, and recovering when elements are constructed.
 ## Allow for building on DragonFlyBSD again
 
 When the ponyc build system was switched from make to cmake, the ability to build on DragonFlyBSD was inadvertenyly removed. The build system has been updated so that ponyc can be built again on DragonFly.
+
 ## Improvement to garbage collection for short-lived actors
 
 We have a few example programs that create a large number of short-lived actors that can exhibit runaway memory growth. This update greatly reduces the memory growth or potentially reduce it to be stable.
