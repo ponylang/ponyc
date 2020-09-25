@@ -40,6 +40,7 @@ struct reach_method_t
   deferred_reification_t* fun;
   ast_t* typeargs;
   uint32_t vtable_index;
+  bool needs_vtable_index;
 
   // Mark as true if the compiler supplies an implementation.
   bool intrinsic;
@@ -101,6 +102,7 @@ struct reach_type_t
   uint32_t vtable_size;
   bool can_be_boxed;
   bool is_trait;
+  uint32_t behaviour_index;
 
   uint32_t field_count;
   reach_field_t* fields;

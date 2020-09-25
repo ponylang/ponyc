@@ -275,6 +275,13 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     // If the method is a forwarding mangling, we don't need the handler.
     if(!m->forwarding)
     {
+      // Assign a message ID if there isn't already one.
+      if(!m->needs_vtable_index)
+      {
+        pony_assert(m->vtable_index == (uint32_t)-1);
+        m->vtable_index = t->behaviour_index++;
+      }
+
       // Change the return type to void for the handler.
       LLVMTypeRef handler_type = LLVMFunctionType(c->void_type, tparams,
         (int)count, false);
@@ -328,6 +335,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
   reach_param_t* params, uint32_t index, LLVMValueRef handler,
   LLVMTypeRef fun_type, LLVMTypeRef msg_type)
 {
+  pony_assert(index != (uint32_t)-1);
+
   // Add a case to the dispatch function to handle this message.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, NULL, false);

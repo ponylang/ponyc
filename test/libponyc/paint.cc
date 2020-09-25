@@ -55,6 +55,7 @@ protected:
     method->fun = NULL;
     method->typeargs = NULL;
     method->vtable_index = (uint32_t)-1;
+    method->needs_vtable_index = true;
 
     reach_methods_put(&n->r_methods, method);
     reach_mangled_put(&n->r_mangled, method);
