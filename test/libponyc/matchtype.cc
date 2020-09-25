@@ -456,6 +456,9 @@ TEST_F(MatchTypeTest, TypeParams)
     "trait T2\n"
     "  fun g()\n"
 
+    "trait T3[A: T3[A]]\n"
+    "  fun h()\n"
+
     "class C1 is T1\n"
     "  fun f() => None\n"
 
@@ -463,9 +466,9 @@ TEST_F(MatchTypeTest, TypeParams)
 
     "interface Test\n"
     "  fun z[A1: C2 ref, A2: T1 ref, A3: T2 ref, A4: T2 box,\n"
-    "    A5: (T1 ref | T2 ref)]\n"
+    "    A5: (T1 ref | T2 ref), A6: (T3[A6] ref & (C1 ref | C2 ref))]\n"
     "    (c1: C1, c2: C2, t1: T1, t2: T2,\n"
-    "    ac2: A1, at1: A2, at2: A3, at2box: A4, aunion: A5)";
+    "    ac2: A1, at1: A2, at2: A3, at2box: A4, aunion: A5, aisect: A6)";
 
   TEST_COMPILE(src);
 
@@ -485,8 +488,12 @@ TEST_F(MatchTypeTest, TypeParams)
 
   // Union constraint
   ASSERT_EQ(
-    MATCHTYPE_ACCEPT, is_matchtype(type_of("aunion"), type_of("c1"), NULL, &opt));
-}
+    MATCHTYPE_ACCEPT, is_matchtype(type_of("aunion"), type_of("c1"), NULL, &opt));;
+
+  // Intersection of generic trait and union constraint
+  ASSERT_EQ(
+    MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("aisect"), type_of("aisect"), NULL, &opt));}
 
 
 TEST_F(MatchTypeTest, GenericCap)
