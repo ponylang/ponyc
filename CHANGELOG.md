@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.38.1] - 2020-09-26
 
 ### Fixed
 
 - Fix race condition in cycle detector block sent handling ([PR #3666](https://github.com/ponylang/ponyc/pull/3666))
-
-### Added
-
-
-### Changed
-
 
 ## [0.38.0] - 2020-09-24
 
