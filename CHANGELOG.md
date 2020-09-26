@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix race condition in cycle detector block sent handling ([PR #3666](https://github.com/ponylang/ponyc/pull/3666))
 
 ### Added
 
