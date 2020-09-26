@@ -1165,10 +1165,7 @@ void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
-
-  // only trigger gc if actor allocated something on the heap
-  if(ctx->current->heap.used > 0)
-    ctx->current->heap.next_gc = 0;
+  ctx->current->heap.next_gc = 0;
 }
 
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
