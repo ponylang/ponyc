@@ -248,6 +248,22 @@ static void send_unblock(pony_actor_t* actor)
   ponyint_cycle_unblock(actor);
 }
 
+static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  // We're blocked, send block message.
+  set_internal_flag(actor, FLAG_BLOCKED_SENT);
+  set_internal_flag(actor, FLAG_CD_CONTACTED);
+  pony_assert(ctx->current == actor);
+  ponyint_cycle_block(actor, &actor->gc);
+
+  // trigger a GC if we're sending a block message to the CD
+  // GC will get run next time `try_gc` is called which should
+  // happen once all messages get processed in the messageq
+  // at the time `pony_actor_run` was called if not earlier
+  // when an app message is processed
+  pony_triggergc(ctx);
+}
+
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* msg)
 {
@@ -366,9 +382,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         //
         // Sending multiple "i'm blocked" messages to the cycle detector
         // will result in actor potentially being freed more than once.
-        set_internal_flag(actor, FLAG_BLOCKED_SENT);
-        pony_assert(ctx->current == actor);
-        ponyint_cycle_block(actor, &actor->gc);
+        send_block(ctx, actor);
       }
 
       return false;
@@ -635,9 +649,12 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // in the future we will wait for the CD to reach out and ask
       // if we're blocked or not.
       // But, only if gc.rc > 0 because if gc.rc == 0 we are a zombie.
-      set_internal_flag(actor, FLAG_BLOCKED_SENT);
-      set_internal_flag(actor, FLAG_CD_CONTACTED);
-      ponyint_cycle_block(actor, &actor->gc);
+      send_block(ctx, actor);
+
+      // Try and run GC because we're blocked and sending a block message
+      // to the CD and we're past the normal point at which `try_gc` is
+      // called as part of this function
+      try_gc(ctx, actor);
     }
 
   }
@@ -748,8 +765,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // unblocked (which would create a race condition) and we've also
         // ensured that the cycle detector will not send this actor any more
         // messages (which would also create a race condition).
-        set_internal_flag(actor, FLAG_BLOCKED_SENT);
-        ponyint_cycle_block(actor, &actor->gc);
+        send_block(ctx, actor);
 
         // mark the queue as empty or else destroy will hang
         bool empty = ponyint_messageq_markempty(&actor->q);
@@ -1150,7 +1166,10 @@ void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
-  ctx->current->heap.next_gc = 0;
+
+  // only trigger gc if actor allocated something on the heap
+  if(ctx->current->heap.used > 0)
+    ctx->current->heap.next_gc = 0;
 }
 
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
