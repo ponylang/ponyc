@@ -256,9 +256,8 @@ static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
   pony_assert(ctx->current == actor);
   ponyint_cycle_block(actor, &actor->gc);
 
-  // trigger a GC if we're sending a block message to the CD
-  // GC will get run next time `try_gc` is called which should
-  // happen once all messages get processed in the messageq
+  // Trigger garbage collection. GC will get run next time `try_gc` is called 
+  // which should happen once all messages get processed in the messageq
   // at the time `pony_actor_run` was called if not earlier
   // when an app message is processed
   pony_triggergc(ctx);
