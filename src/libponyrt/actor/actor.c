@@ -192,9 +192,16 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
-      if(has_flag(actor, FLAG_BLOCKED) && !has_flag(actor, FLAG_BLOCKED_SENT))
+      if(has_flag(actor, FLAG_BLOCKED)
+        && !has_flag(actor, FLAG_BLOCKED_SENT)
+        && (actor->gc.rc > 0))
       {
-        // We're blocked, send block message.
+        // We're blocked, send block message if:
+        // - the actor hasn't already sent one
+        // - the actor aren't a zombie aka rc == 0
+        //
+        // Sending multiple "i'm blocked" messages to the cycle detector
+        // will result in actor potentially being freed more than once.
         set_flag(actor, FLAG_BLOCKED_SENT);
         pony_assert(ctx->current == actor);
         ponyint_cycle_block(actor, &actor->gc);
