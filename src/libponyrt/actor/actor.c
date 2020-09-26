@@ -652,7 +652,11 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
       // Try and run GC because we're blocked and sending a block message
       // to the CD and we're past the normal point at which `try_gc` is
-      // called as part of this function
+      // called as part of this function. This will try and free any
+      // memory the actor has in its heap that wouldn't get freed otherwise
+      // until the actor is destroyed or happens to receive more work via
+      // application messages that eventually trigger a GC which may not
+      // happen for a long time (or ever).
       try_gc(ctx, actor);
     }
 
