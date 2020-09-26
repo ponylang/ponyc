@@ -251,9 +251,9 @@ static void send_unblock(pony_actor_t* actor)
 static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   // We're blocked, send block message.
+  pony_assert(ctx->current == actor);
   set_internal_flag(actor, FLAG_BLOCKED_SENT);
   set_internal_flag(actor, FLAG_CD_CONTACTED);
-  pony_assert(ctx->current == actor);
   ponyint_cycle_block(actor, &actor->gc);
 
   // Trigger garbage collection. GC will get run next time `try_gc` is called 
