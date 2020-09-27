@@ -291,3 +291,14 @@ bool ponyint_messageq_markempty(messageq_t* q)
   return atomic_compare_exchange_strong_explicit(&q->head, &tail, head,
     memory_order_release, memory_order_relaxed);
 }
+
+bool ponyint_messageq_isempty(messageq_t* q)
+{
+  pony_msg_t* tail = q->tail;
+  pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_relaxed);
+
+  if(((uintptr_t)head & 1) != 0)
+    return true;
+
+  return head == tail;
+}

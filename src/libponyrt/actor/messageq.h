@@ -64,6 +64,8 @@ pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
 
 bool ponyint_messageq_markempty(messageq_t* q);
 
+bool ponyint_messageq_isempty(messageq_t* q);
+
 PONY_EXTERN_C_END
 
 #endif
