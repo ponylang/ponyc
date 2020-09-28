@@ -442,7 +442,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   {
     // Here, we is what we know to be true:
     //
-    // - the actor is blocked and likely has no meesages in its queue
+    // - the actor is blocked
+    // - the actor likely has no messages in its queue
     // - there's no references to this actor
     //
 
@@ -739,8 +740,8 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 
   pony_assert(well_formed_msg_chain(first, last));
 
-  // make sure we're not trying to send a message to an actor
-  // that is about to be destroyed
+  // Make sure we're not trying to send a message to an actor that is about
+  // to be destroyed.
   pony_assert(!ponyint_actor_pendingdestroy(to));
 
   if(DTRACE_ENABLED(ACTOR_MSG_SEND))
