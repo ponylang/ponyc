@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix race conditions that can lead to a segfault ([PR #3667](https://github.com/ponylang/ponyc/pull/3667))
 
 ### Added
 
