@@ -484,6 +484,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
         // "Locally delete" the actor.
         ponyint_actor_setpendingdestroy(actor);
+        ponyint_actor_sendrelease(ctx, actor);
         ponyint_actor_final(ctx, actor);
         ponyint_actor_destroy(actor);
 
