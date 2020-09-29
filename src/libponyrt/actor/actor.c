@@ -519,8 +519,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // will not send it any more messages because it is set as pending
         // destroy.
 
-        // the invariant that should hold true at this point is that we have
-        // not sent the cycle detector a `block` message already
+        // Based on how the cycle detector protocol works, FLAG_BLOCKED_SENT
+        // shouldn't be set at this time. We have previously contact the
+        // cycle detector and sent a blocked message then we should have
+        // unblocked before having gotten here.
+        // Dipin is 99% sure this invariant applies. Sean is less certain.
+        // It's possible this might be a source of bug. If it is, then the
+        // solution is probably to make this an if that encloses the remaining
+        // logic in this block.
         pony_assert(!has_flag(actor, FLAG_BLOCKED_SENT));
 
         // Tell cycle detector that this actor is a zombie and will not get
