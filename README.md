@@ -23,7 +23,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
   * The `arm` and `armhf` architectures are tested via CI (Continuous
     Integration testing)
 
-## More Information
+## More Information (From Installation to other supported Environment)
 
 * [Installation](INSTALL.md)
 * [Building from source](BUILD.md)
