@@ -14,9 +14,9 @@ primitive EnvVars
     iff 'squash' is true.
 
     So:
-      <PREFIX><KEY>=<VALUE>
+      `<PREFIX><KEY>=<VALUE>`
     becomes:
-      {KEY, VALUE} or {key, VALUE}
+      `{KEY, VALUE}` or `{key, VALUE}`
     """
     let envsmap = recover Map[String, String]() end
     match envs
