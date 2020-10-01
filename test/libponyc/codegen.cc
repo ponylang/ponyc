@@ -946,3 +946,46 @@ TEST_F(CodegenTest, TryThenClauseContinueNested)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 42);
 }
+
+TEST_F(CodegenTest, IfBlockEndingWithEmbedAssign)
+{
+  // From issue #3669
+  const char* src =
+    "class B\n"
+    "class A\n"
+    "  embed embedded: B\n"
+    "  new create() => \n"
+    "    if true\n"
+    "    then embedded = B\n"
+    "    else embedded = B\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    A";
+
+  TEST_COMPILE(src);
+
+  // LLVM Module verification fails if bug is present:
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+}
+
+TEST_F(CodegenTest, IfBlockEndingWithDontCareAssign)
+{
+  // From issue #3669
+  const char* src =
+    "class B\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true\n"
+    "    then _ = B\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  // LLVM Module verification fails if bug is present:
+  int exit_code = 0;
+  ASSERT_TRUE(run_program(&exit_code));
+}

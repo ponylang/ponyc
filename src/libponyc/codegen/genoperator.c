@@ -480,7 +480,10 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     case TK_EMBEDREF:
     {
       // Do nothing. The embed field was already passed as the receiver.
-      return GEN_NOVALUE;
+      // But we can't return GEN_NOVALUE - that's reserved only for branches
+      // that "jump away". So we just return the r_value we were given.
+      // The type system ensures that nobody will be able to use this value.
+      return r_value;
     }
 
     case TK_VARREF:
@@ -501,9 +504,11 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     case TK_DONTCAREREF:
     case TK_MATCH_DONTCARE:
     {
-      // Do nothing. The type checker has already ensured that nobody will try
-      // to use the result of the assignment.
-      return GEN_NOVALUE;
+      // Do nothing.
+      // But we can't return GEN_NOVALUE - that's reserved only for branches
+      // that "jump away". So we just return the r_value we were given.
+      // The type system ensures that nobody will be able to use this value.
+      return r_value;
     }
 
     case TK_TUPLE:
