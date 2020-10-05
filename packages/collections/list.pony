@@ -123,18 +123,26 @@ class List[A] is Seq[A]
   new create(len: USize = 0) =>
     """
     Do nothing, but be compatible with Seq.
+
+    Creates an empty list with 0 nodes.
+
+    let my_list = List[String].create()
     """
     None
 
   new unit(a: A) =>
     """
     Builds a new list from an element.
+
+    let my_list = List[String].unit("element")
     """
     push(consume a)
 
   new from(seq: Array[A^]) =>
     """
     Builds a new list from the sequence passed in.
+
+    let my_list = List[String].from(["a"; "b"; "c"])
     """
     for value in seq.values() do
       push(consume value)
@@ -149,12 +157,18 @@ class List[A] is Seq[A]
   fun size(): USize =>
     """
     Returns the number of items in the list.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    env.out.print(my_list.size().string()) // 3
     """
     _size
 
   fun apply(i: USize = 0): this->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    try env.out.print(my_list.apply(1)?) end // b
     """
     index(i)?()?
 
@@ -163,12 +177,18 @@ class List[A] is Seq[A]
     Change the i-th element, raising an error if the index is out of bounds.
     Returns the previous value, which may be None if the node has been popped
     but left on the list.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    try my_list.update(1, "z")? end // ["a"; "z"; "c"]
     """
     index(i)?()? = consume value
 
   fun index(i: USize): this->ListNode[A] ? =>
     """
     Gets the i-th node, raising an error if the index is out of bounds.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    try env.out.print(my_list.index(0)?.apply()?) end // "a"
     """
     if i >= _size then
       error
@@ -188,6 +208,9 @@ class List[A] is Seq[A]
     """
     Remove the i-th node, raising an error if the index is out of bounds.
     The removed node is returned.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    try env.out.print(my_list.remove(0)?.apply()?) end // "a"
     """
     index(i)? .> remove()
 
@@ -202,18 +225,28 @@ class List[A] is Seq[A]
   fun head(): this->ListNode[A] ? =>
     """
     Get the head of the list.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    try env.out.print(my_list.head()?.apply()?) end // "a"
     """
     _head as this->ListNode[A]
 
   fun tail(): this->ListNode[A] ? =>
     """
     Get the tail of the list.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    try env.out.print(my_list.tail()?.apply()?) end // "c"
     """
     _tail as this->ListNode[A]
 
   fun ref prepend_node(node: ListNode[A]) =>
     """
     Adds a node to the head of the list.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    let new_head = ListNode[String].create("0")
+    my_list.prepend_node(new_head) // ["0", "a"; "b"; "c"]
     """
     match _head
     | let head': ListNode[A] =>
@@ -225,6 +258,10 @@ class List[A] is Seq[A]
   fun ref append_node(node: ListNode[A]) =>
     """
     Adds a node to the tail of the list.
+
+    // suppose `my_list` contains ["a"; "b"; "c"]
+    let new_tail = ListNode[String].create("0")
+    my_list.append_node(new_head) // ["a"; "b"; "c", "0"]
     """
     match _tail
     | let tail': ListNode[A] =>
