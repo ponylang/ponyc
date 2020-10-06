@@ -128,13 +128,19 @@ class Array[A] is Seq[A]
     """
     _size = len
 
-    if alloc > len then
-      _alloc = alloc
+    if ptr.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[A]._alloc(_alloc)
     else
-      _alloc = len
-    end
+      if alloc > len then
+        _alloc = alloc
+      else
+        _alloc = len
+      end
 
-    _ptr = ptr
+      _ptr = ptr
+    end
 
   fun _copy_to(
     ptr: Pointer[this->A!],
