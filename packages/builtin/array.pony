@@ -129,7 +129,6 @@ class Array[A] is Seq[A]
     if ptr.is_null() then
       _size = 0
       _alloc = 0
-      _ptr = ptr
     else
       _size = len
       if alloc > len then
@@ -137,8 +136,9 @@ class Array[A] is Seq[A]
       else
         _alloc = len
       end
-      _ptr = ptr
     end
+
+    _ptr = ptr
 
   fun _copy_to(
     ptr: Pointer[this->A!],
