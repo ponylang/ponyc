@@ -38,6 +38,14 @@ sudo gmake install
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
+## DragonFly
+
+```bash
+pkg install -y cxx_atomics
+```
+
+Then continue with the same instructions as FreeBSD.
+
 ## Linux
 
 ```bash

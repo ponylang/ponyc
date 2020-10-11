@@ -759,6 +759,9 @@ bool package_init(pass_opt_t* opt)
   add_path("/usr/local/lib", opt);
   add_path("/opt/local/lib", opt);
 #endif
+#ifdef PLATFORM_IS_DRAGONFLY
+  add_path("/usr/local/cxx_atomics", opt);
+#endif
 
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
