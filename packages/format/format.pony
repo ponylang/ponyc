@@ -47,9 +47,9 @@ primitive Format
   * width. The minimum number of characters that will be in the produced
   string. If necessary the string will be padded with the fill character to
   make it long enough.
-  *align. Specify whether fill characters should be added at the beginning or
+  * align. Specify whether fill characters should be added at the beginning or
   end of the generated string, or both.
-  *fill: The character to pad a string with if is is shorter than width.
+  * fill. The character to pad a string with if is is shorter than width.
   """
   fun apply(
     str: String,
