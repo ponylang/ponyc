@@ -2137,6 +2137,7 @@ class _LimittedIterator[A] is Iterator[A]
 
   fun ref next(): A ? =>
     if has_next() then
+      _limit = _limit - 1
       return _iter.next()?
     end
     error
