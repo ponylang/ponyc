@@ -283,14 +283,14 @@ class Writer
       end
     end
 
-  fun ref writev(data: (StringIter | ByteSeqIter)) =>
+  fun ref writev[E: StringEncoder val = UTF8StringEncoder](data: (StringIter | ByteSeqIter)) =>
     """
     Write Strings or ByteSeqs to the buffer.
     """
     match data
     | let si: StringIter =>
       for chunk in si.values() do
-        write(chunk)
+        write[E](chunk)
       end
     | let bsi: ByteSeqIter =>
       for chunk in bsi.values() do
