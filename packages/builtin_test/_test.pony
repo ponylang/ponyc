@@ -444,6 +444,16 @@ class iso _TestStringToArray is UnitTest
 
     h.assert_array_eq[U8](a_expected, a_utf8 )
 
+    let a_buffer = s.current_byte_buffer()
+
+    h.assert_array_eq[U8](a_expected, a_buffer)
+
+    let s_ref = String(10)
+    s_ref.append("foo€🐎")
+    let s_ref_buffer = s_ref.current_byte_buffer()
+
+    h.assert_array_eq[U8](a_expected, s_ref_buffer)
+
 class iso _TestStringToUTF16BEArray is UnitTest
 
   fun name(): String => "builtin/String.toUTF16BEArray"

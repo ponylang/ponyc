@@ -330,6 +330,16 @@ actor Main
       rtrn_array
     end
 
+  fun current_byte_buffer(): this->Array[U8] box =>
+    """
+    Returns the byte array underlying the string. This buffer will contain
+    bytes of the String codepoints in the default system encoding (UTF-8).
+    The array will not reflect all changes in the String from which it is
+    obtained. This is an unsafe function.
+    """
+    let ptr: Pointer[U8] tag = _ptr
+    recover Array[U8].from_cpointer(ptr._unsafe(), _size, _alloc) end
+
   fun size(): USize =>
     """
     Returns the number of unicode codepoints in the string.
