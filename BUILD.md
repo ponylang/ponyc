@@ -100,7 +100,8 @@ Note that you only need to run `.\make.ps1 libs` once the first time you build (
 You can specify the CPU architecture to build Pony for via the `arch` make option:
 
 ```bash
-make arch=arm7
+make configure arch=arm7
+make build
 ```
 
 ### lto
@@ -123,7 +124,8 @@ make build
 If you're compiling with Clang, you can build the Pony runtime as an LLVM bitcode file by setting `runtime-bitcode` to `yes` in the build command line:
 
 ```bash
-make runtime-bitcode=yes
+make configure runtime-bitcode=yes
+make build
 ```
 
 Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode file instead of the static library to link in the runtime:
