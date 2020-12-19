@@ -287,14 +287,15 @@ static bool link_exe(compile_t* c, ast_t* program,
     "";
 #endif
 
-  size_t ld_len = 128 + arch_len + strlen(linker) + strlen(file_exe) +
+  size_t ld_len = 256 + arch_len + strlen(linker) + strlen(file_exe) +
     strlen(file_o) + strlen(lib_args) + strlen(sanitizer_arg);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "%s -execute -no_pie -arch %.*s "
-    "-macosx_version_min 10.12 -o %s %s %s %s -lSystem %s",
+    "-macosx_version_min 10.12 -o %s %s %s %s "
+    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt, sanitizer_arg
     );
