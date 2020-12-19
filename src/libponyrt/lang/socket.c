@@ -562,6 +562,10 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
   {
     struct addrinfo* result = os_addrinfo_intern(p->ai_family, 0, 0, from,
       NULL, false);
+
+    if(result == NULL)
+      return false;
+
     struct addrinfo* lp = result;
     bool bound = false;
 
@@ -634,6 +638,9 @@ static asio_event_t* os_socket_listen(pony_actor_t* owner, const char* host,
   struct addrinfo* result = os_addrinfo_intern(family, socktype, proto, host,
     service, true);
 
+  if(result == NULL)
+    return NULL;
+
   struct addrinfo* p = result;
 
   while(p != NULL)
@@ -666,6 +673,9 @@ static int os_socket_connect(pony_actor_t* owner, const char* host,
 
   struct addrinfo* result = os_addrinfo_intern(family, socktype, proto, host,
     service, false);
+
+  if(result == NULL)
+    return 0;
 
   struct addrinfo* p = result;
   int count = 0;
