@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix race conditions that can lead to a segfault ([PR #3667](https://github.com/ponylang/ponyc/pull/3667))
 - Fix compiler crash when an if block ends with an assignment that has no result value. ([PR #3670](https://github.com/ponylang/ponyc/pull/3670))
+- Fix link errors on macOS Big Sur ([PR #3686](https://github.com/ponylang/ponyc/pull/3686))
 
 ### Added
 
