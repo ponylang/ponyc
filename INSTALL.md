@@ -48,6 +48,7 @@ Distribution | Requires
 Alpine | libexecinfo
 CentOS | libatomic
 Fedora | libatomic
+Void | libatomic
 
 ### Troubleshooting Glibc compatibility
 
