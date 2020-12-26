@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.38.2] - 2020-12-26
 
 ### Fixed
 
@@ -10,12 +10,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash when an if block ends with an assignment that has no result value. ([PR #3670](https://github.com/ponylang/ponyc/pull/3670))
 - Fix link errors on macOS Big Sur ([PR #3686](https://github.com/ponylang/ponyc/pull/3686))
 - Fix unhandled null pointer returning from os_addrinfo_intern ([PR #3687](https://github.com/ponylang/ponyc/pull/3687))
-
-### Added
-
-
-### Changed
-
 
 ## [0.38.1] - 2020-09-26
 
