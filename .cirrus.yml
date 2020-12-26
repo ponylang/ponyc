@@ -485,6 +485,7 @@ task:
     - pip3 install --upgrade cloudsmith-cli
 
   release_script:
+    - export TZ=utc
     - bash .ci-scripts/x86-64-release.bash
 
 task:
