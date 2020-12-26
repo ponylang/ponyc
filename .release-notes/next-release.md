@@ -10,3 +10,7 @@ This release fixes a compiler crash that used to occur when certain kinds of ass
 
 With the change from Catalina to Big Sur, Apple moved the location of the System library, which broke the linking phase of the compiler. This change fixes the problem by specifying the absolute path of the System library.
 
+## Fix unhandled null pointer that can lead to a segfault
+
+Previously, the `os_socket_listen` and `os_socket_connect` internal functions would assume that calls to `os_addrinfo_intern` would never fail. The `os_addrinfo_intern` function returns a null pointer on failure, which could result in the callers attempting to free an invalid pointer, and causing a segfault. This change adds error handling on the socket functions, which fixes the problem.
+
