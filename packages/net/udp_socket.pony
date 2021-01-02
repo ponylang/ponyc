@@ -7,6 +7,7 @@ actor UDPSocket
   Creates a UDP socket that can be used for sending and receiving UDP messages.
 
   The following examples create:
+
   * an echo server that listens for connections and returns whatever message it
     receives
   * a client that connects to the server, sends a message, and prints the
