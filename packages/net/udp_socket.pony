@@ -86,6 +86,16 @@ actor UDPSocket
   var _read_from: NetAddress iso = NetAddress
   embed _ip: NetAddress = NetAddress
 
+  var _writeable: Bool = true
+
+  // Keep track of the packets to be sent: destination and buffers in packet.
+  embed _pending_packets: Array[(NetAddress, USize)] = _pending_packets.create()
+  // Keep all the buffers for all packets in the same array.
+  // The buffer count in _pending_packets allows us to discern packet limits.
+  // Since we send packets in order, we never have to skip positions.
+  embed _pending_sendmsg_posix: Array[(Pointer[U8] tag, USize)] = _pending_sendmsg_posix.create()
+  embed _pending_sendmsg_windows: Array[(USize, Pointer[U8] tag)] = _pending_sendmsg_windows.create()
+
   new create(
     auth: UDPSocketAuth,
     notify: UDPNotify iso,
@@ -159,8 +169,110 @@ actor UDPSocket
     """
     Write a sequence of sequences of bytes.
     """
+    if _closed then
+      return
+    end
+
+    var num_to_send: USize = 0
     for bytes in data.values() do
-      _write(bytes, to)
+      if bytes.size() == 0 then
+        // Don't send 0 byte payloads. Windows doesn't like it (and it's wasteful).
+        continue
+      end
+
+      ifdef windows then
+        _pending_sendmsg_windows.push((bytes.size(), bytes.cpointer()))
+      else
+        _pending_sendmsg_posix.push((bytes.cpointer(), bytes.size()))
+      end
+      num_to_send = num_to_send + 1
+    end
+
+    if num_to_send > 0 then
+      // Don't schedule a packet unless there's something to send.
+      _pending_packets.push((to, num_to_send))
+    end
+
+    _complete_writes()
+
+  fun ref _complete_writes() =>
+    """
+    Send pending packets. On Windows, only one packet will be sent at a time.
+    On error, dispose the connection.
+    """
+    if not _writeable then
+      return
+    end
+
+    ifdef windows then
+      if _pending_packets.size() > 0 then
+        try
+          // Add an IOCP write.
+          (let dest, let iovcnt) = _pending_packets(0)?
+          @pony_os_sendmsg[USize](_event,
+            _pending_sendmsg_windows.cpointer(), iovcnt.i32(), dest) ?
+
+          // On Windows, we restrict ourselves to have a single pending IOCP
+          // operation, so we mute ourselves until the operation has completed.
+          //
+          // Since we might be notified of IOCP completions out of order, we have
+          // no good way of knowing _which_ specific packet has been sent.
+          // We also don't have a good way of adding extra information about the
+          // packet to the completion event that would allow us to have several
+          // outstanding operations and distinguish them from each other.
+          _writeable = false
+        end
+      end
+    else
+      try
+        var packets_sent: USize = 0
+        var iovcnt_offset: USize = 0
+        for (dest, iovcnt) in _pending_packets.values() do
+          var len = @pony_os_sendmsg[USize](_event,
+            _pending_sendmsg_posix.cpointer(iovcnt_offset), iovcnt.i32(), dest) ?
+
+          // On Unix, there's no need to check for partial writes,
+          // as that will never happen on UDP.
+          if len == 0 then
+            // Socket is busy, wait for an event.
+            _writeable = false
+            break
+          end
+
+          packets_sent = packets_sent + 1
+          iovcnt_offset = iovcnt_offset + iovcnt
+        end
+
+        // Remove all packets sent.
+        // We could do this in the loop above, but doing it here saves on
+        // extra calls to trim_in_place. Since we're closing the socket on
+        // error, it's okay to skip freeing sent packets, because we're
+        // clearing the entire buffer on _close().
+        _pending_packets.trim_in_place(packets_sent)
+        _pending_sendmsg_posix.trim_in_place(iovcnt_offset)
+      else
+        // Bad send, close the connection.
+        _close()
+      end
+    end
+
+  fun ref _clear_writes(len: U32) =>
+    """
+    The OS has informed us that `len` bytes of pending writes have completed.
+    This occurs only with IOCP on Windows.
+    """
+    ifdef windows then
+      if len == 0 then
+        // IOCP reported a failed write on the pending packet. Close the connection.
+        _close()
+        return
+      end
+
+      try
+        // Remove pending packet.
+        (_, let iovcnt) = _pending_packets.shift()?
+        _pending_sendmsg_windows.trim_in_place(iovcnt)
+      end
     end
 
   be set_notify(notify: UDPNotify iso) =>
@@ -257,6 +369,19 @@ actor UDPSocket
         _pending_reads()
       end
     else
+      if AsioEvent.writeable(flags) then
+        // On Unix, we now know that the socket is not busy anymore, we can
+        // start sending again.
+        //
+        // On Windows, we now know that the pending send operation has completed,
+        // we can try and schedule the next send.
+        _writeable = true
+        ifdef windows then
+          _clear_writes(arg)
+        end
+        _complete_writes()
+      end
+
       ifdef windows then
         if AsioEvent.readable(flags) then
           _readable = false
@@ -384,10 +509,18 @@ actor UDPSocket
     """
     Inform the notifier that we've closed.
     """
+
+    _pending_packets.clear()
     ifdef windows then
-      // On windows, wait until IOCP read operation has completed or been
+      _pending_sendmsg_windows.clear()
+    else
+      _pending_sendmsg_posix.clear()
+    end
+
+    ifdef windows then
+      // On Windows, wait until IOCP read / send operation has completed or been
       // cancelled.
-      if _closed and not _readable and not _event.is_null() then
+      if _closed and ((not _readable) or (not _writeable)) and not _event.is_null() then
         @pony_asio_event_unsubscribe[None](_event)
       end
     else
