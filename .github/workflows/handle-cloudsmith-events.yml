@@ -1,10 +1,12 @@
-name: Handle external events
+name: Handle cloudsmith events
 
-on: repository_dispatch
+on:
+  repository_dispatch:
+    types: [cloudsmith-event]
 
 jobs:
-  log-external-event:
-    name: Log all incoming events
+  log-cloudsmith-event:
+    name: Log all incoming cloudsmith events
     runs-on: ubuntu-latest
     steps:
       - name: Log event
