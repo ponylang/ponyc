@@ -62,13 +62,15 @@ If you get that error, it means that the Glibc we compiled ponyc with isn't comp
 
 ## macOS
 
-Prebuilt macOS packages are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
+Prebuilt macOS for Intel packages are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
 
-To install the most recent ponyc on macOS:
+To install the most recent ponyc on macOS for Intel:
 
 ```bash
 ponyup update ponyc release
 ```
+
+At this time, Pony is unsupported on M1 Apple Silicon. We are interested in getting Pony working on Apple Silicon but need assistance. If you have access to M1 Apple Silicon and would like to get Pony working, please contact us on the [ponylang Zulip](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to.20Pony/topic/m1.20help).
 
 ## Windows
 
