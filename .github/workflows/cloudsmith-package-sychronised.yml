@@ -204,3 +204,20 @@ jobs:
           repository: ${{ matrix.repo }}
           event-type: ponyc-musl-nightly-released
           client-payload: '{}'
+
+  send-musl-release-event:
+    needs: [build-release-musl-docker-image]
+
+    name: Send release event
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: ['ponylang/shared-docker']
+    steps:
+      - name: Send
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-musl-released
+          client-payload: '{}'
