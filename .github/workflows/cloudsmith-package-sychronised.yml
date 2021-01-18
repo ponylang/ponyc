@@ -1,8 +1,8 @@
-name: Handle cloudsmith events
+name: Cloudsmith package synchronised
 
 on:
   repository_dispatch:
-    types: [cloudsmith-event]
+    types: [cloudsmith-package-synchronised]
 
 jobs:
   log-cloudsmith-event:
@@ -16,7 +16,6 @@ jobs:
 
   build-latest-gnu-docker-image:
     if: |
-      github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz'
 
@@ -34,7 +33,6 @@ jobs:
 
   build-latest-musl-docker-image:
     if: |
-      github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
 
@@ -52,7 +50,6 @@ jobs:
 
   build-latest-windows-docker-image:
     if: |
-      github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-pc-windows-msvc.zip'
 
@@ -70,7 +67,6 @@ jobs:
 
   build-release-gnu-docker-image:
     if: |
-      github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'releases' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz'
 
@@ -90,7 +86,6 @@ jobs:
 
   build-release-musl-docker-image:
     if: |
-      github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'releases' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
 
@@ -110,7 +105,6 @@ jobs:
 
   build-release-windows-docker-image:
     if: |
-      github.event.action == 'cloudsmith-package-synchronised' &&
       github.event.client_payload.data.repository == 'releases' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-pc-windows-msvc.zip'
 
