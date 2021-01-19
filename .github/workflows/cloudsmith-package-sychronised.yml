@@ -204,9 +204,10 @@ jobs:
       matrix:
         repo: ['ponylang/shared-docker']
     steps:
-      uses: peter-evans/repository-dispatch@v1
-      with:
-        token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
-        repository: ${{ matrix.repo }}
-        event-type: ponyc-nightly-released
-        client-payload: '{}'
+      - name: Send
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-nightly-released
+          client-payload: '{}'
