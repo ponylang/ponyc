@@ -196,10 +196,10 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           VERSION: ${{ github.event.client_payload.data.version }}
 
-  send-nightly-release-event:
-    name: Send nightly release event
+  send-musl-nightly-release-event:
+    name: Send musl nightly release event
     runs-on: ubuntu-latest
-    needs: [build-latest-gnu-docker-image, build-latest-musl-docker-image, build-latest-windows-docker-image]
+    needs: [build-latest-musl-docker-image]
     strategy:
       matrix:
         repo: ['ponylang/shared-docker']
@@ -209,5 +209,5 @@ jobs:
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
-          event-type: ponyc-nightly-released
+          event-type: ponyc-musl-nightly-released
           client-payload: '{}'
