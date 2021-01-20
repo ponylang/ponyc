@@ -181,9 +181,10 @@ jobs:
           STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
 
   trigger-release-announcement:
+    needs: [build-and-push-stdlib-documentation, update-playground-image-on-release]
+
     name: Trigger release announcement
     runs-on: ubuntu-latest
-    needs: [build-and-push-stdlib-documentation, update-playground-image-on-release]
     steps:
       - uses: actions/checkout@v1
       - name: Trigger
@@ -197,9 +198,10 @@ jobs:
           VERSION: ${{ github.event.client_payload.data.version }}
 
   send-musl-nightly-release-event:
+    needs: [build-latest-musl-docker-image]
+
     name: Send musl nightly release event
     runs-on: ubuntu-latest
-    needs: [build-latest-musl-docker-image]
     strategy:
       matrix:
         repo: ['ponylang/shared-docker']
