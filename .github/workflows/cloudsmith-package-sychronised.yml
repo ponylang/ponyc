@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run remote command
-        uses: appleboy/ssh-action@ffff33f8fe0318345a4f00f0e847325954b2a3ed
+        uses: ponylang-main/ssh-action@ffff33f8fe0318345a4f00f0e847325954b2a3ed
         with:
           host: ${{ secrets.PLAYGROUND_HOST }}
           username: ${{ secrets.PLAYGROUND_ADMIN_USER }}
