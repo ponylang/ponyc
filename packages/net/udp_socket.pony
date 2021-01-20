@@ -75,6 +75,25 @@ actor UDPSocket
           recover MyUDPNotify(env.out, consume destination) end)
       end
   ```
+
+  ## Behaviour under heavy load
+
+  ### Write
+
+  Because UDP doesn't have congestion control, it's important that the
+  application ensures that is sends packets no faster than the receiver
+  can process them.
+
+  On most platforms, `UDPSocket` will take care to avoid sending packets
+  faster than the underlying socket can process them, although this is hidden
+  from the programmer. When this occurs, `UDPSocket` will buffer pending packets
+  until the socket is able to process more data.
+
+  On macOS and BSD-derived systems, `UDPSocket` will close the connection if
+  the underlying network interface has a full sending queue. This is due to a
+  limitation of these systems when using non-blocking sockets with UDP, since
+  the OS offers no way to notify the application when the sending queue has
+  enough space to continue sending packets.
   """
   var _notify: UDPNotify
   var _fd: U32
@@ -161,13 +180,15 @@ actor UDPSocket
 
   be write(data: ByteSeq, to: NetAddress) =>
     """
-    Write a single sequence of bytes.
+    Write a single sequence of bytes. The connection will be closed if an
+    error is raised during sending.
     """
     _write(data, to)
 
   be writev(data: ByteSeqIter, to: NetAddress) =>
     """
-    Write a sequence of sequences of bytes.
+    Write a sequence of sequences of bytes as a single packet. The connection
+    will be closed if an error is raised during sending.
     """
     if _closed then
       return
