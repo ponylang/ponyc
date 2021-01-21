@@ -5,6 +5,15 @@ on:
     types: [cloudsmith-package-synchronised]
 
 jobs:
+  log-cloudsmith-event:
+    name: Log all incoming cloudsmith events
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log event
+        run: echo "$EVENT"
+        env:
+          EVENT: ${{ toJson(github.event) }}
+
   build-latest-gnu-docker-image:
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
