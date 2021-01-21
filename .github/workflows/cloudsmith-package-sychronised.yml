@@ -207,7 +207,7 @@ jobs:
         repo: ['ponylang/shared-docker']
     steps:
       - name: Send
-        uses: peter-evans/repository-dispatch@v1
+        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
@@ -224,7 +224,7 @@ jobs:
         repo: ['ponylang/shared-docker']
     steps:
       - name: Send
-        uses: peter-evans/repository-dispatch@v1
+        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
