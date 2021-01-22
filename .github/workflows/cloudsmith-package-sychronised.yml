@@ -197,6 +197,25 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           VERSION: ${{ github.event.client_payload.data.version }}
 
+  send-macos-nightly-release-event:
+    if: |
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-apple-darwin.tar.gz'
+
+    name: Send macos nightly release event
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: ['ponylang/ponyup']
+    steps:
+      - name: Send
+        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-macos-nightly-released
+          client-payload: '{}'
+
   send-musl-nightly-release-event:
     needs: [build-latest-musl-docker-image]
 
