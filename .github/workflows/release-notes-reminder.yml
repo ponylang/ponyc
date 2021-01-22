@@ -2,7 +2,8 @@ name: Release Notes Reminder
 
 on:
   pull_request_target:
-    types: [labeled]
+    types:
+      - labeled
 
 jobs:
   release-note-reminder:

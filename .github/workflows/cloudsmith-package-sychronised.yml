@@ -2,7 +2,8 @@ name: Cloudsmith package synchronised
 
 on:
   repository_dispatch:
-    types: [cloudsmith-package-synchronised]
+    types:
+      - cloudsmith-package-synchronised
 
 jobs:
   log-cloudsmith-event:
@@ -123,7 +124,8 @@ jobs:
           VERSION: ${{ github.event.client_payload.data.version }}
 
   update-playground-image-on-release:
-    needs: build-release-musl-docker-image
+    needs:
+      - build-release-musl-docker-image
 
     name: Update https://playground.ponylang.io/
     runs-on: ubuntu-latest
@@ -137,7 +139,8 @@ jobs:
           script: bash update-playground.bash
 
   update-stdlib-builder-image-on-release:
-    needs: build-release-musl-docker-image
+    needs:
+      - build-release-musl-docker-image
 
     name: Updates stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
@@ -152,7 +155,8 @@ jobs:
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
 
   update-stdlib-builder-image-on-nightly:
-    needs: build-latest-musl-docker-image
+    needs:
+      - build-latest-musl-docker-image
 
     name: Updates stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
@@ -167,7 +171,8 @@ jobs:
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
 
   build-and-push-stdlib-documentation:
-    needs: update-stdlib-builder-image-on-release
+    needs:
+      - update-stdlib-builder-image-on-release
 
     name: Build and Push standard library documentation
     runs-on: ubuntu-latest
@@ -181,7 +186,9 @@ jobs:
           STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
 
   trigger-release-announcement:
-    needs: [build-and-push-stdlib-documentation, update-playground-image-on-release]
+    needs:
+      - build-and-push-stdlib-documentation
+      - update-playground-image-on-release
 
     name: Trigger release announcement
     runs-on: ubuntu-latest
@@ -206,7 +213,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: ['ponylang/ponyup']
+        repo:
+          - ponylang/ponyup
     steps:
       - name: Send
         uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
@@ -223,7 +231,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: ['ponylang/shared-docker']
+        repo:
+          - ponylang/shared-docker
     steps:
       - name: Send
         uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
@@ -240,7 +249,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: ['ponylang/shared-docker']
+        repo:
+          - ponylang/shared-docker
     steps:
       - name: Send
         uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
