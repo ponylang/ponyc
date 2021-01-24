@@ -389,7 +389,7 @@ actor UDPSocket
         _complete_reads(arg)
         _pending_reads()
       end
-    else
+
       if AsioEvent.writeable(flags) then
         // On Unix, we now know that the socket is not busy anymore, we can
         // start sending again.
@@ -402,7 +402,7 @@ actor UDPSocket
         end
         _complete_writes()
       end
-
+    else
       ifdef windows then
         if AsioEvent.readable(flags) then
           _readable = false
