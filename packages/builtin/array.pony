@@ -126,12 +126,16 @@ class Array[A] is Seq[A]
     Create an array from a C-style pointer and length. The contents are not
     copied.
     """
-    _size = len
-
-    if alloc > len then
-      _alloc = alloc
+    if ptr.is_null() then
+      _size = 0
+      _alloc = 0
     else
-      _alloc = len
+      _size = len
+      if alloc > len then
+        _alloc = alloc
+      else
+        _alloc = len
+      end
     end
 
     _ptr = ptr

@@ -54,6 +54,7 @@ actor Main is TestList
     test(_TestStringUnchop)
     test(_TestStringRepeatStr)
     test(_TestStringConcatOffsetLen)
+    test(_TestStringFromCPointer)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestArrayAppend)
@@ -68,6 +69,7 @@ actor Main is TestList
     test(_TestArraySwapElements)
     test(_TestArrayChop)
     test(_TestArrayUnchop)
+    test(_TestArrayFromCPointer)
     test(_TestMath128)
     test(_TestRem)
     test(_TestMod)
@@ -1275,6 +1277,16 @@ class iso _TestStringConcatOffsetLen is UnitTest
   fun apply(h: TestHelper) =>
     h.assert_eq[String](recover String.>concat("ABCD".values(), 1, 2) end, "BC")
 
+class iso _TestStringFromCPointer is UnitTest
+  """
+  Test creating a string from a pointer
+  """
+  fun name(): String => "builtin/String.from_cpointer"
+
+  fun apply(h: TestHelper) =>
+    let str = String.from_cpointer(Pointer[U8], 1, 1)
+    h.assert_eq[USize](0, str.size())
+
 class iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
 
@@ -1680,6 +1692,16 @@ class iso _TestArrayUnchop is UnitTest
     else
       error
     end
+
+class iso _TestArrayFromCPointer is UnitTest
+  """
+  Test creating an array from a pointer
+  """
+  fun name(): String => "builtin/Array.from_cpointer"
+
+  fun apply(h: TestHelper) =>
+    let arr = Array[U8].from_cpointer(Pointer[U8], 1, 1)
+    h.assert_eq[USize](0, arr.size())
 
 class iso _TestMath128 is UnitTest
   """
