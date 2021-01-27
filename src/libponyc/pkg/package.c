@@ -945,18 +945,50 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
     {
       // Package to load is relative to from, build the qualified name
       // The qualified name should be relative to the program being built
-      package_t* from_pkg = (package_t*)ast_data(ast_child(program));
+      // and account for the relative path we were provided not being relative
+      // the program being built
+      ast_t* parent = ast_nearest(from, TK_PACKAGE);
+      package_t* parent_pkg = (package_t*)ast_data(parent);
 
-      if(from_pkg != NULL)
+      if(parent_pkg != NULL)
       {
-        const char* base_name = from_pkg->qualified_name;
+        const char* package_path = path;
+
+        size_t relatives = 0;
+        while(true)
+        {
+          if(strncmp("../", package_path, 3) == 0)
+          {
+            package_path += 3;
+            relatives += 1;
+          } else if(strncmp("./", package_path, 2) == 0)
+          {
+            package_path += 2;
+          }
+          else
+          {
+            break;
+          }
+        }
+
+        const char* base_name = parent_pkg->qualified_name;
         size_t base_name_len = strlen(base_name);
-        size_t path_len = strlen(path);
-        size_t len = base_name_len + path_len + 2;
+        while(relatives > 0 && base_name_len > 0)
+        {
+          if(base_name[base_name_len - 1] == '/')
+          {
+            relatives -= 1;
+          }
+
+          base_name_len -= 1;
+        }
+
+        size_t package_path_len = strlen(package_path);
+        size_t len = base_name_len + package_path_len + 2;
         char* q_name = (char*)ponyint_pool_alloc_size(len);
         memcpy(q_name, base_name, base_name_len);
         q_name[base_name_len] = '/';
-        memcpy(q_name + base_name_len + 1, path, path_len);
+        memcpy(q_name + base_name_len + 1, package_path, package_path_len);
         q_name[len - 1] = '\0';
         qualified_name = stringtab_consume(q_name, len);
       }
