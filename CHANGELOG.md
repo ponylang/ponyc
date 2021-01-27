@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix memory safety problem with Array.from_cpointer ([PR #3675](https://github.com/ponylang/ponyc/pull/3675))
 
 ### Added
 
