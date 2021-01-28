@@ -89,6 +89,9 @@ actor Main is TestList
     test(_TestLambdaCapture)
     test(_TestValtrace)
 
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+     rto.ponynoblock = true
+
 class iso _TestAbs is UnitTest
   """
   Test abs function
