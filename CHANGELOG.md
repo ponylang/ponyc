@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.38.3] - 2021-01-29
 
 ### Fixed
 
 - Fix memory safety problem with Array.from_cpointer ([PR #3675](https://github.com/ponylang/ponyc/pull/3675))
 - Fix bad package names in generated documentation ([PR #3700](https://github.com/ponylang/ponyc/pull/3700))
-
-### Added
-
-
-### Changed
-
 
 ## [0.38.2] - 2020-12-26
 
