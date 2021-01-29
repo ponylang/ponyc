@@ -47,9 +47,11 @@ Package names will be:
 * ponyc-x86-64-apple-darwin.tar.gz
 * ponyc-x86-64-unknown-freebsd-12.1.tar.gz
 * ponyc-x86-64-pc-windows-msvc.zip
+* ponyc-x86-64-unknown-linux-centos8.tar.gz
 * ponyc-x86-64-unknown-linux-gnu.tar.gz
 * ponyc-x86-64-unknown-linux-musl.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
+* ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz
 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
