@@ -78,3 +78,6 @@ actor Main is TestList
 
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
+
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+     rto.ponynoblock = true
