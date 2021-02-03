@@ -17,7 +17,7 @@ Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/p
 ### Select your Linux platform
 
 ```bash
-ponyup platform PLATFORM
+ponyup default PLATFORM
 ```
 
 where `PLATFORM` is from the table below
