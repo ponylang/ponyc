@@ -33,10 +33,10 @@ static uint32_t avail_cpu_size;
 
 static uint32_t property(const char* key)
 {
-  int value;
+  int value = 0;
   size_t len = sizeof(int);
-  sysctlbyname(key, &value, &len, NULL, 0);
-  return value;
+  int err = sysctlbyname(key, &value, &len, NULL, 0);
+  return (err == 0 ? value : 0);
 }
 #endif
 
@@ -50,6 +50,7 @@ static uint32_t cpus_online(void)
 
 #endif
 
+// Number of cores
 static uint32_t hw_cpu_count;
 
 #if defined(PLATFORM_IS_LINUX)
@@ -147,10 +148,21 @@ void ponyint_cpu_init()
     i = cpu_add_mask_to_list(i, &hw_cpus);
     i = cpu_add_mask_to_list(i, &ht_cpus);
   }
-#elif defined(PLATFORM_IS_BSD) && !defined(PLATFORM_IS_OPENBSD)
-  hw_cpu_count = property("hw.ncpu");
+#elif defined(PLATFORM_IS_FREEBSD)
+  hw_cpu_count = property("kern.smp.cores");
+  if (hw_cpu_count == 0) {
+    hw_cpu_count = property("hw.ncpu");
+  }
+#elif defined(PLATFORM_IS_DRAGONFLY)
+  hw_cpu_count = property("hw.cpu_topology_core_ids");  // # of real cores per package
+  hw_cpu_count *= property("hw.cpu_topology_phys_ids"); // # of physical packages
+  if (hw_cpu_count == 0) {
+    hw_cpu_count = property("hw.ncpu");
+  }
 #elif defined(PLATFORM_IS_OPENBSD)
   hw_cpu_count = cpus_online();
+#elif defined(PLATFORM_IS_BSD)
+  hw_cpu_count = property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
   hw_cpu_count = property("hw.physicalcpu");
 #elif defined(PLATFORM_IS_WINDOWS)
