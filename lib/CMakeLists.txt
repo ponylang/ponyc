@@ -10,7 +10,7 @@ if(NOT DEFINED PONYC_LIBS_BUILD_TYPE)
 endif()
 
 ExternalProject_Add(gbenchmark
-    URL https://github.com/google/benchmark/archive/v1.5.0.tar.gz
+    URL https://github.com/google/benchmark/archive/v1.5.2.tar.gz
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_CXX_FLAGS=-fpic --no-warn-unused-cli
 )
 
