@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update supported FreeBSD to 12.2 ([PR #3706](https://github.com/ponylang/ponyc/pull/3706))
 
 ## [0.38.3] - 2021-01-29
 
