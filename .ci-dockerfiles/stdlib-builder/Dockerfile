@@ -16,4 +16,5 @@ RUN apk update \
   && pip3 install --upgrade pip \
   && pip3 install wheel \
   && pip3 install mkdocs \
+  && pip3 install cryptography==3.3 \
   && pip3 install mkdocs-ponylang
