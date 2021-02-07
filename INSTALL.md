@@ -6,7 +6,7 @@ Prebuilt Pony installations will use clang as the default C compiler and clang++
 
 ## FreeBSD 12.1
 
-Prebuilt FreeBSD 12.1 nightly packages are available for download from our [Cloudsmith repository](https://cloudsmith.io/~ponylang/repos/nightlies/packages/?q=name%3A%27%5Eponyc-x86-64-unknown-freebsd-12.1.tar.gz%24%27).
+Prebuilt FreeBSD 12.1 nightly packages are available for download from our [Cloudsmith repository](https://cloudsmith.io/~ponylang/repos/nightlies/packages/?q=name%3A%27%5Eponyc-x86-64-unknown-freebsd-13.0.tar.gz%24%27).
 
 Starting with the next ponyc release, you'll also be able to download prebuilt ponyc releases from Cloudsmith. We'll update this page with the link once they become available.
 

@@ -17,7 +17,7 @@ ARCH=x86-64
 
 # Triple construction
 VENDOR=unknown
-OS=freebsd-12.1
+OS=freebsd-13.0
 TRIPLE=${ARCH}-${VENDOR}-${OS}
 
 # Build parameters
