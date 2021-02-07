@@ -19,3 +19,7 @@ previously 8 scheduler threads would be used by default. After this change, the
 number of scheduler threads on the same system is limited to 4 (one per CPU
 core).
 
+## Change supported FreeBSD version to 12.2
+
+We only maintain support for a single version of FreeBSD at a time due to limited usage of Pony of FreeBSD. We've switched from testing and building releases for 12.1 to 12.2, We would have done this sooner, but we hadn't noticed that 12.2 had been released.
+
