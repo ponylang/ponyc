@@ -4,7 +4,7 @@
 The CLI package provides enhanced Posix+GNU command line parsing with the
 feature of commands that can be specified in a hierarchy.
 
-See [RFC-0038](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md) for more background.
+See [RFC-0038](https://github.com/ponylang/rfcs/blob/main/text/0038-cli-format.md) for more background.
 
 The general EBNF of a command line is:
 ```ebnf

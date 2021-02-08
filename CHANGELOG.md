@@ -789,7 +789,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Alpine Linux compatibility for pony ([PR #1844](https://github.com/ponylang/ponyc/pull/1844))
-- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/master/text/0038-cli-format.md))
+- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/main/text/0038-cli-format.md))
    - Initial ([PR #1897](https://github.com/ponylang/ponyc/pull/1897)) implemented the full RFC and contained:
       - Enhanced Posix / GNU program argument syntax.
       - Commands and sub-commands.
@@ -805,7 +805,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Forbid returning and passing tuples to FFI functions ([PR #2012](https://github.com/ponylang/ponyc/pull/2012))
 - Deprecate support of Clang 3.3
 - Explicit partial calls - a question mark is now required to be at the call site for every call to a partial function.
-    - See [RFC 39](https://github.com/ponylang/rfcs/blob/master/text/0039-explicit-partial-calls.md).
+    - See [RFC 39](https://github.com/ponylang/rfcs/blob/main/text/0039-explicit-partial-calls.md).
     - Migration scripts for user code, for convenience, are provided here:
         - [Unix](https://gist.github.com/jemc/95969e3e2b58ddb0dede138c737907f5)
         - [Windows](https://gist.github.com/kulibali/cd5caf3a32d510bb86412f3fd4d52d0f)
@@ -846,7 +846,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add persistent set (RFC 42) ([PR #1925](https://github.com/ponylang/ponyc/pull/1925))
 - Bare methods and bare lambdas (RFC 34) ([PR #1858](https://github.com/ponylang/ponyc/pull/1858))
 - xoroshiro128+ implementation ([PR #1909](https://github.com/ponylang/ponyc/pull/1909))
-- Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/master/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
+- Exhaustive match ([RFC #40](https://github.com/ponylang/rfcs/blob/main/text/0040-exhaustive-match.md)) ([PR #1891](https://github.com/ponylang/ponyc/pull/1891))
 - Command line options for printing help ([PR #1899](https://github.com/ponylang/ponyc/pull/1899))
 - `Nanos.from_wall_clock` function to convert from a wall clock as obtained from `Time.now()` into number of nanoseconds since "the beginning of time". ([PR #1967](https://github.com/ponylang/ponyc/pull/1967))
 

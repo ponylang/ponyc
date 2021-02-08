@@ -52,7 +52,7 @@ Some things to note that aren't immediately obvious to folks just starting out:
 
 1. Your fork doesn't automatically stay up to date with change in the main repo.
 2. Any changes you make on your branch that you used for the PR will automatically appear in the PR so if you have more than 1 PR, be sure to always create different branches for them.
-3. Weird things happen with commit history if you don't create your PR branches off of master so always make sure you have the master branch checked out before creating a branch for a PR
+3. Weird things happen with commit history if you don't create your PR branches off of main so always make sure you have the main branch checked out before creating a branch for a PR
 
 If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [Zulip](https://ponylang.zulipchat.com).
 
@@ -96,11 +96,11 @@ When contributing to documentation, try to keep the following style guidelines i
 
 ## Code Formatting
 
-For code formatting guidelines please see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md).
+For code formatting guidelines please see [The Style Guide](https://github.com/ponylang/ponyc/blob/main/STYLE_GUIDE.md).
 
 ## Standard Library File Naming
 
-For standard library file naming guidelines see [The Style Guide](https://github.com/ponylang/ponyc/blob/master/STYLE_GUIDE.md#naming).
+For standard library file naming guidelines see [The Style Guide](https://github.com/ponylang/ponyc/blob/main/STYLE_GUIDE.md#naming).
 
 ## Source Code Coverage of Ponyc
 
