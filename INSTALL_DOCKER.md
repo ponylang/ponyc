@@ -2,13 +2,13 @@
 
 Docker based Pony environments are available. The following tags are available:
 
-- latest (most recent build of the `master` branch)
+- latest (most recent build of the `main` branch)
 - release (most recent release)
 - x.y.z (tagged release e.g. 0.33.1)
 
 If you prefer to use the Alpine images, you can use the following tags:
 
-- alpine (most recent build of the `master` branch)
+- alpine (most recent build of the `main` branch)
 - release-alpine (most recent release)
 - x.y.z-alpine (tagged release e.g. 0.33.1)
 
