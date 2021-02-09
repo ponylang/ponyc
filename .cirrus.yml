@@ -229,7 +229,7 @@ task:
 #
 
 task:
-  only_if: $CIRRUS_CRON == "master-midnight"
+  only_if: $CIRRUS_CRON == "nightly"
 
   matrix:
     - name: "nightly: x86-64-unknown-linux-centos8"
@@ -287,7 +287,7 @@ task:
     - bash .ci-scripts/x86-64-nightly.bash
 
 task:
-  only_if: $CIRRUS_CRON == "master-midnight"
+  only_if: $CIRRUS_CRON == "nightly"
 
   freebsd_instance:
     image: freebsd-12-2-release-amd64
@@ -315,7 +315,7 @@ task:
     - bash .ci-scripts/x86-64-unknown-freebsd-12.2-nightly.bash
 
 task:
-  only_if: $CIRRUS_CRON == "master-midnight"
+  only_if: $CIRRUS_CRON == "nightly"
 
   osx_instance:
     image: big-sur-xcode-12.4
@@ -341,7 +341,7 @@ task:
     - bash .ci-scripts/x86-64-nightly.bash
 
 task:
-  only_if: $CIRRUS_CRON == "master-midnight"
+  only_if: $CIRRUS_CRON == "nightly"
 
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
