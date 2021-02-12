@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix calculation of # CPU cores (FreeBSD/DragonFly) ([PR #3707](https://github.com/ponylang/ponyc/pull/3707))
+- Fix partial FFI declarations ignoring partial annotation ([PR #3713](https://github.com/ponylang/ponyc/pull/3713))
 
 ### Added
 
