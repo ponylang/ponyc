@@ -23,3 +23,7 @@ core).
 
 We only maintain support for a single version of FreeBSD at a time due to limited usage of Pony of FreeBSD. We've switched from testing and building releases for 12.1 to 12.2, We would have done this sooner, but we hadn't noticed that 12.2 had been released.
 
+## Fix FFI declarations ignoring partial annotation
+
+Previously, the compiler would ignore any `?` annotations on FFI declarations, which could result in the generated code lacking any guards for errors, causing the final program to abort at runtime. This change fixes the problem by ensuring that the compiler checks if FFI declarations specify a partial annotation.
+
