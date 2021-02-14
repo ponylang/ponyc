@@ -4,7 +4,7 @@
 #include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
-#include <blake2.h>
+#include "../blake2/blake2.h"
 #include <string.h>
 
 

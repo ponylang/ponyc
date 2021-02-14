@@ -11,7 +11,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include "../../libponyrt/sched/scheduler.h"
 #include "ponyassert.h"
-#include <blake2.h>
+#include "../blake2/blake2.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>

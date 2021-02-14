@@ -19,6 +19,7 @@ add_library(libponyc STATIC
     ast/symtab.c
     ast/token.c
     ast/treecheck.c
+    blake2/blake2b-ref.c
     codegen/codegen.c
     codegen/genbox.c
     codegen/gencall.c
@@ -105,7 +106,6 @@ target_compile_definitions(libponyc PRIVATE
 target_include_directories(libponyc
     PUBLIC ../common
     PRIVATE ../../build/libs/include
-    PRIVATE ../../lib/blake2
 )
 
 if (MSVC)

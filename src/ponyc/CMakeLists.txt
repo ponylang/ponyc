@@ -18,7 +18,6 @@ if (MSVC)
     target_link_libraries(ponyc
         PRIVATE libponyc
         PRIVATE libponyrt
-        PRIVATE blake2
         PRIVATE dbghelp
         PRIVATE ucrt
         PRIVATE Ws2_32
@@ -36,7 +35,6 @@ else()
     target_link_libraries(ponyc PRIVATE
         libponyc
         libponyrt
-        blake2
     )
 
     llvm_config(ponyc all)

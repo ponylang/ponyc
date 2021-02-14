@@ -19,15 +19,6 @@ ExternalProject_Add(googletest
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=-fpic -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
-add_library(blake2 STATIC blake2/blake2b-ref.c)
-set_property(TARGET blake2 PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-install(TARGETS blake2
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    COMPONENT library
-)
-
 find_package(Git)
 
 set(LLVM_DESIRED_HASH "c1a0a213378a458fbea1a5c77b315c7dce08fd05")

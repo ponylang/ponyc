@@ -83,7 +83,6 @@ if (MSVC)
     target_link_libraries(libponyc.tests
         PRIVATE libponyc
         PRIVATE libponyrt
-        PRIVATE blake2
         PRIVATE GTest::gtest
         PRIVATE dbghelp
         PRIVATE ucrt
@@ -104,7 +103,6 @@ else()
         target_link_libraries(libponyc.tests PRIVATE
             -Wl,-force_load,../../src/libponyrt/libponyrt.a
             libponyc
-            blake2
             GTest::gtest
         )
     else()
@@ -113,7 +111,6 @@ else()
             libponyrt
             -Wl,--no-whole-archive
             libponyc
-            blake2
             GTest::gtest
         )
     endif()
