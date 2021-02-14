@@ -16,6 +16,7 @@ The build system uses CMake, and includes a helper wrapper that will automatical
 The build system is divided into several stages:
 
 - Build the vendored LLVM libraries that are included in the `lib/llvm/src` Git submodule by running `make libs` (`.\make.ps1 libs` on Windows).  This stage only needs to be run once the first time you build (or if the vendored LLVM submodule changes, or if you run `make distclean`).
+  - This can take a while. To ensure its using all cores, try `make libs build_flags="-j6"`, replacing `6` with the number of CPU cores available.
 
 - `make configure` to configure the CMake build directory.  Use `make configure config=debug` (`.\make.ps1 configure -Config Debug`) for a debug build.
 - `make build` will build ponyc and put it in `build/release`.  Use `make build config=debug` (`.\make.ps1 build -Config Debug` on Windows) for a debug build that goes in `build/debug`.
