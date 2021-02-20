@@ -27,3 +27,9 @@ We only maintain support for a single version of FreeBSD at a time due to limite
 
 Previously, the compiler would ignore any `?` annotations on FFI declarations, which could result in the generated code lacking any guards for errors, causing the final program to abort at runtime. This change fixes the problem by ensuring that the compiler checks if FFI declarations specify a partial annotation.
 
+## Fix building ponyc on DragonFly BSD
+
+DragonFly BSD is lightly used as a supposed platform. It is also "unsupported" due to lack of CI. Over time, ponyc fell out of being able to be built on DragonFly. 
+
+As of this release, you should be able to use ponyc on DragonFly again. However, do to the unsupported nature of the DragonFly port, it might break again in which case, updates from anyone using Pony on DragonFly will be needed.
+
