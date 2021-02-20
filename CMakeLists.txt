@@ -169,6 +169,15 @@ if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.12")
 endif()
 
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/cxx_atomics")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isystem /usr/local/cxx_atomics")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem /usr/local/cxx_atomics")
+endif()
+
+
+
+
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
 if (PONY_CROSS_LIBPONYRT)
