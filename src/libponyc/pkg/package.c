@@ -806,11 +806,11 @@ bool package_init(pass_opt_t* opt)
   return true;
 }
 
-bool package_init_lib(pass_opt_t* opt)
+bool package_init_lib(pass_opt_t* opt, const char* pony_installation)
 {
   // TODO STA: does this need more than this subset of package_init?
   package_add_paths(getenv("PONYPATH"), opt);
-  if(!add_pony_installation_dir(opt->argv0, opt))
+  if(!add_pony_installation_dir(pony_installation, opt))
   {
     errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc installation location");
     return false;

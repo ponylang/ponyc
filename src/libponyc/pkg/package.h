@@ -42,7 +42,7 @@ bool package_init(pass_opt_t* opt);
  * TODO STA: this exists for turning libponyc into a reusable library
  * and needs to be rethought
  */
-bool package_init_lib(pass_opt_t* opt);
+bool package_init_lib(pass_opt_t* opt, const char* pony_installation);
 
 /**
  * Appends a list of paths to the list of paths that will be searched for
