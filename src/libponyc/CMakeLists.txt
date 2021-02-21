@@ -112,3 +112,12 @@ if (MSVC)
     file(GLOB_RECURSE CFILES "${PROJECT_SOURCE_DIR}/*.c")
     set_source_files_properties(${CFILES} PROPERTIES LANGUAGE CXX)
 endif (MSVC)
+
+if (NOT MSVC)
+    add_custom_command(TARGET libponyc POST_BUILD
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../debug/
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../release/
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../relwithdebinfo/
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../minsizerel/
+    )
+endif (NOT MSVC)

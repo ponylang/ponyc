@@ -209,7 +209,7 @@ install: build
 	@mkdir -p $(ponydir)/lib/$(arch)
 	@mkdir -p $(ponydir)/include/pony/detail
 	$(SILENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/lib/$(arch)
-	$(SILENT)cp $(buildDir)/src/libponyc/libponyc.a $(ponydir)/lib/$(arch)
+	$(SILENT)if [ -f $(outDir)/libponyc.a ]; then cp $(outDir)/libponyc.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
