@@ -673,17 +673,13 @@ static bool add_safe(const char* path, pass_opt_t* opt)
 
 // Determine the absolute path of the directory the current executable is in
 // and add it to our search path
-static bool add_exec_dir(pass_opt_t* opt)
+static bool add_pony_installation_dir(const char* path, pass_opt_t* opt)
 {
-  char path[FILENAME_MAX];
-  bool success = get_compiler_exe_directory(path, opt->argv0);
-  errors_t* errors = opt->check.errors;
-
-  if(!success)
-  {
-    errorf(errors, NULL, "Error determining executable path or directory.");
-    return false;
-  }
+  // TODO STA:
+  // validate path and add error if it doesn't exist.
+  // we should really validate it contains all the directories
+  // we expect
+  bool success = true;
 
   add_path(path, opt);
 
@@ -741,6 +737,22 @@ static bool add_exec_dir(pass_opt_t* opt)
   return true;
 }
 
+static bool add_exec_dir(pass_opt_t* opt)
+{
+  char path[FILENAME_MAX];
+  bool success = get_compiler_exe_directory(path, opt->argv0);
+  errors_t* errors = opt->check.errors;
+
+  if(!success)
+  {
+    errorf(errors, NULL, "Error determining executable path or directory.");
+    return false;
+  }
+
+  add_path(path, opt);
+
+  return add_pony_installation_dir(path, opt);
+}
 
 bool package_init(pass_opt_t* opt)
 {
@@ -794,6 +806,18 @@ bool package_init(pass_opt_t* opt)
   return true;
 }
 
+bool package_init_lib(pass_opt_t* opt)
+{
+  // TODO STA: does this need more than this subset of package_init?
+  package_add_paths(getenv("PONYPATH"), opt);
+  if(!add_pony_installation_dir(opt->argv0, opt))
+  {
+    errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc installation location");
+    return false;
+  }
+
+  return true;
+}
 
 bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt)
 {
@@ -915,7 +939,6 @@ ast_t* program_load(const char* path, pass_opt_t* opt)
 
   return program;
 }
-
 
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 {

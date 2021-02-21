@@ -39,6 +39,12 @@ bool handle_path_list(const char* paths, path_fn f, pass_opt_t* opt);
 bool package_init(pass_opt_t* opt);
 
 /**
+ * TODO STA: this exists for turning libponyc into a reusable library
+ * and needs to be rethought
+ */
+bool package_init_lib(pass_opt_t* opt);
+
+/**
  * Appends a list of paths to the list of paths that will be searched for
  * packages.
  * Path list is semicolon (;) separated on Windows and colon (:) separated on

@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(libponyc VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 add_library(libponyc STATIC
+    doctool.c
     ponyc.c
     ast/ast.c
     ast/bnfprint.c
