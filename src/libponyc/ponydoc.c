@@ -2,7 +2,7 @@
 #include "pass/pass.h"
 #include "pkg/package.h"
 
-bool doctool_init(pass_opt_t* options, const char* pony_installation)
+bool ponydoc_init(pass_opt_t* options, const char* pony_installation)
 {
   // TODO STA:
   // ponyc does this here
@@ -19,7 +19,7 @@ bool doctool_init(pass_opt_t* options, const char* pony_installation)
   return true;
 }
 
-ast_t* doctool_load(const char* path, const char* pony_installation)
+ast_t* ponydoc_load(const char* path, const char* pony_installation)
 {
   pass_opt_t opt;
   pass_opt_init(&opt);
@@ -37,7 +37,7 @@ ast_t* doctool_load(const char* path, const char* pony_installation)
   // installation?
   opt.argv0 = "this shouldn't be used";
 
-  doctool_init(&opt, pony_installation);
+  ponydoc_init(&opt, pony_installation);
 
   ast_t* program = program_load(path, &opt);
 
