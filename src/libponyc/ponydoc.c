@@ -41,11 +41,8 @@ ast_t* ponydoc_load(const char* path, const char* pony_installation)
 
   ast_t* program = program_load(path, &opt);
 
-  //ast_fprint(stderr, program, opt.ast_print_width);
-  if(program != NULL)
-    ast_fprint(stderr, program, opt.ast_print_width);
-
-  errors_print(opt.check.errors);
+  if (program == NULL)
+    errors_print(opt.check.errors);
 
   return program;
 }
