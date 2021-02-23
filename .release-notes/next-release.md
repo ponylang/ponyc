@@ -33,3 +33,20 @@ DragonFly BSD is lightly used as a supposed platform. It is also "unsupported" d
 
 As of this release, you should be able to use ponyc on DragonFly again. However, do to the unsupported nature of the DragonFly port, it might break again in which case, updates from anyone using Pony on DragonFly will be needed.
 
+## Create a standalone libponyc on Linux
+
+It's possible to use libponyc from projects other than ponyc. Using the
+library gives you access to all the various compiler functionality. However,
+it is hard to use the library because, you need to link in the correct libstdc++,
+libblake, and LLVM. Figuring out what is the correct version of each is very
+difficult.
+
+With this change, a new library `libponyc-standalone.a` will be created as
+part of the build process.
+
+Applications like the "in pony documentation generator" that we are working on will
+be able to link to libponyc-standalone and pick up all it's required dependencies.
+
+Windows, BSD, and macOS libraries are not created at this time but can be added
+as needed in the future.
+
