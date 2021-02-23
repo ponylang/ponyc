@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Create a standalone libponyc on Linux ([PR #3716](https://github.com/ponylang/ponyc/pull/3716))
 
 ### Changed
 
