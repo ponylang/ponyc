@@ -542,7 +542,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   // Trait provides default body. Use it and patch up symbol tables.
   pony_assert(ast_id(existing_body) == TK_NONE);
   ast_replace(&existing_body, method_body);
-  ast_visit(&method_body, rescope, NULL, opt, PASS_ALL);
+  ast_visit(&existing_body, rescope, NULL, opt, PASS_ALL);
 
   info->body_donor = (ast_t*)ast_data(method);
   info->trait_ref = trait_ref;
