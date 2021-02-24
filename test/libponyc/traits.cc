@@ -579,6 +579,22 @@ TEST_F(TraitsTest, DiamondInheritance)
   TEST_EQUIV(src, expect);
 }
 
+TEST_F(TraitsTest, DefaultUsedInIntersection)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f(): U32\n"
+
+    "trait T2\n"
+    "  fun f(): U32 =>\n"
+    "    let x: U32 = 1\n"
+    "    x\n"
+
+    "class C is (T1 & T2)\n";
+
+  TEST_COMPILE(src);
+}
+
 
 // Method variety
 
