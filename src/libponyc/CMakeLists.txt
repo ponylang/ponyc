@@ -4,6 +4,7 @@ project(libponyc VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 add_library(libponyc STATIC
     ponyc.c
+    ponydoc.c
     ast/ast.c
     ast/bnfprint.c
     ast/error.c
