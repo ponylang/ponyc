@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix calculation of # CPU cores (FreeBSD/DragonFly) ([PR #3707](https://github.com/ponylang/ponyc/pull/3707))
 - Fix partial FFI declarations ignoring partial annotation ([PR #3713](https://github.com/ponylang/ponyc/pull/3713))
 - Fix building ponyc on DragonFly BSD ([PR #3676](https://github.com/ponylang/ponyc/pull/3676))
+- Fix symbol table patching for overriding default methods ([PR #3719](https://github.com/ponylang/ponyc/pull/3719))
 
 ### Added
 
