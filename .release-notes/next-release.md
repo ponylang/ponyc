@@ -50,3 +50,25 @@ be able to link to libponyc-standalone and pick up all it's required dependencie
 Windows, BSD, and macOS libraries are not created at this time but can be added
 as needed in the future.
 
+## Fix symbol table patching for default implementations that replaces another method
+
+This release fixes a compiler crash that could happen when a default
+implementation replaced another method with the same signature. An example of
+this is when intersecting two interfaces that both have a method with the same
+signature and the second interface provides a default implementation:
+
+```pony
+interface A
+  fun f(): U32
+
+interface B
+  fun f(): U32 =>
+    let x: U32 = 42
+    x
+
+interface C is (A & B)
+```
+
+In this case, the default implementation was copied to `C`, but without its
+symbol table, subsequently resulting in a compiler crash.
+
