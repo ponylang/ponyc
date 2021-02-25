@@ -236,35 +236,35 @@ task:
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20200828
       environment:
-        CACHE_BUSTER: 20200828
+        CACHE_BUSTER: 20210224
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-centos8
     - name: "nightly: x86-64-unknown-linux-gnu"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
       environment:
-        CACHE_BUSTER: 20200423
+        CACHE_BUSTER: 20210224
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
       environment:
-        CACHE_BUSTER: 20200507
+        CACHE_BUSTER: 20210224
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
       environment:
-        CACHE_BUSTER: 20200830
+        CACHE_BUSTER: 20210224
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
       environment:
-        CACHE_BUSTER: 20200421
+        CACHE_BUSTER: 20210224
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -278,9 +278,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt`"
-      - echo "${TRIPLE_VENDOR}-${TRIPLE_OS}"
-      - echo "cache buster ${CACHE_BUSTER}"
+      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
     populate_script: make libs build_flags=-j8
 
   nightly_script:
@@ -426,9 +424,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt`"
-      - echo "${TRIPLE_VENDOR}-${TRIPLE_OS}"
-      - echo "cache buster ${CACHE_BUSTER}"
+      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
     populate_script: make libs build_flags=-j8
 
   release_script:
