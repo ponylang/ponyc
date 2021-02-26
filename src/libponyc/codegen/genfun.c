@@ -468,17 +468,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
       LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(c_m->func));
       LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
-      // If the result type is known to be a tuple, do the correct assignment
-      // cast even if the body type is not a tuple.
       ast_t* body_type = deferred_reify(m->fun, ast_type(body), c->opt);
-
-      if((ast_id(result) == TK_TUPLETYPE) && (ast_id(body_type) != TK_TUPLETYPE))
-      {
-        ast_free_unattached(body_type);
-        body_type = r_result;
-        r_result = NULL;
-      }
-
       LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
 
       ast_free_unattached(body_type);
