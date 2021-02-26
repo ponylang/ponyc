@@ -5,17 +5,52 @@
 task:
   only_if: $CIRRUS_PR != ''
 
+  matrix:
+  - name: "PR: x86-64-unknown-linux-centos8"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
+    environment:
+      CACHE_BUSTER: 20210225
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-centos8
+  - name: "PR: x86-64-unknown-linux-gnu"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-gnu
+  - name: "PR: x86-64-unknown-linux-ubuntu18.04"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20200507
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-ubuntu18.04
+  - name: "PR: x86-64-unknown-linux-ubuntu20.04"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-ubuntu20.04
+  - name: "PR: x86-64-unknown-linux-musl"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-musl
+
   container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
     memory: 24
 
-  name: "PR: x86-64-unknown-linux-gnu"
-
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
-    populate_script: make libs arch=x86-64 build_flags=-j8
+    fingerprint_script:
+      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
+    populate_script: make libs build_flags=-j8
 
   configure_script:
     - make configure arch=x86-64
@@ -45,28 +80,6 @@ task:
     - make build arch=x86-64 config=debug build_flags=-j8
   test_script:
     - make test-ci arch=x86-64 config=debug
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20200421
-    cpu: 8
-    memory: 24
-
-  name: "PR: x86-64-unknown-linux-musl"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` musl"
-    populate_script: make libs arch=x86-64 build_flags=-j8
-
-  configure_script:
-    - make configure arch=x86-64
-  build_script:
-    - make build arch=x86-64 build_flags=-j8
-  test_script:
-    - make test-ci arch=x86-64
 
 task:
   only_if: $CIRRUS_PR != ''
