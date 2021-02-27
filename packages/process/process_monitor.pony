@@ -70,26 +70,31 @@ class ProcessClient is ProcessNotify
 
 ## Process portability
 
-The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX and Windows.
+The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX and
+Windows.
 
 ## Shutting down ProcessMonitor and external process
 
-When a process is spawned using ProcessMonitor, and it is not necessary to communicate to it any further
-using `stdin` and `stdout` or `stderr`, calling [done_writing()](process-ProcessMonitor.md#done_writing)
-will close stdin to the child process. Processes expecting input will be notified of an `EOF` on their `stdin`
-and can terminate.
+When a process is spawned using ProcessMonitor, and it is not necessary to
+communicate to it any further using `stdin` and `stdout` or `stderr`, calling
+[done_writing()](process-ProcessMonitor.md#done_writing) will close stdin to
+the child process. Processes expecting input will be notified of an `EOF` on
+their `stdin` and can terminate.
 
-If a running program needs to be canceled and the [ProcessMonitor](process-ProcessMonitor.md) should be shut down,
-calling [dispose](process-ProcessMonitor.md#dispose) will terminate the child
-process and clean up all resources.
+If a running program needs to be canceled and the
+[ProcessMonitor](process-ProcessMonitor.md) should be shut down, calling
+[dispose](process-ProcessMonitor.md#dispose) will terminate the child process
+and clean up all resources.
 
-Once the child process is detected to be closed, the process exit status is retrieved and
-[ProcessNotify.dispose](process-ProcessNotify.md#dispose) is called.
+Once the child process is detected to be closed, the process exit status is
+retrieved and [ProcessNotify.dispose](process-ProcessNotify.md#dispose) is
+called.
 
-The process exit status can be either an instance of [Exited](process-Exited.md) containing
-the process exit code in case the program exited on its own,
-or (only on posix systems like linux, osx or bsd) an instance of [Signaled](process-Signaled.md) containing the signal number that terminated the process.
-
+The process exit status can be either an instance of
+[Exited](process-Exited.md) containing the process exit code in case the
+program exited on its own, or (only on posix systems like linux, osx or bsd) an
+instance of [Signaled](process-Signaled.md) containing the signal number that
+terminated the process.
 """
 use "backpressure"
 use "collections"
