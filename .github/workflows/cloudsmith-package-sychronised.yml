@@ -142,7 +142,7 @@ jobs:
     needs:
       - build-release-musl-docker-image
 
-    name: Updates stdlib-builder Docker image with newly released ponyc version
+    name: Update stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -158,7 +158,7 @@ jobs:
     needs:
       - build-latest-musl-docker-image
 
-    name: Updates stdlib-builder Docker image with nightly ponyc version
+    name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
