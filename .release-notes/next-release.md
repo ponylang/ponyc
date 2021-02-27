@@ -72,3 +72,7 @@ interface C is (A & B)
 In this case, the default implementation was copied to `C`, but without its
 symbol table, subsequently resulting in a compiler crash.
 
+## Fix tuple related compiler segfaults
+
+Andreas Stührk indentified and fixed the source of two different open issues with tuple handling that caused the pony compiler to crash.
+
