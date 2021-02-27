@@ -722,3 +722,15 @@ TEST_F(TraitsTest, TypeargInFunction2)
   // Tests typearg reification in methods inherited from parameterised traits.
   DO(test_compile(src, "expr"));
 }
+
+
+TEST_F(TraitsTest, TypeParamRefBeforeTypeParam)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f[X: Y, Y: U32]() => None\n"
+
+    "class C is T";
+
+  TEST_COMPILE(src);
+}

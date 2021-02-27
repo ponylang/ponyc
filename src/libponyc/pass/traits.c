@@ -417,7 +417,6 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_EMBED:
     case TK_PARAM:
     case TK_MATCH_CAPTURE:
-    case TK_TYPEPARAM:
     {
       pony_assert(ast_child(ast) != NULL);
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED, true);
@@ -429,6 +428,19 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     {
       pony_assert(ast_child(ast) != NULL);
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_UNDEFINED, true);
+      break;
+    }
+
+    case TK_TYPEPARAMS:
+    {
+      ast_t* typeparam = ast_child(ast);
+      while(typeparam != NULL)
+      {
+        pony_assert(ast_child(typeparam) != NULL);
+        ast_set(ast, ast_name(ast_child(typeparam)), typeparam, SYM_DEFINED, true);
+
+        typeparam = ast_sibling(typeparam);
+      }
       break;
     }
 
