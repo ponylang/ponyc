@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix compiler crash related to type parameter references ([PR #3725](https://github.com/ponylang/ponyc/pull/3725))
+- Fix early pipe shutdown with Windows ProcessMonitor ([PR #3726](https://github.com/ponylang/ponyc/pull/3726))
 
 ### Added
 
