@@ -153,8 +153,14 @@ class _Pipe
           addressof bytes_avail, USize(0))
       let winerrp = @GetLastError[I32]()
       if not okp then
-        if (winerrp == _ERRORBROKENPIPE()) or (winerrp == _ERRORNODATA()) then
-          return (consume read_buf, 0, 0) // Pipe is done & ready to close.
+        if (winerrp == _ERRORBROKENPIPE()) then
+          // Pipe is done & ready to close.
+          return (consume read_buf, 0, 0)
+        elseif (winerrp == _ERRORNODATA()) then
+          // We are using a non-blocking read. That will return a _ERRORNODATA
+          // if the pipe is currently empty. There could be data later so we
+          // return _EAGAIN
+          return (consume read_buf, -1, _EAGAIN())
         else
           // Some other error, map to invalid arg
           return (consume read_buf, -1, _EINVAL())
@@ -172,14 +178,17 @@ class _Pipe
           bytes_to_read, addressof bytes_read, USize(0))
       let winerr = @GetLastError[I32]()
       if not ok then
-        if (winerr == _ERRORBROKENPIPE()) or (winerr == _ERRORNODATA()) then
-          (consume read_buf, 0, 0) // Pipe is done & ready to close.
+        if (winerr == _ERRORBROKENPIPE()) then
+          // Pipe is done & ready to close.
+          (consume read_buf, 0, 0)
         else
-          (consume read_buf, -1, _EINVAL()) // Some other error, map to invalid arg
+          // Some other error, map to invalid arg
+          (consume read_buf, -1, _EINVAL())
         end
       else
         // We know bytes_to_read is > 0, and can assume bytes_read is as well
-        (consume read_buf, bytes_read.isize(), 0) // buffer back, bytes read, no error
+        // buffer back, bytes read, no error
+        (consume read_buf, bytes_read.isize(), 0)
       end
     end
 
@@ -200,8 +209,13 @@ class _Pipe
           bytes_to_write, addressof bytes_written, USize(0))
       let winerr = @GetLastError[I32]()
       if not ok then
-        if (winerr == _ERRORBROKENPIPE()) or (winerr == _ERRORNODATA()) then
+        if (winerr == _ERRORBROKENPIPE()) then
           (0, 0) // Pipe is done & ready to close.
+        elseif (winerr == _ERRORNODATA()) then
+          // We are using a non-blocking write. That will return a _ERRORNODATA
+          // if the pipe is currently unwriteable. It should be writeable later
+          // so we return _EAGAIN
+          (-1, _EAGAIN())
         else
           (-1, _EINVAL()) // Some other error, map to invalid arg
         end
