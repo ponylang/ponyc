@@ -364,6 +364,16 @@ TEST_F(LiteralTest, CantInfer_While_InvalidElseValue )
   TEST_ERROR(src);
 }
 
+// See #3531, inference wasn't being done across partial functions
+TEST_F(LiteralTest, CantApply_Partial_Function)
+{
+  const char* src =
+    "class Foo15c\n"
+    "  fun test() => \n"
+    "    1~add(1)\n";
+
+    TEST_ERROR(src);
+}
 
 
 
