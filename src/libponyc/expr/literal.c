@@ -789,8 +789,10 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       return true;
     }
 
+    case TK_TILDE:
     case TK_DOT:
     {
+      // Get real receiver
       ast_t* receiver = ast_child(literal_expr);
       if(!coerce_literal_to_type(&receiver, target_type, chain, opt,
         report_errors))
