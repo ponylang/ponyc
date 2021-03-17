@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../common/paths.h"
+#include "docgen_logo.h"
 
 // Type for storing the source code along the documentation.
 typedef struct doc_sources_t
@@ -42,15 +43,18 @@ typedef struct docgen_t
 {
   FILE* index_file;
   FILE* home_file;
+  FILE* logo_file;
   FILE* package_file;
   printbuf_t* public_types;
   printbuf_t* private_types;
   FILE* type_file;
   const char* base_dir;
   const char* sub_dir;
+  const char* assets_dir;
   char* doc_source_dir;
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
+  size_t assets_dir_buf_len;
   errors_t* errors;
   doc_sources_t* included_sources; // As a linked list, being the first element or NULL
 } docgen_t;
@@ -290,17 +294,17 @@ static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
 // The returned file handle must be fclosed() with no longer needed.
 // If the specified file cannot be opened an error will be generated and NULL
 // returned.
-static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
+static FILE* doc_open_file(docgen_t* docgen, const char* dir,
   const char* filename, const char* extn)
 {
   pony_assert(docgen != NULL);
+  pony_assert(dir != NULL);
   pony_assert(filename != NULL);
   pony_assert(extn != NULL);
 
   // Build the type file name in a buffer.
   // Full file name is:
   //   directory/filenameextn
-  const char* dir = in_sub_dir ? docgen->sub_dir : docgen->base_dir;
   size_t buf_len;
   char* buffer = doc_cat(dir, filename, extn, "", "", &buf_len);
 
@@ -871,7 +875,11 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
     // Escape markdown to tell this is Pony code
     // Using multiple '```````'  so hopefully the markdown parser
     // will consider the whole text as a code block.
-    fprintf(file, "```````pony-full-source\n");
+    fprintf(file, "---\n");
+    fprintf(file, "hide:\n");
+    fprintf(file, "- toc\n");
+    fprintf(file, "---\n");
+    fprintf(file, "```````pony linenums=\"1\"\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```````");
     fclose(file);
@@ -987,7 +995,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   size_t tqfn_len;
   char* tqfn = write_tqfn(ast, NULL, &tqfn_len);
 
-  docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
+  docgen->type_file = doc_open_file(docgen, docgen->sub_dir, tqfn, ".md");
 
   if(docgen->type_file == NULL)
     return;
@@ -1125,7 +1133,7 @@ static void doc_package_home(docgen_t* docgen,
   fprintf(docgen->index_file, "- package %s:\n",
     package_qualified_name(package));
 
-  docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
+  docgen->type_file = doc_open_file(docgen, docgen->sub_dir, tqfn, ".md");
 
   if(docgen->type_file == NULL)
     return;
@@ -1328,6 +1336,9 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   docgen->sub_dir = doc_cat(docgen->base_dir, "docs/", "", "", "",
     &docgen->sub_dir_buf_len);
 
+  docgen->assets_dir = doc_cat(docgen->sub_dir, "assets/", "", "", "",
+    &docgen->assets_dir_buf_len);
+
   if(opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, "Writing docs to %s\n", docgen->base_dir);
 
@@ -1338,6 +1349,10 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   // Create and clear out sub directory
   pony_mkdir(docgen->sub_dir);
   doc_rm_star(docgen->sub_dir);
+
+  // Create and clear out assets directory
+  pony_mkdir(docgen->assets_dir);
+  doc_rm_star(docgen->assets_dir);
 }
 
 void generate_docs(ast_t* program, pass_opt_t* options)
@@ -1356,8 +1371,9 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   doc_setup_dirs(&docgen, program, options);
 
   // Open the index and home files
-  docgen.index_file = doc_open_file(&docgen, false, "mkdocs", ".yml");
-  docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
+  docgen.index_file = doc_open_file(&docgen, docgen.base_dir, "mkdocs", ".yml");
+  docgen.home_file = doc_open_file(&docgen, docgen.sub_dir, "index", ".md");
+  docgen.logo_file = doc_open_file(&docgen, docgen.assets_dir, "logo", ".png");
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
 
@@ -1374,14 +1390,34 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.home_file, "Packages\n\n");
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
-    fprintf(docgen.index_file, "theme: ponylang\n");
+    fprintf(docgen.index_file, "theme:\n");
+    fprintf(docgen.index_file, "  name: material\n");
+    fprintf(docgen.index_file, "  favicon: assets/logo.png\n");
+    fprintf(docgen.index_file, "  logo: assets/logo.png\n");
+    fprintf(docgen.index_file, "  palette:\n");
+    fprintf(docgen.index_file, "    primary: brown\n");
+    fprintf(docgen.index_file, "    accent: amber\n");
+    fprintf(docgen.index_file, "  features:\n");
+    fprintf(docgen.index_file, "  - navigation.instant\n");
     fprintf(docgen.index_file, "markdown_extensions:\n");
-    fprintf(docgen.index_file, "- markdown.extensions.toc:\n");
+    fprintf(docgen.index_file, "- pymdownx.highlight\n");
+    fprintf(docgen.index_file, "- pymdownx.smartsymbols\n");
+    fprintf(docgen.index_file, "- pymdownx.superfences\n");
+    fprintf(docgen.index_file, "- toc:\n");
     fprintf(docgen.index_file, "    permalink: true\n");
+    fprintf(docgen.index_file, "    toc_depth: 3\n");
+    fprintf(docgen.index_file, "plugins:\n");
+    fprintf(docgen.index_file, "- search:\n");
     fprintf(docgen.index_file, "nav:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
     doc_packages(&docgen, &docgen_opt, program);
+  }
+
+  // Write logo file
+  if(docgen.logo_file != NULL)
+  {
+    generate_doc_logo(docgen.logo_file);
   }
 
   if (docgen.included_sources != NULL) {
@@ -1399,15 +1435,22 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   }
 
   // Tidy up
+
   if(docgen.index_file != NULL)
     fclose(docgen.index_file);
 
   if(docgen.home_file != NULL)
-   fclose(docgen.home_file);
+    fclose(docgen.home_file);
+
+  if(docgen.logo_file != NULL)
+    fclose(docgen.logo_file);
 
   if(docgen.base_dir != NULL)
     ponyint_pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
 
   if(docgen.sub_dir != NULL)
     ponyint_pool_free_size(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
+
+  if(docgen.assets_dir != NULL)
+    ponyint_pool_free_size(docgen.assets_dir_buf_len, (void*)docgen.assets_dir);
 }

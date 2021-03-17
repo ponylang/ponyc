@@ -15,4 +15,4 @@ RUN apk update \
   py3-pip \
   && pip3 install --upgrade pip \
   && pip3 install mkdocs \
-  && pip3 install mkdocs-ponylang
+  && pip3 install mkdocs-material
