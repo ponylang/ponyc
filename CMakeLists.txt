@@ -108,6 +108,8 @@ if("${_compiler_arch}" STREQUAL "")
 endif()
 
 # LLVM component setup
+message("Compiler architecture is ${_compiler_arch}")
+
 set(LLVM_COMPONENTS core demangle objcarcopts orcjit)
 
 if(${_compiler_arch} MATCHES "x64")
