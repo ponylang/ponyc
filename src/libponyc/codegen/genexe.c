@@ -293,7 +293,11 @@ static bool link_exe(compile_t* c, ast_t* program,
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
+#if defined(PLATFORM_IS_ARM)
+    "%s -execute -arch %.*s "
+#else
     "%s -execute -no_pie -arch %.*s "
+#endif
     "-macosx_version_min 11.0.0 -o %s %s %s %s "
     "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
