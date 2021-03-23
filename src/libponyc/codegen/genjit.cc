@@ -142,6 +142,7 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
     errorf(c->opt->check.errors, nullptr, "LLVM ORC JIT Error");
     return false;
   }
+  c->module = nullptr;
 
   for (size_t i = 0; i < symbol_count; i++)
   {
