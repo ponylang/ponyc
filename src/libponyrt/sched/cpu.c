@@ -12,7 +12,7 @@
 #elif defined(PLATFORM_IS_MACOSX)
   #include <unistd.h>
   #include <mach/mach.h>
-#  if define(PLATFORM_IS_ARM)
+#  if defined(PLATFORM_IS_ARM)
   #include <mach/mach_time.h>
 #  endif
   #include <mach/thread_policy.h>
