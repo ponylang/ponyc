@@ -119,8 +119,20 @@ if(${_compiler_arch} MATCHES "x64")
         x86desc
         x86info
     )
+elseif(${_compiler_arch} MATCHES "aarch64")
+    list(APPEND LLVM_COMPONENTS
+        aarch64asmparser
+        aarch64codegen
+        aarch64desc
+        aarch64info
+    )
 elseif(${_compiler_arch} MATCHES "arm")
-    # TODO
+    list(APPEND LLVM_COMPONENTS
+        armasmparser
+        armcodegen
+        armdesc
+        arminfo
+    )
 endif()
 
 if(MSVC)
