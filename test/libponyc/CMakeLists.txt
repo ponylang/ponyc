@@ -79,8 +79,6 @@ target_link_directories(libponyc.tests
     PRIVATE ../../build/libs/lib
 )
 
-target_link_libraries(libponyc.tests PRIVATE ${PONYC_LLVM_LIBS})
-
 if (MSVC)
     target_link_libraries(libponyc.tests
         PRIVATE libponyc
@@ -130,3 +128,5 @@ else()
     endif()
 
 endif (MSVC)
+
+target_link_libraries(libponyc.tests PRIVATE ${PONYC_LLVM_LIBS})

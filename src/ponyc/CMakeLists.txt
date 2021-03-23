@@ -14,8 +14,6 @@ target_link_directories(ponyc
     PRIVATE ../../build/libs/lib
 )
 
-target_link_libraries(ponyc PRIVATE ${PONYC_LLVM_LIBS})
-
 if (MSVC)
     target_link_libraries(ponyc
         PRIVATE libponyc
@@ -50,3 +48,5 @@ else()
         target_link_options(ponyc PRIVATE "-static-libgcc")
     endif()
 endif (MSVC)
+
+target_link_libraries(ponyc PRIVATE ${PONYC_LLVM_LIBS})

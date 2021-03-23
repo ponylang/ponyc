@@ -112,7 +112,7 @@ message("Compiler architecture is ${_compiler_arch}")
 
 set(LLVM_COMPONENTS core demangle objcarcopts orcjit)
 
-if(${_compiler_arch} MATCHES "x64")
+if(${_compiler_arch} MATCHES "x64|x86_64")
     list(APPEND LLVM_COMPONENTS
         x86asmparser
         x86codegen
@@ -140,6 +140,8 @@ if(MSVC)
 else()
     list(APPEND LLVM_COMPONENTS debuginfodwarf)
 endif()
+
+message("LLVM_COMPONENTS: ${LLVM_COMPONENTS}")
 
 llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
 # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
