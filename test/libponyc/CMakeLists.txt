@@ -129,4 +129,6 @@ else()
 
 endif (MSVC)
 
-target_link_libraries(libponyc.tests PRIVATE ${PONYC_LLVM_LIBS})
+if(NOT PONY_CROSS_LIBPONYRT)
+    target_link_libraries(libponyc.tests PRIVATE ${PONYC_LLVM_LIBS})
+endif()
