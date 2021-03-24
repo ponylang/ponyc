@@ -104,9 +104,7 @@ else()
     message(FATAL_ERROR "Git not found!")
 endif()
 
-if (NOT DEFINED LLVM_TARGETS_TO_BUILD)
-  set(LLVM_TARGETS_TO_BUILD "X86;ARM;AArch64")
-endif()
+message("Building targets: ${LLVM_TARGETS_TO_BUILD}")
 
 set(LLVM_ENABLE_BINDINGS OFF)
 set(LLVM_ENABLE_OCAMLDOC OFF)

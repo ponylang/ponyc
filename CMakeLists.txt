@@ -110,38 +110,24 @@ endif()
 # LLVM component setup
 message("Compiler architecture is ${_compiler_arch}")
 
-set(LLVM_COMPONENTS core demangle objcarcopts orcjit)
-
-if(${_compiler_arch} MATCHES "x64|x86_64")
-    list(APPEND LLVM_COMPONENTS
-        x86asmparser
-        x86codegen
-        x86desc
-        x86info
-    )
-elseif(${_compiler_arch} MATCHES "aarch64|arm64")
-    list(APPEND LLVM_COMPONENTS
-        aarch64asmparser
-        aarch64codegen
-        aarch64desc
-        aarch64info
-    )
-elseif(${_compiler_arch} MATCHES "arm")
-    list(APPEND LLVM_COMPONENTS
-        armasmparser
-        armcodegen
-        armdesc
-        arminfo
-    )
-endif()
-
-if(MSVC)
-    list(APPEND LLVM_COMPONENTS debuginfopdb)
-else()
-    list(APPEND LLVM_COMPONENTS debuginfodwarf)
-endif()
-
-message("LLVM_COMPONENTS: ${LLVM_COMPONENTS}")
+set(LLVM_COMPONENTS
+    core
+    demangle
+    objcarcopts
+    orcjit
+    x86asmparser
+    x86codegen
+    x86desc
+    x86info
+    aarch64asmparser
+    aarch64codegen
+    aarch64desc
+    aarch64info
+    armasmparser
+    armcodegen
+    armdesc
+    arminfo
+)
 
 llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
 # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
