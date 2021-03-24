@@ -2,7 +2,7 @@ config ?= release
 arch ?= native
 tune ?= generic
 build_flags ?= -j2
-llvm_archs ?= "X86;ARM;AArch64"
+llvm_archs ?= X86;ARM;AArch64
 llvm_config ?= Release
 llc_arch ?= x86-64
 
