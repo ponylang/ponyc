@@ -110,27 +110,29 @@ endif()
 # LLVM component setup
 message("Compiler architecture is ${_compiler_arch}")
 
-set(LLVM_COMPONENTS
-    core
-    demangle
-    objcarcopts
-    orcjit
-    x86asmparser
-    x86codegen
-    x86desc
-    x86info
-    aarch64asmparser
-    aarch64codegen
-    aarch64desc
-    aarch64info
-    armasmparser
-    armcodegen
-    armdesc
-    arminfo
-)
+if(NOT PONY_CROSS_LIBPONYRT)
+    set(LLVM_COMPONENTS
+        core
+        demangle
+        objcarcopts
+        orcjit
+        x86asmparser
+        x86codegen
+        x86desc
+        x86info
+        aarch64asmparser
+        aarch64codegen
+        aarch64desc
+        aarch64info
+        armasmparser
+        armcodegen
+        armdesc
+        arminfo
+    )
 
-llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
-# message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
+    llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
+    # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
+endif()
 
 # Required definitions.  We use these generators so that the defines are correct for both *nix (where the config applies at configuration time) and Windows (where the config applies at build time).
 add_compile_definitions(
