@@ -16,6 +16,8 @@ actor Main
     env.out.print("This will always be seen")
 ```
 """
+use @fprintf[I32](stream: Pointer[U8] tag, fmt: Pointer[U8] tag, ...)
+
 primitive DebugOut
 primitive DebugErr
 
@@ -58,7 +60,7 @@ primitive Debug
 
   fun _print(msg: String, stream: DebugStream) =>
     ifdef debug then
-      @fprintf[I32](_stream(stream), "%s\n".cstring(), msg.cstring())
+      @fprintf(_stream(stream), "%s\n".cstring(), msg.cstring())
     end
 
   fun _stream(stream: DebugStream): Pointer[U8] =>

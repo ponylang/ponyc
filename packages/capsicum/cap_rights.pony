@@ -1,4 +1,10 @@
 use "files"
+use @__cap_rights_init[Pointer[U64]](version: I32, rights: Pointer[U64], ...)
+  if freebsd or "capsicum"
+use @__cap_rights_clear[Pointer[U64]](rights: Pointer[U64], ...)
+  if freebsd or "capsicum"
+use @__cap_rights_set[Pointer[U64]](rights: Pointer[U64], ...)
+  if freebsd or "capsicum"
 
 type CapRights is CapRights0
 
@@ -59,12 +65,12 @@ class CapRights0
 
   fun ref set(cap: U64) =>
     ifdef freebsd or "capsicum" then
-      @__cap_rights_set[None](addressof _r0, cap, U64(0))
+      @__cap_rights_set(addressof _r0, cap, U64(0))
     end
 
   fun ref unset(cap: U64) =>
     ifdef freebsd or "capsicum" then
-      @__cap_rights_clear[None](addressof _r0, cap, U64(0))
+      @__cap_rights_clear(addressof _r0, cap, U64(0))
     end
 
   fun limit(fd: I32): Bool =>
@@ -98,7 +104,7 @@ class CapRights0
     Clear all rights.
     """
     ifdef freebsd or "capsicum" then
-      @__cap_rights_init[Pointer[U64]](I32(0), addressof _r0, U64(0))
+      @__cap_rights_init(_version(), addressof _r0, U64(0))
     end
 
   fun contains(that: CapRights0): Bool =>

@@ -2,6 +2,7 @@ use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
       flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
+use @fcntl[I32](fd: U32, cmd: I32, ...)
 
 primitive _FSETFL
   fun apply(): I32 => 4
@@ -104,11 +105,11 @@ class _Pipe
     end
 
   fun _set_fd(fd: U32, flags: I32) ? =>
-    let result = @fcntl[I32](fd, _FSETFD(), flags)
+    let result = @fcntl(fd, _FSETFD(), flags)
     if result < 0 then error end
 
   fun _set_fl(fd: U32, flags: I32) ? =>
-    let result = @fcntl[I32](fd, _FSETFL(), flags)
+    let result = @fcntl(fd, _FSETFL(), flags)
     if result < 0 then error end
 
   fun ref begin(owner: AsioEventNotify) =>

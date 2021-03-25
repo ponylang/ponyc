@@ -32,6 +32,7 @@ use "cli"
 use "collections"
 use "random"
 use "time"
+use @printf[I32](fmt: Pointer[U8] tag, ...)
 
 actor Main
   new create(env: Env) =>
@@ -242,7 +243,7 @@ actor Sender
     try
       _analyzers(_rand.int_unbiased[USize](_analyzers.size()))?.msg_from_sender()
     else
-      @printf[I32]("BBBBAAADDDD\n".cstring())
+      @printf("BBBBAAADDDD\n".cstring())
     end
 
     if not _done then
