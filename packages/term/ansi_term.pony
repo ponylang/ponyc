@@ -199,7 +199,7 @@ actor ANSITerm
     """
     let ws: _TermSize = _TermSize
     ifdef posix then
-      @ioctl[I32](0, _TIOCGWINSZ(), ws) // do error handling
+      @ioctl(0, _TIOCGWINSZ(), ws) // do error handling
       _notify.size(ws.row, ws.col)
     end
 

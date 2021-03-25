@@ -1,3 +1,5 @@
+use @_open[I32](path: Pointer[U8] tag, flags: I32, ...) if windows
+use @open[I32](path: Pointer[U8] tag, flags: I32, ...) if not windows
 use @_read[I32](fd: I32, buffer: Pointer[None], bytes_to_read: I32) if windows
 use @read[ISize](fd: I32, buffer: Pointer[None], bytes_to_read: USize)
   if not windows
@@ -122,9 +124,9 @@ class File
       end
 
       _fd = ifdef windows then
-        @_open[I32](path.path.cstring(), flags, mode.i32())
+        @_open(path.path.cstring(), flags, mode.i32())
       else
-        @open[I32](path.path.cstring(), flags, mode)
+        @open(path.path.cstring(), flags, mode)
       end
 
       if _fd == -1 then
@@ -159,9 +161,9 @@ class File
       _errno = FileError
     else
       _fd = ifdef windows then
-        @_open[I32](path.path.cstring(), @ponyint_o_rdonly())
+        @_open(path.path.cstring(), @ponyint_o_rdonly())
       else
-        @open[I32](path.path.cstring(), @ponyint_o_rdonly())
+        @open(path.path.cstring(), @ponyint_o_rdonly())
       end
 
       if _fd == -1 then

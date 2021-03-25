@@ -117,10 +117,10 @@ TEST_F(BadPonyTest, TypeErrorInFFIArguments)
 {
   // From issue #2114
   const char *src =
-    "use @printf[None](argc: Pointer[U32])\n"
+    "use @foo[None](i: Pointer[U32])\n"
     "actor Main\n"
     "  fun create(env: Env) =>\n"
-    "    @printf(addressof U32(0))";
+    "    @foo(addressof U32(0))";
 
   TEST_ERRORS_1(src, "can only take the address of a local, field or method");
 }

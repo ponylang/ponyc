@@ -7,6 +7,8 @@ use @ponyint_o_trunc[I32]()
 use @ponyint_o_directory[I32]()
 use @ponyint_o_cloexec[I32]()
 use @ponyint_at_removedir[I32]()
+use @openat[I32](fd: I32, path: Pointer[U8] tag, flags: I32, ...)
+  if linux or bsd
 use @unlinkat[I32](fd: I32, target: Pointer[U8] tag, flags: I32)
 
 primitive _DirectoryHandle
@@ -51,7 +53,7 @@ class Directory
 
     ifdef posix then
       _fd =
-        @open[I32](from.path.cstring(),
+        @open(from.path.cstring(),
           @ponyint_o_rdonly()
             or @ponyint_o_directory()
             or @ponyint_o_cloexec())
@@ -99,7 +101,7 @@ class Directory
         let h =
           ifdef linux or bsd then
             let fd =
-              @openat[I32](fd', ".".cstring(),
+              @openat(fd', ".".cstring(),
                 @ponyint_o_rdonly()
                   or @ponyint_o_directory()
                   or @ponyint_o_cloexec())
@@ -159,7 +161,7 @@ class Directory
 
     ifdef linux or bsd then
       let fd' =
-        @openat[I32](_fd, target.cstring(),
+        @openat(_fd, target.cstring(),
           @ponyint_o_rdonly()
             or @ponyint_o_directory()
             or @ponyint_o_cloexec())
@@ -225,7 +227,7 @@ class Directory
 
     ifdef linux or bsd then
       let fd' =
-        @openat[I32](_fd, target.cstring(),
+        @openat(_fd, target.cstring(),
           @ponyint_o_rdwr()
             or @ponyint_o_creat()
             or @ponyint_o_cloexec(),
@@ -250,7 +252,7 @@ class Directory
 
     ifdef linux or bsd then
       let fd' =
-        @openat[I32](_fd, target.cstring(),
+        @openat(_fd, target.cstring(),
           @ponyint_o_rdonly() or @ponyint_o_cloexec(),
           I32(0x1B6))
       recover File._descriptor(fd', path')? end

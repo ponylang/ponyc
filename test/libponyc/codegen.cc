@@ -717,6 +717,8 @@ TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
 TEST_F(CodegenTest, CycleDetector)
 {
   const char* src =
+    "use @printf[I32](fmt: Pointer[U8] tag, ...)\n"
+
     "actor Ring\n"
     "  let _id: U32\n"
     "  var _next: (Ring | None)\n"
@@ -754,7 +756,7 @@ TEST_F(CodegenTest, CycleDetector)
     "      end\n"
     "      _c = _c + 1\n"
     "      if _c > 50 then\n"
-    "        @printf[I32](\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode[I32](), num)\n"
+    "        @printf(\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode[I32](), num)\n"
     "        @pony_exitcode[None](I32(1))\n"
     "      else\n"
     "        check_done(num)\n"

@@ -30,6 +30,7 @@ use "cli"
 use "collections"
 use "random"
 use "time"
+use @printf[I32](fmt: Pointer[U8] tag, ...)
 
 actor Main
   new create(env: Env) =>
@@ -150,7 +151,7 @@ actor SyncLeader
     _done = done
 
     (let t_s: I64, let t_ns: I64) = Time.now()
-    @printf[I32]("%ld.%09ld".cstring(), t_s, t_ns)
+    @printf("%ld.%09ld".cstring(), t_s, t_ns)
     _current_t = to_ns(t_s, t_ns)
 
     for p in _ps.values() do
@@ -167,7 +168,7 @@ actor SyncLeader
     """
     _waiting_for = _waiting_for - 1
     if (_waiting_for is 0) then
-      @printf[I32](",".cstring())
+      @printf(",".cstring())
       for p in _ps.values() do
         p.report()
       end
@@ -191,7 +192,7 @@ actor SyncLeader
     if (_waiting_for is 0) then
       let run_ns: I64 = _current_t - _last_t
       let rate: I64 = (_partial_count.i64() * 1_000_000_000) / run_ns
-      @printf[I32]("%lld,%lld\n".cstring(), run_ns, rate)
+      @printf("%lld,%lld\n".cstring(), run_ns, rate)
 
       if not _done then
         (let t_s: I64, let t_ns: I64) = Time.now()

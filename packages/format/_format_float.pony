@@ -1,3 +1,8 @@
+use @snprintf[I32](str: Pointer[U8] tag, size: USize, fmt: Pointer[U8] tag, ...)
+  if not windows
+use @_snprintf[I32](str: Pointer[U8] tag, count: USize, fmt: Pointer[U8] tag, ...)
+  if windows
+
 primitive _FormatFloat
   """
   Worker type providing to string conversions for floats.
@@ -34,9 +39,9 @@ primitive _FormatFloat
       end
 
       ifdef windows then
-        @_snprintf[I32](s.cstring(), s.space(), f.cstring(), x)
+        @_snprintf(s.cstring(), s.space(), f.cstring(), x)
       else
-        @snprintf[I32](s.cstring(), s.space(), f.cstring(), x)
+        @snprintf(s.cstring(), s.space(), f.cstring(), x)
       end
 
       s .> recalc()
