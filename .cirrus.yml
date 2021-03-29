@@ -146,7 +146,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
@@ -173,7 +173,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
@@ -368,7 +368,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
@@ -514,7 +514,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20201208"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
