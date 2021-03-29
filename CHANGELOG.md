@@ -2,19 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.39.1] - 2021-03-29
 
 ### Fixed
 
 - Fix compiler crash related to type parameter references ([PR #3725](https://github.com/ponylang/ponyc/pull/3725))
 - Fix early pipe shutdown with Windows ProcessMonitor ([PR #3726](https://github.com/ponylang/ponyc/pull/3726))
 - Fix literal inference through partial function ([PR #3729](https://github.com/ponylang/ponyc/pull/3729))
-
-### Added
-
-
-### Changed
-
 
 ## [0.39.0] - 2021-02-27
 
