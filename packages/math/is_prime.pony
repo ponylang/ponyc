@@ -47,9 +47,6 @@ class IsPrime[A: (Integer[A] val & Unsigned)]
       if n == prime then return true end
       if (n %% prime) == 0 then return false end
     end
-    if n <= 3 then return n > 1 end
-    if (n %% 2) == 0 then return false end 
-    if (n %% 3) == 0 then return false end
     
     var i: A = 5
     while (i * i) <= n do
