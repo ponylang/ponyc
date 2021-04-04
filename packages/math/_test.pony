@@ -11,8 +11,10 @@ actor Main is TestList
     test(_IsPrimeTestBuilder[U32]("U32"))
     test(_IsPrimeTestBuilder[U64]("U64"))
     test(_IsPrimeTestBuilder[U128]("U128"))
+    test(_IsPrimeTestBuilder[ULong]("ULong"))
+    test(_IsPrimeTestBuilder[USize]("USize"))
 
-primitive _IsPrimeTestBuilder[A: (Integer[A] val & Unsigned)]
+primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   """
   All integers (excluding 2 and 3), can be expressed as (6k + i), 
   where i = −1, 0, 1, 2, 3, or 4 and k is greater than 0.

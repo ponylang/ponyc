@@ -1,4 +1,4 @@
-primitive IsPrime[A: (Integer[A] val & Unsigned)]
+primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
   """
   Primality test using 6k ± 1 method.
 
