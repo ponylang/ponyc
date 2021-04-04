@@ -1,5 +1,11 @@
 primitive IsPrime[A: (Integer[A] val & Unsigned)]
-  """Primality test using 6k+-1 optimization."""
+  """
+  Primality test using 6k ± 1 method.
+
+  All prime numbers (excluding 2 and 3), can be expressed as (6k + i), 
+  where i = −1, 0, 1, 2, 3, or 4. Since 2 divides (6k + 0), (6k + 2), 
+  and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1).
+  """
 
   // Using a match table like below provides information to LLVM
   // to allocate static globals rather than stack or heap allocation.
