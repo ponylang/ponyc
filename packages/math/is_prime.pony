@@ -3,7 +3,6 @@ primitive IsPrime[A: (Integer[A] val & Unsigned)]
 
   // Using a match table like below provides information to LLVM
   // to allocate static globals rather than stack or heap allocation.
-  fun _low_prime_table_size(): USize => 256
   fun _low_prime_table(index: USize): A val =>
     match index
     | 0 => 2 | 1 => 3 | 2 => 5 | 3 => 7 | 4 => 11 
@@ -60,6 +59,8 @@ primitive IsPrime[A: (Integer[A] val & Unsigned)]
     | 255 => 1619
     else 0
     end
+
+  fun _low_prime_table_size(): USize => 256
 
   fun apply(n: A): Bool =>
     var table_index: USize = 0
