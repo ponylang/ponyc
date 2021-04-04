@@ -70,7 +70,9 @@ primitive IsPrime[A: (Integer[A] val & Unsigned)]
       if n == prime then return true end
       if (n %% prime) == 0 then return false end
     end
-    if n == 1 then return false end  // 1 is not prime
+
+    // 1 is not prime
+    if n == 1 then return false end
 
     var i: A = 5
     while (i * i) <= n do
