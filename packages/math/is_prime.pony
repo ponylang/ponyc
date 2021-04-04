@@ -65,7 +65,8 @@ primitive IsPrime[A: (Integer[A] val & Unsigned)]
   fun apply(n: A): Bool =>
     var table_index: USize = 0
     while table_index < _low_prime_table_size() do
-      let prime = _low_prime_table(table_index); table_index = table_index + 1
+      let prime = _low_prime_table(table_index)
+      table_index = table_index + 1
       if n == prime then return true end
       if (n %% prime) == 0 then return false end
     end
