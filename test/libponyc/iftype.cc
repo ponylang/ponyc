@@ -184,6 +184,8 @@ TEST_F(IftypeTest, TupleCond_InvalidCardinality)
 TEST_F(IftypeTest, Codegen_True)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "trait T\n"
     "class C is T\n"
 
@@ -193,7 +195,7 @@ TEST_F(IftypeTest, Codegen_True)
 
     "  fun foo[A: T](x: A) =>\n"
     "    iftype A <: C then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   TEST_COMPILE(src);
@@ -207,6 +209,8 @@ TEST_F(IftypeTest, Codegen_True)
 TEST_F(IftypeTest, Codegen_False)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "trait T\n"
     "class C is T\n"
 
@@ -218,7 +222,7 @@ TEST_F(IftypeTest, Codegen_False)
     "    iftype A <: C then\n"
     "      None\n"
     "    else\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   TEST_COMPILE(src);

@@ -241,6 +241,7 @@ class iso TempDirTest
 """
 
 use "time"
+use @ponyint_assert_disable_popups[None]()
 
 actor PonyTest
   """
@@ -275,7 +276,7 @@ actor PonyTest
     _env = env
     _process_opts()
     _groups.push(("", _SimultaneousGroup))
-    @ponyint_assert_disable_popups[None]()
+    @ponyint_assert_disable_popups()
     list.tests(this)
     _all_tests_applied()
 

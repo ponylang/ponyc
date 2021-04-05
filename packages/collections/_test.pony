@@ -225,8 +225,8 @@ class iso _TestMapHashFunc is UnitTest
   fun apply(h: TestHelper) =>
     let a1: Array[U8] = [65; 77; 83; 0; 0; 39; 15; 0; 6; 200; 28; 0; 0; 0; 107]
     let a2: Array[U8] = [65; 77; 83; 0; 0; 39; 15; 0; 6; 200; 28; 0; 0; 0; 173]
-    let h1: USize = @ponyint_hash_block[USize](a1.cpointer(), a1.size())
-    let h2: USize = @ponyint_hash_block[USize](a2.cpointer(), a2.size())
+    let h1: USize = @ponyint_hash_block(a1.cpointer(), a1.size())
+    let h2: USize = @ponyint_hash_block(a2.cpointer(), a2.size())
 
     ifdef ilp32 then
       // I cannot find agreement on easy-to-find reference implementations

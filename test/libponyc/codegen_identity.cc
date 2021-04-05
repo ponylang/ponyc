@@ -244,10 +244,11 @@ TEST_F(CodegenIdentityTest, TupleDifferentTypes)
 TEST_F(CodegenIdentityTest, DigestofObject)
 {
   const char* src =
+    "use @ptr_to_int[USize](env: Env)\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let dg = digestof env\n"
-    "    if dg == @ptr_to_int[USize](env) then\n"
+    "    if dg == @ptr_to_int(env) then\n"
     "      @pony_exitcode[None](I32(1))\n"
     "    end";
 

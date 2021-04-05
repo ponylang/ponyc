@@ -68,9 +68,11 @@ TEST_F(CodegenTest, NonPackedStructIsntPacked)
 TEST_F(CodegenTest, JitRun)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @pony_exitcode[None](I32(1))";
+    "    @pony_exitcode(1)";
 
   TEST_COMPILE(src);
 
@@ -116,9 +118,11 @@ EXPORT_SYMBOL void codegentest_small_finalisers_increment_num_objects() {
 TEST_F(CodegenTest, SmallFinalisers)
 {
   const char* src =
+    "use @codegentest_small_finalisers_increment_num_objects[None]()\n"
+
     "class _Final\n"
     "  fun _final() =>\n"
-    "    @codegentest_small_finalisers_increment_num_objects[None]()\n"
+    "    @codegentest_small_finalisers_increment_num_objects()\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -153,6 +157,9 @@ EXPORT_SYMBOL int codegentest_ccallback(void* self, codegentest_ccallback_fn cb,
 TEST_F(CodegenTest, CCallback)
 {
   const char* src =
+    "use @codegentest_ccallback[I32](self: Callback, cb: Pointer[None], value: I32)\n"
+    "use @pony_exitcode[None](code: I32)\n"
+
     "class Callback\n"
     "  fun apply(value: I32): I32 =>\n"
     "    value * 2\n"
@@ -160,8 +167,8 @@ TEST_F(CodegenTest, CCallback)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let cb: Callback = Callback\n"
-    "    let r = @codegentest_ccallback[I32](cb, addressof cb.apply, I32(3))\n"
-    "    @pony_exitcode[None](r)";
+    "    let r = @codegentest_ccallback(cb, addressof cb.apply, 3)\n"
+    "    @pony_exitcode(r)";
 
   TEST_COMPILE(src);
 
@@ -173,6 +180,8 @@ TEST_F(CodegenTest, CCallback)
 TEST_F(CodegenTest, MatchExhaustiveAllCasesOfUnion)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "class C1 fun one(): I32 => 1\n"
     "class C2 fun two(): I32 => 2\n"
     "class C3 fun three(): I32 => 3\n"
@@ -187,7 +196,7 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesOfUnion)
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @pony_exitcode[None](Foo(C3))";
+    "    @pony_exitcode(Foo(C3))";
 
   TEST_COMPILE(src);
 
@@ -200,6 +209,8 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesOfUnion)
 TEST_F(CodegenTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "class C1 fun one(): I32 => 1\n"
     "class C2 fun two(): I32 => 2\n"
     "class C3 fun three(): I32 => 3\n"
@@ -214,7 +225,7 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @pony_exitcode[None](Foo((C3, true)))";
+    "    @pony_exitcode(Foo((C3, true)))";
   TEST_COMPILE(src);
 
   int exit_code = 0;
@@ -226,6 +237,8 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
 TEST_F(CodegenTest, MatchExhaustiveAllCasesPrimitiveValues)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "primitive P1 fun one(): I32 => 1\n"
     "primitive P2 fun two(): I32 => 2\n"
     "primitive P3 fun three(): I32 => 3\n"
@@ -240,7 +253,7 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesPrimitiveValues)
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @pony_exitcode[None](Foo(P3))";
+    "    @pony_exitcode(Foo(P3))";
 
   TEST_COMPILE(src);
 
@@ -253,6 +266,8 @@ TEST_F(CodegenTest, MatchExhaustiveAllCasesPrimitiveValues)
 TEST_F(CodegenTest, ArrayInfersMostSpecificFromUnionOfArrayTypes)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "trait iso T1\n"
     "trait iso T2\n"
     "trait iso T3 is T1\n"
@@ -267,10 +282,10 @@ TEST_F(CodegenTest, ArrayInfersMostSpecificFromUnionOfArrayTypes)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    match Foo() \n"
-    "    | let a: Array[T1] => @pony_exitcode[None](I32(1))\n"
-    "    | let a: Array[T2] => @pony_exitcode[None](I32(2))\n"
-    "    | let a: Array[T3] => @pony_exitcode[None](I32(3))\n"
-    "    | let a: Array[T4] => @pony_exitcode[None](I32(4))\n"
+    "    | let a: Array[T1] => @pony_exitcode(1)\n"
+    "    | let a: Array[T2] => @pony_exitcode(2)\n"
+    "    | let a: Array[T3] => @pony_exitcode(3)\n"
+    "    | let a: Array[T4] => @pony_exitcode(4)\n"
     "    end";
 
   TEST_COMPILE(src);
@@ -315,6 +330,7 @@ TEST_F(CodegenTest, StringSerialization)
   // From issue #2245
   const char* src =
     "use \"serialise\"\n"
+    "use @pony_exitcode[None](code: I32)\n"
 
     "class V\n"
     "  let _v: String = \"\"\n"
@@ -325,7 +341,7 @@ TEST_F(CodegenTest, StringSerialization)
     "      let auth = env.root as AmbientAuth\n"
     "      let v: V = V\n"
     "      Serialised(SerialiseAuth(auth), v)?\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   set_builtin(NULL);
@@ -342,6 +358,12 @@ TEST_F(CodegenTest, CustomSerialization)
 {
   const char* src =
     "use \"serialise\"\n"
+    "use @pony_exitcode[None](code: I32)\n"
+    "use @test_custom_serialisation_get_object[Pointer[U8] ref]()\n"
+    "use @test_custom_serialisation_free_object[None](p: Pointer[U8] tag)\n"
+    "use @test_custom_serialisation_serialise[None](p: Pointer[U8] tag, bytes: Pointer[U8] ref)\n"
+    "use @test_custom_serialisation_deserialise[Pointer[U8] ref](byres: Pointer[U8] ref)\n"
+    "use @test_custom_serialisation_compare[U8](p1: Pointer[U8] tag, p2: Pointer[U8] tag)\n"
 
     "class _Custom\n"
     "  let s1: String = \"abc\"\n"
@@ -349,22 +371,22 @@ TEST_F(CodegenTest, CustomSerialization)
     "  let s2: String = \"efg\"\n"
 
     "  new create() =>\n"
-    "    p = @test_custom_serialisation_get_object[Pointer[U8] ref]()\n"
+    "    p = @test_custom_serialisation_get_object()\n"
 
     "  fun _final() =>\n"
-    "    @test_custom_serialisation_free_object[None](p)\n"
+    "    @test_custom_serialisation_free_object(p)\n"
 
     "  fun _serialise_space(): USize =>\n"
     "    8\n"
 
     "  fun _serialise(bytes: Pointer[U8]) =>\n"
-    "    @test_custom_serialisation_serialise[None](p, bytes)\n"
+    "    @test_custom_serialisation_serialise(p, bytes)\n"
 
     "  fun ref _deserialise(bytes: Pointer[U8]) =>\n"
-    "    p = @test_custom_serialisation_deserialise[Pointer[U8] ref](bytes)\n"
+    "    p = @test_custom_serialisation_deserialise(bytes)\n"
 
     "  fun eq(c: _Custom): Bool =>\n"
-    "    (@test_custom_serialisation_compare[U8](this.p, c.p) == 1) and\n"
+    "    (@test_custom_serialisation_compare(this.p, c.p) == 1) and\n"
     "    (this.s1 == c.s1)\n"
     "      and (this.s2 == c.s2)\n"
 
@@ -384,7 +406,7 @@ TEST_F(CodegenTest, CustomSerialization)
     "      else\n"
     "        0\n"
     "      end\n"
-    "      @pony_exitcode[None](r)\n"
+    "      @pony_exitcode(r)\n"
     "    end";
 
   set_builtin(NULL);
@@ -455,14 +477,18 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
 {
   const char* src =
+    "use @codegen_test_tryblock_catch[I32](callback: Pointer[None])\n"
+    "use @codegen_test_tryblock_throw[None]()?\n"
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let r = @codegen_test_tryblock_catch[I32](this~tryblock())\n"
-    "    @pony_exitcode[I32](r)\n"
+    "    let r = @codegen_test_tryblock_catch(this~tryblock())\n"
+    "    @pony_exitcode(r)\n"
 
     "  fun @tryblock() =>\n"
     "    try\n"
-    "      @codegen_test_tryblock_throw[None]()?\n"
+    "      @codegen_test_tryblock_throw()?\n"
     "    else\n"
     "      None\n"
     "    end";
@@ -718,6 +744,10 @@ TEST_F(CodegenTest, CycleDetector)
 {
   const char* src =
     "use @printf[I32](fmt: Pointer[U8] tag, ...)\n"
+    "use @pony_get_exitcode[I32]()\n"
+    "use @pony_exitcode[None](code: I32)\n"
+    "use @Sleep[None](millis: U32) if windows\n"
+    "use @ponyint_cpu_core_pause[None](tsc: U64, tsc2: U64, yield: Bool) if not windows\n"
 
     "actor Ring\n"
     "  let _id: U32\n"
@@ -739,30 +769,30 @@ TEST_F(CodegenTest, CycleDetector)
     "    end\n"
 
     "  fun _final() =>\n"
-    "    let i = @pony_get_exitcode[I32]()\n"
-    "    @pony_exitcode[None](i + 1)\n"
+    "    let i = @pony_get_exitcode()\n"
+    "    @pony_exitcode(i + 1)\n"
 
     "actor Watcher\n"
     "  var _c: I32 = 0\n"
     "  new create(num: I32) => check_done(num)\n"
 
     "  be check_done(num: I32) =>\n"
-    "    if @pony_get_exitcode[I32]() != num then\n"
+    "    if @pony_get_exitcode() != num then\n"
     "      /* wait for cycle detector to reap ring actors */\n"
     "      ifdef windows then\n"
-    "        @Sleep[None](U32(30))\n"
+    "        @Sleep(30)\n"
     "      else\n"
-    "        @ponyint_cpu_core_pause[None](U64(0), U64(20000000000), true)\n"
+    "        @ponyint_cpu_core_pause(0, 20000000000, true)\n"
     "      end\n"
     "      _c = _c + 1\n"
     "      if _c > 50 then\n"
-    "        @printf(\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode[I32](), num)\n"
-    "        @pony_exitcode[None](I32(1))\n"
+    "        @printf(\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode(), num)\n"
+    "        @pony_exitcode(1)\n"
     "      else\n"
     "        check_done(num)\n"
     "      end\n"
     "    else\n"
-    "      @pony_exitcode[None](I32(0))\n"
+    "      @pony_exitcode(0)\n"
     "    end\n"
 
 
@@ -816,15 +846,17 @@ TEST_F(CodegenTest, CycleDetector)
 TEST_F(CodegenTest, TryThenClauseReturn)
 {
   const char * src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    try\n"
     "      if false then error end\n"
     "      return\n"
     "    then\n"
-    "      @pony_exitcode[None](I32(42))"
+    "      @pony_exitcode(42)"
     "    end\n"
-    "    @pony_exitcode[None](I32(0))";
+    "    @pony_exitcode(0)";
 
   TEST_COMPILE(src);
 
@@ -836,6 +868,8 @@ TEST_F(CodegenTest, TryThenClauseReturn)
 TEST_F(CodegenTest, TryThenClauseReturnNested)
 {
   const char * src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    try\n"
@@ -844,9 +878,9 @@ TEST_F(CodegenTest, TryThenClauseReturnNested)
     "        return\n"
     "      end\n"
     "    then\n"
-    "      @pony_exitcode[None](I32(42))"
+    "      @pony_exitcode(42)"
     "    end\n"
-    "    @pony_exitcode[None](I32(0))";
+    "    @pony_exitcode(0)";
 
   TEST_COMPILE(src);
 
@@ -858,6 +892,8 @@ TEST_F(CodegenTest, TryThenClauseReturnNested)
 TEST_F(CodegenTest, TryThenClauseBreak)
 {
   const char * src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    var r: I32 = 0\n"
@@ -869,7 +905,7 @@ TEST_F(CodegenTest, TryThenClauseBreak)
     "        r = 42\n"
     "      end\n"
     "    end\n"
-    "    @pony_exitcode[None](r)";
+    "    @pony_exitcode(r)";
   TEST_COMPILE(src);
 
   int exit_code = 0;
@@ -904,6 +940,8 @@ TEST_F(CodegenTest, TryThenClauseBreakNested)
 TEST_F(CodegenTest, TryThenClauseContinue)
 {
   const char * src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    var r: I32 = 0\n"
@@ -915,7 +953,7 @@ TEST_F(CodegenTest, TryThenClauseContinue)
     "        r = 42\n"
     "      end\n"
     "    end\n"
-    "    @pony_exitcode[None](r)";
+    "    @pony_exitcode(r)";
   TEST_COMPILE(src);
 
   int exit_code = 0;
