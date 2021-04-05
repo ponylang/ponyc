@@ -517,6 +517,8 @@ TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
 TEST_F(BadPonyTest, AddressofMissingTypearg)
 {
   const char* src =
+    "use @foo[None](fn: Pointer[None] tag)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    @foo[None](addressof fn)\n"
@@ -723,6 +725,8 @@ TEST_F(BadPonyTest, CodegenMangledFunptr)
 {
   // Test that we don't crash in codegen when generating the function pointer.
   const char* src =
+    "use @foo[None](fn: Pointer[None] tag)\n"
+
     "interface I\n"
     "  fun foo(x: U32)\n"
 

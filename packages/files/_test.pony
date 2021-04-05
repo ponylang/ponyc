@@ -5,6 +5,8 @@ use "term"
 use "random"
 use "time"
 
+use @getuid[U32]() if not windows
+
 actor Main is TestList
   new create(env: Env) => PonyTest(env, this)
 
@@ -98,7 +100,7 @@ trait iso _NonRootTest is UnitTest
       true
     else
       ifdef not windows then
-        @getuid[U32]() == 0
+        @getuid() == 0
       else
         false
       end
@@ -831,7 +833,7 @@ class iso _TestFileWritevLarge is UnitTest
   fun apply(h: TestHelper) =>
     try
       let wb: Writer ref = Writer
-      let writev_batch_size: USize = 10 + @pony_os_writev_max[I32]().usize()
+      let writev_batch_size: USize = 10 + @pony_os_writev_max().usize()
       var count: USize = 0
       while count < writev_batch_size do
         wb.write(count.string() + "\n")

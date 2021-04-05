@@ -5,6 +5,14 @@ This package contains the unit tests for the `builtin` package. These are here
 so `builtin` doesn't have to depend on the `PonyTest` package.
 """
 
+use @pony_ctx[Pointer[None]]()
+use @pony_alloc[Pointer[U8]](ctx: Pointer[None], size: USize)
+use @pony_alloc_final[Pointer[U8]](ctx: Pointer[None], size: USize)
+use @pony_exitcode[None](code: I32)
+use @pony_get_exitcode[I32]()
+use @pony_triggergc[None](ctx: Pointer[None])
+use @ponyint_pagemap_get[Pointer[None]](p: Pointer[None] tag)
+
 use "ponytest"
 use "collections"
 
@@ -585,12 +593,12 @@ class iso _TestStringTrimInPlace is UnitTest
     space: USize = 0)
   =>
     let copy: String ref = orig.clone()
-    let pre_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
+    let pre_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
     h.assert_eq[USize](space, copy.space())
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
-    let post_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
+    let post_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
     if copy.space() == 0 then
       h.assert_eq[USize](0, post_trim_pagemap.usize())
     else
@@ -1435,11 +1443,11 @@ class iso _TestArrayTrimInPlace is UnitTest
     space: USize = 0)
   =>
     let copy: Array[U8] ref = orig.clone()
-    let pre_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
+    let pre_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[USize](space, copy.space())
     h.assert_array_eq[U8](expected, copy)
-    let post_trim_pagemap = @ponyint_pagemap_get[Pointer[None]](copy.cpointer())
+    let post_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
     if copy.space() == 0 then
       h.assert_eq[USize](0, post_trim_pagemap.usize())
     else

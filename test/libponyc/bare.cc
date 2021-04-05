@@ -328,13 +328,15 @@ TEST_F(BareTest, BareType_TypeArgument)
 TEST_F(BareTest, Codegen_BareFunctionCall)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    foo(42)\n"
 
     "  fun @foo(x: USize) =>\n"
     "    if x == 42 then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   TEST_COMPILE(src);
@@ -348,11 +350,13 @@ TEST_F(BareTest, Codegen_BareFunctionCall)
 TEST_F(BareTest, Codegen_BareLambdaCall)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let lbd = @{(x: USize) =>\n"
     "      if x == 42 then\n"
-    "        @pony_exitcode[None](I32(1))\n"
+    "        @pony_exitcode(1)\n"
     "      end\n"
     "    }\n"
     "    lbd(42)";
@@ -381,13 +385,16 @@ EXPORT_SYMBOL void baretest_callback(baretest_callback_fn cb, size_t value)
 TEST_F(BareTest, Codegen_BareFunctionCallbackAddressof)
 {
   const char* src =
+    "use @baretest_callback[None](cb: Pointer[None], size: USize)\n"
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @baretest_callback[None](addressof foo, USize(42))\n"
+    "    @baretest_callback(addressof foo, 42)\n"
 
     "  fun @foo(x: USize) =>\n"
     "    if x == 42 then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   TEST_COMPILE(src);
@@ -401,13 +408,16 @@ TEST_F(BareTest, Codegen_BareFunctionCallbackAddressof)
 TEST_F(BareTest, Codegen_BareFunctionCallbackPartialApplication)
 {
   const char* src =
+    "use @baretest_callback[None](cb: Pointer[None], size: USize)\n"
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @baretest_callback[None](this~foo(), USize(42))\n"
+    "    @baretest_callback(this~foo(), 42)\n"
 
     "  fun @foo(x: USize) =>\n"
     "    if x == 42 then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   TEST_COMPILE(src);
@@ -421,14 +431,17 @@ TEST_F(BareTest, Codegen_BareFunctionCallbackPartialApplication)
 TEST_F(BareTest, Codegen_BareLambdaCallback)
 {
   const char* src =
+    "use @baretest_callback[None](cb: Pointer[None], size: USize)\n"
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let lbd = @{(x: USize) =>\n"
     "      if x == 42 then\n"
-    "        @pony_exitcode[None](I32(1))\n"
+    "        @pony_exitcode(1)\n"
     "      end\n"
     "    }\n"
-    "    @baretest_callback[None](lbd, USize(42))";
+    "    @baretest_callback(lbd, 42)";
 
   TEST_COMPILE(src);
 
@@ -441,8 +454,10 @@ TEST_F(BareTest, Codegen_BareLambdaCallback)
 TEST_F(BareTest, BareFunction_TyperefCallNoConstructorCall)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "class C\n"
-    "  new create() => @pony_exitcode[None](I32(1))\n"
+    "  new create() => @pony_exitcode(1)\n"
     "  fun @foo() => None\n"
 
     "actor Main\n"
@@ -460,12 +475,14 @@ TEST_F(BareTest, BareFunction_TyperefCallNoConstructorCall)
 TEST_F(BareTest, BareFunction_ReceiverSideEffect)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    foo().bar()\n"
 
     "  fun foo(): Main => \n"
-    "    @pony_exitcode[None](I32(1))\n"
+    "    @pony_exitcode(1)\n"
     "    this\n"
 
     "  fun @bar() => None";

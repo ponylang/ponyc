@@ -147,14 +147,17 @@ TEST_F(SignatureTest, SerialiseSignature)
 {
   const char* src =
     "use \"serialise\"\n"
+    "use @memcmp[I32](s1: Pointer[None], s2: Pointer[None], size: USize)\n"
+    "use @signature_get[Pointer[U8]]()\n"
+    "use @pony_exitcode[None](code: I32)\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let sig_in = @signature_get[Pointer[U8]]()\n"
     "    let sig = Serialise.signature()\n"
-    "    let ok = @memcmp[I32](sig_in, sig.cpointer(), sig.size())\n"
+    "    let ok = @memcmp(sig_in, sig.cpointer(), sig.size())\n"
     "    if ok == 0 then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(1)\n"
     "    end";
 
   set_builtin(nullptr);
