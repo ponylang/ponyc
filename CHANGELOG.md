@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add `IsPrime` checker to `math` package ([PR #3738](https://github.com/ponylang/ponyc/pull/3738))
 
 ### Changed
 
