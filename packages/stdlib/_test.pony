@@ -63,6 +63,7 @@ actor Main is TestList
     itertools.Main.make().tests(test)
     json.Main.make().tests(test)
     logger.Main.make().tests(test)
+    math.Main.make().tests(test)
     net.Main.make().tests(test)
     options.Main.make().tests(test)
     process.Main.make().tests(test)
