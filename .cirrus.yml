@@ -126,11 +126,11 @@ task:
     populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure arch=x86-64
+    - make configure 
   build_script:
-    - make build arch=x86-64 build_flags=-j8
+    - make build build_flags=-j8
   test_script:
-    - make test-ci arch=x86-64
+    - make test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
