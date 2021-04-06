@@ -196,8 +196,8 @@ else()
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.13 -DUSE_SCHEDULER_SCALING_PTHREADS")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.13")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.14 -DUSE_SCHEDULER_SCALING_PTHREADS")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")

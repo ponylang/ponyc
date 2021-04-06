@@ -298,7 +298,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 #else
     "%s -execute -no_pie -arch %.*s "
 #endif
-    "-macosx_version_min 10.13 -o %s %s %s %s "
+    "-macosx_version_min 10.14 -o %s %s %s %s "
     "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt, sanitizer_arg
