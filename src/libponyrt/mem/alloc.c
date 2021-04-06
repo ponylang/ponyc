@@ -31,7 +31,7 @@ void* ponyint_virt_alloc(size_t bytes)
 #  if defined(PLATFORM_IS_ARM)
     MAP_PRIVATE | MAP_ANON, -1, 0);
 #  else
-    MAP_PRIVATE | MAP_ANON | VM_FLAGS_SUPERPAGE_SIZE_ANY, -1, 0);
+    MAP_PRIVATE | MAP_ANON, -1, 0);
 #  endif
 #elif defined(PLATFORM_IS_DRAGONFLY)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
