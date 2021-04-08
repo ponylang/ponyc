@@ -138,7 +138,7 @@ class _Pipe
   =>
     ifdef posix then
       let len =
-        @read[ISize](near_fd, read_buf.cpointer().usize() + offset,
+        @read[ISize](near_fd, read_buf.cpointer(offset),
           read_buf.size() - offset)
       if len == -1 then // OS signals write error
         (consume read_buf, len, @pony_os_errno())
@@ -175,7 +175,7 @@ class _Pipe
       end
       // Read up to the bytes available
       var bytes_read: U32 = 0
-      let ok = @ReadFile[Bool](hnd, read_buf.cpointer().usize() + offset,
+      let ok = @ReadFile[Bool](hnd, read_buf.cpointer(offset),
           bytes_to_read, addressof bytes_read, USize(0))
       let winerr = @GetLastError[I32]()
       if not ok then
@@ -196,7 +196,7 @@ class _Pipe
   fun ref write(data: ByteSeq box, offset: USize): (ISize, I32) =>
     ifdef posix then
       let len = @write[ISize](
-          near_fd, data.cpointer().usize() + offset, data.size() - offset)
+          near_fd, data.cpointer(offset), data.size() - offset)
       if len == -1 then // OS signals write error
         (len, @pony_os_errno())
       else
@@ -206,7 +206,7 @@ class _Pipe
       let hnd: USize = @_get_osfhandle[USize](near_fd)
       let bytes_to_write: U32 = (data.size() - offset).u32()
       var bytes_written: U32 = 0
-      let ok = @WriteFile[Bool](hnd, data.cpointer().usize() + offset,
+      let ok = @WriteFile[Bool](hnd, data.cpointer(offset),
           bytes_to_write, addressof bytes_written, USize(0))
       let winerr = @GetLastError[I32]()
       if not ok then
