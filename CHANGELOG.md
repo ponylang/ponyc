@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Use built-in offset argument to cpointer ([PR #3741](https://github.com/ponylang/ponyc/pull/3741))
 
 ### Added
 
