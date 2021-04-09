@@ -4,3 +4,7 @@ Quickly determine if a given number is prime using the 6k ± 1 method.
 
 All integers (excluding 2 and 3), can be expressed as (6k + i), where i = -1, 0, 1, 2, 3, or 4. Since 2 divides (6k + 0), (6k + 2), and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1) for expressing primes
 
+## Fix possible memory leak
+
+A possible memory leak in the process package was fixed.
+
