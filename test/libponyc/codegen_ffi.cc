@@ -132,9 +132,10 @@ TEST_F(CodegenFFITest, PointerUSizeCompatibility)
 TEST_F(CodegenFFITest, RuntimeCall)
 {
   const char* src =
+    "use @pony_ctx[Pointer[None]]()\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @pony_ctx[Pointer[None]]()";
+    "    @pony_ctx()";
 
   TEST_COMPILE(src);
 }
@@ -251,9 +252,10 @@ TEST_F(CodegenFFITest, DeclReturnTypeVoidConflict)
 TEST_F(CodegenFFITest, InternalABIFunctionConflict)
 {
   const char* src =
+    "use @Main_Dispatch[None]()\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @Main_Dispatch[None]()";
+    "    @Main_Dispatch()";
 
   TEST_ERRORS_1(src, "cannot use 'Main_Dispatch' as an FFI name: name is "
     "already in use by the internal ABI");
@@ -263,9 +265,10 @@ TEST_F(CodegenFFITest, InternalABIFunctionConflict)
 TEST_F(CodegenFFITest, InternalABIObjectConflict)
 {
   const char* src =
+    "use @Main_Desc[None]()\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @Main_Desc[None]()";
+    "    @Main_Desc()";
 
   TEST_ERRORS_1(src, "cannot use 'Main_Desc' as an FFI name: name is already "
     "in use by the internal ABI");

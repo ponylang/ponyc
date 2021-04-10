@@ -583,7 +583,7 @@ TEST_F(VerifyTest, FFICallPartialWithPartialDeclaration)
 
     "primitive Foo\n"
     "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]()?";
+    "    @foo()?";
 
   TEST_COMPILE(src);
 }
@@ -595,7 +595,7 @@ TEST_F(VerifyTest, FFICallWithPartialDeclaration)
 
     "primitive Foo\n"
     "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]()?";
+    "    @foo()?";
 
   TEST_COMPILE(src);
 }
@@ -607,7 +607,7 @@ TEST_F(VerifyTest, FFICallPartialWithNonPartialDeclaration)
 
     "primitive Foo\n"
     "  fun apply(): U64 =>\n"
-    "    @foo[U64]() ?";
+    "    @foo() ?";
 
   TEST_ERRORS_1(src, "call is partial but the declaration is not");
 }
@@ -619,7 +619,7 @@ TEST_F(VerifyTest, FFICallNonPartialWithPartialDeclaration)
 
     "primitive Foo\n"
     "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]()";
+    "    @foo()";
 
   TEST_ERRORS_1(src, "call is not partial but the declaration is");
 }

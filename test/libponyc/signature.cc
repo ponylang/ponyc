@@ -153,7 +153,7 @@ TEST_F(SignatureTest, SerialiseSignature)
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let sig_in = @signature_get[Pointer[U8]]()\n"
+    "    let sig_in = @signature_get()\n"
     "    let sig = Serialise.signature()\n"
     "    let ok = @memcmp(sig_in, sig.cpointer(), sig.size())\n"
     "    if ok == 0 then\n"
