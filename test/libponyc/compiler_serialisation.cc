@@ -21,6 +21,7 @@ public:
 };
 
 static const char* const src =
+  "use @pony_exitcode[None](code: I32)\n"
   "actor Main\n"
   "  new create(env: Env) =>\n"
   "    let x = recover Array[U8] end\n"
@@ -30,7 +31,7 @@ static const char* const src =
   "  be foo(x: Array[U8] val) =>\n"
   "    try\n"
   "      if x(0)? == 42 then\n"
-  "        @pony_exitcode[None](U32(1))\n"
+  "        @pony_exitcode(I32(1))\n"
   "      end\n"
   "    end";
 

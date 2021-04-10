@@ -176,7 +176,7 @@ TEST_F(FFITest, DeclarationVoidStarPointer)
 
     "class Foo\n"
     "  fun f(x: Pointer[U32]) =>\n"
-    "    @foo[U32](x)";
+    "    @foo(x)";
 
   TEST_COMPILE(src);
 }
@@ -189,7 +189,7 @@ TEST_F(FFITest, DeclarationVoidStarUSize)
 
     "class Foo\n"
     "  fun f(x: USize) =>\n"
-    "    @foo[U32](x)";
+    "    @foo(x)";
 
   TEST_COMPILE(src);
 }
@@ -202,7 +202,7 @@ TEST_F(FFITest, DeclarationVoidStarNotPointer)
 
     "class Foo\n"
     "  fun f(x: U8) =>\n"
-    "    @foo[U32](x)";
+    "    @foo(x)";
 
   TEST_ERROR(src);
 }

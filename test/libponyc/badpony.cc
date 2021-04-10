@@ -521,7 +521,7 @@ TEST_F(BadPonyTest, AddressofMissingTypearg)
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    @foo[None](addressof fn)\n"
+    "    @foo(addressof fn)\n"
 
     "  fun fn[A]() => None";
 
@@ -733,7 +733,7 @@ TEST_F(BadPonyTest, CodegenMangledFunptr)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let i: I = this\n"
-    "    @foo[None](addressof i.foo)\n"
+    "    @foo(addressof i.foo)\n"
 
     "  fun foo(x: Any) => None";
 

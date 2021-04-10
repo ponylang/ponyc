@@ -916,6 +916,7 @@ TEST_F(CodegenTest, TryThenClauseBreak)
 TEST_F(CodegenTest, TryThenClauseBreakNested)
 {
   const char * src =
+    "use @pony_exitcode[None](code: I32)\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    var r: I32 = 0\n"
@@ -929,7 +930,7 @@ TEST_F(CodegenTest, TryThenClauseBreakNested)
     "        r = 42\n"
     "      end\n"
     "    end\n"
-    "    @pony_exitcode[None](r)";
+    "    @pony_exitcode(r)";
   TEST_COMPILE(src);
 
   int exit_code = 0;
@@ -941,7 +942,6 @@ TEST_F(CodegenTest, TryThenClauseContinue)
 {
   const char * src =
     "use @pony_exitcode[None](code: I32)\n"
-
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    var r: I32 = 0\n"
@@ -964,6 +964,7 @@ TEST_F(CodegenTest, TryThenClauseContinue)
 TEST_F(CodegenTest, TryThenClauseContinueNested)
 {
   const char * src =
+    "use @pony_exitcode[None](code: I32)\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    var r: I32 = 0\n"
@@ -979,7 +980,7 @@ TEST_F(CodegenTest, TryThenClauseContinueNested)
     "        r = 42\n"
     "      end\n"
     "    end\n"
-    "    @pony_exitcode[None](r)";
+    "    @pony_exitcode(r)";
   TEST_COMPILE(src);
 
   int exit_code = 0;

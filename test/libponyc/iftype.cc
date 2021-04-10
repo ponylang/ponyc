@@ -237,6 +237,7 @@ TEST_F(IftypeTest, Codegen_False)
 TEST_F(IftypeTest, Codegen_ElseIfTrue)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "trait T\n"
     "class C1 is T\n"
     "class C2 is T\n"
@@ -249,7 +250,7 @@ TEST_F(IftypeTest, Codegen_ElseIfTrue)
     "    iftype A <: C1 then\n"
     "      None\n"
     "    elseif A <: C2 then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(I32(1))\n"
     "    end";
 
   TEST_COMPILE(src);

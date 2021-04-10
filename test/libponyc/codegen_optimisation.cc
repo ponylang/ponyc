@@ -13,6 +13,7 @@ class CodegenOptimisationTest : public PassTest
 TEST_F(CodegenOptimisationTest, MergeSendMessageReordering)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "actor Main\n"
     "  var state: U8 = 0\n"
     "  new create(env: Env) =>\n"
@@ -28,7 +29,7 @@ TEST_F(CodegenOptimisationTest, MergeSendMessageReordering)
 
     "  be msg3(env: Env) =>\n"
     "    if state == 2 then\n"
-    "      @pony_exitcode[None](I32(1))\n"
+    "      @pony_exitcode(I32(1))\n"
     "    end";
 
   opt.release = true;

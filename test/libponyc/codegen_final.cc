@@ -13,9 +13,10 @@ class CodegenFinalTest : public PassTest
 TEST_F(CodegenFinalTest, PrimitiveInit)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "primitive PrimitiveInit\n"
     "  fun _init() =>\n"
-    "    @pony_exitcode[None](I32(1))\n"
+    "    @pony_exitcode(I32(1))\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -32,9 +33,10 @@ TEST_F(CodegenFinalTest, PrimitiveInit)
 TEST_F(CodegenFinalTest, PrimitiveFinal)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "primitive PrimitiveFinal\n"
     "  fun _final() =>\n"
-    "    @pony_exitcode[None](I32(1))\n"
+    "    @pony_exitcode(I32(1))\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -51,9 +53,10 @@ TEST_F(CodegenFinalTest, PrimitiveFinal)
 TEST_F(CodegenFinalTest, ClassFinal)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "class ClassFinal\n"
     "  fun _final() =>\n"
-    "    @pony_exitcode[None](I32(1))\n"
+    "    @pony_exitcode(I32(1))\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
@@ -70,9 +73,10 @@ TEST_F(CodegenFinalTest, ClassFinal)
 TEST_F(CodegenFinalTest, EmbedFinal)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "class EmbedFinal\n"
     "  fun _final() =>\n"
-    "    @pony_exitcode[None](I32(1))\n"
+    "    @pony_exitcode(I32(1))\n"
 
     "actor Main\n"
     "  embed c: EmbedFinal = EmbedFinal\n"
@@ -91,12 +95,13 @@ TEST_F(CodegenFinalTest, EmbedFinal)
 TEST_F(CodegenFinalTest, ActorFinal)
 {
   const char* src =
+    "use @pony_exitcode[None](code: I32)\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    None\n"
 
     "  fun _final() =>\n"
-    "    @pony_exitcode[None](I32(1))";
+    "    @pony_exitcode(I32(1))";
 
   TEST_COMPILE(src);
 
