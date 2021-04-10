@@ -141,17 +141,6 @@ TEST_F(CodegenFFITest, RuntimeCall)
 }
 
 
-TEST_F(CodegenFFITest, RuntimeCallConflict)
-{
-  const char* src =
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    @pony_ctx[None]()";
-
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: return values "
-    "have incompatible types");
-}
-
 
 TEST_F(CodegenFFITest, DeclParameterCountConflict)
 {

@@ -566,16 +566,6 @@ TEST_F(VerifyTest, PartialSugaredApplyCallAfterSugaredConstructor)
   TEST_COMPILE(src);
 }
 
-TEST_F(VerifyTest, FFICallPartial)
-{
-  const char* src =
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo[U64]()?";
-
-  TEST_COMPILE(src);
-}
-
 TEST_F(VerifyTest, FFICallPartialWithPartialDeclaration)
 {
   const char* src =
