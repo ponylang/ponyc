@@ -51,7 +51,7 @@ primitive OSSockOpt
 
   /* In Pony */
   var option: I32 = 4455;
-  @pony_os_setsockopt[I32](fd, OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(),
+  @setsockopt[I32](fd, OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(),
     addressof option, I32(4))
   ```
   """
