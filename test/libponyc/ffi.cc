@@ -11,6 +11,18 @@
 class FFITest : public PassTest
 {};
 
+TEST_F(FFITest, NoDeclaration)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    @foo()";
+
+  TEST_ERROR(src);
+}
+
+
+
 TEST_F(FFITest, Declaration)
 {
   const char* src =
