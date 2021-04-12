@@ -1,8 +1,3 @@
-use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
-  flags: U32, nsec: U64, noisy: Bool)
-use @pony_asio_event_unsubscribe[None](event: AsioEventID)
-use @pony_asio_event_destroy[None](event: AsioEventID)
-
 type AsioEventID is Pointer[AsioEvent] tag
 
 interface tag AsioEventNotify
@@ -12,23 +7,6 @@ primitive AsioEvent
   """
   Functions for asynchronous event notification.
   """
-
-  fun create_event(
-    owner: AsioEventNotify,
-    fd: U32,
-    flags: U32,
-    nsec: U64,
-    noisy: Bool)
-    : AsioEventID
-  =>
-    @pony_asio_event_create(owner, fd, flags, nsec, noisy)
-
-  fun unsubscribe(event: AsioEventID) =>
-    @pony_asio_event_unsubscribe(event)
-
-  fun destroy(event: AsioEventID) =>
-    @pony_asio_event_destroy(event)
-
   fun none(): AsioEventID =>
     """
     An empty event.

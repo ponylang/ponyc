@@ -1,3 +1,7 @@
+use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+  flags: U32, nsec: U64, noisy: Bool)
+use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_destroy[None](event: AsioEventID)
 use @pony_os_stdin_read[USize](
   buffer: Pointer[U8] tag,
   size: USize,
@@ -91,13 +95,13 @@ actor Stdin
     if notify is None then
       if _use_event and not _event.is_null() then
         // Unsubscribe the event.
-        AsioEvent.unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = AsioEvent.create_event(this, 0, AsioEvent.read(), 0, true)
+        _event = @pony_asio_event_create(this, 0, AsioEvent.read(), 0, true)
       else
         // Start the read loop.
         _loop_read()
@@ -120,7 +124,7 @@ actor Stdin
     When the event fires, read from stdin.
     """
     if AsioEvent.disposable(flags) then
-      AsioEvent.destroy(event)
+      @pony_asio_event_destroy(event)
     elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
     end
@@ -191,6 +195,6 @@ actor Stdin
       Close the event.
       """
       if not _event.is_null() then
-        AsioEvent.unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
         _event = AsioEvent.none()
       end

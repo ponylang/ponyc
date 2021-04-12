@@ -1,3 +1,7 @@
+use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+  flags: U32, nsec: U64, noisy: Bool)
+use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_destroy[None](event: AsioEventID)
 use @fcntl[I32](fd: U32, cmd: I32, ...)
 use @pipe[I32](fds: Pointer[(U32, U32)]) if posix
 use @ponyint_win_pipe_create[U32](near_fd: Pointer[U32] tag,
@@ -131,7 +135,7 @@ class _Pipe
     """
     ifdef posix then
       let flags = if _outgoing then AsioEvent.write() else AsioEvent.read() end
-      event = AsioEvent.create_event(owner, near_fd, flags, 0, true)
+      event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
     end
     close_far()
 
@@ -254,7 +258,7 @@ class _Pipe
     """
     if near_fd != -1 then
       if event isnt AsioEvent.none() then
-        AsioEvent.unsubscribe(event)
+        @pony_asio_event_unsubscribe(event)
       end
       @close(near_fd)
       near_fd = -1
@@ -265,5 +269,5 @@ class _Pipe
     close_near()
 
   fun ref dispose() =>
-    AsioEvent.destroy(event)
+    @pony_asio_event_destroy(event)
     event = AsioEvent.none()

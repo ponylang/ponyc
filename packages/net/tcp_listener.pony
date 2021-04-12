@@ -159,7 +159,7 @@ actor TCPListener
     end
 
     if AsioEvent.disposable(flags) then
-      AsioEvent.destroy(_event)
+      @pony_asio_event_destroy(_event)
       _event = AsioEvent.none()
     end
 
@@ -182,7 +182,7 @@ actor TCPListener
     ifdef windows then
       if ns == -1 then
         // Unsubscribe when we get an invalid socket in the event.
-        AsioEvent.unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
         return
       end
 
@@ -260,7 +260,7 @@ actor TCPListener
     if not _event.is_null() then
       // When not on windows, the unsubscribe is done immediately.
       ifdef not windows then
-        AsioEvent.unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
       end
 
       @pony_os_socket_close(_fd)
