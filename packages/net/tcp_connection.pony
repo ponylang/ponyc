@@ -1,5 +1,9 @@
 use "collections"
 
+use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
+  flags: U32, nsec: U64, noisy: Bool)
+use @pony_asio_event_unsubscribe[None](event: AsioEventID)
+use @pony_asio_event_destroy[None](event: AsioEventID)
 use @pony_asio_event_fd[U32](event: AsioEventID)
 use @pony_asio_event_resubscribe_read[None](event: AsioEventID)
 use @pony_asio_event_resubscribe_write[None](event: AsioEventID)
@@ -417,10 +421,10 @@ actor TCPConnection
     _connect_count = 0
     _fd = fd
     ifdef not windows then
-      _event = AsioEvent.create_event(this, fd,
+      _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write_oneshot(), 0, true)
     else
-      _event = AsioEvent.create_event(this, fd,
+      _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write(), 0, true)
     end
     _connected = true
@@ -626,7 +630,7 @@ actor TCPConnection
             end
           else
             // The connection failed, unsubscribe the event and close.
-            AsioEvent.unsubscribe(event)
+            @pony_asio_event_unsubscribe(event)
             @pony_os_socket_close(fd)
             _notify_connecting()
           end
@@ -638,7 +642,7 @@ actor TCPConnection
           // of the event (not the flags that this behavior's args!)
           // to see if it's ok to unsubscribe.
           if not @pony_asio_event_get_disposable(event) then
-            AsioEvent.unsubscribe(event)
+            @pony_asio_event_unsubscribe(event)
           end
           @pony_os_socket_close(fd)
           _try_shutdown()
@@ -647,7 +651,7 @@ actor TCPConnection
         // It's not our event.
         if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
-          AsioEvent.destroy(event)
+          @pony_asio_event_destroy(event)
         end
       end
     else
@@ -670,7 +674,7 @@ actor TCPConnection
       end
 
       if AsioEvent.disposable(flags) then
-        AsioEvent.destroy(event)
+        @pony_asio_event_destroy(event)
         _event = AsioEvent.none()
       end
 
@@ -1079,7 +1083,7 @@ actor TCPConnection
       // On windows, wait until all outstanding IOCP operations have completed
       // or been cancelled.
       if not _connected and not _readable and (_pending_sent == 0) then
-        AsioEvent.unsubscribe(_event)
+        @pony_asio_event_unsubscribe(_event)
       end
     end
 
@@ -1106,7 +1110,7 @@ actor TCPConnection
 
     ifdef not windows then
       // Unsubscribe immediately and drop all pending writes.
-      AsioEvent.unsubscribe(_event)
+      @pony_asio_event_unsubscribe(_event)
       _readable = false
       _writeable = false
       @pony_asio_event_set_readable(_event, false)
