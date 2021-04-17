@@ -468,6 +468,31 @@ static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
   return true;
 }
 
+static bool iocp_sendmsg(asio_event_t* ev, LPWSABUF wsa, int wsacnt,
+  ipaddress_t* ipaddr)
+{
+  SOCKET s = (SOCKET)ev->fd;
+  socklen_t addrlen = ponyint_address_length(ipaddr);
+
+  if(addrlen == (socklen_t)-1)
+    return false;
+
+  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
+
+  // WSASendTo is equivalent to sendmsg on Unix, sans allowing ancillary data
+  if(WSASendTo(s, wsa, wsacnt, NULL, 0, (struct sockaddr*)&ipaddr->addr,
+    addrlen, &iocp->ov, NULL) != 0)
+  {
+    if(GetLastError() != WSA_IO_PENDING)
+    {
+      iocp_destroy(iocp);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 #endif
 
 static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
@@ -1044,6 +1069,47 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
   return (size_t)sent;
 #endif
 }
+
+#ifdef PLATFORM_IS_WINDOWS
+PONY_API size_t pony_os_sendmsg(asio_event_t* ev, LPWSABUF wsa, int wsacnt,
+  ipaddress_t* ipaddr)
+{
+  if(!iocp_sendmsg(ev, wsa, wsacnt, ipaddr))
+    pony_error();
+
+  return 0;
+}
+#else
+PONY_API size_t pony_os_sendmsg(asio_event_t* ev, struct iovec* iov, int iovcnt,
+  ipaddress_t* ipaddr)
+{
+  socklen_t addrlen = ponyint_address_length(ipaddr);
+
+  if(addrlen == (socklen_t)-1)
+    pony_error();
+
+  struct msghdr hdr;
+  hdr.msg_name = (struct sockaddr*)&ipaddr->addr;
+  hdr.msg_namelen = addrlen;
+  hdr.msg_iov = iov;
+  hdr.msg_iovlen = iovcnt;
+  hdr.msg_controllen = 0;
+  hdr.msg_control = NULL;
+  hdr.msg_flags = 0;
+
+  ssize_t sent = sendmsg(ev->fd, &hdr, 0);
+
+  if(sent < 0)
+  {
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
+      return 0;
+
+    pony_error();
+  }
+
+  return (size_t) sent;
+}
+#endif
 
 PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
   ipaddress_t* ipaddr)
