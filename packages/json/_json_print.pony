@@ -56,7 +56,7 @@ primitive _JsonPrint
         var i = buf.size()
 
         while x != 0 do
-          buf.push((x % 10).u8() or 48)
+          buf.push((x % 10).u32() or 48)
           x = x / 10
         end
 
@@ -95,8 +95,8 @@ primitive _JsonPrint
 
     try
       while i < s.size() do
-        (let c, let count) = s.utf32(i.isize())?
-        i = i + count.usize()
+        let c = s(i)?
+        i = i + 1
 
         if c == '"' then
           buf.append("\\\"")
@@ -113,7 +113,7 @@ primitive _JsonPrint
         elseif c == '\n' then
           buf.append("\\n")
         elseif (c >= 0x20) and (c < 0x80) then
-          buf.push(c.u8())
+          buf.push(c)
         elseif c < 0x10000 then
           buf.append("\\u")
           buf.append(Format.int[U32](c where

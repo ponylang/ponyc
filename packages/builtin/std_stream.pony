@@ -1,33 +1,40 @@
-type ByteSeq is (String | Array[U8] val)
+type ByteSeq is (Array[U8] val)
 
 interface val ByteSeqIter
   """
-  Accept an iterable collection of String or Array[U8] val.
+  An iterable collection of Array[U8] val.
   """
   fun values(): Iterator[this->ByteSeq box]
+
+interface val StringIter
+  """
+  An iterable collection of String val.
+  """
+  fun values(): Iterator[this->String box]
 
 interface tag OutStream
   """
   Asnychronous access to some output stream.
   """
-  be print(data: ByteSeq)
+
+  be print(data: (String | ByteSeq))
     """
-    Print some bytes and insert a newline afterwards.
+    Print a String or some bytes and insert a newline afterwards.
     """
 
-  be write(data: ByteSeq)
+  be write(data: (String | ByteSeq))
     """
-    Print some bytes without inserting a newline afterwards.
-    """
-
-  be printv(data: ByteSeqIter)
-    """
-    Print an iterable collection of ByteSeqs.
+    Print a String or some bytes without inserting a newline afterwards.
     """
 
-  be writev(data: ByteSeqIter)
+  be printv(data: (StringIter | ByteSeqIter))
     """
-    Write an iterable collection of ByteSeqs.
+    Print an iterable collection of Strings or ByteSeqs using the default encoding (UTF-8).
+    """
+
+  be writev(data: (StringIter | ByteSeqIter))
+    """
+    Write an iterable collection of Strings or ByteSeqs using the default encoding (UTF-8).
     """
 
   be flush()
@@ -35,7 +42,7 @@ interface tag OutStream
     Flush the stream.
     """
 
-actor StdStream
+actor StdStream is OutStream
   """
   Asynchronous access to stdout and stderr. The constructors are private to
   ensure that access is provided only via an environment.
@@ -54,32 +61,56 @@ actor StdStream
     """
     _stream = @pony_os_stderr[Pointer[None]]()
 
-  be print(data: ByteSeq) =>
+  be print(data: (String | ByteSeq)) =>
     """
     Print some bytes and insert a newline afterwards.
     """
-    _print(data)
+    match data
+    | let s: (String) =>
+      _print(s.array())
+    | let d: (ByteSeq) =>
+      _print(d)
+    end
 
-  be write(data: ByteSeq) =>
+  be write(data: (String | ByteSeq)) =>
     """
     Print some bytes without inserting a newline afterwards.
     """
-    _write(data)
-
-  be printv(data: ByteSeqIter) =>
-    """
-    Print an iterable collection of ByteSeqs.
-    """
-    for bytes in data.values() do
-      _print(bytes)
+    match data
+    | let s: (String) =>
+      _write(s.array()) // Ignore the specified encoder
+    | let d: (ByteSeq) =>
+      _write(d)
     end
 
-  be writev(data: ByteSeqIter) =>
+  be printv(data: (StringIter | ByteSeqIter)) =>
+    """
+    Print an iterable collection of Strings or ByteSeqs.
+    """
+    match data
+    | let si: (StringIter val) =>
+      for string in si.values() do
+        _print(string.array())
+      end
+    | let bsi: (ByteSeqIter val) =>
+      for bytes in bsi.values() do
+        _print(bytes)
+      end
+    end
+
+  be writev(data: (StringIter | ByteSeqIter)) =>
     """
     Write an iterable collection of ByteSeqs.
     """
-    for bytes in data.values() do
-      _write(bytes)
+    match data
+    | let si: (StringIter val) =>
+      for string in si.values() do
+        _write(string.array())
+      end
+    | let bsi: (ByteSeqIter val) =>
+      for bytes in bsi.values() do
+        _write(bytes)
+      end
     end
 
   be flush() =>

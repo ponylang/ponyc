@@ -161,12 +161,14 @@ class iso _TestReader is UnitTest
     h.assert_eq[U128](b.u128_be()?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
     h.assert_eq[U128](b.u128_le()?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
-    h.assert_eq[String](b.line()?, "hi")
+    (var line: String val, _) = b.line()?
+    h.assert_eq[String]("hi", line)
     try
       b.read_until(0)?
       h.fail("should fail reading until 0")
     end
-    h.assert_eq[String](b.line()?, "there")
+    (line, _) = b.line()?
+    h.assert_eq[String]("there", line)
 
     b.append(['h'; 'i'])
 
@@ -179,7 +181,8 @@ class iso _TestReader is UnitTest
     h.assert_eq[U8](b.u8()?, 'i')
 
     b.append(['!'; '\n'])
-    h.assert_eq[String](b.line()?, "!")
+    (line, _) = b.line()?
+    h.assert_eq[String](line, "!")
 
     b.append(['s'; 't'; 'r'; '1'])
     try
@@ -221,9 +224,10 @@ class iso _TestWriter is UnitTest
       .> u128_le(0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
     wb.write(['h'; 'i'])
-    wb.writev([
+    let chars: Array[ByteSeq] val = [
       ['\n'; 't'; 'h'; 'e']
-      ['r'; 'e'; '\r'; '\n']])
+      ['r'; 'e'; '\r'; '\n']]
+    wb.writev(chars)
 
     for bs in wb.done().values() do
       b.append(bs)
@@ -254,8 +258,10 @@ class iso _TestWriter is UnitTest
     h.assert_eq[U128](b.u128_be()?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
     h.assert_eq[U128](b.u128_le()?, 0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
-    h.assert_eq[String](b.line()?, "hi")
-    h.assert_eq[String](b.line()?, "there")
+    (var line: String val, _) = b.line()?
+    h.assert_eq[String](line, "hi")
+    (line, _) = b.line()?
+    h.assert_eq[String](line, "there")
 
     b.append(['h'; 'i'])
 
@@ -265,4 +271,6 @@ class iso _TestWriter is UnitTest
     end
 
     b.append(['!'; '\n'])
-    h.assert_eq[String](b.line()?, "hi!")
+
+    (line, _) = b.line()?
+    h.assert_eq[String](line, "hi!")

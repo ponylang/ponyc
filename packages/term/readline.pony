@@ -13,28 +13,34 @@ class Readline is ANSINotify
   embed _history: Array[String]
   embed _queue: Array[String] = Array[String]
   let _maxlen: USize
+  let _decoder: StringDecoder val
 
   var _edit: String iso = recover String end
   var _cur_prompt: String = ""
   var _cur_line: USize = 0
   var _cur_pos: ISize = 0
   var _blocked: Bool = true
+  var _cur_bytes: U32 = 0
+  var _cur_byte_count: U8 = 0
 
   new iso create(
     notify: ReadlineNotify iso,
     out: OutStream,
     path: (FilePath | None) = None,
-    maxlen: USize = 0)
+    maxlen: USize = 0,
+    decoder: StringDecoder val = UTF8StringDecoder)
   =>
     """
     Create a readline handler to be passed to stdin. It begins blocked. Set an
-    initial prompt on the ANSITerm to begin processing.
+    initial prompt on the ANSITerm to begin processing. Only encodings that are a
+    superset of ASCII (e.g. UTF-8, ISO-8859-1, ...) will work.
     """
     _notify = consume notify
     _out = out
     _path = path
     _history = Array[String](maxlen)
     _maxlen = maxlen
+    _decoder = decoder
 
     _load_history()
 
@@ -75,7 +81,25 @@ class Readline is ANSINotify
     | if input < 0x20 => None // unknown control character
     else
       // Insert.
-      _edit.insert_byte(_cur_pos, input)
+      if _cur_byte_count == 0 then
+        _cur_bytes = _cur_bytes or (input.u32() << 24)
+      elseif _cur_byte_count == 1 then
+        _cur_bytes = _cur_bytes or (input.u32() << 16)
+      elseif _cur_byte_count == 2 then
+        _cur_bytes = _cur_bytes or (input.u32() << 8)
+      elseif _cur_byte_count == 3 then
+        _cur_bytes = _cur_bytes or input.u32()
+      end
+      _cur_byte_count = _cur_byte_count + 1
+
+      (let codepoint, let sz) = _decoder.decode(_cur_bytes)
+
+      if codepoint == 0xFFFD then return end // This means that we don't have a valid codepoint. Go back for another byte
+
+      _cur_bytes = _cur_bytes << (sz.u32() * 8)
+      _cur_byte_count = _cur_byte_count - sz
+
+      _edit.insert_utf32(_cur_pos, codepoint)
       _cur_pos = _cur_pos + 1
       _refresh_line()
     end
@@ -138,33 +162,15 @@ class Readline is ANSINotify
       return
     end
 
-    try
-      repeat
-        _cur_pos = _cur_pos - 1
-      until
-        (_cur_pos == 0) or
-        ((_edit.at_offset(_cur_pos)? and 0xC0) != 0x80)
-      end
-
-      _refresh_line()
-    end
+    _cur_pos = _cur_pos - 1
+    _refresh_line()
 
   fun ref right(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Move right.
     """
-    try
-      if _cur_pos < _edit.size().isize() then
-        _cur_pos = _cur_pos + 1
-      end
-
-      while
-        (_cur_pos < _edit.size().isize()) and
-        ((_edit.at_offset(_cur_pos)? and 0xC0) == 0x80)
-      do
-        _cur_pos = _cur_pos + 1
-      end
-
+    if _cur_pos < _edit.size().isize() then
+      _cur_pos = _cur_pos + 1
       _refresh_line()
     end
 
@@ -194,36 +200,17 @@ class Readline is ANSINotify
       return
     end
 
-    try
-      var c = U8(0)
+    _cur_pos = _cur_pos - 1
+    _edit.delete(_cur_pos, 1)
 
-      repeat
-        _cur_pos = _cur_pos - 1
-        c = _edit.at_offset(_cur_pos)?
-        _edit.delete(_cur_pos, 1)
-      until
-        (_cur_pos == 0) or ((c and 0xC0) != 0x80)
-      end
-
-      _refresh_line()
-    end
+    _refresh_line()
 
   fun ref delete(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Forward delete.
     """
-    try
-      if _cur_pos < _edit.size().isize() then
-        _edit.delete(_cur_pos, 1)
-      end
-
-      while
-        (_cur_pos < _edit.size().isize()) and
-        ((_edit.at_offset(_cur_pos)? and 0xC0) == 0x80)
-      do
-        _edit.delete(_cur_pos, 1)
-      end
-
+    if _cur_pos < _edit.size().isize() then
+      _edit.delete(_cur_pos, 1)
       _refresh_line()
     end
 

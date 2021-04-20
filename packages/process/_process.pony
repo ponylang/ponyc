@@ -401,7 +401,7 @@ class _ProcessWindows is _Process
     size = size + 1 // last \0
     var environ = Array[U8](size)
     for varr in vars.values() do
-      environ.append(varr)
+      environ.append(varr.array())
       environ.push(0)
     end
     environ.push(0)
@@ -426,4 +426,3 @@ class _ProcessWindows is _Process
     else
       WaitpidError
     end
-

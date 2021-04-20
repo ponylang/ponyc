@@ -103,26 +103,45 @@ actor _TestStream is OutStream
     _h = h
     _promise = promise
 
-  be print(data: ByteSeq) =>
+  be print(data: (String | ByteSeq)) =>
     _collect(data)
 
-  be write(data: ByteSeq) =>
+  be write(data: (String | ByteSeq)) =>
     _collect(data)
 
-  be printv(data: ByteSeqIter) =>
-    for bytes in data.values() do
-      _collect(bytes)
+  be printv(data: (StringIter | ByteSeqIter)) =>
+    match data
+    | let si: StringIter =>
+      for s in si.values() do
+        _collect(s)
+      end
+    |let bsi: ByteSeqIter =>
+      for bytes in bsi.values() do
+        _collect(bytes)
+      end
     end
 
-  be writev(data: ByteSeqIter) =>
-    for bytes in data.values() do
-      _collect(bytes)
+  be writev(data: (StringIter | ByteSeqIter)) =>
+    match data
+    | let si: StringIter =>
+      for s in si.values() do
+        _collect(s)
+      end
+    |let bsi: ByteSeqIter =>
+      for bytes in bsi.values() do
+        _collect(bytes)
+      end
     end
 
   be flush() => None
 
-  fun ref _collect(data: ByteSeq) =>
-    _output.append(data)
+  fun ref _collect(data: (String | ByteSeq)) =>
+    match data
+    | let s: String =>
+      _output.append(s)
+    | let bs: ByteSeq =>
+      _output.append(String.from_array(bs))
+    end
 
   be logged() =>
     let s: String = _output.clone()

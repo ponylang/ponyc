@@ -50,8 +50,6 @@ actor Main is TestList
     test(_TestFileWritevLarge)
     test(_TestFileFlush)
     test(_TestFileReadMore)
-    test(_TestFileRemoveReadOnly)
-    test(_TestDirectoryRemoveReadOnly)
     test(_TestFileLinesEmptyFile)
     test(_TestFileLinesSingleLine)
     test(_TestFileLinesMultiLine)
@@ -416,10 +414,12 @@ class iso _TestFileEOF is UnitTest
         file.write("foobar")
         file.sync()
         file.seek_start(0)
-        let line1 = file.read_string(6)
+        let bytes1 = file.read(6)
+        let line1 = String.from_iso_array(consume bytes1)
         h.assert_eq[String]("foobar", consume line1)
 
-        let line2 = file.read_string(1)
+        let bytes2 = file.read(1)
+        let line2 = String.from_iso_array(consume bytes2)
         h.assert_eq[USize](line2.size(), 0, "Read beyond EOF without error!")
         h.assert_true(file.errno() is FileEOF)
       end
@@ -449,11 +449,11 @@ class iso _TestFileCreate is UnitTest
 
 class iso _TestFileCreateExistsNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-exists-not-writeable"
-  fun apply_as_non_root(h: TestHelper) ? =>
-    let content = "unwriteable"
-    let path = "tmp.create-not-writeable"
-    let filepath = FilePath(h.env.root as AmbientAuth, path)?
+  fun apply_as_non_root(h: TestHelper) =>
     try
+      let content = "unwriteable"
+      let path = "tmp.create-not-writeable"
+      let filepath = FilePath(h.env.root as AmbientAuth, path)?
       let mode: FileMode ref = FileMode.>private()
       mode.owner_read = true
       mode.owner_write = false
@@ -472,10 +472,12 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
         let line = file2.read(6)
         h.assert_eq[USize](0, line.size(), "read on invalid file succeeded")
       end
+      mode.owner_read = true
+      mode.owner_write = true // required on Windows to delete the file
+      filepath.chmod(mode)
+      filepath.remove()
     else
       h.fail("Unhandled error!")
-    then
-      h.assert_true(filepath.remove())
     end
 
 
@@ -686,7 +688,8 @@ class iso _TestFileLongLine is UnitTest
         file.print(longline)
         file.sync()
         file.seek_start(0)
-        let line1 = file.read_string(longline.size())
+        let line1_bytes = file.read(longline.size())
+        let line1 = String.from_iso_array(consume line1_bytes)
         h.assert_eq[String](longline, consume line1)
       end
       filepath.remove()
@@ -704,7 +707,8 @@ class iso _TestFileWrite is UnitTest
         file.write("foobar\n")
       end
       with file2 = CreateFile(filepath) as File do
-        let line1 = file2.read_string(8)
+        let bytes1 = file2.read(8)
+        let line1 = String.from_iso_array(consume bytes1)
         h.assert_eq[String]("foobar\n", consume line1)
       end
       filepath.remove()
@@ -807,6 +811,7 @@ class iso _TestFileMixedWriteQueue is UnitTest
         file.writev(consume writev_data)
       end
       with file2 = CreateFile(filepath) as File do
+        let bytes2 = file2.read(256)
         h.assert_eq[String](
           "".join([
             line3 + "\n"
@@ -819,7 +824,7 @@ class iso _TestFileMixedWriteQueue is UnitTest
             line1
             line2
           ].values()),
-          file2.read_string(256))
+          String.from_iso_array(consume bytes2))
       end
       filepath.remove()
     else
@@ -906,49 +911,6 @@ class iso _TestFileReadMore is UnitTest
     end
     path.remove()
 
-class iso _TestFileRemoveReadOnly is UnitTest
-  fun name(): String => "files/File.remove-readonly-file"
-  fun apply(h: TestHelper) ? =>
-    let path = FilePath(h.env.root as AmbientAuth, "tmp-read-only")?
-    try
-      with file = CreateFile(path) as File do
-        None
-      end
-
-      let mode: FileMode ref = FileMode
-      mode.owner_read = true
-      mode.owner_write = false
-      mode.group_read = true
-      mode.group_write = false
-      mode.any_read = true
-      mode.any_write = false
-      h.assert_true(path.chmod(mode))
-    then
-      h.assert_true(path.remove())
-    end
-
-class iso _TestDirectoryRemoveReadOnly is UnitTest
-  fun name(): String => "files/File.remove-readonly-directory"
-
-  fun apply(h: TestHelper) ? =>
-    let path = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp-read-only-dir")?
-    let dir = Directory(path)?
-    try
-      let mode: FileMode ref = FileMode
-      mode.owner_read = true
-      mode.owner_write = false
-      mode.owner_exec = true
-      mode.group_read = true
-      mode.group_write = false
-      mode.group_exec = true
-      mode.any_read = true
-      mode.any_write = false
-      mode.any_exec = true
-      h.assert_true(path.chmod(mode))
-    then
-      h.assert_true(path.remove())
-    end
-
 class iso _TestFileLinesEmptyFile is UnitTest
   var tmp_dir: (FilePath | None) = None
 
@@ -977,26 +939,45 @@ class iso _TestFileLinesEmptyFile is UnitTest
 
 class iso _TestFileLinesSingleLine is UnitTest
 
-  let lines: Array[String] = [ as String:
-    "a"
-    "a\n"
-    "a\r\n"
-    "abcd"
-    "ABCD\n"
-    "ABCD\r\n"
-    String.from_array(recover val Array[U8].init('a', 255) end)
-    String.from_array(recover val Array[U8].init('a', 255) end) + "\n"
-    String.from_array(recover val Array[U8].init('a', 255) end) + "\r\n"
-    String.from_array(recover val Array[U8].init('b', 256) end)
-    String.from_array(recover val Array[U8].init('b', 256) end) + "\n"
-    String.from_array(recover val Array[U8].init('b', 256) end) + "\r\n"
-    String.from_array(recover val Array[U8].init('c', 257) end)
-    String.from_array(recover val Array[U8].init('c', 257) end) + "\n"
-    String.from_array(recover val Array[U8].init('c', 257) end) + "\r\n"
-    String.from_array(recover val Array[U8].init('d', 100_000) end)
-  ]
-
+  let lines: Array[String]
   var tmp_dir: (FilePath | None) = None
+
+  new iso create() =>
+    var l: Array[String] = []
+    l = [as String:
+      "a"
+      "a\n"
+      "a\r\n"
+      "abcd"
+      "ABCD\n"
+      "ABCD\r\n"
+      String.from_array(recover val Array[U8].init('a', 255) end)
+    ]
+    lines = l
+    //try
+
+      /**
+    lines = [ as String:
+      "a"
+      "a\n"
+      "a\r\n"
+      "abcd"
+      "ABCD\n"
+      "ABCD\r\n"
+      String.from_array(recover val Array[U8].init('a', 255) end)?
+      String.from_array(recover val Array[U8].init('a', 255) end)? + "\n"
+      String.from_array(recover val Array[U8].init('a', 255) end)? + "\r\n"
+      String.from_array(recover val Array[U8].init('b', 256) end)?
+      String.from_array(recover val Array[U8].init('b', 256) end)? + "\n"
+      String.from_array(recover val Array[U8].init('b', 256) end)? + "\r\n"
+      String.from_array(recover val Array[U8].init('c', 257) end)?
+      String.from_array(recover val Array[U8].init('c', 257) end)? + "\n"
+      String.from_array(recover val Array[U8].init('c', 257) end)? + "\r\n"
+      String.from_array(recover val Array[U8].init('d', 100_000) end)?
+    ]
+    else
+      lines = None */
+    //end
 
   fun ref set_up(h: TestHelper) ? =>
     tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "single-line")?
@@ -1047,23 +1028,28 @@ class _TestFileLinesMultiLine is UnitTest
   var tmp_dir: (FilePath | None) = None
 
   let line_endings: Array[String] val = ["\n"; "\r\n"]
-  let file_contents: Array[(Array[String] val, USize)] val = [
-    (["a"; "b"], 2)
-    (["a"; ""; "b"], 3)
-    (["a"; "b"; ""], 2)
-    ([""; "b"; "c"], 3)
-    ([""; ""], 1)
-    ([""; " "], 2)
-    ([""; ""; ""], 2)
-    ([
-      String.from_array(recover val Array[U8].init('a', 254) end)
-      String.from_array(recover val Array[U8].init('a', 257) end)], 2)
-    ([
-      String.from_array(recover val Array[U8].init('b', 256) end)
-      ""
-      String.from_array(recover val Array[U8].init('c', 256) end)
-      ], 3)
-  ]
+  let file_contents: Array[(Array[String] val, USize)] val
+
+  new iso create() =>
+    var f: Array[(Array[String] val, USize)] val = []
+    f = [
+      (["a"; "b"], 2)
+      (["a"; ""; "b"], 3)
+      (["a"; "b"; ""], 2)
+      ([""; "b"; "c"], 3)
+      ([""; ""], 1)
+      ([""; " "], 2)
+      ([""; ""; ""], 2)
+      ([
+        String.from_array(recover val Array[U8].init('a', 254) end)
+        String.from_array(recover val Array[U8].init('a', 257) end)], 2)
+      ([
+        String.from_array(recover val Array[U8].init('b', 256) end)
+        ""
+        String.from_array(recover val Array[U8].init('c', 256) end)
+        ], 3)
+    ]
+    file_contents = f
 
   fun ref set_up(h: TestHelper) ? =>
     tmp_dir = FilePath.mkdtemp(h.env.root as AmbientAuth, "multi-line")?

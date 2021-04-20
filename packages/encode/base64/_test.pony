@@ -19,13 +19,13 @@ class iso _TestBase64Encode is UnitTest
   fun name(): String => "encode/Base64.encode"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String]("", Base64.encode(""))
-    h.assert_eq[String]("Zg==", Base64.encode("f"))
-    h.assert_eq[String]("Zm8=", Base64.encode("fo"))
-    h.assert_eq[String]("Zm9v", Base64.encode("foo"))
-    h.assert_eq[String]("Zm9vYg==", Base64.encode("foob"))
-    h.assert_eq[String]("Zm9vYmE=", Base64.encode("fooba"))
-    h.assert_eq[String]("Zm9vYmFy", Base64.encode("foobar"))
+    h.assert_eq[String]("", String.from_iso_array(Base64.encode("".array())))
+    h.assert_eq[String]("Zg==", String.from_iso_array(Base64.encode("f".array())))
+    h.assert_eq[String]("Zm8=", String.from_iso_array(Base64.encode("fo".array())))
+    h.assert_eq[String]("Zm9v", String.from_iso_array(Base64.encode("foo".array())))
+    h.assert_eq[String]("Zm9vYg==", String.from_iso_array(Base64.encode("foob".array())))
+    h.assert_eq[String]("Zm9vYmE=", String.from_iso_array(Base64.encode("fooba".array())))
+    h.assert_eq[String]("Zm9vYmFy", String.from_iso_array(Base64.encode("foobar".array())))
 
 class iso _TestBase64Decode is UnitTest
   """
@@ -35,21 +35,21 @@ class iso _TestBase64Decode is UnitTest
   fun name(): String => "encode/Base64.decode"
 
   fun apply(h: TestHelper) ? =>
-    h.assert_eq[String]("", Base64.decode[String iso]("")?)
-    h.assert_eq[String]("f", Base64.decode[String iso]("Zg==")?)
-    h.assert_eq[String]("fo", Base64.decode[String iso]("Zm8=")?)
-    h.assert_eq[String]("foo", Base64.decode[String iso]("Zm9v")?)
-    h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg==")?)
-    h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE=")?)
-    h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
+    h.assert_eq[String]("", String.from_iso_array(Base64.decode("".array())?))
+    h.assert_eq[String]("f", String.from_iso_array(Base64.decode("Zg==".array())?))
+    h.assert_eq[String]("fo", String.from_iso_array(Base64.decode("Zm8=".array())?))
+    h.assert_eq[String]("foo", String.from_iso_array(Base64.decode("Zm9v".array())?))
+    h.assert_eq[String]("foob", String.from_iso_array(Base64.decode("Zm9vYg==".array())?))
+    h.assert_eq[String]("fooba", String.from_iso_array(Base64.decode("Zm9vYmE=".array())?))
+    h.assert_eq[String]("foobar", String.from_iso_array(Base64.decode("Zm9vYmFy".array())?))
 
-    h.assert_eq[String]("", Base64.decode[String iso]("")?)
-    h.assert_eq[String]("f", Base64.decode[String iso]("Zg")?)
-    h.assert_eq[String]("fo", Base64.decode[String iso]("Zm8")?)
-    h.assert_eq[String]("foo", Base64.decode[String iso]("Zm9v")?)
-    h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg")?)
-    h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE")?)
-    h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
+    h.assert_eq[String]("", String.from_iso_array(Base64.decode("".array())?))
+    h.assert_eq[String]("f", String.from_iso_array(Base64.decode("Zg".array())?))
+    h.assert_eq[String]("fo", String.from_iso_array(Base64.decode("Zm8".array())?))
+    h.assert_eq[String]("foo", String.from_iso_array(Base64.decode("Zm9v".array())?))
+    h.assert_eq[String]("foob", String.from_iso_array(Base64.decode("Zm9vYg".array())?))
+    h.assert_eq[String]("fooba", String.from_iso_array(Base64.decode("Zm9vYmE".array())?))
+    h.assert_eq[String]("foobar", String.from_iso_array(Base64.decode("Zm9vYmFy".array())?))
 
 class iso _TestBase64EncodeDecode is UnitTest
   """
@@ -60,10 +60,10 @@ class iso _TestBase64EncodeDecode is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let src = "Check encoding then decoding gives back original."
-    let enc = recover val Base64.encode(src) end
-    let dec = recover val Base64.decode[String iso](enc)? end
+    let enc = recover val Base64.encode(src.array()) end
+    let dec = recover val Base64.decode(enc)? end
 
-    h.assert_eq[String](src, dec)
+    h.assert_eq[String](src, String.from_array(dec))
 
 class iso _TestBase64Quote is UnitTest
   """
@@ -88,8 +88,8 @@ class iso _TestBase64Quote is UnitTest
       "a25vd2xlZGdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hb" +
       "CBwbGVhc3VyZS4="
 
-    let enc = recover val Base64.encode(src) end
+    let enc = recover val String.from_iso_array(Base64.encode(src.array())) end
     h.assert_eq[String](expect, enc)
 
-    let dec = recover val Base64.decode[String iso](enc)? end
+    let dec = recover val String.from_iso_array(Base64.decode(enc.array())?) end
     h.assert_eq[String](src, dec)

@@ -284,7 +284,7 @@ class CommandParser
       None
     end
 
-  fun _option_with_short(short: U8): (OptionSpec | None) =>
+  fun _option_with_short(short: U32): (OptionSpec | None) =>
     for o in _spec.options().values() do
       if o._has_short(short) then
         return o
@@ -296,8 +296,8 @@ class CommandParser
       None
     end
 
-  fun tag _short_string(c: U8): String =>
-    recover String.from_utf32(c.u32()) end
+  fun tag _short_string(c: U32): String =>
+    recover String.from_utf32(c) end
 
   fun _help_name(): String =>
     _root_spec().help_name()
