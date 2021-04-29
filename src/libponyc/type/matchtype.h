@@ -12,7 +12,8 @@ typedef enum
 {
   MATCHTYPE_ACCEPT,
   MATCHTYPE_REJECT,
-  MATCHTYPE_DENY
+  MATCHTYPE_DENY_CAP,
+  MATCHTYPE_DENY_NODESC
 } matchtype_t;
 
 /**
@@ -28,12 +29,15 @@ typedef enum
  *    runtime and must be handled entirely at compile time.
  * 3. A subtype of pattern_type.
  *
- * Return DENY if no such type can exist, but one could if capabilities were
+ * Return DENY_CAP if no such type can exist, but one could if capabilities were
  * ignored. For example an operand_type of "Foo box" and a pattern_type of
  * "Foo ref". This is to prevent a match that could be detected with runtime
  * information but would actually violate the capability guarantees.
- * When DENY is returned, no matching is allowed, even if some other
+ * When DENY_CAP is returned, no matching is allowed, even if some other
  * is_matchtype() relationship exists.
+ *
+ * Return DENY_NODESC if no such type can exist, due to either type lacking
+ * a type descriptor, like a struct.
  *
  * Return REJECT if no such type can exist.
  */

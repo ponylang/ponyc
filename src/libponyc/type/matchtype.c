@@ -29,20 +29,24 @@ static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern,
       case MATCHTYPE_REJECT:
         break;
 
-      case MATCHTYPE_DENY:
-        // If any type in the operand union denies a match, then the entire
-        // operand union is denied a match.
-        ok = MATCHTYPE_DENY;
+      // If any type in the operand union denies a match, then the entire
+      // operand union is denied a match.
+      case MATCHTYPE_DENY_CAP:
+        ok = MATCHTYPE_DENY_CAP;
+        break;
+
+      case MATCHTYPE_DENY_NODESC:
+        ok = MATCHTYPE_DENY_NODESC;
         break;
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       break;
   }
 
   if((ok != MATCHTYPE_ACCEPT) && (errorf != NULL))
   {
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       report_reject = false;
 
     for(ast_t* child = ast_child(operand);
@@ -52,10 +56,14 @@ static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern,
       is_x_match_x(child, pattern, errorf, report_reject, opt);
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if(ok == MATCHTYPE_DENY_CAP)
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
+        ast_print_type(operand), ast_print_type(pattern));
+    } else if(ok == MATCHTYPE_DENY_NODESC) {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
         ast_print_type(operand), ast_print_type(pattern));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "no element of %s can match %s",
@@ -86,20 +94,24 @@ static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern,
         ok = MATCHTYPE_REJECT;
         break;
 
-      case MATCHTYPE_DENY:
+      case MATCHTYPE_DENY_CAP:
         // If any type in the operand isect denies a match, then the entire
         // operand isect is denied a match.
-        ok = MATCHTYPE_DENY;
+        ok = MATCHTYPE_DENY_CAP;
+        break;
+
+      case MATCHTYPE_DENY_NODESC:
+        ok = MATCHTYPE_DENY_NODESC;
         break;
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       break;
   }
 
   if((ok != MATCHTYPE_ACCEPT) && (errorf != NULL))
   {
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       report_reject = false;
 
     for(ast_t* child = ast_child(operand);
@@ -109,10 +121,14 @@ static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern,
       is_x_match_x(child, pattern, errorf, report_reject, opt);
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if(ok == MATCHTYPE_DENY_CAP)
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
+        ast_print_type(operand), ast_print_type(pattern));
+    } else if(ok == MATCHTYPE_DENY_NODESC) {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
         ast_print_type(operand), ast_print_type(pattern));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "not every element of %s can match %s",
@@ -143,20 +159,24 @@ static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern,
       case MATCHTYPE_REJECT:
         break;
 
-      case MATCHTYPE_DENY:
+      case MATCHTYPE_DENY_CAP:
         // If any type in the pattern union denies a match, the entire pattern
         // union denies a match.
-        ok = MATCHTYPE_DENY;
+        ok = MATCHTYPE_DENY_CAP;
+        break;
+
+      case MATCHTYPE_DENY_NODESC:
+        ok = MATCHTYPE_DENY_NODESC;
         break;
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       break;
   }
 
   if((ok != MATCHTYPE_ACCEPT) && (errorf != NULL))
   {
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       report_reject = false;
 
     for(ast_t* child = ast_child(pattern);
@@ -166,10 +186,14 @@ static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern,
       is_x_match_x(operand, child, errorf, report_reject, opt);
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if(ok == MATCHTYPE_DENY_CAP)
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
+        ast_print_type(operand), ast_print_type(pattern));
+    } else if(ok == MATCHTYPE_DENY_NODESC) {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
         ast_print_type(operand), ast_print_type(pattern));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "%s cannot match any element of %s",
@@ -200,20 +224,24 @@ static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern,
         ok = MATCHTYPE_REJECT;
         break;
 
-      case MATCHTYPE_DENY:
+      case MATCHTYPE_DENY_CAP:
         // If any type in the pattern isect denies a match, the entire pattern
         // isect denies a match.
-        ok = MATCHTYPE_DENY;
+        ok = MATCHTYPE_DENY_CAP;
+        break;
+
+      case MATCHTYPE_DENY_NODESC:
+        ok = MATCHTYPE_DENY_NODESC;
         break;
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       break;
   }
 
   if((ok != MATCHTYPE_ACCEPT) && (errorf != NULL))
   {
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       report_reject = false;
 
     for(ast_t* child = ast_child(pattern);
@@ -223,10 +251,14 @@ static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern,
       is_x_match_x(operand, child, errorf, report_reject, opt);
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if(ok == MATCHTYPE_DENY_CAP)
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
+        ast_print_type(operand), ast_print_type(pattern));
+    } else if(ok == MATCHTYPE_DENY_NODESC) {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
         ast_print_type(operand), ast_print_type(pattern));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "%s cannot match every element of %s",
@@ -268,8 +300,12 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
         ok = MATCHTYPE_REJECT;
         break;
 
-      case MATCHTYPE_DENY:
-        ok = MATCHTYPE_DENY;
+      case MATCHTYPE_DENY_CAP:
+        ok = MATCHTYPE_DENY_CAP;
+        break;
+
+      case MATCHTYPE_DENY_NODESC:
+        ok = MATCHTYPE_DENY_NODESC;
         break;
     }
 
@@ -282,7 +318,7 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
 
   if((ok != MATCHTYPE_ACCEPT) && (errorf != NULL))
   {
-    if(ok == MATCHTYPE_DENY)
+    if((ok == MATCHTYPE_DENY_CAP) || (ok == MATCHTYPE_DENY_NODESC))
       report_reject = false;
 
     operand_child = ast_child(operand);
@@ -296,10 +332,14 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
       pattern_child = ast_sibling(pattern_child);
     }
 
-    if(ok == MATCHTYPE_DENY)
+    if(ok == MATCHTYPE_DENY_CAP)
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
+        ast_print_type(operand), ast_print_type(pattern));
+    } else if(ok == MATCHTYPE_DENY_NODESC) {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
         ast_print_type(operand), ast_print_type(pattern));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "%s cannot pairwise match %s",
@@ -336,13 +376,22 @@ static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
     matchtype_t r = is_x_match_x(operand, child, errorf, false, opt);
     pony_assert(r != MATCHTYPE_REJECT);
 
-    if(r == MATCHTYPE_DENY)
+    if(r == MATCHTYPE_DENY_CAP)
     {
       if(errorf != NULL)
       {
         ast_error_frame(errorf, pattern,
           "matching %s with %s could violate capabilities",
           ast_print_type(operand), ast_print_type(pattern));
+      }
+
+      return r;
+    } else if (r == MATCHTYPE_DENY_NODESC) {
+      if(errorf != NULL)
+      {
+        ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
+        ast_print_type(operand), ast_print_type(pattern));
       }
 
       return r;
@@ -378,12 +427,12 @@ static matchtype_t is_typeparam_match_typeparam(ast_t* operand, ast_t* pattern,
   if(operand_def == pattern_def)
   {
     r = is_cap_sub_cap_bound(ast_id(o_cap), TK_EPHEMERAL,
-      ast_id(p_cap), ast_id(p_eph)) ? MATCHTYPE_ACCEPT : MATCHTYPE_DENY;
+      ast_id(p_cap), ast_id(p_eph)) ? MATCHTYPE_ACCEPT : MATCHTYPE_DENY_CAP;
   }
 
   if((r != MATCHTYPE_ACCEPT) && (errorf != NULL))
   {
-    if(r == MATCHTYPE_DENY)
+    if(r == MATCHTYPE_DENY_CAP)
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities: "
@@ -391,6 +440,10 @@ static matchtype_t is_typeparam_match_typeparam(ast_t* operand, ast_t* pattern,
         ast_print_type(operand), ast_print_type(pattern),
         ast_print_type(o_cap), ast_print_type(o_eph),
         ast_print_type(p_cap), ast_print_type(p_eph));
+    } else if (r == MATCHTYPE_DENY_NODESC) {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type descriptor",
+        ast_print_type(operand), ast_print_type(pattern));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: they are different type parameters",
@@ -459,7 +512,7 @@ static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
         ast_print_type(operand), ast_print_type(pattern));
     }
 
-    return MATCHTYPE_DENY;
+    return MATCHTYPE_DENY_CAP;
   }
 
   matchtype_t ok = is_x_match_x(operand_view, pattern, errorf, report_reject,
@@ -496,7 +549,7 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
   }
 
   pony_assert(0);
-  return MATCHTYPE_DENY;
+  return MATCHTYPE_DENY_CAP;
 }
 
 static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
@@ -538,7 +591,7 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
         ast_print_type(p_cap), ast_print_type(p_eph));
     }
 
-    return MATCHTYPE_DENY;
+    return MATCHTYPE_DENY_CAP;
   }
 
   // Otherwise, accept the match.
@@ -568,7 +621,7 @@ static matchtype_t is_nominal_match_struct(ast_t* operand, ast_t* pattern,
         "would be impossible");
     }
 
-    return MATCHTYPE_DENY;
+    return MATCHTYPE_DENY_NODESC;
   }
 
   return is_nominal_match_entity(operand, pattern, errorf, report_reject, opt);
@@ -612,7 +665,7 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
         ast_print_type(p_cap), ast_print_type(p_eph));
     }
 
-    return MATCHTYPE_DENY;
+    return MATCHTYPE_DENY_CAP;
   }
 
   // Otherwise, accept the match.
@@ -641,7 +694,7 @@ static matchtype_t is_trait_match_trait(ast_t* operand, ast_t* pattern,
         ast_print_type(p_cap), ast_print_type(p_eph));
     }
 
-    return MATCHTYPE_DENY;
+    return MATCHTYPE_DENY_CAP;
   }
 
   // Otherwise, accept the match.
@@ -671,7 +724,7 @@ static matchtype_t is_nominal_match_trait(ast_t* operand, ast_t* pattern,
   }
 
   pony_assert(0);
-  return MATCHTYPE_DENY;
+  return MATCHTYPE_DENY_CAP;
 }
 
 static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
@@ -700,7 +753,7 @@ static matchtype_t is_nominal_match_nominal(ast_t* operand, ast_t* pattern,
   }
 
   pony_assert(0);
-  return MATCHTYPE_DENY;
+  return MATCHTYPE_DENY_CAP;
 }
 
 static matchtype_t is_tuple_match_nominal(ast_t* operand, ast_t* pattern,
@@ -750,7 +803,7 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
   }
 
   pony_assert(0);
-  return MATCHTYPE_DENY;
+  return MATCHTYPE_DENY_CAP;
 }
 
 static matchtype_t is_x_match_base_typeparam(ast_t* operand, ast_t* pattern,
@@ -781,7 +834,7 @@ static matchtype_t is_x_match_base_typeparam(ast_t* operand, ast_t* pattern,
   }
 
   pony_assert(0);
-  return MATCHTYPE_DENY;
+  return MATCHTYPE_DENY_CAP;
 }
 
 static matchtype_t is_x_match_typeparam(ast_t* operand, ast_t* pattern,
@@ -858,13 +911,13 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
       return is_x_match_arrow(operand, pattern, errorf, report_reject, opt);
 
     case TK_FUNTYPE:
-      return MATCHTYPE_DENY;
+      return MATCHTYPE_DENY_CAP;
 
     default: {}
   }
 
   pony_assert(0);
-  return MATCHTYPE_DENY;
+  return MATCHTYPE_DENY_CAP;
 }
 
 matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,

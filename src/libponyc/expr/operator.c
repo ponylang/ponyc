@@ -500,7 +500,8 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
 
       ast_t* expr_type = ast_type(expr);
       errorframe_t info = NULL;
-      if(is_matchtype(expr_type, type, &info, opt) == MATCHTYPE_DENY)
+      matchtype_t is_match = is_matchtype(expr_type, type, &info, opt);
+      if(is_match == MATCHTYPE_DENY_CAP)
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast,
@@ -508,6 +509,21 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
         ast_error_frame(&frame, type,
           "match type: %s", ast_print_type(type));
         ast_error_frame(&frame, expr,
+          "pattern type: %s", ast_print_type(expr_type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
+
+        return false;
+      } else if(is_match == MATCHTYPE_DENY_NODESC){
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, ast,
+          "matching variable of type %s with %s is not possible, "
+          "since a struct lacks a type descriptor",
+          ast_print_type(expr_type), ast_print_type(type));
+        ast_error_frame(&frame, type,
+          "match type: %s", ast_print_type(type));
+        ast_error_frame(&frame, expr,
+          "a struct cannot be part of a union type. "
           "pattern type: %s", ast_print_type(expr_type));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);

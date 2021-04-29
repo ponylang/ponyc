@@ -528,7 +528,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
       break;
     }
 
-    case MATCHTYPE_DENY:
+    case MATCHTYPE_DENY_CAP:
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, pattern,
@@ -544,6 +544,24 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
 
+      ok = false;
+      break;
+    }
+
+    case MATCHTYPE_DENY_NODESC:
+    {
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, pattern,
+        "this capture cannot match, since the type %s "
+        "is a struct and lacks a type descriptor",
+        ast_print_type(pattern_type));
+      ast_error_frame(&frame, match_type,
+        "a struct cannot be part of a union type. match type: %s",
+        ast_print_type(match_type));
+      ast_error_frame(&frame, pattern, "pattern type: %s",
+        ast_print_type(pattern_type));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame, opt->check.errors);
       ok = false;
       break;
     }
