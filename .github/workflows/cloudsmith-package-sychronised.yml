@@ -195,7 +195,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Trigger
-        uses: ponylang/release-bot-action@0.5.0
+        uses: docker://ponylang/release-bot-action:0.5.0
         with:
           step: trigger-release-announcement
           git_user_name: "Ponylang Main Bot"
