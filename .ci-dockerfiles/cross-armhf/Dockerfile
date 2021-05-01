@@ -16,7 +16,7 @@ RUN curl -L --output gcc-linearo.tar.xz "https://releases.linaro.org/components/
  && tar xJf gcc-linearo.tar.xz -C /usr/local --strip 1 \
  && arm-linux-gnueabihf-gcc --version \
  && rm gcc-linearo.tar.xz \
- && curl -L --output /usr/bin/qemu-arm-static https://github.com/multiarch/qemu-user-static/releases/download/v4.2.0-2/qemu-arm-static \
+ && curl -L --output /usr/bin/qemu-arm-static https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-2/qemu-arm-static \
  && chmod +x /usr/bin/qemu-arm-static
 
 RUN cmake --version
