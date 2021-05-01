@@ -8,7 +8,6 @@ Prebuilt Pony installations will use clang as the default C compiler and clang++
 
 Prebuilt FreeBSD 13.0 packages are available for download from our [Cloudsmith repository](https://cloudsmith.io/~ponylang/repos/releases/packages/?q=name%3A%27%5Eponyc-x86-64-unknown-freebsd-13.0.tar.gz%24%27).
 
-
 ## Linux
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
