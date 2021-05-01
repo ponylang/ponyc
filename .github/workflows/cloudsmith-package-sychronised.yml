@@ -200,6 +200,7 @@ jobs:
           step: trigger-release-announcement
           git_user_name: "Ponylang Main Bot"
           git_user_email: "ponylang.main@gmail.com"
+          default_branch: "main"
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           VERSION: ${{ github.event.client_payload.data.version }}
