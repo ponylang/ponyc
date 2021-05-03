@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Improve error message for match on structs ([PR #3746](https://github.com/ponylang/ponyc/pull/3746))
 
 ## [0.40.0] - 2021-05-01
 
