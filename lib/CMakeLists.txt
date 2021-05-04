@@ -39,12 +39,12 @@ if(GIT_FOUND)
         option(GIT_SUBMODULE "Check submodules during build" ON)
         if(GIT_SUBMODULE)
             message(STATUS "Updating submodules...")
-            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --depth 1
                             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                             RESULT_VARIABLE git_submod_result)
             #message("git_submod_result ${git_submod_result}")
             if(NOT git_submod_result EQUAL "0")
-                message(FATAL_ERROR "git submodule update --init --recursive failed with ${git_submod_result}, please checkout submodules")
+                message(FATAL_ERROR "git submodule update --init --recursive --depth 1 failed with ${git_submod_result}, please checkout submodules")
             endif()
 
             # we check to make sure the submodule hash matches
