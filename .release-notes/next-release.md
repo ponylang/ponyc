@@ -169,3 +169,45 @@ class MyClass is Stringable
     var1 + var2
 ```
 
+## Improve error message when attempting to destructure non-tuple types
+
+Sometimes, the compiler will infer that the return type of an expression is an union or an intersection of multiple types. If the user tries to destructure such result into a tuple, the compiler will emit an error, but it won't show the user what the inferred type is. This could be confusing to users, as they wouldn't know what went wrong with the code, unless they added explicit type annotations to the assigned variables.
+
+Starting with this release, the compiler will now show what the inferred type is, so that the user can spot the problem without needing to explicitly annotate their code.
+
+As an example, the following piece of Pony code:
+
+```pony
+actor Main
+  new create(env: Env) =>
+    (let str, let size) =
+      if true then
+        let str' = String(5) .> append("hello")
+        (str', USize(5))
+      else
+        ("world", USize(5))
+      end
+```
+
+would fail to compile on previous releases with the following error message:
+
+```
+Error:
+main.pony:3:25: can't destructure a union using assignment, use pattern matching instead
+    (let str, let size) =
+                        ^
+```
+
+Starting with this release, the error message will show the inferred type of the expression:
+
+```
+Error:
+main.pony:3:25: can't destructure a union using assignment, use pattern matching instead
+    (let str, let size) =
+                        ^
+    Info:
+    main.pony:4:7: inferred type of expression: ((String ref, USize val^) | (String val, USize val^))
+          if true then
+          ^
+```
+
