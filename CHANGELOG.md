@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Improve error message for match on structs ([PR #3746](https://github.com/ponylang/ponyc/pull/3746))
 - RFC 68: Mandatory FFI declarations ([PR #3739](https://github.com/ponylang/ponyc/pull/3739))
+- Change return type of String.add to String iso^ ([PR #3752](https://github.com/ponylang/ponyc/pull/3752))
 
 ## [0.40.0] - 2021-05-01
 
