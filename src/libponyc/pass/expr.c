@@ -167,6 +167,7 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
     case TK_CASES:
     case TK_IFTYPE_SET:
     case TK_RECOVER:
+    case TK_TUPLE:
       // These can be results.
       break;
 
