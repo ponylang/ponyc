@@ -389,12 +389,16 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         ast_error(opt->check.errors, ast,
           "can't destructure a union using assignment, use pattern matching "
           "instead");
+        ast_error_continue(opt->check.errors, right,
+          "inferred type of expression: %s", ast_print_type(r_type));
         break;
 
       case TK_ISECTTYPE:
         ast_error(opt->check.errors, ast,
           "can't destructure an intersection using assignment, use pattern "
           "matching instead");
+        ast_error_continue(opt->check.errors, right,
+          "inferred type of expression: %s", ast_print_type(r_type));
         break;
 
       default:
