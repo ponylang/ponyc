@@ -33,9 +33,9 @@ actor Main
       let count = str_new.count("l")
 
       // find first occurrence of letter "w"
-      let first_w = str_new.find("w")
+      let first_w = str_new.find("w") ?
       // find first occurrence of letter "d"
-      let first_d = str_new.find("d")
+      let first_d = str_new.find("d") ?
 
       // get substring capturing "world"
       let substr = str_new.substring(first_w, first_d+1)
