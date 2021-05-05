@@ -74,19 +74,23 @@ class iso _TestBase64Quote is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let src =
-      "Man is distinguished, not only by his reason, but by this singular " +
-      "passion from other animals, which is a lust of the mind, that by a " +
-      "perseverance of delight in the continued and indefatigable " +
-      "generation of knowledge, exceeds the short vehemence of any carnal " +
-      "pleasure."
+      recover val
+        "Man is distinguished, not only by his reason, but by this singular " +
+        "passion from other animals, which is a lust of the mind, that by a " +
+        "perseverance of delight in the continued and indefatigable " +
+        "generation of knowledge, exceeds the short vehemence of any carnal " +
+        "pleasure."
+      end
 
     let expect =
-      "TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBie" +
-      "SB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBhbmltYWxzLCB3aGljaCBpcy" +
-      "BhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWd" +
-      "odCBpbiB0aGUgY29udGludWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yg" +
-      "a25vd2xlZGdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hb" +
-      "CBwbGVhc3VyZS4="
+      recover val
+        "TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBie" +
+        "SB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBhbmltYWxzLCB3aGljaCBpcy" +
+        "BhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWd" +
+        "odCBpbiB0aGUgY29udGludWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yg" +
+        "a25vd2xlZGdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hb" +
+        "CBwbGVhc3VyZS4="
+      end
 
     let enc = recover val Base64.encode(src) end
     h.assert_eq[String](expect, enc)

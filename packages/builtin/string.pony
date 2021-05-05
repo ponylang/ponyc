@@ -1301,7 +1301,7 @@ actor Main
     _size = len
     consume this
 
-  fun add(that: String box): String =>
+  fun add(that: String box): String iso^ =>
     """
     Return a string that is a concatenation of this and that.
     """

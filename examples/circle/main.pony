@@ -22,9 +22,11 @@ actor Main
       let c = Circle(i)
 
       var str =
-        "Radius: " + c.get_radius().string() + "\n" +
-        "Circumference: " + c.get_circumference().string() + "\n" +
-        "Area: " + c.get_area().string() + "\n"
+        recover val
+          "Radius: " + c.get_radius().string() + "\n" +
+          "Circumference: " + c.get_circumference().string() + "\n" +
+          "Area: " + c.get_area().string() + "\n"
+        end
 
       env.out.print(str)
     end
