@@ -59,6 +59,7 @@ actor Main is TestList
     test(_TestStringRecalc)
     test(_TestStringTruncate)
     test(_TestStringChop)
+    test(_TestStringChopWithPush)
     test(_TestStringUnchop)
     test(_TestStringRepeatStr)
     test(_TestStringConcatOffsetLen)
@@ -76,6 +77,7 @@ actor Main is TestList
     test(_TestArrayFind)
     test(_TestArraySwapElements)
     test(_TestArrayChop)
+    test(_TestArrayChopWithPush)
     test(_TestArrayUnchop)
     test(_TestArrayFromCPointer)
     test(_TestMath128)
@@ -1197,6 +1199,19 @@ class iso _TestStringChop is UnitTest
     h.assert_eq[String box](expected_left, consume left)
     h.assert_eq[String box](expected_right, consume right)
 
+class iso _TestStringChopWithPush is UnitTest
+  """
+  Test chopping a string then pushing to the left side
+  """
+  fun name(): String => "builtin/String.chop_with_push"
+
+  fun apply(h: TestHelper) =>
+    let catdog = "catdog".clone()
+    (let cat, let dog) = (consume catdog).chop(3)
+    cat.push('s')
+    h.assert_eq[String box]("cats", consume cat)
+    h.assert_eq[String box]("dog", consume dog)
+
 class iso _TestStringUnchop is UnitTest
   """
   Test unchopping a string
@@ -1630,6 +1645,19 @@ class iso _TestArrayChop is UnitTest
     (let left: Array[U8] iso, let right: Array[U8] iso) = (consume orig).chop(split_point)
     h.assert_array_eq[U8](expected_left, consume left)
     h.assert_array_eq[U8](expected_right, consume right)
+
+class iso _TestArrayChopWithPush is UnitTest
+  """
+  Test chopping an array with a subsequent push to the left side
+  """
+  fun name(): String => "builtin/Array.chop_with_push"
+
+  fun apply(h: TestHelper) =>
+    let catdog: Array[U8] iso = recover iso ['c'; 'a'; 't'; 'd'; 'o'; 'g'] end
+    (let cat, let dog) = (consume catdog).chop(3)
+    cat.push('s')
+    h.assert_array_eq[U8](['c'; 'a'; 't'; 's'], consume cat)
+    h.assert_array_eq[U8](['d'; 'o'; 'g'], consume dog)
 
 class iso _TestArrayUnchop is UnitTest
   """
