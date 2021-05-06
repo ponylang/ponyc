@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Change to Steed's model of subtyping ([PR #3643](https://github.com/ponylang/ponyc/pull/3643))
+- Fix memory corruption with Array.chop and String.chop ([PR #3755](https://github.com/ponylang/ponyc/pull/3755))
 
 ### Added
 
