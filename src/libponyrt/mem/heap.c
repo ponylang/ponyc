@@ -557,30 +557,9 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
     // Previous allocation was a ponyint_heap_alloc_small.
     void* ext = EXTERNAL_PTR(p, chunk->size);
 
-    // If the new allocation is a ponyint_heap_alloc_small and the pointer is
-    // not an internal pointer, we may be able to reuse this memory. If it is
-    // an internal pointer, we know where the old allocation begins but not
-    // where it ends, so we cannot reuse this memory.
-    if((size <= HEAP_MAX) && (p == ext))
-    {
-      uint32_t sizeclass = ponyint_heap_index(size);
-
-      // If the new allocation is the same size or smaller, return the old
-      // one.
-      if(sizeclass <= chunk->size)
-        return p;
-    }
-
     oldsize = SIZECLASS_SIZE(chunk->size) - ((uintptr_t)p - (uintptr_t)ext);
   } else {
     // Previous allocation was a ponyint_heap_alloc_large.
-    if((size <= chunk->size) && (p == chunk->m))
-    {
-      // If the new allocation is the same size or smaller, and this is not an
-      // internal pointer, return the old one. We can't reuse internal
-      // pointers in large allocs for the same reason as small ones.
-      return p;
-    }
 
     oldsize = chunk->size - ((uintptr_t)p - (uintptr_t)chunk->m);
   }
