@@ -2,15 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.41.0] - 2021-05-07
 
 ### Fixed
 
 - Change to Steed's model of subtyping ([PR #3643](https://github.com/ponylang/ponyc/pull/3643))
 - Fix memory corruption with Array.chop and String.chop ([PR #3755](https://github.com/ponylang/ponyc/pull/3755))
-
-### Added
-
 
 ### Changed
 
