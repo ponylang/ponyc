@@ -524,10 +524,14 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_ARRAY: return expr_pre_array(options, astp);
-    case TK_USE:
-      // Don't look in use commands to avoid false type errors from the guard
-      return AST_IGNORE;
-
+    case TK_IFDEFNOT:
+    case TK_IFDEFAND:
+    case TK_IFDEFOR:
+    case TK_IFDEFFLAG:
+      // Don't look in guards for use commands to avoid false type errors
+      if((ast_parent(ast) != NULL) && (ast_id(ast_parent(ast)) == TK_USE))
+        return AST_IGNORE;
+      break;
     default: {}
   }
 
