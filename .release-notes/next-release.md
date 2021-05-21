@@ -1,0 +1,4 @@
+## Fix type constraint check against NullablePointer being omitted in FFI declarations
+
+This release fixes an issue where the compiler would not perform some type checks against FFI declarations. Specifically, the compiler would fail to validate that the type parameter to the `NullablePointer` type had to be a struct type. This check is important since a program that used a non-struct type in a `NullablePointer` could theoretically segfault at runtime.
+
