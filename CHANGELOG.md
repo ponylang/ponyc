@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix NullablePointer type constraint check being omitted in FFI declarations ([PR #3758](https://github.com/ponylang/ponyc/pull/3758))
 
 ### Added
 
