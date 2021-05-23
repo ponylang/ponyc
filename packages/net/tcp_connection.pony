@@ -280,7 +280,7 @@ actor TCPConnection
     fun ref received(conn, data, times) => _wrapped.received(conn, data, times)
     fun ref connect_failed(conn: TCPConnection ref) => None
   ```
-  
+
   """
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify

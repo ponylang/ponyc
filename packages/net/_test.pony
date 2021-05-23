@@ -663,7 +663,7 @@ class _TestTCPProxyNotify is TCPConnectionNotify
   fun ref proxy_via(host: String, service: String): (String, String) =>
     _h.complete_action("sender proxy request")
     (host, service)
-    
+
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("sender connected")
 
