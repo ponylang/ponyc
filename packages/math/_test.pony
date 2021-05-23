@@ -21,7 +21,7 @@ primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   Since 2 divides (6k + 0), (6k + 2), 
   and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1) 
   for expressing primes.
-  
+
   Given the above, (6k + 0), (6k + 2), 6k + 4), (6k + 3) should always express composites.
   """
   fun apply(s: String): UnitTest iso^ =>
@@ -43,7 +43,7 @@ primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
           let plusTwo: A = plusNone + 2
           let plusThree: A = plusNone + 3
           let plusFour: A = plusNone + 4
-          
+
           h.assert_false(IsPrime[A](plusNone))
           h.assert_false(IsPrime[A](plusTwo))
           h.assert_false(IsPrime[A](plusThree))

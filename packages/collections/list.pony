@@ -13,7 +13,7 @@ class List[A] is Seq[A]
 
   As you would expect. functions are provided to perform all the common list operations such as
   creation, traversal, node addition and removal, iteration, mapping, filtering, etc.
-  
+
   ## Example program
   There are a _lot_ of functions in List. The following code picks out a few common examples.
 
@@ -43,30 +43,30 @@ class List[A] is Seq[A]
       The size of our second partitioned list (doesn't match predicate): 1
       Our matching partition elements are:
         Second BOOM!
-  
+
   ```pony
     use "collections"
 
     actor Main
       new create(env:Env) =>
-        
+
         // Create a new empty List of type String
         let my_list = List[String]()
-        
+
         env.out.print("A new empty list has " + my_list.size().string() + " nodes.") // 0
-        
+
         // Push a String literal onto our empty List
         my_list.push("A single String")
         env.out.print("Adding one node to our empty list means it now has a size of "
                       + my_list.size().string() + ".") // 1
-        
+
         // Get the first element of our List
         try env.out.print("The first (index 0) node has the value: "
                           + my_list.index(0)?()?.string()) end // A single String
-        
+
         // Create a second List from a single String literal
         let my_second_list = List[String].unit("Another String")
-        
+
         // Append the second List to the first
         my_list.append_list(my_second_list)
         env.out.print("A list created by appending our second single-node list onto our first has size: "
@@ -78,7 +78,7 @@ class List[A] is Seq[A]
         // NOTE: this _moves_ the elements so second_list consequently ends up empty
         env.out.print("Append *moves* the nodes from the second list so that now has "
                       + my_second_list.size().string() + " nodes.") // 0
-        
+
         // Create a third List from a Seq(ence)
         // (In this case a literal array of Strings)
         let my_third_list = List[String].from(["First"; "Second"; "Third"])
@@ -87,7 +87,7 @@ class List[A] is Seq[A]
         for n in my_third_list.values() do
           env.out.print("\t" + n.string())
         end
-        
+
         // Map over the third List, concatenating some "BOOM!'s" into a new List
         let new_list = my_third_list.map[String]({ (n) => n + " BOOM!" })
         env.out.print("Mapping over our three-node list produces a new list of size: "
@@ -104,7 +104,7 @@ class List[A] is Seq[A]
         for n in filtered_list.values() do
           env.out.print("\t" + n.string()) // Second BOOM!\nThird BOOM!
         end
-        
+
         // Partition the filtered list
         let partitioned_lists = filtered_list.partition({ (n) => n.string().contains("Second") })
         env.out.print("The size of our first partitioned list (matches predicate): " + partitioned_lists._1.size().string())        // 1
@@ -114,7 +114,7 @@ class List[A] is Seq[A]
           env.out.print("\t" + n.string()) // Second BOOM!
         end
   ```
-  
+
   """
   var _head: (ListNode[A] | None) = None
   var _tail: (ListNode[A] | None) = None

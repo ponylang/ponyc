@@ -25,7 +25,7 @@ class val NetAddress is Equatable[NetAddress]
     """
     Port number in network byte order.
     """
-    
+
   let _addr: U32 = 0
     """
     IPv4 address in network byte order.

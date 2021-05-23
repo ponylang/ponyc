@@ -561,7 +561,7 @@ class iso _TestMultipleEndOfOptions is UnitTest
 
     let cmd = cmdErr as Command
     h.assert_eq[String]("corral/exec", cmd.fullname())
-    
+
     let argss = cmd.arg("args").string_seq()
     h.assert_eq[String]("lldb", argss(0)?)
     h.assert_eq[String]("ponyc", argss(1)?)
@@ -626,8 +626,8 @@ primitive _Fixtures
         ])?
       ])?
     ])?
-    
-  
+
+
   fun corral_spec(): CommandSpec box ? =>
     """
     A snippet from Corral's command spec to demonstrate multiple end of option arguments

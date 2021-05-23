@@ -254,7 +254,7 @@ class val TestHelper
     The type parameter of this function is the type parameter of the
     elements in both ReadSeqs. For instance, when comparing two `Array[U8]`,
     you should call this method as follows:
-    
+
     ```pony
     fun apply(h: TestHelper) =>
       let a: Array[U8] = [1; 2; 3]
@@ -307,7 +307,7 @@ class val TestHelper
     The type parameter of this function is the type parameter of the
     elements in both ReadSeqs. For instance, when comparing two `Array[U8]`,
     you should call this method as follows:
-    
+
     ```pony
     fun apply(h: TestHelper) =>
       let a: Array[U8] = [1; 2; 3]
