@@ -208,6 +208,12 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_IFTYPE);
 
   AST_GET_CHILDREN(ast, subtype, supertype, body, typeparam_store);
+  // Prevent this from running again, if, for example, the iftype
+  // occurs inside an object literal (or lambda). In those cases,
+  // a "catch up" will take place and the compiler will try to run
+  // this pass again.
+  if(ast_id(typeparam_store) != TK_NONE)
+    return AST_IGNORE;
 
   ast_t* typeparams = ast_from(ast, TK_TYPEPARAMS);
 
