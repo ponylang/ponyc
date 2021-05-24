@@ -486,7 +486,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.4"
     populate_script: make libs build_flags=-j8
 
   install_script:
