@@ -71,10 +71,21 @@ Note that you only need to run `make libs` once the first time you build (or if 
 
 ## macOS
 
+For Intel-based macOS:
+
 ```bash
 make libs
 make configure
 make build
+sudo make install
+```
+
+For Apple Silicon macOS (M1 processors):
+
+```bash
+make libs
+make configure arch=armv8
+make build arch=armv8
 sudo make install
 ```
 

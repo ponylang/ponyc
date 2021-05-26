@@ -75,7 +75,7 @@ To install the most recent ponyc on macOS for Intel:
 ponyup update ponyc release
 ```
 
-At this time, Pony is unsupported on M1 Apple Silicon. We are interested in getting Pony working on Apple Silicon but need assistance. If you have access to M1 Apple Silicon and would like to get Pony working, please contact us on the [ponylang Zulip](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to.20Pony/topic/m1.20help).
+At this time, we don't offer prebuilt Pony binaries for M1 Apple Silicon. You will need to build Pony [from source](BUILD.md).
 
 ## Windows
 
