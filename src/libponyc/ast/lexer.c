@@ -1204,7 +1204,7 @@ static token_t* dollar(lexer_t* lexer)
 
   // No test keyword or identifier found. Either we have just a lone '$' or
   // we're not in test mode so no dollar symbols are allowed.
-  lex_error(lexer, "Unrecognized character: $");
+  lex_error(lexer, "Unrecognized character: '$' ");
   return make_token(lexer, TK_LEX_ERROR);
 }
 
