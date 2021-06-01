@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix "iftype" expressions not being usable in lambdas or object literals ([PR #3763](https://github.com/ponylang/ponyc/pull/3763))
+- Fix code generation for variadic FFI functions on arm64 ([PR #3768](https://github.com/ponylang/ponyc/pull/3768))
 
 ### Added
 
