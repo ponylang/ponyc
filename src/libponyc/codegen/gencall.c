@@ -1033,53 +1033,55 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
   }
 }
 
-static LLVMValueRef declare_ffi_vararg(compile_t* c, const char* f_name,
-  reach_type_t* t)
-{
-  LLVMTypeRef r_type = ffi_return_type(c, t, false);
-  LLVMTypeRef f_type = LLVMFunctionType(r_type, NULL, 0, true);
-  LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
-
-  return func;
-}
-
 static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
   reach_type_t* t, ast_t* args, bool intrinsic)
 {
+  bool is_varargs = false;
   ast_t* last_arg = ast_childlast(args);
+  int param_count = (int)ast_childcount(args);
 
   if((last_arg != NULL) && (ast_id(last_arg) == TK_ELLIPSIS))
-    return declare_ffi_vararg(c, f_name, t);
-
-  int count = (int)ast_childcount(args);
-  size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-  count = 0;
-
-  ast_t* arg = ast_child(args);
-
-  deferred_reification_t* reify = c->frame->reify;
-
-  while(arg != NULL)
   {
-    ast_t* p_type = ast_type(arg);
+    is_varargs = true;
+    param_count--;
+  }
 
-    if(p_type == NULL)
-      p_type = ast_childidx(arg, 1);
+  size_t buf_size = 0;
+  LLVMTypeRef* f_params = NULL;
+  // Don't allocate argument list if all arguments are optional
+  if(param_count != 0)
+  {
+    buf_size = param_count * sizeof(LLVMTypeRef);
+    f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+    param_count = 0;
 
-    p_type = deferred_reify(reify, p_type, c->opt);
-    reach_type_t* pt = reach_type(c->reach, p_type);
-    pony_assert(pt != NULL);
-    f_params[count++] = ((compile_type_t*)pt->c_type)->use_type;
-    ast_free_unattached(p_type);
-    arg = ast_sibling(arg);
+    ast_t* arg = ast_child(args);
+
+    deferred_reification_t* reify = c->frame->reify;
+
+    while((arg != NULL) && (ast_id(arg) != TK_ELLIPSIS))
+    {
+      ast_t* p_type = ast_type(arg);
+
+      if(p_type == NULL)
+        p_type = ast_childidx(arg, 1);
+
+      p_type = deferred_reify(reify, p_type, c->opt);
+      reach_type_t* pt = reach_type(c->reach, p_type);
+      pony_assert(pt != NULL);
+      f_params[param_count++] = ((compile_type_t*)pt->c_type)->use_type;
+      ast_free_unattached(p_type);
+      arg = ast_sibling(arg);
+    }
   }
 
   LLVMTypeRef r_type = ffi_return_type(c, t, intrinsic);
-  LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count, false);
+  LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, param_count, is_varargs);
   LLVMValueRef func = LLVMAddFunction(c->module, f_name, f_type);
 
-  ponyint_pool_free_size(buf_size, f_params);
+  if(f_params != NULL)
+    ponyint_pool_free_size(buf_size, f_params);
+
   return func;
 }
 
