@@ -1,9 +1,9 @@
 use "files"
-use @__cap_rights_init[Pointer[U64]](version: I32, rights: Pointer[U64], ...)
+use @__cap_rights_init[Pointer[U64]](version: I32, ...)
   if freebsd or "capsicum"
-use @__cap_rights_clear[Pointer[U64]](rights: Pointer[U64], ...)
+use @__cap_rights_clear[Pointer[U64]](...)
   if freebsd or "capsicum"
-use @__cap_rights_set[Pointer[U64]](rights: Pointer[U64], ...)
+use @__cap_rights_set[Pointer[U64]](...)
   if freebsd or "capsicum"
 use @__cap_rights_get[I32](version: I32, fd: I32, rights: Pointer[U64])
   if freebsd or "capsicum"
