@@ -42,10 +42,6 @@ task:
       TRIPLE_VENDOR: unknown
       TRIPLE_OS: linux-musl
 
-  container:
-    cpu: 8
-    memory: 24
-
   libs_cache:
     folder: build/libs
     fingerprint_script:
@@ -64,8 +60,6 @@ task:
 
   container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
-    cpu: 8
-    memory: 24
 
   name: "PR: x86-64-unknown-linux-gnu [debug]"
 
@@ -86,8 +80,6 @@ task:
 
   freebsd_instance:
     image: freebsd-13-0-release-amd64
-    cpu: 8
-    memory: 24
 
   name: "PR: x86-64-unknown-freebsd-13.0"
 
@@ -138,8 +130,6 @@ task:
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
     os_version: 2019
-    cpu: 8
-    memory: 24
 
   name: "PR: x86-64-pc-windows-msvc"
 
@@ -163,8 +153,6 @@ task:
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
     os_version: 2019
-    cpu: 8
-    memory: 24
 
   name: "PR: x86-64-pc-windows-msvc [debug]"
 
@@ -190,8 +178,6 @@ task:
 
   container:
     image: ponylang/ponyc-ci-cross-arm:20210430
-    cpu: 8
-    memory: 24
 
   name: "PR: cross-compile: arm-unknown-linux-gnueabi"
 
@@ -216,8 +202,6 @@ task:
 
   container:
     image: ponylang/ponyc-ci-cross-armhf:20210430
-    cpu: 8
-    memory: 24
 
   name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
 
@@ -281,10 +265,6 @@ task:
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
-  container:
-    cpu: 8
-    memory: 24
-
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -302,8 +282,6 @@ task:
 
   freebsd_instance:
     image: freebsd-13-0-release-amd64
-    cpu: 8
-    memory: 24
 
   name: "nightly: x86-64-unknown-freebsd-13.0"
 
@@ -357,8 +335,6 @@ task:
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
     os_version: 2019
-    cpu: 8
-    memory: 24
 
   name: "nightly: x86-64-pc-windows-msvc"
 
@@ -427,10 +403,6 @@ task:
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
-  container:
-    cpu: 8
-    memory: 24
-
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
 
@@ -448,8 +420,6 @@ task:
 
   freebsd_instance:
     image: freebsd-13-0-release-amd64
-    cpu: 8
-    memory: 24
 
   name: "release: x86-64-unknown-freebsd-13.0"
 
@@ -503,8 +473,6 @@ task:
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20201208
     os_version: 2019
-    cpu: 8
-    memory: 24
 
   name: "release: x86-64-pc-windows-msvc"
 
