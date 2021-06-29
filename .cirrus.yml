@@ -103,11 +103,8 @@ task:
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - gmake configure arch=x86-64
-  build_script:
-    - gmake build arch=x86-64 build_flags=-j8
-  test_script:
-    - gmake test-ci arch=x86-64
+    - cmake --version
+    - clang --version
 
 task:
   only_if: $CIRRUS_PR != ''
