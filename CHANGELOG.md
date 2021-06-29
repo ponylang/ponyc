@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.41.2] - 2021-06-29
 
 ### Fixed
 
 - Fix "iftype" expressions not being usable in lambdas or object literals ([PR #3763](https://github.com/ponylang/ponyc/pull/3763))
 - Fix code generation for variadic FFI functions on arm64 ([PR #3768](https://github.com/ponylang/ponyc/pull/3768))
-
-### Added
-
-
-### Changed
-
 
 ## [0.41.1] - 2021-05-22
 
