@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix bug where Flags.remove could set flags in addition to unsetting them ([PR #3777](https://github.com/ponylang/ponyc/pull/3777))
 
 ### Added
 
