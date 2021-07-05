@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow Flags instances to be created with a set bit encoding ([PR #3778](https://github.com/ponylang/ponyc/pull/3778))
 
 ### Changed
 
