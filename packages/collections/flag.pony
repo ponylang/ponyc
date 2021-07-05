@@ -91,7 +91,7 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
     """
     Unset flags that are set in that.
     """
-    _value = this._value xor that._value
+    _value = this._value and not that._value
 
   fun add(flag: A): Flags[A, B] iso^ =>
     """
