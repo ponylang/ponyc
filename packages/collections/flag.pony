@@ -27,6 +27,13 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
   """
   var _value: B = 0
 
+  new iso create(value': B = 0) =>
+    """
+    Create a Flags instance with an optional initial value.
+    Default is 0 (no flags set).
+    """
+    _value = value'
+
   fun value(): B =>
     """
     Returns the bit encoding of the set flags.

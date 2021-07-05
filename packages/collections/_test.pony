@@ -903,6 +903,20 @@ class iso _TestFlags is UnitTest
     h.assert_false(t(_TestFlagC))
     h.assert_false(t(_TestFlagD))
 
+    // Check instance creation default
+    t = _TestFlagsFlags
+    h.assert_false(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_false(t(_TestFlagD))
+
+    // Check instance creation with specified value
+    t = _TestFlagsFlags(0b1001)
+    h.assert_true(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_true(t(_TestFlagD))
+
 type _TestFlagsFlags is Flags[(_TestFlagA|_TestFlagB|_TestFlagC|_TestFlagD), U8]
 primitive _TestFlagA fun value(): U8 => 1
 primitive _TestFlagB fun value(): U8 => 2
