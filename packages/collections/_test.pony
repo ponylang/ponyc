@@ -31,6 +31,7 @@ actor Main is TestList
     test(_TestSort)
     test(_TestRange)
     test(_TestHeap)
+    test(_TestFlags)
 
 class iso _TestList is UnitTest
   fun name(): String => "collections/List"
@@ -752,3 +753,158 @@ class iso _TestHeap is UnitTest
       t.assert_false(P(h._apply(b)?, h._apply(i)?))
       _verify[P](t, h, b)?
     end
+
+class iso _TestFlags is UnitTest
+  fun name(): String => "collections/Flags"
+
+  fun apply(h: TestHelper) =>
+    // t is for temporary.
+    var t: _TestFlagsFlags = _TestFlagsFlags
+
+    /* As we want to test all binary combinations, we need
+     * four flags to test the following combinations:
+     * 00 01 10 11
+     *
+     * Keeping these as let/val to ensure we don't accidentally
+     * overwrite or mutate them                                  */
+    let set0011: _TestFlagsFlags = _TestFlagsFlags
+                                   .>set(_TestFlagB)
+                                   .>set(_TestFlagA)
+    h.assert_eq[U8](set0011.value(), 0b0011)
+
+
+    let set0101: _TestFlagsFlags = _TestFlagsFlags
+                                   .>set(_TestFlagC)
+                                   .>set(_TestFlagA)
+    h.assert_eq[U8](set0101.value(), 0b0101)
+
+    // Immutable Bitwise Operators: op_or, op_and, op_xor
+                                                  // 0b0011
+                                                  // 0b0101 or
+    h.assert_eq[U8](set0011.op_or(set0101).value(),  0b0111)
+
+                                                  // 0b0011
+                                                  // 0b0101 and
+    h.assert_eq[U8](set0011.op_and(set0101).value(), 0b0001)
+
+                                                  // 0b0011
+                                                  // 0b0101 xor
+    h.assert_eq[U8](set0011.op_xor(set0101).value(), 0b0110)
+
+    // Immutable Bitwise Operators: add, sub
+                                               // 0b0011
+                                               // 0b1000 add
+    h.assert_eq[U8]((set0011+_TestFlagD).value(), 0b1011)
+
+                                               // 0b0011
+                                               // 0b0001 sub
+    h.assert_eq[U8]((set0011-_TestFlagA).value(), 0b0010)
+
+    // Mutable Bitwise Operator: without
+                                                   // 0b0011
+                                                   // 0b0101 without
+    h.assert_eq[U8](set0011.without(set0101).value(), 0b0010)
+                                                   // 0b0101
+                                                   // 0b0011 without
+    h.assert_eq[U8](set0101.without(set0011).value(), 0b0100)
+
+    // Mutable Operator: union
+    t = set0011.clone()      //0b0011
+    t.union(set0101)         //0b0101
+    h.assert_eq[U8](t.value(), 0b0111)
+
+    // a.union(b) == b.union(a)
+    t = set0101.clone()      //0b0101
+    t.union(set0011)         //0b0011
+    h.assert_eq[U8](t.value(), 0b0111)
+
+    // Mutable Operator: intersect
+    t = set0011.clone()      //0b0011
+    t.intersect(set0101)     //0b0101
+    h.assert_eq[U8](t.value(), 0b0001)
+
+    // a.intersect(b) == b.intersect(a)
+    t = set0101.clone()      //0b0101
+    t.intersect(set0011)     //0b0011
+    h.assert_eq[U8](t.value(), 0b0001)
+
+    // Mutable Operator: difference
+    t = set0011.clone()              //0b0011
+    t.difference(set0101)            //0b0101
+    h.assert_eq[U8](t.value(), 0b0110)
+
+    // a.difference(b) == b.difference(a) **symmetric difference**
+    t = set0101.clone()      //0b0101
+    t.difference(set0011)    //0b0011
+    h.assert_eq[U8](t.value(), 0b0110)
+
+    // Mutable Operator: remove
+    t = set0011.clone()      //0b0011
+    t.remove(set0101)        //0b0101
+    h.assert_eq[U8](t.value(), 0b0010)
+
+    // a.remove(b) != b.remove(a)
+    t = set0101.clone()      //0b0101
+    t.remove(set0011)        //0b0011
+    h.assert_eq[U8](t.value(), 0b0100)
+
+    // Mutable Operator: flip
+    t = set0011.clone()
+    h.assert_true(set0011 == t)                   //  t = 0b0011
+    t.flip(_TestFlagD)                            // flip 0b1000
+                                                  //      ------
+    h.assert_true(set0011 != t)                   //  t = 0b1011
+
+                                                  //  t = 0b1011
+    t.flip(_TestFlagD)                            // flip 0b1000
+                                                  //      ------
+    h.assert_true(set0011 == t)                   //  t = 0b0011
+
+
+    // Mutable Operator: all
+    t.all()
+    h.assert_true(t(_TestFlagA))
+    h.assert_true(t(_TestFlagB))
+    h.assert_true(t(_TestFlagC))
+    h.assert_true(t(_TestFlagD))
+
+    // Mutable Operator: clear
+    t.clear()
+    h.assert_false(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_false(t(_TestFlagD))
+
+    // Mutable Operator: set
+    t .> set(_TestFlagA) .> set(_TestFlagD)
+    h.assert_true(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_true(t(_TestFlagD))
+
+    // Check set for idempotency
+    t .> set(_TestFlagA) .> set(_TestFlagD)
+    h.assert_true(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_true(t(_TestFlagD))
+
+    // Mutable Operator: unset
+    t .> unset(_TestFlagD)
+    h.assert_true(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_false(t(_TestFlagD))
+
+    // Check unset for idempotency
+    t .> unset(_TestFlagD)
+    h.assert_true(t(_TestFlagA))
+    h.assert_false(t(_TestFlagB))
+    h.assert_false(t(_TestFlagC))
+    h.assert_false(t(_TestFlagD))
+
+type _TestFlagsFlags is Flags[(_TestFlagA|_TestFlagB|_TestFlagC|_TestFlagD), U8]
+primitive _TestFlagA fun value(): U8 => 1
+primitive _TestFlagB fun value(): U8 => 2
+primitive _TestFlagC fun value(): U8 => 4
+primitive _TestFlagD fun value(): U8 => 8
