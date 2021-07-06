@@ -756,15 +756,18 @@ static bool add_exec_dir(pass_opt_t* opt)
 
 bool package_init(pass_opt_t* opt)
 {
-  // package_add_paths for command line paths has already been done. Here, we
-  // append the paths from an optional environment variable, and then the paths
-  // that are relative to the compiler location on disk.
-  package_add_paths(getenv("PONYPATH"), opt);
+  // package_add_paths for command line paths has already been done.
+  // Here, we add the package paths that are relative to the compiler location
+  // on disk. Then we append the paths from an optional environment variable
+  // PONYPATH. Previously we did PONYPATH before the compiler relative location,
+  // however, that allows packages to silently override the builtin module.
+  // See https://github.com/ponylang/ponyc/issues/3779
   if(!add_exec_dir(opt))
   {
     errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc binary location");
     return false;
   }
+  package_add_paths(getenv("PONYPATH"), opt);
 
   // Finally we add OS specific paths.
 #ifdef PLATFORM_IS_POSIX_BASED
