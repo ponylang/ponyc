@@ -6,6 +6,13 @@ task:
   only_if: $CIRRUS_PR != ''
 
   matrix:
+  - name: "PR: x86-64-unknown-linux-rocky8"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+    environment:
+      CACHE_BUSTER: 20210707
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linuxrocky8
   - name: "PR: x86-64-unknown-linux-centos8"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
@@ -245,6 +252,13 @@ task:
   only_if: $CIRRUS_CRON == "nightly"
 
   matrix:
+    - name: "nightly: x86-64-unknown-linux-rocky8"
+      container:
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+      environment:
+        CACHE_BUSTER: 20210707
+        TRIPLE_VENDOR: unknown
+        TRIPLE_OS: linux-rocky8
     - name: "nightly: x86-64-unknown-linux-centos8"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
@@ -391,6 +405,13 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   matrix:
+    - name: "release: x86-64-unknown-linux-rocky8"
+      container:
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+      environment:
+        CACHE_BUSTER: 20210707
+        TRIPLE_VENDOR: unknown
+        TRIPLE_OS: linux-rocky8
     - name: "release: x86-64-unknown-linux-centos8"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
