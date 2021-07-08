@@ -48,7 +48,7 @@ set(_c_src
     sched/start.c
 )
 
-set(_ll_except_src "${CMAKE_SOURCE_DIR}/src/libponyrt/lang/except_try_catch.ll")
+set(_ll_except_src "${CMAKE_CURRENT_SOURCE_DIR}/lang/except_try_catch.ll")
 set(_ll_except_obj "${CMAKE_BINARY_DIR}/except_try_catch.o")
 
 find_file(_llc_command
