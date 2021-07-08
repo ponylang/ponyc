@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add support for prebuilt Rocky Linux versions ([PR #3783](https://github.com/ponylang/ponyc/pull/3783))
 
 ### Changed
 
