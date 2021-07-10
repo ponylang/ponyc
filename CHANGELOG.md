@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix OOM on MacOS when using xcode 12.5 ([PR #3793](https://github.com/ponylang/ponyc/pull/3793))
 
 ### Added
 
