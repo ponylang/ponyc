@@ -106,7 +106,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   configure_script:
@@ -129,7 +129,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
     populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
@@ -333,7 +333,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   nightly_script:
@@ -354,7 +354,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
     populate_script: make libs build_flags=-j8
 
   install_script:
@@ -486,7 +486,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
   release_script:
@@ -507,7 +507,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
     populate_script: make libs build_flags=-j8
 
   install_script:
