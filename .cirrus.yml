@@ -120,7 +120,7 @@ task:
   only_if: $CIRRUS_PR != ''
 
   osx_instance:
-    image: big-sur-xcode-12.4
+    image: big-sur-xcode-12.5
 
   name: "PR: x86-64-apple-darwin"
 
@@ -129,7 +129,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.4"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
     populate_script: make libs arch=x86-64 build_flags=-j8
 
   configure_script:
@@ -343,7 +343,7 @@ task:
   only_if: $CIRRUS_CRON == "nightly"
 
   osx_instance:
-    image: big-sur-xcode-12.4
+    image: big-sur-xcode-12.5
 
   name: "nightly: x86-64-apple-darwin"
 
@@ -354,7 +354,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.4"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
     populate_script: make libs build_flags=-j8
 
   install_script:
@@ -496,7 +496,7 @@ task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
   osx_instance:
-    image: big-sur-xcode-12.4
+    image: big-sur-xcode-12.5
 
   name: "release: x86-64-apple-darwin"
 
@@ -507,7 +507,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.4"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
     populate_script: make libs build_flags=-j8
 
   install_script:
