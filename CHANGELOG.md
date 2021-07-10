@@ -14,7 +14,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
-- Change minimum supported MacOS API version to 10.14 ([PR #3794](https://github.com/ponylang/ponyc/pull/3794))
 
 ## [0.42.0] - 2021-07-07
 

@@ -12,7 +12,3 @@ Changes in Big Sur and xcode as of 12.5 have lead to an out of memory error with
 
 VM_FLAGS_SUPERPAGE_SIZE_ANY isn't required on earlier versions. It does however, improve performance when allocating. Usage of VM_FLAGS_SUPERPAGE_SIZE_ANY has been removed as it also doesn't work on newer M1 based machines and thus, is on its way out in general.
 
-## Change minimum supported MacOS API version to 10.14
-
-Our policy is to support the last 3 MacOS API versions with ponyc. We are now only supporting MacOS API versions 10.14 and up. Attempting to use ponyc on an earlier version of MacOS is not guaranteed to work and is no longer supported.
-
