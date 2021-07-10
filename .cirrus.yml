@@ -129,15 +129,15 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5"
-    populate_script: make libs arch=x86-64 build_flags=-j8
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
+    populate_script: MACOSX_DEPLOYMENT_TARGET=10.14 make libs arch=x86-64 build_flags=-j8
 
   configure_script:
-    - make configure arch=x86-64
+    - MACOSX_DEPLOYMENT_TARGET=10.14 make configure arch=x86-64
   build_script:
-    - make build arch=x86-64 build_flags=-j8
+    - MACOSX_DEPLOYMENT_TARGET=10.14 make build arch=x86-64 build_flags=-j8
   test_script:
-    - make test-ci arch=x86-64
+    - MACOSX_DEPLOYMENT_TARGET=10.14 make test-ci arch=x86-64
 
 task:
   only_if: $CIRRUS_PR != ''
