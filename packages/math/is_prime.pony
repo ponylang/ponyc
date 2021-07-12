@@ -2,9 +2,9 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
   """
   Primality test using 6k ± 1 method.
 
-  All integers (excluding 2 and 3), can be expressed as (6k + i), 
-  where i = −1, 0, 1, 2, 3, or 4. Since 2 divides (6k + 0), (6k + 2), 
-  and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1) 
+  All integers (excluding 2 and 3), can be expressed as (6k + i),
+  where i = −1, 0, 1, 2, 3, or 4. Since 2 divides (6k + 0), (6k + 2),
+  and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1)
   for expressing primes.
   """
 
@@ -12,10 +12,10 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
   // to allocate static globals rather than stack or heap allocation.
   fun _low_prime_table(index: USize): A val =>
     match index
-    | 0 => 2 | 1 => 3 | 2 => 5 | 3 => 7 | 4 => 11 
-    | 5 => 13 | 6 => 17 | 7 => 19 | 8 => 23 | 9 => 29 
-    | 10 => 31 | 11 => 37 | 12 => 41 | 13 => 43 | 14 => 47 
-    | 15 => 53 | 16 => 59 | 17 => 61 | 18 => 67 | 19 => 71 
+    | 0 => 2 | 1 => 3 | 2 => 5 | 3 => 7 | 4 => 11
+    | 5 => 13 | 6 => 17 | 7 => 19 | 8 => 23 | 9 => 29
+    | 10 => 31 | 11 => 37 | 12 => 41 | 13 => 43 | 14 => 47
+    | 15 => 53 | 16 => 59 | 17 => 61 | 18 => 67 | 19 => 71
     | 20 => 73 | 21 => 79 | 22 => 83 | 23 => 89 | 24 => 97
     | 25 => 101 | 26 => 103 | 27 => 107 | 28 => 109 | 29 => 113
     | 30 => 127 | 31 => 131 | 32 => 137 | 33 => 139 | 34 => 149
@@ -55,7 +55,7 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
     | 200 => 1229 | 201 => 1231 | 202 => 1237 | 203 => 1249 | 204 => 1259
     | 205 => 1277 | 206 => 1279 | 207 => 1283 | 208 => 1289 | 209 => 1291
     | 210 => 1297 | 211 => 1301 | 212 => 1303 | 213 => 1307 | 214 => 1319
-    | 215 => 1321 | 215 => 1327 | 217 => 1361 | 218 => 1367 | 219 => 1373
+    | 215 => 1321 | 216 => 1327 | 217 => 1361 | 218 => 1367 | 219 => 1373
     | 220 => 1381 | 221 => 1399 | 222 => 1409 | 223 => 1423 | 224 => 1427
     | 225 => 1429 | 226 => 1433 | 227 => 1439 | 228 => 1447 | 229 => 1451
     | 230 => 1453 | 231 => 1459 | 232 => 1471 | 233 => 1481 | 234 => 1483
@@ -83,7 +83,7 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
     end
 
     if n <= 3 then return n > 1 end
-    if (n %% 2) == 0 then return false end 
+    if (n %% 2) == 0 then return false end
     if (n %% 3) == 0 then return false end
 
     var i: A = 5
