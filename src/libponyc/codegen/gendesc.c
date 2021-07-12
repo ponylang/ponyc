@@ -293,6 +293,9 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
 
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
+      if(!m->needs_vtable_index)
+        continue;
+
       uint32_t index = m->vtable_index;
       pony_assert(index != (uint32_t)-1);
       pony_assert(vtable[index] == NULL);
@@ -512,6 +515,8 @@ LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef desc)
 
 LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef desc, size_t colour)
 {
+  pony_assert(colour != (size_t)-1);
+
   LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, DESC_VTABLE, "");
 
   LLVMValueRef gep[2];

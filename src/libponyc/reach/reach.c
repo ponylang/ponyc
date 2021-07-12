@@ -251,35 +251,32 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   reach_method_t* mangled = reach_mangled_get(&n2->r_mangled, m, &index);
 
   if(mangled != NULL)
-    return;
+  {
+    mangled = POOL_ALLOC(reach_method_t);
+    memset(mangled, 0, sizeof(reach_method_t));
 
-  mangled = POOL_ALLOC(reach_method_t);
-  memset(mangled, 0, sizeof(reach_method_t));
+    mangled->name = m->name;
+    mangled->mangled_name = m->mangled_name;
+    mangled->full_name = make_full_name(t, mangled);
 
-  mangled->name = m->name;
-  mangled->mangled_name = m->mangled_name;
-  mangled->full_name = make_full_name(t, mangled);
+    mangled->cap = m->cap;
+    mangled->fun = deferred_reify_dup(m->fun);
 
-  mangled->cap = m->cap;
-  mangled->fun = deferred_reify_dup(m->fun);
+    if(mangled->fun != NULL)
+      mangled->typeargs = mangled->fun->method_typeargs;
+    else
+      mangled->typeargs = ast_dup(m->typeargs);
 
-  if(mangled->fun != NULL)
-    mangled->typeargs = mangled->fun->method_typeargs;
-  else
-    mangled->typeargs = ast_dup(m->typeargs);
+    mangled->forwarding = true;
 
-  mangled->forwarding = true;
+    mangled->param_count = m->param_count;
+    mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
+      mangled->param_count * sizeof(reach_param_t));
+    memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
+    mangled->result = m->result;
+  }
 
-  mangled->param_count = m->param_count;
-  mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
-    mangled->param_count * sizeof(reach_param_t));
-  memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
-  mangled->result = m->result;
-
-  // Add to the mangled table only.
-  // didn't find it in the map but index is where we can put the
-  // new one without another search
-  reach_mangled_putindex(&n2->r_mangled, mangled, index);
+  mangled->needs_vtable_index = true;
 }
 
 static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
@@ -296,6 +293,7 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
       size_t i = HASHMAP_BEGIN;
       reach_type_t* t2;
 
+      m->needs_vtable_index = true;
       while((t2 = reach_type_cache_next(&t->subtypes, &i)) != NULL)
         add_rmethod_to_subtype(r, t2, n, m, opt);
 
@@ -415,7 +413,8 @@ static void add_internal(reach_t* r, reach_type_t* t, const char* name,
 {
   name = stringtab(name);
   reach_method_name_t* n = add_method_name(t, name, true);
-  add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  reach_method_t* m = add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
+  m->needs_vtable_index = true;
 }
 
 static void add_types_to_trait(reach_t* r, reach_type_t* t,
