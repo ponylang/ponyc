@@ -383,7 +383,7 @@ uint64_t ponyint_cpu_tick()
 {
 #if defined PLATFORM_IS_ARM
 # if defined(__APPLE__)
-  return mach_absolute_time();
+  return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 # else
 #   if defined ARMV6
   // V6 is the earliest arch that has a standard cyclecount
