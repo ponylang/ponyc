@@ -17,23 +17,22 @@ actor Main is TestList
     test(_MersennePrimeTest[U16]("U16"))
     test(_MersennePrimeTest[U32]("U32"))
     test(_MersennePrimeTest[U64]("U64"))
-    // test(_MersennePrimeTest[U128]("U128"))
     test(_MersennePrimeTest[ULong]("ULong"))
     test(_MersennePrimeTest[USize]("USize"))
 
 primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   """
-  All integers (excluding 2 and 3), can be expressed as (6k + i), 
+  All integers (excluding 2 and 3), can be expressed as (6k + i),
   where i = −1, 0, 1, 2, 3, or 4 and k is greater than 0.
-  Since 2 divides (6k + 0), (6k + 2), 
-  and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1) 
+  Since 2 divides (6k + 0), (6k + 2),
+  and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1)
   for expressing primes.
 
   Given the above, (6k + 0), (6k + 2), 6k + 4), (6k + 3) should always express composites.
   """
   fun apply(s: String): UnitTest iso^ =>
     object iso is UnitTest
-      fun name(): String => "math/IsPrime -- " + s 
+      fun name(): String => "math/IsPrime -- " + s
 
       fun apply(h: TestHelper) =>
         let rand = Rand
