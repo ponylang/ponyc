@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix OOM on MacOS when using xcode 12.5 ([PR #3793](https://github.com/ponylang/ponyc/pull/3793))
 - Fix MacOS version mismatch warnings when linking Pony programs ([PR #3798](https://github.com/ponylang/ponyc/pull/3798))
+- Fix the calculation of "is prime" for numbers after 1321. ([PR #3799](https://github.com/ponylang/ponyc/pull/3799))
 
 ### Added
 
