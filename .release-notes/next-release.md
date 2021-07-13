@@ -20,3 +20,7 @@ We did some testing and determined that there's no need to set the value as we c
 
 There might be some issues that crop up in the future, but as far as we can tell, for normal ponyc MacOS usage, we dont need to set `macosx-version-min`.
 
+## Fix broken `IsPrime` standard library feature
+
+Any prime after 1321 wasn't being correctly identified.
+
