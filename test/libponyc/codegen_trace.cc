@@ -522,14 +522,18 @@ TEST_F(CodegenTraceTest, TraceStructField)
     "struct Bar\n"
     "  let f: Foo = Foo\n"
 
+    "class WrapBar\n"
+    "  let s: Bar = Bar\n"
+
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    trace(recover Bar end)\n"
+    "    trace(recover WrapBar end)\n"
 
-    "  be trace(x: Bar iso) =>\n"
+    "  be trace(w: WrapBar iso) =>\n"
+    "    let x = consume ref w\n"
     "    let map = @gc_local(this)\n"
-    "    let ok = @objectmap_has_object(map, x) and\n"
-    "      @objectmap_has_object_rc(map, x.f, USize(0))\n"
+    "    let ok = @objectmap_has_object(map, x.s) and\n"
+    "      @objectmap_has_object_rc(map, x.s.f, 0)\n"
     "    @pony_exitcode(I32(if ok then 1 else 0 end))";
 
   TEST_COMPILE(src);
