@@ -597,7 +597,7 @@ class iso _TestSort is UnitTest
       [""; "%*&^*&^&"; "***"; "Hello"; "bar"; "f00"; "foo"; "foo"],
       [""; "Hello"; "foo"; "bar"; "foo"; "f00"; "%*&^*&^&"; "***"])
 
-  fun test_sort[A: (Comparable[A] val & Stringable)](
+  fun test_sort[A: (Comparable[A] val & Stringable val)](
     h: TestHelper,
     sorted: Array[A],
     unsorted: Array[A])
