@@ -13,6 +13,13 @@ actor Main is TestList
     test(_IsPrimeTestBuilder[U128]("U128"))
     test(_IsPrimeTestBuilder[ULong]("ULong"))
     test(_IsPrimeTestBuilder[USize]("USize"))
+    test(_MersennePrimeTest[U8]("U8"))
+    test(_MersennePrimeTest[U16]("U16"))
+    test(_MersennePrimeTest[U32]("U32"))
+    test(_MersennePrimeTest[U64]("U64"))
+    // test(_MersennePrimeTest[U128]("U128"))
+    test(_MersennePrimeTest[ULong]("ULong"))
+    test(_MersennePrimeTest[USize]("USize"))
 
 primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   """
@@ -52,4 +59,32 @@ primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
 
         h.assert_false(IsPrime[A](0))
         h.assert_false(IsPrime[A](1))
+    end
+
+primitive _MersennePrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
+  """
+  A Mersenne prime is a prime of the form (2 ^ p) - 1 where p is itself prime
+  """
+  fun apply(s: String): UnitTest iso^ =>
+    object iso is UnitTest
+      fun name(): String => "math/MersennePrimeTest -- " + s
+
+      fun apply(h: TestHelper) =>
+        let mersenne_prime_exponents: Array[A] = [
+          2; 3; 5; 7
+          13; 17; 19; 31
+          61; 89; 107; 127
+        ]
+        var p: A = A(0).bitwidth()
+        var x: A = A.max_value()  // (2 ^ p) - 1
+        while p >= 2 do
+          let isprime = IsPrime[A](x)
+          if mersenne_prime_exponents.contains(p) then
+            h.assert_true(isprime)
+          else
+            h.assert_false(isprime)
+          end
+          p = p - 1
+          x = x >> 1
+        end
     end

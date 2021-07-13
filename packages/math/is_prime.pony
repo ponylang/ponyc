@@ -69,27 +69,34 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
 
   fun _low_prime_table_size(): USize => 256
 
+  fun _u8_prime_table_size():  USize => 54
+
   fun apply(n: A): Bool =>
+    if n <= 3 then return n > 1 end
+
+    let table_end: USize =
+      iftype A <: U8 then
+        _u8_prime_table_size()
+      else
+        _low_prime_table_size()
+      end
+
+    var table_index: USize = 0
+    while table_index < table_end do
+      let prime = _low_prime_table(table_index)
+      table_index = table_index + 1
+      if n == prime then return true end
+      if (n %% prime) == 0 then return false end
+    end
+
     iftype A <: U8 then
       None
     else
-      var table_index: USize = 0
-      while table_index < _low_prime_table_size() do
-        let prime = _low_prime_table(table_index)
-        table_index = table_index + 1
-        if n == prime then return true end
-        if (n %% prime) == 0 then return false end
+      var i: A = _low_prime_table(table_end - 1)
+      while (i * i) <= n do
+        if (n %% i) == 0 then return false end
+        if (n %% (i + 2)) == 0 then return false end
+        i = i + 6
       end
-    end
-
-    if n <= 3 then return n > 1 end
-    if (n %% 2) == 0 then return false end
-    if (n %% 3) == 0 then return false end
-
-    var i: A = 5
-    while (i * i) <= n do
-      if (n %% i) == 0 then return false end
-      if (n %% (i + 2)) == 0 then return false end
-      i = i + 6
     end
     true
