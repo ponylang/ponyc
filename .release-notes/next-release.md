@@ -24,3 +24,38 @@ There might be some issues that crop up in the future, but as far as we can tell
 
 Any prime after 1321 wasn't being correctly identified.
 
+## Prevent non-opaque structs from being used as behaviour parameters
+
+When a non-opaque object is sent across actors, its type descriptor is used by the garbage collector in order to trace it. Since structs lack a type descriptor, using a `val` or `iso` struct as a parameter behaviour could lead to a runtime segfault. This also applies to tuple parameters where at least one element is a non-opaque struct.
+
+This is a breaking change. Existing code will need to wrap struct parameters in classes or structs, or use structs with a `tag` capability. Where you previously had code like:
+
+```pony
+struct Foo
+
+actor Main
+  new create(env: Env) =>
+    inspect(recover Foo end)
+
+  be inspect(f: Foo iso) =>
+    // Do something with f
+```
+
+you will now need
+
+```pony
+struct Foo
+
+class Bar
+  let f: Foo = Foo
+
+actor Main
+  new create(env: Env) =>
+    inspect(recover Bar end)
+
+  be inspect(wrap: Bar iso) =>
+    // Do something with wrap.f
+```
+
+When using tuples with struct elements, you don't need to wrap the entire tuple. It is enough to wrap the struct elements.
+
