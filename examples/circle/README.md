@@ -40,3 +40,28 @@ Radius: 100
 Circumference: 628.319
 Area: 31415.9
 ```
+
+## Program Modifications
+
+Modify the program to add a `get_diameter()` method and print the diameter alongside the other measures -- diameter is two times the radius.
+
+```console
+$ ./circle
+...
+Radius: 98
+Diameter: 196
+Circumference: 615.752
+Area: 30171.9
+
+Radius: 99
+Diameter: 198
+Circumference: 622.035
+Area: 30790.8
+
+Radius: 100
+Diameter: 200
+Circumference: 628.319
+Area: 31415.9
+```
+
+For further modification, modify the program so that `get_circumference()` is calculated using your `get_diameter()` method.
