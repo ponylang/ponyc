@@ -1,7 +1,5 @@
 #include "codegen.h"
 
-#if PONY_LLVM >= 1200
-
 #include "genjit.h"
 #include "genexe.h"
 #include "genopt.h"
@@ -182,5 +180,3 @@ bool gen_jit_and_run(compile_t* c, int* exit_code, jit_symbol_t* symbols,
     *exit_code = ec;
   return true;
 }
-
-#endif

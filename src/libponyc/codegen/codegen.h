@@ -9,8 +9,6 @@
 #include <llvm-c/Analysis.h>
 #include <stdio.h>
 
-#define PONY_LLVM ((LLVM_VERSION_MAJOR * 100) + (LLVM_VERSION_MINOR * 10) + LLVM_VERSION_PATCH)
-
 #include "gendebug.h"
 #include "../reach/reach.h"
 #include "../pass/pass.h"
@@ -20,11 +18,6 @@
 PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
-
-#if PONY_LLVM < 700
-char* LLVMGetHostCPUName();
-char* LLVMGetHostCPUFeatures();
-#endif
 
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst);

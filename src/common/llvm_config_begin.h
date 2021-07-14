@@ -28,30 +28,4 @@
 // LLVM claims DEBUG as a macro name. Conflicts with MSVC headers.
 #  pragma warning(disable:4005)
 #endif
-
-#if PONY_LLVM < 400
-/**
- * This is needed because llvm 3.9.1 uses NDEBUG to
- * control code generation of templates and these
- * versions must be consistent with between the library
- * and users of the library. See issue #2776 in
- * ponylang/ponyc.
- */
-
-// Save current value for NDEBUG
-#  pragma push_macro("NDEBUG")
-
-// Undefine NDEBUG so we can define for release modes
-#  undef NDEBUG
-
-#if ((LLVM_BUILD_MODE == LLVM_BUILD_MODE_Release) || (LLVM_BUILD_MODE == LLVM_BUILD_MODE_RelWithDebInfo) || (LLVM_BUILD_MODE == LLVM_BUILD_MODE_MinSizeRel))
-   // Define NDEBUG for release builds
-#  define NDEBUG
-#elif LLVM_BUILD_MODE == LLVM_BUILD_MODE_Debug
-   // Leave NDEBUG undefined
-#else
-#  error "Unknown LLVM_BUILD_MODE was expecting Release, RelWithDebInfo or Debug"
-#endif
-#endif
-
 #endif

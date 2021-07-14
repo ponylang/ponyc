@@ -42,9 +42,7 @@ add_library(libponyc STATIC
     codegen/gentype.c
     codegen/gendebug.cc
     codegen/genjit.cc
-    codegen/genjit_old.cc
     codegen/genopt.cc
-    codegen/genopt_old.cc
     codegen/host.cc
     expr/array.c
     expr/call.c
