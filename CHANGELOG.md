@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update to LLVM 12.0.1 ([PR #3745](https://github.com/ponylang/ponyc/pull/3745))
 
 ## [0.42.0] - 2021-07-07
 
