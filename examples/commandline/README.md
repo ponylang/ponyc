@@ -52,3 +52,14 @@ From here we can see that there is an option to uppercase words (`-U`).
 $ ./commandline -U Example words to echo
 EXAMPLE WORDS TO ECHO 
 ```
+
+## Program Modifications
+
+Modify the program to have a new option called "lower" which works similar to "upper" except that it uses `String.lower()` rather than `String.upper()`.
+
+```console
+$ ./commandline --lower EXAMPLE WORDS TO ECHO
+example words to echo
+```
+
+For further modification, modify the program so that using both options `./commandline --upper --lower ...` prints an error then the help message.
