@@ -39,7 +39,7 @@ usage: echo [<options>] <words>
 A sample echo program
 
 Options:
-   -h, --help=false     
+   -h, --help=false
    -U, --upper=false    Uppercase words
 
 Args:
@@ -50,7 +50,7 @@ From here we can see that there is an option to uppercase words (`-U`).
 
 ```console
 $ ./commandline -U Example words to echo
-EXAMPLE WORDS TO ECHO 
+EXAMPLE WORDS TO ECHO
 ```
 
 ## Program Modifications
