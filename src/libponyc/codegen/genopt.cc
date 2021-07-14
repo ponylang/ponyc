@@ -1,7 +1,5 @@
 #include "genopt.h"
 
-#if PONY_LLVM >= 1100
-
 #include <string.h>
 
 #include "llvm_config_begin.h"
@@ -1294,11 +1292,7 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
 
-#if PONY_LLVM < 500
-    unsigned functionIndex = AttributeSet::FunctionIndex;
-#else
     unsigned functionIndex = AttributeList::FunctionIndex;
-#endif
 
     fn->addAttribute(functionIndex, Attribute::NoUnwind);
     return fn;
@@ -1311,11 +1305,7 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_chain", &m);
 
-#if PONY_LLVM < 500
-    unsigned functionIndex = AttributeSet::FunctionIndex;
-#else
     unsigned functionIndex = AttributeList::FunctionIndex;
-#endif
 
     fn->addAttribute(functionIndex, Attribute::NoUnwind);
     fn->addAttribute(functionIndex, Attribute::ArgMemOnly);
@@ -1378,9 +1368,6 @@ static void optimise(compile_t* c, bool pony_specific)
   pmb.LoopVectorize = true;
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
-#if PONY_LLVM < 500
-  pmb.LoadCombine = true;
-#endif
 
    if(pony_specific)
    {
@@ -1417,12 +1404,11 @@ static void optimise(compile_t* c, bool pony_specific)
       pmb.OptLevel = 0;
   }
 
-#if PONY_LLVM >= 700
-  // LLVM 7 has a bug where running MergeFunctions more than once causes an
-  // assert fail saying "Invalid RAUW on key of ValueMap". We can avoid that
-  // by setting to false before populating lpm, after mpm was already populated.
+  // LLVM 7 and up has a bug where running MergeFunctions more than once
+  // causes an assert fail saying "Invalid RAUW on key of ValueMap". We can
+  // avoid that by setting to false before populating lpm, after mpm was
+  // already populated.
   pmb.MergeFunctions = false;
-#endif
   pmb.populateLTOPassManager(lpm);
 
   // There is a problem with optimised debug info in certain cases. This is
@@ -1436,11 +1422,7 @@ static void optimise(compile_t* c, bool pony_specific)
     lpm.add(createStripSymbolsPass());
 
   if (c->opt->lint_llvm)
-#if PONY_LLVM >= 1200
     fpm.add(createLintLegacyPassPass());
-#else
-    fpm.add(createLintPass());
-#endif
 
   fpm.doInitialization();
 
@@ -1544,12 +1526,8 @@ bool target_is_x86(char* t)
 {
   Triple triple = Triple(t);
 
-#if PONY_LLVM >= 400
   std::string s = Triple::getArchTypePrefix(triple.getArch()).str();
   const char* arch = s.c_str();
-#else
-  const char* arch = Triple::getArchTypePrefix(triple.getArch());
-#endif
 
   return !strcmp("x86", arch);
 }
@@ -1558,12 +1536,8 @@ bool target_is_arm(char* t)
 {
   Triple triple = Triple(t);
 
-#if PONY_LLVM >= 400
   std::string s = Triple::getArchTypePrefix(triple.getArch()).str();
   const char* arch = s.c_str();
-#else
-  const char* arch = Triple::getArchTypePrefix(triple.getArch());
-#endif
 
   return (!strcmp("arm", arch) || !strcmp("aarch64", arch));
 }
@@ -1584,12 +1558,8 @@ bool target_is_ppc(char* t)
 {
   Triple triple = Triple(t);
 
-#if PONY_LLVM >= 400
   std::string s = Triple::getArchTypePrefix(triple.getArch()).str();
   const char* arch = s.c_str();
-#else
-  const char* arch = Triple::getArchTypePrefix(triple.getArch());
-#endif
 
   return !strcmp("ppc", arch);
 }
@@ -1635,5 +1605,3 @@ bool target_is_littleendian(char* t)
 
   return triple.isLittleEndian();
 }
-
-#endif

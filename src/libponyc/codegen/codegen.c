@@ -16,9 +16,7 @@
 #include "ponyassert.h"
 
 #include <platform.h>
-#if PONY_LLVM >= 600
 #include <llvm-c/DebugInfo.h>
-#endif
 #include <llvm-c/Initialization.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/Support.h>
@@ -677,18 +675,11 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
   c->builder = LLVMCreateBuilderInContext(c->context);
   c->di = LLVMNewDIBuilder(c->module);
 
-#if PONY_LLVM < 600
-  // TODO: what LANG id should be used?
-  c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di, 0x0004,
-    package_filename(package), package_path(package), "ponyc-" PONY_VERSION,
-    c->opt->release);
-#else
   const char* filename = package_filename(package);
   const char* dirname = package_path(package);
   const char* version = "ponyc-" PONY_VERSION;
   LLVMMetadataRef fileRef = LLVMDIBuilderCreateFile(c->di, filename,
     strlen(filename), dirname, strlen(dirname));
-#  if PONY_LLVM >= 1101
   c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
     LLVMDWARFSourceLanguageC_plus_plus, fileRef,
     version, strlen(version), opt->release,
@@ -696,13 +687,6 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
     opt->all_args ? strlen(opt->all_args) : 0,
     0, "", 0, LLVMDWARFEmissionFull, 0,
     false, false, "", 0, "", 0);
-#  else
-  c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
-    LLVMDWARFSourceLanguageC_plus_plus, fileRef, version, strlen(version),
-    opt->release, "", 0, 0, "", 0, LLVMDWARFEmissionFull,
-    0, false, false);
-#  endif
-#endif
 
   // Empty frame stack.
   c->frame = NULL;
@@ -747,14 +731,6 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
 
   return true;
 }
-
-#if PONY_LLVM == 600
-// TODO: remove for 6.0.1: https://reviews.llvm.org/D44140
-PONY_EXTERN_C_BEGIN
-extern void LLVMInitializeInstCombine_Pony(LLVMPassRegistryRef R);
-PONY_EXTERN_C_END
-#define LLVMInitializeInstCombine LLVMInitializeInstCombine_Pony
-#endif
 
 #ifndef NDEBUG
 // Process the llvm-args option and pass to LLVMParseCommandLineOptions
@@ -849,41 +825,19 @@ bool codegen_pass_init(pass_opt_t* opt)
     triple = LLVMGetDefaultTargetTriple();
 #endif
 
-#if PONY_LLVM >= 700
     char* normalized = LLVMNormalizeTargetTriple(triple);
     free(triple);
     triple = normalized;
-#endif
   }
 
   if(opt->features != NULL)
   {
-#if PONY_LLVM < 500
-    if(target_is_x86(triple))
-    {
-      // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
-      size_t temp_len = strlen(opt->features) + 10;
-      char* temp_str = (char*)ponyint_pool_alloc_size(temp_len);
-      snprintf(temp_str, temp_len, "%s,-avx512f", opt->features);
-
-      opt->features = LLVMCreateMessage(temp_str);
-
-      ponyint_pool_free_size(temp_len, temp_str);
-    } else {
-      opt->features = LLVMCreateMessage(opt->features);
-    }
-#else
     opt->features = LLVMCreateMessage(opt->features);
-#endif
   } else {
     if((opt->cpu == NULL) && (opt->triple == NULL))
       opt->features = LLVMGetHostCPUFeatures();
     else
-#if PONY_LLVM < 500
-      opt->features = LLVMCreateMessage(target_is_x86(triple) ? "-avx512f" : "");
-#else
       opt->features = LLVMCreateMessage("");
-#endif
   }
 
   opt->triple = triple;
@@ -1072,11 +1026,7 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
     LLVMPositionBuilderAtEnd(c->builder, block);
   }
 
-#if PONY_LLVM < 900
-  LLVMSetCurrentDebugLocation2(c->builder, 0, 0, NULL);
-#else
   LLVMSetCurrentDebugLocation2(c->builder, NULL);
-#endif
 }
 
 void codegen_finishfun(compile_t* c)
@@ -1234,21 +1184,12 @@ void codegen_debugloc(compile_t* c, ast_t* ast)
 {
   if(ast != NULL && c->frame->di_scope != NULL)
   {
-#if PONY_LLVM < 900
-    LLVMSetCurrentDebugLocation2(c->builder,
-      (unsigned)ast_line(ast), (unsigned)ast_pos(ast), c->frame->di_scope);
-#else
     LLVMMetadataRef loc = LLVMDIBuilderCreateDebugLocation(c->context,
       (unsigned)ast_line(ast), (unsigned)ast_pos(ast), c->frame->di_scope,
       NULL);
     LLVMSetCurrentDebugLocation2(c->builder, loc);
-#endif
   } else {
-#if PONY_LLVM < 900
-    LLVMSetCurrentDebugLocation2(c->builder, 0, 0, NULL);
-#else
     LLVMSetCurrentDebugLocation2(c->builder, NULL);
-#endif
   }
 }
 

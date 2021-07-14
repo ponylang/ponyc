@@ -35,91 +35,15 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
 
   Target* t = reinterpret_cast<Target*>(target);
 
-#if PONY_LLVM < 600
-  CodeModel::Model model = jit ? CodeModel::JITDefault : CodeModel::Default;
-  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
-    opt->features, options, reloc, model, opt_level);
-#else
 TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
   opt->features, options, reloc, llvm::None, opt_level, jit);
-#endif
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
 
-#if PONY_LLVM < 700
-char* LLVMGetHostCPUName()
-{
-  return strdup(sys::getHostCPUName().str().c_str());
-}
-
-char* LLVMGetHostCPUFeatures()
-{
-  StringMap<bool> features;
-  bool got_features = sys::getHostCPUFeatures(features);
-#ifdef PLATFORM_IS_ARM
-  // LLVM might not have CPU features support on e.g. FreeBSD/aarch64
-  if (!got_features) {
-    features["neon"] = true;
-  }
-#else
-  pony_assert(got_features);
-#endif
-  (void)got_features;
-
-  // Calculate the size of buffer that will be needed to return all features.
-  size_t buf_size = 0;
-  for(auto it = features.begin(); it != features.end(); it++)
-    buf_size += (*it).getKey().str().length() + 2; // plus +/- char and ,/null
-
-#if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
-  // Add extra buffer space for llvm bug workaround
-  buf_size += 9;
-#endif
-
-#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
-  buf_size += 6;
-#endif
-
-  char* buf = (char*)malloc(buf_size);
-  pony_assert(buf != NULL);
-  buf[0] = 0;
-
-  for(auto it = features.begin(); it != features.end();)
-  {
-    if((*it).getValue())
-      strcat(buf, "+");
-    else
-      strcat(buf, "-");
-
-    strcat(buf, (*it).getKey().str().c_str());
-
-    it++;
-    if(it != features.end())
-      strcat(buf, ",");
-  }
-
-#if PONY_LLVM < 500 and defined(PLATFORM_IS_X86)
-  // Disable -avx512f on LLVM < 5.0.0 to avoid bug https://bugs.llvm.org/show_bug.cgi?id=30542
-  strcat(buf, ",-avx512f");
-#endif
-
-#ifdef PLATFORM_IS_ARMHF_WITHOUT_NEON
-  // Workaround for https://bugs.llvm.org/show_bug.cgi?id=30842
-  strcat(buf, ",-neon");
-#endif
-
-  return buf;
-}
-#endif
-
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
 {
-#if PONY_LLVM < 600
-  unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
-#else // See https://reviews.llvm.org/D39304 for this change
   unwrap<Instruction>(inst)->setHasAllowReassoc(true);
-#endif
 }
 
 void LLVMSetNoUnsignedWrap(LLVMValueRef inst)
@@ -237,24 +161,14 @@ LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type)
 {
   Module* m = unwrap(module);
 
-#if PONY_LLVM < 500
-  (void)type;
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, {}));
-#else
   Type* t[1] = { unwrap(type) };
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, t));
-#endif
 }
 
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
 {
   Module* m = unwrap(module);
 
-#if PONY_LLVM < 500
-  (void)type;
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, {}));
-#else
   Type* t[1] = { unwrap(type) };
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, t));
-#endif
 }

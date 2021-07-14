@@ -1932,7 +1932,6 @@ static void make_rdtscp(compile_t* c)
 {
   if(target_is_x86(c->opt->triple))
   {
-#if PONY_LLVM >= 800
     // { i64, i32 } @llvm.x86.rdtscp()
     LLVMTypeRef r_type_fields[2] = { c->i64, c->i32 };
     LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, r_type_fields, 2,
@@ -1954,27 +1953,6 @@ static void make_rdtscp(compile_t* c)
     LLVMValueRef first = LLVMBuildExtractValue(c->builder, result, 0, "");
     LLVMBuildRet(c->builder, first);
     codegen_finishfun(c);
-#else
-    // i64 @llvm.x86.rdtscp(i8*)
-    LLVMTypeRef f_type = LLVMFunctionType(c->i64, &c->void_ptr, 1, false);
-    LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp",
-      f_type);
-
-    // i64 @internal.x86.rdtscp(i32*)
-    LLVMTypeRef i32_ptr = LLVMPointerType(c->i32, 0);
-    f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
-    LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type, false);
-    LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-    codegen_startfun(c, fun, NULL, NULL, NULL, false);
-
-    // Cast i32* to i8* and call the intrinsic.
-    LLVMValueRef arg = LLVMGetParam(fun, 0);
-    arg = LLVMBuildBitCast(c->builder, arg, c->void_ptr, "");
-    LLVMValueRef result = LLVMBuildCall(c->builder, rdtscp, &arg, 1, "");
-    LLVMBuildRet(c->builder, result);
-
-    codegen_finishfun(c);
-#endif
   } else {
     (void)c;
   }
