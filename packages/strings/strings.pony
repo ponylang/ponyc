@@ -1,5 +1,5 @@
 """
 # Strings package
 
-Work with sequences of strings. 
+The Strings package provides utilities for working with sequences of strings.
 """
