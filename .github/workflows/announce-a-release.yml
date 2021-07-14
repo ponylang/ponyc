@@ -5,18 +5,57 @@ on:
     tags: announce-\d+.\d+.\d+
 
 jobs:
-  announce-a-release:
-    name: Announce a release
+  announce:
+    name: Announcements
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Announce
-        uses: docker://ponylang/release-bot-action:0.5.0
+      - name: Checkout main
+        uses: actions/checkout@v2
         with:
-          step: announce-a-release
-          git_user_name: "Ponylang Main Bot"
-          git_user_email: "ponylang.main@gmail.com"
-          default_branch: "main"
+          ref: "main"
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - name: Release notes
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: publish-release-notes-to-github
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          ZULIP_TOKEN: ${{ secrets.ZULIP_TOKEN }}
+      - name: Zulip
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: send-announcement-to-pony-zulip
+        env:
+          ZULIP_API_KEY: ${{ secrets.ZULIP_RELEASE_API_KEY }}
+          ZULIP_EMAIL: ${{ secrets.ZULIP_RELEASE_EMAIL }}
+      - name: Last Week in Pony
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: add-announcement-to-last-week-in-pony
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+  post-announcement:
+    name: Tasks to run after the release has been announced
+    needs:
+      - announce
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v2
+        with:
+          ref: "main"
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - name: Rotate release notes
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: rotate-release-notes
+        env:
+          GIT_USER_NAME: "Ponylang Main Bot"
+          GIT_USER_EMAIL: "ponylang.main@gmail.com"
+      - name: Delete announcement trigger tag
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: delete-announcement-tag
+        env:
+          GIT_USER_NAME: "Ponylang Main Bot"
+          GIT_USER_EMAIL: "ponylang.main@gmail.com"
