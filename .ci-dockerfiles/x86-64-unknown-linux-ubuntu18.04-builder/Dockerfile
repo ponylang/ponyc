@@ -21,6 +21,10 @@ RUN apt-get update \
 RUN curl --output cmake-3.15.3-Linux-x86_64.sh https://cmake.org/files/v3.15/cmake-3.15.3-Linux-x86_64.sh \
  && sh cmake-3.15.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
+# click is failing for uploads without this.
+ENV LC_ALL C.UTF-8
+ENV LANG C.UTF-8
+
 # add user pony in order to not run tests as root
 RUN useradd -ms /bin/bash -d /home/pony -g root pony
 USER pony
