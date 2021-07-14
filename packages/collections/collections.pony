@@ -2,7 +2,7 @@
 # Collections package
 
 The Collections package provides a variety of collection classes, 
-including map, set,  range, heap, ring buffer, list, and flags.
+including map, set, range, heap, ring buffer, list, and flags.
 
 `Map` - Hashmap by strutural equality (use `MapIs` for identity equality).
 
