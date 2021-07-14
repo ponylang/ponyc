@@ -193,17 +193,18 @@ jobs:
     name: Trigger release announcement
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Trigger
-        uses: docker://ponylang/release-bot-action:0.5.0
+      - uses: actions/checkout@v2
         with:
-          step: trigger-release-announcement
-          git_user_name: "Ponylang Main Bot"
-          git_user_email: "ponylang.main@gmail.com"
-          default_branch: "main"
+          ref: "main"
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - name: Trigger
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: trigger-release-announcement
         env:
-          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          VERSION: ${{ github.event.client_payload.data.version }}
+          GIT_USER_NAME: "Ponylang Main Bot"
+          GIT_USER_EMAIL: "ponylang.main@gmail.com"
+          CUSTOM_VERSION: ${{ github.event.client_payload.data.version }}
 
   send-macos-nightly-release-event:
     if: |
