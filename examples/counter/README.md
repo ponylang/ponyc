@@ -30,7 +30,9 @@ $ ./counter 100
 100
 ```
 
-If you want to prove to yourself that the counter is running in realtime, you can add the following behaviors to see more output.
+## Program Modifications
+
+If you want to prove to yourself that the counter is running in realtime (rather than pre-computing the result), you can add the following behaviors to see more output.
 
 ```pony
 actor Counter
@@ -52,4 +54,4 @@ actor Main
 
 Doing this will print "Your message here" after each `increment()`.
 
-As an exercise, modify the program to have `Main` `display(...)` the current count after each `counter.increment()` -- hint: you need to add a parameter to the `increment()` behavior.
+As an exercise, modify the program so you `display(...)` the current count after each `counter.increment()` -- hint: you need to add a parameter to the `increment()` behavior.
