@@ -417,8 +417,6 @@ static bool link_exe(compile_t* c, ast_t* program,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
 
-  fprintf(stdout, "LINK FLAGS:\n%s\n", ld_cmd);
-
   if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
     fprintf(stderr, "%s\n", ld_cmd);
 
