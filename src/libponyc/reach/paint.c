@@ -287,6 +287,9 @@ static void find_names_types_use(painter_t* painter, reach_types_t* types)
 
       while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
       {
+        if(m->is_subordinate)
+          continue;
+
         const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
 
@@ -369,6 +372,9 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
 
       while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
       {
+        if(m->is_subordinate)
+          continue;
+
         // Store colour assigned to name in reachable types set
         const char* name = m->mangled_name;
         name_record_t* name_rec = find_name(painter, name);
@@ -376,6 +382,14 @@ static void distribute_info(painter_t* painter, reach_types_t* types)
 
         uint32_t colour = name_rec->colour;
         m->vtable_index = colour;
+
+        reach_method_t* s = m->subordinate;
+
+        while(s != NULL)
+        {
+          s->vtable_index = colour;
+          s = s->subordinate;
+        }
 
         if(colour > max_colour)
           max_colour = colour;
