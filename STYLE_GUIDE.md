@@ -556,6 +556,8 @@ fun mod_checked
 
 ## Documentation
 
+### Public Functions and Types
+
 Public functions and types must include a triple-quoted docstring unless it is self-explanatory to anyone with the most basic knowledge of the domain. Markdown is used for formatting. The `"""` tokens are placed on their own lines, even when the entire docstring could fit on a single line with the `"""` tokens.
 
 ```pony
@@ -576,6 +578,10 @@ primitive Format
   * fill: The character to pad a string with if is is shorter than width.
   """
 ```
+
+### Package-level documentation
+
+Package-level documentation should be placed in a file called `<PACKAGE>.pony` within a triple-quoted docstring at the top of the file. This same file may contain additional content if such organization makes sense for the package.
 
 ## Comments
 
