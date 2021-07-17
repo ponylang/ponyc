@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fixed Makefile for FreeBSD ([PR #3808](https://github.com/ponylang/ponyc/pull/3808))
 
 ### Added
 
