@@ -114,7 +114,7 @@ class File
       _errno = FileError
     else
       var flags: I32 = @ponyint_o_rdwr()
-      let mode = FileMode.os() // default file permissions
+      let mode = FileMode.u32() // default file permissions
       if not path.exists() then
         if not path.caps(FileCreate) then
           _errno = FileError
