@@ -355,7 +355,7 @@ class val FilePath
       return false
     end
 
-    let m = mode.os()
+    let m = mode.u32()
 
     ifdef windows then
       0 == @_chmod(path.cstring(), m)

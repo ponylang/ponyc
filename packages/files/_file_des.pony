@@ -21,7 +21,7 @@ primitive _FileDes
     ifdef windows then
       path.chmod(mode)
     else
-      @fchmod(fd, mode.os()) == 0
+      @fchmod(fd, mode.u32()) == 0
     end
 
   fun chown(fd: I32, path: FilePath, uid: U32, gid: U32): Bool =>

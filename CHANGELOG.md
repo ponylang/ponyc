@@ -10,10 +10,11 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add FileMode.u32 ([PR #3809](https://github.com/ponylang/ponyc/pull/3809))
+- Add FileMode.u32 ([PR #3810](https://github.com/ponylang/ponyc/pull/3810))
 
 ### Changed
 
-- Make FileMode._os public ([PR #3809](https://github.com/ponylang/ponyc/pull/3809))
 
 ## [0.43.0] - 2021-07-14
 
