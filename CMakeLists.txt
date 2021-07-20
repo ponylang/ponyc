@@ -192,7 +192,11 @@ if(MSVC)
 else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall -fpic -fexceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fno-rtti -fpic -fexceptions")
-    add_link_options(-rdynamic)
+    add_link_options(
+        -rdynamic
+        $<$<CONFIG:Release>:-s>
+        $<$<CONFIG:MinSizeRel>:-s>
+    )
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
