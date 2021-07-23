@@ -22,7 +22,7 @@ def linux_pr_tasks():
       'triple_os': 'linux-rocky8'
     },
     { 'name': 'x86-64-unknown-linux-centos8',
-      'image': 'ponylang/#ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225',
+      'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225',
       'triple_vendor: 'unknown',
       'triple_os': 'linux-centos8'
     }
