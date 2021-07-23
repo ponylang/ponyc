@@ -1,0 +1,31 @@
+task:
+  only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+
+  windows_container:
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  name: "release: x86-64-pc-windows-msvc"
+
+  environment:
+    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+
+  config_script:
+    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+  install_script:
+    - ps: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
+  package_script:
+    - ps: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+  upload_script:
+    - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
