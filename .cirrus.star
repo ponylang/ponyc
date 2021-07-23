@@ -3,9 +3,10 @@ load("cirrus", "env", "fs", "hash")
 def main():
   if env.get("CIRRUS_PR", "") != "":
     #tasks = []
-    prt = {}
-    for t in linux_pr_tasks():
-      prt = linux_pr_task(t['name'],
+    #prt = {}
+    #for t in linux_pr_tasks():
+    t = linux_pr_tasks()
+    prt = linux_pr_task(t['name'],
         t['image'],
         t['triple_vendor'],
         t['triple_os']
@@ -15,18 +16,20 @@ def main():
     return [prt]
 
 def linux_pr_tasks():
-  return [
-    { 'name': 'x86-64-unknown-linux-rocky8',
+  #return [
+  return  { 'name': 'x86-64-unknown-linux-rocky8',
       'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707',
       'triple_vendor': 'unknown',
       'triple_os': 'linux-rocky8'
-    },
-    { 'name': 'x86-64-unknown-linux-centos8',
-      'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225',
-      'triple_vendor: 'unknown',
-      'triple_os': 'linux-centos8'
     }
-  ]
+
+  #  { 'name': 'x86-64-unknown-linux-centos8',
+  #    'image': 'ponylang/#ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225',
+  #    'triple_vendor: 'unknown',
+  #    'triple_os': 'linux-centos8'
+  #  }
+  #]
+
 def linux_pr_task(name, image, triple_vendor, triple_os):
   cache_key = hash.md5(str(fs.read('lib/CMakeLists.txt')) + image)
 
