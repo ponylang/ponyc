@@ -10,6 +10,8 @@ def main():
         t['triple_vendor'],
         t['triple_os']
       )
+
+      prt.update(linux_pr_scripts().items())
       tasks.append(prt)
 
     return tasks
@@ -50,9 +52,23 @@ def linux_pr_task(name, image, triple_vendor, triple_os):
       'key': cache_key,
       'populate_script': 'make libs build_flags=-j8'
     },
-    'configure_script': 'make configure arch=x86-64',
-    'build_script': 'make build arch=x86-64 build_flags=-j8',
-    'test_script': 'make test-ci arch=x86-64'
   }
 
   return task
+
+def linux_pr_scripts(config="release"):
+  return {
+    'configure_script': 'make configure config=' + config,
+    'build_script': 'make build build_flags=-j8 config=' + config,
+    'test_script': 'make test-ci config=' + config
+  }
+
+def linux_nightly_script():
+  return {
+    'nightly_script': 'bash .ci-scripts/x86-64-nightly.bash'
+  }
+
+def linux_release_script():
+  return {
+    'release_script': 'bash .ci-scripts/x86-64-release.bash'
+  }
