@@ -9,7 +9,7 @@ def main():
 
   cirrus_tag = env.get("CIRRUS_TAG", "")
   #re.findall("^\d+\.\d+\.\d+$", cirrus_tag)
-  re.findall('\d+\.\d+\.\d+', "hello")
+  re.findall("\d+\.\d+\.\d+", "hello")
   #return create_release_tasks()
 
 def create_pr_tasks():
