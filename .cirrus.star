@@ -13,7 +13,7 @@ def main():
 def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
 
 
-  cache_key = "foo"
+  cache_key = fs.read('lib/CMakeLists.txt')
 
   cpu = 2
   memory = 4
