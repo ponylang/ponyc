@@ -23,17 +23,7 @@ def create_pr_tasks():
     release.update(linux_pr_scripts().items())
     tasks.append(release)
 
-  # debug tasks
-  for t in pr_tasks:
-    debug = linux_pr_task(t['name'] + ' [debug]',
-      t['image'],
-      t['triple_vendor'],
-      t['triple_os']
-    )
 
-    # finish debug task creation
-    debug.update(linux_pr_scripts("debug").items())
-    tasks.append(debug)
 
   return tasks
 
