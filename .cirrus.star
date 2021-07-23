@@ -1,4 +1,4 @@
-load("cirrus", "env", "fs", "hash")
+load("cirrus", "env", "fs")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
@@ -11,12 +11,9 @@ def main():
     return [t]
 
 def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
-  cache_key = hash.md5(
-    cache_buster +
-    triple_vendor +
-    triple_os +
-    fs.read('lib/CMakeLists.txt')
-  )
+
+
+  cache_key = "foo"
 
   cpu = 2
   memory = 4
