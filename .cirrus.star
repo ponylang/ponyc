@@ -2,21 +2,32 @@ load("cirrus", "env", "fs", "hash")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
-    t = linux_pr_task('test',
-      'ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707',
-      '20210707',
-      'unknown',
-      'linuxrocky8'
-    )
-    return [t]
+    tasks = []
+    for t in linux_pr_tasks():
+      prt = linux_pr_task(t['name'],
+        t['image'],
+        t['triple_vendor'],
+        t['triple_os']
+      )
+      tasks.append(prt)
 
-def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
-  cache_key = hash.md5(
-    str(fs.read('lib/CMakeLists.txt'))
-    + cache_buster
-    + triple_vendor
-    + triple_os
-    )
+    return tasks
+
+def linux_pr_tasks():
+  return [
+    { 'name': 'x86-64-unknown-linux-rocky8',
+      'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707',
+      'triple_vendor': 'unknown'
+      'triple_os': 'linux-rocky8'
+    },
+    { 'name': 'x86-64-unknown-linux-centos8',
+      'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225',
+      'triple_vendor: 'unknown',
+      'triple_os': 'linux-centos8'
+    }
+  ]
+def linux_pr_task(name, image, triple_vendor, triple_os):
+  cache_key = hash.md5(str(fs.read('lib/CMakeLists.txt')) + image)
 
   cpu = 8
   memory = 24
@@ -29,7 +40,6 @@ def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
       'memory': memory
     },
     'env': {
-      'CACHE_BUSTER': cache_buster,
       'TRIPLE_VENDOR': triple_vendor,
       'TRIPLE_OS': triple_os
     },
