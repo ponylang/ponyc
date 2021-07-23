@@ -2,21 +2,58 @@ load("cirrus", "env", "fs", "hash")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
-    tasks = []
-    pr_tasks = linux_pr_tasks()
-    for t in pr_tasks:
-      prt = linux_pr_task(t['name'],
-        t['image'],
-        t['triple_vendor'],
-        t['triple_os']
-      )
+    return create_pr_tasks()
 
-      prt.update(linux_pr_scripts().items())
-      tasks.append(prt)
+  if env.get("CIRRUS_CRON", "") == "nightly":
+    return create_nightly_tasks()
 
-    return tasks
+def create_pr_tasks():
+  tasks = []
 
-def linux_pr_tasks():
+  pr_tasks = linux_tasks()
+  for t in pr_tasks:
+    release = linux_pr_task(t['name'],
+      t['image'],
+      t['triple_vendor'],
+      t['triple_os']
+    )
+
+    # create new debug task just like release
+    debug = release
+
+    # finish release task creation
+    release.update(linux_pr_scripts().items())
+    tasks.append(release)
+
+    # finish debug task creation
+    debug.update(linux_pr_scripts("debug").items())
+    tasks.append(debug)
+
+  return tasks
+
+def create_nightly_tasks():
+  tasks = []
+
+  pr_tasks = linux_tasks()
+  for t in pr_tasks:
+    nightly = linux_pr_task(t['name'],
+      t['image'],
+      t['triple_vendor'],
+      t['triple_os']
+    )
+
+    # finish nightly task creation
+    nightly.update(linux_nightly_scripts().items())
+
+    nightly['env']['CLOUDSMITH_API_KEY'] = 'ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!'
+
+    tasks.append(nightly)
+
+
+
+  return tasks
+
+def linux_tasks():
   return [
     { 'name': 'x86-64-unknown-linux-rocky8',
       'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707',
