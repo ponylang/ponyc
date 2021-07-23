@@ -14,6 +14,7 @@ def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
 
 
   cache_key = fs.read('lib/CMakeLists.txt')
+  foo = hash.md5('foo')
 
   cpu = 2
   memory = 4
