@@ -1,4 +1,4 @@
-load("cirrus", "env", "fs", "hash")
+load("cirrus", "env", "fs", "hash", "re")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
@@ -6,6 +6,9 @@ def main():
 
   if env.get("CIRRUS_CRON", "") == "nightly":
     return create_nightly_tasks()
+
+  if re.findall('^\d+\.\d+\.\d+$', env.get("CIRRUS_TAG", ""):
+    return create_release_tasks()
 
 def create_pr_tasks():
   tasks = []
@@ -54,6 +57,26 @@ def create_nightly_tasks():
     nightly['env']['CLOUDSMITH_API_KEY'] = 'ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!'
 
     tasks.append(nightly)
+
+  return tasks
+
+def create_release_tasks():
+  tasks = []
+
+  pr_tasks = linux_tasks()
+  for t in pr_tasks:
+    release = linux_pr_task(t['name'],
+      t['image'],
+      t['triple_vendor'],
+      t['triple_os']
+    )
+
+    # finish release task creation
+    release.update(linux_release_scripts().items())
+
+    release['env']['CLOUDSMITH_API_KEY'] = 'ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!'
+
+    tasks.append(release)
 
   return tasks
 
