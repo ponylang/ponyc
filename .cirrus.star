@@ -1,4 +1,4 @@
-load("cirrus", "env", "fs")
+load("cirrus", "env", "fs", "hash")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
