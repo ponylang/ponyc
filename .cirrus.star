@@ -12,25 +12,12 @@ def main():
     return [t]
 
 def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
-  cache_key = hash.md5(
-    cache_buster +
-    triple_vendor +
-    triple_os +
-    fs.read('lib/CMakeLists.txt')
-  )
-
-  cpu = 2
-  memory = 4
-  if cache_info(cache_key) is None:
-    cpu = 8
-    memory = 24
-
   task = {
     'name': name,
     'container': {
       'image': image,
-      'cpu': cpu,
-      'memory': memory
+      'cpu': 2,
+      'memory': 4
     },
     'env': {
       'CACHE_BUSTER': cache_buster,
