@@ -1,4 +1,5 @@
 load("cirrus", "env")
+load("github.com/cirrus-modules/graphql", "cache_info")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
