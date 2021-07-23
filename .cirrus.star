@@ -2,23 +2,22 @@ load("cirrus", "env", "fs", "hash")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
-    //tasks = []
-    prt = {}
+    tasks = []
     for t in linux_pr_tasks():
       prt = linux_pr_task(t['name'],
         t['image'],
         t['triple_vendor'],
         t['triple_os']
       )
-      //tasks.append(prt)
+      tasks.append(prt)
 
-    return [prt]
+    return tasks
 
 def linux_pr_tasks():
   return [
     { 'name': 'x86-64-unknown-linux-rocky8',
       'image': 'ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707',
-      'triple_vendor': 'unknown'
+      'triple_vendor': 'unknown',
       'triple_os': 'linux-rocky8'
     },
     { 'name': 'x86-64-unknown-linux-centos8',
