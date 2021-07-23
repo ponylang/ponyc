@@ -94,12 +94,12 @@ def linux_pr_scripts(config="release"):
     'test_script': 'make test-ci config=' + config
   }
 
-def linux_nightly_script():
+def linux_nightly_scripts():
   return {
     'nightly_script': 'bash .ci-scripts/x86-64-nightly.bash'
   }
 
-def linux_release_script():
+def linux_release_scripts():
   return {
     'release_script': 'bash .ci-scripts/x86-64-release.bash'
   }
