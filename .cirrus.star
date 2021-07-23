@@ -45,11 +45,7 @@ def create_nightly_tasks():
     # finish nightly task creation
     nightly.update(linux_nightly_scripts().items())
 
-    nightly['env']['CLOUDSMITH_API_KEY'] = 'ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!'
-
     tasks.append(nightly)
-
-
 
   return tasks
 
