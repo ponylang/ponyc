@@ -18,8 +18,8 @@ def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
     + triple_os
     )
 
-  cpu = 2
-  memory = 4
+  cpu = 8
+  memory = 24
 
   task = {
     'name': name,
