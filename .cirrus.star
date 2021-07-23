@@ -11,6 +11,7 @@ def create_pr_tasks():
   tasks = []
 
   pr_tasks = linux_tasks()
+  # release tasks
   for t in pr_tasks:
     release = linux_pr_task(t['name'],
       t['image'],
@@ -18,12 +19,17 @@ def create_pr_tasks():
       t['triple_os']
     )
 
-    # create new debug task just like release
-    debug = release
-
     # finish release task creation
     release.update(linux_pr_scripts().items())
     tasks.append(release)
+
+  # debug tasks
+  for t in pr_tasks:
+    debug = linux_pr_task(t['name'] + ' [debug]',
+      t['image'],
+      t['triple_vendor'],
+      t['triple_os']
+    )
 
     # finish debug task creation
     debug.update(linux_pr_scripts("debug").items())
@@ -44,6 +50,8 @@ def create_nightly_tasks():
 
     # finish nightly task creation
     nightly.update(linux_nightly_scripts().items())
+
+    nightly['env']['CLOUDSMITH_API_KEY'] = 'ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!'
 
     tasks.append(nightly)
 
