@@ -2,16 +2,17 @@ load("cirrus", "env", "fs", "hash")
 
 def main():
   if env.get("CIRRUS_PR", "") != "":
-    tasks = []
+    #tasks = []
+    prt = {}
     for t in linux_pr_tasks():
       prt = linux_pr_task(t['name'],
         t['image'],
         t['triple_vendor'],
         t['triple_os']
       )
-      tasks.append(prt)
+      #tasks.append(prt)
 
-    return tasks
+    return [prt]
 
 def linux_pr_tasks():
   return [
