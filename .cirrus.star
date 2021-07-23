@@ -20,9 +20,6 @@ def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
 
   cpu = 2
   memory = 4
-  #if cache_info(cache_key) is None:
-  #  cpu = 8
-  #  memory = 24
 
   task = {
     'name': name,
