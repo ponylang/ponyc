@@ -46,7 +46,7 @@ def create_nightly_tasks():
 
   pr_tasks = linux_tasks()
   for t in pr_tasks:
-    nightly = linux_pr_task(t['name'],
+    nightly = linux_pr_task(t['name'] + ' nightly',
       t['image'],
       t['triple_vendor'],
       t['triple_os']
@@ -66,7 +66,7 @@ def create_release_tasks():
 
   pr_tasks = linux_tasks()
   for t in pr_tasks:
-    release = linux_pr_task(t['name'],
+    release = linux_pr_task(t['name'] + ' release',
       t['image'],
       t['triple_vendor'],
       t['triple_os']
