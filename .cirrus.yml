@@ -12,7 +12,7 @@ task:
     environment:
       CACHE_BUSTER: 20210707
       TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linuxrocky8
+      TRIPLE_OS: linux-rocky8
   - name: "PR: x86-64-unknown-linux-centos8"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
