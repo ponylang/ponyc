@@ -2,196 +2,196 @@
 # Pull Request Tasks
 #
 
-task:
-  only_if: $CIRRUS_PR != ''
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-  matrix:
-  - name: "PR: x86-64-unknown-linux-rocky8"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
-    environment:
-      CACHE_BUSTER: 20210707
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linuxrocky8
-  - name: "PR: x86-64-unknown-linux-centos8"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
-    environment:
-      CACHE_BUSTER: 20210225
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-centos8
-  - name: "PR: x86-64-unknown-linux-gnu"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
-    environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-gnu
-  - name: "PR: x86-64-unknown-linux-ubuntu18.04"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
-    environment:
-      CACHE_BUSTER: 20210714
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu18.04
-  - name: "PR: x86-64-unknown-linux-ubuntu20.04"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
-    environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu20.04
-  - name: "PR: x86-64-unknown-linux-musl"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
-    environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-musl
+#   matrix:
+#   - name: "PR: x86-64-unknown-linux-rocky8"
+#     container:
+#       image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+#     environment:
+#       CACHE_BUSTER: 20210707
+#       TRIPLE_VENDOR: unknown
+#       TRIPLE_OS: linuxrocky8
+#   - name: "PR: x86-64-unknown-linux-centos8"
+#     container:
+#       image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
+#     environment:
+#       CACHE_BUSTER: 20210225
+#       TRIPLE_VENDOR: unknown
+#       TRIPLE_OS: linux-centos8
+#   - name: "PR: x86-64-unknown-linux-gnu"
+#     container:
+#       image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+#     environment:
+#       CACHE_BUSTER: 20210224
+#       TRIPLE_VENDOR: unknown
+#       TRIPLE_OS: linux-gnu
+#   - name: "PR: x86-64-unknown-linux-ubuntu18.04"
+#     container:
+#       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
+#     environment:
+#       CACHE_BUSTER: 20210714
+#       TRIPLE_VENDOR: unknown
+#       TRIPLE_OS: linux-ubuntu18.04
+#   - name: "PR: x86-64-unknown-linux-ubuntu20.04"
+#     container:
+#       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+#     environment:
+#       CACHE_BUSTER: 20210224
+#       TRIPLE_VENDOR: unknown
+#       TRIPLE_OS: linux-ubuntu20.04
+#   - name: "PR: x86-64-unknown-linux-musl"
+#     container:
+#       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+#     environment:
+#       CACHE_BUSTER: 20210224
+#       TRIPLE_VENDOR: unknown
+#       TRIPLE_OS: linux-musl
 
-  container:
-    cpu: 8
-    memory: 24
+#   container:
+#     cpu: 8
+#     memory: 24
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
-    populate_script: make libs build_flags=-j8
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script:
+#       - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
+#     populate_script: make libs build_flags=-j8
 
-  configure_script:
-    - make configure arch=x86-64
-  build_script:
-    - make build arch=x86-64 build_flags=-j8
-  test_script:
-    - make test-ci arch=x86-64
+#   configure_script:
+#     - make configure arch=x86-64
+#   build_script:
+#     - make build arch=x86-64 build_flags=-j8
+#   test_script:
+#     - make test-ci arch=x86-64
 
-task:
-  only_if: $CIRRUS_PR != ''
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-  container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
-    cpu: 8
-    memory: 24
+#   container:
+#     image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+#     cpu: 8
+#     memory: 24
 
-  name: "PR: x86-64-unknown-linux-gnu [debug]"
+#   name: "PR: x86-64-unknown-linux-gnu [debug]"
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
-    populate_script: make libs arch=x86-64 build_flags=-j8
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
+#     populate_script: make libs arch=x86-64 build_flags=-j8
 
-  configure_script:
-    - make configure arch=x86-64 config=debug
-  build_script:
-    - make build arch=x86-64 config=debug build_flags=-j8
-  test_script:
-    - make test-ci arch=x86-64 config=debug
+#   configure_script:
+#     - make configure arch=x86-64 config=debug
+#   build_script:
+#     - make build arch=x86-64 config=debug build_flags=-j8
+#   test_script:
+#     - make test-ci arch=x86-64 config=debug
 
-task:
-  only_if: $CIRRUS_PR != ''
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-  freebsd_instance:
-    image: freebsd-13-0-release-amd64
-    cpu: 8
-    memory: 24
+#   freebsd_instance:
+#     image: freebsd-13-0-release-amd64
+#     cpu: 8
+#     memory: 24
 
-  name: "PR: x86-64-unknown-freebsd-13.0"
+#   name: "PR: x86-64-unknown-freebsd-13.0"
 
-  install_script:
-    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y cmake gmake libunwind git
+#   install_script:
+#     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
+#     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
+#     - pkg update
+#     - pkg install -y cmake gmake libunwind git
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
-    populate_script: gmake libs arch=x86-64 build_flags=-j8
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
+#     populate_script: gmake libs arch=x86-64 build_flags=-j8
 
-  configure_script:
-    - gmake configure arch=x86-64
-  build_script:
-    - gmake build arch=x86-64 build_flags=-j8
-  test_script:
-    - gmake test-ci arch=x86-64
+#   configure_script:
+#     - gmake configure arch=x86-64
+#   build_script:
+#     - gmake build arch=x86-64 build_flags=-j8
+#   test_script:
+#     - gmake test-ci arch=x86-64
 
-task:
-  only_if: $CIRRUS_PR != ''
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-  osx_instance:
-    image: big-sur-xcode-12.5
+#   osx_instance:
+#     image: big-sur-xcode-12.5
 
-  name: "PR: x86-64-apple-darwin"
+#   name: "PR: x86-64-apple-darwin"
 
-  install_script:
-    - brew install coreutils
+#   install_script:
+#     - brew install coreutils
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
-    populate_script: make libs arch=x86-64 build_flags=-j8
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
+#     populate_script: make libs arch=x86-64 build_flags=-j8
 
-  configure_script:
-    - make configure arch=x86-64
-  build_script:
-    - make build arch=x86-64 build_flags=-j8
-  test_script:
-    - make test-ci arch=x86-64
+#   configure_script:
+#     - make configure arch=x86-64
+#   build_script:
+#     - make build arch=x86-64 build_flags=-j8
+#   test_script:
+#     - make test-ci arch=x86-64
 
-task:
-  only_if: $CIRRUS_PR != ''
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-  windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
-    os_version: 2019
-    cpu: 8
-    memory: 24
+#   windows_container:
+#     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+#     os_version: 2019
+#     cpu: 8
+#     memory: 24
 
-  name: "PR: x86-64-pc-windows-msvc"
+#   name: "PR: x86-64-pc-windows-msvc"
 
-  timeout_in: 120m
+#   timeout_in: 120m
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
-    populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script:
+#       - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
+#     populate_script:
+#       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
-  config_script:
-    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
-  build_script:
-    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019"
-  test_script:
-    - ps: .\make.ps1 -Command test -Config Release -Generator "Visual Studio 16 2019"
+#   config_script:
+#     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
+#   build_script:
+#     - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019"
+#   test_script:
+#     - ps: .\make.ps1 -Command test -Config Release -Generator "Visual Studio 16 2019"
 
-task:
-  only_if: $CIRRUS_PR != ''
+# task:
+#   only_if: $CIRRUS_PR != ''
 
-  windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
-    os_version: 2019
-    cpu: 8
-    memory: 24
+#   windows_container:
+#     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+#     os_version: 2019
+#     cpu: 8
+#     memory: 24
 
-  name: "PR: x86-64-pc-windows-msvc [debug]"
+#   name: "PR: x86-64-pc-windows-msvc [debug]"
 
-  timeout_in: 120m
+#   timeout_in: 120m
 
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
-    populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+#   libs_cache:
+#     folder: build/libs
+#     fingerprint_script:
+#       - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
+#     populate_script:
+#       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
 
-  config_script:
-    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019"
-  build_script:
-    - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019"
-  test_script:
-    - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
+#   config_script:
+#     - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019"
+#   build_script:
+#     - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019"
+#   test_script:
+#     - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
 
 # TODO: re-enable these (and add aarch64) once 32-bit ARM and M1 fixes have been made
 # task:
