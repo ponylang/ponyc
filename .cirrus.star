@@ -37,11 +37,6 @@ def linux_pr_task(name, image, cache_buster, triple_vendor, triple_os):
       'TRIPLE_VENDOR': triple_vendor,
       'TRIPLE_OS': triple_os
     },
-    'libs_cache': {
-      'folder': 'build/libs',
-      'key': cache_key,
-      'populate_script': 'make libs build_flags=-j8'
-    },
     'configure_script': 'make configure arch=x86-64',
     'build_script': 'make build arch=x86-64 build_flags=-j8',
     'test_script': 'make test-ci arch=x86-64'
