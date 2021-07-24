@@ -116,7 +116,7 @@ def linux_pr_task(name, image, triple_vendor, triple_os):
     },
      'libs_cache': {
       'folder': 'build/libs',
-      'key': cache_key,
+      'fingerprint_key': cache_key,
       'populate_script': 'make libs build_flags=-j8'
     },
   }
