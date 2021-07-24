@@ -38,6 +38,7 @@ def create_pr_tasks():
 
     # finish debug task creation
     debug.update(linux_pr_scripts("debug").items())
+    debug['depends_on'] = [t['name']]
     tasks.append(debug)
 
   return tasks
