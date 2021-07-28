@@ -7,10 +7,9 @@ def main():
   if env.get("CIRRUS_CRON", "") == "nightly":
     return create_nightly_tasks()
 
-  #cirrus_tag = env.get("CIRRUS_TAG", "")
-  #re.findall("^\d+\.\d+\.\d+$", cirrus_tag)
-  #re.findall('\d+.\d+.\d+', "hello")
-  #return create_release_tasks()
+  cirrus_tag = env.get("CIRRUS_TAG", "")
+  re.findall(r'^\d+\.\d+\.\d+$', cirrus_tag)
+  return create_release_tasks()
 
 def create_pr_tasks():
   tasks = []
