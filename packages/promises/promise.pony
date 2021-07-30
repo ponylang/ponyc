@@ -1,5 +1,8 @@
 use "time"
 
+interface Promisable[A: Any #share]
+  be _attach(attach: _IThen[A] iso)
+
 actor Promise[A: Any #share]
   """
   A promise to eventually produce a result of type A. This promise can either
@@ -8,7 +11,7 @@ actor Promise[A: Any #share]
   Any number of promises can be chained after this one.
   """
   var _value: (_Pending | _Reject | A) = _Pending
-  embed _list: Array[_IThen[A]] = _list.create()
+  embed _list: Array[_IThen[A] iso] = _list.create()
 
   be apply(value: A) =>
     """
@@ -20,11 +23,17 @@ actor Promise[A: Any #share]
 
     _value = value
 
-    for f in _list.values() do
-      f(value)
-    end
+    try
+      while _list.size() > 0  do
+        let l = _list.shift()?
 
-    _list.clear()
+        iftype A <: Promisable[A] then
+          value._attach(consume l)
+        else
+          (consume l)(value)
+        end
+      end
+    end
 
   be reject() =>
     """
@@ -68,6 +77,40 @@ actor Promise[A: Any #share]
     let promise = attach.promise()
     _attach(consume attach)
     promise
+
+  fun tag next_unwrap[B: Any #share](
+    fulfill: Fulfill[A, Promise[B]],
+    rejected: Reject[Promise[B]] = RejectAlways[Promise[B]])
+    : Promise[B]
+  =>
+    let outer = Promise[B]
+
+    next[None](object iso
+      var f: Fulfill[A, Promise[B]] = consume fulfill
+      var r: Reject[Promise[B]] = consume rejected
+      let p: Promise[B] = outer
+
+      fun ref apply(value: A) =>
+        let fulfill' = f = {(value: A) => Promise[B]}
+        let rejected' = r = RejectAlways[Promise[B]]
+
+        try
+          let inner = try
+            (consume fulfill').apply(value)?
+          else
+            (consume rejected').apply()?
+          end
+
+          inner.next[None](
+              {(fulfilled: B) =>
+                p(fulfilled)
+              })
+        else
+          p.reject()
+        end
+    end)
+
+    outer
 
   fun tag add[B: Any #share = A](p: Promise[B]): Promise[(A, B)] =>
     """
