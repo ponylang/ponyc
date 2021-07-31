@@ -12,6 +12,7 @@ actor Main is TestList
     test(_TestPromiseTimeout)
     test(_TestPromisesJoin)
     test(_TestPromisesJoinThenReject)
+    test(_TestNextUnwrap)
 
 class iso _TestPromise is UnitTest
   fun name(): String => "promises/Promise"
@@ -145,3 +146,22 @@ class iso _TestPromisesJoinThenReject is UnitTest
     a("a")
     b("b")
     c.reject()
+
+class iso _TestNextUnwrap is UnitTest
+  fun name(): String => "promises/Promise.next_unwrap"
+
+  fun apply(h: TestHelper) =>
+    let start = Promise[String]
+    let inter = start.next_unwrap[String](_NextUnwrapHelper~promise_string())
+    inter.next[None](_NextUnwrapHelper~complete(h))
+
+    start("start")
+    inter("end")
+
+primitive _NextUnwrapHelper
+  fun promise_string(s: String): Promise[String] =>
+    // fake do something with string, return promise of another
+    Promise[String]
+
+  fun complete(h: TestHelper, s: String) =>
+    h.assert_eq[String]("end", s)
