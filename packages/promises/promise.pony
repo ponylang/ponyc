@@ -69,7 +69,7 @@ actor Promise[A: Any #share]
     _attach(consume attach)
     promise
 
-  fun tag next_unwrap[B: Any #share](
+  fun tag next_flatten[B: Any #share](
     fulfill: Fulfill[A, Promise[B]],
     rejected: Reject[Promise[B]] = RejectAlways[Promise[B]])
     : Promise[B]
@@ -78,11 +78,11 @@ actor Promise[A: Any #share]
     Chain a promise after this one and unwrap the promise returned from this
     one.
 
-    `next_unwrap` is a companion to `next`. It operates in an identical fashion
+    `next_flatten` is a companion to `next`. It operates in an identical fashion
     except for the type of the fulfilled promise. Whereas `next` returns a type
-    `B`, next_unwrap returns `Promise[B]`.
+    `B`, next_flatten returns `Promise[B]`.
 
-    Why is `next_unwrap` valuable given that next could take a `B` that is of
+    Why is `next_flatten` valuable given that next could take a `B` that is of
     a type like `Promise[String]`? Let's start with some code to demonstrate the
     problem that arises when returning `Promise[Promise[B]]` from `next`.
 
@@ -102,7 +102,7 @@ actor Promise[A: Any #share]
     ```
 
     And we want to use this promise based API to look up the title of an issue.
-    Without `next_unwrap`, we could attempt to do the following using `next`:
+    Without `next_flatten`, we could attempt to do the following using `next`:
 
     ```pony
     actor Main
@@ -162,12 +162,12 @@ actor Promise[A: Any #share]
     happening because we gave `PrintIssueTitle` a very misleading name; it
     doesn't print an issue title.
 
-    `next_unwrap` addresses the problem of "we want the `Issue`, not the
-    intermediate `Promise`". `next_unwrap` takes an intermediate promise and
+    `next_flatten` addresses the problem of "we want the `Issue`, not the
+    intermediate `Promise`". `next_flatten` takes an intermediate promise and
     unwraps it into the fulfilled type. You get to write your promise chain
     without having to worry about intermediate promises.
 
-    Updated to use `next_unwrap`, our API example becomes:
+    Updated to use `next_flatten`, our API example becomes:
 
     ```pony
     actor Main
@@ -176,7 +176,7 @@ actor Promise[A: Any #share]
           GitHub("my token").get_repo("ponylang/ponyc")
 
         let issue = Promise[Issue] =
-          repo.next_unwrap[Issue](FetchIssue~apply(1))
+          repo.next_flatten[Issue](FetchIssue~apply(1))
 
         issue.next[None](PrintIssueTitle~apply(env.out))
 
@@ -190,9 +190,9 @@ actor Promise[A: Any #share]
     ```
 
     Our promise `issue`, is no longer a `Promise[Promise[Issue]]`. By using
-    `next_unwrap`, we have a much more manageable `Promise[Issue]` instead.
+    `next_flatten`, we have a much more manageable `Promise[Issue]` instead.
 
-    Other than unwrapping promises for you, `next_unwrap` otherwise acts the
+    Other than unwrapping promises for you, `next_flatten` otherwise acts the
     same as `next` so all the same rules apply to fulfillment and rejection.
     """
     let outer = Promise[B]
