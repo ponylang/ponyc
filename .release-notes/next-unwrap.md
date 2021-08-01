@@ -2,7 +2,7 @@
 
 We've added a new method `next_unwrap` to `Promise` in order to make working with promises of promises easier.
 
-`next_unwrap` is a companion to `next`. It operates in an identical fashion except for the type of the fulfilled promise. Whereas `next` turns a type `B`, next_unwrap returns `Promise[B]`.
+`next_unwrap` is a companion to `next`. It operates in an identical fashion except for the type of the fulfilled promise. Whereas `next` returns a type `B`, `next_unwrap` returns `Promise[B]`.
 
 Why is `next_unwrap` valuable given that next could take a `B` that is of a type like `Promise[String]`? Let's start with some code to demonstrate the problem that arises when returning `Promise[Promise[B]]` from `next`.
 
