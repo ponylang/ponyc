@@ -28,18 +28,39 @@ Once `echo` has been compiled, in the same directory as this README file run `./
 ```console
 $ ./echo
 listening on 127.0.0.1:40503
+...
 ```
 
-If you visit this address using a web browser, you will see further output:
+Your program is now listening for any message sent to your local address on the selected port number. To check the program is working as intended, you should open a second terminal window and run the following `netcat` command matching the local address and port from the `echo` program:
 
 ```console
-$ ./echo
-listening on 127.0.0.1:40503
-connection accepted
-data received, looping it back
+$ nc 127.0.0.1 40503
+...
+```
+
+This gives us a client which we can use to send `echo` a message. try typing any message and the `echo` program will echo it back to you.
+
+```console
+$ nc 127.0.0.1 40503
+Hello world!
+server says: Hello world!
 ...
 ```
 
 ## Program Modifications
 
-TODO: Add content here
+Modify your program to send a welcome message to a user which provides instructions on interacting with the server.
+
+```console
+$ ./echo
+listening on 127.0.0.1:40503
+...
+```
+
+```console
+$ nc 127.0.0.1 40503
+Welcome! Write your message below then hit the Enter key.
+Hello world!
+server says: Hello world!
+...
+```
