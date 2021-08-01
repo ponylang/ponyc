@@ -189,7 +189,7 @@ actor Promise[A: Any #share]
         out.print(issue.title())
     ```
 
-    Our promise `issue`, is no longer a `Promise[Promise[Issue]]`. By using
+    Our promise `Issue`, is no longer a `Promise[Promise[Issue]]`. By using
     `flatten_next`, we have a much more manageable `Promise[Issue]` instead.
 
     Other than unwrapping promises for you, `flatten_next` otherwise acts the
