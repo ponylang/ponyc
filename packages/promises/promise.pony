@@ -79,7 +79,7 @@ actor Promise[A: Any #share]
     one.
 
     `next_unwrap` is a companion to `next`. It operates in an identical fashion
-    except for the type of the fulfilled promise. Whereas `next` turns a type
+    except for the type of the fulfilled promise. Whereas `next` returns a type
     `B`, next_unwrap returns `Promise[B]`.
 
     Why is `next_unwrap` valuable given that next could take a `B` that is of
