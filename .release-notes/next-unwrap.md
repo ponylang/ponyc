@@ -100,6 +100,6 @@ primitive PrintIssueTitle
     out.print(issue.title())
 ```
 
-Our promise `issue`, is no longer a `Promise[Promise[Issue]]`. By using `next_unwrap`, we have a much more manageable `Promise[Issue]` instead.
+Our promise `Issue`, is no longer a `Promise[Promise[Issue]]`. By using `next_unwrap`, we have a much more manageable `Promise[Issue]` instead.
 
 Other than unwrapping promises for you, `next_unwrap` otherwise acts the same as `next` so all the same rules apply to fulfillment and rejection.
