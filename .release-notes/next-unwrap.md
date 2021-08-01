@@ -1,4 +1,4 @@
-## Make working with Promise[Promise[Foo]] chains easier
+## Make working with Promise[Promise[B]] chains easier
 
 We've added a new method `next_unwrap` to `Promise` in order to make working with promises of promises easier.
 
