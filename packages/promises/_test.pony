@@ -148,11 +148,11 @@ class iso _TestPromisesJoinThenReject is UnitTest
     c.reject()
 
 class iso _TestNextUnwrap is UnitTest
-  fun name(): String => "promises/Promise.next_flatten"
+  fun name(): String => "promises/Promise.flatten_next"
 
   fun apply(h: TestHelper) =>
     let start = Promise[String]
-    let inter = start.next_flatten[String](_NextUnwrapHelper~promise_string())
+    let inter = start.flatten_next[String](_NextUnwrapHelper~promise_string())
     inter.next[None](_NextUnwrapHelper~complete(h))
 
     start("start")
