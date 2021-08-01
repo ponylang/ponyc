@@ -86,7 +86,7 @@ actor Promise[A: Any #share]
     a type like `Promise[String]`? Let's start with some code to demonstrate the
     problem that arises when returning `Promise[Promise[B]]` from `next`.
 
-    Let's say we have a library for access the GitHub REST API:
+    Let's say we have a library for accessing the GitHub REST API:
 
     ```pony
     class GitHub
