@@ -6,7 +6,7 @@ We've added a new method `next_unwrap` to `Promise` in order to make working wit
 
 Why is `next_unwrap` valuable given that next could take a `B` that is of a type like `Promise[String]`? Let's start with some code to demonstrate the problem that arises when returning `Promise[Promise[B]]` from `next`.
 
-Let's say we have a library for access the GitHub REST API:
+Let's say we have a library for accessing the GitHub REST API:
 
 ```pony
 class GitHub
