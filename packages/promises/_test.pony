@@ -291,8 +291,7 @@ primitive _FlattenNextInterHelper
     h.complete_action(action)
     h.complete(true)
 
-  fun error_fulfill(h: TestHelper, expected: String, actual: String) ?
-  =>
+  fun error_fulfill(h: TestHelper, expected: String, actual: String) ? =>
     h.assert_eq[String](expected, actual)
     h.complete_action(expected)
     error
