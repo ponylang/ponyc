@@ -187,6 +187,7 @@ class iso _TestFlattenNextStartFulfillErrors is UnitTest
     let start = Promise[String]
     let inter = start.flatten_next[String](
       _FlattenNextStartHelper~error_fulfill(h, initial_string),
+      _FlattenNextStartHelper~reject_fail_if_called(h)
     )
     inter.next[None](
       _FlattenNextInterHelper~fulfill_fail_if_called(h),
