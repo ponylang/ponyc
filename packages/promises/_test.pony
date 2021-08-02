@@ -296,14 +296,6 @@ primitive _FlattenNextFirstPromise
     p(send_on)
     p
 
-  fun fail_if_reject_is_called(h: TestHelper): Promise[String] =>
-    h.fail("reject shouldn't have been run on _FlattenNextFirstPromise")
-    Promise[String]
-
-  fun fail_if_fulfill_is_called(h: TestHelper, s: String): Promise[String] =>
-    h.fail("fulfill shouldn't have been run on _FlattenNextFirstPromise")
-    Promise[String]
-
   fun fulfill_will_error(h: TestHelper,
     expected: String,
     actual: String): Promise[String] ?
@@ -312,9 +304,17 @@ primitive _FlattenNextFirstPromise
     h.complete_action(expected)
     error
 
+  fun fail_if_fulfill_is_called(h: TestHelper, s: String): Promise[String] =>
+    h.fail("fulfill shouldn't have been run on _FlattenNextFirstPromise")
+    Promise[String]
+
   fun reject_expected(h: TestHelper, action: String): Promise[String] ? =>
     h.complete_action(action)
     error
+
+  fun fail_if_reject_is_called(h: TestHelper): Promise[String] =>
+    h.fail("reject shouldn't have been run on _FlattenNextFirstPromise")
+    Promise[String]
 
 primitive _FlattenNextSecondPromise
   """
@@ -331,8 +331,11 @@ primitive _FlattenNextSecondPromise
     h.expect_action(expected)
     h.complete(true)
 
-  fun fail_if_reject_is_called(h: TestHelper) =>
-    h.fail("reject shouldn't have been run on _FlattenNextSecondPromise")
+  fun fulfill_will_error(h: TestHelper, expected: String, actual: String) ? =>
+    h.assert_eq[String](expected, actual)
+    h.complete_action(expected)
+    h.complete(true)
+    error
 
   fun fail_if_fulfill_is_called(h: TestHelper, s: String) =>
     h.fail("fulfill shouldn't have been run on _FlattenNextSecondPromise")
@@ -341,8 +344,6 @@ primitive _FlattenNextSecondPromise
     h.complete_action(action)
     h.complete(true)
 
-  fun fulfill_will_error(h: TestHelper, expected: String, actual: String) ? =>
-    h.assert_eq[String](expected, actual)
-    h.complete_action(expected)
-    h.complete(true)
-    error
+  fun fail_if_reject_is_called(h: TestHelper) =>
+    h.fail("reject shouldn't have been run on _FlattenNextSecondPromise")
+
