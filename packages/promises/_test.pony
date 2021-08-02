@@ -151,6 +151,11 @@ class iso _TestPromisesJoinThenReject is UnitTest
     c.reject()
 
 class iso _TestFlattenNextHappyPath is UnitTest
+  """
+  This is the happy path, everything works `flatten_next` test.
+
+  If a reject handler, gets called, it would be a bug.
+  """
   fun name(): String => "promises/Promise.flatten_next/happy_path"
 
   fun apply(h: TestHelper) =>
@@ -163,18 +168,27 @@ class iso _TestFlattenNextHappyPath is UnitTest
 
     let start = Promise[String]
     let inter = start.flatten_next[String](
-      _FlattenNextStartHelper~successful_fulfill(
+      _FlattenNextFirstPromise~successful_fulfill(
         second_string, h, initial_string),
-      _FlattenNextStartHelper~reject_fail_if_called(h)
+      _FlattenNextFirstPromise~fail_if_reject_is_called(h)
     )
     inter.next[None](
-      _FlattenNextInterHelper~assert_equality(h, second_string),
-      _FlattenNextInterHelper~reject_fail_if_called(h)
+      _FlattenNextSecondPromise~successful_fulfill(h, second_string),
+      _FlattenNextSecondPromise~fail_if_reject_is_called(h)
     )
 
     start(initial_string)
 
 class iso _TestFlattenNextStartFulfillErrors is UnitTest
+  """
+  Two promises chained `flatten_next` test where the fulfill action for the
+  first promise fails.
+
+  This should result in the rejection handler for the second promise being run.
+
+  Neither the rejection handler for the first promise, nor the fulfillment
+  handler for the second promise should be run.
+  """
   fun name(): String => "promises/Promise.flatten_next/start_fulfill_errors"
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
@@ -186,18 +200,24 @@ class iso _TestFlattenNextStartFulfillErrors is UnitTest
 
     let start = Promise[String]
     let inter = start.flatten_next[String](
-      _FlattenNextStartHelper~error_fulfill(h, initial_string),
-      _FlattenNextStartHelper~reject_fail_if_called(h)
+      _FlattenNextFirstPromise~fulfill_will_error(h, initial_string),
+      _FlattenNextFirstPromise~fail_if_reject_is_called(h)
     )
     inter.next[None](
-      _FlattenNextInterHelper~fulfill_fail_if_called(h),
-      _FlattenNextInterHelper~reject_expected(h, expected_reject_string)
+      _FlattenNextSecondPromise~fail_if_fulfill_is_called(h),
+      _FlattenNextSecondPromise~reject_expected(h, expected_reject_string)
     )
 
     start(initial_string)
 
 
 class iso _TestFlattenNextInterFulfillErrors is UnitTest
+  """
+  Two promises chained `flatten_next` test where the fulfill action for the
+  second promise fails.
+
+  Neither the reject handler should be called.
+  """
   fun name(): String => "promises/Promise.flatten_next/inter_fulfill_errors"
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
@@ -209,18 +229,25 @@ class iso _TestFlattenNextInterFulfillErrors is UnitTest
 
     let start = Promise[String]
     let inter = start.flatten_next[String](
-      _FlattenNextStartHelper~successful_fulfill(
+      _FlattenNextFirstPromise~successful_fulfill(
         second_string, h, initial_string),
-      _FlattenNextStartHelper~reject_fail_if_called(h)
+      _FlattenNextFirstPromise~fail_if_reject_is_called(h)
     )
     inter.next[None](
-      _FlattenNextInterHelper~error_fulfill(h, second_string),
-      _FlattenNextInterHelper~reject_fail_if_called(h)
+      _FlattenNextSecondPromise~fulfill_will_error(h, second_string),
+      _FlattenNextSecondPromise~fail_if_reject_is_called(h)
     )
 
     start(initial_string)
 
 class iso _TestFlattenNextStartRejected is UnitTest
+  """
+  Two promises chained `flatten_next` test where the first promise is rejected.
+
+  The reject action for both promises should be run.
+
+  Neither fulfill handler should be run.
+  """
   fun name(): String => "promises/Promise.flatten_next/start_rejected"
 
   fun apply(h: TestHelper) =>
@@ -234,17 +261,25 @@ class iso _TestFlattenNextStartRejected is UnitTest
 
     let start = Promise[String]
     let inter = start.flatten_next[String](
-      _FlattenNextStartHelper~fulfill_fail_if_called(h),
-      _FlattenNextStartHelper~reject_expected(h, first_reject)
+      _FlattenNextFirstPromise~fail_if_fulfill_is_called(h),
+      _FlattenNextFirstPromise~reject_expected(h, first_reject)
     )
     inter.next[None](
-      _FlattenNextInterHelper~fulfill_fail_if_called(h),
-      _FlattenNextInterHelper~reject_expected(h, second_reject)
+      _FlattenNextSecondPromise~fail_if_fulfill_is_called(h),
+      _FlattenNextSecondPromise~reject_expected(h, second_reject)
     )
 
     start.reject()
 
-primitive _FlattenNextStartHelper
+primitive _FlattenNextFirstPromise
+  """
+  Callback functions called after fulfilled/reject is called on the 1st
+  promise in our `flatten_next` tests.
+
+  All of the `flatten_next` tests a 2nd promise chained so none of these
+  actions should ever call `complete` on the `TestHelper` as there's another
+  promise in the chain.
+  """
   fun successful_fulfill(send_on: String, h: TestHelper,
     expected: String,
     actual: String): Promise[String]
@@ -255,15 +290,15 @@ primitive _FlattenNextStartHelper
     p(send_on)
     p
 
-  fun reject_fail_if_called(h: TestHelper): Promise[String] =>
-    h.fail("_FlattenNextStartHelper: reject_fail_if_called")
+  fun fail_if_reject_is_called(h: TestHelper): Promise[String] =>
+    h.fail("reject shouldn't have been run on _FlattenNextFirstPromise")
     Promise[String]
 
-  fun fulfill_fail_if_called(h: TestHelper, s: String): Promise[String] =>
-    h.fail("_FlattenNextStartHelper: fulfill_fail_if_called")
+  fun fail_if_fulfill_is_called(h: TestHelper, s: String): Promise[String] =>
+    h.fail("fulfill shouldn't have been run on _FlattenNextFirstPromise")
     Promise[String]
 
-  fun error_fulfill(h: TestHelper,
+  fun fulfill_will_error(h: TestHelper,
     expected: String,
     actual: String): Promise[String] ?
   =>
@@ -275,23 +310,32 @@ primitive _FlattenNextStartHelper
     h.complete_action(action)
     error
 
-primitive _FlattenNextInterHelper
-  fun assert_equality(h: TestHelper, expected: String, actual: String) =>
+primitive _FlattenNextSecondPromise
+  """
+  Callback functions called after fulfilled/reject is called on the second
+  promise in our `flatten_next` tests.
+
+  This helper is designed for tests where there are only two promises. there
+  are calls to `complete` on `TestHelper` that would be incorrectly placed if
+  additional promises were chained after this. If tests are added with longer
+  chains, this helper's usage of `complete` should be reworked accordingly.
+  """
+  fun successful_fulfill(h: TestHelper, expected: String, actual: String) =>
     h.assert_eq[String](expected, actual)
     h.expect_action(expected)
     h.complete(true)
 
-  fun reject_fail_if_called(h: TestHelper) =>
-    h.fail("_FlattenNextInterHelper- reject_fail_if_called")
+  fun fail_if_reject_is_called(h: TestHelper) =>
+    h.fail("reject shouldn't have been run on _FlattenNextSecondPromise")
 
-  fun fulfill_fail_if_called(h: TestHelper, s: String) =>
-    h.fail("_FlattenNextInterHelper- fulfill_fail_if_called")
+  fun fail_if_fulfill_is_called(h: TestHelper, s: String) =>
+    h.fail("fulfill shouldn't have been run on _FlattenNextSecondPromise")
 
   fun reject_expected(h: TestHelper, action: String) =>
     h.complete_action(action)
     h.complete(true)
 
-  fun error_fulfill(h: TestHelper, expected: String, actual: String) ? =>
+  fun fulfill_will_error(h: TestHelper, expected: String, actual: String) ? =>
     h.assert_eq[String](expected, actual)
     h.complete_action(expected)
     h.complete(true)
