@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add FileMode.u32 ([PR #3809](https://github.com/ponylang/ponyc/pull/3809))
 - Add FileMode.u32 ([PR #3810](https://github.com/ponylang/ponyc/pull/3810))
+- Make working with promises of promises easier  ([PR #3813](https://github.com/ponylang/ponyc/pull/3813))
 
 ### Changed
 
