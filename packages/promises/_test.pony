@@ -13,9 +13,9 @@ actor Main is TestList
     test(_TestPromisesJoin)
     test(_TestPromisesJoinThenReject)
     test(_TestFlattenNextHappyPath)
-    test(_TestFlattenNextStartFulfillErrors)
-    test(_TestFlattenNextInterFulfillErrors)
-    test(_TestFlattenNextStartRejected)
+    test(_TestFlattenNextFirstHasFulfillError)
+    test(_TestFlattenNextSecondHasFulfillError)
+    test(_TestFlattenNextRejectFirst)
 
 class iso _TestPromise is UnitTest
   fun name(): String => "promises/Promise"
@@ -156,7 +156,8 @@ class iso _TestFlattenNextHappyPath is UnitTest
 
   If a reject handler, gets called, it would be a bug.
   """
-  fun name(): String => "promises/Promise.flatten_next/happy_path"
+  fun name(): String =>
+    "promises/Promise.flatten_next_happy_path"
 
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
@@ -179,7 +180,7 @@ class iso _TestFlattenNextHappyPath is UnitTest
 
     start(initial_string)
 
-class iso _TestFlattenNextStartFulfillErrors is UnitTest
+class iso _TestFlattenNextFirstHasFulfillError is UnitTest
   """
   Two promises chained `flatten_next` test where the fulfill action for the
   first promise fails.
@@ -189,7 +190,9 @@ class iso _TestFlattenNextStartFulfillErrors is UnitTest
   Neither the rejection handler for the first promise, nor the fulfillment
   handler for the second promise should be run.
   """
-  fun name(): String => "promises/Promise.flatten_next/start_fulfill_errors"
+  fun name(): String =>
+    "promises/Promise.flatten_next_first_has_fulfill_error"
+
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
     let expected_reject_string = "rejected"
@@ -211,14 +214,16 @@ class iso _TestFlattenNextStartFulfillErrors is UnitTest
     start(initial_string)
 
 
-class iso _TestFlattenNextInterFulfillErrors is UnitTest
+class iso _TestFlattenNextSecondHasFulfillError is UnitTest
   """
   Two promises chained `flatten_next` test where the fulfill action for the
   second promise fails.
 
   Neither the reject handler should be called.
   """
-  fun name(): String => "promises/Promise.flatten_next/inter_fulfill_errors"
+  fun name(): String =>
+    "promises/Promise.flatten_next_second_has_fulfill_error"
+
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
     let second_string = "bar"
@@ -240,7 +245,7 @@ class iso _TestFlattenNextInterFulfillErrors is UnitTest
 
     start(initial_string)
 
-class iso _TestFlattenNextStartRejected is UnitTest
+class iso _TestFlattenNextRejectFirst is UnitTest
   """
   Two promises chained `flatten_next` test where the first promise is rejected.
 
@@ -248,7 +253,8 @@ class iso _TestFlattenNextStartRejected is UnitTest
 
   Neither fulfill handler should be run.
   """
-  fun name(): String => "promises/Promise.flatten_next/start_rejected"
+  fun name(): String =>
+    "promises/Promise.flatten_next_reject_first"
 
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
