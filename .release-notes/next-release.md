@@ -22,7 +22,7 @@ class GitHub
 
   fun get_repo(repo: String): Promise[Repository]
 
-class Repo
+class Repository
   fun get_issue(number: I64): Promise[Issue]
 
 class Issue
@@ -34,7 +34,7 @@ And we want to use this promise based API to look up the title of an issue. With
 ```pony
 actor Main
   new create(env: Env) =>
-    let repo: Promise[Repo] =
+    let repo: Promise[Repository] =
       GitHub("my token").get_repo("ponylang/ponyc")
 
     //
@@ -49,7 +49,7 @@ actor Main
     issue.next[None](PrintIssueTitle~apply(env.out))
 
 primitive FetchIssue
-  fun apply(number: I64, repo: Repo): Promise[Issue] =>
+  fun apply(number: I64, repo: Repository): Promise[Issue] =>
     repo.get_issue(number)
 
 primitive PrintIssueTitle
@@ -75,7 +75,7 @@ primitive ActuallyPrintIssueTitle
 That will work, however, it is kind of awful. When looking at:
 
 ```pony
-    let repo: Promise[Repo] =
+    let repo: Promise[Repository] =
       GitHub("my token").get_repo("ponylang/ponyc")
     let issue = Promise[Promise[Issue]] =
       repo.next[Promise[Issue]](FetchIssue~apply(1))
@@ -91,7 +91,7 @@ Updated to use `flatten_next`, our API example becomes:
 ```pony
 actor Main
   new create(env: Env) =>
-    let repo: Promise[Repo] =
+    let repo: Promise[Repository] =
       GitHub("my token").get_repo("ponylang/ponyc")
 
     let issue = Promise[Issue] =
@@ -100,7 +100,7 @@ actor Main
     issue.next[None](PrintIssueTitle~apply(env.out))
 
 primitive FetchIssue
-  fun apply(number: I64, repo: Repo): Promise[Issue] =>
+  fun apply(number: I64, repo: Repository): Promise[Issue] =>
     repo.get_issue(number)
 
 primitive PrintIssueTitle

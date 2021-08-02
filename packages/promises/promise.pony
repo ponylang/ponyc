@@ -95,7 +95,7 @@ actor Promise[A: Any #share]
 
       fun get_repo(repo: String): Promise[Repository]
 
-    class Repo
+    class Repository
       fun get_issue(number: I64): Promise[Issue]
 
     class Issue
@@ -108,7 +108,7 @@ actor Promise[A: Any #share]
     ```pony
     actor Main
       new create(env: Env) =>
-        let repo: Promise[Repo] =
+        let repo: Promise[Repository] =
           GitHub("my token").get_repo("ponylang/ponyc")
 
         //
@@ -123,7 +123,7 @@ actor Promise[A: Any #share]
         issue.next[None](PrintIssueTitle~apply(env.out))
 
     primitive FetchIssue
-      fun apply(number: I64, repo: Repo): Promise[Issue] =>
+      fun apply(number: I64, repo: Repository): Promise[Issue] =>
         repo.get_issue(number)
 
     primitive PrintIssueTitle
@@ -152,7 +152,7 @@ actor Promise[A: Any #share]
     That will work, however, it is kind of awful. When looking at:
 
     ```pony
-        let repo: Promise[Repo] =
+        let repo: Promise[Repoository] =
           GitHub("my token").get_repo("ponylang/ponyc")
         let issue = Promise[Promise[Issue]] =
           repo.next[Promise[Issue]](FetchIssue~apply(1))
@@ -173,7 +173,7 @@ actor Promise[A: Any #share]
     ```pony
     actor Main
       new create(env: Env) =>
-        let repo: Promise[Repo] =
+        let repo: Promise[Repository] =
           GitHub("my token").get_repo("ponylang/ponyc")
 
         let issue = Promise[Issue] =
@@ -182,7 +182,7 @@ actor Promise[A: Any #share]
         issue.next[None](PrintIssueTitle~apply(env.out))
 
     primitive FetchIssue
-      fun apply(number: I64, repo: Repo): Promise[Issue] =>
+      fun apply(number: I64, repo: Repository): Promise[Issue] =>
         repo.get_issue(number)
 
     primitive PrintIssueTitle
