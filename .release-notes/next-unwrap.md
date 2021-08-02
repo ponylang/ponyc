@@ -2,7 +2,7 @@
 
 We've added a new method `flatten_next` to `Promise` in order to make working with promises of promises easier.
 
-`flatten_next` is a companion to `next`. It operates in an identical fashion except for the type of the fulfilled promise. Whereas `next` returns a type `B`, `flatten_next` returns `Promise[B]`.
+`flatten_next` is a companion to `next`. It operates in an identical fashion except for the type of the fulfilled promise. Whereas `next` takes a function that returns a type `B`, `flatten_next` takes a function that returns `Promise[B]`.
 
 Why is `flatten_next` valuable given that next could take a `B` that is of a type like `Promise[String]`? Let's start with some code to demonstrate the problem that arises when returning `Promise[Promise[B]]` from `next`.
 
