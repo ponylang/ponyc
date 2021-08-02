@@ -12,7 +12,10 @@ actor Main is TestList
     test(_TestPromiseTimeout)
     test(_TestPromisesJoin)
     test(_TestPromisesJoinThenReject)
-    test(_TestNextUnwrap)
+    test(_TestFlattenNextHappyPath)
+    test(_TestFlattenNextStartFulfillErrors)
+    test(_TestFlattenNextInterFulfillErrors)
+    test(_TestFlattenNextStartRejected)
 
 class iso _TestPromise is UnitTest
   fun name(): String => "promises/Promise"
@@ -147,21 +150,149 @@ class iso _TestPromisesJoinThenReject is UnitTest
     b("b")
     c.reject()
 
-class iso _TestNextUnwrap is UnitTest
-  fun name(): String => "promises/Promise.flatten_next"
+class iso _TestFlattenNextHappyPath is UnitTest
+  fun name(): String => "promises/Promise.flatten_next/happy_path"
 
   fun apply(h: TestHelper) =>
+    let initial_string = "foo"
+    let second_string = "bar"
+
+    h.long_test(2_000_000_000)
+    h.expect_action(initial_string)
+    h.expect_action(second_string)
+
     let start = Promise[String]
-    let inter = start.flatten_next[String](_NextUnwrapHelper~promise_string())
-    inter.next[None](_NextUnwrapHelper~complete(h))
+    let inter = start.flatten_next[String](
+      _FlattenNextStartHelper~successful_fulfill(
+        second_string, h, initial_string),
+      _FlattenNextStartHelper~reject_fail_if_called(h)
+    )
+    inter.next[None](
+      _FlattenNextInterHelper~assert_equality(h, second_string),
+      _FlattenNextInterHelper~reject_fail_if_called(h)
+    )
 
-    start("start")
-    inter("end")
+    start(initial_string)
 
-primitive _NextUnwrapHelper
-  fun promise_string(s: String): Promise[String] =>
-    // fake do something with string, return promise of another
+class iso _TestFlattenNextStartFulfillErrors is UnitTest
+  fun name(): String => "promises/Promise.flatten_next/start_fulfill_errors"
+  fun apply(h: TestHelper) =>
+    let initial_string = "foo"
+    let expected_reject_string = "rejected"
+
+    h.long_test(2_000_000_000)
+    h.expect_action(initial_string)
+    h.expect_action(expected_reject_string)
+
+    let start = Promise[String]
+    let inter = start.flatten_next[String](
+      _FlattenNextStartHelper~error_fulfill(h, initial_string)
+    )
+    inter.next[None](
+      _FlattenNextInterHelper~fulfill_fail_if_called(h),
+      _FlattenNextInterHelper~reject_expected(h, expected_reject_string)
+    )
+
+    start(initial_string)
+
+
+class iso _TestFlattenNextInterFulfillErrors is UnitTest
+  fun name(): String => "promises/Promise.flatten_next/inter_fulfill_errors"
+  fun apply(h: TestHelper) =>
+    let initial_string = "foo"
+    let second_string = "bar"
+    let expected_reject_string = "rejected"
+
+    h.long_test(2_000_000_000)
+    h.expect_action(initial_string)
+    h.expect_action(second_string)
+    h.expect_action(expected_reject_string)
+
+    let start = Promise[String]
+    let inter = start.flatten_next[String](
+      _FlattenNextStartHelper~successful_fulfill(
+        second_string, h, initial_string),
+      _FlattenNextStartHelper~reject_fail_if_called(h)
+    )
+    inter.next[None](
+      _FlattenNextInterHelper~error_fulfill(h, second_string),
+      _FlattenNextInterHelper~reject_expected(h, expected_reject_string)
+    )
+
+    start(initial_string)
+
+class iso _TestFlattenNextStartRejected is UnitTest
+  fun name(): String => "promises/Promise.flatten_next/start_rejected"
+
+  fun apply(h: TestHelper) =>
+    let initial_string = "foo"
+    let first_reject = "first rejected"
+    let second_reject = "second rejected"
+
+    h.long_test(2_000_000_000)
+    h.expect_action(first_reject)
+    h.expect_action(second_reject)
+
+    let start = Promise[String]
+    let inter = start.flatten_next[String](
+      _FlattenNextStartHelper~fulfill_fail_if_called(h),
+      _FlattenNextStartHelper~reject_expected(h, first_reject)
+    )
+    inter.next[None](
+      _FlattenNextInterHelper~fulfill_fail_if_called(h),
+      _FlattenNextInterHelper~reject_expected(h, second_reject)
+    )
+
+    start.reject()
+
+primitive _FlattenNextStartHelper
+  fun successful_fulfill(send_on: String, h: TestHelper,
+    expected: String,
+    actual: String): Promise[String]
+  =>
+    h.assert_eq[String](expected, actual)
+    h.complete_action(expected)
+    let p = Promise[String]
+    p(send_on)
+    p
+
+  fun reject_fail_if_called(h: TestHelper): Promise[String] =>
+    h.fail("_FlattenNextStartHelper: reject_fail_if_called")
     Promise[String]
 
-  fun complete(h: TestHelper, s: String) =>
-    h.assert_eq[String]("end", s)
+  fun fulfill_fail_if_called(h: TestHelper, s: String): Promise[String] =>
+    h.fail("_FlattenNextStartHelper: fulfill_fail_if_called")
+    Promise[String]
+
+  fun error_fulfill(h: TestHelper,
+    expected: String,
+    actual: String): Promise[String] ?
+  =>
+    h.assert_eq[String](expected, actual)
+    error
+
+  fun reject_expected(h: TestHelper, action: String): Promise[String] ? =>
+    h.complete_action(action)
+    error
+
+primitive _FlattenNextInterHelper
+  fun assert_equality(h: TestHelper, expected: String, actual: String) =>
+    h.assert_eq[String](expected, actual)
+    h.expect_action(expected)
+    h.complete(true)
+
+  fun reject_fail_if_called(h: TestHelper) =>
+    h.fail("_FlattenNextInterHelper- reject_fail_if_called")
+
+  fun fulfill_fail_if_called(h: TestHelper, s: String) =>
+    h.fail("_FlattenNextInterHelper- fulfill_fail_if_called")
+
+  fun reject_expected(h: TestHelper, action: String) =>
+    h.complete_action(action)
+    h.complete(true)
+
+  fun error_fulfill(h: TestHelper, expected: String, actual: String) ?
+  =>
+    h.assert_eq[String](expected, actual)
+    h.complete_action(expected)
+    error
