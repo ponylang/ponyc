@@ -14,7 +14,7 @@ actor Main is TestList
     test(_TestPromisesJoinThenReject)
     test(_TestFlattenNextHappyPath)
     test(_TestFlattenNextStartFulfillErrors)
-    //test(_TestFlattenNextInterFulfillErrors)
+    test(_TestFlattenNextInterFulfillErrors)
     test(_TestFlattenNextStartRejected)
 
 class iso _TestPromise is UnitTest
@@ -201,12 +201,10 @@ class iso _TestFlattenNextInterFulfillErrors is UnitTest
   fun apply(h: TestHelper) =>
     let initial_string = "foo"
     let second_string = "bar"
-    let expected_reject_string = "rejected"
 
     h.long_test(2_000_000_000)
     h.expect_action(initial_string)
     h.expect_action(second_string)
-    h.expect_action(expected_reject_string)
 
     let start = Promise[String]
     let inter = start.flatten_next[String](
@@ -216,7 +214,7 @@ class iso _TestFlattenNextInterFulfillErrors is UnitTest
     )
     inter.next[None](
       _FlattenNextInterHelper~error_fulfill(h, second_string),
-      _FlattenNextInterHelper~reject_expected(h, expected_reject_string)
+      _FlattenNextInterHelper~reject_fail_if_called(h)
     )
 
     start(initial_string)
@@ -295,4 +293,5 @@ primitive _FlattenNextInterHelper
   fun error_fulfill(h: TestHelper, expected: String, actual: String) ? =>
     h.assert_eq[String](expected, actual)
     h.complete_action(expected)
+    h.complete(true)
     error
