@@ -199,12 +199,10 @@ actor Promise[A: Any #share]
 
     next[None](object iso
       var f: Fulfill[A, Promise[B]] = consume fulfill
-      var r: Reject[Promise[B]] = consume rejected
       let p: Promise[B] = outer
 
       fun ref apply(value: A) =>
         let fulfill' = f = {(value: A) => Promise[B]}
-        let rejected' = r = RejectAlways[Promise[B]]
 
         try
           let inner = (consume fulfill').apply(value)?
@@ -215,7 +213,21 @@ actor Promise[A: Any #share]
         else
           p.reject()
         end
-    end)
+    end,
+    object iso
+      var r: Reject[Promise[B]] = consume rejected
+      let p: Promise[B] = outer
+
+      fun ref apply() =>
+        let rejected' = r = RejectAlways[Promise[B]]
+
+        try
+          (consume rejected').apply()?
+        else
+          p.reject()
+        end
+    end
+    )
 
     outer
 
