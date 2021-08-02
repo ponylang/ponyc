@@ -207,11 +207,7 @@ actor Promise[A: Any #share]
         let rejected' = r = RejectAlways[Promise[B]]
 
         try
-          let inner = try
-            (consume fulfill').apply(value)?
-          else
-            (consume rejected').apply()?
-          end
+          let inner = (consume fulfill').apply(value)?
 
           inner.next[None](
             {(fulfilled: B) => p(fulfilled)},
