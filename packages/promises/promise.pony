@@ -226,8 +226,7 @@ actor Promise[A: Any #share]
         else
           p.reject()
         end
-    end
-    )
+    end)
 
     outer
 
