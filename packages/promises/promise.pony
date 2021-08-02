@@ -214,9 +214,8 @@ actor Promise[A: Any #share]
           end
 
           inner.next[None](
-              {(fulfilled: B) =>
-                p(fulfilled)
-              })
+            {(fulfilled: B) => p(fulfilled)},
+            {()? => p.reject(); error})
         else
           p.reject()
         end

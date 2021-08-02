@@ -14,7 +14,7 @@ actor Main is TestList
     test(_TestPromisesJoinThenReject)
     test(_TestFlattenNextHappyPath)
     test(_TestFlattenNextStartFulfillErrors)
-    test(_TestFlattenNextInterFulfillErrors)
+    //test(_TestFlattenNextInterFulfillErrors)
     test(_TestFlattenNextStartRejected)
 
 class iso _TestPromise is UnitTest
@@ -269,6 +269,7 @@ primitive _FlattenNextStartHelper
     actual: String): Promise[String] ?
   =>
     h.assert_eq[String](expected, actual)
+    h.complete_action(expected)
     error
 
   fun reject_expected(h: TestHelper, action: String): Promise[String] ? =>
