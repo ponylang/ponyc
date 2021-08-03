@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.43.1] - 2021-08-03
 
 ### Fixed
 
@@ -13,9 +13,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add FileMode.u32 ([PR #3809](https://github.com/ponylang/ponyc/pull/3809))
 - Add FileMode.u32 ([PR #3810](https://github.com/ponylang/ponyc/pull/3810))
 - Make working with promises of promises easier  ([PR #3813](https://github.com/ponylang/ponyc/pull/3813))
-
-### Changed
-
 
 ## [0.43.0] - 2021-07-14
 
