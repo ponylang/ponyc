@@ -128,7 +128,8 @@ PONY_API int32_t ponyint_win_process_wait(size_t hProcess, int32_t* exit_code_pt
     int32_t retval = 0;
 
     // just poll
-    switch (WaitForSingleObject((HANDLE)hProcess, 0))
+    DWORD result = WaitForSingleObject((HANDLE)hProcess, 0);
+    switch (result)
     {
         case WAIT_OBJECT_0: // process exited
             if (GetExitCodeProcess((HANDLE)hProcess, (DWORD*)exit_code_ptr) == 0)
@@ -143,6 +144,8 @@ PONY_API int32_t ponyint_win_process_wait(size_t hProcess, int32_t* exit_code_pt
         case WAIT_FAILED:
             retval = GetLastError();
             if (retval == 0) retval = -1;
+            break;
+        default:
             break;
     }
 

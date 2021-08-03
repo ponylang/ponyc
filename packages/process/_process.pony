@@ -347,6 +347,7 @@ primitive _WaitPidStatus
 class _ProcessWindows is _Process
   let hProcess: USize
   let processError: (ProcessError | None)
+  var finalWaitResult: (_WaitResult | None) = None
 
   new create(
     path: String,
@@ -429,17 +430,27 @@ class _ProcessWindows is _Process
     end
 
   fun ref wait(): _WaitResult =>
-    if hProcess != 0 then
-      var exit_code: I32 = 0
-      match @ponyint_win_process_wait(hProcess, addressof exit_code)
-      | 0 => Exited(exit_code)
-      | 1 => _StillRunning
-      | let code: I32 =>
-        // we might want to propagate that code to the user, but should it do
-        // for other errors too
-        WaitpidError
-      end
+    match finalWaitResult
+    | let wr: _WaitResult =>
+      wr
     else
-      WaitpidError
+      var wr: _WaitResult = WaitpidError
+      if hProcess != 0 then
+        var exit_code: I32 = 0
+        match @ponyint_win_process_wait(hProcess, addressof exit_code)
+        | 0 =>
+          wr = Exited(exit_code)
+          finalWaitResult = wr
+          wr
+        | 1 => _StillRunning
+        | let code: I32 =>
+          // we might want to propagate that code to the user, but should it do
+          // for other errors too
+          finalWaitResult = wr
+          wr
+        end
+      else
+        finalWaitResult = wr
+        wr
+      end
     end
-

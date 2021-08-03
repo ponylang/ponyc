@@ -32,6 +32,9 @@ actor ProcessMonitor
   var _timers: (Timers tag | None) = None
   let _process_poll_interval: U64
 
+  var _pollingChild: Bool = false
+  var _finalWaitResult: (_WaitResult | None) = None
+
   new create(
     auth: ProcessMonitorAuth,
     backpressure_auth: BackpressureAuth,
@@ -262,25 +265,35 @@ actor ProcessMonitor
     end
 
   be _wait_for_child() =>
-    match _child.wait()
-    | _StillRunning =>
-      let timers = _ensure_timers()
-      let pm: ProcessMonitor tag = this
-      let tn =
-        object iso is TimerNotify
-          fun ref apply(timer: Timer, count: U64): Bool =>
-            pm._wait_for_child()
-            true
+    match _finalWaitResult
+    | let wr: _WaitResult =>
+      None
+    else
+      match _child.wait()
+      | let sr: _StillRunning =>
+        if not _pollingChild then
+          _pollingChild = true
+          let timers = _ensure_timers()
+          let pm: ProcessMonitor tag = this
+          let tn =
+            object iso is TimerNotify
+              fun ref apply(timer: Timer, count: U64): Bool =>
+                pm._wait_for_child()
+                true
+            end
+          let timer = Timer(consume tn, _process_poll_interval, _process_poll_interval)
+          timers(consume timer)
         end
-      let timer = Timer(consume tn, _process_poll_interval, _process_poll_interval)
-      timers(consume timer)
-    | let exit_status: ProcessExitStatus =>
-      // process child exit code or termination signal
-      _notifier.dispose(this, exit_status)
-      _dispose_timers()
-    | let wpe: WaitpidError =>
-      _notifier.failed(this, ProcessError(WaitpidError))
-      _dispose_timers()
+      | let exit_status: ProcessExitStatus =>
+        // process child exit code or termination signal
+        _finalWaitResult = exit_status
+        _notifier.dispose(this, exit_status)
+        _dispose_timers()
+      | let wpe: WaitpidError =>
+        _finalWaitResult = wpe
+        _notifier.failed(this, ProcessError(WaitpidError))
+        _dispose_timers()
+      end
     end
 
   fun ref _ensure_timers(): Timers tag =>
