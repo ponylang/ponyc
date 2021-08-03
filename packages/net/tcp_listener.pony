@@ -258,10 +258,7 @@ actor TCPListener
     _closed = true
 
     if not _event.is_null() then
-      // When not on windows, the unsubscribe is done immediately.
-      ifdef not windows then
-        @pony_asio_event_unsubscribe(_event)
-      end
+      @pony_asio_event_unsubscribe(_event)
 
       @pony_os_socket_close(_fd)
       _fd = -1

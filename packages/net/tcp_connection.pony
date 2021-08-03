@@ -632,7 +632,9 @@ actor TCPConnection
             // The connection failed, unsubscribe the event and close.
             @pony_asio_event_unsubscribe(event)
             @pony_os_socket_close(fd)
-            _notify_connecting()
+            if _connect_count == 0 then
+              _notify.connect_failed(this)
+            end
           end
         else
           // There is a possibility that a non-Windows system has
@@ -646,6 +648,9 @@ actor TCPConnection
           end
           @pony_os_socket_close(fd)
           _try_shutdown()
+          if _connect_count == 0 then
+            _notify.connect_failed(this)
+          end
         end
       else
         // It's not our event.
@@ -1069,7 +1074,11 @@ actor TCPConnection
       _shutdown = true
 
       if _connected then
-        @pony_os_socket_shutdown(_fd)
+        ifdef windows then
+          @pony_os_socket_close(_fd)
+        else
+          @pony_os_socket_shutdown(_fd)
+        end
       else
         _shutdown_peer = true
       end
@@ -1077,14 +1086,8 @@ actor TCPConnection
 
     if _connected and _shutdown and _shutdown_peer then
       hard_close()
-    end
-
-    ifdef windows then
-      // On windows, wait until all outstanding IOCP operations have completed
-      // or been cancelled.
-      if not _connected and not _readable and (_pending_sent == 0) then
-        @pony_asio_event_unsubscribe(_event)
-      end
+    else
+      @pony_asio_event_unsubscribe(_event)
     end
 
   fun ref hard_close() =>
@@ -1108,14 +1111,12 @@ actor TCPConnection
       _pending_writev_posix.clear()
     end
 
-    ifdef not windows then
-      // Unsubscribe immediately and drop all pending writes.
-      @pony_asio_event_unsubscribe(_event)
-      _readable = false
-      _writeable = false
-      @pony_asio_event_set_readable(_event, false)
-      @pony_asio_event_set_writeable(_event, false)
-    end
+    // Unsubscribe immediately and drop all pending writes.
+    @pony_asio_event_unsubscribe(_event)
+    _readable = false
+    _writeable = false
+    @pony_asio_event_set_readable(_event, false)
+    @pony_asio_event_set_writeable(_event, false)
 
     // On windows, this will also cancel all outstanding IOCP operations.
     @pony_os_socket_close(_fd)
@@ -1128,8 +1129,13 @@ actor TCPConnection
 
   // Check this when a connection gets its first writeable event.
   fun _is_sock_connected(fd: U32): Bool =>
-    (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
-    (errno == 0) and (value == 0)
+    ifdef windows then
+      (let errno: U32, let value: U32) = _OSSocket.get_so_connect_time(fd)
+      (errno == 0) and (value != 0xffffffff)
+    else
+      (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
+      (errno == 0) and (value == 0)
+    end
 
   fun ref _apply_backpressure() =>
     if not _throttled then
