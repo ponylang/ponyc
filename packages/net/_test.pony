@@ -681,7 +681,7 @@ class _TestTCPConnectionFailed is UnitTest
     h.expect_action("connection failed")
 
     let host = "127.0.0.1"
-    let port = "12345"
+    let port = "7669"
 
     try
       let connection = TCPConnection(
@@ -715,19 +715,19 @@ actor _Connector
       let connection = TCPConnection(
         h.env.root as AmbientAuth,
         object iso is TCPConnectionNotify
-          let _hh: TestHelper = h
+          let _h: TestHelper = h
 
           fun ref connected(conn: TCPConnection ref) =>
-            _hh.fail("client connected to a closed listener")
-            _hh.complete(false)
+            _h.fail("client connected to a closed listener")
+            _h.complete(false)
             conn.close()
 
           fun ref connect_failed(conn: TCPConnection ref) =>
-            _hh.complete_action("client connection failed")
-            _hh.complete(true)
+            _h.complete_action("client connection failed")
+            _h.complete(true)
 
           fun ref closed(conn: TCPConnection ref) =>
-            _hh.log("client closed")
+            _h.log("client closed")
         end,
         host,
         port)

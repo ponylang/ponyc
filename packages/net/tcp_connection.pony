@@ -1086,8 +1086,6 @@ actor TCPConnection
 
     if _connected and _shutdown and _shutdown_peer then
       hard_close()
-    else
-      @pony_asio_event_unsubscribe(_event)
     end
 
   fun ref hard_close() =>
