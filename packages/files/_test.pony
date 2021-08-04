@@ -443,7 +443,7 @@ class iso _TestFileCreate is UnitTest
     try
       let path = "tmp.create"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
@@ -462,7 +462,7 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
     let content = "unwriteable"
     let path = "tmp.create-not-writeable"
     let ambient = h.env.root as AmbientAuth
-    let filepath = FilePath(FileAuth(ambient), path)?
+    let filepath = FilePath(FileAuth(ambient), path)
     try
       let mode: FileMode ref = FileMode.>private()
       mode.owner_read = true
@@ -569,7 +569,7 @@ class iso _TestFileCreateMissingCaps is UnitTest
       let file_path1 = FilePath(
         FileAuth(ambient),
         "tmp.create-missing-caps1",
-        consume no_create_caps)?
+        consume no_create_caps)
       let file1 = File(file_path1)
       h.assert_false(file1.valid())
       h.assert_is[FileErrNo](file1.errno(), FileError)
@@ -577,7 +577,7 @@ class iso _TestFileCreateMissingCaps is UnitTest
       let file_path2 = FilePath(
         FileAuth(ambient),
         "tmp.create-missing-caps2",
-        consume no_read_caps)?
+        consume no_read_caps)
       let file2 = File(file_path2)
       h.assert_false(file2.valid())
       h.assert_is[FileErrNo](file2.errno(), FileError)
@@ -585,7 +585,7 @@ class iso _TestFileCreateMissingCaps is UnitTest
       let file_path3 = FilePath(
         FileAuth(ambient),
         "tmp.create-missing-caps3",
-        consume no_write_caps)?
+        consume no_write_caps)
       let file3 = File(file_path3)
       h.assert_false(file3.valid())
       h.assert_is[FileErrNo](file3.errno(), FileError)
@@ -600,7 +600,7 @@ class iso _TestFileOpen is UnitTest
     try
       let path = "tmp.open"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
@@ -625,7 +625,7 @@ class iso _TestFileOpenError is UnitTest
     try
       let path = "tmp.openerror"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       h.assert_false(filepath.exists())
       let file = OpenFile(filepath)
       h.assert_true(file is FileError)
@@ -640,7 +640,7 @@ class _TestFileOpenWrite is UnitTest
     try
       let path = "tmp.open-write"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.print("write on file opened read-only")
       end
@@ -665,7 +665,7 @@ class iso _TestFileOpenPermissionDenied is _NonRootTest
         // with chmod there is no way to make a file not readable
       try
         let ambient = h.env.root as AmbientAuth
-        let filepath = FilePath(FileAuth(ambient), "tmp.open-not-readable")?
+        let filepath = FilePath(FileAuth(ambient), "tmp.open-not-readable")
         with file = CreateFile(filepath) as File do
           file.print("unreadable")
         end
@@ -695,7 +695,7 @@ class iso _TestFileLongLine is UnitTest
     try
       let path = "tmp.longline"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = File(filepath) do
         var longline = "foobar"
         for d in Range(0, 10) do
@@ -718,7 +718,7 @@ class iso _TestFileWrite is UnitTest
     try
       let path = "tmp.write"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.write("foobar\n")
       end
@@ -742,7 +742,7 @@ class iso _TestFileWritev is UnitTest
       wb.write(line2)
       let path = "tmp.writev"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         h.assert_true(file.writev(wb.done()))
       end
@@ -763,7 +763,7 @@ class iso _TestFileQueue is UnitTest
     try
       let path = "tmp.queue"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.queue("foobar\n")
       end
@@ -786,7 +786,7 @@ class iso _TestFileQueuev is UnitTest
       wb.write(line2)
       let path = "tmp.queuev"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.queuev(wb.done())
       end
@@ -820,7 +820,7 @@ class iso _TestFileMixedWriteQueue is UnitTest
       let queuev_data = wb.done()
       let path = "tmp.mixedwrite"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         file.print(line3)
         file.queue(line5)
@@ -862,7 +862,7 @@ class iso _TestFileWritevLarge is UnitTest
       end
       let path = "tmp.writevlarge"
       let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)?
+      let filepath = FilePath(FileAuth(ambient), path)
       with file = CreateFile(filepath) as File do
         h.assert_true(file.writev(wb.done()))
       end
@@ -884,7 +884,7 @@ class iso _TestFileFlush is UnitTest
   fun apply(h: TestHelper) =>
     try
       let ambient = h.env.root as AmbientAuth
-      let path = FilePath(FileAuth(ambient), "tmp.flush")?
+      let path = FilePath(FileAuth(ambient), "tmp.flush")
       with file = CreateFile(path) as File do
         // Flush with no writes succeeds trivially, but does nothing.
         h.assert_true(file.flush())
@@ -912,7 +912,7 @@ class iso _TestFileReadMore is UnitTest
   fun name(): String => "files/File.read-more"
   fun apply(h: TestHelper)? =>
     let ambient = h.env.root as AmbientAuth
-    let path = FilePath(FileAuth(ambient), "tmp-read-more")?
+    let path = FilePath(FileAuth(ambient), "tmp-read-more")
     with file = CreateFile(path) as File do
       h.assert_true(file.write("foobar"))
     end
@@ -936,7 +936,7 @@ class iso _TestFileRemoveReadOnly is UnitTest
   fun name(): String => "files/File.remove-readonly-file"
   fun apply(h: TestHelper) ? =>
     let ambient = h.env.root as AmbientAuth
-    let path = FilePath(FileAuth(ambient), "tmp-read-only")?
+    let path = FilePath(FileAuth(ambient), "tmp-read-only")
     try
       with file = CreateFile(path) as File do
         None
