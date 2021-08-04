@@ -48,7 +48,7 @@ Modify the program to print the file contents with line numbers.
 $ ./files files.pony
 /home/ryan/dev/github.com/ponylang/ponyc/examples/files/files.pony
 1 use "files"
-2 
+2
 3 actor Main
 4   new create(env: Env) =>
 ...
