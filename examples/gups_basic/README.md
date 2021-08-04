@@ -1,6 +1,6 @@
 # gups_basic
 
-A program which...
+A program which runs a benchmark calculating GUPS (Giga updates per second) -- a random access metric.
 
 ## How to Compile
 
@@ -26,7 +26,7 @@ Linking ./gups_basic
 Once `gups_basic` has been compiled, in the same directory as this README file run `./gups_basic`. You should see a message containing the elapsed time and GUPS (Giga updates per second) for the run. The settings of a run are configurable by CLI arguments (see `./gups_basic --help` for details).
 
 ```console
-$ ./gups_basic 
+$ ./gups_basic
 Time: 0.594845 GUPS: 0.0688583
 ```
 
