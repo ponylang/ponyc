@@ -345,9 +345,9 @@ primitive _WaitPidStatus
 
 
 class _ProcessWindows is _Process
-  let hProcess: USize
-  let processError: (ProcessError | None)
-  var finalWaitResult: (_WaitResult | None) = None
+  let h_process: USize
+  let process_error: (ProcessError | None)
+  var final_wait_result: (_WaitResult | None) = None
 
   new create(
     path: String,
@@ -366,15 +366,15 @@ class _ProcessWindows is _Process
         end
       var error_code: U32 = 0
       var error_message = Pointer[U8]
-      hProcess = @ponyint_win_process_create(
+      h_process = @ponyint_win_process_create(
           path.cstring(),
           _make_cmdline(args).cstring(),
           _make_environ(vars).cpointer(),
           wdir_ptr,
           stdin.far_fd, stdout.far_fd, stderr.far_fd,
           addressof error_code, addressof error_message)
-      processError =
-        if hProcess == 0 then
+      process_error =
+        if h_process == 0 then
           match error_code
           | _ERRORBADEXEFORMAT() => ProcessError(ExecveError)
           | _ERRORDIRECTORY() =>
@@ -425,32 +425,32 @@ class _ProcessWindows is _Process
     environ
 
   fun kill() =>
-    if hProcess != 0 then
-      @ponyint_win_process_kill(hProcess)
+    if h_process != 0 then
+      @ponyint_win_process_kill(h_process)
     end
 
   fun ref wait(): _WaitResult =>
-    match finalWaitResult
+    match final_wait_result
     | let wr: _WaitResult =>
       wr
     else
       var wr: _WaitResult = WaitpidError
-      if hProcess != 0 then
+      if h_process != 0 then
         var exit_code: I32 = 0
-        match @ponyint_win_process_wait(hProcess, addressof exit_code)
+        match @ponyint_win_process_wait(h_process, addressof exit_code)
         | 0 =>
           wr = Exited(exit_code)
-          finalWaitResult = wr
+          final_wait_result = wr
           wr
         | 1 => _StillRunning
         | let code: I32 =>
           // we might want to propagate that code to the user, but should it do
           // for other errors too
-          finalWaitResult = wr
+          final_wait_result = wr
           wr
         end
       else
-        finalWaitResult = wr
+        final_wait_result = wr
         wr
       end
     end

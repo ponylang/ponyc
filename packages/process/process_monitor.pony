@@ -126,7 +126,7 @@ actor ProcessMonitor
           filepath.path, args, vars, wdir, _stdin, _stdout, _stderr)
         _child = windows_child
         // notify about errors
-        match windows_child.processError
+        match windows_child.process_error
         | let pe: ProcessError =>
           _notifier.failed(this, pe)
           return
