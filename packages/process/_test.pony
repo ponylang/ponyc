@@ -710,20 +710,8 @@ class iso _TestWaitingOnClosedProcessTwice is UnitTest
           n = n + 1
           h.log("dispose() called " + n.string() + " time")
           match status
-          | Signaled(Sig.term()) =>
-            h.log("child signaled")
-            ifdef windows then
-              h.fail("child signaled")
-              h.complete(false)
-              return
-            end
           | Exited(0) =>
             h.log("child exited")
-            ifdef posix then
-              h.fail("child exited")
-              h.complete(false)
-              return
-            end
           else
             h.fail("child did not exit")
             h.complete(false)
