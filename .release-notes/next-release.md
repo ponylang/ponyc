@@ -1,0 +1,4 @@
+## Clean up child process exits on Windows
+
+Fixed the `ProcessMonitor` class sometimes waiting on an invalid process handle on Windows.
+
