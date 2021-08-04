@@ -25,6 +25,7 @@ actor Main is TestList
     test(_TestBadExec)
     test(_TestLongRunningChild)
     test(_TestKillLongRunningChild)
+    test(_TestWaitingOnClosedProcessTwice)
 
 class _PathResolver
   let _path: Array[FilePath] val
@@ -677,6 +678,81 @@ class iso _TestKillLongRunningChild is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
+class iso _TestWaitingOnClosedProcessTwice is UnitTest
+  fun name(): String => "process/wait-on-closed-process-twice"
+  fun exclusion_group(): String => "process-monitor"
+  fun apply(h: TestHelper)? =>
+    let auth = h.env.root as AmbientAuth
+    try
+      let path_resolver = _PathResolver(h.env.vars, auth)
+      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)?
+      h.log(path.path)
+      let args = _SleepCommand.args(where seconds = 2)
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      // we want to make sure that ProcessMonitor is not checking the exit
+      // status of a process after it has already exited
+      // since it calls dispose() on its notifier after it has checked the
+      // exit status, we test whether or not we get more than 1 dispose()
+
+      // we start a process that should take less than 3 seconds
+      // after 3 seconds we send 2 dispose() messages to it
+      // when we are notified of the first dispose() message, we check the exit
+      // status to make sure we've exited successfully, then we start a second
+      // timer that will check if we were notified of the 2nd dispose()
+      // we shouldn't have been
+
+      let timers = Timers
+
+      let pn = object iso is ProcessNotify
+        var n: USize = 0
+        fun ref dispose(pm: ProcessMonitor ref, status: ProcessExitStatus) =>
+          n = n + 1
+          h.log("dispose() called " + n.string() + " time")
+          match status
+          | Exited(0) =>
+            h.log("child exited")
+          else
+            h.fail("child did not exit")
+            h.complete(false)
+            return
+          end
+
+          if n == 1 then
+            let timer2 = Timer(
+              object iso is TimerNotify
+                fun ref apply(timer: Timer, count: U64): Bool =>
+                  h.log("timer2 called; n == " + n.string())
+                  if n == 1 then
+                    h.complete(true)
+                  else
+                    h.fail("notifier received dispose() more than once")
+                    h.complete(false)
+                  end
+                  true
+              end,
+              500_000_000, 0
+            )
+            timers(consume timer2)
+          end
+      end
+      let pm = ProcessMonitor(auth, auth, consume pn, path, args, vars)
+
+      let timer1 = Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            h.log("timer1 calling pm.dispose() twice")
+            pm.dispose()
+            pm.dispose()
+            true
+        end,
+        3_000_000_000, 0)
+      timers(consume timer1)
+
+      h.long_test(5_000_000_000)
+    else
+      h.fail("process monitor threw an error")
+    end
 
 class _ProcessClient is ProcessNotify
   """
