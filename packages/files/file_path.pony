@@ -117,7 +117,7 @@ class val FilePath
     (let dir, let pre) = Path.split(prefix)
     let parent: FilePath = match base
       | let base': FileAuth => FilePath(base', dir)
-      | let base' : FilePath => FilePath.from(base', dir)?
+      | let base': FilePath => FilePath.from(base', dir)?
     end
 
     if not parent.mkdir() then
