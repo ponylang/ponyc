@@ -690,14 +690,13 @@ class _TestTCPConnectionFailed is UnitTest
           let _h: TestHelper = h
 
           fun ref connected(conn: TCPConnection ref) =>
-            _h.log("log: connected to a non-existent host and port")
             _h.fail("fail: connected to a non-existent host and port")
             _h.complete(false)
             conn.close()
 
           fun ref connect_failed(conn: TCPConnection ref) =>
-            _h.log("log: connection failed")
             _h.complete_action("connection failed")
+            conn.close()
             _h.complete(true)
         end,
         host,
@@ -724,6 +723,7 @@ actor _Connector
 
           fun ref connect_failed(conn: TCPConnection ref) =>
             _h.complete_action("client connection failed")
+            conn.close()
             _h.complete(true)
 
           fun ref closed(conn: TCPConnection ref) =>
@@ -749,7 +749,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
     h.expect_action("client connection failed")
 
     try
-      let listener = TCPListener.ip4(
+      let listener = TCPListener(
         h.env.root as AmbientAuth,
         object iso is TCPListenNotify
           let _h: TestHelper = h
