@@ -785,7 +785,8 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
               fun ref connect_failed(conn: TCPConnection ref) => None
               fun ref closed(conn: TCPConnection ref) => None
             end
-        end
+        end,
+        "127.0.0.1"
       )
 
       h.dispose_when_done(listener)
