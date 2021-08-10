@@ -18,6 +18,8 @@ actor Main is TestList
     test(_TestSymlink)
   end
     test(_TestWalk)
+    test(_TestFilePathFrom)
+    test(_TestFilePathFromError)
     test(_TestDirectoryOpen)
     test(_TestDirectoryFileOpen)
     test(_TestPathClean)
@@ -31,7 +33,6 @@ actor Main is TestList
   ifdef not windows then
     test(_TestPathRoot)
   end
-    test(_TestFilePathFrom)
     test(_TestFileEOF)
     test(_TestFileOpenError)
     test(_TestFileCreate)
@@ -195,13 +196,25 @@ class iso _TestSymlink is UnitTest
 
 
 class iso _TestFilePathFrom is UnitTest
-  fun name(): String => "files/FilePath.from"
+  fun name(): String => "files/FilePath.from-success"
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.filepath"
       let ambient = h.env.root as AmbientAuth
       let filepath = FilePath(FileAuth(ambient), path)
       h.assert_no_error({()? => FilePath.from(filepath, path)? })
+    else
+      h.fail("Unhandled error!")
+    end
+
+class iso _TestFilePathFromError is UnitTest
+  fun name(): String => "files/FilePath.from-error"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.filepath"
+      let ambient = h.env.root as AmbientAuth
+      let filepath = FilePath(FileAuth(ambient), path)
+      h.assert_error({()? => FilePath.from(filepath, "/")? })
     else
       h.fail("Unhandled error!")
     end
