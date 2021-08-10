@@ -31,6 +31,7 @@ actor Main is TestList
   ifdef not windows then
     test(_TestPathRoot)
   end
+    test(_TestFilePathFrom)
     test(_TestFileEOF)
     test(_TestFileOpenError)
     test(_TestFileCreate)
@@ -411,6 +412,19 @@ class iso _TestPathRoot is UnitTest
     let res2 = Path.abs("/foo/../")
     h.assert_eq[String](res1, "/")
     h.assert_eq[String](res2, "/")
+
+
+class iso _TestFilePathFrom is UnitTest
+  fun name(): String => "files/FilePath.from"
+  fun apply(h: TestHelper) =>
+    try
+      let path = "tmp.filepath"
+      let ambient = h.env.root as AmbientAuth
+      let filepath = FilePath(FileAuth(ambient), path)
+      h.assert_no_error({()? => FilePath.from(filepath, path)? })
+    else
+      h.fail("Unhandled error!")
+    end
 
 
 class iso _TestFileEOF is UnitTest
