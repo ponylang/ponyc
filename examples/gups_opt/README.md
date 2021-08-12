@@ -1,4 +1,4 @@
-# gups_opts
+# gups_opt
 
 A program which runs a benchmark calculating GUPS (Giga updates per second) -- a random access metric.
 
