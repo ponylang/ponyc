@@ -704,7 +704,7 @@ class _TestTCPConnectionFailed is UnitTest
         end,
         host,
         port)
-      h.long_test(20_000_000_000)
+      h.long_test(140_000_000_000)
       h.dispose_when_done(connection)
     else
       h.fail("error creating TCPConnection")
@@ -793,7 +793,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
       )
 
       h.dispose_when_done(listener)
-      h.long_test(20_000_000_000)
+      h.long_test(140_000_000_000)
     else
       h.fail("error creating listener")
       h.complete(false)
