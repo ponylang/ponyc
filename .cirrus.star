@@ -97,7 +97,7 @@ def linux_tasks():
   ]
 
 def linux_pr_task(name, image, triple_vendor, triple_os):
-  cache_key = hash.md5(str(fs.read('lib/CMakeLists.txt')) + image)
+  cache_key = hash.md5(fs.read('lib/CMakeLists.txt') + image)
 
   cpu = 8
   memory = 24
