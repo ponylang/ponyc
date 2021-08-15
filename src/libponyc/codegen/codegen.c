@@ -736,10 +736,16 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
 // Process the llvm-args option and pass to LLVMParseCommandLineOptions
 static void process_llvm_args(pass_opt_t* opt) {
   if(!opt->llvm_args) return;
-  // Copy to a mutable buffer
+
+  // Copy args to a mutable buffer
+  // The buffer is allocated to fit the full arguments
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wstringop-overflow"
   size_t raw_opt_str_size = strlen(opt->llvm_args) + 1;
   char* buffer = (char*)malloc(sizeof(char) * raw_opt_str_size);
   strncpy(buffer, opt->llvm_args, raw_opt_str_size);
+  #pragma GCC diagnostic pop
+
   // Create a two-dimension array as argv
   size_t argv_buf_size = 4;
   const char** argv_buffer
