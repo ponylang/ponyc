@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Clean up child process exits on Windows ([PR #3817](https://github.com/ponylang/ponyc/pull/3817))
+- Cleanup and fixes for Windows sockets ([PR #3816](https://github.com/ponylang/ponyc/pull/3816))
 
 ### Added
 
