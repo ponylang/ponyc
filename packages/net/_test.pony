@@ -745,7 +745,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
-    h.expect_action("server listening on 127.0.0.1")
+    h.expect_action("server listening")
     h.expect_action("client connection failed")
 
     try
@@ -760,7 +760,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
             try
               (host, port) = listener.local_address().name()?
               _h.log("server listening on " + host + ":" + port)
-              _h.complete_action("listening on " + host)
+              _h.complete_action("server listening")
             else
               _h.fail("server unable to get local address")
               _h.complete(false)
