@@ -689,6 +689,9 @@ class _TestTCPConnectionFailed is UnitTest
         object iso is TCPConnectionNotify
           let _h: TestHelper = h
 
+          fun ref connecting(conn: TCPConnection ref, count: U32) =>
+            h.log("connecting...")
+
           fun ref connected(conn: TCPConnection ref) =>
             _h.fail("fail: connected to a non-existent host and port")
             _h.complete(false)
