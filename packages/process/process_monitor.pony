@@ -32,8 +32,8 @@ actor ProcessMonitor
   var _timers: (Timers tag | None) = None
   let _process_poll_interval: U64
 
-  var _pollingChild: Bool = false
-  var _finalWaitResult: (_WaitResult | None) = None
+  var _polling_child: Bool = false
+  var _final_wait_result: (_WaitResult | None) = None
 
   new create(
     auth: ProcessMonitorAuth,
@@ -126,7 +126,7 @@ actor ProcessMonitor
           filepath.path, args, vars, wdir, _stdin, _stdout, _stderr)
         _child = windows_child
         // notify about errors
-        match windows_child.processError
+        match windows_child.process_error
         | let pe: ProcessError =>
           _notifier.failed(this, pe)
           return
@@ -265,14 +265,14 @@ actor ProcessMonitor
     end
 
   be _wait_for_child() =>
-    match _finalWaitResult
+    match _final_wait_result
     | let wr: _WaitResult =>
       None
     else
       match _child.wait()
       | let sr: _StillRunning =>
-        if not _pollingChild then
-          _pollingChild = true
+        if not _polling_child then
+          _polling_child = true
           let timers = _ensure_timers()
           let pm: ProcessMonitor tag = this
           let tn =
@@ -286,11 +286,11 @@ actor ProcessMonitor
         end
       | let exit_status: ProcessExitStatus =>
         // process child exit code or termination signal
-        _finalWaitResult = exit_status
+        _final_wait_result = exit_status
         _notifier.dispose(this, exit_status)
         _dispose_timers()
       | let wpe: WaitpidError =>
-        _finalWaitResult = wpe
+        _final_wait_result = wpe
         _notifier.failed(this, ProcessError(WaitpidError))
         _dispose_timers()
       end
