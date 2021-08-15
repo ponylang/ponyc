@@ -368,7 +368,7 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   }
 
 #ifdef PLATFORM_IS_WINDOWS
-  Sleep(ts);
+  SleepEx(ts, true);
 #else
   DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
   nanosleep(&ts, NULL);

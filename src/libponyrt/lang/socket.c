@@ -271,14 +271,15 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 
         setsockopt(acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
           (char*)&s, sizeof(SOCKET));
+
+        // Dispatch a read event with the new socket as the argument.
+        pony_asio_event_send(iocp->ev, ASIO_READ, (int)acc->ns);
       } else {
         // Close the new socket.
-        closesocket(acc->ns);
+        pony_os_socket_close((int)acc->ns);
         acc->ns = INVALID_SOCKET;
       }
 
-      // Dispatch a read event with the new socket as the argument.
-      pony_asio_event_send(iocp->ev, ASIO_READ, (int)acc->ns);
       iocp_accept_destroy(acc);
       break;
     }

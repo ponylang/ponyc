@@ -28,6 +28,12 @@ primitive _OSSocket
     """
     getsockopt_u32(fd, OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf())
 
+  fun get_so_connect_time(fd: U32): (U32, U32) =>
+    """
+    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, ...)`
+    """
+    getsockopt_u32(fd, OSSockOpt.sol_socket(), OSSockOpt.so_connect_time())
+
   fun set_so_rcvbuf(fd: U32, bufsize: U32): U32 =>
     """
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
@@ -39,7 +45,6 @@ primitive _OSSocket
     Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
     """
     setsockopt_u32(fd, OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), bufsize)
-
 
   fun getsockopt(fd: U32, level: I32, option_name: I32, option_max_size: USize = 4): (U32, Array[U8] iso^) =>
     """

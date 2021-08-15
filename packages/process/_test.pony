@@ -612,7 +612,7 @@ class iso _TestLongRunningChild is UnitTest
       let pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
       pm.done_writing()
       h.dispose_when_done(pm)
-      h.long_test(5_000_000_000)
+      h.long_test(10_000_000_000)
     else
       h.fail("failed to set up calling sleep/timeout.")
     end
@@ -670,7 +670,7 @@ class iso _TestKillLongRunningChild is UnitTest
       let pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
       pm.dispose()
       pm.done_writing()
-      h.long_test(3_000_000_000)
+      h.long_test(10_000_000_000)
     else
       h.fail("failed to set up calling sleep/timeout.")
     end
@@ -749,7 +749,7 @@ class iso _TestWaitingOnClosedProcessTwice is UnitTest
         3_000_000_000, 0)
       timers(consume timer1)
 
-      h.long_test(5_000_000_000)
+      h.long_test(10_000_000_000)
     else
       h.fail("process monitor threw an error")
     end
