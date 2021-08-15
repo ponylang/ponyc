@@ -680,7 +680,7 @@ class _TestTCPConnectionFailed is UnitTest
   fun ref apply(h: TestHelper) =>
     h.expect_action("connection failed")
 
-    let host = "127.0.0.1"
+    let host = "localhost"
     let port = "7669"
 
     try
