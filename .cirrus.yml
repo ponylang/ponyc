@@ -98,9 +98,10 @@ task:
 
   name: "PR: x86-64-unknown-freebsd-13.0"
 
+  os_configuration_script:
+    - sysctl net.inet.tcp.keepinit=1000
+
   install_script:
-    - sysctl net.inet.tcp.keepinit
-    - sysctl net.inet.tcp.keepinit=3000
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update

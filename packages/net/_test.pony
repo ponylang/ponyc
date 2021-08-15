@@ -680,7 +680,7 @@ class _TestTCPConnectionFailed is UnitTest
   fun ref apply(h: TestHelper) =>
     h.expect_action("connection failed")
 
-    let host = "localhost"
+    let host = "127.0.0.1"
     let port = "7669"
 
     try
@@ -700,11 +700,10 @@ class _TestTCPConnectionFailed is UnitTest
           fun ref connect_failed(conn: TCPConnection ref) =>
             _h.complete_action("connection failed")
             conn.close()
-            _h.complete(true)
         end,
         host,
         port)
-      h.long_test(140_000_000_000)
+      h.long_test(2_000_000_000)
       h.dispose_when_done(connection)
     else
       h.fail("error creating TCPConnection")
@@ -727,7 +726,6 @@ actor _Connector
           fun ref connect_failed(conn: TCPConnection ref) =>
             _h.complete_action("client connection failed")
             conn.close()
-            _h.complete(true)
 
           fun ref closed(conn: TCPConnection ref) =>
             _h.log("client closed")
@@ -793,7 +791,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
       )
 
       h.dispose_when_done(listener)
-      h.long_test(140_000_000_000)
+      h.long_test(2_000_000_000)
     else
       h.fail("error creating listener")
       h.complete(false)
