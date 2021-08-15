@@ -690,7 +690,7 @@ class _TestTCPConnectionFailed is UnitTest
           let _h: TestHelper = h
 
           fun ref connected(conn: TCPConnection ref) =>
-            _h.complete_action("connection failed", false)
+            _h.fail_action("connection failed")
 
           fun ref connect_failed(conn: TCPConnection ref) =>
             _h.complete_action("connection failed")
@@ -728,7 +728,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
             listener.close()
 
           fun ref not_listening(listener: TCPListener ref) =>
-            _h.complete_action("server listening", false)
+            _h.fail_action("server listening")
 
           fun ref closed(listener: TCPListener ref) =>
             _TCPConnectionToClosedServerFailedConnector.connect(_h, host, port)
@@ -763,7 +763,7 @@ actor _TCPConnectionToClosedServerFailedConnector
           let _h: TestHelper = h
 
           fun ref connected(conn: TCPConnection ref) =>
-            _h.complete_action("client connection failed", false)
+            _h.fail_action("client connection failed")
 
           fun ref connect_failed(conn: TCPConnection ref) =>
             _h.complete_action("client connection failed")
