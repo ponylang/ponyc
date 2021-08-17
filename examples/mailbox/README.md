@@ -35,8 +35,7 @@ mailbox OPTIONS
 If we instead run this program with positional arguments we will see no output, but it will take time to run.
 
 ```console
-$ ./mailbox 100 1000000
-
+./mailbox 100 1000000
 ```
 
 Try setting both positional arguments high enough that you have time to observe how memory usage changes while the program is running.

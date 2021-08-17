@@ -26,7 +26,7 @@ Linking ./helloworld
 Once `helloworld` has been compiled, in the same directory as this README file run `./helloworld`. You should see a brief hello.
 
 ```console
-$ ./helloworld 
+$ ./helloworld
 Hello, world.
 ```
 

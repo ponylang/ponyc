@@ -26,7 +26,7 @@ Linking ./gups_opt
 Once `gups_opt` has been compiled, in the same directory as this README file run `./gups_opt`. You should see a message containing the settings, elapsed time, and GUPS (Giga updates per second) for the run. The settings of a run are configurable by CLI arguments (see `./gups_opt --help` for details).
 
 ```console
-$ ./gups_opt 
+$ ./gups_opt
 logtable: 20
 iterate: 10000
 logchunk: 10

@@ -26,7 +26,7 @@ Linking ./ifdef
 Once `ifdef` has been compiled, in the same directory as this README file run `./ifdef`. You should see three lines of output (yours may differ from below).
 
 ```console
-$ ./ifdef 
+$ ./ifdef
 Hello Linux
 4
 Not failing
@@ -55,7 +55,7 @@ Linking ./ifdef
 ```
 
 ```console
-$ ./ifdef 
+$ ./ifdef
 Hello Linux
 3
 Not failing
