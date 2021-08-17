@@ -632,9 +632,7 @@ actor TCPConnection
             // The connection failed, unsubscribe the event and close.
             @pony_asio_event_unsubscribe(event)
             @pony_os_socket_close(fd)
-            if _connect_count == 0 then
-              _notify.connect_failed(this)
-            end
+            _notify_connecting()
           end
         else
           // There is a possibility that a non-Windows system has
@@ -648,9 +646,6 @@ actor TCPConnection
           end
           @pony_os_socket_close(fd)
           _try_shutdown()
-          if _connect_count == 0 then
-            _notify.connect_failed(this)
-          end
         end
       else
         // It's not our event.
