@@ -114,8 +114,7 @@ class val Config
     width = cmd.option("width").i64().usize()
     outpath =
       try
-        let auth = env.root as AmbientAuth
-        FilePath(FileAuth(auth), cmd.option("output").string())
+        FilePath(FileAuth(env.root as AmbientAuth), cmd.option("output").string())
       else
         None
       end
