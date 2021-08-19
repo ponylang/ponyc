@@ -194,7 +194,6 @@ class iso _TestSymlink is UnitTest
       target_path.symlink(link_path),
       "could not create symbolic link to: " + target_path.path)
 
-
 class iso _TestFilePathFrom is UnitTest
   """
   _TestFilePathFrom checks that it is error-free to produce a filepath
@@ -205,13 +204,13 @@ class iso _TestFilePathFrom is UnitTest
   """
   fun name(): String => "files/FilePath.from-success"
   fun apply(h: TestHelper) =>
-    try
+    match h.env.root
+    | let auth: AmbientAuth =>
       let path = "tmp.filepath"
-      let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)
+      let filepath = FilePath(FileAuth(auth), path)
       h.assert_no_error({()? => FilePath.from(filepath, path)? })
     else
-      h.fail("Could not build a path to the same file/directory.")
+      h.fail("env.root isn't AmbientAuth.")
     end
 
 class iso _TestFilePathFromError is UnitTest
@@ -224,13 +223,13 @@ class iso _TestFilePathFromError is UnitTest
   """
   fun name(): String => "files/FilePath.from-error"
   fun apply(h: TestHelper) =>
-    try
+    match h.env.root
+    | let auth: AmbientAuth =>
       let path = "tmp.filepath"
-      let ambient = h.env.root as AmbientAuth
-      let filepath = FilePath(FileAuth(ambient), path)
+      let filepath = FilePath(FileAuth(auth), path)
       h.assert_error({()? => FilePath.from(filepath, "/")? })
     else
-      h.fail("Could build a path from a subdirectory to a parent directory.")
+      h.fail("env.root isn't AmbientAuth.")
     end
 
 
