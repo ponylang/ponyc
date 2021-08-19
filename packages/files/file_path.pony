@@ -71,8 +71,7 @@ class val FilePath
   new val from(
     base: FilePath,
     path': String,
-    caps': FileCaps val = recover val FileCaps .> all() end)
-    ?
+    caps': FileCaps val = recover val FileCaps .> all() end) ?
   =>
     """
     Create a new path from an existing `FilePath`.
@@ -99,8 +98,7 @@ class val FilePath
   new val mkdtemp(
     base: (FilePath | FileAuth),
     prefix: String = "",
-    caps': FileCaps val = recover val FileCaps .> all() end)
-    ?
+    caps': FileCaps val = recover val FileCaps .> all() end) ?
   =>
     """
     Create a temporary directory and returns a path to it. The directory's name
