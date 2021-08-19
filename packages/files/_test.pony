@@ -211,7 +211,7 @@ class iso _TestFilePathFrom is UnitTest
       let filepath = FilePath(FileAuth(ambient), path)
       h.assert_no_error({()? => FilePath.from(filepath, path)? })
     else
-      h.fail("Unhandled error!")
+      h.fail("Could not build a path to the same file/directory.")
     end
 
 class iso _TestFilePathFromError is UnitTest
@@ -230,7 +230,7 @@ class iso _TestFilePathFromError is UnitTest
       let filepath = FilePath(FileAuth(ambient), path)
       h.assert_error({()? => FilePath.from(filepath, "/")? })
     else
-      h.fail("Unhandled error!")
+      h.fail("Could build a path from a subdirectory to a parent directory.")
     end
 
 
