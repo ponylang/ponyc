@@ -109,7 +109,6 @@ trait iso _NonRootTest is UnitTest
       end
     end
 
-
 class iso _TestMkdtemp is UnitTest
   fun name(): String => "files/FilePath.mkdtemp"
   fun apply(h: TestHelper) ? =>
@@ -120,7 +119,6 @@ class iso _TestMkdtemp is UnitTest
     then
       h.assert_true(tmp.remove())
     end
-
 
 class iso _TestWalk is UnitTest
   fun name(): String => "files/FilePath.walk"
@@ -232,7 +230,6 @@ class iso _TestFilePathFromError is UnitTest
       h.fail("env.root isn't AmbientAuth.")
     end
 
-
 class iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
   fun apply(h: TestHelper) ? =>
@@ -308,7 +305,6 @@ class iso _TestPathClean is UnitTest
       h.assert_eq[String](res7, "/foo/qux")
     end
 
-
 class iso _TestPathJoin is UnitTest
   fun name(): String => "files/Path.join"
   fun apply(h: TestHelper) =>
@@ -331,13 +327,11 @@ class iso _TestPathJoin is UnitTest
       h.assert_eq[String](res3, "/foo/dir/base.ext")
     end
 
-
 class iso _TestPathRel is UnitTest
   fun name(): String => "files/Path.rel"
   fun apply(h: TestHelper) ? =>
     let res = Path.rel("foo/bar", "foo/bar/baz")?
     h.assert_eq[String](res, "baz")
-
 
 class iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
@@ -377,7 +371,6 @@ class iso _TestPathSplit is UnitTest
       end
     end
 
-
 class iso _TestPathDir is UnitTest
   fun name(): String => "files/Path.dir"
   fun apply(h: TestHelper) =>
@@ -395,7 +388,6 @@ class iso _TestPathDir is UnitTest
       h.assert_eq[String](res2, "/foo/bar/dir")
     end
 
-
 class iso _TestPathBase is UnitTest
   fun name(): String => "files/Path.dir"
   fun apply(h: TestHelper) =>
@@ -409,7 +401,6 @@ class iso _TestPathBase is UnitTest
     h.assert_eq[String](Path.base(p1), "base.ext")
     h.assert_eq[String](Path.base(p1, false), "base")
     h.assert_eq[String](Path.base(p2), "")
-
 
 class iso _TestPathExt is UnitTest
   fun name(): String => "files/Path.ext"
@@ -429,7 +420,6 @@ class iso _TestPathExt is UnitTest
       h.assert_eq[String](res2, "")
     end
 
-
 class iso _TestPathVolume is UnitTest
   fun name(): String => "files/Path.volume"
   fun apply(h: TestHelper) =>
@@ -444,7 +434,6 @@ class iso _TestPathVolume is UnitTest
       h.assert_eq[String](res2, "")
     end
 
-
 class iso _TestPathRoot is UnitTest
   fun name(): String => "files/Path.root"
   fun apply(h: TestHelper) =>
@@ -452,7 +441,6 @@ class iso _TestPathRoot is UnitTest
     let res2 = Path.abs("/foo/../")
     h.assert_eq[String](res1, "/")
     h.assert_eq[String](res2, "/")
-
 
 class iso _TestFileEOF is UnitTest
   fun name(): String => "files/File.eof-error"
@@ -477,7 +465,6 @@ class iso _TestFileEOF is UnitTest
       h.fail("Unhandled error!")
     end
 
-
 class iso _TestFileCreate is UnitTest
   fun name(): String => "files/File.create"
   fun apply(h: TestHelper) =>
@@ -495,7 +482,6 @@ class iso _TestFileCreate is UnitTest
     else
       h.fail("Unhandled error!")
     end
-
 
 class iso _TestFileCreateExistsNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-exists-not-writeable"
@@ -528,7 +514,6 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
     then
       h.assert_true(filepath.remove())
     end
-
 
 class iso _TestFileCreateDirNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-dir-not-writeable"
@@ -659,7 +644,6 @@ class iso _TestFileOpen is UnitTest
       h.fail("Unhandled error!")
     end
 
-
 class iso _TestFileOpenError is UnitTest
   fun name(): String => "files/File.open-error"
   fun apply(h: TestHelper) =>
@@ -673,7 +657,6 @@ class iso _TestFileOpenError is UnitTest
     else
       h.fail("Unhandled error!")
     end
-
 
 class _TestFileOpenWrite is UnitTest
   fun name(): String => "files/File.open.write"
@@ -696,7 +679,6 @@ class _TestFileOpenWrite is UnitTest
     else
       h.fail("Unhandled error!")
     end
-
 
 class iso _TestFileOpenPermissionDenied is _NonRootTest
   fun name(): String => "files/File.open-permission-denied"
@@ -728,7 +710,6 @@ class iso _TestFileOpenPermissionDenied is _NonRootTest
         h.fail("Unhandled error!")
       end
     end
-
 
 class iso _TestFileLongLine is UnitTest
   fun name(): String => "files/File.longline"
