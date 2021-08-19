@@ -196,6 +196,13 @@ class iso _TestSymlink is UnitTest
 
 
 class iso _TestFilePathFrom is UnitTest
+  """
+  _TestFilePathFrom checks that it is error-free to produce a filepath
+  using the from constructor to the same path of the provided `FilePath`.
+
+  That is, a FilePath to some user file/directory can then be used to produce
+  a FilePath to the same file/directory.
+  """
   fun name(): String => "files/FilePath.from-success"
   fun apply(h: TestHelper) =>
     try
@@ -208,6 +215,13 @@ class iso _TestFilePathFrom is UnitTest
     end
 
 class iso _TestFilePathFromError is UnitTest
+  """
+  _TestFilePathFromError checks that it is an error to produce a filepath
+  using the from constructor which is not a subpath of the provided `FilePath`.
+
+  That is, a FilePath to some user file/directory cannot be used to create a FilePath to
+  the root directory.
+  """
   fun name(): String => "files/FilePath.from-error"
   fun apply(h: TestHelper) =>
     try
