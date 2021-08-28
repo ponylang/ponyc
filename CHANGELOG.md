@@ -2,19 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.43.2] - 2021-08-28
 
 ### Fixed
 
 - Clean up child process exits on Windows ([PR #3817](https://github.com/ponylang/ponyc/pull/3817))
 - Cleanup and fixes for Windows sockets ([PR #3816](https://github.com/ponylang/ponyc/pull/3816))
 - Stop standalone libponyc from needing zlib ([PR #3827](https://github.com/ponylang/ponyc/pull/3827))
-
-### Added
-
-
-### Changed
-
 
 ## [0.43.1] - 2021-08-03
 
