@@ -54,7 +54,7 @@ class val FilePath
     """
 
   new val create(
-    base: FileAuth,
+    base: (AmbientAuth | FileAuth),
     path': String,
     caps': FileCaps val = recover val FileCaps .> all() end)
   =>
@@ -96,7 +96,7 @@ class val FilePath
     path = tmp_path
 
   new val mkdtemp(
-    base: (FilePath | FileAuth),
+    base: (AmbientAuth | FileAuth | FilePath),
     prefix: String = "",
     caps': FileCaps val = recover val FileCaps .> all() end) ?
   =>
@@ -114,6 +114,7 @@ class val FilePath
     """
     (let dir, let pre) = Path.split(prefix)
     let parent: FilePath = match base
+      | let base': AmbientAuth => FilePath(base', dir)
       | let base': FileAuth => FilePath(base', dir)
       | let base': FilePath => FilePath.from(base', dir)?
     end
