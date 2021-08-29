@@ -122,9 +122,9 @@ actor Main
     _env.out.print(
       """
       mixed OPTIONS
-        N   number of actors in each ring"
-        N   number of rings"
-        N   number of messages to pass around each ring"
-        N   number of times to repeat"
+        N   number of rings
+        N   number of actors in each ring
+        N   number of messages to pass around each ring
+        N   number of times to repeat
       """
       )
