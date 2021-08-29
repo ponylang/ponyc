@@ -739,12 +739,18 @@ static void process_llvm_args(pass_opt_t* opt) {
 
   // Copy args to a mutable buffer
   // The buffer is allocated to fit the full arguments
+  #ifdef __GNUC__
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wstringop-overflow"
+  #endif
+
   size_t raw_opt_str_size = strlen(opt->llvm_args) + 1;
   char* buffer = (char*)malloc(sizeof(char) * raw_opt_str_size);
   strncpy(buffer, opt->llvm_args, raw_opt_str_size);
+
+  #ifdef __GNUC__
   #pragma GCC diagnostic pop
+  #endif
 
   // Create a two-dimension array as argv
   size_t argv_buf_size = 4;
