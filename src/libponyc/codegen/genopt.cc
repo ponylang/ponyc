@@ -982,6 +982,25 @@ public:
     bool changed = false;
     SmallVector<CallInst*, 16> sends;
 
+    // This pass is written with the assumption that it is operating on send
+    // code instruction sequences that look like they do when coming fresh out
+    // of LLVM IR generation in the CodeGen pass.
+    // Thus, it is not safe to run this pass on blocks where it has already run,
+    // or more specifically, blocks stitched together from combined blocks where
+    // the pass has been run on some of the constituent blocks.
+    // In such cases, this pass may move interleaved instructions around in
+    // unexpected ways that break LLVM IR rules.
+    // So here we check for the presence of any call instructions to
+    // pony_send_next or pony_chain, which will only be present if this pass
+    // has already run, because this is the only place where they are produced.
+    // If we encounter such a call instruction in the basic block,
+    // we will bail out without modifying anything in the basic block.
+    bool already_ran = findCallTo(
+      std::vector<StringRef>{"pony_send_next", "pony_chain"},
+      start, end, true).second >= 0;
+    if(already_ran)
+      return false;
+
     while(start != end)
     {
       MsgFnGroup first;
