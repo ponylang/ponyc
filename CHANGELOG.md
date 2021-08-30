@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix a compile-time crash related to Pony-specific optimizations. ([PR #3831](https://github.com/ponylang/ponyc/pull/3831))
 
 ### Added
 
