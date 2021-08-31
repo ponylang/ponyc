@@ -64,7 +64,7 @@ else ifneq (,$(shell $(CC) --version 2>&1 | grep "Free Software Foundation"))
 endif
 
 # Make sure the compiler gets all relevant search paths on FreeBSD
-ifeq ($(shell uname -o),FreeBSD)
+ifeq ($(shell uname -s),FreeBSD)
   ifeq (,$(findstring /usr/local/include,$(shell echo $CPATH)))
     export CPATH = /usr/local/include:$CPATH
   endif
