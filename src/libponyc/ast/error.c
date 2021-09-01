@@ -131,9 +131,11 @@ static void errors_push(errors_t* errors, errormsg_t* e)
   if(errors->immediate_report)
     error_print(e, errors->output_stream);
 
-  if (errors->head != NUll) {
+  if(errors->head != NUll) {
     errors->tail->next = e;
-  } else {
+  }
+  else
+  {
     errors->head = e;
   }
 
