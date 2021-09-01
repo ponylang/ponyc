@@ -131,14 +131,13 @@ static void errors_push(errors_t* errors, errormsg_t* e)
   if(errors->immediate_report)
     error_print(e, errors->output_stream);
 
-  if(errors->head == NULL)
-  {
-    errors->head = e;
-    errors->tail = e;
-  } else {
+  if (errors->head != NUll) {
     errors->tail->next = e;
-    errors->tail = e;
+  } else {
+    errors->head = e;
   }
+
+  errors->tail = e;
 
   e->next = NULL;
   errors->count++;
