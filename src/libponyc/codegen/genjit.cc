@@ -14,7 +14,6 @@
 #  include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
 #  include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #  include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
-#  include "llvm/ExecutionEngine/Orc/TargetProcessControl.h"
 #  include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #  include "llvm/IR/DataLayout.h"
 #  include "llvm/IR/LLVMContext.h"
@@ -33,7 +32,6 @@ using namespace llvm::orc;
 class PonyJIT
 {
 private:
-  std::unique_ptr<TargetProcessControl> _tpc;
   std::unique_ptr<ExecutionSession> _es;
 
   DataLayout _dl;
@@ -47,11 +45,9 @@ private:
   ThreadSafeContext _ctx;
 
 public:
-  PonyJIT(std::unique_ptr<TargetProcessControl> tpc,
-    std::unique_ptr<ExecutionSession> es, JITTargetMachineBuilder jtmb,
+  PonyJIT(std::unique_ptr<ExecutionSession> es, JITTargetMachineBuilder jtmb,
     DataLayout dl)
-  : _tpc(std::move(tpc)), _es(std::move(es)), _dl(std::move(dl)),
-    _mangle(*this->_es, _dl),
+  : _es(std::move(es)), _dl(std::move(dl)), _mangle(*this->_es, _dl),
     _object_layer(*this->_es,
       []() { return std::make_unique<SectionMemoryManager>(); }),
     _compile_layer(*this->_es, _object_layer,
@@ -73,21 +69,21 @@ public:
 
   static Expected<std::unique_ptr<PonyJIT>> create()
   {
-    auto ssp = std::make_shared<SymbolStringPool>();
-    auto tpc = SelfTargetProcessControl::Create(ssp);
-    if (!tpc)
-      return tpc.takeError();
+    auto epc = SelfExecutorProcessControl::Create();
+    if (!epc)
+      return epc.takeError();
 
-    auto es = std::make_unique<ExecutionSession>(std::move(ssp));
+    auto es = std::make_unique<ExecutionSession>(std::move(*epc));
 
-    JITTargetMachineBuilder jtmb((*tpc)->getTargetTriple());
+    JITTargetMachineBuilder jtmb(
+      es->getExecutorProcessControl().getTargetTriple());
 
     auto dl = jtmb.getDefaultDataLayoutForTarget();
     if (!dl)
       return dl.takeError();
 
-    return std::make_unique<PonyJIT>(std::move(*tpc), std::move(es),
-      std::move(jtmb), std::move(*dl));
+    return std::make_unique<PonyJIT>(std::move(es), std::move(jtmb),
+      std::move(*dl));
   }
 
   Error addModule(std::unique_ptr<Module> m, ResourceTrackerSP rt = nullptr)
