@@ -102,14 +102,13 @@ class val FilePath
   =>
     """
     Create a temporary directory and returns a path to it. The directory's name
-    will begin with `prefix`. The caller must either provide the root
-    capability or an existing FilePath.
+    will begin with `prefix`.
 
-    If FileAuth is provided, pattern will be relative to the program's
+    If `AmbientAuth` or `FileAuth` are provided, pattern will be relative to the program's
     working directory. Otherwise, it will be relative to the existing
-    FilePath, and the existing FilePath must be a prefix of the resulting path.
+    `FilePath`, and the existing `FilePath` must be a prefix of the resulting path.
 
-    The resulting FilePath will have capabilities that are the intersection of
+    The resulting `FilePath` will have capabilities that are the intersection of
     the supplied capabilities and the capabilities on the base.
     """
     (let dir, let pre) = Path.split(prefix)
