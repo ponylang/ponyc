@@ -1,10 +1,10 @@
 ## Split `FilePath` construction into two methods
 
-`FilePath` previously had only one constructor, the default `create`, which used a union of `(AmbientAuth | FilePath)`. The first half of this union `AmbientAuth` could never `error`, while the second `FilePath` could `error`. By splitting construction into two methods, we now have a default `create` constructor which cannot `error` and a new `from` constructor which can `error`. The default `create` constructor uses a new "files" package root authority `FileAuth` rather than global root authority `AmbientAuth`, while the new `from` constructor uses `FilePath`.
+`FilePath` previously had only one constructor, the default `create`, which used a union of `(AmbientAuth | FilePath)`. The first half of this union `AmbientAuth` could never `error`, while the second `FilePath` could `error`. By splitting construction into two methods, we now have a default `create` constructor which cannot `error` and a new `from` constructor which can `error`. The default `create` constructor now accepts a new "files" package root authority `FileAuth` as well as the global root authority `AmbientAuth`, while the new `from` constructor uses `FilePath`.
 
-The result of this change is that three user changes are needed, namely around `create`, `from`, and `mkdtemp`.
+The result of this change is that three user changes are needed, namely around `create`, `from`, and `mkdtemp`. Any place where previously `AmbientAuth` was accepted now also accepts `FileAuth`.
 
-Before `create` using `AmbientAuth` to now `create` using `FileAuth`:
+Before `create` using `AmbientAuth` to now `create` using `AmbientAuth` or `FileAuth` -- note can no longer fail:
 
 ```pony
 let ambient: AmbientAuth = ...
@@ -15,7 +15,14 @@ becomes
 
 ```pony
 let ambient: AmbientAuth = ...
-let filepath: FilePath = FilePath(FileAuth(ambient), path)
+let filepath: FilePath = FilePath(ambient, path)
+```
+
+or 
+
+```pony
+let fileauth: FileAuth = ...
+let filepath: FilePath = FilePath(fileauth, path)
 ```
 
 ---
@@ -36,7 +43,7 @@ let subpath = FilePath.from(filepath, path)?
 
 ---
 
-Before `mkdtemp` using `AmbientAuth` to now `mkdtemp` using `FileAuth`:
+Before `mkdtemp` using `AmbientAuth` to now `mkdtemp` using `AmbientAuth` or `FileAuth` -- note can still fail:
 
 ```pony
 let ambient: AmbientAuth = ...
@@ -47,5 +54,10 @@ becomes
 
 ```pony
 let ambient: AmbientAuth = ...
-let tempdir = FilePath.mkdtemp(FileAuth(ambient), prefix)?
+let tempdir = FilePath.mkdtemp(ambient, prefix)?
+```
+
+```pony
+let fileauth: FileAuth = ...
+let tempdir = FilePath.mkdtemp(fileauth, prefix)?
 ```
