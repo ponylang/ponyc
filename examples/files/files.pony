@@ -7,7 +7,7 @@ actor Main
     try
       let auth = env.root as AmbientAuth
       with file = OpenFile(
-        FilePath(FileAuth(auth), env.args(1)?, caps)) as File
+        FilePath(auth, env.args(1)?, caps)) as File
       do
         env.out.print(file.path.path)
         for line in file.lines() do
