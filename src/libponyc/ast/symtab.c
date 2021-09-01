@@ -39,7 +39,7 @@ static const char* name_without_case(const char* name)
 {
   size_t len = strlen(name) + 1;
   char* buf = (char*)ponyint_pool_alloc_size(len);
-  char (*case_func)(char);
+  int (*case_func)(int);
 
   if(is_name_type(name))
   {
@@ -50,7 +50,6 @@ static const char* name_without_case(const char* name)
 
   for(size_t i = 0; i < len; i++)
     buf[i] = (char)(*case_func)(name[i]);
-  }
 
   return stringtab_consume(buf, len);
 }

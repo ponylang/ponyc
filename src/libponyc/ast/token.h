@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define pony_ASSERT_TOKEN_NOT_NULL(token) pony_assert(token != NULL)
+
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 extern "C" {
 #endif
