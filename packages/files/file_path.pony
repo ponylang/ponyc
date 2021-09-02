@@ -59,11 +59,11 @@ class val FilePath
     caps': FileCaps val = recover val FileCaps .> all() end)
   =>
     """
-    Create a new path.
+    Create a new path to any location.
 
     Unless absolute, path' will be relative to the program's working directory.
 
-    Capabilities are as provided, unlike with `FilePath.from(...)`.
+    Capabilities are exactly as given.
     """
     caps.union(caps')
     path = Path.abs(path')
