@@ -54,70 +54,79 @@ class val FilePath
     """
 
   new val create(
-    base: (FilePath | AmbientAuth),
+    base: (AmbientAuth | FileAuth),
     path': String,
     caps': FileCaps val = recover val FileCaps .> all() end)
-    ?
   =>
     """
-    Create a new path. The caller must either provide the root capability or an
-    existing FilePath.
+    Create a new path to any location.
 
-    If the root capability is provided, path' will be relative to the program's
-    working directory. Otherwise, it will be relative to the existing FilePath,
-    and the existing FilePath must be a prefix of the resulting path.
+    Unless absolute, path' will be relative to the program's working directory.
 
-    The resulting FilePath will have capabilities that are the intersection of
-    the supplied capabilities and the capabilities on the parent.
+    Capabilities are exactly as given.
     """
     caps.union(caps')
+    path = Path.abs(path')
 
-    path = match base
-      | let b: FilePath =>
-        if not b.caps(FileLookup) then
-          error
-        end
+  new val from(
+    base: FilePath,
+    path': String,
+    caps': FileCaps val = recover val FileCaps .> all() end) ?
+  =>
+    """
+    Create a new path from an existing `FilePath`.
 
-        let tmp_path = Path.join(b.path, path')
-        caps.intersect(b.caps)
+    path' is relative to the existing `FilePath`,
+    and the existing `FilePath` must be a prefix of the resulting path.
 
-        if not tmp_path.at(b.path, 0) then
-          error
-        end
-        tmp_path
-      | let b: AmbientAuth =>
-        Path.abs(path')
-      end
+    The resulting `FilePath` will have capabilities that are the intersection of
+    the supplied capabilities and the capabilities of the existing `FilePath`.
+    """
+    caps.union(caps')
+    if not base.caps(FileLookup) then
+      error
+    end
+
+    let tmp_path = Path.join(base.path, path')
+    caps.intersect(base.caps)
+
+    if not tmp_path.at(base.path, 0) then
+      error
+    end
+    path = tmp_path
 
   new val mkdtemp(
-    base: (FilePath | AmbientAuth),
+    base: (AmbientAuth | FileAuth | FilePath),
     prefix: String = "",
-    caps': FileCaps val = recover val FileCaps .> all() end)
-    ?
+    caps': FileCaps val = recover val FileCaps .> all() end) ?
   =>
     """
     Create a temporary directory and returns a path to it. The directory's name
-    will begin with `prefix`. The caller must either provide the root
-    capability or an existing FilePath.
+    will begin with `prefix`.
 
-    If AmbientAuth is provided, pattern will be relative to the program's
-    working directory. Otherwise, it will be relative to the existing
-    FilePath, and the existing FilePath must be a prefix of the resulting path.
+    If `AmbientAuth` or `FileAuth` are provided, the resulting `FilePath` will
+    be relative to the program's working directory. Otherwise, it will be
+    relative to the existing `FilePath`, and the existing `FilePath` must be a
+    prefix of the resulting path.
 
-    The resulting FilePath will have capabilities that are the intersection of
-    the supplied capabilities and the capabilities on the base.
+    The resulting `FilePath` will have capabilities that are the intersection
+    of the supplied capabilities and the capabilities on the base.
     """
     (let dir, let pre) = Path.split(prefix)
-    let parent = FilePath(base, dir)?
+    let parent: FilePath = match base
+      | let base': AmbientAuth => FilePath(base', dir)
+      | let base': FileAuth => FilePath(base', dir)
+      | let base': FilePath => FilePath.from(base', dir)?
+    end
 
     if not parent.mkdir() then
       error
     end
 
-    var temp = FilePath(parent, pre + Path.random())?
+    var temp = FilePath.from(parent, pre + Path.random())?
 
     while not temp.mkdir(true) do
-      temp = FilePath(parent, pre + Path.random())?
+      temp = FilePath.from(parent, pre + Path.random())?
     end
 
     caps.union(caps')
@@ -139,7 +148,7 @@ class val FilePath
     """
     Return a new path relative to this one.
     """
-    create(this, path', caps')?
+    from(this, path', caps')?
 
   fun val walk(handler: WalkHandler ref, follow_links: Bool = false) =>
     """
