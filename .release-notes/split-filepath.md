@@ -4,14 +4,14 @@
 
 The result of this change is that three user changes are needed, namely around `create`, `from`, and `mkdtemp`. Any place where previously `AmbientAuth` was accepted now also accepts `FileAuth`.
 
-Before `create` using `AmbientAuth` to now `create` using `AmbientAuth` or `FileAuth` -- note can no longer fail:
+Prior to this change, `create` could be used with `AmbientAuth` as in:
 
 ```pony
 let ambient: AmbientAuth = ...
 let filepath: FilePath = FilePath(ambient, path)?
 ```
 
-becomes
+After this change, `create` can be used with `AmbientAuth` or `FileAuth` -- note that this can no longer fail:
 
 ```pony
 let ambient: AmbientAuth = ...
@@ -27,14 +27,14 @@ let filepath: FilePath = FilePath(fileauth, path)
 
 ---
 
-Before `create` using `FilePath` to now `from` using `FilePath`:
+Prior to this change, `create` could be used with `FilePath` as in:
 
 ```pony
 let filepath: FilePath = ...
 let subpath = FilePath(filepath, path)?
 ```
 
-becomes
+After this change, construction with an existing `FilePath` must use `from`:
 
 ```pony
 let filepath: FilePath = ...
@@ -43,19 +43,21 @@ let subpath = FilePath.from(filepath, path)?
 
 ---
 
-Before `mkdtemp` using `AmbientAuth` to now `mkdtemp` using `AmbientAuth` or `FileAuth` -- note can still fail:
+Prior to this change, `mkdtemp` could be used with `AmbientAuth` or `FilePath` as in:
 
 ```pony
 let ambient: AmbientAuth = ...
 let tempdir = FilePath.mkdtemp(ambient, prefix)?
 ```
 
-becomes
+or
 
 ```pony
-let ambient: AmbientAuth = ...
-let tempdir = FilePath.mkdtemp(ambient, prefix)?
+let filepath: FilePath = ...
+let tempdir = FilePath.mkdtemp(filepath, prefix)?
 ```
+
+After this change, `mkdtemp` can also use `FileAuth` -- note can still fail:
 
 ```pony
 let fileauth: FileAuth = ...
