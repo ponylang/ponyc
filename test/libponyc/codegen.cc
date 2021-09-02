@@ -466,14 +466,14 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 }
 
 
-// Doesn't work on windows. The C++ code doesn't catch C++ exceptions if they've
-// traversed a Pony frame. This is suspected to be related to how SEH and LLVM
-// exception code generation interact.
+// Doesn't work on windows or on Apple Silicon. The C++ code doesn't catch C++
+// exceptions if they've traversed a Pony frame. This is suspected to be related
+// to how SEH and LLVM exception code generation interact.
 // See https://github.com/ponylang/ponyc/issues/2455 for more details.
 //
 // This test is disabled on LLVM 3.9 and 4.0 because exceptions crossing JIT
 // boundaries are broken with the ORC JIT on these versions.
-#if !defined(PLATFORM_IS_WINDOWS)
+#if !(defined(PLATFORM_IS_WINDOWS) || (defined(PLATFORM_IS_MACOSX) && defined(PLATFORM_IS_ARM)))
 TEST_F(CodegenTest, TryBlockCantCatchCppExcept)
 {
   const char* src =
