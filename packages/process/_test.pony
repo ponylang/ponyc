@@ -40,7 +40,7 @@ class _PathResolver
             break
               recover val
                 Iter[String]((consume paths).values())
-                  .map[FilePath]({(str_path) => FilePath(FileAuth(auth), str_path)})
+                  .map[FilePath]({(str_path) => FilePath(auth, str_path)})
                   .collect[Array[FilePath] ref](Array[FilePath](size))
               end
           end
@@ -133,7 +133,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
       let path_resolver = _PathResolver(h.env.vars, auth)
       let path =
         FilePath(
-          FileAuth(auth),
+          auth,
           _CatCommand.path(path_resolver)?,
           recover val FileCaps .> all() .> unset(FileExec) end)
       let args: Array[String] val = ["dontcare"]
@@ -160,7 +160,7 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
   fun apply(h: TestHelper) =>
     try
       let auth = h.env.root as AmbientAuth
-      let path = FilePath.mkdtemp(FileAuth(auth), "pony_execve_test")?
+      let path = FilePath.mkdtemp(auth, "pony_execve_test")?
       let args: Array[String] val = []
       let vars: Array[String] val = []
 
@@ -213,7 +213,7 @@ class iso _TestStdinStdout is UnitTest
     try
       let auth = h.env.root as AmbientAuth
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _CatCommand.path(path_resolver)?)
+      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -252,7 +252,7 @@ class iso _TestStderr is UnitTest
       let auth = h.env.root as AmbientAuth
       let path_resolver = _PathResolver(h.env.vars, auth)
       let path = FilePath(
-        FileAuth(auth),
+        auth,
         ifdef windows then
           "C:\\Windows\\System32\\cmd.exe"
         else
@@ -325,7 +325,7 @@ class iso _TestExpect is UnitTest
     try
       let auth = h.env.root as AmbientAuth
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _EchoPath(path_resolver)?)
+      let path = FilePath(auth, _EchoPath(path_resolver)?)
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "echo"; "hello carl"]
       else
@@ -358,7 +358,7 @@ class iso _TestWritevOrdering is UnitTest
     try
       let auth = h.env.root as AmbientAuth
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _CatCommand.path(path_resolver)?)
+      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -390,7 +390,7 @@ class iso _TestPrintvOrdering is UnitTest
     try
       let auth = h.env.root as AmbientAuth
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _CatCommand.path(path_resolver)?)
+      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -432,7 +432,7 @@ class iso _TestStdinWriteBuf is UnitTest
     try
       let auth = h.env.root as AmbientAuth
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _CatCommand.path(path_resolver)?)
+      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
@@ -477,13 +477,13 @@ class _TestChdir is UnitTest
       + (ifdef windows then 2 else 1 end), "", 0, h)
     try
       let auth = h.env.root as AmbientAuth
-      let path = FilePath(FileAuth(auth), _PwdPath())
+      let path = FilePath(auth, _PwdPath())
       let args: Array[String] val = _PwdArgs()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path,
-          args, vars, FilePath(FileAuth(auth), parent))
+          args, vars, FilePath(auth, parent))
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -504,13 +504,13 @@ class _TestBadChdir is UnitTest
       _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ChdirError))
     try
       let auth = h.env.root as AmbientAuth
-      let path = FilePath(FileAuth(auth), _PwdPath())
+      let path = FilePath(auth, _PwdPath())
       let args: Array[String] val = _PwdArgs()
       let vars: Array[String] iso = recover Array[String](0) end
 
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path,
-          args, consume vars, FilePath(FileAuth(auth), badpath))
+          args, consume vars, FilePath(auth, badpath))
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -539,9 +539,9 @@ class _TestBadExec is UnitTest
   fun ref set_up(h: TestHelper) ? =>
     let auth = h.env.root as AmbientAuth
     ifdef windows then
-      _bad_exec_path = FilePath(FileAuth(auth), "C:\\Windows\\system.ini")
+      _bad_exec_path = FilePath(auth, "C:\\Windows\\system.ini")
     else
-      let tmp_dir = FilePath.mkdtemp(FileAuth(auth), "pony_stdlib_test_process_bad_exec")?
+      let tmp_dir = FilePath.mkdtemp(auth, "pony_stdlib_test_process_bad_exec")?
       _tmp_dir = tmp_dir
       let bad_exec_path = tmp_dir.join("_bad_exec.sh")?
       _bad_exec_path = bad_exec_path
@@ -601,7 +601,7 @@ class iso _TestLongRunningChild is UnitTest
 
     try
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _SleepCommand.path(path_resolver)?)
+      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
       let args = _SleepCommand.args(where seconds = 2)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
@@ -659,7 +659,7 @@ class iso _TestKillLongRunningChild is UnitTest
 
     try
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(FileAuth(auth), _SleepCommand.path(path_resolver)?)
+      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
       let args = _SleepCommand.args(where seconds = 2)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
