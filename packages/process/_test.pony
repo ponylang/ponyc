@@ -683,7 +683,7 @@ class iso _TestWaitingOnClosedProcessTwice is UnitTest
     let auth = h.env.root as AmbientAuth
     try
       let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)?
+      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
       let args = _SleepCommand.args(where seconds = 2)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
