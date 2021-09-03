@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update FilePath constructors to allow a non-partial way to create a FilePath ([PR #3819](https://github.com/ponylang/ponyc/pull/3819))
 
 ## [0.43.2] - 2021-08-28
 
