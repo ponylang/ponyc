@@ -4,6 +4,8 @@ on:
   push:
     tags: release-\d+.\d+.\d+
 
+concurrency: prepare-for-a-release
+
 jobs:
   # all tasks that need to be done before we add an X.Y.Z tag
   # should be done as a step in the pre-tagging job.

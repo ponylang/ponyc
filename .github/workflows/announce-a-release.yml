@@ -4,6 +4,8 @@ on:
   push:
     tags: announce-\d+.\d+.\d+
 
+concurrency: announce-a-release
+
 jobs:
   announce:
     name: Announcements
