@@ -1438,7 +1438,7 @@ static void optimise(compile_t* c, bool pony_specific)
     c->opt->strip_debug = true;
 
   if(c->opt->strip_debug)
-    lpm.add(createStripSymbolsPass());
+    lpm.add(createStripSymbolsPass(true));
 
   if (c->opt->lint_llvm)
     fpm.add(createLintLegacyPassPass());
