@@ -102,6 +102,28 @@ task:
 task:
   only_if: $CIRRUS_PR != ''
 
+  arm_container:
+    image: ponylang/ponyc-ci-arm64-unknown-linux-gnu-builder:20210909
+    cpu: 8
+    memory: 24
+
+  name: "PR: ARM TEST"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` arm-glibc 20210909"
+    populate_script: make libs arch=armv8.2-a build_flags=-j8
+
+  configure_script:
+    - make configure arch=armv8.2-a config=debug
+  build_script:
+    - make build arch=armv8.2-a config=debug build_flags=-j8
+  test_script:
+    - make test-ci arch=armv8.2-a config=debug
+
+task:
+  only_if: $CIRRUS_PR != ''
+
   freebsd_instance:
     image: freebsd-13-0-release-amd64
     cpu: 8
