@@ -23,7 +23,7 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
 
   type Features is Flags[(SSE | AVX | RDTSCP)]
 
-  Type parameter B is the unlying field used to store the flags.
+  Type parameter B is the underlying field used to store the flags.
   """
   var _value: B = 0
 
