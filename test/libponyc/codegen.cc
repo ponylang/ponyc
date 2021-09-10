@@ -741,108 +741,108 @@ TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
 }
 
 
-// TEST_F(CodegenTest, CycleDetector)
-// {
-//   const char* src =
-//     "use @printf[I32](fmt: Pointer[U8] tag, ...)\n"
-//     "use @pony_get_exitcode[I32]()\n"
-//     "use @pony_exitcode[None](code: I32)\n"
-//     "use @Sleep[None](millis: U32) if windows\n"
-//     "use @ponyint_cpu_core_pause[None](tsc: U64, tsc2: U64, yield: Bool) if not windows\n"
+TEST_F(CodegenTest, CycleDetector)
+{
+  const char* src =
+    "use @printf[I32](fmt: Pointer[U8] tag, ...)\n"
+    "use @pony_get_exitcode[I32]()\n"
+    "use @pony_exitcode[None](code: I32)\n"
+    "use @Sleep[None](millis: U32) if windows\n"
+    "use @ponyint_cpu_core_pause[None](tsc: U64, tsc2: U64, yield: Bool) if not windows\n"
 
-//     "actor Ring\n"
-//     "  let _id: U32\n"
-//     "  var _next: (Ring | None)\n"
+    "actor Ring\n"
+    "  let _id: U32\n"
+    "  var _next: (Ring | None)\n"
 
-//     "  new create(id: U32, neighbor: (Ring | None) = None) =>\n"
-//     "    _id = id\n"
-//     "    _next = neighbor\n"
+    "  new create(id: U32, neighbor: (Ring | None) = None) =>\n"
+    "    _id = id\n"
+    "    _next = neighbor\n"
 
-//     "  be set(neighbor: Ring) =>\n"
-//     "    _next = neighbor\n"
+    "  be set(neighbor: Ring) =>\n"
+    "    _next = neighbor\n"
 
-//     "  be pass(i: USize) =>\n"
-//     "    if i > 0 then\n"
-//     "      match _next\n"
-//     "      | let n: Ring =>\n"
-//     "        n.pass(i - 1)\n"
-//     "      end\n"
-//     "    end\n"
+    "  be pass(i: USize) =>\n"
+    "    if i > 0 then\n"
+    "      match _next\n"
+    "      | let n: Ring =>\n"
+    "        n.pass(i - 1)\n"
+    "      end\n"
+    "    end\n"
 
-//     "  fun _final() =>\n"
-//     "    let i = @pony_get_exitcode()\n"
-//     "    @pony_exitcode(i + 1)\n"
+    "  fun _final() =>\n"
+    "    let i = @pony_get_exitcode()\n"
+    "    @pony_exitcode(i + 1)\n"
 
-//     "actor Watcher\n"
-//     "  var _c: I32 = 0\n"
-//     "  new create(num: I32) => check_done(num)\n"
+    "actor Watcher\n"
+    "  var _c: I32 = 0\n"
+    "  new create(num: I32) => check_done(num)\n"
 
-//     "  be check_done(num: I32) =>\n"
-//     "    if @pony_get_exitcode() != num then\n"
-//     "      /* wait for cycle detector to reap ring actors */\n"
-//     "      ifdef windows then\n"
-//     "        @Sleep(30)\n"
-//     "      else\n"
-//     "        @ponyint_cpu_core_pause(0, 20000000000, true)\n"
-//     "      end\n"
-//     "      _c = _c + 1\n"
-//     "      if _c > 50 then\n"
-//     "        @printf(\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode(), num)\n"
-//     "        @pony_exitcode(1)\n"
-//     "      else\n"
-//     "        check_done(num)\n"
-//     "      end\n"
-//     "    else\n"
-//     "      @pony_exitcode(0)\n"
-//     "    end\n"
+    "  be check_done(num: I32) =>\n"
+    "    if @pony_get_exitcode() != num then\n"
+    "      /* wait for cycle detector to reap ring actors */\n"
+    "      ifdef windows then\n"
+    "        @Sleep(30)\n"
+    "      else\n"
+    "        @ponyint_cpu_core_pause(0, 20000000000, true)\n"
+    "      end\n"
+    "      _c = _c + 1\n"
+    "      if _c > 50 then\n"
+    "        @printf(\"Ran out of time... exit count is: %d instead of %d\n\".cstring(), @pony_get_exitcode(), num)\n"
+    "        @pony_exitcode(1)\n"
+    "      else\n"
+    "        check_done(num)\n"
+    "      end\n"
+    "    else\n"
+    "      @pony_exitcode(0)\n"
+    "    end\n"
 
 
-//     "actor Main\n"
-//     "  var _ring_size: U32 = 100\n"
-//     "  var _ring_count: U32 = 100\n"
-//     "  var _pass: USize = 10\n"
+    "actor Main\n"
+    "  var _ring_size: U32 = 100\n"
+    "  var _ring_count: U32 = 100\n"
+    "  var _pass: USize = 10\n"
 
-//     "  new create(env: Env) =>\n"
-//     "    setup_ring()\n"
-//     "    Watcher((_ring_size * _ring_count).i32())\n"
+    "  new create(env: Env) =>\n"
+    "    setup_ring()\n"
+    "    Watcher((_ring_size * _ring_count).i32())\n"
 
-//     "  fun setup_ring() =>\n"
-//     "    var j: U32 = 0\n"
-//     "    while true do\n"
-//     "      let first = Ring(1)\n"
-//     "      var next = first\n"
+    "  fun setup_ring() =>\n"
+    "    var j: U32 = 0\n"
+    "    while true do\n"
+    "      let first = Ring(1)\n"
+    "      var next = first\n"
 
-//     "      var k: U32 = 0\n"
-//     "      while true do\n"
-//     "        let current = Ring(_ring_size - k, next)\n"
-//     "        next = current\n"
+    "      var k: U32 = 0\n"
+    "      while true do\n"
+    "        let current = Ring(_ring_size - k, next)\n"
+    "        next = current\n"
 
-//     "        k = k + 1\n"
-//     "        if k >= (_ring_size - 1) then\n"
-//     "          break\n"
-//     "        end\n"
-//     "      end\n"
+    "        k = k + 1\n"
+    "        if k >= (_ring_size - 1) then\n"
+    "          break\n"
+    "        end\n"
+    "      end\n"
 
-//     "      first.set(next)\n"
+    "      first.set(next)\n"
 
-//     "      if _pass > 0 then\n"
-//     "        first.pass(_pass)\n"
-//     "      end\n"
+    "      if _pass > 0 then\n"
+    "        first.pass(_pass)\n"
+    "      end\n"
 
-//     "      j = j + 1\n"
-//     "      if j >= _ring_count then\n"
-//     "        break\n"
-//     "      end\n"
-//     "    end\n";
+    "      j = j + 1\n"
+    "      if j >= _ring_count then\n"
+    "        break\n"
+    "      end\n"
+    "    end\n";
 
-//   set_builtin(NULL);
+  set_builtin(NULL);
 
-//   TEST_COMPILE(src);
+  TEST_COMPILE(src);
 
-//   int exit_code = -1;
-//   ASSERT_TRUE(run_program(&exit_code));
-//   ASSERT_EQ(exit_code, 0);
-// }
+  int exit_code = -1;
+  ASSERT_TRUE(run_program(&exit_code));
+  ASSERT_EQ(exit_code, 0);
+}
 
 
 TEST_F(CodegenTest, TryThenClauseReturn)
