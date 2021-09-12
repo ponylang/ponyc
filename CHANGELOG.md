@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove options package ([PR #3844](https://github.com/ponylang/ponyc/pull/3844))
 
 ## [0.44.0] - 2021-09-03
 
