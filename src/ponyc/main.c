@@ -91,7 +91,17 @@ int main(int argc, char* argv[])
   for (int i = 1; i < argc; i++)
   {
     strncat((char*)opt.all_args, argv[i], size_left);
+    #ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstringop-overflow"
+    #endif
+
     strncat((char*)opt.all_args, " ", 1);
+
+    #ifdef __GNUC__
+    #pragma GCC diagnostic pop
+    #endif
+
     size_left -= strlen(argv[i]) + 1;
   }
 
