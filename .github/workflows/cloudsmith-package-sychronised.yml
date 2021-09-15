@@ -244,6 +244,24 @@ jobs:
           event-type: ponyc-musl-nightly-released
           client-payload: '{}'
 
+  send-windows-nightly-release-event:
+    needs: [build-latest-windows-docker-image]
+
+    name: Send windows nightly release event
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - ponylang/corral
+    steps:
+      - name: Send
+        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-windows-nightly-released
+          client-payload: '{}'
+
   send-musl-release-event:
     needs: [build-release-musl-docker-image]
 
