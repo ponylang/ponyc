@@ -115,6 +115,7 @@ task:
     populate_script: make libs arch=armv8.2-a build_flags=-j8
   upload_caches:
     - libs
+
   configure_script:
     - make configure arch=armv8.2-a config=debug
   build_script:
