@@ -58,6 +58,8 @@ task:
     fingerprint_script:
       - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
     populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
   configure_script:
     - make configure arch=x86-64
@@ -80,6 +82,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
     populate_script: make libs arch=x86-64 build_flags=-j8
+  upload_caches:
+    - libs
 
   configure_script:
     - make configure arch=x86-64 config=debug
@@ -111,6 +115,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
+  upload_caches:
+    - libs
 
   configure_script:
     - gmake configure arch=x86-64
@@ -134,6 +140,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
     populate_script: make libs arch=x86-64 build_flags=-j8
+  upload_caches:
+    - libs
 
   configure_script:
     - make configure arch=x86-64
@@ -161,6 +169,8 @@ task:
       - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+  upload_caches:
+    - libs
 
   config_script:
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
@@ -188,6 +198,8 @@ task:
       - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+  upload_caches:
+    - libs
 
   config_script:
     - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019"
@@ -312,6 +324,8 @@ task:
     fingerprint_script:
       - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
     populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
   nightly_script:
     - bash .ci-scripts/x86-64-nightly.bash
@@ -340,6 +354,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
+  upload_caches:
+    - libs
 
   nightly_script:
     - bash .ci-scripts/x86-64-unknown-freebsd-13.0-nightly.bash
@@ -361,6 +377,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
     populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
   install_script:
     - brew install coreutils python
@@ -390,6 +408,8 @@ task:
       - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+  upload_caches:
+    - libs
 
   config_script:
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version nightly
@@ -465,6 +485,8 @@ task:
     fingerprint_script:
       - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
     populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
   release_script:
     - bash .ci-scripts/x86-64-release.bash
@@ -493,6 +515,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
     populate_script: gmake libs arch=x86-64 build_flags=-j8
+  upload_caches:
+    - libs
 
   release_script:
     - bash .ci-scripts/x86-64-unknown-freebsd-13.0-release.bash
@@ -514,6 +538,8 @@ task:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
     populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
   install_script:
     - brew install coreutils python
@@ -543,6 +569,8 @@ task:
       - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+  upload_caches:
+    - libs
 
   config_script:
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
