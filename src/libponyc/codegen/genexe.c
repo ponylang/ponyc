@@ -294,7 +294,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   snprintf(ld_cmd, ld_len,
 #if defined(PLATFORM_IS_ARM)
-    "%s -execute -no_pie -arch %.*s "
+    "%s -execute -arch %.*s "
 #else
     "%s -execute -no_pie -arch %.*s "
 #endif
@@ -344,6 +344,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* lib_args = program_lib_args(program);
 
   const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
+  fprintf(stderr, "-----> SEAN ARCH IS %s\n", arch);
   bool fallback_linker = false;
   const char* linker = c->opt->linker != NULL ? c->opt->linker :
     env_cc_or_pony_compiler(&fallback_linker);
@@ -417,7 +418,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
 
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+  //if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
     fprintf(stderr, "%s\n", ld_cmd);
 
   if(system(ld_cmd) != 0)
