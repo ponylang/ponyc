@@ -294,7 +294,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   snprintf(ld_cmd, ld_len,
 #if defined(PLATFORM_IS_ARM)
-    "%s -execute -no_pie -arch %.*s "
+    "%s -execute -arch %.*s "
 #else
     "%s -execute -no_pie -arch %.*s "
 #endif
@@ -387,7 +387,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
                   + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg) + strlen(arm32_linker_args);
+                  + strlen(sanitizer_arg) + strlen(arm32_linker_args) + 8;
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -410,7 +410,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     // On OpenBSD, the unwind symbols are contained within libc++abi.
     "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s"
 #else
-    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s"
+    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s -no_pie"
 #endif
     "%s",
     linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
