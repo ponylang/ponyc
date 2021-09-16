@@ -23,6 +23,9 @@ void ponyint_cpu_relax();
 
 uint64_t ponyint_cpu_tick();
 
+uint64_t ponyint_cpu_tick_diff(uint64_t supposedly_earlier,
+  uint64_t supposedly_later);
+
 PONY_EXTERN_C_END
 
 #endif

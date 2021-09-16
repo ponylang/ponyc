@@ -4,6 +4,7 @@
 
 #include "cycle.h"
 #include "../actor/actor.h"
+#include "../sched/cpu.h"
 #include "../sched/scheduler.h"
 #include "../ds/stack.h"
 #include "../ds/hash.h"
@@ -1114,16 +1115,11 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
 
 bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2)
 {
-  // if tsc > tsc2 then don't trigger cycle detector
-  // this is used to ensure scheduler queue is empty during
-  // termination
-  if(tsc > tsc2)
-    return false;
-
   detector_t* d = (detector_t*)cycle_detector;
 
   // if enough time has passed, trigger cycle detector
-  if((tsc2 - tsc) > d->detect_interval)
+  uint64_t diff = ponyint_cpu_tick_diff(tsc, tsc2);
+  if(diff > d->detect_interval)
   {
     pony_ctx_t* ctx = ponyint_sched_get_inject_context();
     pony_send(ctx, cycle_detector, ACTORMSG_CHECKBLOCKED);
