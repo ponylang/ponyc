@@ -593,3 +593,72 @@ Single line comments will have exactly one space between the `//` token and the 
 // to coalesce multiple tiny arrays
 // into a single bigger array
 ```
+
+## Testing
+
+### Ordering
+
+Tests should be ordered alphabetically (within reason) separated into sections based on system inclusion/exclusion criteria. First, list tests that run on all systems, next list tests which include/exclude one system, and lastly list tests which include/exclude more than one system.
+
+```pony
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    // Tests below include all systems and are listed alphabetically
+    test(_TestOnAllSystemsA)
+    test(_TestOnAllSystemsB)
+    test(_TestOnAllSystemsC)
+
+    // Tests below include only windows and are listed alphabetically
+    ifdef windows then
+      test(_TestOnWindowsA)
+      test(_TestOnWindowsB)
+      test(_TestOnWindowsC)
+    end
+
+    // Tests below exclude windows and are listed alphabetically
+    ifdef not windows then
+      test(_TestOnAllSystemsExceptWindowsA)
+      test(_TestOnAllSystemsExceptWindowsB)
+      test(_TestOnAllSystemsExceptWindowsC)
+    end
+
+    // Tests below include only osx and are listed alphabetically
+    ifdef osx then
+      test(_TestOnOsxA)
+      test(_TestOnOsxB)
+      test(_TestOnOsxC)
+    end
+
+    // Tests below exclude osx and are listed alphabetically
+    ifdef not osx then
+      test(_TestOnAllSystemsExceptOsxA)
+      test(_TestOnAllSystemsExceptOsxB)
+      test(_TestOnAllSystemsExceptOsxC)
+    end
+
+    // Tests below exclude windows/osx and are listed alphabetically
+    ifdef not windows or not osx then
+      test(_TestOnAllSystemsExceptWindowsOrOsxA)
+      test(_TestOnAllSystemsExceptWindowsOrOsxB)
+      test(_TestOnAllSystemsExceptWindowsOrOsxC)
+    end
+```
+
+It can sometimes make more sense to not use alphabetical ordering -- such as when using a generic test builder -- in such circumstances breaking alphabetical ordering is allowed.
+
+```pony
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    // Tests below include all systems and are listed alphabetically
+    test(_TestOnAllSystemsWithBuilder[U8]())
+    test(_TestOnAllSystemsWithBuilder[U16]())
+    test(_TestOnAllSystemsWithBuilder[U32]())
+    test(_TestOnAllSystemsWithBuilder[U64]())
+    test(_TestOnAllSystemsWithBuilder[U128]())
+```
