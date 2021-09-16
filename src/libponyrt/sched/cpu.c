@@ -319,8 +319,10 @@ void ponyint_cpu_affinity(uint32_t cpu)
  */
 void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 {
+  uint64_t diff = ponyint_cpu_tick_diff(tsc, tsc2);
+
   // 10m cycles is about 3ms
-  if((tsc2 - tsc) < 10000000)
+  if(diff < 10000000)
     return;
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -332,7 +334,7 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   if(yield)
   {
     // A billion cycles is roughly half a second, depending on clock speed.
-    if((tsc2 - tsc) > 10000000000)
+    if(diff > 10000000000)
     {
       // If it has been 10 billion cycles, pause 30 ms.
 #ifdef PLATFORM_IS_WINDOWS
@@ -340,14 +342,14 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 #else
       ts.tv_nsec = 30000000;
 #endif
-    } else if((tsc2 - tsc) > 3000000000) {
+    } else if(diff > 3000000000) {
       // If it has been 3 billion cycles, pause 10 ms.
 #ifdef PLATFORM_IS_WINDOWS
       ts = 10;
 #else
       ts.tv_nsec = 10000000;
 #endif
-    } else if((tsc2 - tsc) > 1000000000) {
+    } else if(diff > 1000000000) {
       // If it has been 1 billion cycles, pause 1 ms.
 #ifdef PLATFORM_IS_WINDOWS
       ts = 1;
@@ -433,4 +435,17 @@ uint64_t ponyint_cpu_tick()
   return __rdtsc();
 # endif
 #endif
+}
+
+// Some implementations of tick might wrap around because we are doing using
+// `clock_gettime` or similiar because a cycle counter isn't available.
+uint64_t ponyint_cpu_tick_diff(uint64_t supposedly_earlier,
+  uint64_t supposedly_later)
+{
+  if (supposedly_earlier == supposedly_later)
+    return 0;
+  else if (supposedly_earlier > supposedly_later)
+    return (UINT64_MAX - supposedly_earlier) + supposedly_later;
+  else
+    return supposedly_later - supposedly_earlier;
 }

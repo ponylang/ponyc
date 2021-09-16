@@ -31,6 +31,7 @@ typedef enum
 } sched_msg_t;
 
 // Scheduler global data.
+static bool pause_cycle_detection;
 static uint64_t last_cd_tsc;
 static uint32_t scheduler_count;
 static uint32_t min_scheduler_count;
@@ -394,12 +395,10 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 
   if(sched->ack_count >= current_active_scheduler_count)
   {
-    // mark last cycle detector tsc as something huge to ensure
-    // cycle detector will not get triggered
+    // mark cycle_detector to pause
     // this is required to ensure scheduler queues are empty
     // upon termination
-    uint64_t saved_last_cd_tsc = last_cd_tsc;
-    last_cd_tsc = -1;
+    pause_cycle_detection = true;
 
     if(sched->asio_stoppable && ponyint_asio_stop())
     {
@@ -419,16 +418,14 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
       // Run another CNF/ACK cycle.
       send_msg_all_active(sched->index, SCHED_CNF, sched->ack_token);
 
-      // restore last cycle detector tsc to re-enable cycle detector
-      // triggering
-      last_cd_tsc = saved_last_cd_tsc;
+      // re-enable cycle detector triggering
+      pause_cycle_detection = false;
     } else {
       // ASIO is not stoppable
       sched->asio_stoppable = false;
 
-      // restore last cycle detector tsc to re-enable cycle detector
-      // triggering
-      last_cd_tsc = saved_last_cd_tsc;
+      // re-enable cycle detector triggering
+      pause_cycle_detection = false;
     }
   }
 
@@ -844,7 +841,8 @@ static pony_actor_t* steal(scheduler_t* sched)
     }
 
     // if we're scheduler 0 and cycle detection is enabled
-    if(!ponyint_actor_getnoblock() && (sched->index == 0))
+    if(!ponyint_actor_getnoblock() && (sched->index == 0)
+      && (!pause_cycle_detection))
     {
       // trigger cycle detector by sending it a message if it is time
       uint64_t current_tsc = ponyint_cpu_tick();
@@ -877,8 +875,10 @@ static pony_actor_t* steal(scheduler_t* sched)
  */
 static void run(scheduler_t* sched)
 {
-  if(sched->index == 0)
+  if(sched->index == 0) {
+    pause_cycle_detection = false;
     last_cd_tsc = 0;
+  }
 
   pony_actor_t* actor = pop_global(sched);
 
@@ -894,15 +894,18 @@ static void run(scheduler_t* sched)
       // if cycle detection is enabled
       if(!ponyint_actor_getnoblock())
       {
-        // trigger cycle detector by sending it a message if it is time
-        uint64_t current_tsc = ponyint_cpu_tick();
-        if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
+        if(!pause_cycle_detection)
         {
-          last_cd_tsc = current_tsc;
+          // trigger cycle detector by sending it a message if it is time
+          uint64_t current_tsc = ponyint_cpu_tick();
+          if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
+          {
+            last_cd_tsc = current_tsc;
 
-          // cycle detector should now be on the queue
-          if(actor == NULL)
-            actor = pop_global(sched);
+            // cycle detector should now be on the queue
+            if(actor == NULL)
+              actor = pop_global(sched);
+          }
         }
       }
 
