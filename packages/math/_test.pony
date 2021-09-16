@@ -6,17 +6,18 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_IsPrimeTestBuilder[U8]("U8"))
+    // Tests below function across all systems and are listed alphabetically
+    test(_IsPrimeTestBuilder[U128]("U128"))
     test(_IsPrimeTestBuilder[U16]("U16"))
     test(_IsPrimeTestBuilder[U32]("U32"))
     test(_IsPrimeTestBuilder[U64]("U64"))
-    test(_IsPrimeTestBuilder[U128]("U128"))
+    test(_IsPrimeTestBuilder[U8]("U8"))
     test(_IsPrimeTestBuilder[ULong]("ULong"))
     test(_IsPrimeTestBuilder[USize]("USize"))
-    test(_MersennePrimeTest[U8]("U8"))
     test(_MersennePrimeTest[U16]("U16"))
     test(_MersennePrimeTest[U32]("U32"))
     test(_MersennePrimeTest[U64]("U64"))
+    test(_MersennePrimeTest[U8]("U8"))
     test(_MersennePrimeTest[ULong]("ULong"))
     test(_MersennePrimeTest[USize]("USize"))
 

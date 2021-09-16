@@ -12,10 +12,11 @@ actor Main is TestList
     no pointers
     no actors
     */
-    test(_TestSimple)
+    // Tests below function across all systems and are listed alphabetically
     test(_TestArrays)
-    test(_TestFailures)
     test(_TestBoxedMachineWord)
+    test(_TestFailures)
+    test(_TestSimple)
 
 class _MachineWords
   var bool1: Bool = true

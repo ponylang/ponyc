@@ -6,21 +6,24 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    ifdef not osx then
-      test(_TestBroadcast)
-    end
-    test(_TestTCPWritev)
+    // Tests below function across all systems and are listed alphabetically
+    test(_TestTCPConnectionFailed)
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
     test(_TestTCPMute)
-    test(_TestTCPUnmute)
-    ifdef not windows then
-      test(_TestTCPThrottle)
-    end
     test(_TestTCPProxy)
-    test(_TestTCPConnectionFailed)
+    test(_TestTCPUnmute)
+    test(_TestTCPWritev)
+
+    // Tests below exclude windows and are listed alphabetically
     ifdef not windows then
       test(_TestTCPConnectionToClosedServerFailed)
+      test(_TestTCPThrottle)
+    end
+
+    // Tests below exclude osx and are listed alphabetically
+    ifdef not osx then
+      test(_TestBroadcast)
     end
 
 class _TestPing is UDPNotify
