@@ -655,7 +655,7 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    // Tests below include all systems and are listed alphabetically
+    // Tests below include all systems and are listed in increasing type argument size
     test(_TestOnAllSystemsWithBuilder[U8]())
     test(_TestOnAllSystemsWithBuilder[U16]())
     test(_TestOnAllSystemsWithBuilder[U32]())
