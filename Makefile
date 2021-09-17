@@ -194,16 +194,16 @@ test-core: all
 	$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
 
 test-stdlib-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential && rm ./stdlib-release
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential
 
 test-stdlib-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) ./stdlib-debug --sequential && rm ./stdlib-debug
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) ./stdlib-debug --sequential
 
 test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}
 
 test-validate-grammar: all
-	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new && rm pony.g.new
+	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true
