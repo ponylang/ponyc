@@ -1112,7 +1112,7 @@ size_t ponyint_actor_total_mem_size(pony_actor_t* actor)
       // counting since it is counted as part of the scheduler thread mem used?)
       actor->type->size
       // cycle detector memory used (or 0 if not cycle detector)
-    + ( ponyint_is_cycle(actor) ? ponyint_cycle_mem_size(actor) : 0)
+    + ( ponyint_is_cycle(actor) ? ponyint_cycle_mem_size() : 0)
       // actor heap memory used
     + ponyint_heap_mem_size(&actor->heap)
       // actor gc total memory used
@@ -1131,7 +1131,7 @@ size_t ponyint_actor_total_alloc_size(pony_actor_t* actor)
       // thread mem allocated?)
       ponyint_pool_used_size(actor->type->size)
       // cycle detector memory allocated (or 0 if not cycle detector)
-    + ( ponyint_is_cycle(actor) ? ponyint_cycle_alloc_size(actor) : 0)
+    + ( ponyint_is_cycle(actor) ? ponyint_cycle_alloc_size() : 0)
       // actor heap memory allocated
     + ponyint_heap_alloc_size(&actor->heap)
       // actor gc total memory allocated
