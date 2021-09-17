@@ -1401,27 +1401,7 @@ static void optimise(compile_t* c, bool pony_specific)
   }
 
   pmb.populateFunctionPassManager(fpm);
-
-  if(target_is_arm(c->opt->triple))
-  {
-    // On ARM, without this, trace functions are being loaded with a double
-    // indirection with a debug binary. An ldr r0, [LABEL] is done, loading
-    // the trace function address, but then ldr r2, [r0] is done to move the
-    // address into the 3rd arg to pony_traceobject. This double indirection
-    // gives a garbage trace function. In release mode, a different path is
-    // used and this error doesn't happen. Forcing an OptLevel of 1 for the MPM
-    // results in the alternate (working) asm being used for a debug build.
-    if(!c->opt->release)
-      pmb.OptLevel = 1;
-  }
-
   pmb.populateModulePassManager(mpm);
-
-  if(target_is_arm(c->opt->triple))
-  {
-    if(!c->opt->release)
-      pmb.OptLevel = 0;
-  }
 
   // LLVM 7 and up has a bug where running MergeFunctions more than once
   // causes an assert fail saying "Invalid RAUW on key of ValueMap". We can
