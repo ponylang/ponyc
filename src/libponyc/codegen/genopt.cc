@@ -1388,17 +1388,17 @@ static void optimise(compile_t* c, bool pony_specific)
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
 
-   if(pony_specific)
-   {
-     pmb.addExtension(PassManagerBuilder::EP_Peephole,
-       addMergeReallocPass);
-     pmb.addExtension(PassManagerBuilder::EP_Peephole,
-       addHeapToStackPass);
-     pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-       addDispatchPonyCtxPass);
-     pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-       addMergeMessageSendPass);
-   }
+  if(pony_specific)
+  {
+    pmb.addExtension(PassManagerBuilder::EP_Peephole,
+      addMergeReallocPass);
+    pmb.addExtension(PassManagerBuilder::EP_Peephole,
+      addHeapToStackPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addDispatchPonyCtxPass);
+    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+      addMergeMessageSendPass);
+  }
 
   pmb.populateFunctionPassManager(fpm);
 
