@@ -115,3 +115,9 @@ This assumption is true as long as we have a hardware source of ticks to use. Ho
 
 Usage of the cycle detector with the non-monotonically increasing tick sources would cause the cycle detector run very infrequently and somewhat erratically. This was most likely to be seen on hardware like the Raspberry Pi.
 
+## Fix non-release build crashes on Arm
+
+We've fixed a cause of "random" crashes that impacted at minimum, debug versions of Pony programs running on 32-bit Arm builds on the Raspberry Pi 4.
+
+It's likely that the crashes impacted debug versions of Pony programs running on all Arm systems, but we don't have enough testing infrastructure to know for sure.
+
