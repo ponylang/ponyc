@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix erratic cycle detector triggering on some Arm systems ([PR #3854](https://github.com/ponylang/ponyc/pull/3854))
 
 ### Added
 
