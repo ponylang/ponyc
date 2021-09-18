@@ -325,50 +325,6 @@ TEST_F(BareTest, BareType_TypeArgument)
 }
 
 
-TEST_F(BareTest, Codegen_BareFunctionCall)
-{
-  const char* src =
-    "use @pony_exitcode[None](code: I32)\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    foo(42)\n"
-
-    "  fun @foo(x: USize) =>\n"
-    "    if x == 42 then\n"
-    "      @pony_exitcode(1)\n"
-    "    end";
-
-  TEST_COMPILE(src);
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
-}
-
-
-TEST_F(BareTest, Codegen_BareLambdaCall)
-{
-  const char* src =
-    "use @pony_exitcode[None](code: I32)\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let lbd = @{(x: USize) =>\n"
-    "      if x == 42 then\n"
-    "        @pony_exitcode(1)\n"
-    "      end\n"
-    "    }\n"
-    "    lbd(42)";
-
-  TEST_COMPILE(src);
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
-}
-
-
 extern "C"
 {
 
