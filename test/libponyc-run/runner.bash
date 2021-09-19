@@ -2,8 +2,8 @@
 
 # shellcheck disable=SC2119,SC2120,SC2181
 
-# TODO: use correct ponyc build from our local
 # TODO: debug and release builds?
+# TODO: colorize output
 
 pushd () {
     command pushd "$@" > /dev/null
