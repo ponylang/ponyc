@@ -12,7 +12,6 @@ add_executable(libponyc.tests
     chain.cc
     codegen.cc
     codegen_ffi.cc
-    codegen_identity.cc
     codegen_optimisation.cc
     codegen_trace.cc
     compiler_serialisation.cc
