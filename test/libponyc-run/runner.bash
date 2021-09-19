@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# shellcheck disable=SC2119,SC2120
+# shellcheck disable=SC2119,SC2120,SC2181
 
 # TODO: use correct ponyc build from our local
 
