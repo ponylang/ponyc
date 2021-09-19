@@ -109,7 +109,7 @@ task:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y cmake gmake libunwind git
+    - pkg install -y bash cmake gmake libunwind git
 
   libs_cache:
     folder: build/libs
