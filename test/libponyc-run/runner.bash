@@ -16,10 +16,10 @@ check_build () {
   if [ $? -ne 0 ];
   then
     echo "${1}: FAILED"
-    return 1
+    return 0
   fi
 
-  return 0
+  return 1
 }
 
 exit_code=0
@@ -40,8 +40,7 @@ do
   else
     ponyc --verbose 0 --bin-name program 1> /dev/null
     if check_build "${directory}";
-    then
-      popd || exit 1
+    then      popd || exit 1
       continue
     fi
   fi
