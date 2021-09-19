@@ -3,6 +3,7 @@
 # shellcheck disable=SC2119,SC2120
 
 # TODO: currently requires you to be in the directory with this script when run
+# TODO: use correct ponyc build from our local
 
 pushd () {
     command pushd "$@" > /dev/null
