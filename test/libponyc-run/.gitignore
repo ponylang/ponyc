@@ -1,3 +1,5 @@
 program
 callbacks.o
 libcallbacks.so
+identity.o
+libidentity.so
