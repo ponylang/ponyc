@@ -2,7 +2,6 @@
 
 # shellcheck disable=SC2119,SC2120
 
-# TODO: currently requires you to be in the directory with this script when run
 # TODO: use correct ponyc build from our local
 
 pushd () {
@@ -25,22 +24,26 @@ check_build () {
 
 exit_code=0
 
+path_to_me=$(realpath "$0")
+dir_im_in=$(dirname "$path_to_me")
+
 while IFS= read -r -d '' directory
 do
   pushd "${directory}" || exit 1
-  echo "Testing ${directory}"
+  under_test=$(basename "${directory}")
+  echo "Testing ${under_test}"
 
   if [ -e Makefile ]
   then
     make program 1> /dev/null
-    if check_build "${directory}";
+    if check_build "${under_test}";
     then
       popd || exit 1
       continue
     fi
   else
     ponyc --verbose 0 --bin-name program 1> /dev/null
-    if check_build "${directory}";
+    if check_build "${under_test}";
     then      popd || exit 1
       continue
     fi
@@ -48,12 +51,12 @@ do
   ./program
   if [ $? -ne 1 ]
   then
-    echo "${directory}: FAILED"
+    echo "${under_test}: FAILED"
     exit_code=1
   else
-    echo "${directory}: PASSED"
+    echo "${under_test}: PASSED"
   fi
   popd || exit 1
-done < <(find ./ -maxdepth 1 -type d ! -iname ".*" -print0)
+done < <(find "${dir_im_in}"/* -maxdepth 1 -type d ! -iname ".*" -print0)
 
 exit ${exit_code}
