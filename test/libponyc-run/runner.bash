@@ -23,6 +23,9 @@ check_build () {
   return 1
 }
 
+CC="${CC:-cc}"
+CXX="${CXX:-c++}"
+
 tests_failed=0
 tests_run=0
 
@@ -73,7 +76,7 @@ do
   popd || exit 1
 done < <(find "${dir_im_in}"/* -maxdepth 1 -type d ! -iname ".*" -print0)
 
-if [ ${tests_failed} -ne 0 ]
+if [[ ${tests_failed} -ne 0 ]]
 then
   echo "${tests_failed} of ${tests_run} tests FAILED"
 else

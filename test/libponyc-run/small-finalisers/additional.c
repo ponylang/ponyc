@@ -6,7 +6,7 @@
 #  define EXPORT_SYMBOL
 #endif
 
-extern void pony_exitcode(int code);
+void pony_exitcode(int code);
 
 static uint32_t num_objects = 0;
 
