@@ -1,5 +1,11 @@
 program
+callback.o
+libcallback.so
 callbacks.o
 libcallbacks.so
+finaliser.o
+libfinaliser.so
 identity.o
 libidentity.so
+try.o
+libtry.so
