@@ -1,5 +1,5 @@
 use "path:./"
-use "lib:callbacks"
+use "lib:additional"
 
 use @baretest_callback[None](cb: Pointer[None], size: USize)
 use @pony_exitcode[None](code: I32)

@@ -1,13 +1,13 @@
-program: finaliser.so main.pony
+program: additional.so main.pony
 	ponyc --verbose 0 --bin-name program
 
-finaliser.so: finaliser.o
-	cc -shared -o libfinaliser.so finaliser.o
+additional.so: additional.o
+	cc -shared -o libadditional.so additional.o
 
-finaliser.o: finaliser.c
-	cc -fPIC -o finaliser.o -c finaliser.c
+additional.o: additional.c
+	cc -fPIC -o additional.o -c additional.c
 
 clean:
-	rm -f finaliser.o libfinaliser.so program.o program
+	rm -f additional.o libadditional.so program.o program
 
 .PHONY: clean
