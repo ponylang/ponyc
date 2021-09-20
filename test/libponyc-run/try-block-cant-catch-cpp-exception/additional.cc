@@ -22,7 +22,7 @@ EXPORT_SYMBOL int codegen_test_tryblock_catch(void (*callback)())
 
 EXPORT_SYMBOL void codegen_test_tryblock_throw()
 {
-  throw std::exception{};
+  throw std::exception();
 }
 
 }
