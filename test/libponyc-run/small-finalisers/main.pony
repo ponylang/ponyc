@@ -1,5 +1,5 @@
 use "path:./"
-use "lib:finaliser"
+use "lib:additional"
 
 use @codegentest_small_finalisers_increment_num_objects[None]()
 

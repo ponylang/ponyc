@@ -1,13 +1,13 @@
-program: identity.so main.pony
+program: additional.so main.pony
 	ponyc --verbose 0 --bin-name program
 
-identity.so: identity.o
-	cc -shared -o libidentity.so identity.o
+additional.so: additional.o
+	cc -shared -o libadditional.so additional.o
 
-identity.o: identity.c
-	cc -o identity.o -c identity.c
+additional.o: additional.c
+	cc -o additional.o -c additional.c
 
 clean:
-	rm -f identity.o libidentity.so program.o program
+	rm -f additional.o libadditional.so program.o program
 
 .PHONY: clean

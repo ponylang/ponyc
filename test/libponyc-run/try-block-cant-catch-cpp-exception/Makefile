@@ -1,13 +1,13 @@
-program: try.so main.pony
+program: additional.so main.pony
 	ponyc --verbose 0 --bin-name program
 
-try.so: try.o
-	c++ -shared -o libtry.so try.o
+additional.so: additional.o
+	c++ -shared -o libadditional.so additional.o
 
-try.o: try.cc
-	c++ -fPIC -o try.o -c try.cc
+additional.o: additional.cc
+	c++ -fPIC -o additional.o -c additional.cc
 
 clean:
-	rm -f try.o libtry.so program.o program
+	rm -f additional.o libadditional.so program.o program
 
 .PHONY: clean

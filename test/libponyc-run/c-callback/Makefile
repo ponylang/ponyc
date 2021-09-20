@@ -1,13 +1,13 @@
-program: callback.so main.pony
+program: additional.so main.pony
 	ponyc --verbose 0 --bin-name program
 
-callback.so: callback.o
-	cc -shared -o libcallback.so callback.o
+additional.so: additional.o
+	cc -shared -o libadditional.so additional.o
 
-callback.o: callback.c
-	cc -o callback.o -c callback.c
+additional.o: additional.c
+	cc -o additional.o -c additional.c
 
 clean:
-	rm -f callback.o libcallback.so program.o program
+	rm -f additional.o libadditional.so program.o program
 
 .PHONY: clean
