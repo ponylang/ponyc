@@ -16,5 +16,5 @@ actor Main
 
   be msg3(env: Env) =>
     if state == 2 then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

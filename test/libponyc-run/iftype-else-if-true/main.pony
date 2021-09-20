@@ -12,5 +12,5 @@ actor Main
     iftype A <: C1 then
       None
     elseif A <: C2 then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

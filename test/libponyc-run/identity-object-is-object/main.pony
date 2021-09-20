@@ -8,5 +8,5 @@ actor Main
     let c1: Any = C1
     let c2: Any = C2
     if (c1 is c1) and (c1 isnt c2) then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

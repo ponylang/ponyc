@@ -5,4 +5,4 @@ actor Main
     None
 
   fun _final() =>
-    @pony_exitcode(I32(1))
+    @pony_exitcode(1)

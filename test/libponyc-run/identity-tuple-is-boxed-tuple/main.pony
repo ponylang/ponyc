@@ -6,5 +6,5 @@ actor Main
     if ((U32(0), U32(0)) is boxed) and ((U32(1), U32(0)) isnt boxed) and
       ((U64(0), U64(0)) isnt boxed)
     then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end
