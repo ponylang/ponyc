@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# shellcheck disable=SC2119,SC2120,SC2181
+# shellcheck disable=SC2059,SC2119,SC2120,SC2181
 
 # TODO: debug and release builds?
-# TODO: colorize output
 
 pushd () {
     command pushd "$@" > /dev/null
@@ -13,10 +12,15 @@ popd () {
     command popd "$@" > /dev/null
 }
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
 check_build () {
   if [ $? -ne 0 ];
   then
-    echo "${1}: FAILED"
+    printf "${1}: ${RED}FAILED${NC}\n"
     return 0
   fi
 
@@ -36,7 +40,7 @@ while IFS= read -r -d '' directory
 do
   pushd "${directory}" || exit 1
   under_test=$(basename "${directory}")
-  echo "Testing ${under_test}"
+  printf "${YELLOW}TESTING${NC} ${under_test}\n"
 
   if [ -e Makefile ]
   then
@@ -67,10 +71,10 @@ do
   ./program
   if [[ $? -ne expected_exit_code ]]
   then
-    echo "${under_test}: FAILED"
+    printf "${under_test}: ${RED}FAILED${NC}\n"
     tests_failed=$((tests_failed + 1))
   else
-    echo "${under_test}: PASSED"
+    printf "${under_test}: ${GREEN}PASSED${NC}\n"
   fi
 
   popd || exit 1
@@ -78,9 +82,9 @@ done < <(find "${dir_im_in}"/* -maxdepth 1 -type d ! -iname ".*" -print0)
 
 if [[ ${tests_failed} -ne 0 ]]
 then
-  echo "${tests_failed} of ${tests_run} tests FAILED"
+  printf "${tests_failed} of ${tests_run} tests ${RED}FAILED${NC}\n"
 else
-  echo "All ${tests_run} tests PASSED"
+  printf "All ${tests_run} tests ${GREEN}PASSED${NC}\n"
 fi
 
 exit ${tests_failed}
