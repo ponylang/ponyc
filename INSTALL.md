@@ -30,6 +30,7 @@ Distribution | PLATFORM String
 Alpine | musl
 CentOS 8 | centos8
 Linux Mint 19.3 | ubuntu18.04
+Rocky 8 | rocky8
 Ubuntu 18.04 | ubuntu18.04
 Ubuntu 20.04 | ubuntu20.04
 
@@ -51,6 +52,7 @@ Distribution | Requires
 Alpine | libexecinfo
 CentOS | libatomic
 Fedora | libatomic
+Rocky | libatomic
 Void | libatomic libatomic-devel
 
 ### Troubleshooting Glibc compatibility
