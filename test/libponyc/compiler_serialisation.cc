@@ -31,7 +31,7 @@ static const char* const src =
   "  be foo(x: Array[U8] val) =>\n"
   "    try\n"
   "      if x(0)? == 42 then\n"
-  "        @pony_exitcode(I32(1))\n"
+  "        @pony_exitcode(1)\n"
   "      end\n"
   "    end";
 
@@ -150,7 +150,7 @@ void CompilerSerialisationTest::test_pass_reach(const char* pass)
   reach_t* new_r = new_guard.get();
 
   ASSERT_NE(new_r, (void*)NULL);
-  
+
   new_guard.release();
   new_guard.reset(r);
   compile->reach = new_r;

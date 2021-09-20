@@ -5,5 +5,5 @@ actor Main
     let a: (Any, Any) = (U32(0), env)
     let b: (Any, Any) = (U32(1), this)
     if (a is a) and (a isnt b) then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

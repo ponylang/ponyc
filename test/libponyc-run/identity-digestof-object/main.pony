@@ -8,5 +8,5 @@ actor Main
   new create(env: Env) =>
     let dg = digestof env
     if dg == @ptr_to_int(env) then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

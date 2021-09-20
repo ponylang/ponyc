@@ -9,5 +9,5 @@ actor Main
     if (u32_0_a is u32_0_a) and (u32_0_a is u32_0_b) and
       (u32_0_a isnt u32_1) and (u32_0_a isnt u64_0)
     then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

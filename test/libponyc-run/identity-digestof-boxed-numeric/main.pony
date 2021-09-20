@@ -5,5 +5,5 @@ actor Main
     let boxed: (Any | (U32, U32)) = U32(5)
     let dg = digestof boxed
     if dg == 5 then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

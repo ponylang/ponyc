@@ -9,5 +9,5 @@ actor Main
     if (t1_a is t1_a) and (t1_a is t1_b) and (t1_a isnt t2) and
       (t1_a isnt t3)
     then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end

@@ -5,5 +5,5 @@ actor Main
     let a: (((U8, U16) | None, U8) | None) = None
     let b: (((U8, U16) | None, U8) | None) = None
     if a is b then
-      @pony_exitcode(I32(1))
+      @pony_exitcode(1)
     end
