@@ -23,7 +23,8 @@ check_build () {
   return 1
 }
 
-exit_code=0
+tests_failed=0
+tests_run=0
 
 path_to_me=$(realpath "$0")
 dir_im_in=$(dirname "$path_to_me")
@@ -49,15 +50,31 @@ do
       continue
     fi
   fi
+
+  expected_exit_code=1
+  if [ -e expected-exit-code.txt ]
+  then
+    expected_exit_code=$(<expected-exit-code.txt)
+  fi
+
+  tests_run=$((tests_run + 1))
   ./program
-  if [ $? -ne 1 ]
+  if [[ $? -ne expected_exit_code ]]
   then
     echo "${under_test}: FAILED"
-    exit_code=1
+    tests_failed=$((tests_failed + 1))
   else
     echo "${under_test}: PASSED"
   fi
+
   popd || exit 1
 done < <(find "${dir_im_in}"/* -maxdepth 1 -type d ! -iname ".*" -print0)
 
-exit ${exit_code}
+if [ ${tests_failed} -ne 0 ]
+then
+  echo "${tests_failed} of ${tests_run} tests FAILED"
+else
+  echo "All ${tests_run} tests PASSED"
+fi
+
+exit ${tests_failed}
