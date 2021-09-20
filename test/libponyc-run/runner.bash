@@ -40,13 +40,16 @@ do
     make program 1> /dev/null
     if check_build "${under_test}";
     then
+      tests_failed=$((tests_failed + 1))
       popd || exit 1
       continue
     fi
   else
     ponyc --verbose 0 --bin-name program 1> /dev/null
     if check_build "${under_test}";
-    then      popd || exit 1
+    then
+      tests_failed=$((tests_failed + 1))
+      popd || exit 1
       continue
     fi
   fi
@@ -70,7 +73,7 @@ do
   popd || exit 1
 done < <(find "${dir_im_in}"/* -maxdepth 1 -type d ! -iname ".*" -print0)
 
-if [[ ${tests_failed} -ne 0 ]]
+if [ ${tests_failed} -ne 0 ]
 then
   echo "${tests_failed} of ${tests_run} tests FAILED"
 else
