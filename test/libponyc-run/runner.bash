@@ -70,7 +70,7 @@ do
   popd || exit 1
 done < <(find "${dir_im_in}"/* -maxdepth 1 -type d ! -iname ".*" -print0)
 
-if [ ${tests_failed} -ne 0 ]
+if [[ ${tests_failed} -ne 0 ]]
 then
   echo "${tests_failed} of ${tests_run} tests FAILED"
 else
