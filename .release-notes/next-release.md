@@ -121,3 +121,7 @@ We've fixed a cause of "random" crashes that impacted at minimum, debug versions
 
 It's likely that the crashes impacted debug versions of Pony programs running on all Arm systems, but we don't have enough testing infrastructure to know for sure.
 
+## Add Ubuntu 21.04 nightly builds and releases builds
+
+We've added nightly and release builds of ponyc that are built on Ubuntu 21.04. We'll continue supporting them through the end of life of this non-LTS version of Ubuntu.
+
