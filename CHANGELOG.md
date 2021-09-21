@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Ubuntu 21.04 nightly builds and releases builds ([PR #3866](https://github.com/ponylang/ponyc/pull/3866))
 
 ### Changed
 
