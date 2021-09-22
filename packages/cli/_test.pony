@@ -99,7 +99,7 @@ class iso _TestUnknownCommand is UnitTest
     end
 
 class iso _TestUnexpectedArg is UnitTest
-  fun name(): String => "ponycli/unknown_command"
+  fun name(): String => "ponycli/unexpected_arg"
 
   // Negative test: unexpected arg/command token should report
   fun apply(h: TestHelper) ? =>
