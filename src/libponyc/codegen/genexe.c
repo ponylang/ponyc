@@ -294,7 +294,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   snprintf(ld_cmd, ld_len,
 #if defined(PLATFORM_IS_ARM)
-    "%s -execute -no_pie -arch %.*s "
+    "%s -execute -arch %.*s "
 #else
     "%s -execute -no_pie -arch %.*s "
 #endif
