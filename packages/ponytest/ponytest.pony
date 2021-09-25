@@ -264,7 +264,7 @@ actor PonyTest
   var _all_started: Bool = false
 
   // Filtering options
-  var _exclude: String = ""
+  let _exclude: Array[String] = _exclude.create()
   var _label: String = ""
   var _only: String = ""
 
@@ -291,8 +291,10 @@ actor PonyTest
     var name = test.name()
 
     // Ignore any tests that satisfy our "exclude" filter
-    if (_exclude != "") and name.at(_exclude, 0) then
-      return
+    for prefix in _exclude.values() do
+      if name.at(prefix, 0) then
+        return
+      end
     end
 
     // Ignore any tests that don't satisfy our "only" filter
@@ -435,7 +437,7 @@ actor PonyTest
       elseif arg == "--list" then
         _list_only = true
       elseif arg.compare_sub("--exclude=", 10) is Equal then
-        _exclude = arg.substring(10)
+        _exclude.push(arg.substring(10))
       elseif arg.compare_sub("--label=", 8) is Equal then
         _label = arg.substring(8)
       elseif arg.compare_sub("--only=", 7) is Equal then
