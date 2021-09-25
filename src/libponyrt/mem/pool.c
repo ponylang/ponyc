@@ -709,17 +709,6 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   cmp.counter = global->central.counter;
 
   xchg.object = p;
-<<<<<<< HEAD
-||||||| constructed merge base
-#else
-  top = atomic_load_explicit(&global->central, memory_order_relaxed);
-#endif
-=======
-#else
-  // TODO SEAN
-  top = atomic_load_explicit(&global->central, memory_order_relaxed);
-#endif
->>>>>>> First
 
   do
   {
@@ -733,19 +722,6 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   }
   while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
     xchg, memory_order_release, memory_order_relaxed));
-<<<<<<< HEAD
-||||||| constructed merge base
-#else
-  while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
-    memory_order_release, memory_order_relaxed));
-#endif
-=======
-#else
-  // TODO SEAN
-  while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
-    memory_order_release, memory_order_relaxed));
-#endif
->>>>>>> First
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
@@ -755,17 +731,6 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
   PONY_ABA_PROTECTED_PTR(pool_central_t) xchg;
   cmp.object = global->central.object;
   cmp.counter = global->central.counter;
-<<<<<<< HEAD
-||||||| constructed merge base
-#else
-  top = atomic_load_explicit(&global->central, memory_order_relaxed);
-#endif
-=======
-#else
-  // TODO SEAN
-  top = atomic_load_explicit(&global->central, memory_order_relaxed);
-#endif
->>>>>>> First
   pool_central_t* next;
 
   do
