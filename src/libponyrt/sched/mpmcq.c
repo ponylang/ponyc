@@ -122,7 +122,6 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // atomic initial load.
   cmp.object = q->tail.object;
   cmp.counter = q->tail.counter;
-
   mpmcq_node_t* next;
 
   do
