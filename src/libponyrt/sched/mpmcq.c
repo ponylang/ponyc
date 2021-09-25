@@ -129,6 +129,8 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     tail = cmp.object;
     // Get the next node rather than the tail. The tail is either a stub or has
     // already been consumed.
+    pony_assert(tail != NULL)
+
     next = atomic_load_explicit(&tail->next, memory_order_relaxed);
 
     if(next == NULL)
