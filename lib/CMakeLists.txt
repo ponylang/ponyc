@@ -35,8 +35,8 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "f6b09e394a5fad4b33f8746195377f4f638e2c8d")
-set(PATCHES_DESIRED_HASH "3a655193262fd9b2e87340e096efcbd96726a07fe6dd42a263f3a4fc2dc0192e")
+set(LLVM_DESIRED_HASH "d7b669b3a30345cfcdb2fde2af6f48aa4b94845d")
+set(PATCHES_DESIRED_HASH "a16f299fbfced16a2bbc628746db341f2a5af9ae8cc9c9ef4b1e9ca26de3c292")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -71,7 +71,7 @@ if(GIT_FOUND)
 
     # check to see if the patch hashes match
     message("Checking patches ${PONY_LLVM_PATCHES}")
-    set(PATCHES_ACTUAL_HASH "")
+    set(PATCHES_ACTUAL_HASH "needed_if_no_patches")
     foreach (PATCH ${PONY_LLVM_PATCHES})
         file(STRINGS ${PATCH} patch_file NEWLINE_CONSUME)
         string(REPLACE "\n" " " patch_file ${patch_file})
@@ -83,8 +83,8 @@ if(GIT_FOUND)
     string(SHA256 PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH})
     # message("Desired hash ${PATCHES_DESIRED_HASH}")
     # message("Actual hash  ${PATCHES_ACTUAL_HASH}")
-    if(NOT PATCHES_ACTUAL_HASH EQUAL "${PATCHES_DESIRED_HASH}")
-        message(FATAL_ERROR "Patch hash actual ${PATCHES_ACTUAL_HASH} does not match desired ${PATCHES_DESIRED_HASH}")
+    if(NOT PATCHES_ACTUAL_HASH MATCHES "${PATCHES_DESIRED_HASH}")
+        message(FATAL_ERROR "Patch hash actual '${PATCHES_ACTUAL_HASH}' does not match desired '${PATCHES_DESIRED_HASH}'")
     endif()
 
     foreach (PATCH ${PONY_LLVM_PATCHES})
