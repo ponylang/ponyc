@@ -40,11 +40,7 @@ static size_t mpmcq_size_debug(mpmcq_t* q)
 {
   size_t count = 0;
 
-#ifdef PLATFORM_IS_X86
   mpmcq_node_t* tail = q->tail.object;
-#else
-  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
-#endif
 
   while(atomic_load_explicit(&tail->next, memory_order_relaxed) != NULL)
   {
@@ -62,12 +58,8 @@ void ponyint_mpmcq_init(mpmcq_t* q)
   mpmcq_node_t* node = node_alloc(NULL);
 
   atomic_store_explicit(&q->head, node, memory_order_relaxed);
-#ifdef PLATFORM_IS_X86
   q->tail.object = node;
   q->tail.counter = 0;
-#else
-  atomic_store_explicit(&q->tail, node, memory_order_relaxed);
-#endif
 
 #ifndef PONY_NDEBUG
   mpmcq_size_debug(q);
@@ -77,14 +69,8 @@ void ponyint_mpmcq_init(mpmcq_t* q)
 void ponyint_mpmcq_destroy(mpmcq_t* q)
 {
   atomic_store_explicit(&q->head, NULL, memory_order_relaxed);
-#ifdef PLATFORM_IS_X86
   node_free(q->tail.object);
   q->tail.object = NULL;
-#else
-  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
-  node_free(tail);
-  atomic_store_explicit(&q->tail, NULL, memory_order_relaxed);
-#endif
 }
 
 void ponyint_mpmcq_push(mpmcq_t* q, void* data)
@@ -128,7 +114,6 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 
 void* ponyint_mpmcq_pop(mpmcq_t* q)
 {
-#ifdef PLATFORM_IS_X86
   PONY_ABA_PROTECTED_PTR(mpmcq_node_t) cmp;
   PONY_ABA_PROTECTED_PTR(mpmcq_node_t) xchg;
   mpmcq_node_t* tail;
@@ -137,16 +122,12 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // atomic initial load.
   cmp.object = q->tail.object;
   cmp.counter = q->tail.counter;
-#else
-  mpmcq_node_t* tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
-#endif
+
   mpmcq_node_t* next;
 
   do
   {
-#ifdef PLATFORM_IS_X86
     tail = cmp.object;
-#endif
     // Get the next node rather than the tail. The tail is either a stub or has
     // already been consumed.
     next = atomic_load_explicit(&tail->next, memory_order_relaxed);
@@ -154,18 +135,11 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     if(next == NULL)
       return NULL;
 
-#ifdef PLATFORM_IS_X86
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
-#endif
   }
-#ifdef PLATFORM_IS_X86
   while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
     memory_order_relaxed, memory_order_relaxed));
-#else
-  while(!atomic_compare_exchange_weak_explicit(&q->tail, &tail, next,
-    memory_order_relaxed, memory_order_relaxed));
-#endif
 
   // Synchronise on tail->next to ensure we see the write to next->data from
   // the push. Also synchronise on next->data (see comment below).
