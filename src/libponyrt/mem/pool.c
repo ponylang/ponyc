@@ -65,11 +65,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-#ifdef PLATFORM_IS_X86
   PONY_ATOMIC_ABA_PROTECTED_PTR(pool_central_t) central;
-#else
-  PONY_ATOMIC(pool_central_t*) central;
-#endif
 } pool_global_t;
 
 /// An item on an either thread-local or global list of free blocks.
@@ -97,11 +93,7 @@ typedef struct pool_block_header_t
   size_t largest_size;
 } pool_block_header_t;
 
-#ifdef PLATFORM_IS_X86
-#  define POOL_CENTRAL_INIT {{NULL, 0}}
-#else
-#  define POOL_CENTRAL_INIT NULL
-#endif
+#define POOL_CENTRAL_INIT {{NULL, 0}}
 
 static pool_global_t pool_global[POOL_COUNT] =
 {
@@ -711,56 +703,39 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
   TRACK_PUSH((pool_item_t*)p, p->length, global->size);
 
   pool_central_t* top;
-#ifdef PLATFORM_IS_X86
   PONY_ABA_PROTECTED_PTR(pool_central_t) cmp;
   PONY_ABA_PROTECTED_PTR(pool_central_t) xchg;
   cmp.object = global->central.object;
   cmp.counter = global->central.counter;
 
   xchg.object = p;
-#else
-  top = atomic_load_explicit(&global->central, memory_order_relaxed);
-#endif
 
   do
   {
-#ifdef PLATFORM_IS_X86
     top = cmp.object;
     xchg.counter = cmp.counter + 1;
-#endif
     p->central = top;
 
 #ifdef USE_VALGRIND
     ANNOTATE_HAPPENS_BEFORE(&global->central);
 #endif
   }
-#ifdef PLATFORM_IS_X86
   while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
     xchg, memory_order_release, memory_order_relaxed));
-#else
-  while(!atomic_compare_exchange_weak_explicit(&global->central, &top, p,
-    memory_order_release, memory_order_relaxed));
-#endif
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 {
   pool_central_t* top;
-#ifdef PLATFORM_IS_X86
   PONY_ABA_PROTECTED_PTR(pool_central_t) cmp;
   PONY_ABA_PROTECTED_PTR(pool_central_t) xchg;
   cmp.object = global->central.object;
   cmp.counter = global->central.counter;
-#else
-  top = atomic_load_explicit(&global->central, memory_order_relaxed);
-#endif
   pool_central_t* next;
 
   do
   {
-#ifdef PLATFORM_IS_X86
     top = cmp.object;
-#endif
     if(top == NULL)
       return NULL;
 
@@ -769,18 +744,11 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
     ANNOTATE_HAPPENS_AFTER(&global->central);
 #endif
     next = top->central;
-#ifdef PLATFORM_IS_X86
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
-#endif
   }
-#ifdef PLATFORM_IS_X86
   while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
     xchg, memory_order_acquire, memory_order_relaxed));
-#else
-  while(!atomic_compare_exchange_weak_explicit(&global->central, &top, next,
-    memory_order_acquire, memory_order_relaxed));
-#endif
 
   // We need to synchronise twice on global->central to make sure we see every
   // previous write to the memory we're going to use before we use it.
