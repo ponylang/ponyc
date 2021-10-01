@@ -125,3 +125,7 @@ It's likely that the crashes impacted debug versions of Pony programs running on
 
 We've added nightly and release builds of ponyc that are built on Ubuntu 21.04. We'll continue supporting them through the end of life of this non-LTS version of Ubuntu.
 
+## Fix major source of runtime instability on non-x86 based platforms
+
+We've replaced our existing code for handling [the ABA problem](https://en.wikipedia.org/wiki/ABA_problem) when running on Arm CPUs. The implementation we replaced was buggy and resulted in runtime instability including crashes and memory corruption.
+
