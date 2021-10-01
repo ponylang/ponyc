@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix erratic cycle detector triggering on some Arm systems ([PR #3854](https://github.com/ponylang/ponyc/pull/3854))
 - Fix non-release build crashes on Arm ([PR #3860](https://github.com/ponylang/ponyc/pull/3860))
+- Fix major source of runtime instability on non-x86 based platforms ([PR #3871](https://github.com/ponylang/ponyc/pull/3871))
 
 ### Added
 
