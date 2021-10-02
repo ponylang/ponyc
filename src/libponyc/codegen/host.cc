@@ -28,7 +28,7 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
     reloc = Reloc::PIC_;
 
   CodeGenOpt::Level opt_level =
-    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::None;
+    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::Default;
 
   TargetOptions options;
   options.TrapUnreachable = true;
