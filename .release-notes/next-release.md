@@ -133,3 +133,9 @@ We've replaced our existing code for handling [the ABA problem](https://en.wikip
 
 We've updated the LLVM used to build Pony to 13.0.0.
 
+## Fix segfaults with debug builds on 64-bit Arm
+
+Debug builds on 64-bit Arm platforms were segfaulting. The code generated when doing `ponyc --debug` wouldn't work and would eventually crash. We believe the source to be an LLVM bug but, aren't certain.
+
+We've introduced a work around that fixes the segfault problem, but does some optimization of debug builds for 64-bit Arm platforms. Additional investigation is underway. You can track progress by [following issue #3874](https://github.com/ponylang/ponyc/issues/3874).
+
