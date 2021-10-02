@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include "codegen.h"
+#include "genopt.h"
 #include "ponyassert.h"
 
 using namespace llvm;
@@ -27,8 +28,12 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
   if(opt->pic || opt->library)
     reloc = Reloc::PIC_;
 
+  // The Arm debug fix is a "temporary" fix for issue #3874
+  // https://github.com/ponylang/ponyc/issues/3874
+  // Hopefully we get #3874 figured out in a reasonable amount of time.
   CodeGenOpt::Level opt_level =
-    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::None;
+    opt->release ? CodeGenOpt::Aggressive :
+      target_is_arm(opt->triple) ? CodeGenOpt::Default : CodeGenOpt::None;
 
   TargetOptions options;
   options.TrapUnreachable = true;
