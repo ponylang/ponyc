@@ -215,58 +215,61 @@ task:
   test_script:
     - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
 
-# TODO: re-enable these (and add aarch64) once 32-bit ARM and M1 fixes have been made
-# task:
-#   only_if: $CIRRUS_PR != ''
+task:
+  only_if: $CIRRUS_PR != ''
 
-#   container:
-#     image: ponylang/ponyc-ci-cross-arm:20210430
-#     cpu: 8
-#     memory: 24
+  container:
+    image: ponylang/ponyc-ci-cross-arm:20210430
+    cpu: 8
+    memory: 24
 
-#   name: "PR: cross-compile: arm-unknown-linux-gnueabi"
+  name: "PR: cross-compile: arm-unknown-linux-gnueabi"
 
-#   libs_cache:
-#     folder: build/libs
-#     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
-#     populate_script: make libs build_flags=-j8
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
+    populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
-#   configure_script:
-#     - make configure
-#   build_script:
-#     - make build build_flags=-j8
-#   test_script:
-#     - make test-ci
-#   libponyrt_cross_script:
-#     - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-#   test_stdlib_cross_script:
-#     - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+  configure_script:
+    - make configure
+  build_script:
+    - make build
+  test_script:
+    - make test-ci
+  libponyrt_cross_script:
+    - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+  test_stdlib_cross_script:
+    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
 
-# task:
-#   only_if: $CIRRUS_PR != ''
+task:
+  only_if: $CIRRUS_PR != ''
 
-#   container:
-#     image: ponylang/ponyc-ci-cross-armhf:20210430
-#     cpu: 8
-#     memory: 24
+  container:
+    image: ponylang/ponyc-ci-cross-armhf:20210430
+    cpu: 8
+    memory: 24
 
-#   name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
+  name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
 
-#   libs_cache:
-#     folder: build/libs
-#     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
-#     populate_script: make libs build_flags=-j8
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
+    populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
 
-#   configure_script:
-#     - make configure
-#   build_script:
-#     - make build build_flags=-j8
-#   test_script:
-#     - make test-ci
-#   libponyrt_cross_script:
-#     - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-#   test_stdlib_cross_script:
-#     - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+  configure_script:
+    - make configure
+  build_script:
+    - make build
+  test_script:
+    - make test-ci
+  libponyrt_cross_script:
+    - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+  test_stdlib_cross_script:
+    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
 
 #
 # Nightly build tasks
