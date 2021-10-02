@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Remove options package ([PR #3844](https://github.com/ponylang/ponyc/pull/3844))
+- Update to LLVM 13.0.0 ([PR #3837](https://github.com/ponylang/ponyc/pull/3837))
 
 ## [0.44.0] - 2021-09-03
 
