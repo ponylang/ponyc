@@ -78,6 +78,30 @@ task:
 task:
   only_if: $CIRRUS_PR != ''
 
+  arm_container:
+    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+    cpu: 8
+    memory: 24
+
+  name: "PR: aarch64-unknown-linux-ubuntu20.04-builder"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` aarch64-linux-gnu 20211003"
+    populate_script: make libs arch=armv8-a build_flags=-j8
+  upload_caches:
+    - libs
+
+  configure_script:
+    - make configure arch=armv8-a
+  build_script:
+    - make build arch=armv8-a
+  test_script:
+    - make test-ci arch=armv8-a
+
+task:
+  only_if: $CIRRUS_PR != ''
+
   container:
     image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
     cpu: 8
