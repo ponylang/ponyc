@@ -129,3 +129,7 @@ We've added nightly and release builds of ponyc that are built on Ubuntu 21.04. 
 
 We've replaced our existing code for handling [the ABA problem](https://en.wikipedia.org/wiki/ABA_problem) when running on Arm CPUs. The implementation we replaced was buggy and resulted in runtime instability including crashes and memory corruption.
 
+## Update to LLVM 13.0.0
+
+We've updated the LLVM used to build Pony to 13.0.0.
+
