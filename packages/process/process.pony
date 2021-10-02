@@ -24,7 +24,7 @@ actor Main
     let notifier: ProcessNotify iso = consume client
     // define the binary to run
     try
-      let path = FilePath(env.root as AmbientAuth, "/bin/cat")?
+      let path = FilePath(env.root as AmbientAuth, "/bin/cat")
       // define the arguments; first arg is always the binary name
       let args: Array[String] val = ["cat"]
       // define the environment variable for the execution
@@ -59,7 +59,6 @@ class ProcessClient is ProcessNotify
     _env.out.print(err.string())
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
-    let code: I32 = consume child_exit_code
     match child_exit_status
     | let exited: Exited =>
       _env.out.print("Child exit code: " + exited.exit_code().string())
