@@ -627,3 +627,90 @@ task:
     - ps: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
   upload_script:
     - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
+
+# Nightly stress tests using message-ubench
+task:
+  only_if: $CIRRUS_CRON == "stress"
+
+  matrix:
+  - name: "Stress Test: x86-64-unknown-linux-ubuntu20.04 [release]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-ubuntu20.04
+      TARGET: test-stress-release
+  - name: "Stress Test: x86-64-unknown-linux-ubuntu20.04 [debug]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-ubuntu20.04
+      TARGET: test-stress-debug
+  - name: "Stress Test: x86-64-unknown-linux-musl [release]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-musl
+      TARGET: test-stress-release
+  - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+    environment:
+      CACHE_BUSTER: 20210224
+      TRIPLE_VENDOR: unknown
+      TRIPLE_OS: linux-musl
+      TARGET: test-stress-debug
+
+  container:
+    cpu: 8
+    memory: 24
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER} stress"
+    populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
+
+  configure_script:
+    - make configure config=debug
+  build_script:
+    - make build config=debug
+  stress_test_script:
+    - make ${TARGET} config=debug
+
+task:
+  only_if: $CIRRUS_CRON == "stress"
+
+  arm_container:
+    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+    cpu: 8
+    memory: 24
+
+  matrix:
+    - name: "Stress Test: arm64-unknown-linux-gnu-builder [release]"
+      environment:
+        TARGET: test-stress-release
+    - name: "Stress Test: arm64-unknown-linux-gnu-builder [debug]"
+      environment:
+        TARGET: test-stress-debug
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` aarch64-linux-gnu 20211003 stress"
+    populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
+
+  configure_script:
+    - make configure config=debug
+  build_script:
+    - make build config=debug
+  stress_test_script:
+    - make ${TARGET} config=debug
