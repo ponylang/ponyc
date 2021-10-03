@@ -65,6 +65,7 @@ CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-deve
 Fedora | clang, cmake, libatomic, libstdc++-static, make
 OpenSuse Leap | binutils-gold, cmake
 Raspbian 32-bit | cmake
+Raspbian 64-bit | cmake, clang
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Ubuntu | clang, cmake, make
 
@@ -84,6 +85,18 @@ make libs
 make configure tune=native config=debug
 make build config=debug
 sudo make install config=debug
+```
+
+### 64-bit Raspbian
+
+Installing on a 64-bit Raspbian is slightly different from other Linux based
+Operating Systems, you'll need to override the `arch` option to configure, but otherwise, everything is the same.
+
+```bash
+make libs
+make configure arch=armv8-a
+make build
+sudo make install
 ```
 
 ## macOS
