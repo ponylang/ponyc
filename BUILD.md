@@ -64,10 +64,27 @@ Alpine | binutils-gold, clang, clang-dev, cmake, libexecinfo-dev, libexecinfo-st
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Fedora | clang, cmake, libatomic, libstdc++-static, make
 OpenSuse Leap | binutils-gold, cmake
+Raspbian 32-bit | cmake
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Ubuntu | clang, cmake, make
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+
+### 32-bit Raspbian
+
+Installing on a 32-bit Raspbian is slightly different from other Linux based
+Operating Systems. There are three important things to note:
+
+- at the moment, only `gcc` can be used to build Pony; `clang` currently doesn't work.
+- you'll need to override the `tune` option to configure.
+- currently, we can't build a release version of the Pony compiler and runtime, only the debug version.
+
+```bash
+make libs
+make configure tune=native config=debug
+make build config=debug
+sudo make install config=debug
+```
 
 ## macOS
 
