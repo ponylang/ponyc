@@ -60,7 +60,7 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-Alpine | cmake, g++, libexecinfo, make
+Alpine | binutils-gold, clang, clang-dev, cmake, libexecinfo-dev, libexecinfo-static, make
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Fedora | cmake, gcc-c++, libatomic, libstdc++-static, make
 OpenSuse Leap | binutils-gold, cmake
