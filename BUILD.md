@@ -65,7 +65,7 @@ CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-deve
 Fedora | clang, cmake, libatomic, libstdc++-static, make
 OpenSuse Leap | binutils-gold, cmake
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Ubuntu | cmake, g++, make
+Ubuntu | clang, cmake, make
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
