@@ -139,3 +139,9 @@ Debug builds on 64-bit Arm platforms were segfaulting. The code generated when d
 
 We've introduced a work around that fixes the segfault problem, but does some optimization of debug builds for 64-bit Arm platforms. Additional investigation is underway. You can track progress by [following issue #3874](https://github.com/ponylang/ponyc/issues/3874).
 
+## Add Graviton 64-bit Arm CPUs as a supported architecture
+
+We've add continuous integration testing on AWS Graviton instances via CirrusCI. All code changes going forward will be tested on Graviton.
+
+This provides us some fairly good coverage for "64-bit Arm" support in general although various other platforms like the Raspberry Pi 4B and Apple M1 chips are still "best effort" as we don't have any CI for them and we've found them to be somewhat different than Graviton.
+
