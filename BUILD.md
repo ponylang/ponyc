@@ -63,6 +63,7 @@ Distribution | Requires
 Alpine | cmake, g++, libexecinfo, make
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Fedora | cmake, gcc-c++, libatomic, libstdc++-static, make
+OpenSuse Leap | binutils-gold, cmake
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Ubuntu | cmake, g++, make
 
