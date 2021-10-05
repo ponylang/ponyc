@@ -55,10 +55,7 @@ actor _Tester
     _err_buf.append(consume buf)
 
   be start_building() =>
-    if _options.verbose then
-      _env.out.print(_definition.name + ": building")
-    end
-
+    // find ponyc executable
     let ponyc_file_path =
       try
         _FindExecutable(_env, _options.ponyc)?
@@ -84,7 +81,7 @@ actor _Tester
         args'
       end
 
-    //
+    // add PONYPATH to vars if necessary
     let vars =
       recover val
         let vars' = _env.vars.clone()
@@ -115,14 +112,16 @@ actor _Tester
         args_join.append(" ")
         args_join.append(arg)
       end
-      _env.out.print(_definition.name + ": " + _options.ponyc + args_join)
+      _env.out.print(_definition.name + ": building: " + _options.ponyc + args_join)
     end
 
+    // run ponyc to build the test program
     try
       let auth = _env.root as AmbientAuth
       _stage = _Building
       _build_process = ProcessMonitor(auth, auth, _BuildProcessNotify(this),
         ponyc_file_path, consume args, vars, FilePath(auth, _definition.path))
+        .>done_writing()
     else
       _env.err.print(_definition.name + ": failed to acquire ambient auth")
       _shutdown_failed()
@@ -140,23 +139,30 @@ actor _Tester
       end
 
     if _options.verbose then
-      _env.out.print(_definition.name + ": testing " + fname)
+      _env.out.print(_definition.name + ": testing: " + fname)
     end
 
+    _out_buf.clear()
+    _err_buf.clear()
+
+    // run the test program
     try
       let auth = _env.root as AmbientAuth
       _stage = _Testing
       _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
         FilePath(auth, fname), [], _env.vars,
         FilePath(auth, _definition.path))
+        .>done_writing()
     else
       _env.err.print(_definition.name + ": failed to acquire ambient auth")
       _shutdown_failed()
     end
 
   be building_failed(msg: String) =>
-    _env.err.print(_definition.name + ": BUILD FAILED: " + msg)
-    _shutdown_failed()
+    if _stage is _Building then
+      _env.err.print(_definition.name + ": BUILD FAILED: " + msg)
+      _shutdown_failed()
+    end
 
   be testing_exited(exit_code: I32) =>
     if exit_code == _definition.expected_exit_code then
@@ -168,9 +174,12 @@ actor _Tester
       _shutdown_failed()
     end
 
-  be testing_failed() =>
-    _env.err.print(_definition.name
-      + ": TEST FAILED: failed to start or signaled")
+  be testing_failed(msg: String) =>
+    if _stage is _Testing then
+      _env.err.print(_definition.name
+        + ": TEST FAILED: " + msg)
+      _shutdown_failed()
+    end
 
   be timeout() =>
     if (_stage is _Building) or (_stage is _Testing) then

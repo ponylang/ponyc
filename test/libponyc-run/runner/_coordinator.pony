@@ -48,9 +48,6 @@ actor _Coordinator is _TesterNotify
     try
       if _tests_to_run.size() > 0 then
         let definition = _tests_to_run.shift()?
-        if _options.verbose then
-          _env.out.print("RUNNING " + definition.name)
-        end
         _Tester(_env, _timers, _options, definition, this)
       end
     end

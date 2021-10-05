@@ -13,12 +13,12 @@ class iso _TestProcessNotify is ProcessNotify
     _tester.append_stderr(consume data)
 
   fun ref failed(p: ProcessMonitor ref, pe: ProcessError) =>
-    _tester.testing_failed()
+    _tester.testing_failed("test process failed to start")
 
   fun ref dispose(p: ProcessMonitor, status: ProcessExitStatus) =>
     match status
     | let exited: Exited =>
       _tester.testing_exited(exited.exit_code())
     | let signaled: Signaled =>
-      _tester.testing_failed()
+      _tester.testing_failed("signal " + signaled.signal().string())
     end

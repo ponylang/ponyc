@@ -17,9 +17,6 @@ tags
 *.dSYM/
 *.psess
 *.vspx
-waf-*
-waf3-*
-.lock-waf*
 tmp.eof
 tmp.longline
 .vs/
@@ -29,9 +26,10 @@ work/
 output/
 _ReSharper.*
 .vscode/
+.clangd/
 src/common/dtrace_probes.h
 packages/stdlib/stdlib
-
+test/libponyc-run/runner/runner
 /stdlib-docs/
 /compile_commands.json
 

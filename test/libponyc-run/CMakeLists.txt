@@ -6,9 +6,11 @@ foreach(test_c_source ${test_c_sources})
   string(FIND ${test_c_source} "/" slash_pos)
   string(SUBSTRING ${test_c_source} 0 ${slash_pos} test_lib_name)
 
-  add_library(${test_lib_name} STATIC ${test_c_source})
-  get_target_property(test_binary_dir ${test_lib_name} BINARY_DIR)
-  message("binary dir for ${test_lib_name} is ${test_binary_dir}")
+  if(MSVC)
+    add_library(${test_lib_name} STATIC ${test_c_source})
+  else()
+    add_library(${test_lib_name} SHARED ${test_c_source})
+  endif()
 
   add_custom_command(TARGET ${test_lib_name} POST_BUILD
     COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E make_directory ${CMAKE_BINARY_DIR}/../debug/test_lib

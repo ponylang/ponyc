@@ -13,7 +13,7 @@ class iso _BuildProcessNotify is ProcessNotify
     _tester.append_stderr(consume data)
 
   fun ref failed(p: ProcessMonitor ref, pe: ProcessError) =>
-    _tester.building_failed("process failed to start")
+    _tester.building_failed("build process failed to start")
 
   fun ref dispose(p: ProcessMonitor, status: ProcessExitStatus) =>
     match status
@@ -25,5 +25,5 @@ class iso _BuildProcessNotify is ProcessNotify
           + exited.exit_code().string())
       end
     | let signaled: Signaled =>
-      _tester.building_failed("signaled")
+      _tester.building_failed("signal " + signaled.signal().string())
     end
