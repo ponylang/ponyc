@@ -1,5 +1,5 @@
 use "path:./"
-use "lib:additional"
+use "lib:identity-digestof-object"
 
 use @ptr_to_int[USize](env: Env)
 use @pony_exitcode[None](code: I32)

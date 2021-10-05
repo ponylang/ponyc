@@ -1,5 +1,5 @@
 use "path:./"
-use "lib:additional"
+use "lib:bare-function-bare-lambda-callback"
 
 use @baretest_callback[None](cb: Pointer[None], size: USize)
 use @pony_exitcode[None](code: I32)
