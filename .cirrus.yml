@@ -6,74 +6,57 @@ task:
   only_if: $CIRRUS_PR != ''
 
   matrix:
-  - name: "PR: x86-64-unknown-linux-rocky8"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
-    environment:
-      CACHE_BUSTER: 20210707
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-rocky8
-  - name: "PR: x86-64-unknown-linux-centos8"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-centos8-builder:20210225
-    environment:
-      CACHE_BUSTER: 20210225
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-centos8
-  - name: "PR: x86-64-unknown-linux-gnu"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
-    environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-gnu
-  - name: "PR: x86-64-unknown-linux-ubuntu18.04"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
-    environment:
-      CACHE_BUSTER: 20210714
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu18.04
-  - name: "PR: x86-64-unknown-linux-ubuntu20.04"
+  - name: "x86-64 release runtime with glibc"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu20.04
-  - name: "PR: x86-64-unknown-linux-ubuntu21.04"
+      CACHE_BUSTER: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      ARCH: x86-64
+      CONFIG: release
+  - name: "x86-64 debug runtime with glibc"
+    depends_on:
+      - "x86-64 release runtime with glibc"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu21.04-builder:20210920
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
-      CACHE_BUSTER: 20210920
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu21.04
-  - name: "PR: x86-64-unknown-linux-musl"
+      CACHE_BUSTER: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      ARCH: x86-64
+      CONFIG: debug
+  - name: "x86-64 release runtime with musl"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-musl
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      ARCH: x86-64
+      CONFIG: release
+  - name: "x86-64 debug runtime with musl"
+    depends_on:
+     - "x86-64 release runtime with musl"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+    environment:
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      ARCH: x86-64
+      CONFIG: debug
 
   container:
     cpu: 8
-    memory: 24
+    memory: 8
 
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
+      - echo "`md5sum lib/CMakeLists.txt` ${IMAGE} ${ARCH}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
 
   configure_script:
-    - make configure arch=x86-64
+    - make configure arch=${ARCH} config=${CONFIG}
   build_script:
-    - make build arch=x86-64 build_flags=-j8
+    - make build config=${CONFIG}
   test_script:
-    - make test-ci arch=x86-64
+    - make test-ci config=${CONFIG}
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -98,30 +81,6 @@ task:
     - make build arch=armv8-a
   test_script:
     - make test-ci arch=armv8-a
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  container:
-    image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
-    cpu: 8
-    memory: 24
-
-  name: "PR: x86-64-unknown-linux-gnu [debug]"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` glibc 20200423"
-    populate_script: make libs arch=x86-64 build_flags=-j8
-  upload_caches:
-    - libs
-
-  configure_script:
-    - make configure arch=x86-64 config=debug
-  build_script:
-    - make build arch=x86-64 config=debug build_flags=-j8
-  test_script:
-    - make test-ci arch=x86-64 config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
