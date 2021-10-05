@@ -6,25 +6,23 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
+    test(_TestNoPrettyPrintArray)
+    test(_TestNoPrettyPrintObject)
+    test(_TestParseArray)
     test(_TestParseBasic)
     test(_TestParseKeyword)
     test(_TestParseNumber)
-    test(_TestParseString)
-    test(_TestParseArray)
     test(_TestParseObject)
+    test(_TestParsePrint)
     test(_TestParseRFC1)
     test(_TestParseRFC2)
-
+    test(_TestParseString)
+    test(_TestPrintArray)
     test(_TestPrintKeyword)
     test(_TestPrintNumber)
-    test(_TestPrintString)
-    test(_TestPrintArray)
     test(_TestPrintObject)
-
-    test(_TestNoPrettyPrintArray)
-    test(_TestNoPrettyPrintObject)
-
-    test(_TestParsePrint)
+    test(_TestPrintString)
 
 class iso _TestParseBasic is UnitTest
   """

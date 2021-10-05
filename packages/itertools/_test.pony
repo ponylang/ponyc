@@ -7,10 +7,10 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestIterChain)
-    test(_TestIterRepeatValue)
+    // Tests below function across all systems and are listed alphabetically
     test(_TestIterAll)
     test(_TestIterAny)
+    test(_TestIterChain)
     test(_TestIterCollect)
     test(_TestIterCount)
     test(_TestIterCycle)
@@ -24,6 +24,7 @@ actor Main is TestList
     test(_TestIterMap)
     test(_TestIterNextOr)
     test(_TestIterNth)
+    test(_TestIterRepeatValue)
     test(_TestIterRun)
     test(_TestIterSkip)
     test(_TestIterSkipWhile)

@@ -49,9 +49,10 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
     base64.Main.make().tests(test)
-    builtin_test.Main.make().tests(test)
     buffered.Main.make().tests(test)
+    builtin_test.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
     cli.Main.make().tests(test)
     collections.Main.make().tests(test)
@@ -68,15 +69,15 @@ actor Main is TestList
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
     serialise.Main.make().tests(test)
+    strings.Main.make().tests(test)
+    time.Main.make().tests(test)
 
+    // Tests below function exclude windows and are listed alphabetically
     ifdef not windows then
       // The signals tests currently abort the process on Windows, so ignore
       // them.
       signals.Main.make().tests(test)
     end
-
-    strings.Main.make().tests(test)
-    time.Main.make().tests(test)
 
   fun @runtime_override_defaults(rto: RuntimeOptions) =>
      rto.ponynoblock = true

@@ -6,6 +6,7 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
     test(_IsPrimeTestBuilder[U8]("U8"))
     test(_IsPrimeTestBuilder[U16]("U16"))
     test(_IsPrimeTestBuilder[U32]("U32"))

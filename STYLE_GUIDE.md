@@ -593,3 +593,100 @@ Single line comments will have exactly one space between the `//` token and the 
 // to coalesce multiple tiny arrays
 // into a single bigger array
 ```
+
+## Testing
+
+### Ordering
+
+Tests should be ordered alphabetically (within reason) separated into sections based on platform inclusion/exclusion criteria. First, list tests that run on all platforms, next list tests which include/exclude one platform, and lastly list tests which include/exclude multiple platforms. Sections should have an increasing number of inclusions/exclusions therefore if you have a section including only one platform, the next section should be tests excluding only that platform. When considering multiple platforms, list them alphabetically between sections and within sections. The set of known platforms recognized by `ifdef` can be found in `Platform` within `builtin`.
+
+```pony
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    // Tests below include all systems and are listed alphabetically
+    test(_TestOnAllSystemsA)
+    test(_TestOnAllSystemsB)
+    test(_TestOnAllSystemsC)
+
+    // Tests below include only bsd and are listed alphabetically
+    ifdef bsd then
+      test(_TestOnBsdA)
+      test(_TestOnBsdB)
+      test(_TestOnBsdC)
+    end
+
+    // Tests below exclude bsd and are listed alphabetically
+    ifdef not bsd then
+      test(_TestOnAllSystemsExceptBsdA)
+      test(_TestOnAllSystemsExceptBsdB)
+      test(_TestOnAllSystemsExceptBsdC)
+    end
+
+    // Tests below include only osx and are listed alphabetically
+    ifdef osx then
+      test(_TestOnOsxA)
+      test(_TestOnOsxB)
+      test(_TestOnOsxC)
+    end
+
+    // Tests below exclude osx and are listed alphabetically
+    ifdef not osx then
+      test(_TestOnAllSystemsExceptOsxA)
+      test(_TestOnAllSystemsExceptOsxB)
+      test(_TestOnAllSystemsExceptOsxC)
+    end
+
+    // Tests below include only windows and are listed alphabetically
+    ifdef windows then
+      test(_TestOnWindowsA)
+      test(_TestOnWindowsB)
+      test(_TestOnWindowsC)
+    end
+
+    // Tests below exclude windows and are listed alphabetically
+    ifdef not windows then
+      test(_TestOnAllSystemsExceptWindowsA)
+      test(_TestOnAllSystemsExceptWindowsB)
+      test(_TestOnAllSystemsExceptWindowsC)
+    end
+
+    // Tests below exclude bsd/windows and are listed alphabetically
+    ifdef not bsd or not windows then
+      test(_TestOnAllSystemsExceptBsdOrWindowsA)
+      test(_TestOnAllSystemsExceptBsdOrWindowsB)
+      test(_TestOnAllSystemsExceptBsdOrWindowsC)
+    end
+
+    // Tests below exclude osx/windows and are listed alphabetically
+    ifdef not osx or not windows then
+      test(_TestOnAllSystemsExceptOsxOrWindowsA)
+      test(_TestOnAllSystemsExceptOsxOrWindowsB)
+      test(_TestOnAllSystemsExceptOsxOrWindowsC)
+    end
+
+    // Tests below exclude bsd/osx/windows and are listed alphabetically
+    ifdef not bsd or not osx or not windows then
+      test(_TestOnAllSystemsExceptBsdOrOsxOrWindowsA)
+      test(_TestOnAllSystemsExceptBsdOrOsxOrWindowsB)
+      test(_TestOnAllSystemsExceptBsdOrOsxOrWindowsC)
+    end
+```
+
+It can sometimes make more sense to not use alphabetical ordering -- such as when using a generic test builder -- in such circumstances breaking alphabetical ordering is allowed.
+
+```pony
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    // Tests below include all systems and are listed in increasing type argument size
+    test(_TestOnAllSystemsWithBuilder[U8]())
+    test(_TestOnAllSystemsWithBuilder[U16]())
+    test(_TestOnAllSystemsWithBuilder[U32]())
+    test(_TestOnAllSystemsWithBuilder[U64]())
+    test(_TestOnAllSystemsWithBuilder[U128]())
+```

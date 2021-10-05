@@ -12,20 +12,21 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestFileExecCapabilityIsRequired)
-    test(_TestNonExecutablePathResultsInExecveError)
-    test(_TestStdinStdout)
-    test(_TestStderr)
-    test(_TestExpect)
-    test(_TestWritevOrdering)
-    test(_TestPrintvOrdering)
-    test(_TestStdinWriteBuf)
-    test(_TestChdir)
+    // Tests below function across all systems and are listed alphabetically
     test(_TestBadChdir)
     test(_TestBadExec)
-    test(_TestLongRunningChild)
+    test(_TestChdir)
+    test(_TestExpect)
+    test(_TestFileExecCapabilityIsRequired)
     test(_TestKillLongRunningChild)
+    test(_TestLongRunningChild)
+    test(_TestNonExecutablePathResultsInExecveError)
+    test(_TestPrintvOrdering)
+    test(_TestStderr)
+    test(_TestStdinStdout)
+    test(_TestStdinWriteBuf)
     test(_TestWaitingOnClosedProcessTwice)
+    test(_TestWritevOrdering)
 
 class _PathResolver
   let _path: Array[FilePath] val

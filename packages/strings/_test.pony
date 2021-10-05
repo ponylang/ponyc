@@ -5,6 +5,7 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
     test(_TestStringsCommonPrefix)
 
 class iso _TestStringsCommonPrefix is UnitTest

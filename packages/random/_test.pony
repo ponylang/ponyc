@@ -6,11 +6,12 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
     test(_TestMT)
     test(_TestRandomShuffle)
     test(_TestSplitMix64)
-    test(_TestXorOshiro128StarStar)
     test(_TestXorOshiro128Plus)
+    test(_TestXorOshiro128StarStar)
     test(_TestXorShift128Plus)
 
 class iso _TestMT is UnitTest

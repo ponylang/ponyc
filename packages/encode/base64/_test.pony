@@ -6,8 +6,9 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestBase64Encode)
+    // Tests below function across all systems and are listed alphabetically
     test(_TestBase64Decode)
+    test(_TestBase64Encode)
     test(_TestBase64EncodeDecode)
     test(_TestBase64Quote)
 

@@ -6,11 +6,12 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
     test(_TestError)
-    test(_TestWarn)
-    test(_TestInfo)
     test(_TestFine)
+    test(_TestInfo)
     test(_TestObjectLogging)
+    test(_TestWarn)
 
 class iso _TestError is _StringLoggerTest
   fun name(): String => "logger/error"

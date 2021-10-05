@@ -6,16 +6,17 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
+    test(_TestFlattenNextFirstHasFulfillError)
+    test(_TestFlattenNextHappyPath)
+    test(_TestFlattenNextRejectFirst)
+    test(_TestFlattenNextSecondHasFulfillError)
     test(_TestPromise)
     test(_TestPromiseAdd)
     test(_TestPromiseSelect)
-    test(_TestPromiseTimeout)
     test(_TestPromisesJoin)
     test(_TestPromisesJoinThenReject)
-    test(_TestFlattenNextHappyPath)
-    test(_TestFlattenNextFirstHasFulfillError)
-    test(_TestFlattenNextSecondHasFulfillError)
-    test(_TestFlattenNextRejectFirst)
+    test(_TestPromiseTimeout)
 
 class iso _TestPromise is UnitTest
   fun name(): String => "promises/Promise"

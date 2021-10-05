@@ -13,54 +13,53 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestMkdtemp)
-  ifdef not windows then
-    test(_TestSymlink)
-  end
-    test(_TestWalk)
+    // Tests below function across all systems and are listed alphabetically
+    test(_TestDirectoryFileOpen)
+    test(_TestDirectoryOpen)
+    test(_TestDirectoryRemoveReadOnly)
+    test(_TestFileCreate)
+    test(_TestFileCreateExistsNotWriteable)
+    test(_TestFileCreateMissingCaps)
+    test(_TestFileEOF)
+    test(_TestFileFlush)
+    test(_TestFileLinesEmptyFile)
+    test(_TestFileLinesMovingCursor)
+    test(_TestFileLinesMultiLine)
+    test(_TestFileLinesSingleLine)
+    test(_TestFileLongLine)
+    test(_TestFileMixedWriteQueue)
+    test(_TestFileOpen)
+    test(_TestFileOpenError)
+    test(_TestFileOpenWrite)
     test(_TestFilePathFileAuth)
     test(_TestFilePathFrom)
     test(_TestFilePathFromError)
-    test(_TestDirectoryOpen)
-    test(_TestDirectoryFileOpen)
+    test(_TestFileQueue)
+    test(_TestFileQueuev)
+    test(_TestFileReadMore)
+    test(_TestFileRemoveReadOnly)
+    test(_TestFileWrite)
+    test(_TestFileWritev)
+    test(_TestFileWritevLarge)
+    test(_TestMkdtemp)
+    test(_TestPathBase)
     test(_TestPathClean)
+    test(_TestPathDir)
+    test(_TestPathExt)
     test(_TestPathJoin)
     test(_TestPathRel)
     test(_TestPathSplit)
-    test(_TestPathDir)
-    test(_TestPathBase)
-    test(_TestPathExt)
     test(_TestPathVolume)
-  ifdef not windows then
-    test(_TestPathRoot)
-  end
-    test(_TestFileEOF)
-    test(_TestFileOpenError)
-    test(_TestFileCreate)
-    test(_TestFileCreateExistsNotWriteable)
-  ifdef not windows then
-    test(_TestFileCreateDirNotWriteable)
-    test(_TestFileOpenInDirNotWriteable)
-    test(_TestFileOpenPermissionDenied)
-  end
-    test(_TestFileCreateMissingCaps)
-    test(_TestFileOpen)
-    test(_TestFileOpenWrite)
-    test(_TestFileLongLine)
-    test(_TestFileWrite)
-    test(_TestFileWritev)
-    test(_TestFileQueue)
-    test(_TestFileQueuev)
-    test(_TestFileMixedWriteQueue)
-    test(_TestFileWritevLarge)
-    test(_TestFileFlush)
-    test(_TestFileReadMore)
-    test(_TestFileRemoveReadOnly)
-    test(_TestDirectoryRemoveReadOnly)
-    test(_TestFileLinesEmptyFile)
-    test(_TestFileLinesSingleLine)
-    test(_TestFileLinesMultiLine)
-    test(_TestFileLinesMovingCursor)
+    test(_TestWalk)
+
+    // Tests below exclude windows and are listed alphabetically
+    ifdef not windows then
+      test(_TestFileCreateDirNotWriteable)
+      test(_TestFileOpenInDirNotWriteable)
+      test(_TestFileOpenPermissionDenied)
+      test(_TestPathRoot)
+      test(_TestSymlink)
+    end
 
 primitive _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>

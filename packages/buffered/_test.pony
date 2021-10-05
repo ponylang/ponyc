@@ -5,9 +5,9 @@ actor Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    // Tests below function across all systems and are listed alphabetically
     test(_TestReader)
     test(_TestWriter)
-
 
 class iso _TestReader is UnitTest
   """
@@ -197,7 +197,6 @@ class iso _TestReader is UnitTest
     h.assert_eq[String](String.from_array(b.read_until(';')?), "")
     // the last byte is consumed by the reader
     h.assert_eq[USize](b.size(), 0)
-
 
 class iso _TestWriter is UnitTest
   """

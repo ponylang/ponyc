@@ -93,8 +93,8 @@ tests from packages `foo` and `bar`.
 
 ```pony
 use "ponytest"
-use foo = "foo"
 use bar = "bar"
+use foo = "foo"
 
 actor Main is TestList
   new create(env: Env) =>
@@ -104,8 +104,8 @@ actor Main is TestList
     None
 
   fun tag tests(test: PonyTest) =>
-    foo.Main.make().tests(test)
     bar.Main.make().tests(test)
+    foo.Main.make().tests(test)
 ```
 
 Aggregate test classes may themselves be aggregated. Every test list class may
