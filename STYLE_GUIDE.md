@@ -598,7 +598,7 @@ Single line comments will have exactly one space between the `//` token and the 
 
 ### Ordering
 
-Tests should be ordered alphabetically (within reason) separated into sections based on platform inclusion/exclusion criteria. First, list tests that run on all platforms, next list tests which include/exclude one platform, and lastly list tests which include/exclude multiple platforms. Sections should have an increasing number of inclusions/exclusions therefore if you have a section including only one platform, the next section should be tests excluding only that platform. When considering multiple platforms, list them alphabetically whether considering between sections or within sections. The set of known platforms recognized by `ifdef` can be found in `Platform` within `builtin`.
+Tests should be ordered alphabetically (within reason) separated into sections based on platform inclusion/exclusion criteria. First, list tests that run on all platforms, next list tests which include/exclude one platform, and lastly list tests which include/exclude multiple platforms. Sections should have an increasing number of inclusions/exclusions therefore if you have a section including only one platform, the next section should be tests excluding only that platform. When considering multiple platforms, list them alphabetically between sections and within sections. The set of known platforms recognized by `ifdef` can be found in `Platform` within `builtin`.
 
 ```pony
 actor Main is TestList
@@ -651,6 +651,13 @@ actor Main is TestList
       test(_TestOnAllSystemsExceptWindowsA)
       test(_TestOnAllSystemsExceptWindowsB)
       test(_TestOnAllSystemsExceptWindowsC)
+    end
+
+    // Tests below exclude bsd/windows and are listed alphabetically
+    ifdef not bsd or not windows then
+      test(_TestOnAllSystemsExceptBsdOrWindowsA)
+      test(_TestOnAllSystemsExceptBsdOrWindowsB)
+      test(_TestOnAllSystemsExceptBsdOrWindowsC)
     end
 
     // Tests below exclude osx/windows and are listed alphabetically
