@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add Ubuntu 21.04 nightly builds and releases builds ([PR #3866](https://github.com/ponylang/ponyc/pull/3866))
 - Add 64-bit Arm (Graviton) as a supported platform ([PR #3876](https://github.com/ponylang/ponyc/pull/3876))
 - Add build instructions for 32-bit Raspbian ([PR #3879](https://github.com/ponylang/ponyc/pull/3879))
+- Add Apple Silicon as a supported platform ([PR #3883](https://github.com/ponylang/ponyc/pull/3883))
 
 ### Changed
 

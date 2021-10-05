@@ -149,3 +149,7 @@ This provides us some fairly good coverage for "64-bit Arm" support in general a
 
 We've gotten Pony building on 32-bit Raspbian running on Raspberry Pi 4 model B boards. The installation is a little different than other Linux distributions that you can build Pony on, so we've added instructions specific to 32-bit Raspbian.
 
+## Add Apple Silicon as a supported platform
+
+Pony is now supported on Apple Silicon (M1 processors). Our support is "best effort" for now, since we currently lack continuous integration for Apple Silicon. Users on this platform will need to install Pony from source for the time being.
+
