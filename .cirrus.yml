@@ -649,6 +649,8 @@ task:
       TRIPLE_VENDOR: unknown
       TRIPLE_OS: linux-ubuntu20.04
       TARGET: test-stress-debug
+    depends_on:
+      - "Stress Test: x86-64-unknown-linux-ubuntu20.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
@@ -665,6 +667,8 @@ task:
       TRIPLE_VENDOR: unknown
       TRIPLE_OS: linux-musl
       TARGET: test-stress-debug
+    depends_on:
+      - "Stress Test: x86-64-unknown-linux-musl [release]"
 
   container:
     cpu: 8
@@ -700,6 +704,8 @@ task:
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [debug]"
       environment:
         TARGET: test-stress-debug
+      depends_on:
+        - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
 
   libs_cache:
     folder: build/libs
