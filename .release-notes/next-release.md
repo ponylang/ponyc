@@ -145,3 +145,7 @@ We've add continuous integration testing on AWS Graviton instances via CirrusCI.
 
 This provides us some fairly good coverage for "64-bit Arm" support in general although various other platforms like the Raspberry Pi 4B and Apple M1 chips are still "best effort" as we don't have any CI for them and we've found them to be somewhat different than Graviton.
 
+## Added build instructions for 32-bit Raspbian
+
+We've gotten Pony building on 32-bit Raspbian running on Raspberry Pi 4 model B boards. The installation is a little different than other Linux distributions that you can build Pony on, so we've added instructions specific to 32-bit Raspbian.
+
