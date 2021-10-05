@@ -1,8 +1,9 @@
-use "logger"
+use "time"
 
 actor Main
+  var _num_completed: USize = 0
+
   new create(env: Env) =>
-    // get options
     let options =
       try
         _CliOptions(env)?
@@ -10,10 +11,14 @@ actor Main
         return
       end
 
-    let logger =
-      StringLogger(if options.verbose then Info else Warn end, env.out)
-
-    // get test definitions
-    match _TestDefinitions(env.root, options.path, logger)
-    | let test_definitions: Array[_TestDefinition] =>
+    try
+      let td = _TestDefinitions(options.verbose, env.out, env.err)
+      match td.find(env.root as AmbientAuth, options.test_path)
+      | let test_definitions: Array[_TestDefinition] val =>
+        _Coordinator(env, options, test_definitions)
+      else
+        error
+      end
+    else
+      env.exitcode(1)
     end

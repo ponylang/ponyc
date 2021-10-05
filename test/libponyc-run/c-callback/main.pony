@@ -1,5 +1,5 @@
 use "path:./"
-use "lib:additional"
+use "lib:c-callback"
 
 use @codegentest_ccallback[I32](self: Callback, cb: Pointer[None], value: I32)
 use @pony_exitcode[None](code: I32)
