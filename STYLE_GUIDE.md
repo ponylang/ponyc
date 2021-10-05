@@ -598,7 +598,7 @@ Single line comments will have exactly one space between the `//` token and the 
 
 ### Ordering
 
-Tests should be ordered alphabetically (within reason) separated into sections based on system inclusion/exclusion criteria. First, list tests that run on all systems, next list tests which include/exclude one system, and lastly list tests which include/exclude more than one system.
+Tests should be ordered alphabetically (within reason) separated into sections based on platform inclusion/exclusion criteria. First, list tests that run on all platforms, next list tests which include/exclude one platform, and lastly list tests which include/exclude multiple platforms. Sections should have an increasing number of inclusions/exclusions therefore if you have a section including only one platform, the next section should be tests excluding only that platform. When considering multiple platforms, list them alphabetically whether considering between sections or within sections. The set of known platforms recognized by `ifdef` can be found in `Platform` within `builtin`.
 
 ```pony
 actor Main is TestList
@@ -611,18 +611,18 @@ actor Main is TestList
     test(_TestOnAllSystemsB)
     test(_TestOnAllSystemsC)
 
-    // Tests below include only windows and are listed alphabetically
-    ifdef windows then
-      test(_TestOnWindowsA)
-      test(_TestOnWindowsB)
-      test(_TestOnWindowsC)
+    // Tests below include only bsd and are listed alphabetically
+    ifdef bsd then
+      test(_TestOnBsdA)
+      test(_TestOnBsdB)
+      test(_TestOnBsdC)
     end
 
-    // Tests below exclude windows and are listed alphabetically
-    ifdef not windows then
-      test(_TestOnAllSystemsExceptWindowsA)
-      test(_TestOnAllSystemsExceptWindowsB)
-      test(_TestOnAllSystemsExceptWindowsC)
+    // Tests below exclude bsd and are listed alphabetically
+    ifdef not bsd then
+      test(_TestOnAllSystemsExceptBsdA)
+      test(_TestOnAllSystemsExceptBsdB)
+      test(_TestOnAllSystemsExceptBsdC)
     end
 
     // Tests below include only osx and are listed alphabetically
@@ -639,11 +639,32 @@ actor Main is TestList
       test(_TestOnAllSystemsExceptOsxC)
     end
 
-    // Tests below exclude windows/osx and are listed alphabetically
-    ifdef not windows or not osx then
-      test(_TestOnAllSystemsExceptWindowsOrOsxA)
-      test(_TestOnAllSystemsExceptWindowsOrOsxB)
-      test(_TestOnAllSystemsExceptWindowsOrOsxC)
+    // Tests below include only windows and are listed alphabetically
+    ifdef windows then
+      test(_TestOnWindowsA)
+      test(_TestOnWindowsB)
+      test(_TestOnWindowsC)
+    end
+
+    // Tests below exclude windows and are listed alphabetically
+    ifdef not windows then
+      test(_TestOnAllSystemsExceptWindowsA)
+      test(_TestOnAllSystemsExceptWindowsB)
+      test(_TestOnAllSystemsExceptWindowsC)
+    end
+
+    // Tests below exclude osx/windows and are listed alphabetically
+    ifdef not osx or not windows then
+      test(_TestOnAllSystemsExceptOsxOrWindowsA)
+      test(_TestOnAllSystemsExceptOsxOrWindowsB)
+      test(_TestOnAllSystemsExceptOsxOrWindowsC)
+    end
+
+    // Tests below exclude bsd/osx/windows and are listed alphabetically
+    ifdef not bsd or not osx or not windows then
+      test(_TestOnAllSystemsExceptBsdOrOsxOrWindowsA)
+      test(_TestOnAllSystemsExceptBsdOrOsxOrWindowsB)
+      test(_TestOnAllSystemsExceptBsdOrOsxOrWindowsC)
     end
 ```
 
