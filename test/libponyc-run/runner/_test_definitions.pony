@@ -1,3 +1,4 @@
+use "collections"
 use "files"
 
 class val _TestDefinition
@@ -11,14 +12,18 @@ class val _TestDefinition
     expected_exit_code = expected_exit_code'
 
 class _TestDefinitions
-  let verbose: Bool
-  let out: OutStream
-  let err: OutStream
+  let _verbose: Bool
+  let _exclude: Set[String] val
+  let _out: OutStream
+  let _err: OutStream
 
-  new create(verbose': Bool, out': OutStream, err': OutStream) =>
-    verbose = verbose'
-    out = out'
-    err = err'
+  new create(verbose: Bool, exclude: Set[String] val, out: OutStream,
+    err: OutStream)
+  =>
+    _verbose = verbose
+    _exclude = exclude
+    _out = out
+    _err = err
 
   fun _str_pony_extension(): String => ".pony"
   fun _str_expected_exit_code(): String => "expected-exit-code.txt"
@@ -28,11 +33,11 @@ class _TestDefinitions
   =>
     let path = if path'.size() > 0 then path' else "." end
 
-    if verbose then out.print("Searching for tests in " + path) end
+    if _verbose then _out.print("Searching for tests in " + path) end
 
     let fp = FilePath(auth, path)
     if not fp.exists() then
-      err.print("Path does not exist: " + path)
+      _err.print("Path does not exist: " + path)
       return
     end
 
@@ -40,12 +45,12 @@ class _TestDefinitions
       try
         FileInfo(fp)?
       else
-        err.print("Unable to get info: " + path)
+        _err.print("Unable to get info: " + path)
         return
       end
 
     if not fi.directory then
-      err.print("Not a directory: " + path)
+      _err.print("Not a directory: " + path)
       return
     end
 
@@ -53,7 +58,7 @@ class _TestDefinitions
       try
         Directory(fp)?
       else
-        err.print("Unable to open directory: " + path)
+        _err.print("Unable to open directory: " + path)
         return
       end
 
@@ -61,19 +66,22 @@ class _TestDefinitions
       try
         dir.entries()?
       else
-        err.print("Unable to get entries: " + path)
+        _err.print("Unable to get entries: " + path)
         return
       end
 
     recover
       let definitions = Array[_TestDefinition]
       for entry in (consume entries).values() do
+        if _exclude.contains(entry) then continue end
+
         match _get_definition(auth, dir.path.path, entry)
         | let def: _TestDefinition => definitions.push(def)
         end
       end
-      if verbose then
-        out.print("Found " + definitions.size().string() + " test definitions.")
+      if _verbose then
+        _out.print("Found " + definitions.size().string()
+          + " test definitions.")
       end
       definitions
     end
@@ -92,7 +100,7 @@ class _TestDefinitions
       try
         dir.entries()?
       else
-        err.print("Unable to get directory entries for: " + child)
+        _err.print("Unable to get directory entries for: " + child)
         return None
       end
 
@@ -114,7 +122,7 @@ class _TestDefinitions
           expected_exit_code =
             _get_expected_exit_code(FilePath.from(dir.path, entry)?)?
         else
-          err.print("Unable to open file: " + child + "/" + entry)
+          _err.print("Unable to open file: " + child + "/" + entry)
           return None
         end
       end
@@ -122,8 +130,6 @@ class _TestDefinitions
 
     if has_pony_sources then
       _TestDefinition(child, dir.path.path, expected_exit_code)
-    else
-      None
     end
 
   fun _get_expected_exit_code(fp: FilePath): I32 ? =>
@@ -133,7 +139,7 @@ class _TestDefinitions
         try
           return line.i32()?
         else
-          err.print("Unable to parse expected error code: '" + line.clone()
+          _err.print("Unable to parse expected error code: '" + line.clone()
             + "'")
         end
         break

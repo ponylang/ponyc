@@ -29,12 +29,14 @@ actor _Coordinator is _TesterNotify
     end
     _num_to_run = _tests_to_run.size()
     _success = Map[String, Bool](_num_to_run)
+    _timers = Timers
 
     if _options.verbose then
       _env.out.print("Running " + _num_to_run.string() + " tests...")
+      // for def in _tests_to_run.values() do
+      //   _env.out.print("  " + def.name)
+      // end
     end
-
-    _timers = Timers
 
     if _options.sequential then
       _run_test()

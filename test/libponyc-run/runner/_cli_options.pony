@@ -12,6 +12,7 @@ class val _Options
   let sequential: Bool
   let interval_ms: U64
   let only: Set[String] val
+  let exclude: Set[String] val
 
   new create(command: Command) =>
     test_path = command.arg(_CliOptions._str_test_path()).string()
@@ -24,13 +25,19 @@ class val _Options
     verbose = command.option(_CliOptions._str_verbose()).bool()
     sequential = command.option(_CliOptions._str_sequential()).bool()
     interval_ms = command.option(_CliOptions._str_interval_ms()).u64()
-
-    let only_str = command.option(_CliOptions._str_only()).string()
     only =
       recover
         let only' = Set[String]
+        let only_str = command.option(_CliOptions._str_only()).string()
         only'.union(only_str.split(",").values())
         only'
+      end
+    exclude =
+      recover
+        let exclude' = Set[String]
+        let exclude_str = command.option(_CliOptions._str_exclude()).string()
+        exclude'.union(exclude_str.split(",").values())
+        exclude'
       end
 
 primitive _CliOptions
@@ -44,6 +51,7 @@ primitive _CliOptions
   fun _str_sequential(): String => "sequential"
   fun _str_interval_ms(): String => "interval_ms"
   fun _str_only(): String => "only"
+  fun _str_exclude(): String => "exclude"
 
   fun apply(env: Env): _Options ? =>
     let spec =
@@ -67,10 +75,13 @@ primitive _CliOptions
             "Whether to run the tests sequentially or in parallel"
             where short' = 's', default' = false)
           OptionSpec.u64(_str_interval_ms(),
-            "Interval (in milliseconds) between starting parallel tests."
+            "Interval (in milliseconds) between starting parallel tests"
             where short' = 'i', default' = 250)
-          OptionSpec.string(_str_only(), "Comma-separated list of test names."
+          OptionSpec.string(_str_only(), "Comma-separated list of test names to run"
             where short' = 'o', default' = "")
+          OptionSpec.string(_str_exclude(),
+            "Comma-separated list of directories to exclude"
+            where short' = 'e', default' = "")
         ], [
           ArgSpec.string("test_path", "Directory containing test directories"
             where default' = ".")

@@ -12,7 +12,8 @@ actor Main
       end
 
     try
-      let td = _TestDefinitions(options.verbose, env.out, env.err)
+      let td = _TestDefinitions(options.verbose, options.exclude, env.out,
+        env.err)
       match td.find(env.root as AmbientAuth, options.test_path)
       | let test_definitions: Array[_TestDefinition] val =>
         _Coordinator(env, options, test_definitions)
