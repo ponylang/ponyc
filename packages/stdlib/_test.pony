@@ -51,8 +51,8 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     base64.Main.make().tests(test)
-    builtin_test.Main.make().tests(test)
     buffered.Main.make().tests(test)
+    builtin_test.Main.make().tests(test)
     bureaucracy.Main.make().tests(test)
     cli.Main.make().tests(test)
     collections.Main.make().tests(test)
