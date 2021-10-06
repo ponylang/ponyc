@@ -142,7 +142,7 @@ class iso _TestBroadcast is UnitTest
       h.fail_action("pong create")
     end
 
-    h.long_test(2_000_000_000) // 2 second timeout
+    h.long_test(30_000_000_000)
 
   fun ref timed_out(h: TestHelper) =>
     h.log("""
@@ -181,7 +181,7 @@ class _TestTCP is TCPListenNotify
       h.fail_action("server create")
     end
 
-    h.long_test(2_000_000_000)
+    h.long_test(30_000_000_000)
 
   fun ref not_listening(listen: TCPListener ref) =>
     _h.fail_action("server listen")
@@ -700,7 +700,7 @@ class _TestTCPConnectionFailed is UnitTest
         end,
         host,
         port)
-      h.long_test(2_000_000_000)
+      h.long_test(30_000_000_000)
       h.dispose_when_done(connection)
     else
       h.fail("unexpected error creating TCPConnection")
@@ -751,7 +751,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
       )
 
       h.dispose_when_done(listener)
-      h.long_test(2_000_000_000)
+      h.long_test(30_000_000_000)
     else
       h.fail("unexpected error creating listener")
       h.complete(false)
