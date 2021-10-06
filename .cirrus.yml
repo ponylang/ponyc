@@ -634,7 +634,7 @@ task:
 
   container:
     cpu: 8
-    memory: 24
+    memory: 4
 
   libs_cache:
     folder: build/libs
@@ -657,7 +657,7 @@ task:
   arm_container:
     image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
     cpu: 8
-    memory: 24
+    memory: 4
 
   matrix:
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
