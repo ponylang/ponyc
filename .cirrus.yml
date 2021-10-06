@@ -10,7 +10,7 @@ task:
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
-      CACHE_BUSTER: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
       ARCH: x86-64
       CONFIG: release
   - name: "x86-64 debug runtime with glibc"
@@ -19,7 +19,7 @@ task:
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
-      CACHE_BUSTER: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
       ARCH: x86-64
       CONFIG: debug
   - name: "x86-64 release runtime with musl"
@@ -601,17 +601,15 @@ task:
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu20.04
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      ARCH: x86-64
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-ubuntu20.04 [debug]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-ubuntu20.04
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      ARCH: x86-64
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu20.04 [release]"
@@ -619,17 +617,15 @@ task:
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-musl
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      ARCH: x86-64
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
-      CACHE_BUSTER: 20210224
-      TRIPLE_VENDOR: unknown
-      TRIPLE_OS: linux-musl
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      ARCH: x86-64
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
@@ -641,7 +637,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER} stress"
+      - echo "`md5sum lib/CMakeLists.txt` ${IMAGE} ${ARCH}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
