@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix non-release build crashes on Arm ([PR #3860](https://github.com/ponylang/ponyc/pull/3860))
 - Fix major source of runtime instability on non-x86 based platforms ([PR #3871](https://github.com/ponylang/ponyc/pull/3871))
 - Fix segfaults with debug mode code on 64-bit Arm ([PR #3875](https://github.com/ponylang/ponyc/pull/3875))
+- Fix incorrect version in nightly ponyc builds ([PR #3895](https://github.com/ponylang/ponyc/pull/3895))
 
 ### Added
 
