@@ -54,11 +54,14 @@ task:
     cpu: 8
     memory: 24
 
+  environment:
+    IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+
   name: "aarch64 Linux glibc"
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` aarch64-linux-gnu 20211003"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -668,16 +671,18 @@ task:
   matrix:
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
       environment:
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
         TARGET: test-stress-release
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [debug]"
       environment:
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
         TARGET: test-stress-debug
       depends_on:
         - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` aarch64-linux-gnu 20211003 stress"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
