@@ -61,12 +61,14 @@ task:
 task:
   only_if: $CIRRUS_PR != ''
 
+  timeout_in: 120m
+
   arm_container:
     image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
     cpu: 8
     memory: 24
 
-  name: "PR: aarch64-unknown-linux-ubuntu20.04"
+  name: "aarch64 Linux glibc"
 
   libs_cache:
     folder: build/libs
@@ -75,22 +77,30 @@ task:
   upload_caches:
     - libs
 
-  configure_script:
-    - make configure arch=armv8-a
-  build_script:
-    - make build
-  test_script:
-    - make test-ci
+  release_configure_script:
+    - make configure arch=armv8-a config=release
+  release_build_script:
+    - make build config=release
+  release_test_script:
+    - make test-ci config=release
+  debug_configure_script:
+    - make configure arch=armv8-a config=debug
+  debug_build_script:
+    - make build config=debug
+  debug_test_script:
+    - make test-ci config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
+
+  timeout_in: 120m
 
   freebsd_instance:
     image: freebsd-13-0-release-amd64
     cpu: 8
     memory: 24
 
-  name: "PR: x86-64-unknown-freebsd-13.0"
+  name: "x86-64 FreeBSD"
 
   os_configuration_script:
     - sysctl net.inet.tcp.keepinit=1000
@@ -108,20 +118,28 @@ task:
   upload_caches:
     - libs
 
-  configure_script:
-    - gmake configure arch=x86-64
-  build_script:
-    - gmake build
-  test_script:
-    - gmake test-ci
+  release_configure_script:
+    - gmake configure arch=x86-64 config=release
+  release_build_script:
+    - gmake build config=release
+  release_test_script:
+    - gmake test-ci config=release
+  debug_configure_script:
+    - gmake configure arch=x86-64 config=debug
+  debug_build_script:
+    - gmake build config=debug
+  debug_test_script:
+    - gmake test-ci config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
 
+  timeout_in: 120m
+
   osx_instance:
     image: big-sur-xcode-12.5
 
-  name: "PR: x86-64-apple-darwin"
+  name: "x86-64 Apple Darwin"
 
   install_script:
     - brew install coreutils
@@ -133,12 +151,18 @@ task:
   upload_caches:
     - libs
 
-  configure_script:
-    - make configure arch=x86-64
-  build_script:
-    - make build
-  test_script:
-    - make test-ci
+  release_configure_script:
+    - make configure arch=x86-64 config=release
+  release_build_script:
+    - make build config=release
+  release_test_script:
+    - make test-ci config=release
+  debug_configure_script:
+    - make configure arch=x86-64 config=debug
+  debug_build_script:
+    - make build config=debug
+  debug_test_script:
+    - make test-ci config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
