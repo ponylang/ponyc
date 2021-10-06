@@ -74,9 +74,9 @@ actor _Tester
           args'.push("--debug")
         end
         if _options.pony_path.size() > 0 then
-          args'.push("--path " + _options.pony_path)
+          args'.push("--path=" + _options.pony_path)
         end
-        args'.push("--output " + _options.output)
+        args'.push("--output=" + _options.output)
         args'.push(_definition.path)
         args'
       end
