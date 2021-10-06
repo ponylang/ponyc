@@ -71,16 +71,16 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` aarch64-linux-gnu 20211003"
-    populate_script: make libs arch=armv8-a build_flags=-j8
+    populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
 
   configure_script:
     - make configure arch=armv8-a
   build_script:
-    - make build arch=armv8-a
+    - make build
   test_script:
-    - make test-ci arch=armv8-a
+    - make test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -104,16 +104,16 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
-    populate_script: gmake libs arch=x86-64 build_flags=-j8
+    populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
 
   configure_script:
     - gmake configure arch=x86-64
   build_script:
-    - gmake build arch=x86-64 build_flags=-j8
+    - gmake build
   test_script:
-    - gmake test-ci arch=x86-64
+    - gmake test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -129,16 +129,16 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
-    populate_script: make libs arch=x86-64 build_flags=-j8
+    populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
 
   configure_script:
     - make configure arch=x86-64
   build_script:
-    - make build arch=x86-64 build_flags=-j8
+    - make build
   test_script:
-    - make test-ci arch=x86-64
+    - make test-ci
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -353,7 +353,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
-    populate_script: gmake libs arch=x86-64 build_flags=-j8
+    populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
 
@@ -521,7 +521,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
-    populate_script: gmake libs arch=x86-64 build_flags=-j8
+    populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
 
@@ -672,13 +672,13 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5sum lib/CMakeLists.txt` aarch64-linux-gnu 20211003 stress"
-    populate_script: make libs arch=armv8-a build_flags=-j8
+    populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
 
   configure_script:
     - make configure arch=armv8-a config=debug
   build_script:
-    - make build arch=armv8-a config=debug
+    - make build config=debug
   stress_test_script:
-    - make ${TARGET} arch=armv8-a config=debug
+    - make ${TARGET} config=debug

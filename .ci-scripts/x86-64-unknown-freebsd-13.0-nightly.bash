@@ -45,10 +45,8 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 echo "Building ponyc installation..."
 gmake configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
   version="${PONY_VERSION}"
-gmake build arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
-  version="${PONY_VERSION}"
-gmake install prefix="${BUILD_PREFIX}" symlink=no arch=${ARCH} \
-  build_flags=-j${MAKE_PARALLELISM} version="${PONY_VERSION}"
+gmake build version="${PONY_VERSION}"
+gmake install prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
