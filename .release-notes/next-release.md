@@ -153,3 +153,7 @@ We've gotten Pony building on 32-bit Raspbian running on Raspberry Pi 4 model B 
 
 Pony is now supported on Apple Silicon (M1 processors). Our support is "best effort" for now, since we currently lack continuous integration for Apple Silicon. Users on this platform will need to install Pony from source for the time being.
 
+## Fixed incorrect version in ponyc nightly builds
+
+The build system facility that allowed us to set arbitrary versions in builds was broken. The end result was nightly builds not having meaningful results when `ponyc --version` was run.
+
