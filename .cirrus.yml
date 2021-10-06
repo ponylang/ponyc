@@ -5,39 +5,19 @@
 task:
   only_if: $CIRRUS_PR != ''
 
+  timeout_in: 120m
+
   matrix:
-  - name: "x86-64 release runtime with glibc"
+  - name: "x86-64 Linux glibc"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
-      ARCH: x86-64
-      CONFIG: release
-  - name: "x86-64 debug runtime with glibc"
-    depends_on:
-      - "x86-64 release runtime with glibc"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
-      ARCH: x86-64
-      CONFIG: debug
-  - name: "x86-64 release runtime with musl"
+  - name: "x86-64 Linux musl"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
-      ARCH: x86-64
-      CONFIG: release
-  - name: "x86-64 debug runtime with musl"
-    depends_on:
-     - "x86-64 release runtime with musl"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
-      ARCH: x86-64
-      CONFIG: debug
 
   container:
     cpu: 8
@@ -46,17 +26,23 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt` ${IMAGE} ${ARCH}"
+      - echo "`md5sum lib/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
 
-  configure_script:
-    - make configure arch=${ARCH} config=${CONFIG}
-  build_script:
-    - make build config=${CONFIG}
-  test_script:
-    - make test-ci config=${CONFIG}
+  release_configure_script:
+    - make configure arch=x86-64 config=release
+  release_build_script:
+    - make build config=release
+  release_test_script:
+    - make test-ci config=release
+  debug_configure_script:
+    - make configure arch=x86-64 config=debug
+  debug_build_script:
+    - make build config=debug
+  debug_test_script:
+    - make test-ci config=debug
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -602,14 +588,12 @@ task:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
-      ARCH: x86-64
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-ubuntu20.04 [debug]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
-      ARCH: x86-64
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu20.04 [release]"
@@ -618,14 +602,12 @@ task:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
-      ARCH: x86-64
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
-      ARCH: x86-64
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
@@ -637,7 +619,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum lib/CMakeLists.txt` ${IMAGE} ${ARCH}"
+      - echo "`md5sum lib/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
