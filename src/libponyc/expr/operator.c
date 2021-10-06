@@ -333,7 +333,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   ast_t* r_type = ast_type(right);
 
   if(is_typecheck_error(r_type))
+  {
+    ast_error(opt->check.errors, ast,
+      "right side must be something that can be assigned");
     return false;
+  }
 
   if(ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
   {
@@ -343,7 +347,13 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   }
 
   if(!infer_locals(opt, left, r_type))
+  {
+    /*
+    TODO: maybe add an ast_error here too, but I don't
+    know what error would happen here ~ mateus-md
+    */
     return false;
+  }
 
   // Inferring locals may have changed the left type.
   l_type = ast_type(left);
