@@ -29,7 +29,6 @@ _ReSharper.*
 .clangd/
 src/common/dtrace_probes.h
 packages/stdlib/stdlib
-test/libponyc-run/runner/runner
 /stdlib-docs/
 /compile_commands.json
 

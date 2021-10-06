@@ -190,9 +190,9 @@ test-check-version: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --version
 
 test-core: all
-	$(SILENT)cd '$(outDir)' && ./libponyrt.tests --gtest_shuffle
-	$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
-	$(SILENT)env PATH="$(outDir):$(PATH)" CC="$(CC)" CXX="$(CXX)" bash test/libponyc-run/runner.bash
+	#$(SILENT)cd '$(outDir)' && ./libponyrt.tests --gtest_shuffle
+	#$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(buildDir)/runner --exclude=runner --ponyc=$(outDir)/ponyc --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential

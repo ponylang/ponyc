@@ -76,7 +76,7 @@ actor _Tester
         if _options.pony_path.size() > 0 then
           args'.push("--path " + _options.pony_path)
         end
-        args'.push("--output " + _definition.path)
+        args'.push("--output " + _options.output)
         args'.push(_definition.path)
         args'
       end
@@ -131,7 +131,7 @@ actor _Tester
     let fname =
       recover val
         let fname' = String
-        fname'.append(Path.join(_definition.path, _definition.name))
+        fname'.append(Path.join(_options.output, _definition.name))
         ifdef windows then
           fname'.append(".exe")
         end
@@ -165,13 +165,15 @@ actor _Tester
     end
 
   be testing_exited(exit_code: I32) =>
-    if exit_code == _definition.expected_exit_code then
-      _shutdown_succeeded()
-    else
-      _env.err.print(_definition.name + ": TEST FAILED: expected exit code "
-        + _definition.expected_exit_code.string() + "; actual was "
-        + exit_code.string())
-      _shutdown_failed()
+    if _stage is _Testing then
+      if exit_code == _definition.expected_exit_code then
+        _shutdown_succeeded()
+      else
+        _env.err.print(_definition.name + ": TEST FAILED: expected exit code "
+          + _definition.expected_exit_code.string() + "; actual was "
+          + exit_code.string())
+        _shutdown_failed()
+      end
     end
 
   be testing_failed(msg: String) =>

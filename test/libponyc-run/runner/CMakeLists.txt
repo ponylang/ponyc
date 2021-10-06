@@ -2,7 +2,6 @@ project(libponyc.tests.runner)
 
 add_custom_target(runner ALL
   COMMAND $<TARGET_FILE:ponyc> --output ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
-  DEPENDS ponyc
   SOURCES
     main.pony
     _build_process_notify.pony
@@ -14,3 +13,5 @@ add_custom_target(runner ALL
     _tester_timer_notify.pony
     _tester.pony
 )
+
+add_dependencies(runner ponyc)

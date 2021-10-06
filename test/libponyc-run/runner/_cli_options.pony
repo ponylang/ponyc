@@ -4,6 +4,7 @@ use "collections"
 class val _Options
   let test_path: String
   let ponyc: String
+  let output: String
   let pony_path: String
   let test_lib: String
   let timeout_s: U64
@@ -18,6 +19,7 @@ class val _Options
     test_path = command.arg(_CliOptions._str_test_path()).string()
 
     ponyc = command.option(_CliOptions._str_ponyc()).string()
+    output = command.option(_CliOptions._str_output()).string()
     pony_path = command.option(_CliOptions._str_pony_path()).string()
     test_lib = command.option(_CliOptions._str_test_lib()).string()
     timeout_s = command.option(_CliOptions._str_timeout_s()).u64()
@@ -43,6 +45,7 @@ class val _Options
 primitive _CliOptions
   fun _str_test_path(): String => "test_path"
   fun _str_ponyc(): String => "ponyc"
+  fun _str_output(): String => "output"
   fun _str_pony_path(): String => "pony_path"
   fun _str_test_lib(): String => "test_lib"
   fun _str_timeout_s(): String => "timeout_s"
@@ -59,6 +62,8 @@ primitive _CliOptions
         CommandSpec.leaf("runner", "Test runner for Pony compiler tests", [
           OptionSpec.string(_str_ponyc(), "Path to the ponyc binary"
             where short' = 'c', default' = "ponyc")
+          OptionSpec.string(_str_output(), "Output directory for test programs"
+            where short' = 'o', default' = ".")
           OptionSpec.string(_str_pony_path(), "Path to pass to ponyc --path"
             where short' = 'p', default' = "")
           OptionSpec.string(_str_test_lib(),
@@ -77,8 +82,9 @@ primitive _CliOptions
           OptionSpec.u64(_str_interval_ms(),
             "Interval (in milliseconds) between starting parallel tests"
             where short' = 'i', default' = 250)
-          OptionSpec.string(_str_only(), "Comma-separated list of test names to run"
-            where short' = 'o', default' = "")
+          OptionSpec.string(_str_only(),
+            "Comma-separated list of test names to run"
+            where short' = 'O', default' = "")
           OptionSpec.string(_str_exclude(),
             "Comma-separated list of directories to exclude"
             where short' = 'e', default' = "")
