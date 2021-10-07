@@ -52,7 +52,7 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 echo "Building ponyc installation..."
 make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM}
 make build
-make install prefix="${BUILD_PREFIX}" symlink=no arch=${ARCH}
+make install arch=${ARCH} prefix="${BUILD_PREFIX}" symlink=no arch=${ARCH}
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."

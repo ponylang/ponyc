@@ -56,7 +56,7 @@ echo "Building ponyc installation..."
 make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
   version="${PONY_VERSION}"
 make build version="${PONY_VERSION}"
-make install prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
+make install arch=${ARCH} prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
