@@ -216,6 +216,7 @@ jobs:
     strategy:
       matrix:
         repo:
+          - ponylang/corral
           - ponylang/ponyup
     steps:
       - name: Send
