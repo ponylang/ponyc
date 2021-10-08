@@ -12,7 +12,7 @@ actor Main is TestList
     // test(_TestTCPExpectOverBufferSize)
     // test(_TestTCPMute)
     // test(_TestTCPProxy)
-    // test(_TestTCPUnmute)
+    test(_TestTCPUnmute)
     test(_TestTCPWritev)
 
     // Tests below exclude windows and are listed alphabetically
