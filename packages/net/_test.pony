@@ -184,6 +184,7 @@ class _TestTCP is TCPListenNotify
     h.long_test(30_000_000_000)
 
   fun ref not_listening(listen: TCPListener ref) =>
+    @printf("tcp test not listening\n".cstring())
     _h.fail_action("server listen")
 
   fun ref listening(listen: TCPListener ref) =>
