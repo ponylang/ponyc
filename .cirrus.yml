@@ -136,7 +136,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
 
@@ -389,7 +389,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
 
@@ -557,7 +557,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
-    populate_script: make libs build_flags=-j8
+    populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
 
