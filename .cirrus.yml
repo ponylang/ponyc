@@ -194,7 +194,7 @@ task:
   container:
     image: ponylang/ponyc-ci-cross-arm:20210430
     cpu: 8
-    memory: 24
+    memory: 6
 
   environment:
     IMAGE: ponylang/ponyc-ci-cross-arm:20210430
@@ -225,7 +225,7 @@ task:
   container:
     image: ponylang/ponyc-ci-cross-armhf:20210430
     cpu: 8
-    memory: 24
+    memory: 6
 
   environment:
     IMAGE: ponylang/ponyc-ci-cross-armhf:20210430
