@@ -601,20 +601,20 @@ actor TCPConnection
     """
     Handle socket events.
     """
-    @printf("1\n".cstring())
+    @printf("SEAN ====> 1\n".cstring())
     if event isnt _event then
-      @printf("2\n".cstring())
+      @printf("SEAN ====> 2\n".cstring())
       if AsioEvent.writeable(flags) then
-        @printf("3\n".cstring())
+        @printf("SEAN ====> 3\n".cstring())
         // A connection has completed.
         var fd = @pony_asio_event_fd(event)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
-          @printf("4\n".cstring())
+          @printf("SEAN ====> 4\n".cstring())
           // We don't have a connection yet.
           if _is_sock_connected(fd) then
-            @printf("5\n".cstring())
+            @printf("SEAN ====> 5\n".cstring())
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
