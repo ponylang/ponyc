@@ -641,6 +641,7 @@ actor TCPConnection
             _notify_connecting()
           end
         else
+          @printf("SEAN ====> 10\n".cstring())
           // There is a possibility that a non-Windows system has
           // already unsubscribed this event already.  (Windows might
           // be vulnerable to this race, too, I'm not sure.) It's a
@@ -654,6 +655,7 @@ actor TCPConnection
           _try_shutdown()
         end
       else
+        @printf("SEAN ====> 20\n".cstring())
         // It's not our event.
         if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
@@ -661,8 +663,11 @@ actor TCPConnection
         end
       end
     else
+      @printf("SEAN ====> A\n".cstring())
+
       // At this point, it's our event.
       if AsioEvent.writeable(flags) then
+        @printf("SEAN ====> B\n".cstring())
         _writeable = true
         _complete_writes(arg)
         ifdef not windows then
@@ -674,12 +679,14 @@ actor TCPConnection
       end
 
       if AsioEvent.readable(flags) then
+        @printf("SEAN ====> C\n".cstring())
         _readable = true
         _complete_reads(arg)
         _pending_reads()
       end
 
       if AsioEvent.disposable(flags) then
+        @printf("SEAN ====> D\n".cstring())
         @pony_asio_event_destroy(event)
         _event = AsioEvent.none()
       end
