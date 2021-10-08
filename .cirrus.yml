@@ -196,11 +196,14 @@ task:
     cpu: 8
     memory: 24
 
-  name: "PR: cross-compile: arm-unknown-linux-gnueabi"
+  environment:
+    IMAGE: ponylang/ponyc-ci-cross-arm:20210430
+
+  name: "arm Linux glibc"
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -224,11 +227,14 @@ task:
     cpu: 8
     memory: 24
 
-  name: "PR: cross-compile: arm-linux-gnueabihf-gcc"
+  environment:
+    IMAGE: ponylang/ponyc-ci-cross-armhf:20210430
+
+  name: "armhf Linux glibc"
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` cross arm 20210430"
+    fingerprint_script: echo "`md5sum lib/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
