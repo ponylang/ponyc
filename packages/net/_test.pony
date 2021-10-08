@@ -187,6 +187,7 @@ class _TestTCP is TCPListenNotify
     _h.fail_action("server listen")
 
   fun ref listening(listen: TCPListener ref) =>
+    @printf("tcp test listening\n".cstring())
     _h.complete_action("server listen")
 
     try
@@ -200,6 +201,7 @@ class _TestTCP is TCPListenNotify
     end
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ ? =>
+    @printf("tcp test connected\n".cstring())
     try
       let notify = (_server_conn_notify = None) as TCPConnectionNotify iso^
       _h.complete_action("server accept")
@@ -380,6 +382,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
     end
 
   fun ref connected(conn: TCPConnection ref) =>
+    @printf("writev notify client connected\n".cstring())
     _h.complete_action("client connect")
     conn.writev(recover ["hello"; ", hello"] end)
 
@@ -399,6 +402,8 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
     times: USize)
     : Bool
   =>
+    @printf("writev notify server received\n".cstring())
+
     _buffer.append(consume data)
 
     let expected = "hello, hello (from client)"
