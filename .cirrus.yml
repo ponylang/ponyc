@@ -156,15 +156,15 @@ task:
 task:
   only_if: $CIRRUS_PR != ''
 
+  timeout_in: 120m
+
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
     os_version: 2019
     cpu: 8
     memory: 24
 
-  name: "PR: x86-64-pc-windows-msvc"
-
-  timeout_in: 120m
+  name: "x86-64 Windows MSVC"
 
   libs_cache:
     folder: build/libs
@@ -175,40 +175,17 @@ task:
   upload_caches:
     - libs
 
-  config_script:
+  release_config_script:
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
-  build_script:
+  release_build_script:
     - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019"
-  test_script:
+  release_test_script:
     - ps: .\make.ps1 -Command test -Config Release -Generator "Visual Studio 16 2019"
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
-    os_version: 2019
-    cpu: 8
-    memory: 24
-
-  name: "PR: x86-64-pc-windows-msvc [debug]"
-
-  timeout_in: 120m
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - ps: (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
-    populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
-  upload_caches:
-    - libs
-
-  config_script:
+  debug_config_script:
     - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019"
-  build_script:
+  debug_build_script:
     - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019"
-  test_script:
+  debug_test_script:
     - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
 
 task:
