@@ -7,11 +7,11 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
-    // test(_TestTCPConnectionFailed)
-    // test(_TestTCPExpect)
-    // test(_TestTCPExpectOverBufferSize)
-    // test(_TestTCPMute)
-    // test(_TestTCPProxy)
+    test(_TestTCPConnectionFailed)
+    test(_TestTCPExpect)
+    test(_TestTCPExpectOverBufferSize)
+    test(_TestTCPMute)
+    test(_TestTCPProxy)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
 
@@ -463,7 +463,7 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
     _h.complete_action("receiver muted")
     conn.write("send me some data that i won't ever read")
     _h.complete_action("receiver asks for data")
-    _h.dispose_when_done(conn)
+    //_h.dispose_when_done(conn)
 
   fun ref received(
     conn: TCPConnection ref,
@@ -607,7 +607,7 @@ class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
     _h.complete_action("receiver muted")
     conn.write("send me some data that i won't ever read")
     _h.complete_action("receiver asks for data")
-    _h.dispose_when_done(conn)
+    //_h.dispose_when_done(conn)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
