@@ -27,6 +27,7 @@ use @pony_os_connect_tcp4[U32](owner: AsioEventNotify, host: Pointer[U8] tag,
 use @pony_os_connect_tcp6[U32](owner: AsioEventNotify, host: Pointer[U8] tag,
   service: Pointer[U8] tag, from: Pointer[U8] tag, flags: U32)
 use @pony_os_peername[Bool](fd: U32, ip: NetAddress tag)
+use @printf[I32](fmt: Pointer[U8] tag, ...)
 
 type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
 
@@ -600,15 +601,20 @@ actor TCPConnection
     """
     Handle socket events.
     """
+    @printf("1\n".cstring())
     if event isnt _event then
+      @printf("2\n".cstring())
       if AsioEvent.writeable(flags) then
+        @printf("3\n".cstring())
         // A connection has completed.
         var fd = @pony_asio_event_fd(event)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
+          @printf("4\n".cstring())
           // We don't have a connection yet.
           if _is_sock_connected(fd) then
+            @printf("5\n".cstring())
             // The connection was successful, make it ours.
             _fd = fd
             _event = event
