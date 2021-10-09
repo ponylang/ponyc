@@ -73,17 +73,16 @@ Note that you only need to run `make libs` once the first time you build (or if 
 ### 32-bit Raspbian
 
 Installing on a 32-bit Raspbian is slightly different from other Linux based
-Operating Systems. There are three important things to note:
+Operating Systems. There are two important things to note:
 
 - at the moment, only `gcc` can be used to build Pony; `clang` currently doesn't work.
 - you'll need to override the `tune` option to configure.
-- currently, we can't build a release version of the Pony compiler and runtime, only the debug version.
 
 ```bash
 make libs
-make configure tune=native config=debug
-make build config=debug
-sudo make install config=debug
+make configure tune=native
+make build
+sudo make install
 ```
 
 ## macOS
