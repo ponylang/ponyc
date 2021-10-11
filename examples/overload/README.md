@@ -23,7 +23,7 @@ Linking ./overload
 
 ## How to Run
 
-Once `overload` has been compiled, in the same directory as this README file run `./overload`. You should a report of the number of senders, the single receiver starting, then messages about the number of messages received in a given timeframe. (This program will loop infinitely so you will need to force it to step.)
+Once `overload` has been compiled, in the same directory as this README file run `./overload`. You should see a report of the number of senders, the single receiver starting, then messages about the number of messages received in a given timeframe. (This program will loop infinitely so you will need to force it to step.)
 
 ```console
 $ ./overload
