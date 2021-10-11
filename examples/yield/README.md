@@ -45,7 +45,7 @@ By Default, the actor will run quiet and interruptibly.
 Options:
    -b, --bench=0         Run an instrumented behaviour to guesstimate overhead of non/interruptive.
    -d, --debug=false     Run in debug mode with verbose output.
-   -h, --help=false      
+   -h, --help=false
    -l, --lonely=false    Run a non-interruptible behaviour with logic that runs forever.
    -p, --punk=false      Run a punctuated stream demonstration.
 ```
