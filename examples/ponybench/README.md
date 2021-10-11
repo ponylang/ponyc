@@ -23,7 +23,7 @@ Linking ./ponybench
 
 ## How to Run
 
-Once `ponybench` has been compiled, in the same directory as this README file run `./ponybench`. You should see a benchmark report including: benchmark name, mean, median, deviation, and interations.
+Once `ponybench` has been compiled, in the same directory as this README file run `./ponybench`. You should see a benchmark report including: benchmark name, mean, median, deviation, and iterations.
 
 ```console
 $ ./ponybench
