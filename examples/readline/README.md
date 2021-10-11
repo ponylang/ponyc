@@ -49,7 +49,7 @@ Use 'quit' to exit.
 4 > count
 Current count is: 4
 5 > history
-Commands: 
+Commands:
   This
   is
   a
