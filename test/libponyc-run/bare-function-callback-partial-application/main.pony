@@ -1,5 +1,5 @@
 use "path:./"
-use "lib:bare-function-callback-partial-application"
+use "lib:bare-function-callback-partial-application-additional"
 
 use @baretest_callback[None](cb: Pointer[None], size: USize)
 use @pony_exitcode[None](code: I32)

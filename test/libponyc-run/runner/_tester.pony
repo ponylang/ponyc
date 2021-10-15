@@ -67,53 +67,17 @@ actor _Tester
       end
 
     // build args for ponyc
-    let args =
-      recover val
-        let args' = Array[String]
-        if _options.debug then
-          args'.push("--debug")
-        end
-        if _options.pony_path.size() > 0 then
-          args'.push("--path=" + _options.pony_path)
-        end
-        args'.push("--output=" + _options.output)
-        args'.push(_definition.path)
-        args'
-      end
+    let args = _get_build_args()
 
     // add PONYPATH to vars if necessary
-    let vars =
-      recover val
-        let vars' = _env.vars.clone()
-        try
-          if _options.test_lib.size() > 0 then
-            var found_pony_path = false
-            for i in Range(0, vars'.size()) do
-              let v = vars'(i)?
-              try
-                if v.find("PONYPATH")? == 0 then
-                  vars'(i)? = v + Path.list_sep() + _options.test_lib
-                  found_pony_path = true
-                  break
-                end
-              end
-            end
-            if not found_pony_path then
-              vars'.push("PONYPATH=" + _options.test_lib)
-            end
-          end
-        end
-        vars'
-      end
-
     if _options.verbose then
       let args_join = String
       for arg in args.values() do
         args_join.append(" ")
         args_join.append(arg)
       end
-      _env.out.print(_definition.name + ": working dir: " + _definition.path)
-      _env.out.print(_definition.name + ": " + _options.ponyc + args_join)
+      _env.out.print(_definition.name + ": building: working dir: " + _definition.path)
+      _env.out.print(_definition.name + ": building: " + _options.ponyc + args_join)
     end
 
     // run ponyc to build the test program
@@ -121,11 +85,31 @@ actor _Tester
       let auth = _env.root as AmbientAuth
       _stage = _Building
       _build_process = ProcessMonitor(auth, auth, _BuildProcessNotify(this),
-        ponyc_file_path, consume args, vars, FilePath(auth, _definition.path))
+        ponyc_file_path, consume args, _env.vars,
+        FilePath(auth, _definition.path))
         .>done_writing()
     else
       _env.err.print(_definition.name + ": failed to acquire ambient auth")
       _shutdown_failed()
+    end
+
+  fun _get_build_args(): Array[String] val =>
+    recover val
+      let args = Array[String]
+      if _options.debug then
+        args.push("--debug")
+      end
+      if _options.test_lib.size() > 0 then
+        args.push("--path=" + _options.test_lib)
+      end
+      if _options.pony_path.size() > 0 then
+        for path in _options.pony_path.split(Path.list_sep()).values() do
+          args.push("--path=" + path)
+        end
+      end
+      args.push("--output=" + _options.output)
+      args.push(_definition.path)
+      args
     end
 
   be building_succeeded() =>
@@ -197,6 +181,7 @@ actor _Tester
       _timers.cancel(_timer)
       _stage = _Succeeded
       _notify.succeeded(_definition.name)
+      _env.out.print(_definition.name + ": SUCCEEDED")
     end
 
   fun ref _shutdown_failed() =>

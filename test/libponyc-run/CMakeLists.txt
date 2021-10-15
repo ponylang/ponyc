@@ -1,10 +1,11 @@
 project(libponyc.tests.run VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C)
 
 # Assumes that there is only 1 C source file per test
-file(GLOB_RECURSE test_c_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} *.c)
+file(GLOB_RECURSE test_c_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} *.c *.cc)
 foreach(test_c_source ${test_c_sources})
   string(FIND ${test_c_source} "/" slash_pos)
   string(SUBSTRING ${test_c_source} 0 ${slash_pos} test_lib_name)
+  set(test_lib_name "${test_lib_name}-additional")
 
   if(MSVC)
     add_library(${test_lib_name} STATIC ${test_c_source})

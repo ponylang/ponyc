@@ -6,7 +6,7 @@ SEH and LLVM exception code generation interact.
 See https://github.com/ponylang/ponyc/issues/2455 for more details.
 """
 use "path:./"
-use "lib:additional"
+use "lib:try-block-cant-catch-cpp-exception-additional"
 
 use @codegen_test_tryblock_catch[I32](callback: Pointer[None])
 use @codegen_test_tryblock_throw[None]()?
