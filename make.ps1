@@ -238,7 +238,14 @@ switch ($Command.ToLower())
         $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
 
-        # libponyc tests
+        # libponyc.tests
+        $numTestSuitesRun += 1;
+        Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
+        & $outDir\libponyc.tests.exe --gtest_shuffle
+        $err = $LastExitCode
+        if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
+
+        # libponyc.run.tests
         $numTestSuitesRun += 1;
         Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run"
         & $buildDir\runner.exe --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run
