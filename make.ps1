@@ -246,8 +246,8 @@ switch ($Command.ToLower())
         # if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
         $numTestSuitesRun += 1;
-        Write-Output "$buildDir\runner.exe --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe $srcDir\test\libponyc-run"
-        & $buildDir\runner.exe --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run
+        Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run"
+        & $buildDir\runner.exe --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run
         $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyc.run.tests' }
 

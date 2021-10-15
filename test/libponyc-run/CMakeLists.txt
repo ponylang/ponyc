@@ -8,8 +8,15 @@ foreach(test_c_source ${test_c_sources})
 
   if(MSVC)
     add_library(${test_lib_name} STATIC ${test_c_source})
+    target_link_libraries(${test_lib_name}
+      PRIVATE $<TARGET_FILE:libponyrt>
+      PRIVATE ucrt
+      PRIVATE Ws2_32
+      PRIVATE Shlwapi
+    )
   else()
     add_library(${test_lib_name} SHARED ${test_c_source})
+    target_link_libraries(${test_lib_name} PRIVATE $<TARGET_FILE:libponyrt>)
   endif()
 
   add_custom_command(TARGET ${test_lib_name} POST_BUILD

@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
+#ifdef _MSC_VER
 #  define EXPORT_SYMBOL __declspec(dllexport)
 #else
 #  define EXPORT_SYMBOL

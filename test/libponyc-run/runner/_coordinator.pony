@@ -33,9 +33,6 @@ actor _Coordinator is _TesterNotify
 
     if _options.verbose then
       _env.out.print("Running " + _num_to_run.string() + " tests...")
-      // for def in _tests_to_run.values() do
-      //   _env.out.print("  " + def.name)
-      // end
     end
 
     if _options.sequential then

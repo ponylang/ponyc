@@ -112,7 +112,8 @@ actor _Tester
         args_join.append(" ")
         args_join.append(arg)
       end
-      _env.out.print(_definition.name + ": building: " + _options.ponyc + args_join)
+      _env.out.print(_definition.name + ": working dir: " + _definition.path)
+      _env.out.print(_definition.name + ": " + _options.ponyc + args_join)
     end
 
     // run ponyc to build the test program
@@ -128,34 +129,36 @@ actor _Tester
     end
 
   be building_succeeded() =>
-    let fname =
-      recover val
-        let fname' = String
-        fname'.append(Path.join(_options.output, _definition.name))
-        ifdef windows then
-          fname'.append(".exe")
+    if _stage is _Building then
+      let fname =
+        recover val
+          let fname' = String
+          fname'.append(Path.join(_options.output, _definition.name))
+          ifdef windows then
+            fname'.append(".exe")
+          end
+          fname'
         end
-        fname'
+
+      if _options.verbose then
+        _env.out.print(_definition.name + ": testing: " + fname)
       end
 
-    if _options.verbose then
-      _env.out.print(_definition.name + ": testing: " + fname)
-    end
+      _out_buf.clear()
+      _err_buf.clear()
 
-    _out_buf.clear()
-    _err_buf.clear()
-
-    // run the test program
-    try
-      let auth = _env.root as AmbientAuth
-      _stage = _Testing
-      _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
-        FilePath(auth, fname), [], _env.vars,
-        FilePath(auth, _definition.path))
-        .>done_writing()
-    else
-      _env.err.print(_definition.name + ": failed to acquire ambient auth")
-      _shutdown_failed()
+      // run the test program
+      try
+        let auth = _env.root as AmbientAuth
+        _stage = _Testing
+        _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
+          FilePath(auth, fname), [], _env.vars,
+          FilePath(auth, _definition.path))
+          .>done_writing()
+      else
+        _env.err.print(_definition.name + ": failed to acquire ambient auth")
+        _shutdown_failed()
+      end
     end
 
   be building_failed(msg: String) =>
@@ -178,8 +181,7 @@ actor _Tester
 
   be testing_failed(msg: String) =>
     if _stage is _Testing then
-      _env.err.print(_definition.name
-        + ": TEST FAILED: " + msg)
+      _env.err.print(_definition.name + ": TEST FAILED: " + msg)
       _shutdown_failed()
     end
 

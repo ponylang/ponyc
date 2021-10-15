@@ -1,8 +1,12 @@
 project(libponyc.tests.runner)
 
-add_custom_target(runner ALL
-  COMMAND $<TARGET_FILE:ponyc> --output ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
-  SOURCES
+set(RUNNER_EXECUTABLE "runner${CMAKE_EXECUTABLE_SUFFIX}")
+
+add_custom_target(tests.runner ALL DEPENDS ${RUNNER_EXECUTABLE})
+
+add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
+  COMMAND $<TARGET_FILE:ponyc> ${CMAKE_CURRENT_SOURCE_DIR}
+  DEPENDS
     main.pony
     _build_process_notify.pony
     _cli_options.pony
@@ -13,5 +17,3 @@ add_custom_target(runner ALL
     _tester_timer_notify.pony
     _tester.pony
 )
-
-add_dependencies(runner ponyc)
