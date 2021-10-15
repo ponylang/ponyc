@@ -191,6 +191,7 @@ test-check-version: all
 
 test-core: all
 	$(SILENT)cd '$(outDir)' && ./libponyrt.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
 	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir) --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
