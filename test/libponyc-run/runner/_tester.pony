@@ -67,9 +67,8 @@ actor _Tester
       end
 
     // build args for ponyc
-    let args = _get_build_args()
+    let args = _get_build_args(ponyc_file_path.path)
 
-    // add PONYPATH to vars if necessary
     if _options.verbose then
       let args_join = String
       for arg in args.values() do
@@ -93,9 +92,10 @@ actor _Tester
       _shutdown_failed()
     end
 
-  fun _get_build_args(): Array[String] val =>
+  fun _get_build_args(ponyc_path: String): Array[String] val =>
     recover val
       let args = Array[String]
+      args.push(ponyc_path)
       if _options.debug then
         args.push("--debug")
       end
@@ -114,7 +114,7 @@ actor _Tester
 
   be building_succeeded() =>
     if _stage is _Building then
-      let fname =
+      let test_fname =
         recover val
           let fname' = String
           fname'.append(Path.join(_options.output, _definition.name))
@@ -125,7 +125,7 @@ actor _Tester
         end
 
       if _options.verbose then
-        _env.out.print(_definition.name + ": testing: " + fname)
+        _env.out.print(_definition.name + ": testing: " + test_fname)
       end
 
       _out_buf.clear()
@@ -136,7 +136,7 @@ actor _Tester
         let auth = _env.root as AmbientAuth
         _stage = _Testing
         _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
-          FilePath(auth, fname), [], _env.vars,
+          FilePath(auth, test_fname), [ test_fname ], _env.vars,
           FilePath(auth, _definition.path))
           .>done_writing()
       else
