@@ -388,37 +388,3 @@ TEST_F(CodegenTraceTest, TraceTupleWithNumberBoxedSentThroughInterface)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 1);
 }
-
-TEST_F(CodegenTraceTest, TraceStructField)
-{
-  const char* src =
-    "use @gc_local[Pointer[None]](target: Main)\n"
-    "use @objectmap_has_object[Bool](obj_map: Pointer[None], obj: Bar tag)\n"
-    "use @objectmap_has_object_rc[Bool](obj_map: Pointer[None], obj: Any tag, rc: USize)\n"
-    "use @pony_exitcode[None](code: I32)\n"
-
-    "class Foo\n"
-
-    "struct Bar\n"
-    "  let f: Foo = Foo\n"
-
-    "class WrapBar\n"
-    "  let s: Bar = Bar\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    trace(recover WrapBar end)\n"
-
-    "  be trace(w: WrapBar iso) =>\n"
-    "    let x = consume ref w\n"
-    "    let map = @gc_local(this)\n"
-    "    let ok = @objectmap_has_object(map, x.s) and\n"
-    "      @objectmap_has_object_rc(map, x.s.f, 0)\n"
-    "    @pony_exitcode(I32(if ok then 1 else 0 end))";
-
-  TEST_COMPILE(src);
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
-}
