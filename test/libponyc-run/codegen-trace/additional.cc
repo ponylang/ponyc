@@ -1,3 +1,4 @@
+#include <string.h>
 #include <platform.h>
 
 #include <actor/actor.h>
