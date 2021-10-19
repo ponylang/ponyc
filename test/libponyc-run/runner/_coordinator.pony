@@ -35,12 +35,14 @@ actor _Coordinator is _TesterNotify
       _env.out.print("Running " + _num_to_run.string() + " tests...")
     end
 
-    if _options.sequential then
-      _run_test()
-    else
-      let timer = Timer(_CoordinatorTimerNotify(this), 0,
-        options.interval_ms * 1_000_000)
-      _timers(consume timer)
+    if _num_to_run > 0 then
+      if _options.sequential then
+        _run_test()
+      else
+        let timer = Timer(_CoordinatorTimerNotify(this), 0,
+          options.interval_ms * 1_000_000)
+        _timers(consume timer)
+      end
     end
 
   be _run_test() =>
