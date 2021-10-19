@@ -1,13 +1,13 @@
 class ListNode[A]
   """
   A node in a doubly linked list.
-
-  (See Ponylang [collections.List](https://stdlib.ponylang.io/collections-List/)
-  class for usage examples.)
-
+  
+  See Pony [collections.List](https://stdlib.ponylang.io/collections-List/)
+  class for usage examples.
+  
   Each node contains four fields: two link fields (references to the previous and
   to the next node in the sequence of nodes), one data field, and the reference to
-  the in which it resides.
+  the List in which it resides.
 
   As you would expect functions are provided to create a ListNode, update a
   ListNode's contained item, and pop the item from the ListNode.

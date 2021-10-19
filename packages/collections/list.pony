@@ -2,12 +2,12 @@ class List[A] is Seq[A]
   """
   A doubly linked list.
 
-  (The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).)
+  The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).
 
   A doubly linked list is a linked data structure that consists of a set of sequentially
-  linked records called nodes. (Implemented in Ponylang via the collections.ListNode class.) Each
+  linked records called nodes (implemented in Pony via the collections.ListNode class). Each
   node contains four fields: two link fields (references to the previous and to the next node in
-  the sequence of nodes), one data field, and the reference to the in which it resides.  A doubly
+  the sequence of nodes), one data field, and the reference to the List in which it resides. A doubly
   linked list can be conceptualized as two singly linked lists formed from the same data items, but
   in opposite sequential orders.
 
@@ -122,27 +122,31 @@ class List[A] is Seq[A]
 
   new create(len: USize = 0) =>
     """
-    Do nothing, but be compatible with Seq.
-
     Creates an empty list with 0 nodes.
 
-    let my_list = List[String].create()
+    ```pony
+    let my_list = List[String]
+    ```
     """
     None
 
   new unit(a: A) =>
     """
-    Builds a new list from an element.
+    Creates a list with 1 node of element.
 
+    ```pony
     let my_list = List[String].unit("element")
+    ```
     """
     push(consume a)
 
   new from(seq: Array[A^]) =>
     """
-    Builds a new list from the sequence passed in.
+    Creates a list equivalent to the provided Array (both node number and order are preserved).
 
+    ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
+    ```
     """
     for value in seq.values() do
       push(consume value)
@@ -150,7 +154,7 @@ class List[A] is Seq[A]
 
   fun ref reserve(len: USize) =>
     """
-    Do nothing, but be compatible with Seq.
+    Do nothing
     """
     None
 
@@ -158,8 +162,10 @@ class List[A] is Seq[A]
     """
     Returns the number of items in the list.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    env.out.print(my_list.size().string()) // 3
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.size() // 3
+    ```
     """
     _size
 
@@ -167,19 +173,22 @@ class List[A] is Seq[A]
     """
     Get the i-th element, raising an error if the index is out of bounds.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    try env.out.print(my_list.apply(1)?) end // b
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.apply(1)? end // "b"
+    ```
     """
     index(i)?()?
 
   fun ref update(i: USize, value: A): A^ ? =>
     """
-    Change the i-th element, raising an error if the index is out of bounds.
-    Returns the previous value, which may be None if the node has been popped
-    but left on the list.
+    Change the i-th element, raising an error if the index is out of bounds, and
+    returning the previous value.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    try my_list.update(1, "z")? end // ["a"; "z"; "c"]
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.update(1, "z")? end // Returns "b" and List now contains ["a"; "z"; "c"]
+    ```
     """
     index(i)?()? = consume value
 
@@ -187,8 +196,10 @@ class List[A] is Seq[A]
     """
     Gets the i-th node, raising an error if the index is out of bounds.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    try env.out.print(my_list.index(0)?.apply()?) end // "a"
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.index(0)? end // Returns a ListNode[String] containing "a"
+    ```
     """
     if i >= _size then
       error
@@ -206,11 +217,13 @@ class List[A] is Seq[A]
 
   fun ref remove(i: USize): ListNode[A] ? =>
     """
-    Remove the i-th node, raising an error if the index is out of bounds.
-    The removed node is returned.
+    Remove the i-th node, raising an error if the index is out of bounds, and
+    returning the removed node.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    try env.out.print(my_list.remove(0)?.apply()?) end // "a"
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.remove(0)? end // Returns a ListNode[String] containing "a" and List now contains ["b"; "c"]
+    ```
     """
     index(i)? .> remove()
 
@@ -224,19 +237,23 @@ class List[A] is Seq[A]
 
   fun head(): this->ListNode[A] ? =>
     """
-    Get the head of the list.
+    Show the head of the list, raising an error if the head is empty.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    try env.out.print(my_list.head()?.apply()?) end // "a"
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.head()? end // Returns a ListNode[String] containing "a"
+    ```
     """
     _head as this->ListNode[A]
 
   fun tail(): this->ListNode[A] ? =>
     """
-    Get the tail of the list.
+    Show the tail of the list, raising an error if the tail is empty.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    try env.out.print(my_list.tail()?.apply()?) end // "c"
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.tail()? end // Returns a ListNode[String] containing "c"
+    ```
     """
     _tail as this->ListNode[A]
 
@@ -244,9 +261,11 @@ class List[A] is Seq[A]
     """
     Adds a node to the head of the list.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    let new_head = ListNode[String].create("0")
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let new_head = ListNode[String]("0")
     my_list.prepend_node(new_head) // ["0", "a"; "b"; "c"]
+    ```
     """
     match _head
     | let head': ListNode[A] =>
@@ -259,9 +278,11 @@ class List[A] is Seq[A]
     """
     Adds a node to the tail of the list.
 
-    // suppose `my_list` contains ["a"; "b"; "c"]
-    let new_tail = ListNode[String].create("0")
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let new_tail = ListNode[String]("0")
     my_list.append_node(new_head) // ["a"; "b"; "c", "0"]
+    ```
     """
     match _tail
     | let tail': ListNode[A] =>
@@ -272,7 +293,13 @@ class List[A] is Seq[A]
 
   fun ref append_list(that: List[A]) =>
     """
-    Remove all nodes from that and append them to this.
+    Empties the provided List by appending all elements onto the receiving List.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.append_list(other_list)  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is empty
+    ```
     """
     if this isnt that then
       while that._size > 0 do
@@ -282,7 +309,13 @@ class List[A] is Seq[A]
 
   fun ref prepend_list(that: List[A]) =>
     """
-    Remove all nodes from that and prepend them to this.
+    Empties the provided List by prepending all elements onto the receiving List.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.prepend_list(other_list)  // my_list is ["d"; "e"; "f"; "a"; "b"; "c"], other_list is empty
+    ```
     """
     if this isnt that then
       while that._size > 0 do
@@ -292,25 +325,45 @@ class List[A] is Seq[A]
 
   fun ref push(a: A) =>
     """
-    Adds a value to the tail of the list.
+    Adds a new tail value.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.push("d")  // my_list is ["a"; "b"; "c"; "d"]
+    ```
     """
     append_node(ListNode[A](consume a))
 
   fun ref pop(): A^ ? =>
     """
-    Removes a value from the tail of the list.
+    Removes the tail value, raising an error if the tail is empty.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.pop() end  // Returns "c" and my_list is ["a"; "b"]
+    ```
     """
     tail()? .> remove().pop()?
 
   fun ref unshift(a: A) =>
     """
-    Adds a value to the head of the list.
+    Adds a new head value.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.unshift("d")  // my_list is ["d"; "a"; "b"; "c"]
+    ```
     """
     prepend_node(ListNode[A](consume a))
 
   fun ref shift(): A^ ? =>
     """
-    Removes a value from the head of the list.
+    Removes the head value, raising an error if the head is empty.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.shift() end  // Returns "a" and my_list is ["b"; "c"]
+    ```
     """
     head()? .> remove().pop()?
 
@@ -321,6 +374,16 @@ class List[A] is Seq[A]
   =>
     """
     Append len elements from a sequence, starting from the given offset.
+
+    When len is -1, all elements of sequence are pushed.
+
+    Does not remove elements from sequence.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.append(other_list)  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is unchanged
+    ```
     """
     if offset >= seq.size() then
       return
@@ -341,8 +404,18 @@ class List[A] is Seq[A]
 
   fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1) =>
     """
-    Add len iterated elements to the end of the list, starting from the given
+    Add len iterated elements to the tail of the list, starting from the given
     offset.
+
+    When len is -1, all elements of iterator are pushed.
+
+    Does not remove elements from iterator.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.concat(other_list.values())  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is unchanged
+    ```
     """
     try
       for i in Range(0, offset) do
@@ -364,8 +437,13 @@ class List[A] is Seq[A]
 
   fun ref truncate(len: USize) =>
     """
-    Truncate the list to the given length, discarding excess elements.
+    Pop tail elements until the list is len size.
     If the list is already smaller than len, do nothing.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.truncate(1)  // my_list is ["a"]
+    ```
     """
     try
       while _size > len do
@@ -375,7 +453,14 @@ class List[A] is Seq[A]
 
   fun clone(): List[this->A!]^ =>
     """
-    Clone the list.
+    Clone all elements into a new List.
+
+    Note: elements are not copied, an additional reference to each element is created in the new List.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.clone()  // my_list is ["a"; "b"; "c"], other_list is ["a"; "b"; "c"]
+    ```
     """
     let out = List[this->A!]
 
