@@ -1,4 +1,6 @@
 use "serialise"
+use "lib:custom-serialisation-additional"
+
 use @pony_exitcode[None](code: I32)
 use @test_custom_serialisation_get_object[Pointer[U8] ref]()
 use @test_custom_serialisation_free_object[None](p: Pointer[U8] tag)
