@@ -88,47 +88,6 @@ EXPORT_SYMBOL bool objectmap_has_object_rc(objectmap_t* map, void* address,
 
 }
 
-
-TEST_F(CodegenTraceTest, NoTrace)
-{
-  const char* src =
-    "use @gc_local[Pointer[None]](target: Main)\n"
-    "use @gc_local_snapshot[Pointer[None]](target: Main)\n"
-    "use @gc_local_snapshot_destroy[None](obj_map: Pointer[None])\n"
-    "use @objectmap_size[USize](obj_map: Pointer[None])\n"
-    "use @pony_ctx[Pointer[None]]()\n"
-    "use @pony_triggergc[None](ctx: Pointer[None])\n"
-    "use @pony_exitcode[None](code: I32)\n"
-
-    "actor Main\n"
-    "  var map_before: Pointer[None] = Pointer[None]\n"
-
-    "  new create(env: Env) =>\n"
-         // Trigger GC to remove env from the object map.
-    "    @pony_triggergc(@pony_ctx())\n"
-    "    test()\n"
-
-    "  be test() =>\n"
-    "    map_before = @gc_local_snapshot(this)\n"
-    "    trace(42, None)\n"
-
-    "  be trace(x: U32, y: None) =>\n"
-    "    let map_after = @gc_local(this)\n"
-    "    let size_before = @objectmap_size(map_before)\n"
-    "    let size_after = @objectmap_size(map_after)\n"
-         // Both maps should be empty.
-    "    let ok = (size_before == 0) and (size_after == 0)\n"
-    "    @gc_local_snapshot_destroy(map_before)\n"
-    "    @pony_exitcode(I32(if ok then 1 else 0 end))";
-
-  TEST_COMPILE(src);
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
-}
-
-
 TEST_F(CodegenTraceTest, TraceObjectSameCap)
 {
   const char* src =
