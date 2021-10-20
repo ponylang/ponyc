@@ -6,9 +6,14 @@
 #  define EXPORT_SYMBOL
 #endif
 
+extern "C"
+{
+
 typedef void (*baretest_callback_fn)(size_t value);
 
 EXPORT_SYMBOL extern void baretest_callback(baretest_callback_fn cb, size_t value)
 {
   cb(value);
+}
+
 }
