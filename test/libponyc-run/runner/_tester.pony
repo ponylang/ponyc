@@ -60,8 +60,8 @@ actor _Tester
       try
         _FindExecutable(_env, _options.ponyc)?
       else
-        _env.err.print(_definition.name
-          + ": FAILED: unable to find executable " + _options.ponyc)
+        _env.err.print(_red(_definition.name
+          + ": FAILED: unable to find executable " + _options.ponyc))
         _shutdown_failed()
         return
       end
@@ -88,7 +88,8 @@ actor _Tester
         FilePath(auth, _definition.path))
         .>done_writing()
     else
-      _env.err.print(_definition.name + ": failed to acquire ambient auth")
+      _env.err.print(_red(_definition.name
+        + ": failed to acquire ambient auth"))
       _shutdown_failed()
     end
 
@@ -125,7 +126,7 @@ actor _Tester
         end
 
       if _options.verbose then
-        _env.out.print(_definition.name + ": testing: " + test_fname)
+        _env.out.print(_yellow(_definition.name + ": testing: " + test_fname))
       end
 
       _out_buf.clear()
@@ -140,14 +141,15 @@ actor _Tester
           FilePath(auth, _definition.path))
           .>done_writing()
       else
-        _env.err.print(_definition.name + ": failed to acquire ambient auth")
+        _env.err.print(_red(_definition.name
+          + ": failed to acquire ambient auth"))
         _shutdown_failed()
       end
     end
 
   be building_failed(msg: String) =>
     if _stage is _Building then
-      _env.err.print(_definition.name + ": BUILD FAILED: " + msg)
+      _env.err.print(_red(_definition.name + ": BUILD FAILED: " + msg))
       _shutdown_failed()
     end
 
@@ -156,23 +158,24 @@ actor _Tester
       if exit_code == _definition.expected_exit_code then
         _shutdown_succeeded()
       else
-        _env.err.print(_definition.name + ": TEST FAILED: expected exit code "
+        _env.err.print(_red(_definition.name
+          + ": TEST FAILED: expected exit code "
           + _definition.expected_exit_code.string() + "; actual was "
-          + exit_code.string())
+          + exit_code.string()))
         _shutdown_failed()
       end
     end
 
   be testing_failed(msg: String) =>
     if _stage is _Testing then
-      _env.err.print(_definition.name + ": TEST FAILED: " + msg)
+      _env.err.print(_red(_definition.name + ": TEST FAILED: " + msg))
       _shutdown_failed()
     end
 
   be timeout() =>
     if (_stage is _Building) or (_stage is _Testing) then
-      _env.err.print(_definition.name + ": TIMED OUT after "
-        + _options.timeout_s.string() + " seconds")
+      _env.err.print(_red(_definition.name + ": TIMED OUT after "
+        + _options.timeout_s.string() + " seconds"))
       _shutdown_failed()
     end
 
@@ -181,7 +184,7 @@ actor _Tester
       _timers.cancel(_timer)
       _stage = _Succeeded
       _notify.succeeded(_definition.name)
-      _env.out.print(_definition.name + ": SUCCEEDED")
+      _env.out.print(_green(_definition.name + ": SUCCEEDED"))
     end
 
   fun ref _shutdown_failed() =>
@@ -212,3 +215,12 @@ actor _Tester
       _env.err.print(_definition.name + ": STDERR\n"
         + recover val _err_buf.clone() end)
     end
+
+  fun tag _red(str: String): String =>
+    _Colors.red() + str + _Colors.none()
+
+  fun tag _green(str: String): String =>
+    _Colors.green() + str + _Colors.none()
+
+  fun tag _yellow(str: String): String =>
+    _Colors.yellow() + str + _Colors.none()
