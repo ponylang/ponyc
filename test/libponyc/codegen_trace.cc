@@ -235,38 +235,3 @@ TEST_F(CodegenTraceTest, TraceNumberBoxedSentThroughInterface)
   ASSERT_TRUE(run_program(&exit_code));
   ASSERT_EQ(exit_code, 1);
 }
-
-
-TEST_F(CodegenTraceTest, TraceTuple)
-{
-  const char* src =
-    "use @gc_local[Pointer[None]](target: Main)\n"
-    "use @gc_local_snapshot[Pointer[None]](target: Main)\n"
-    "use @gc_local_snapshot_destroy[None](obj_map: Pointer[None])\n"
-    "use @objectmap_has_object_rc[Bool](obj_map: Pointer[None], obj: Any tag, rc: USize)\n"
-    "use @pony_exitcode[None](code: I32)\n"
-
-    "class A\n"
-
-    "actor Main\n"
-    "  var map_before: Pointer[None] = Pointer[None]\n"
-
-    "  new create(env: Env) =>\n"
-    "    trace((recover A end, recover A end))\n"
-    "    map_before = @gc_local_snapshot(this)\n"
-
-    "  be trace(t: (A iso, A iso)) =>\n"
-    "    let map_after = @gc_local(this)\n"
-    "    let ok = @objectmap_has_object_rc(map_before, t._1, USize(1)) and\n"
-    "      @objectmap_has_object_rc(map_before, t._2, USize(1)) and\n"
-    "      @objectmap_has_object_rc(map_after, t._1, USize(0)) and\n"
-    "      @objectmap_has_object_rc(map_after, t._2, USize(0))\n"
-    "    @gc_local_snapshot_destroy(map_before)\n"
-    "    @pony_exitcode(I32(if ok then 1 else 0 end))";
-
-  TEST_COMPILE(src);
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
-}
