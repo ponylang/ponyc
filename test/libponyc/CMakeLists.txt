@@ -13,7 +13,6 @@ add_executable(libponyc.tests
     codegen.cc
     codegen_ffi.cc
     codegen_optimisation.cc
-    codegen_trace.cc
     compiler_serialisation.cc
     dontcare.cc
     ffi.cc
