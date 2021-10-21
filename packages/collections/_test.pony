@@ -26,6 +26,22 @@ actor \nodoc\ Main is TestList
     test(_TestListsReverse)
     test(_TestListsTake)
     test(_TestListsTakeWhile)
+
+    test(_TestListIter)
+    test(_TestListIterContains)
+    test(_TestListIterDrop)
+    test(_TestListIterEvery)
+    test(_TestListIterExists)
+    test(_TestListIterFilter)
+    test(_TestListIterFlatMap)
+    test(_TestListIterFold)
+    test(_TestListIterFrom)
+    test(_TestListIterMap)
+    test(_TestListIterPartition)
+    test(_TestListIterReverse)
+    test(_TestListIterTake)
+    test(_TestListIterTakeWhile)
+
     test(_TestMap)
     test(_TestMapHashFunc)
     test(_TestMapRemove)
@@ -39,6 +55,32 @@ class \nodoc\ iso _TestList is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
+    a .> push(0) .> push(1) .> push(2)
+
+    let b = a.clone()
+    h.assert_eq[USize](b.size(), 3)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[U32](b(2)?, 2)
+
+    b.remove(1)?
+    h.assert_eq[USize](b.size(), 2)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 2)
+
+    b.append_list(a)
+    h.assert_eq[USize](b.size(), 5)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 2)
+    h.assert_eq[U32](b(2)?, 0)
+    h.assert_eq[U32](b(3)?, 1)
+    h.assert_eq[U32](b(4)?, 2)
+
+class \nodoc\ iso _TestListIter is UnitTest
+  fun name(): String => "collections/ListIter"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
     a .> push(0) .> push(1) .> push(2)
 
     let b = a.clone()
@@ -74,6 +116,22 @@ class \nodoc\ iso _TestListsFrom is UnitTest
     h.assert_eq[U32](a(4)?, 9)
 
     let b = List[U32].from(Array[U32])
+    h.assert_eq[USize](b.size(), 0)
+
+class \nodoc\ iso _TestListIterFrom is UnitTest
+  fun name(): String => "collections/ListIter.from()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32].from([1; 3; 5; 7; 9])
+
+    h.assert_eq[USize](a.size(), 5)
+    h.assert_eq[U32](a(0)?, 1)
+    h.assert_eq[U32](a(1)?, 3)
+    h.assert_eq[U32](a(2)?, 5)
+    h.assert_eq[U32](a(3)?, 7)
+    h.assert_eq[U32](a(4)?, 9)
+
+    let b = ListIter[U32].from(Array[U32])
     h.assert_eq[USize](b.size(), 0)
 
 class \nodoc\ iso _TestMap is UnitTest
@@ -284,6 +342,21 @@ class \nodoc\ iso _TestListsMap is UnitTest
     h.assert_eq[U32](c(1)?, 2)
     h.assert_eq[U32](c(2)?, 4)
 
+class \nodoc\ iso _TestListIterMap is UnitTest
+  fun name(): String => "collections/ListIter.map()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2)
+
+    let f = {(a: U32): U32 => a * 2 }
+    let c = a.map[U32](f)
+
+    h.assert_eq[USize](c.size(), 3)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 2)
+    h.assert_eq[U32](c(2)?, 4)
+
 class \nodoc\ iso _TestListsFlatMap is UnitTest
   fun name(): String => "collections/Lists/flat_map()"
 
@@ -302,11 +375,43 @@ class \nodoc\ iso _TestListsFlatMap is UnitTest
     h.assert_eq[U32](c(4)?, 2)
     h.assert_eq[U32](c(5)?, 4)
 
+class \nodoc\ iso _TestListIterFlatMap is UnitTest
+  fun name(): String => "collections/ListIter.flat_map()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2)
+
+    let f = {(a: U32): ListIter[U32] => ListIter[U32] .> push(a) .> push(a * 2) }
+    let c = a.flat_map[U32](f)
+
+    h.assert_eq[USize](c.size(), 6)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 0)
+    h.assert_eq[U32](c(2)?, 1)
+    h.assert_eq[U32](c(3)?, 2)
+    h.assert_eq[U32](c(4)?, 2)
+    h.assert_eq[U32](c(5)?, 4)
+
 class \nodoc\ iso _TestListsFilter is UnitTest
   fun name(): String => "collections/Lists/filter()"
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3)
+
+    let f = {(a: U32): Bool => a > 1 }
+    let b = a.filter(f)
+
+    h.assert_eq[USize](b.size(), 2)
+    h.assert_eq[U32](b(0)?, 2)
+    h.assert_eq[U32](b(1)?, 3)
+
+class \nodoc\ iso _TestListIterFilter is UnitTest
+  fun name(): String => "collections/ListIter.filter()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
     a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let f = {(a: U32): Bool => a > 1 }
@@ -337,6 +442,27 @@ class \nodoc\ iso _TestListsFold is UnitTest
     h.assert_eq[U32](resList(2)?, 4)
     h.assert_eq[U32](resList(3)?, 6)
 
+class \nodoc\ iso _TestListIterFold is UnitTest
+  fun name(): String => "collections/ListIter.fold()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3)
+
+    let f = {(acc: U32, x: U32): U32 => acc + x }
+    let value = a.fold[U32](0, f)
+
+    h.assert_eq[U32](value, 6)
+
+    let g = {(acc: ListIter[U32], x: U32): ListIter[U32] => acc .> push(x * 2) }
+    let resList = a.fold[ListIter[U32]](ListIter[U32], g)
+
+    h.assert_eq[USize](resList.size(), 4)
+    h.assert_eq[U32](resList(0)?, 0)
+    h.assert_eq[U32](resList(1)?, 2)
+    h.assert_eq[U32](resList(2)?, 4)
+    h.assert_eq[U32](resList(3)?, 6)
+
 class \nodoc\ iso _TestListsEvery is UnitTest
   fun name(): String => "collections/Lists/every()"
 
@@ -359,6 +485,28 @@ class \nodoc\ iso _TestListsEvery is UnitTest
     let empty = b.every(f)
     h.assert_eq[Bool](empty, true)
 
+class \nodoc\ iso _TestListIterEvery is UnitTest
+  fun name(): String => "collections/ListIter.every()"
+
+  fun apply(h: TestHelper) =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3)
+
+    let f = {(x: U32): Bool => x < 4 }
+    let g = {(x: U32): Bool => x < 3 }
+    let z = {(x: U32): Bool => x < 0 }
+    let lessThan4 = a.every(f)
+    let lessThan3 = a.every(g)
+    let lessThan0 = a.every(z)
+
+    h.assert_eq[Bool](lessThan4, true)
+    h.assert_eq[Bool](lessThan3, false)
+    h.assert_eq[Bool](lessThan0, false)
+
+    let b = ListIter[U32]
+    let empty = b.every(f)
+    h.assert_eq[Bool](empty, true)
+
 class \nodoc\ iso _TestListsExists is UnitTest
   fun name(): String => "collections/Lists/exists()"
 
@@ -378,6 +526,28 @@ class \nodoc\ iso _TestListsExists is UnitTest
     h.assert_eq[Bool](lt0, false)
 
     let b = List[U32]
+    let empty = b.exists(f)
+    h.assert_eq[Bool](empty, false)
+
+class \nodoc\ iso _TestListIterExists is UnitTest
+  fun name(): String => "collections/ListIter.exists()"
+
+  fun apply(h: TestHelper) =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3)
+
+    let f = {(x: U32): Bool => x > 2 }
+    let g = {(x: U32): Bool => x >= 0 }
+    let z = {(x: U32): Bool => x < 0 }
+    let gt2 = a.exists(f)
+    let gte0 = a.exists(g)
+    let lt0 = a.exists(z)
+
+    h.assert_eq[Bool](gt2, true)
+    h.assert_eq[Bool](gte0, true)
+    h.assert_eq[Bool](lt0, false)
+
+    let b = ListIter[U32]
     let empty = b.exists(f)
     h.assert_eq[Bool](empty, false)
 
@@ -404,6 +574,29 @@ class \nodoc\ iso _TestListsPartition is UnitTest
     h.assert_eq[USize](emptyEvens.size(), 0)
     h.assert_eq[USize](emptyOdds.size(), 0)
 
+class \nodoc\ iso _TestListIterPartition is UnitTest
+  fun name(): String => "collections/ListIter.partition()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3)
+
+    let isEven = {(x: U32): Bool => (x % 2) == 0 }
+    (let evens, let odds) = a.partition(isEven)
+
+    h.assert_eq[USize](evens.size(), 2)
+    h.assert_eq[U32](evens(0)?, 0)
+    h.assert_eq[U32](evens(1)?, 2)
+    h.assert_eq[USize](odds.size(), 2)
+    h.assert_eq[U32](odds(0)?, 1)
+    h.assert_eq[U32](odds(1)?, 3)
+
+    let b = ListIter[U32]
+    (let emptyEvens, let emptyOdds) = b.partition(isEven)
+
+    h.assert_eq[USize](emptyEvens.size(), 0)
+    h.assert_eq[USize](emptyOdds.size(), 0)
+
 class \nodoc\ iso _TestListsDrop is UnitTest
   fun name(): String => "collections/Lists/drop()"
 
@@ -425,6 +618,30 @@ class \nodoc\ iso _TestListsDrop is UnitTest
     h.assert_eq[USize](e.size(), 0)
 
     let empty = List[U32]
+    let l = empty.drop(3)
+    h.assert_eq[USize](l.size(), 0)
+
+class \nodoc\ iso _TestListIterDrop is UnitTest
+  fun name(): String => "collections/ListIter.drop()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3) .> push(4)
+
+    let b = a.drop(2)
+    let c = a.drop(4)
+    let d = a.drop(5)
+    let e = a.drop(6)
+
+    h.assert_eq[USize](b.size(), 3)
+    h.assert_eq[U32](b(0)?, 2)
+    h.assert_eq[U32](b(2)?, 4)
+    h.assert_eq[USize](c.size(), 1)
+    h.assert_eq[U32](c(0)?, 4)
+    h.assert_eq[USize](d.size(), 0)
+    h.assert_eq[USize](e.size(), 0)
+
+    let empty = ListIter[U32]
     let l = empty.drop(3)
     h.assert_eq[USize](l.size(), 0)
 
@@ -467,6 +684,45 @@ class \nodoc\ iso _TestListsTake is UnitTest
     let l = empty.take(3)
     h.assert_eq[USize](l.size(), 0)
 
+class \nodoc\ iso _TestListIterTake is UnitTest
+  fun name(): String => "collections/ListIter.take()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3) .> push(4)
+
+    let b = a.take(2)
+    let c = a.take(4)
+    let d = a.take(5)
+    let e = a.take(6)
+    let m = a.take(0)
+
+    h.assert_eq[USize](b.size(), 2)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[USize](c.size(), 4)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 1)
+    h.assert_eq[U32](c(2)?, 2)
+    h.assert_eq[U32](c(3)?, 3)
+    h.assert_eq[USize](d.size(), 5)
+    h.assert_eq[U32](d(0)?, 0)
+    h.assert_eq[U32](d(1)?, 1)
+    h.assert_eq[U32](d(2)?, 2)
+    h.assert_eq[U32](d(3)?, 3)
+    h.assert_eq[U32](d(4)?, 4)
+    h.assert_eq[USize](e.size(), 5)
+    h.assert_eq[U32](e(0)?, 0)
+    h.assert_eq[U32](e(1)?, 1)
+    h.assert_eq[U32](e(2)?, 2)
+    h.assert_eq[U32](e(3)?, 3)
+    h.assert_eq[U32](e(4)?, 4)
+    h.assert_eq[USize](m.size(), 0)
+
+    let empty = ListIter[U32]
+    let l = empty.take(3)
+    h.assert_eq[USize](l.size(), 0)
+
 class \nodoc\ iso _TestListsTakeWhile is UnitTest
   fun name(): String => "collections/Lists/take_while()"
 
@@ -502,6 +758,41 @@ class \nodoc\ iso _TestListsTakeWhile is UnitTest
     let l = empty.take_while(g)
     h.assert_eq[USize](l.size(), 0)
 
+class \nodoc\ iso _TestListIterTakeWhile is UnitTest
+  fun name(): String => "collections/ListIter.take_while()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2) .> push(3) .> push(4)
+
+    let f = {(x: U32): Bool => x < 5 }
+    let g = {(x: U32): Bool => x < 4 }
+    let y = {(x: U32): Bool => x < 1 }
+    let z = {(x: U32): Bool => x < 0 }
+    let b = a.take_while(f)
+    let c = a.take_while(g)
+    let d = a.take_while(y)
+    let e = a.take_while(z)
+
+    h.assert_eq[USize](b.size(), 5)
+    h.assert_eq[U32](b(0)?, 0)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[U32](b(2)?, 2)
+    h.assert_eq[U32](b(3)?, 3)
+    h.assert_eq[U32](b(4)?, 4)
+    h.assert_eq[USize](c.size(), 4)
+    h.assert_eq[U32](c(0)?, 0)
+    h.assert_eq[U32](c(1)?, 1)
+    h.assert_eq[U32](c(2)?, 2)
+    h.assert_eq[U32](c(3)?, 3)
+    h.assert_eq[USize](d.size(), 1)
+    h.assert_eq[U32](d(0)?, 0)
+    h.assert_eq[USize](e.size(), 0)
+
+    let empty = ListIter[U32]
+    let l = empty.take_while(g)
+    h.assert_eq[USize](l.size(), 0)
+
 class \nodoc\ iso _TestListsContains is UnitTest
   fun name(): String => "collections/Lists/contains()"
 
@@ -514,11 +805,42 @@ class \nodoc\ iso _TestListsContains is UnitTest
     h.assert_eq[Bool](a.contains(2), true)
     h.assert_eq[Bool](a.contains(3), false)
 
+class \nodoc\ iso _TestListIterContains is UnitTest
+  fun name(): String => "collections/ListIter.contains()"
+
+  fun apply(h: TestHelper) =>
+    let a = ListIter[U32]
+    a .> push(0) .> push(1) .> push(2)
+
+    h.assert_eq[Bool](a.contains(0), true)
+    h.assert_eq[Bool](a.contains(1), true)
+    h.assert_eq[Bool](a.contains(2), true)
+    h.assert_eq[Bool](a.contains(3), false)
+
 class \nodoc\ iso _TestListsReverse is UnitTest
   fun name(): String => "collections/Lists/reverse()"
 
   fun apply(h: TestHelper) ? =>
     let a = List[U32]
+    a .> push(0) .> push(1) .> push(2)
+
+    let b = a.reverse()
+
+    h.assert_eq[USize](a.size(), 3)
+    h.assert_eq[U32](a(0)?, 0)
+    h.assert_eq[U32](a(1)?, 1)
+    h.assert_eq[U32](a(2)?, 2)
+
+    h.assert_eq[USize](b.size(), 3)
+    h.assert_eq[U32](b(0)?, 2)
+    h.assert_eq[U32](b(1)?, 1)
+    h.assert_eq[U32](b(2)?, 0)
+
+class \nodoc\ iso _TestListIterReverse is UnitTest
+  fun name(): String => "collections/ListIter.reverse()"
+
+  fun apply(h: TestHelper) ? =>
+    let a = ListIter[U32]
     a .> push(0) .> push(1) .> push(2)
 
     let b = a.reverse()
