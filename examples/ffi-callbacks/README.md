@@ -31,7 +31,7 @@ Linking ./ffi-callbacks
 
 ## How to Run
 
-Once `ffi-callbacks` has been compiler, in the same directory as this README file run `./ffi-callbacks`. You should see the number `10` printed three times:
+Once `ffi-callbacks` has been compiled, in the same directory as this README file run `./ffi-callbacks`. You should see the number `10` printed three times:
 
 ```console
 $ ./ffi-callbacks
