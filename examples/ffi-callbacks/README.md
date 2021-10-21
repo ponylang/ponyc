@@ -7,7 +7,6 @@ This program shows how to pass Pony functions as callbacks to C functions. In th
 The first step is to compile our C code to a shared library. For this example, we're using `clang` on macOS. The exact details may vary when using other compilers and platforms, so be sure to check the appropriate documentation. Run the following commands in the same directory as this README:
 
 ```console
-clang -fPIC -Wall -Wextra -g -MM callbacks.c > callbacks.d
 clang -fPIC -Wall -Wextra -g -c -o callbacks.o callbacks.c
 clang -shared -o libffi-callbacks.dylib callbacks.o
 ```
