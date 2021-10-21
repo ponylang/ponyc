@@ -46,7 +46,6 @@ Whenever we interface with C code, we need to tell the Pony compiler how to find
 
 There are two ways of doing this. One is by adding a `use path:XXX` statement to our Pony code, like in our example:
 
-
 ```pony
 use "path:./"
 use "lib:ffi-callbacks"
