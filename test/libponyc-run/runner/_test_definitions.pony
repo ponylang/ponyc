@@ -37,7 +37,8 @@ class _TestDefinitions
 
     let fp = FilePath(auth, path)
     if not fp.exists() then
-      _err.print("Path does not exist: " + path)
+      _err.print(_Colors.red() + path + ": path does not exist"
+        + _Colors.none())
       return
     end
 
@@ -45,12 +46,13 @@ class _TestDefinitions
       try
         FileInfo(fp)?
       else
-        _err.print("Unable to get info: " + path)
+        _err.print(_Colors.red() + path + ": unable to get file info"
+          + _Colors.none())
         return
       end
 
     if not fi.directory then
-      _err.print("Not a directory: " + path)
+      _err.print(_Colors.red() + path + ": not a directory" + _Colors.none())
       return
     end
 
@@ -58,7 +60,8 @@ class _TestDefinitions
       try
         Directory(fp)?
       else
-        _err.print("Unable to open directory: " + path)
+        _err.print(_Colors.red() + path + ": unable to open directory"
+          + _Colors.none())
         return
       end
 
@@ -66,7 +69,8 @@ class _TestDefinitions
       try
         dir.entries()?
       else
-        _err.print("Unable to get entries: " + path)
+        _err.print(_Colors.red() + path + ": unable to get entries"
+          + _Colors.none())
         return
       end
 
@@ -100,7 +104,8 @@ class _TestDefinitions
       try
         dir.entries()?
       else
-        _err.print("Unable to get directory entries for: " + child)
+        _err.print(_Colors.red() + child
+          + ": unable to get directory entries for" + child + _Colors.none())
         return None
       end
 
@@ -122,7 +127,8 @@ class _TestDefinitions
           expected_exit_code =
             _get_expected_exit_code(FilePath.from(dir.path, entry)?)?
         else
-          _err.print("Unable to open file: " + child + "/" + entry)
+          _err.print(_Colors.red() + child + "/" + entry
+            + ": unable to open file" + _Colors.none())
           return None
         end
       end
@@ -139,8 +145,9 @@ class _TestDefinitions
         try
           return line.i32()?
         else
-          _err.print("Unable to parse expected error code: '" + line.clone()
-            + "'")
+          _err.print(_Colors.red() + fp.path
+            + ": unable to parse expected error code: '" + line.clone() + "'"
+            + _Colors.none())
         end
         break
       end

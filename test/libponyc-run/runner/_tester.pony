@@ -25,6 +25,8 @@ actor _Tester
 
   var _stage: _TesterStage
   let _timer: Timer tag
+  var _start_ms: U64
+  var _end_ms: U64
 
   var _build_process: (ProcessMonitor | None) = None
   var _test_process: (ProcessMonitor | None) = None
@@ -46,6 +48,8 @@ actor _Tester
       _options.timeout_s * 1_000_000_000)
     _timer = timer
     _timers(consume timer)
+    _start_ms = 0
+    _end_ms = 0
     start_building()
 
   be append_stdout(buf: Array[U8] iso) =>
@@ -55,14 +59,14 @@ actor _Tester
     _err_buf.append(consume buf)
 
   be start_building() =>
+    _env.out.print(_Colors.run(_definition.name))
+
     // find ponyc executable
     let ponyc_file_path =
       try
         _FindExecutable(_env, _options.ponyc)?
       else
-        _env.err.print(_red(_definition.name
-          + ": FAILED: unable to find executable " + _options.ponyc))
-        _shutdown_failed()
+        _shutdown_failed("unable to find executable: " + _options.ponyc)
         return
       end
 
@@ -75,12 +79,16 @@ actor _Tester
         args_join.append(" ")
         args_join.append(arg)
       end
-      _env.out.print(_definition.name + ": building: working dir: " + _definition.path)
-      _env.out.print(_definition.name + ": building: " + _options.ponyc + args_join)
+      _env.out.print(_Colors.info(_definition.name + ": building in: "
+        + _definition.path))
+      _env.out.print(_Colors.info(_definition.name + ": building: "
+        + _options.ponyc + args_join))
     end
 
     // run ponyc to build the test program
     try
+      _start_ms = Time.millis()
+
       let auth = _env.root as AmbientAuth
       _stage = _Building
       _build_process = ProcessMonitor(auth, auth, _BuildProcessNotify(this),
@@ -88,9 +96,7 @@ actor _Tester
         FilePath(auth, _definition.path))
         .>done_writing()
     else
-      _env.err.print(_red(_definition.name
-        + ": failed to acquire ambient auth"))
-      _shutdown_failed()
+      _shutdown_failed("failed to acquire ambient authority")
     end
 
   fun _get_build_args(ponyc_path: String): Array[String] val =>
@@ -126,7 +132,8 @@ actor _Tester
         end
 
       if _options.verbose then
-        _env.out.print(_yellow(_definition.name + ": testing: " + test_fname))
+        _env.out.print(_Colors.info(_definition.name + ": testing: "
+          + test_fname))
       end
 
       _out_buf.clear()
@@ -141,16 +148,13 @@ actor _Tester
           FilePath(auth, _definition.path))
           .>done_writing()
       else
-        _env.err.print(_red(_definition.name
-          + ": failed to acquire ambient auth"))
-        _shutdown_failed()
+        _shutdown_failed("failed to acquire ambient authority")
       end
     end
 
   be building_failed(msg: String) =>
     if _stage is _Building then
-      _env.err.print(_red(_definition.name + ": BUILD FAILED: " + msg))
-      _shutdown_failed()
+      _shutdown_failed("building failed: " + msg)
     end
 
   be testing_exited(exit_code: I32) =>
@@ -158,37 +162,40 @@ actor _Tester
       if exit_code == _definition.expected_exit_code then
         _shutdown_succeeded()
       else
-        _env.err.print(_red(_definition.name
-          + ": TEST FAILED: expected exit code "
+        _shutdown_failed("expected exit code "
           + _definition.expected_exit_code.string() + "; actual was "
-          + exit_code.string()))
-        _shutdown_failed()
+          + exit_code.string())
       end
     end
 
   be testing_failed(msg: String) =>
     if _stage is _Testing then
-      _env.err.print(_red(_definition.name + ": TEST FAILED: " + msg))
-      _shutdown_failed()
+      _shutdown_failed("testing failed: " + msg)
     end
 
   be timeout() =>
     if (_stage is _Building) or (_stage is _Testing) then
-      _env.err.print(_red(_definition.name + ": TIMED OUT after "
-        + _options.timeout_s.string() + " seconds"))
-      _shutdown_failed()
+      _shutdown_failed("timed out after " + _options.timeout_s.string()
+        + " seconds")
     end
 
   fun ref _shutdown_succeeded() =>
     if not (_stage is _Succeeded) then
+      _end_ms = Time.millis()
+      _env.out.print(_Colors.ok(_definition.name + " ("
+        + (_end_ms - _start_ms).string() + " ms)"))
       _timers.cancel(_timer)
       _stage = _Succeeded
       _notify.succeeded(_definition.name)
-      _env.out.print(_green(_definition.name + ": SUCCEEDED"))
     end
 
-  fun ref _shutdown_failed() =>
+  fun ref _shutdown_failed(msg: String) =>
     if not (_stage is _Failed) then
+      _end_ms = Time.millis()
+
+      _env.out.print(_Colors.fail(_definition.name + " ("
+        + (_end_ms - _start_ms).string() + " ms): " + msg))
+
       match _build_process
       | let process: ProcessMonitor =>
         process.dispose()
@@ -207,20 +214,11 @@ actor _Tester
     end
 
   fun ref _dump_io_streams() =>
-    if _options.verbose and (_out_buf.size() > 0) then
+    if _out_buf.size() > 0 then
       _env.out.print(_definition.name + ": STDOUT:\n"
         + recover val _out_buf.clone() end)
     end
     if _err_buf.size() > 0 then
-      _env.err.print(_definition.name + ": STDERR\n"
+      _env.out.print(_definition.name + ": STDERR\n"
         + recover val _err_buf.clone() end)
     end
-
-  fun tag _red(str: String): String =>
-    _Colors.red() + str + _Colors.none()
-
-  fun tag _green(str: String): String =>
-    _Colors.green() + str + _Colors.none()
-
-  fun tag _yellow(str: String): String =>
-    _Colors.yellow() + str + _Colors.none()

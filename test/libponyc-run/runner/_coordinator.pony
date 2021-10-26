@@ -31,9 +31,8 @@ actor _Coordinator is _TesterNotify
     _success = Map[String, Bool](_num_to_run)
     _timers = Timers
 
-    if _options.verbose then
-      _env.out.print("Running " + _num_to_run.string() + " tests...")
-    end
+    _env.out.print(_Colors.info("Running " + _num_to_run.string()
+      + " tests.", true))
 
     if _num_to_run > 0 then
       if _options.sequential then
@@ -47,7 +46,10 @@ actor _Coordinator is _TesterNotify
 
   be _run_test() =>
     try
-      if _tests_to_run.size() > 0 then
+      let num_left = _tests_to_run.size()
+      let num_started = _num_to_run - num_left
+      let num_in_flight = num_started - _success.size()
+      if (num_left > 0) and (num_in_flight < _options.max_parallel) then
         let definition = _tests_to_run.shift()?
         _Tester(_env, _timers, _options, definition, this)
       end
@@ -61,8 +63,8 @@ actor _Coordinator is _TesterNotify
     _success(name) = false
     _check_done()
 
-  fun _check_done() =>
-    if _success.size() == _num_to_run then
+  fun _check_done(): Bool =>
+    if _success.size() >= _num_to_run then
       (let num_succeeded: USize, let num_failed: USize) =
         Iter[Bool](_success.values())
           .fold[(USize, USize)]((0, 0),
@@ -70,20 +72,33 @@ actor _Coordinator is _TesterNotify
               if s then (sum._1 + 1, sum._2) else (sum._1, sum._2 + 1) end
             })
 
+      _env.out.print(_Colors.info("", true))
+      if num_succeeded > 0 then
+        _env.out.print(_Colors.pass(num_succeeded.string() + " tests(s)."))
+      end
+      if num_failed > 0 then
+        _env.out.print(_Colors.fail(num_failed.string()
+          + " test(s), listed below:"))
+        for (name, succeeded') in _success.pairs() do
+          if not succeeded' then
+            _env.out.print(_Colors.fail(name))
+          end
+        end
+      end
+
       if num_succeeded == _num_to_run then
-        _env.out.print("Ran " + _num_to_run.string() + " tests: "
-          + num_succeeded.string() + " succeeded.")
         _env.exitcode(0)
       else
-        _env.err.print("Ran " + _num_to_run.string() + " tests: "
-          + num_succeeded.string() + " succeeded, " + num_failed.string()
-          + " failed.")
         _env.exitcode(1)
       end
 
       _timers.dispose()
+      true
     elseif _options.sequential then
       _run_test()
+      false
+    else
+      false
     end
 
 class iso _CoordinatorTimerNotify is TimerNotify

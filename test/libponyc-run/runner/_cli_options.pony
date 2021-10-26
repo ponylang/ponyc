@@ -12,6 +12,7 @@ class val _Options
   let verbose: Bool
   let sequential: Bool
   let interval_ms: U64
+  let max_parallel: USize
   let only: Set[String] val
   let exclude: Set[String] val
 
@@ -27,6 +28,8 @@ class val _Options
     verbose = command.option(_CliOptions._str_verbose()).bool()
     sequential = command.option(_CliOptions._str_sequential()).bool()
     interval_ms = command.option(_CliOptions._str_interval_ms()).u64()
+    max_parallel = USize.from[U64](
+      command.option(_CliOptions._str_max_parallel()).u64())
     only =
       recover
         let only' = Set[String]
@@ -53,6 +56,7 @@ primitive _CliOptions
   fun _str_verbose(): String => "verbose"
   fun _str_sequential(): String => "sequential"
   fun _str_interval_ms(): String => "interval_ms"
+  fun _str_max_parallel(): String => "max_parallel"
   fun _str_only(): String => "only"
   fun _str_exclude(): String => "exclude"
 
@@ -82,6 +86,9 @@ primitive _CliOptions
           OptionSpec.u64(_str_interval_ms(),
             "Interval (in milliseconds) between starting parallel tests"
             where short' = 'i', default' = 250)
+          OptionSpec.u64(_str_max_parallel(),
+            "Maximum number of tests to run in parallel"
+            where short' = 'P', default' = 4)
           OptionSpec.string(_str_only(),
             "Comma-separated list of test names to run"
             where short' = 'O', default' = "")

@@ -22,15 +22,15 @@ actor Main
         | let test_definitions: Array[_TestDefinition] val =>
           _Coordinator(env, options, test_definitions)
         else
-          env.err.print("Unable to get test definitions.")
+          env.err.print(_Colors.err("Unable to get test definitions."))
           exit_code = 1
         end
       else
-        env.err.print("Output directory does not exist: " + options.output)
+        env.err.print(_Colors.err(options.output + ": Output directory does not exist."))
         exit_code = 1
       end
     else
-      env.err.print("Unable to get ambient auth.")
+      env.err.print(_Colors.err("Unable to get ambient authority."))
       exit_code = 1
     end
     env.exitcode(exit_code)
