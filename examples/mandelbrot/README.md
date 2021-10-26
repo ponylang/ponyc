@@ -54,7 +54,7 @@ Options:
    -i, --iterations=50    Maximum amount of iterations to be done for each pixel.
    -w, --width=16000      Lateral length of the resulting mandelbrot image.
    -c, --chunks=16        Maximum line count of chunks the image should be divided into for divide & conquer processing.
-   -h, --help=false       
+   -h, --help=false
    -o, --output=          File to write the output to.
    -l, --limit=4          Square of the limit that pixels need to exceed in order to escape from the Mandelbrot set.
 ```
