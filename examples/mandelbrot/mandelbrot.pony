@@ -75,8 +75,10 @@ class val Config
   new val create(env: Env) ? =>
     let cs = CommandSpec.leaf("run",
       """
-      The binary output can be converted to a PNG with the following command
-      (ImageMagick Tools required):
+      Plot a Mandelbrot set using a divide-and-conquer algorithm.
+
+      The output can be viewed directly with a suitable Netpbm viewer, or converted
+      to a PNG with the following command (ImageMagick Tools required):
 
         convert <output> PNG:<output>.png""",
       [
