@@ -37,6 +37,8 @@
 #elif defined(__OpenBSD__)
 #  define PLATFORM_IS_BSD
 #  define PLATFORM_IS_OPENBSD
+#elif defined(__EMSCRIPTEN__)
+#  define PLATFORM_IS_EMSCRIPTEN
 #elif defined(_WIN32)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
@@ -105,7 +107,8 @@
 #  error PLATFORM NOT SUPPORTED!
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) \
+  || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_EMSCRIPTEN)
 #  define PLATFORM_IS_POSIX_BASED
 #endif
 

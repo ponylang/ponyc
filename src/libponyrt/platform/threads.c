@@ -3,7 +3,7 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_EMSCRIPTEN)
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>

@@ -5,7 +5,7 @@
 #include <platform.h>
 #include <stdbool.h>
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
 #  define ASIO_USE_EPOLL
 #elif defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
 #  define ASIO_USE_KQUEUE

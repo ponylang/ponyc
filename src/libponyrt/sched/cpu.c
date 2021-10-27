@@ -4,7 +4,7 @@
 #include <platform.h>
 #include <dtrace.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_EMSCRIPTEN)
   #include <sched.h>
   #include <stdlib.h>
   #include <unistd.h>
@@ -434,6 +434,8 @@ uint64_t ponyint_cpu_tick()
 # elif defined(PLATFORM_IS_WINDOWS)
   return __rdtsc();
 # endif
+#elif defined PLATFORM_IS_EMSCRIPTEN
+  return __builtin_readcyclecounter();
 #endif
 }
 
