@@ -6,6 +6,7 @@ set(_c_src
     actor/actor.c
     actor/messageq.c
     asio/asio.c
+    asio/emscripten.c
     asio/epoll.c
     asio/event.c
     asio/iocp.c
