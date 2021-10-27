@@ -39,6 +39,7 @@
 #  define PLATFORM_IS_OPENBSD
 #elif defined(__EMSCRIPTEN__)
 #  define PLATFORM_IS_EMSCRIPTEN
+#  define USE_SCHEDULER_SCALING_PTHREADS
 #elif defined(_WIN32)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
