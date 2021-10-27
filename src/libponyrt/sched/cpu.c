@@ -4,7 +4,7 @@
 #include <platform.h>
 #include <dtrace.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_EMSCRIPTEN)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
   #include <sched.h>
   #include <stdlib.h>
   #include <unistd.h>
@@ -18,6 +18,9 @@
   #include <mach/thread_policy.h>
 #elif defined(PLATFORM_IS_WINDOWS)
   #include <processtopologyapi.h>
+#elif defined(PLATFORM_IS_EMSCRIPTEN)
+  #include <emscripten.h>
+  #include <emscripten/threading.h>
 #endif
 
 #include "cpu.h"
@@ -168,6 +171,8 @@ void ponyint_cpu_init()
   hw_cpu_count = property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
   hw_cpu_count = property("hw.physicalcpu");
+#elif defined(PLATFORM_IS_EMSCRIPTEN)
+  hw_cpu_count = emscripten_num_logical_cores();
 #elif defined(PLATFORM_IS_WINDOWS)
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION info = NULL;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
@@ -435,7 +440,7 @@ uint64_t ponyint_cpu_tick()
   return __rdtsc();
 # endif
 #elif defined PLATFORM_IS_EMSCRIPTEN
-  return __builtin_readcyclecounter();
+  return (uint64_t)(emscripten_get_now() * 1e6);
 #endif
 }
 
