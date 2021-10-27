@@ -142,32 +142,3 @@ EXPORT_SYMBOL char* signature_get()
 }
 
 }
-
-TEST_F(SignatureTest, SerialiseSignature)
-{
-  const char* src =
-    "use \"serialise\"\n"
-    "use @memcmp[I32](s1: Pointer[None], s2: Pointer[None], size: USize)\n"
-    "use @signature_get[Pointer[U8]]()\n"
-    "use @pony_exitcode[None](code: I32)\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    let sig_in = @signature_get()\n"
-    "    let sig = Serialise.signature()\n"
-    "    let ok = @memcmp(sig_in, sig.cpointer(), sig.size())\n"
-    "    if ok == 0 then\n"
-    "      @pony_exitcode(1)\n"
-    "    end";
-
-  set_builtin(nullptr);
-
-  TEST_COMPILE(src);
-
-  const char* signature = program_signature(program);
-  memcpy(sig_in, signature, SIGNATURE_LENGTH);
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
-}
