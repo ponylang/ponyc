@@ -119,10 +119,6 @@ void CompilerSerialisationTest::test_pass_ast(const char* pass)
   module = ast_child(package);
 
   TEST_COMPILE_RESUME("ir");
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
 }
 
 void CompilerSerialisationTest::test_pass_reach(const char* pass)
@@ -156,10 +152,6 @@ void CompilerSerialisationTest::test_pass_reach(const char* pass)
   compile->reach = new_r;
 
   TEST_COMPILE_RESUME("ir");
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
 }
 
 TEST_F(CompilerSerialisationTest, SerialiseAfterSugar)

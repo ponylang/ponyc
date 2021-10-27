@@ -487,15 +487,6 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
 }
 
 
-bool PassTest::run_program(int* exit_code)
-{
-  pony_assert(compile != NULL);
-
-  pony_exitcode(0);
-  return gen_jit_and_run(compile, exit_code, NULL, 0);
-}
-
-
 // Private methods
 
 void PassTest::build_package(const char* pass, const char* src,
