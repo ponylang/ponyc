@@ -50,9 +50,11 @@ Package names will be:
 * ponyc-x86-64-unknown-linux-centos8.tar.gz
 * ponyc-x86-64-unknown-linux-gnu.tar.gz
 * ponyc-x86-64-unknown-linux-musl.tar.gz
+* ponyc-x86-64-unknown-linux-rocky8.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz
-
+* ponyc-x86-64-unknown-linux-ubuntu21.04.tar.gz
+* 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
 If not all files are presents after 10 to 15 minutes then either a build job is delayed waiting for resources or something has gone wrong. Check [CirrusCI](https://cirrus-ci.com/github/ponylang/ponyc) to learn more.
