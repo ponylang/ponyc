@@ -9,6 +9,10 @@ First of all, you need a compiler with decent C11 support. We officially support
 
 You also need [CMake](https://cmake.org/download/) version 3.15 or higher.
 
+## Clone this repository
+
+The Pony build process uses git submodules so you need to build from a checked out clone of this repository. 
+
 ## Build Steps
 
 The build system uses CMake, and includes a helper wrapper that will automatically set up your out-of-source build directories and libraries for you.
