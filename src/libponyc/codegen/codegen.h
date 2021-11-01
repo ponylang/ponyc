@@ -219,8 +219,7 @@ bool codegen_pass_init(pass_opt_t* opt);
 
 void codegen_pass_cleanup(pass_opt_t* opt);
 
-LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
-  bool jit);
+LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt);
 

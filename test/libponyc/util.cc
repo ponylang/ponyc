@@ -8,7 +8,6 @@
 #include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
-#include <codegen/genjit.h>
 #include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
 #include <ponyassert.h>
