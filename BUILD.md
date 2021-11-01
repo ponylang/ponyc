@@ -96,7 +96,7 @@ Operating Systems, you'll need to override the `arch` option to configure, but o
 make libs
 make configure arch=armv8-a
 make build
-sudo make install
+sudo make install arch=armv8-a
 ```
 
 ## macOS
