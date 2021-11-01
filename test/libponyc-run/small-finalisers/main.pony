@@ -1,4 +1,3 @@
-use "path:./"
 use "lib:small-finalisers-additional"
 
 use @codegentest_small_finalisers_increment_num_objects[None]()

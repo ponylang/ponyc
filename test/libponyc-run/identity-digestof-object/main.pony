@@ -1,4 +1,3 @@
-use "path:./"
 use "lib:identity-digestof-object-additional"
 
 use @ptr_to_int[USize](env: Env)
