@@ -11,7 +11,7 @@ You also need [CMake](https://cmake.org/download/) version 3.15 or higher.
 
 ## Clone this repository
 
-The Pony build process uses git submodules so you need to build from a checked out clone of this repository. 
+The Pony build process uses git submodules so you need to build from a checked out clone of this repository.
 
 ## Build Steps
 
