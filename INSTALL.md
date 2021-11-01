@@ -33,6 +33,7 @@ Linux Mint 19.3 | ubuntu18.04
 Rocky 8 | rocky8
 Ubuntu 18.04 | ubuntu18.04
 Ubuntu 20.04 | ubuntu20.04
+Ubuntu 21.04 | ubuntu21.04
 
 N.B. If you platform isn't listed, skip to the next section and ponyup will install, as appropriate a Glibc or musl libc build of ponyc.
 
