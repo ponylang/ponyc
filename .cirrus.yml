@@ -257,6 +257,8 @@ task:
 task:
   only_if: $CIRRUS_CRON == "nightly"
 
+  timeout_in: 120m
+
   matrix:
     - name: "nightly: x86-64-unknown-linux-rocky8"
       container:
@@ -329,6 +331,8 @@ task:
 task:
   only_if: $CIRRUS_CRON == "nightly"
 
+  timeout_in: 120m
+
   freebsd_instance:
     image: freebsd-13-0-release-amd64
     cpu: 8
@@ -359,6 +363,8 @@ task:
 task:
   only_if: $CIRRUS_CRON == "nightly"
 
+  timeout_in: 120m
+
   osx_instance:
     image: big-sur-xcode-12.5
 
@@ -386,6 +392,8 @@ task:
 
 task:
   only_if: $CIRRUS_CRON == "nightly"
+
+  timeout_in: 120m
 
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
@@ -424,6 +432,8 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+
+  timeout_in: 120m
 
   matrix:
     - name: "release: x86-64-unknown-linux-rocky8"
@@ -497,6 +507,8 @@ task:
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
+  timeout_in: 120m
+
   freebsd_instance:
     image: freebsd-13-0-release-amd64
     cpu: 8
@@ -527,6 +539,8 @@ task:
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
 
+  timeout_in: 120m
+
   osx_instance:
     image: big-sur-xcode-12.5
 
@@ -554,6 +568,8 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+
+  timeout_in: 120m
 
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
