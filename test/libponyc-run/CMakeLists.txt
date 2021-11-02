@@ -22,7 +22,9 @@ foreach(test_c_source ${test_c_sources})
   endif()
 
   if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-      target_link_libraries(${test_lib_name} PRIVATE dl)
+    target_link_libraries(${test_lib_name} PRIVATE dl
+    -Wl,-force_load,../../src/libponyrt/libponyrt.a
+    )
   endif()
 
   add_custom_command(TARGET ${test_lib_name} POST_BUILD
