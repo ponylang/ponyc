@@ -9,7 +9,7 @@ if(NOT DEFINED PONYC_LIBS_BUILD_TYPE)
     set(PONYC_LIBS_BUILD_TYPE Release)
 endif()
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.4.tar.gz)
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.6.tar.gz)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
     set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.3.tar.gz)
 endif()
