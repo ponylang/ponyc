@@ -16,8 +16,8 @@ EXPORT_SYMBOL extern void codegentest_small_finalisers_increment_num_objects()
   pony_exitcode((int)num_objects);
 }
 
-EXPORT_SYMBOL extern void Main_runtime_override_defaults_oo(void* opt)
-{
-  (void)opt;
-  return;
-}
+// EXPORT_SYMBOL extern void Main_runtime_override_defaults_oo(void* opt)
+// {
+//   (void)opt;
+//   return;
+// }
