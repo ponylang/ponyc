@@ -75,7 +75,7 @@ primitive _CliOptions
             where short' = 'L', default' = "test_lib")
           OptionSpec.u64(_str_timeout_s(),
             "Timeout (in seconds) for any one test"
-            where short' = 't', default' = 10)
+            where short' = 't', default' = 60)
           OptionSpec.bool(_str_debug(), "Whether to compile in debug mode"
             where short' = 'd', default' = false)
           OptionSpec.bool(_str_verbose(), "Whether to print more progress info"
