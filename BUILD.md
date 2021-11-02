@@ -41,7 +41,7 @@ gmake build
 sudo gmake install
 ```
 
-Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
 ## DragonFly
 
