@@ -1,12 +1,11 @@
 #include <stdint.h>
+#include <pony.h>
 
 #ifdef _MSC_VER
 #  define EXPORT_SYMBOL __declspec(dllexport)
 #else
 #  define EXPORT_SYMBOL
 #endif
-
-void pony_exitcode(int code);
 
 static uint32_t num_objects = 0;
 
