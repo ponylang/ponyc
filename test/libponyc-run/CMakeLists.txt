@@ -17,7 +17,7 @@ foreach(test_c_source ${test_c_sources})
       PRIVATE Shlwapi
     )
   else()
-    add_library(${test_lib_name} SHARED ${test_c_source})
+    add_library(${test_lib_name} STATIC ${test_c_source})
     target_link_libraries(${test_lib_name} PRIVATE libponyrt)
   endif()
 
