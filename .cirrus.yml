@@ -542,7 +542,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: big-sur-xcode-12.5
+    image: monterey-xcode-13.1
 
   name: "release: x86-64-apple-darwin"
 
@@ -553,7 +553,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos big-sur-xcode-12.5 20210710"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos monterey-xcode-13.1 20210710"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
