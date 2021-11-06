@@ -129,6 +129,7 @@ set(LLVM_ENABLE_ZLIB OFF)
 set(LLVM_ENABLE_ZLIB:STRING OFF)
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64") # build as a "universal binary"
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.14 -DUSE_SCHEDULER_SCALING_PTHREADS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
 endif()
