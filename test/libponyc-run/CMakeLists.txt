@@ -17,6 +17,7 @@ foreach(test_c_source ${test_c_sources})
       PRIVATE Shlwapi
     )
   else()
+    set(INSTALL_RPATH, ${CMAKE_BINARY_DIR}/../release/test_lib)
     add_library(${test_lib_name} SHARED ${test_c_source})
     target_link_libraries(${test_lib_name} PRIVATE libponyrt)
   endif()
