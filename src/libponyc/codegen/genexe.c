@@ -275,7 +275,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Linking %s\n", file_exe);
 
-  program_lib_build_args(program, c->opt, "-L", "-rpath", "", "", "-l", "");
+  program_lib_build_args(program, c->opt, "-L", NULL, "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t arch_len = arch - c->opt->triple;
