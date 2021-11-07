@@ -145,7 +145,7 @@ actor _Tester
         _stage = _Testing
         _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
           FilePath(auth, test_fname), [ test_fname ], _env.vars,
-          FilePath(auth, _definition.path))
+          FilePath(auth, _options.test_lib))
           .>done_writing()
       else
         _shutdown_failed("failed to acquire ambient authority")
