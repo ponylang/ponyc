@@ -15,7 +15,7 @@ use @clock_gettime[I32](clock: U32, ts: Pointer[(I64, I64)])
   if lp64 and (linux or bsd)
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I32, I32)])
   if ilp32 and (linux or bsd)
-use @mach_absolute_time[U64]() if osx
+use @clock_gettime_nsec_np[U64](clock: U32) if osx
 use @gettimeofday[I32](tp: Pointer[(I64, I64)], tzp: Pointer[None])
   if osx
 use @GetSystemTimeAsFileTime[None](times_as_file_time: Pointer[(U32, U32)])
@@ -41,6 +41,14 @@ primitive _ClockMonotonic
       4
     else
       compile_error "no clock_gettime monotonic clock"
+    end
+
+primitive _ClockUptimeRaw
+  fun apply(): U32 =>
+    ifdef osx then
+      8
+    else
+      compile_error "no clock_gettime_nsec_np uptime raw clock"
     end
 
 primitive Time
@@ -81,7 +89,7 @@ primitive Time
     Monotonic unadjusted milliseconds.
     """
     ifdef osx then
-      @mach_absolute_time() / 1000000
+      @clock_gettime_nsec_np(_ClockUptimeRaw()) / 1000000
     elseif linux or bsd then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000) + (ts._2 / 1000000)).u64()
@@ -97,7 +105,7 @@ primitive Time
     Monotonic unadjusted microseconds.
     """
     ifdef osx then
-      @mach_absolute_time() / 1000
+      @clock_gettime_nsec_np(_ClockUptimeRaw()) / 1000
     elseif linux or bsd then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000) + (ts._2 / 1000)).u64()
@@ -113,7 +121,7 @@ primitive Time
     Monotonic unadjusted nanoseconds.
     """
     ifdef osx then
-      @mach_absolute_time()
+      @clock_gettime_nsec_np(_ClockUptimeRaw())
     elseif linux or bsd then
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000000) + ts._2).u64()
