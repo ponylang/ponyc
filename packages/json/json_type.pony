@@ -23,6 +23,13 @@ class JsonArray
     """
     data = data'
 
+  fun apply(): this->Array[JsonType]! =>
+	"""
+	A getter to access the array data relative to the receiver's reference
+	capability.
+	"""
+    data
+
   fun string(indent: String = "", pretty_print: Bool = false): String =>
     """
     Generate string representation of this array.
@@ -93,6 +100,13 @@ class JsonObject
     Create a Json object from a map.
     """
     data = data'
+
+  fun apply(): this->Map[String, JsonType]! =>
+	"""
+	A getter to access the map data relative to the receiver's reference
+	capability.
+	"""
+    data
 
   fun string(indent: String = "", pretty_print: Bool = false): String =>
     """
