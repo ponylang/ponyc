@@ -23,6 +23,7 @@ actor Main is TestList
     test(_TestPrintNumber)
     test(_TestPrintObject)
     test(_TestPrintString)
+    test(_TestApplyGetter)
 
 class iso _TestParseBasic is UnitTest
   """
@@ -642,3 +643,39 @@ class iso _TestParsePrint is UnitTest
     expect.remove("\r")
 
     h.assert_eq[String ref](expect, actual)
+
+class iso _TestApplyGetter is UnitTest
+  """
+  Test accessing the data of JSON elements using the `apply()` getter.
+  """
+
+  fun name(): String => "JSON/apply.getter"
+
+  fun apply(h: TestHelper) ? =>
+		// create an iso JSON document with a map
+		let doc_iso: JsonDoc iso = recover iso
+			JsonDoc.>parse("""{ "stuff" : 123, "inner" : [ 1,2,3 ] }""")?
+		end
+
+		// sanity check to confirm that the "canary" values do not exist
+		let jtxt: String val = doc_iso.string()
+		h.assert_false(jtxt.contains("more_stuff"))
+		h.assert_false(jtxt.contains("789"))
+
+		// now perform an update to the map and recover the iso
+		let doc_iso' = recover iso
+			let jdoc_ref = consume ref doc_iso
+			// below is an example of JsonDoc.apply() as well as JsonObject.apply()
+			let map_ref: Map[String, JsonType] ref = (jdoc_ref() as JsonObject)()
+			map_ref("more_stuff") = I64(456)
+			let json_array: JsonArray ref = (map_ref("inner")? as JsonArray)
+			// below is an example of JsonArray.apply()
+			let array_ref: Array[JsonType] ref = json_array()
+			array_ref.push(I64(789))
+			jdoc_ref
+		end
+
+		// now check for the newly added "canary" values
+		let jtxt': String val = doc_iso'.string()
+		h.assert_true(jtxt'.contains("more_stuff"))
+		h.assert_true(jtxt'.contains("789"))
