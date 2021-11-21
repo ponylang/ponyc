@@ -23,7 +23,7 @@ class JsonArray
     """
     data = data'
 
-  fun apply(): this->Array[JsonType]! =>
+  fun apply(): this->Array[JsonType] =>
 	"""
 	A getter to access the array data relative to the receiver's reference
 	capability.
@@ -101,7 +101,7 @@ class JsonObject
     """
     data = data'
 
-  fun apply(): this->Map[String, JsonType]! =>
+  fun apply(): this->Map[String, JsonType] =>
 	"""
 	A getter to access the map data relative to the receiver's reference
 	capability.

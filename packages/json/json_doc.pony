@@ -27,7 +27,7 @@ class JsonDoc
     """
     data = None
 
-  fun apply(): this->JsonType! =>
+  fun apply(): this->JsonType =>
 	"""
 	A getter to access the document data relative to the receiver's reference capability.
 	"""
