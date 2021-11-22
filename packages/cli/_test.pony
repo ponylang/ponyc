@@ -249,8 +249,7 @@ class iso _TestShortsAdj is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS--"; "-swords=with=signs"
-      "-I42"; "-U47"; "-F42.0"; "-zaaa"; "-zbbb"
+      "-BS--"; "-I42"; "-U47"; "-F42.0"; "-zaaa"; "-zbbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -259,7 +258,6 @@ class iso _TestShortsAdj is UnitTest
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
-    h.assert_eq[String]("words=with=signs", cmd.option("stringo").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
@@ -267,6 +265,18 @@ class iso _TestShortsAdj is UnitTest
     h.assert_eq[USize](2, stringso.string_seq().size())
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
+
+    let ambiguous_args: Array[String] = [
+      "ignored"; "-swords=with=signs"
+    ]
+    let cmdSyntax = CommandParser(cs).parse(ambiguous_args)
+    match cmdSyntax
+    | let se: SyntaxError =>
+      h.assert_eq[String](
+        "Error: ambiguous args for short option at: 's'", se.string())
+    else
+      h.fail("expected syntax error for ambiguous args: " + cmdSyntax.string())
+    end
 
 class iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
