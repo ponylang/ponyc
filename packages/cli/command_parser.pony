@@ -235,7 +235,7 @@ class CommandParser
     -abc=Foo => options a, b, c. c has argument Foo.
     -abc Foo => options a, b, c. c has argument Foo iff its arg is required.
     """
-    let parts = token.split("=")
+    let parts = token.split("=", 2)
     let shorts = (try parts(0)? else "" end).clone()
     var targ = try parts(1)? else None end
 
