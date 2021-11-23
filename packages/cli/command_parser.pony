@@ -208,7 +208,9 @@ class CommandParser
     --opt=foo => --opt has argument foo
     --opt foo => --opt has argument foo, iff arg is required
     """
-    let parts = token.split("=")
+    // Only split the token in two parts. If argument contains '=',
+    // and the token is of the form --opt=foo=bar, then targ will contain foo=bar
+    let parts = token.split("=", 2)
     let name = try parts(0)? else "???" end
     let targ = try parts(1)? else None end
     match _option_with_name(name)
@@ -233,7 +235,7 @@ class CommandParser
     -abc=Foo => options a, b, c. c has argument Foo.
     -abc Foo => options a, b, c. c has argument Foo iff its arg is required.
     """
-    let parts = token.split("=")
+    let parts = token.split("=", 2)
     let shorts = (try parts(0)? else "" end).clone()
     var targ = try parts(1)? else None end
 

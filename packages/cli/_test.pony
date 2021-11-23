@@ -266,6 +266,18 @@ class iso _TestShortsAdj is UnitTest
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
+    let ambiguous_args: Array[String] = [
+      "ignored"; "-swords=with=signs"
+    ]
+    let cmdSyntax = CommandParser(cs).parse(ambiguous_args)
+    match cmdSyntax
+    | let se: SyntaxError =>
+      h.assert_eq[String](
+        "Error: ambiguous args for short option at: 's'", se.string())
+    else
+      h.fail("expected syntax error for ambiguous args: " + cmdSyntax.string())
+    end
+
 class iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
 
@@ -275,7 +287,8 @@ class iso _TestShortsEq is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS=astring"; "-I=42"; "-U=47"; "-F=42.0"; "-z=aaa"; "-z=bbb"
+      "-BS=astring"; "-s=words=with=signs"
+      "-I=42"; "-U=47"; "-F=42.0"; "-z=aaa"; "-z=bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -284,6 +297,7 @@ class iso _TestShortsEq is UnitTest
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
+    h.assert_eq[String]("words=with=signs", cmd.option("stringo").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
@@ -301,7 +315,8 @@ class iso _TestShortsNext is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "-BS"; "--"; "-I"; "42"; "-U"; "47"
+      "-BS"; "--"; "-s"; "words=with=signs"
+      "-I"; "42"; "-U"; "47"
       "-F"; "42.0"; "-z"; "aaa"; "-z"; "bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
@@ -311,6 +326,7 @@ class iso _TestShortsNext is UnitTest
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
+    h.assert_eq[String]("words=with=signs", cmd.option("stringo").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
@@ -320,7 +336,7 @@ class iso _TestShortsNext is UnitTest
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class iso _TestLongsEq is UnitTest
-  fun name(): String => "ponycli/shorts_eq"
+  fun name(): String => "ponycli/longs_eq"
 
   // Rules 4, 5, 7
   fun apply(h: TestHelper) ? =>
@@ -328,8 +344,9 @@ class iso _TestLongsEq is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "--boolr=true"; "--stringr=astring"; "--intr=42"; "--uintr=47"
-      "--floatr=42.0"; "--stringso=aaa"; "--stringso=bbb"
+      "--boolr=true"; "--stringr=astring"; "--stringo=words=with=signs"
+      "--intr=42"; "--uintr=47"; "--floatr=42.0"
+      "--stringso=aaa"; "--stringso=bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -338,6 +355,7 @@ class iso _TestLongsEq is UnitTest
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
+    h.assert_eq[String]("words=with=signs", cmd.option("stringo").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
@@ -355,8 +373,9 @@ class iso _TestLongsNext is UnitTest
 
     let args: Array[String] = [
       "ignored"
-      "--boolr"; "--stringr"; "--"; "--intr"; "42"; "--uintr"; "47"
-      "--floatr"; "42.0"; "--stringso"; "aaa"; "--stringso"; "bbb"
+      "--boolr"; "--stringr"; "--"; "--stringo"; "words=with=signs"
+      "--intr"; "42"; "--uintr"; "47"; "--floatr"; "42.0"
+      "--stringso"; "aaa"; "--stringso"; "bbb"
     ]
     let cmdErr = CommandParser(cs).parse(args)
     h.log("Parsed: " + cmdErr.string())
@@ -364,6 +383,7 @@ class iso _TestLongsNext is UnitTest
     let cmd = cmdErr as Command
 
     h.assert_eq[String]("--", cmd.option("stringr").string())
+    h.assert_eq[String]("words=with=signs", cmd.option("stringo").string())
     h.assert_eq[I64](42, cmd.option("intr").i64())
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
