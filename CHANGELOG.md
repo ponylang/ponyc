@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix underlying time source for Time.nanos() on macOS ([PR #3921](https://github.com/ponylang/ponyc/pull/3921))
+- Fix `cli` package from mangling option arguments with equal signs ([PR #3925](https://github.com/ponylang/ponyc/pull/3925))
 
 ### Added
 
