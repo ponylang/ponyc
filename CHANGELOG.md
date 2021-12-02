@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.45.1] - 2021-12-02
 
 ### Fixed
 
 - Fix underlying time source for Time.nanos() on macOS ([PR #3921](https://github.com/ponylang/ponyc/pull/3921))
 - Fix `cli` package from mangling option arguments with equal signs ([PR #3925](https://github.com/ponylang/ponyc/pull/3925))
-
-### Added
-
-
-### Changed
-
 
 ## [0.45.0] - 2021-11-01
 
