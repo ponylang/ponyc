@@ -140,11 +140,36 @@ actor _Tester
       _err_buf.clear()
 
       // run the test program
+      let vars: Array[String val] val =
+        recover val
+          ifdef osx then
+            let vars' = Array[String val](_env.vars.size() + 1)
+            var found_dyld_library_path = false
+            for v in _env.vars.values() do
+              var pushed = false
+              if v.contains("DYLD_LIBRARY_PATH") then
+                found_dyld_library_path = true
+                if not v.contains(_options.test_lib) then
+                  vars'.push(v + ":" + _options.test_lib)
+                  pushed = true
+                end
+              end
+              if not pushed then vars'.push(v) end
+            end
+            if not found_dyld_library_path then
+              vars'.push("DYLD_LIBRARY_PATH=" + _options.test_lib)
+            end
+            vars'
+          else
+            _env.vars
+          end
+        end
+
       try
         let auth = _env.root as AmbientAuth
         _stage = _Testing
         _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
-          FilePath(auth, test_fname), [ test_fname ], _env.vars,
+          FilePath(auth, test_fname), [ test_fname ], vars,
           FilePath(auth, _definition.path))
           .>done_writing()
       else
