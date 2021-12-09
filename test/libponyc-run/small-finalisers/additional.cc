@@ -7,6 +7,9 @@
 #  define EXPORT_SYMBOL
 #endif
 
+extern "C"
+{
+
 static uint32_t num_objects = 0;
 
 EXPORT_SYMBOL extern void codegentest_small_finalisers_increment_num_objects()
@@ -15,8 +18,4 @@ EXPORT_SYMBOL extern void codegentest_small_finalisers_increment_num_objects()
   pony_exitcode((int)num_objects);
 }
 
-void Main_runtime_override_defaults_oo(void* opt)
-{
-  (void)opt;
-  return;
 }
