@@ -165,6 +165,16 @@ actor _Tester
           end
         end
 
+      ifdef osx then
+        if _options.verbose then
+          for v in vars.values() do
+            if v.contains("DYLD_LIBRARY_PATH") then
+              _env.out.print(_Colors.info(_definition.name + ": testing: " + v))
+            end
+          end
+        end
+      end
+
       try
         let auth = _env.root as AmbientAuth
         _stage = _Testing
