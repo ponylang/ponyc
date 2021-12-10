@@ -85,8 +85,8 @@ add_custom_command(
 )
 
 target_include_directories(libponyrt
-    PRIVATE .
-    PRIVATE ../common
+    PUBLIC .
+    PUBLIC ../common
 )
 
 if (MSVC)

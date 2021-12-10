@@ -245,6 +245,13 @@ switch ($Command.ToLower())
         $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
+        # libponyc.run.tests
+        $numTestSuitesRun += 1;
+        Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=30 --sequential=true --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run"
+        & $buildDir\test\libponyc-run\runner\runner.exe --sequential=true --timeout_s=30 --exclude=runner --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$outDir $srcDir\test\libponyc-run
+        $err = $LastExitCode
+        if ($err -ne 0) { $failedTestSuites += 'libponyc.run.tests' }
+
         # stdlib-debug
         $numTestSuitesRun += 1;
         Write-Output "$outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib"

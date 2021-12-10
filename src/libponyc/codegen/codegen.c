@@ -74,7 +74,7 @@ static void pop_frame(compile_t* c)
   POOL_FREE(compile_frame_t, frame);
 }
 
-static LLVMTargetMachineRef make_machine(pass_opt_t* opt, bool jit)
+static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 {
   LLVMTargetRef target;
   char* err;
@@ -86,7 +86,7 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt, bool jit)
     return NULL;
   }
 
-  LLVMTargetMachineRef machine = codegen_machine(target, opt, jit);
+  LLVMTargetMachineRef machine = codegen_machine(target, opt);
 
   if(machine == NULL)
   {
@@ -626,7 +626,7 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "puts", type);
 }
 
-static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
+static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
 
@@ -652,7 +652,7 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt, bool jit)
   else
     c->linkage = LLVMPrivateLinkage;
 
-  c->machine = make_machine(opt, jit);
+  c->machine = make_machine(opt);
 
   if(c->machine == NULL)
     return false;
@@ -885,7 +885,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   genned_strings_init(&c.strings, 64);
   ffi_decls_init(&c.ffi_decls, 64);
 
-  if(!init_module(&c, program, opt, false))
+  if(!init_module(&c, program, opt))
     return false;
 
   init_runtime(&c);
@@ -912,7 +912,7 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     genned_strings_init(&c->strings, 64);
     ffi_decls_init(&c->ffi_decls, 64);
 
-    if(!init_module(c, program, opt, true))
+    if(!init_module(c, program, opt))
       return false;
 
     init_runtime(c);

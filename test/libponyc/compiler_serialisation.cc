@@ -31,7 +31,7 @@ static const char* const src =
   "  be foo(x: Array[U8] val) =>\n"
   "    try\n"
   "      if x(0)? == 42 then\n"
-  "        @pony_exitcode(I32(1))\n"
+  "        @pony_exitcode(1)\n"
   "      end\n"
   "    end";
 
@@ -119,10 +119,6 @@ void CompilerSerialisationTest::test_pass_ast(const char* pass)
   module = ast_child(package);
 
   TEST_COMPILE_RESUME("ir");
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
 }
 
 void CompilerSerialisationTest::test_pass_reach(const char* pass)
@@ -150,16 +146,12 @@ void CompilerSerialisationTest::test_pass_reach(const char* pass)
   reach_t* new_r = new_guard.get();
 
   ASSERT_NE(new_r, (void*)NULL);
-  
+
   new_guard.release();
   new_guard.reset(r);
   compile->reach = new_r;
 
   TEST_COMPILE_RESUME("ir");
-
-  int exit_code = 0;
-  ASSERT_TRUE(run_program(&exit_code));
-  ASSERT_EQ(exit_code, 1);
 }
 
 TEST_F(CompilerSerialisationTest, SerialiseAfterSugar)

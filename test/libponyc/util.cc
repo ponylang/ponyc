@@ -8,7 +8,6 @@
 #include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
-#include <codegen/genjit.h>
 #include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
 #include <ponyassert.h>
@@ -484,15 +483,6 @@ ast_t* PassTest::lookup_member(const char* type_name, const char* member_name)
   pony_assert(type != NULL);
 
   return lookup_in(type, member_name);
-}
-
-
-bool PassTest::run_program(int* exit_code)
-{
-  pony_assert(compile != NULL);
-
-  pony_exitcode(0);
-  return gen_jit_and_run(compile, exit_code, NULL, 0);
 }
 
 

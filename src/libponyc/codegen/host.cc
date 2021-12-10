@@ -20,8 +20,7 @@
 
 using namespace llvm;
 
-LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
-  bool jit)
+LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
 {
   Optional<Reloc::Model> reloc;
 
@@ -41,7 +40,7 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt,
   Target* t = reinterpret_cast<Target*>(target);
 
 TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
-  opt->features, options, reloc, llvm::None, opt_level, jit);
+  opt->features, options, reloc, llvm::None, opt_level, false);
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
