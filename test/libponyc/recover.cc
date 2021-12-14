@@ -83,7 +83,7 @@ TEST_F(RecoverTest, CanSee_LetLocalRefAsTag)
     "    let inner: Inner ref = Inner\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
 
 TEST_F(RecoverTest, CanAccess_LetLocalVal)
@@ -128,7 +128,7 @@ TEST_F(RecoverTest, CanSee_VarLocalRefAsTag)
     "    var inner: Inner ref = Inner\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
 
 TEST_F(RecoverTest, CanAccess_VarLocalVal)
@@ -172,7 +172,7 @@ TEST_F(RecoverTest, CanSee_ParamRefAsTag)
     "  fun apply(inner: Inner ref): Wrap iso =>\n"
     "    recover Wrap(inner) end";
 
-  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
 
 TEST_F(RecoverTest, CanAccess_ParamVal)

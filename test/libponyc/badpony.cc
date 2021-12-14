@@ -753,7 +753,7 @@ TEST_F(BadPonyTest, AsFromUninferredReference)
     "    true";
 
   TEST_ERRORS_2(src,
-    "argument not a subtype of parameter",
+    "argument not assignable to parameter",
     "cannot infer type of b");
 }
 
@@ -1047,7 +1047,7 @@ TEST_F(BadPonyTest, ThisViewpointWithIsoReceiver)
     "  let opaque : A tag = A.create()\n"
     "  let not_opaque : A box = (consume revealer).reveal(opaque)\n";
 
-  TEST_ERRORS_1(src, "argument not a subtype of parameter");
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
 
 TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeddedType)
