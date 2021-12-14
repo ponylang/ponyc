@@ -241,10 +241,10 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     if(!is_subtype(arg_type, wp_type, &info, opt))
     {
       errorframe_t frame = NULL;
-      ast_error_frame(&frame, arg, "argument not a subtype of parameter");
+      ast_error_frame(&frame, arg, "argument cannot be assigned to parameter");
       ast_error_frame(&frame, arg, "argument type is %s",
                       ast_print_type(arg_type));
-      ast_error_frame(&frame, param, "parameter type is %s",
+      ast_error_frame(&frame, param, "parameter requires %s",
                       ast_print_type(wp_type));
       errorframe_append(&frame, &info);
 
