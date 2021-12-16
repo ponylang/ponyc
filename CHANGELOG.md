@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Clarify wording for some subtyping errors ([PR #3933](https://github.com/ponylang/ponyc/pull/3933))
 
 ### Added
 
