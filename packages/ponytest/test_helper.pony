@@ -385,7 +385,9 @@ class val TestHelper
   fun complete(success: Bool) =>
     """
     MUST be called by each long test to indicate the test has finished, unless
-    a timeout occurs.
+    a timeout occurs. If you are using expect_action() then complete(true) will
+    be called once the last expected action has been completed via
+    complete_action().
 
     The "success" parameter specifies whether the test succeeded. However if
     any asserts fail the test will be considered a failure, regardless of the
