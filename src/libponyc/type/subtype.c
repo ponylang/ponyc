@@ -139,7 +139,8 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
         if(is_cap_sub_cap(ast_id(sub_cap), TK_EPHEMERAL, ast_id(super_cap),
           ast_id(super_eph)))
           ast_error_frame(errorf, sub_cap,
-            "this would be possible if the subcap were more ephemeral");
+            "this would be possible if the subcap were more ephemeral."
+            "Perhaps you meant to consume a variable here");
       }
 
       return false;

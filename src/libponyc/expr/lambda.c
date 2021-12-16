@@ -106,10 +106,10 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       if(!is_subtype(v_type, type, &info, opt))
       {
         errorframe_t frame = NULL;
-        ast_error_frame(&frame, value, "argument not a subtype of parameter");
+        ast_error_frame(&frame, value, "argument not assignable to parameter");
         ast_error_frame(&frame, value, "argument type is %s",
                         ast_print_type(v_type));
-        ast_error_frame(&frame, id_node, "parameter type is %s",
+        ast_error_frame(&frame, id_node, "parameter type requires %s",
                         ast_print_type(p_type));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
