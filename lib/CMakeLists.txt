@@ -9,6 +9,24 @@ if(NOT DEFINED PONYC_LIBS_BUILD_TYPE)
     set(PONYC_LIBS_BUILD_TYPE Release)
 endif()
 
+set(_compiler_arch ${CMAKE_C_COMPILER_ARCHITECTURE_ID})
+if("${_compiler_arch}" STREQUAL "")
+    set(_compiler_arch ${CMAKE_SYSTEM_PROCESSOR})
+endif()
+
+# LLVM component setup
+message("Compiler architecture is ${_compiler_arch}")
+
+if((NOT DEFINED PONY_PIC_FLAG) OR (PONY_PIC_FLAG STREQUAL ""))
+    if(_compiler_arch STREQUAL "aarch64")
+        set(PONY_PIC_FLAG "-fPIC")
+    else()
+        set(PONY_PIC_FLAG "-fpic")
+    endif()
+else()
+    set(PONY_PIC_FLAG "-fpic")
+endif()
+
 set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.6.tar.gz)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
     set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.3.tar.gz)
@@ -16,7 +34,7 @@ endif()
 
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_CXX_FLAGS=-fpic --no-warn-unused-cli
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
 set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.11.0.tar.gz)
@@ -26,7 +44,7 @@ endif()
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=-fpic -Dgtest_force_shared_crt=ON --no-warn-unused-cli
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
 add_library(blake2 STATIC blake2/blake2b-ref.c)

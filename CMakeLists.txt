@@ -110,6 +110,16 @@ endif()
 # LLVM component setup
 message("Compiler architecture is ${_compiler_arch}")
 
+if((NOT DEFINED PONY_PIC_FLAG) OR (PONY_PIC_FLAG STREQUAL ""))
+    if(_compiler_arch STREQUAL "aarch64")
+        set(PONY_PIC_FLAG "-fPIC")
+    else()
+        set(PONY_PIC_FLAG "-fpic")
+    endif()
+else()
+    set(PONY_PIC_FLAG "-fpic")
+endif()
+
 if(NOT PONY_CROSS_LIBPONYRT)
     set(LLVM_COMPONENTS
         core
@@ -190,8 +200,8 @@ if(MSVC)
         $<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>
     )
 else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall -Wno-unknown-warning-option -fpic -fexceptions")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fno-rtti -fpic -fexceptions")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall -Wno-unknown-warning-option ${PONY_PIC_FLAG} -fexceptions")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fno-rtti ${PONY_PIC_FLAG} -fexceptions")
     add_link_options(-rdynamic)
 endif()
 
