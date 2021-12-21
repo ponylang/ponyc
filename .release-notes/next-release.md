@@ -11,3 +11,7 @@ Building on 64-bit Raspbian needs the flag `-fPIC` instead of `-fpic` which is u
 
 We've added a Makefile flag `pic_flag` that you can set to either `-fpic` or `-fPIC` for both libs and configure steps, e.g. `make libs pic_flag=-fPIC` and `make configure pic_flag=-fPIC`. It will default to `-fpic` if not specified.
 
+## Added build instructions for 64-bit Raspbian
+
+We've gotten Pony building on 64-bit Raspbian running on Raspberry Pi 4 model B boards. The installation is a little different than other Linux distributions that you can build Pony on, so we've added instructions specific to 64-bit Raspbian.
+
