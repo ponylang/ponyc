@@ -23,7 +23,7 @@ jobs:
     name: Build latest GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -40,7 +40,7 @@ jobs:
     name: Build latest musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -57,7 +57,7 @@ jobs:
     name: Build latest Windows Docker image
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
         env:
@@ -74,7 +74,7 @@ jobs:
     name: Build release GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -93,7 +93,7 @@ jobs:
     name: Build release musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -112,7 +112,7 @@ jobs:
     name: Build release Windows Docker image
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
         env:
@@ -145,7 +145,7 @@ jobs:
     name: Update stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -161,7 +161,7 @@ jobs:
     name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
@@ -179,7 +179,7 @@ jobs:
     container:
       image: ponylang/ponyc-ci-stdlib-builder:release
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Build and push
         run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
         env:
@@ -193,7 +193,8 @@ jobs:
     name: Trigger release announcement
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout main
+        uses: actions/checkout@v2
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
