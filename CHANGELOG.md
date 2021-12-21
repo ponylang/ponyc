@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Clarify wording for some subtyping errors ([PR #3933](https://github.com/ponylang/ponyc/pull/3933))
+- Fix inability to fully build pony on Raspberry PI 4's with 64-bit Raspbian ([PR #3949](https://github.com/ponylang/ponyc/pull/3949))
 
 ### Added
 
