@@ -93,8 +93,8 @@ Installing on a 64-bit Raspbian is slightly different from other Linux based
 Operating Systems, you'll need to override the `arch` option to configure, but otherwise, everything is the same.
 
 ```bash
-make libs
-make configure arch=armv8-a
+make libs pic_flag=-fPIC
+make configure arch=armv8-a pic_flag=-fPIC
 make build
 sudo make install arch=armv8-a
 ```
