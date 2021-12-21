@@ -22,14 +22,10 @@ endif()
 
 message("Compiler architecture is ${_compiler_arch}")
 
-if((NOT DEFINED PONY_PIC_FLAG) OR (PONY_PIC_FLAG STREQUAL ""))
-    if(_compiler_arch STREQUAL "aarch64")
-        set(PONY_PIC_FLAG "-fPIC")
-    else()
+if(NOT MSVC)
+    if((NOT DEFINED PONY_PIC_FLAG) OR (PONY_PIC_FLAG STREQUAL ""))
         set(PONY_PIC_FLAG "-fpic")
     endif()
-else()
-    set(PONY_PIC_FLAG "-fpic")
 endif()
 
 # Libraries
