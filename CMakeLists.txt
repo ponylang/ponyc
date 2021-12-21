@@ -102,12 +102,17 @@ if(NOT DEFINED PONY_ARCH)
     set(PONY_ARCH "native")
 endif()
 
+# System information
+message("-- CMAKE_SYSTEM_INFO_FILE: ${CMAKE_SYSTEM_INFO_FILE}")
+message("-- CMAKE_SYSTEM_NAME:      ${CMAKE_SYSTEM_NAME}")
+message("-- CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+message("-- CMAKE_SYSTEM:           ${CMAKE_SYSTEM}")
+
 set(_compiler_arch ${CMAKE_C_COMPILER_ARCHITECTURE_ID})
 if("${_compiler_arch}" STREQUAL "")
     set(_compiler_arch ${CMAKE_SYSTEM_PROCESSOR})
 endif()
 
-# LLVM component setup
 message("Compiler architecture is ${_compiler_arch}")
 
 if((NOT DEFINED PONY_PIC_FLAG) OR (PONY_PIC_FLAG STREQUAL ""))
@@ -120,6 +125,7 @@ else()
     set(PONY_PIC_FLAG "-fpic")
 endif()
 
+# LLVM component setup
 if(NOT PONY_CROSS_LIBPONYRT)
     set(LLVM_COMPONENTS
         core
