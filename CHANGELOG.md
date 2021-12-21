@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add build instructions for 64-bit Raspbian ([PR #3880](https://github.com/ponylang/ponyc/pull/3880))
 
 ### Changed
 
