@@ -523,10 +523,29 @@ static bool verify_definition(pass_opt_t* opt, ast_t* ast)
 {
     AST_GET_CHILDREN(ast, var, var_type);
 
-    if (!is_compat_type(var_type, var_type)) {
+    if (!is_compat_type(var_type, var_type))
+    {
       ast_error(opt->check.errors, ast,
-        "this type cannot be the type of a variable: '%s'",
+        "Invalid type for variable: '%s'",
         ast_print_type(var_type));
+      switch(ast_id(var_type))
+      {
+        case TK_NOMINAL:
+        case TK_TYPEPARAMREF:
+          {
+            ast_t* cap = cap_fetch(var_type);
+            ast_t* eph = ast_sibling(cap);
+
+            if(ast_id(eph) == TK_EPHEMERAL)
+            {
+              ast_error(opt->check.errors, ast,
+                "Variables cannot have ephemeral capability. "
+                "Instead remove the ephemeral modifier and consume the variable");
+            }
+          }
+
+        default: {}
+      }
       return false;
     }
     ast_inheritflags(ast);

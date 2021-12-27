@@ -422,7 +422,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
       switch(right_cap)
       {
         case TK_ISO:
-          return true;
+          return left_eph == TK_NONE && right_eph == TK_NONE;
 
         default: {}
       }
@@ -432,6 +432,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
       switch(right_cap)
       {
         case TK_TRN:
+          return left_eph == TK_NONE && right_eph == TK_NONE;
         case TK_BOX:
           return true;
 
