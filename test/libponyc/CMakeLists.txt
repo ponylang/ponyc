@@ -38,6 +38,7 @@ add_executable(libponyc.tests
     refer.cc
     scope.cc
     signature.cc
+    stable_type.cc
     sugar.cc
     sugar_expr.cc
     sugar_traits.cc
