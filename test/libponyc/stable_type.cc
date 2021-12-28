@@ -23,8 +23,7 @@ TEST_F(StableTypeTest, EphemeralIsoLet)
     "  new create(env: Env) =>\n"
     "        let x: A iso^ = recover A end";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
 }
 
 TEST_F(StableTypeTest, EphemeralIsoVar)
@@ -35,8 +34,7 @@ TEST_F(StableTypeTest, EphemeralIsoVar)
     "  new create(env: Env) =>\n"
     "        var x: A iso^ = recover A end";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
 }
 
 TEST_F(StableTypeTest, EphemeralTrnLet)
@@ -47,8 +45,7 @@ TEST_F(StableTypeTest, EphemeralTrnLet)
     "  new create(env: Env) =>\n"
     "        let x: A trn^ = recover A end";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
 }
 
 TEST_F(StableTypeTest, EphemeralTrnVar)
@@ -59,8 +56,7 @@ TEST_F(StableTypeTest, EphemeralTrnVar)
     "  new create(env: Env) =>\n"
     "        var x: A trn^ = recover A end";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
 }
 
 TEST_F(StableTypeTest, IncompatibleIsectLet)
@@ -71,8 +67,7 @@ TEST_F(StableTypeTest, IncompatibleIsectLet)
     "  new create(env: Env) =>\n"
     "        let x: (A ref & A val) = recover A end";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
 }
 
 TEST_F(StableTypeTest, IncompatibleIsectVar)
@@ -83,8 +78,7 @@ TEST_F(StableTypeTest, IncompatibleIsectVar)
     "  new create(env: Env) =>\n"
     "        var x: (A ref & A val) = recover A end";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
 }
 
 TEST_F(StableTypeTest, GenericIncompatibleIsectUnstable)
