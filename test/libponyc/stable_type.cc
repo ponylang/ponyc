@@ -81,14 +81,54 @@ TEST_F(StableTypeTest, IncompatibleIsectVar)
   TEST_ERROR(src);
 }
 
-TEST_F(StableTypeTest, GenericIncompatibleIsectUnstable)
+TEST_F(StableTypeTest, EphemeralIsoParameter)
 {
   const char* src =
-    "class Container[T: Any #read]\n"
+    "class A\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "        let x: (A ref & A val) = recover A end";
+    "        this.bad(recover A end)\n"
+    "  fun bad(a: A iso^) =>\n"
+    "        None";
 
-  TEST_ERRORS_1(src,
-      "")
+  TEST_ERROR(src);
+}
+
+TEST_F(StableTypeTest, IncompatibleIsectParameter)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "        this.bad(recover A end)\n"
+    "  fun bad(a: (A ref & A val)) =>\n"
+    "        None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(StableTypeTest, EphemeralIsoReturnShouldCompile)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "        None\n"
+    "  fun good(): A iso^ =>\n"
+    "        recover A end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(StableTypeTest, IncompatibleIsectReturnShouldCompile)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "        None\n"
+    "  fun good(): (A ref & A val) =>\n"
+    "        recover A end";
+
+  TEST_COMPILE(src);
 }
