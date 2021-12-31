@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.45.2] - 2021-12-31
 
 ### Fixed
 
@@ -12,9 +12,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add build instructions for 64-bit Raspbian ([PR #3880](https://github.com/ponylang/ponyc/pull/3880))
-
-### Changed
-
 
 ## [0.45.1] - 2021-12-02
 
