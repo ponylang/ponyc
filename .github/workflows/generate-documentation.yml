@@ -11,7 +11,8 @@ jobs:
       image: ponylang/ponyc-ci-stdlib-builder:release
     steps:
       - uses: actions/checkout@v2
-        token: ${{ secrets.STDLIB_TOKEN }}
+        with:
+          token: ${{ secrets.STDLIB_TOKEN }}
       - name: Build and push
         run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
         env:
