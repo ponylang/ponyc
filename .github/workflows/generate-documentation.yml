@@ -1,0 +1,18 @@
+name: Manually generate documentation
+
+on:
+  workflow_dispatch
+
+jobs:
+  generate-documentation:
+    name: Generate documentation for release
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/ponyc-ci-stdlib-builder:release
+    steps:
+      - uses: actions/checkout@v2
+        token: ${{ secrets.STDLIB_TOKEN }}
+      - name: Build and push
+        run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
+        env:
+          STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
