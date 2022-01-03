@@ -593,38 +593,6 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     !verify_behaviour_parameters(opt, ast))
     return false;
 
-  for (ast_t* param = ast_child(params);
-       param != NULL;
-       param = ast_sibling(param))
-  {
-    ast_t* var_type = ast_childidx(param, 1);
-    if (!is_compat_type(var_type, var_type))
-    {
-      ast_error(opt->check.errors, ast,
-        "Invalid type for parameter: '%s'",
-        ast_print_type(var_type));
-      switch(ast_id(var_type))
-      {
-        case TK_NOMINAL:
-        case TK_TYPEPARAMREF:
-          {
-            ast_t* cap = cap_fetch(var_type);
-            ast_t* eph = ast_sibling(cap);
-
-            if(ast_id(eph) == TK_EPHEMERAL)
-            {
-              ast_error(opt->check.errors, ast,
-                "Parameters cannot have ephemeral capability. "
-                "Instead remove the ephemeral modifier and consume the parameter");
-            }
-          }
-
-        default: {}
-      }
-      return false;
-    }
-  }
-
   // Check partial functions.
   if(ast_id(can_error) == TK_QUESTION)
   {
