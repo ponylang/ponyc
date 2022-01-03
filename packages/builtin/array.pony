@@ -100,7 +100,7 @@ class Array[A] is Seq[A]
       _ptr = Pointer[A]
     end
 
-  new init[B: Any #alias = A](from: A, len: USize) =>
+  new init(from: A^, len: USize) =>
     """
     Create an array of len elements, all initialised to the given value.
     """
