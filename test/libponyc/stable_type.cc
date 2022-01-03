@@ -8,9 +8,6 @@
 
 #define TEST_COMPILE(src) DO(test_compile(src, "verify"))
 #define TEST_ERROR(src) DO(test_error(src, "verify"))
-#define TEST_ERRORS_1(src, err1) \
-  { const char* errs[] = {err1, NULL}; \
-    DO(test_expected_errors(src, "expr", errs)); }
 
 class StableTypeTest : public PassTest
 {};
@@ -81,6 +78,66 @@ TEST_F(StableTypeTest, IncompatibleIsectVar)
   TEST_ERROR(src);
 }
 
+TEST_F(StableTypeTest, EphemeralIsoLetField)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  let x: A iso^ = recover A end\n"
+    "  new create(env: Env) =>\n"
+    "        None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(StableTypeTest, EphemeralIsoVarField)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  var x: A iso^ = recover A end\n"
+    "  new create(env: Env) =>\n"
+    "        None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(StableTypeTest, EphemeralIsoEmbedField)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  embed x: A iso^ = recover A end\n"
+    "  new create(env: Env) =>\n"
+    "        None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(StableTypeTest, IncompatibleIsectLetField)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  let x: (A ref & A val) = recover A end\n"
+    "  new create(env: Env) =>\n"
+    "        None";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(StableTypeTest, CompatibleIsectLetField)
+{
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  let x: (A box & A val) = recover A end\n"
+    "  new create(env: Env) =>\n"
+    "        None";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(StableTypeTest, EphemeralIsoParameter)
 {
   const char* src =
@@ -131,4 +188,17 @@ TEST_F(StableTypeTest, IncompatibleIsectReturnShouldCompile)
     "        recover A end";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(StableTypeTest, GenericSelfIsect)
+{
+  const char* src =
+    "class Generic[A]\n"
+    "  fun doit(a: A) =>\n"
+    "        let x: (A & A) = consume a\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "        None";
+
+  TEST_ERROR(src);
 }
