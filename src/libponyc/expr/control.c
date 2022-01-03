@@ -443,6 +443,12 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       if (is_local_or_param(body))
       {
           r_type = consume_type(body_type, TK_NONE);
+          if (r_type == NULL)
+          {
+            pony_assert(0);
+            return false;
+          }
+
           body_type = r_type;
       }
       if(!is_subtype(body_type, type, &info, opt))
