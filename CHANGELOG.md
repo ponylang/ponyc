@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Stop creating CentOS 8 prebuilt ponyc releases ([PR #3955](https://github.com/ponylang/ponyc/pull/3955))
 
 ## [0.45.2] - 2021-12-31
 
