@@ -28,7 +28,6 @@ where `PLATFORM` is from the table below
 Distribution | PLATFORM String
 --- | ---
 Alpine | musl
-CentOS 8 | centos8
 Linux Mint 19.3 | ubuntu18.04
 Rocky 8 | rocky8
 Ubuntu 18.04 | ubuntu18.04
