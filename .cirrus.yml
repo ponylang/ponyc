@@ -99,6 +99,7 @@ task:
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
     - pkg install -y bash cmake gmake libunwind git
+    - clang --version
 
   libs_cache:
     folder: build/libs
