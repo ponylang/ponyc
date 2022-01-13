@@ -11,6 +11,7 @@
 #include "../reach/paint.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include "../../libponyrt/actor/actor.h"
 #include "../../libponyrt/mem/heap.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
