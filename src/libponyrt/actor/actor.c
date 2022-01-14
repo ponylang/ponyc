@@ -18,11 +18,38 @@
 // default actor batch size
 #define PONY_SCHED_BATCH 100
 
-// Ignore padding at the end of the type.
-pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
-   sizeof(pony_actor_pad_t), "Wrong actor pad size!");
-
 static bool actor_noblock = false;
+
+unsigned int ponyint_actor_pad_size() {
+/** Padding for actor types.
+*
+* 56 bytes: initial header, not including the type descriptor
+* 52/104 bytes: heap
+* 48/88 bytes: gc
+* 28/0 bytes: padding to 64 bytes, ignored
+*/
+#if INTPTR_MAX == INT64_MAX
+#ifdef USE_MEMTRACK
+  PONYINT_RETURN_STATIC_ASSERT_ACTOR_PAD_SIZE(280);
+#else
+  PONYINT_RETURN_STATIC_ASSERT_ACTOR_PAD_SIZE(248);
+#endif
+#elif INTPTR_MAX == INT32_MAX
+#ifdef USE_MEMTRACK
+  PONYINT_RETURN_STATIC_ASSERT_ACTOR_PAD_SIZE(176);
+#else
+  PONYINT_RETURN_STATIC_ASSERT_ACTOR_PAD_SIZE(160);
+#endif
+#endif
+}
+
+unsigned int ponyint_actor_base_size() {
+  return sizeof(pony_type_t*) + ponyint_actor_pad_size();
+}
+
+void* ponyint_actor_fields(pony_actor_t* actor) {
+  return (void*)((char*)actor + ponyint_actor_base_size());
+}
 
 // The flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.

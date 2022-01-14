@@ -160,8 +160,6 @@ DEFINE_STACK(ponyint_pendingdestroystack, pendingdestroystack_t, pony_actor_t);
 
 typedef struct detector_t
 {
-  pony_actor_pad_t pad;
-
   size_t next_token;
   size_t detect_interval;
   size_t last_checked;
@@ -188,7 +186,7 @@ static pony_actor_t* cycle_detector;
 #ifdef USE_MEMTRACK
 static void track_mem_view_free(view_t* view)
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
   d->mem_used -= sizeof(view_t);
   d->mem_allocated -= POOL_ALLOC_SIZE(view_t);
   d->mem_used -= viewrefmap_total_mem_size(&view->map);
@@ -197,7 +195,7 @@ static void track_mem_view_free(view_t* view)
 
 static void track_mem_perceived_free(perceived_t* per)
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
   d->mem_used -= sizeof(perceived_t);
   d->mem_allocated -= POOL_ALLOC_SIZE(perceived_t);
   d->mem_used -= ponyint_viewmap_mem_size(&per->map);
@@ -466,7 +464,7 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
     view->perceived = per;
 
 #ifdef USE_MEMTRACK
-    detector_t* d = (detector_t*)cycle_detector;
+    detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
     size_t mem_size_before = ponyint_viewmap_mem_size(&per->map);
     size_t alloc_size_before = ponyint_viewmap_alloc_size(&per->map);
 #endif
@@ -879,7 +877,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
     }
   } while(!ponyint_messageq_markempty(&self->q));
 
-  detector_t* d = (detector_t*)self;
+  detector_t* d = (detector_t*)ponyint_actor_fields(self);
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -970,7 +968,7 @@ static void dump_view(view_t* view)
 
 static void dump_views()
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -997,7 +995,7 @@ static void check_view(detector_t* d, view_t* view)
 
 static void check_views()
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -1012,7 +1010,7 @@ static void check_views()
 static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
   pony_msg_t* msg)
 {
-  detector_t* d = (detector_t*)self;
+  detector_t* d = (detector_t*)ponyint_actor_fields(self);
 
   switch(msg->id)
   {
@@ -1067,10 +1065,10 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
   }
 }
 
-static pony_type_t cycle_type =
+static struct _pony_type_t cycle_type =
 {
   0,
-  sizeof(detector_t),
+  0,
   0,
   0,
   NULL,
@@ -1098,11 +1096,13 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
   if(detect_interval < 10)
     detect_interval = 10;
 
+  cycle_type.size = ponyint_actor_base_size() + sizeof(detector_t);
+
   cycle_detector = NULL;
   cycle_detector = pony_create(ctx, &cycle_type, false);
   ponyint_actor_setsystem(cycle_detector);
 
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
 
   // convert to cycles for use with ponyint_cpu_tick()
   // 1 second = 2000000000 cycles (approx.)
@@ -1115,7 +1115,7 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
 
 bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2)
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
 
   // if enough time has passed, trigger cycle detector
   uint64_t diff = ponyint_cpu_tick_diff(tsc, tsc2);
@@ -1191,13 +1191,13 @@ bool ponyint_is_cycle(pony_actor_t* actor)
 #ifdef USE_MEMTRACK
 size_t ponyint_cycle_mem_size()
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
   return d->mem_used;
 }
 
 size_t ponyint_cycle_alloc_size()
 {
-  detector_t* d = (detector_t*)cycle_detector;
+  detector_t* d = (detector_t*)ponyint_actor_fields(cycle_detector);
   return d->mem_allocated;
 }
 #endif

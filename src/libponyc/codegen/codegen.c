@@ -193,7 +193,7 @@ static void init_runtime(compile_t* c)
   c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
-  c->actor_pad = LLVMArrayType(c->i8, PONY_ACTOR_PAD_SIZE);
+  c->actor_pad = LLVMArrayType(c->i8, ponyint_actor_pad_size());
 
   // message
   params[0] = c->i32; // size
@@ -274,7 +274,7 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
-    PONY_ACTOR_PAD_SIZE + align_value);
+    ponyint_actor_pad_size() + align_value);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, align_value);
   LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
     HEAP_MIN);
