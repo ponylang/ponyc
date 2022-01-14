@@ -41,6 +41,33 @@ typedef struct pony_actor_t
   gc_t gc; // 48/88 bytes
 } pony_actor_t;
 
+/** Padding for actor types.
+ *
+ * 56 bytes: initial header, not including the type descriptor
+ * 52/104 bytes: heap
+ * 48/88 bytes: gc
+ * 28/0 bytes: padding to 64 bytes, ignored
+ */
+#if INTPTR_MAX == INT64_MAX
+#ifdef USE_MEMTRACK
+#  define PONY_ACTOR_PAD_SIZE 280
+#else
+#  define PONY_ACTOR_PAD_SIZE 248
+#endif
+#elif INTPTR_MAX == INT32_MAX
+#ifdef USE_MEMTRACK
+#  define PONY_ACTOR_PAD_SIZE 176
+#else
+#  define PONY_ACTOR_PAD_SIZE 160
+#endif
+#endif
+
+typedef struct pony_actor_pad_t
+{
+  pony_type_t* type;
+  char pad[PONY_ACTOR_PAD_SIZE];
+} pony_actor_pad_t;
+
 enum
 {
   FLAG_BLOCKED = 1 << 0,
