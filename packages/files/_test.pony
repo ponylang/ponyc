@@ -196,14 +196,9 @@ class iso _TestFilePathFileAuth is UnitTest
   """
   fun name(): String => "files/FilePath.create-w-fileauth"
   fun apply(h: TestHelper) =>
-    match h.env.root
-    | let auth: AmbientAuth =>
-      let path = "tmp.filepath"
-      let filepath = FilePath(FileAuth(auth), path)
-      h.assert_no_error({()? => FilePath.from(filepath, path)? })
-    else
-      h.fail("env.root isn't AmbientAuth.")
-    end
+    let path = "tmp.filepath"
+    let filepath = FilePath(FileAuth(h.env.root), path)
+    h.assert_no_error({()? => FilePath.from(filepath, path)? })
 
 class iso _TestFilePathFrom is UnitTest
   """
@@ -215,14 +210,9 @@ class iso _TestFilePathFrom is UnitTest
   """
   fun name(): String => "files/FilePath.from-success"
   fun apply(h: TestHelper) =>
-    match h.env.root
-    | let auth: AmbientAuth =>
-      let path = "tmp.filepath"
-      let filepath = FilePath(auth, path)
-      h.assert_no_error({()? => FilePath.from(filepath, path)? })
-    else
-      h.fail("env.root isn't AmbientAuth.")
-    end
+    let path = "tmp.filepath"
+    let filepath = FilePath(h.env.root, path)
+    h.assert_no_error({()? => FilePath.from(filepath, path)? })
 
 class iso _TestFilePathFromError is UnitTest
   """
@@ -234,14 +224,9 @@ class iso _TestFilePathFromError is UnitTest
   """
   fun name(): String => "files/FilePath.from-error"
   fun apply(h: TestHelper) =>
-    match h.env.root
-    | let auth: AmbientAuth =>
-      let path = "tmp.filepath"
-      let filepath = FilePath(auth, path)
-      h.assert_error({()? => FilePath.from(filepath, "/")? })
-    else
-      h.fail("env.root isn't AmbientAuth.")
-    end
+    let path = "tmp.filepath"
+    let filepath = FilePath(h.env.root, path)
+    h.assert_error({()? => FilePath.from(filepath, "/")? })
 
 class iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
