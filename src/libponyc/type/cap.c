@@ -414,6 +414,9 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
         case TK_CAP_ANY:
           return left_eph == TK_NONE && right_eph == TK_NONE;
 
+        case TK_CAP_ALIAS:
+          return true; // same source, and any cap is compatible with its own alias
+
         default: {}
       }
       break;
@@ -493,6 +496,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
     case TK_CAP_ALIAS:
       switch(right_cap)
       {
+        case TK_CAP_ANY: // same source, and any cap is compatible with its own alias
         case TK_CAP_ALIAS:
         case TK_BOX:
           return true;
