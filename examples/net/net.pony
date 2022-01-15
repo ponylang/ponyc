@@ -8,6 +8,5 @@ actor Main
       1
     end
 
-    let auth = env.root
-    TCPListener(auth, recover Listener(env, limit) end)
-    UDPSocket(auth, recover Pong(env) end)
+    TCPListener(env.root, recover Listener(env, limit) end)
+    UDPSocket(env.root, recover Pong(env) end)

@@ -69,9 +69,8 @@ class SlowDown is TCPConnectionNotify
 
 actor Main
   new create(env: Env) =>
-    let auth = env.root
-    let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
-      "", "7669")
+    let socket = TCPConnection(env.root,
+    recover SlowDown(env.root, env.out) end, "", "7669")
 ```
 
 ## Caveat
