@@ -171,7 +171,7 @@ actor _Tester
       end
 
       _stage = _Testing
-      _test_process = ProcessMonitor(_env.root, _env.root, _TestProcessNotif(this),
+      _test_process = ProcessMonitor(_env.root, _env.root, _TestProcessNotify(this),
         FilePath(_env.root, test_fname), [ test_fname ], vars,
         FilePath(_env.root, _definition.path))
         .>done_writing()
