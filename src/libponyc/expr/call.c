@@ -242,7 +242,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
-      ast_error_frame(&frame, param, "parameter type is impossible to meet: %s",
+      ast_error_frame(&frame, param, "parameter type is illegal: %s",
                       ast_print_type(p_type));
       errorframe_report(&frame, opt->check.errors);
 
