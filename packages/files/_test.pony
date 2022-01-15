@@ -441,31 +441,27 @@ class iso _TestPathRoot is UnitTest
 class iso _TestFileEOF is UnitTest
   fun name(): String => "files/File.eof-error"
   fun apply(h: TestHelper) =>
-    try
-      let path = "tmp.eof"
-      let filepath = FilePath(h.env.root, path)?
-      with file = File(filepath) do
-        file.write("foobar")
-        file.sync()
-        file.seek_start(0)
-        let line1 = file.read_string(6)
-        h.assert_eq[String]("foobar", consume line1)
+    let path = "tmp.eof"
+    let filepath = FilePath(h.env.root, path)
+    with file = File(filepath) do
+      file.write("foobar")
+      file.sync()
+      file.seek_start(0)
+      let line1 = file.read_string(6)
+      h.assert_eq[String]("foobar", consume line1)
 
-        let line2 = file.read_string(1)
-        h.assert_eq[USize](line2.size(), 0, "Read beyond EOF without error!")
-        h.assert_true(file.errno() is FileEOF)
-      end
-      filepath.remove()
-    else
-      h.fail("Unhandled error!")
+      let line2 = file.read_string(1)
+      h.assert_eq[USize](line2.size(), 0, "Read beyond EOF without error!")
+      h.assert_true(file.errno() is FileEOF)
     end
+    filepath.remove()
 
 class iso _TestFileCreate is UnitTest
   fun name(): String => "files/File.create"
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.create"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
@@ -573,45 +569,40 @@ class iso _TestFileOpenInDirNotWriteable is UnitTest
 class iso _TestFileCreateMissingCaps is UnitTest
   fun name(): String => "files/File.create-missing-caps"
   fun apply(h: TestHelper) =>
-    try
-      let no_create_caps = FileCaps.>all().>unset(FileCreate)
-      let no_read_caps = FileCaps.>all().>unset(FileWrite)
-      let no_write_caps = FileCaps.>all().>unset(FileRead)
+    let no_create_caps = FileCaps.>all().>unset(FileCreate)
+    let no_read_caps = FileCaps.>all().>unset(FileWrite)
+    let no_write_caps = FileCaps.>all().>unset(FileRead)
 
-      let file_path1 = FilePath(
-        h.env.root,
-        "tmp.create-missing-caps1",
-        consume no_create_caps)
-      let file1 = File(file_path1)
-      h.assert_false(file1.valid())
-      h.assert_is[FileErrNo](file1.errno(), FileError)
+    let file_path1 = FilePath(
+      h.env.root,
+      "tmp.create-missing-caps1",
+      consume no_create_caps)
+    let file1 = File(file_path1)
+    h.assert_false(file1.valid())
+    h.assert_is[FileErrNo](file1.errno(), FileError)
 
-      let file_path2 = FilePath(
-        h.env.root,
-        "tmp.create-missing-caps2",
-        consume no_read_caps)
-      let file2 = File(file_path2)
-      h.assert_false(file2.valid())
-      h.assert_is[FileErrNo](file2.errno(), FileError)
+    let file_path2 = FilePath(
+      h.env.root,
+      "tmp.create-missing-caps2",
+      consume no_read_caps)
+    let file2 = File(file_path2)
+    h.assert_false(file2.valid())
+    h.assert_is[FileErrNo](file2.errno(), FileError)
 
-      let file_path3 = FilePath(
-        h.env.root,
-        "tmp.create-missing-caps3",
-        consume no_write_caps)
-      let file3 = File(file_path3)
-      h.assert_false(file3.valid())
-      h.assert_is[FileErrNo](file3.errno(), FileError)
-
-    else
-      h.fail("Unhandled error!")
-    end
+    let file_path3 = FilePath(
+      h.env.root,
+      "tmp.create-missing-caps3",
+      consume no_write_caps)
+    let file3 = File(file_path3)
+    h.assert_false(file3.valid())
+    h.assert_is[FileErrNo](file3.errno(), FileError)
 
 class iso _TestFileOpen is UnitTest
   fun name(): String => "files/File.open"
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.open"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.print("foobar")
       end
@@ -632,22 +623,18 @@ class iso _TestFileOpen is UnitTest
 class iso _TestFileOpenError is UnitTest
   fun name(): String => "files/File.open-error"
   fun apply(h: TestHelper) =>
-    try
-      let path = "tmp.openerror"
-      let filepath = FilePath(h.env.root, path)?
-      h.assert_false(filepath.exists())
-      let file = OpenFile(filepath)
-      h.assert_true(file is FileError)
-    else
-      h.fail("Unhandled error!")
-    end
+    let path = "tmp.openerror"
+    let filepath = FilePath(h.env.root, path)
+    h.assert_false(filepath.exists())
+    let file = OpenFile(filepath)
+    h.assert_true(file is FileError)
 
 class _TestFileOpenWrite is UnitTest
   fun name(): String => "files/File.open.write"
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.open-write"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.print("write on file opened read-only")
       end
@@ -670,7 +657,7 @@ class iso _TestFileOpenPermissionDenied is _NonRootTest
         // on windows all files are always writeable
         // with chmod there is no way to make a file not readable
       try
-        let filepath = FilePath(h.env.root, "tmp.open-not-readable")?
+        let filepath = FilePath(h.env.root, "tmp.open-not-readable")
         with file = CreateFile(filepath) as File do
           file.print("unreadable")
         end
@@ -696,31 +683,27 @@ class iso _TestFileOpenPermissionDenied is _NonRootTest
 class iso _TestFileLongLine is UnitTest
   fun name(): String => "files/File.longline"
   fun apply(h: TestHelper) =>
-    try
-      let path = "tmp.longline"
-      let filepath = FilePath(h.env.root, path)?
-      with file = File(filepath) do
-        var longline = "foobar"
-        for d in Range(0, 10) do
-          longline = longline + longline
-        end
-        file.print(longline)
-        file.sync()
-        file.seek_start(0)
-        let line1 = file.read_string(longline.size())
-        h.assert_eq[String](longline, consume line1)
+    let path = "tmp.longline"
+    let filepath = FilePath(h.env.root, path)
+    with file = File(filepath) do
+      var longline = "foobar"
+      for d in Range(0, 10) do
+        longline = longline + longline
       end
-      filepath.remove()
-    else
-      h.fail("Unhandled error!")
+      file.print(longline)
+      file.sync()
+      file.seek_start(0)
+      let line1 = file.read_string(longline.size())
+      h.assert_eq[String](longline, consume line1)
     end
+    filepath.remove()
 
 class iso _TestFileWrite is UnitTest
   fun name(): String => "files/File.write"
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.write"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.write("foobar\n")
       end
@@ -743,7 +726,7 @@ class iso _TestFileWritev is UnitTest
       wb.write(line1)
       wb.write(line2)
       let path = "tmp.writev"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         h.assert_true(file.writev(wb.done()))
       end
@@ -763,7 +746,7 @@ class iso _TestFileQueue is UnitTest
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.queue"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.queue("foobar\n")
       end
@@ -785,7 +768,7 @@ class iso _TestFileQueuev is UnitTest
       wb.write(line1)
       wb.write(line2)
       let path = "tmp.queuev"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.queuev(wb.done())
       end
@@ -818,7 +801,7 @@ class iso _TestFileMixedWriteQueue is UnitTest
       wb.write(line6)
       let queuev_data = wb.done()
       let path = "tmp.mixedwrite"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         file.print(line3)
         file.queue(line5)
@@ -859,7 +842,7 @@ class iso _TestFileWritevLarge is UnitTest
         count = count + 1
       end
       let path = "tmp.writevlarge"
-      let filepath = FilePath(h.env.root, path)?
+      let filepath = FilePath(h.env.root, path)
       with file = CreateFile(filepath) as File do
         h.assert_true(file.writev(wb.done()))
       end
@@ -880,7 +863,7 @@ class iso _TestFileFlush is UnitTest
   fun name(): String => "files/File.flush"
   fun apply(h: TestHelper) =>
     try
-      let path = FilePath(h.env.root, "tmp.flush")?
+      let path = FilePath(h.env.root, "tmp.flush")
       with file = CreateFile(path) as File do
         // Flush with no writes succeeds trivially, but does nothing.
         h.assert_true(file.flush())
@@ -907,7 +890,7 @@ class iso _TestFileFlush is UnitTest
 class iso _TestFileReadMore is UnitTest
   fun name(): String => "files/File.read-more"
   fun apply(h: TestHelper)? =>
-    let path = FilePath(h.env.root, "tmp-read-more")?
+    let path = FilePath(h.env.root, "tmp-read-more")
     with file = CreateFile(path) as File do
       h.assert_true(file.write("foobar"))
     end
