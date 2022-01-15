@@ -190,7 +190,7 @@ TEST_F(StableTypeTest, IncompatibleIsectReturnShouldCompile)
   TEST_COMPILE(src);
 }
 
-TEST_F(StableTypeTest, GenericSelfIsect)
+TEST_F(StableTypeTest, GenericSelfIsectShouldCompile)
 {
   const char* src =
     "class Generic[A]\n"
@@ -200,5 +200,5 @@ TEST_F(StableTypeTest, GenericSelfIsect)
     "  new create(env: Env) =>\n"
     "        None";
 
-  TEST_ERROR(src);
+  TEST_COMPILE(src);
 }
