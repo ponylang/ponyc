@@ -497,34 +497,27 @@ class iso _TestFileCreateExistsNotWriteable is _NonRootTest
   fun apply_as_non_root(h: TestHelper) ? =>
     let content = "unwriteable"
     let path = "tmp.create-not-writeable"
-    let filepath = FilePath(h.env.root as AmbientAuth, path)
-    try
-      let content = "unwriteable"
-      let path = "tmp.create-not-writeable"
-      let filepath = FilePath(h.env.root, path)?
-      let mode: FileMode ref = FileMode.>private()
-      mode.owner_read = true
-      mode.owner_write = false
+    let filepath = FilePath(h.env.root, path)
+    let mode: FileMode ref = FileMode.>private()
+    mode.owner_read = true
+    mode.owner_write = false
 
-      // preparing the non-writable, but readable file
-      with file = CreateFile(filepath) as File do
-        file.write(content)
-      end
-
-      h.assert_true(filepath.chmod(mode))
-
-      with file2 = File(filepath) do
-        h.assert_false(file2.valid())
-        h.assert_is[FileErrNo](file2.errno(), FilePermissionDenied)
-
-        let line = file2.read(6)
-        h.assert_eq[USize](0, line.size(), "read on invalid file succeeded")
-      end
-    else
-      h.fail("Unhandled error!")
-    then
-      h.assert_true(filepath.remove())
+    // preparing the non-writable, but readable file
+    with file = CreateFile(filepath) as File do
+      file.write(content)
     end
+
+    h.assert_true(filepath.chmod(mode))
+
+    with file2 = File(filepath) do
+      h.assert_false(file2.valid())
+      h.assert_is[FileErrNo](file2.errno(), FilePermissionDenied)
+
+      let line = file2.read(6)
+      h.assert_eq[USize](0, line.size(), "read on invalid file succeeded")
+    end
+
+    h.assert_true(filepath.remove())
 
 class iso _TestFileCreateDirNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-dir-not-writeable"

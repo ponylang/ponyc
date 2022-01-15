@@ -131,17 +131,18 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h,
       ProcessError(CapError))
     try
+      let auth = h.env.root
       let path_resolver = _PathResolver(h.env.vars, h.env.root)
       let path =
         FilePath(
-          h.env.root,
+          auth,
           _CatCommand.path(path_resolver)?,
           recover val FileCaps .> all() .> unset(FileExec) end)
       let args: Array[String] val = ["dontcare"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let pm: ProcessMonitor =
-        ProcessMonitor(h.env.root, auth, consume notifier, path, args, vars)
+        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
     else
