@@ -945,45 +945,39 @@ class iso _TestFileReadMore is UnitTest
 class iso _TestFileRemoveReadOnly is UnitTest
   fun name(): String => "files/File.remove-readonly-file"
   fun apply(h: TestHelper) ? =>
-    let path = FilePath(h.env.root as AmbientAuth, "tmp-read-only")
-    try
-      with file = CreateFile(path) as File do
-        None
-      end
-
-      let mode: FileMode ref = FileMode
-      mode.owner_read = true
-      mode.owner_write = false
-      mode.group_read = true
-      mode.group_write = false
-      mode.any_read = true
-      mode.any_write = false
-      h.assert_true(path.chmod(mode))
-    then
-      h.assert_true(path.remove())
+    let path = FilePath(h.env.root, "tmp-read-only")
+    with file = CreateFile(path) as File do
+      None
     end
+
+    let mode: FileMode ref = FileMode
+    mode.owner_read = true
+    mode.owner_write = false
+    mode.group_read = true
+    mode.group_write = false
+    mode.any_read = true
+    mode.any_write = false
+    h.assert_true(path.chmod(mode))
+    h.assert_true(path.remove())
 
 class iso _TestDirectoryRemoveReadOnly is UnitTest
   fun name(): String => "files/File.remove-readonly-directory"
 
   fun apply(h: TestHelper) ? =>
-    let path = FilePath.mkdtemp(h.env.root as AmbientAuth, "tmp-read-only-dir")?
+    let path = FilePath.mkdtemp(h.env.root, "tmp-read-only-dir")?
     let dir = Directory(path)?
-    try
-      let mode: FileMode ref = FileMode
-      mode.owner_read = true
-      mode.owner_write = false
-      mode.owner_exec = true
-      mode.group_read = true
-      mode.group_write = false
-      mode.group_exec = true
-      mode.any_read = true
-      mode.any_write = false
-      mode.any_exec = true
-      h.assert_true(path.chmod(mode))
-    then
-      h.assert_true(path.remove())
-    end
+    let mode: FileMode ref = FileMode
+    mode.owner_read = true
+    mode.owner_write = false
+    mode.owner_exec = true
+    mode.group_read = true
+    mode.group_write = false
+    mode.group_exec = true
+    mode.any_read = true
+    mode.any_write = false
+    mode.any_exec = true
+    h.assert_true(path.chmod(mode))
+    h.assert_true(path.remove())
 
 class iso _TestFileLinesEmptyFile is UnitTest
   var tmp_dir: (FilePath | None) = None

@@ -683,7 +683,7 @@ class iso _TestWaitingOnClosedProcessTwice is UnitTest
   fun name(): String => "process/wait-on-closed-process-twice"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper)? =>
-    let auth = h.env.root as AmbientAuth
+    let auth = h.env.root
     try
       let path_resolver = _PathResolver(h.env.vars, auth)
       let path = FilePath(auth, _SleepCommand.path(path_resolver)?)

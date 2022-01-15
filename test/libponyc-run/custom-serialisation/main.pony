@@ -36,9 +36,8 @@ class _Custom
 actor Main
   new create(env: Env) =>
     try
-      let ambient = env.root as AmbientAuth
-      let serialise = SerialiseAuth(ambient)
-      let deserialise = DeserialiseAuth(ambient)
+      let serialise = SerialiseAuth(env.root)
+      let deserialise = DeserialiseAuth(env.root)
 
       let x: _Custom = _Custom
       let sx = Serialised(serialise, x)?
