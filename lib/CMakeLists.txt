@@ -42,7 +42,11 @@ ExternalProject_Add(gbenchmark
 
 set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.11.0.tar.gz)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz)
+    if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+        if(${CMAKE_CXX_COMPILER_ID} VERSION_LESS 13.0)
+            set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz)
+        endif()
+    endif()
 endif()
 
 ExternalProject_Add(googletest
