@@ -27,11 +27,9 @@ class Listener is TCPListenNotify
     listen.close()
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    let env = _env
-
     _env.out.print("Server starting")
 
-    let server = ServerSide(env)
+    let server = ServerSide(_env)
 
     _spawn(listen)
     server
@@ -45,16 +43,9 @@ class Listener is TCPListenNotify
     _count = _count + 1
     _env.out.print("spawn " + _count.string())
 
-    try
-      let env = _env
-
-      _env.out.print("Client starting")
-      TCPConnection(
-        _env.root as AmbientAuth,
-        ClientSide(env),
-        _host,
-        _service)
-    else
-      _env.out.print("couldn't create client side")
-      listen.close()
-    end
+    _env.out.print("Client starting")
+    TCPConnection(
+      _env.root,
+      ClientSide(_env),
+      _host,
+      _service)

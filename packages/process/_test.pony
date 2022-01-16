@@ -131,8 +131,8 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h,
       ProcessError(CapError))
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
+      let auth = h.env.root
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
       let path =
         FilePath(
           auth,
@@ -161,7 +161,7 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
 
   fun apply(h: TestHelper) =>
     try
-      let auth = h.env.root as AmbientAuth
+      let auth = h.env.root
       let path = FilePath.mkdtemp(auth, "pony_execve_test")?
       let args: Array[String] val = []
       let vars: Array[String] val = []
@@ -213,8 +213,8 @@ class iso _TestStdinStdout is UnitTest
     let size: USize = input.size() + ifdef windows then 2 else 0 end
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
+      let auth = h.env.root
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
       let path = FilePath(auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
@@ -251,10 +251,9 @@ class iso _TestStderr is UnitTest
     let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
       let path = FilePath(
-        auth,
+        h.env.root,
         ifdef windows then
           "C:\\Windows\\System32\\cmd.exe"
         else
@@ -267,6 +266,7 @@ class iso _TestStderr is UnitTest
       end
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
+      let auth = h.env.root
       _pm  = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
@@ -325,9 +325,8 @@ class iso _TestExpect is UnitTest
     end
 
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _EchoPath(path_resolver)?)
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
+      let path = FilePath(h.env.root, _EchoPath(path_resolver)?)
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "echo"; "hello carl"]
       else
@@ -335,6 +334,7 @@ class iso _TestExpect is UnitTest
       end
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
+      let auth = h.env.root
       let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
         path, args, vars)
       pm.done_writing()  // closing stdin allows "echo" to terminate
@@ -358,12 +358,12 @@ class iso _TestWritevOrdering is UnitTest
     let expected: USize = ifdef windows then 13 else 11 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
+      let path = FilePath(h.env.root, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
+      let auth = h.env.root
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, args, vars)
       let params: Array[String] val = ["one"; "two"; "three"]
@@ -390,12 +390,12 @@ class iso _TestPrintvOrdering is UnitTest
     let expected: USize = ifdef windows then 17 else 14 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
+      let path = FilePath(h.env.root, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
+      let auth = h.env.root
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, args, vars)
       let params: Array[String] val = ["one"; "two"; "three"]
@@ -432,13 +432,13 @@ class iso _TestStdinWriteBuf is UnitTest
 
     let notifier: ProcessNotify iso = _ProcessClient(out_size, "", 0, h)
     try
-      let auth = h.env.root as AmbientAuth
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
+      let path_resolver = _PathResolver(h.env.vars, h.env.root)
+      let path = FilePath(h.env.root, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
+      let auth = h.env.root
       _pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
 
       if _pm isnt None then // write to STDIN of the child process
@@ -477,21 +477,18 @@ class _TestChdir is UnitTest
     // expect path length + \n
     let notifier: ProcessNotify iso = _ProcessClient(parent.size()
       + (ifdef windows then 2 else 1 end), "", 0, h)
-    try
-      let auth = h.env.root as AmbientAuth
-      let path = FilePath(auth, _PwdPath())
-      let args: Array[String] val = _PwdArgs()
-      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+    let auth = h.env.root
 
-      let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path,
-          args, vars, FilePath(auth, parent))
-      pm.done_writing()
-      h.dispose_when_done(pm)
-      h.long_test(30_000_000_000)
-    else
-      h.fail("Could not create FilePath!")
-    end
+    let path = FilePath(auth, _PwdPath())
+    let args: Array[String] val = _PwdArgs()
+    let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+    let pm: ProcessMonitor =
+      ProcessMonitor(auth, auth, consume notifier, path,
+        args, vars, FilePath(auth, parent))
+    pm.done_writing()
+    h.dispose_when_done(pm)
+    h.long_test(30_000_000_000)
 
 class _TestBadChdir is UnitTest
   fun name(): String =>
@@ -504,21 +501,18 @@ class _TestBadChdir is UnitTest
     let badpath = Path.abs(Path.random(10))
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ChdirError))
-    try
-      let auth = h.env.root as AmbientAuth
-      let path = FilePath(auth, _PwdPath())
-      let args: Array[String] val = _PwdArgs()
-      let vars: Array[String] iso = recover Array[String](0) end
+    let auth = h.env.root
 
-      let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path,
-          args, consume vars, FilePath(auth, badpath))
-      pm.done_writing()
-      h.dispose_when_done(pm)
-      h.long_test(30_000_000_000)
-    else
-      h.fail("Could not create FilePath!")
-    end
+    let path = FilePath(auth, _PwdPath())
+    let args: Array[String] val = _PwdArgs()
+    let vars: Array[String] iso = recover Array[String](0) end
+
+    let pm: ProcessMonitor =
+      ProcessMonitor(auth, auth, consume notifier, path,
+        args, consume vars, FilePath(auth, badpath))
+    pm.done_writing()
+    h.dispose_when_done(pm)
+    h.long_test(30_000_000_000)
 
 class _TestBadExec is UnitTest
 
@@ -539,7 +533,7 @@ class _TestBadExec is UnitTest
 
 
   fun ref set_up(h: TestHelper) ? =>
-    let auth = h.env.root as AmbientAuth
+    let auth = h.env.root
     ifdef windows then
       _bad_exec_path = FilePath(auth, "C:\\Windows\\system.ini")
     else
@@ -563,7 +557,7 @@ class _TestBadExec is UnitTest
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ExecveError))
     try
-      let auth = h.env.root as AmbientAuth
+      let auth = h.env.root
       let path = _bad_exec_path as FilePath
       let pm: ProcessMonitor =
         ProcessMonitor(auth, auth, consume notifier, path, [], [])
@@ -577,8 +571,8 @@ class _TestBadExec is UnitTest
 class iso _TestLongRunningChild is UnitTest
   fun name(): String => "process/long-running-child"
   fun exclusion_group(): String => "process-monitor"
-  fun apply(h: TestHelper)? =>
-    let auth = h.env.root as AmbientAuth
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
     let notifier =
       object iso is ProcessNotify
         fun ref created(process: ProcessMonitor ref) =>
@@ -623,8 +617,8 @@ class iso _TestLongRunningChild is UnitTest
 class iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
-  fun apply(h: TestHelper)? =>
-    let auth = h.env.root as AmbientAuth
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
     let notifier =
       object iso is ProcessNotify
         fun ref created(process: ProcessMonitor ref) =>
@@ -680,8 +674,8 @@ class iso _TestKillLongRunningChild is UnitTest
 class iso _TestWaitingOnClosedProcessTwice is UnitTest
   fun name(): String => "process/wait-on-closed-process-twice"
   fun exclusion_group(): String => "process-monitor"
-  fun apply(h: TestHelper)? =>
-    let auth = h.env.root as AmbientAuth
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
     try
       let path_resolver = _PathResolver(h.env.vars, auth)
       let path = FilePath(auth, _SleepCommand.path(path_resolver)?)

@@ -112,12 +112,7 @@ class val Config
     limit = cmd.option("limit").f64().f32()
     chunks = cmd.option("chunks").i64().usize()
     width = cmd.option("width").i64().usize()
-    outpath =
-      try
-        FilePath(env.root as AmbientAuth, cmd.option("output").string())
-      else
-        None
-      end
+    outpath = FilePath(env.root, cmd.option("output").string())
 
   new val none() =>
     iterations = 0

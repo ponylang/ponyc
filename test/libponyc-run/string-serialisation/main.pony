@@ -11,8 +11,7 @@ class V
 actor Main
   new create(env: Env) =>
     try
-      let auth = env.root as AmbientAuth
       let v: V = V
-      Serialised(SerialiseAuth(auth), v)?
+      Serialised(SerialiseAuth(env.root), v)?
       @pony_exitcode(1)
     end

@@ -8,10 +8,5 @@ actor Main
       1
     end
 
-    try
-      let auth = env.root as AmbientAuth
-      TCPListener(auth, recover Listener(env, limit) end)
-      UDPSocket(auth, recover Pong(env) end)
-    else
-      env.out.print("unable to use the network")
-    end
+    TCPListener(env.root, recover Listener(env, limit) end)
+    UDPSocket(env.root, recover Pong(env) end)

@@ -86,18 +86,13 @@ actor _Tester
     end
 
     // run ponyc to build the test program
-    try
-      _start_ms = Time.millis()
+    _start_ms = Time.millis()
 
-      let auth = _env.root as AmbientAuth
-      _stage = _Building
-      _build_process = ProcessMonitor(auth, auth, _BuildProcessNotify(this),
-        ponyc_file_path, consume args, _env.vars,
-        FilePath(auth, _definition.path))
-        .>done_writing()
-    else
-      _shutdown_failed("failed to acquire ambient authority")
-    end
+    _stage = _Building
+    _build_process = ProcessMonitor(_env.root, _env.root, _BuildProcessNotify(this),
+      ponyc_file_path, consume args, _env.vars,
+      FilePath(_env.root, _definition.path))
+      .>done_writing()
 
   fun _get_build_args(ponyc_path: String): Array[String] val =>
     recover val
@@ -175,16 +170,11 @@ actor _Tester
         end
       end
 
-      try
-        let auth = _env.root as AmbientAuth
-        _stage = _Testing
-        _test_process = ProcessMonitor(auth, auth, _TestProcessNotify(this),
-          FilePath(auth, test_fname), [ test_fname ], vars,
-          FilePath(auth, _definition.path))
-          .>done_writing()
-      else
-        _shutdown_failed("failed to acquire ambient authority")
-      end
+      _stage = _Testing
+      _test_process = ProcessMonitor(_env.root, _env.root, _TestProcessNotify(this),
+        FilePath(_env.root, test_fname), [ test_fname ], vars,
+        FilePath(_env.root, _definition.path))
+        .>done_writing()
     end
 
   be building_failed(msg: String) =>

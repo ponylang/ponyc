@@ -34,7 +34,7 @@ class _TestPing is UDPNotify
     _h = h
 
     _ip = try
-      let auth = h.env.root as AmbientAuth
+      let auth = h.env.root
       (_, let service) = ip.name()?
 
       let list = if ip.ip4() then
@@ -92,18 +92,13 @@ class _TestPong is UDPNotify
     sock.set_broadcast(true)
     let ip = sock.local_address()
 
-    try
-      let auth = _h.env.root as AmbientAuth
-      let h = _h
-      if ip.ip4() then
-        _h.dispose_when_done(
-          UDPSocket.ip4(auth, recover _TestPing(h, ip) end))
-      else
-        _h.dispose_when_done(
-          UDPSocket.ip6(auth, recover _TestPing(h, ip) end))
-      end
+    let h = _h
+    if ip.ip4() then
+      _h.dispose_when_done(
+        UDPSocket.ip4(h.env.root, recover _TestPing(h, ip) end))
     else
-      _h.fail_action("ping create")
+      _h.dispose_when_done(
+        UDPSocket.ip6(h.env.root, recover _TestPing(h, ip) end))
     end
 
   fun ref received(
@@ -135,12 +130,7 @@ class iso _TestBroadcast is UnitTest
     h.expect_action("pong receive")
     h.expect_action("ping receive")
 
-    try
-      let auth = h.env.root as AmbientAuth
-      h.dispose_when_done(UDPSocket(auth, recover _TestPong(h) end))
-    else
-      h.fail_action("pong create")
-    end
+    h.dispose_when_done(UDPSocket(h.env.root, recover _TestPong(h) end))
 
     h.long_test(30_000_000_000)
 
@@ -173,13 +163,8 @@ class _TestTCP is TCPListenNotify
     h.expect_action("client create")
     h.expect_action("server accept")
 
-    try
-      let auth = h.env.root as AmbientAuth
-      h.dispose_when_done(TCPListener(auth, consume this))
-      h.complete_action("server create")
-    else
-      h.fail_action("server create")
-    end
+    h.dispose_when_done(TCPListener(h.env.root, consume this))
+    h.complete_action("server create")
 
     h.long_test(30_000_000_000)
 
@@ -190,10 +175,9 @@ class _TestTCP is TCPListenNotify
     _h.complete_action("server listen")
 
     try
-      let auth = _h.env.root as AmbientAuth
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()?
-      _h.dispose_when_done(TCPConnection(auth, consume notify, host, port))
+      _h.dispose_when_done(TCPConnection(_h.env.root, consume notify, host, port))
       _h.complete_action("client create")
     else
       _h.fail_action("client create")
@@ -686,26 +670,21 @@ class _TestTCPConnectionFailed is UnitTest
     let host = "127.0.0.1"
     let port = "7669"
 
-    try
-      let connection = TCPConnection(
-        h.env.root as AmbientAuth,
-        object iso is TCPConnectionNotify
-          let _h: TestHelper = h
+    let connection = TCPConnection(
+      h.env.root,
+      object iso is TCPConnectionNotify
+        let _h: TestHelper = h
 
-          fun ref connected(conn: TCPConnection ref) =>
-            _h.fail_action("connection failed")
+        fun ref connected(conn: TCPConnection ref) =>
+          _h.fail_action("connection failed")
 
-          fun ref connect_failed(conn: TCPConnection ref) =>
-            _h.complete_action("connection failed")
-        end,
-        host,
-        port)
-      h.long_test(30_000_000_000)
-      h.dispose_when_done(connection)
-    else
-      h.fail("unexpected error creating TCPConnection")
-      h.complete(false)
-    end
+        fun ref connect_failed(conn: TCPConnection ref) =>
+          _h.complete_action("connection failed")
+      end,
+      host,
+      port)
+    h.long_test(30_000_000_000)
+    h.dispose_when_done(connection)
 
 class _TestTCPConnectionToClosedServerFailed is UnitTest
   """
@@ -718,63 +697,53 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
     h.expect_action("server listening")
     h.expect_action("client connection failed")
 
-    try
-      let listener = TCPListener(
-        h.env.root as AmbientAuth,
-        object iso is TCPListenNotify
-          let _h: TestHelper = h
-          var host: String = "?"
-          var port: String = "?"
+    let listener = TCPListener(
+      h.env.root,
+      object iso is TCPListenNotify
+        let _h: TestHelper = h
+        var host: String = "?"
+        var port: String = "?"
 
-          fun ref listening(listener: TCPListener ref) =>
-            _h.complete_action("server listening")
-            listener.close()
+        fun ref listening(listener: TCPListener ref) =>
+          _h.complete_action("server listening")
+          listener.close()
 
-          fun ref not_listening(listener: TCPListener ref) =>
-            _h.fail_action("server listening")
+        fun ref not_listening(listener: TCPListener ref) =>
+          _h.fail_action("server listening")
 
-          fun ref closed(listener: TCPListener ref) =>
-            _TCPConnectionToClosedServerFailedConnector.connect(_h, host, port)
+        fun ref closed(listener: TCPListener ref) =>
+          _TCPConnectionToClosedServerFailedConnector.connect(_h, host, port)
 
-          fun ref connected(listener: TCPListener ref)
-            : TCPConnectionNotify iso^
-          =>
-            object iso is TCPConnectionNotify
-              fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-                times: USize): Bool => true
-              fun ref accepted(conn: TCPConnection ref) => None
-              fun ref connect_failed(conn: TCPConnection ref) => None
-              fun ref closed(conn: TCPConnection ref) => None
-            end
-        end,
-        "127.0.0.1"
-      )
+        fun ref connected(listener: TCPListener ref)
+          : TCPConnectionNotify iso^
+        =>
+          object iso is TCPConnectionNotify
+            fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+              times: USize): Bool => true
+            fun ref accepted(conn: TCPConnection ref) => None
+            fun ref connect_failed(conn: TCPConnection ref) => None
+            fun ref closed(conn: TCPConnection ref) => None
+          end
+      end,
+      "127.0.0.1"
+    )
 
-      h.dispose_when_done(listener)
-      h.long_test(30_000_000_000)
-    else
-      h.fail("unexpected error creating listener")
-      h.complete(false)
-    end
+    h.dispose_when_done(listener)
+    h.long_test(30_000_000_000)
 
 actor _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>
-    try
-      let connection = TCPConnection(
-        h.env.root as AmbientAuth,
-        object iso is TCPConnectionNotify
-          let _h: TestHelper = h
+    let connection = TCPConnection(
+      h.env.root,
+      object iso is TCPConnectionNotify
+        let _h: TestHelper = h
 
-          fun ref connected(conn: TCPConnection ref) =>
-            _h.fail_action("client connection failed")
+        fun ref connected(conn: TCPConnection ref) =>
+          _h.fail_action("client connection failed")
 
-          fun ref connect_failed(conn: TCPConnection ref) =>
-            _h.complete_action("client connection failed")
-        end,
-        host,
-        port)
-      h.dispose_when_done(connection)
-    else
-      h.fail("unable to create connection")
-      h.complete(false)
-    end
+        fun ref connect_failed(conn: TCPConnection ref) =>
+          _h.complete_action("client connection failed")
+      end,
+      host,
+      port)
+    h.dispose_when_done(connection)
