@@ -140,11 +140,12 @@ TEST_F(StableTypeTest, CompatibleIsectLetField)
 
 TEST_F(StableTypeTest, EphemeralIsoParameter)
 {
+  // parameters should reject even if never called
   const char* src =
     "class A\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "        this.bad(recover A end)\n"
+    "        None\n"
     "  fun bad(a: A iso^) =>\n"
     "        None";
 
@@ -153,11 +154,12 @@ TEST_F(StableTypeTest, EphemeralIsoParameter)
 
 TEST_F(StableTypeTest, IncompatibleIsectParameter)
 {
+  // parameters should reject even if never called
   const char* src =
     "class A\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "        this.bad(recover A end)\n"
+    "        None\n"
     "  fun bad(a: (A ref & A val)) =>\n"
     "        None";
 

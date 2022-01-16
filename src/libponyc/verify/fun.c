@@ -1,4 +1,5 @@
 #include "fun.h"
+#include "../type/alias.h"
 #include "../type/cap.h"
 #include "../type/compattype.h"
 #include "../type/lookup.h"
@@ -592,6 +593,17 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     !verify_any_serialise(opt, ast) ||
     !verify_behaviour_parameters(opt, ast))
     return false;
+
+  // Check parameter types.
+  for(ast_t* param = ast_child(params); param != NULL; param = ast_sibling(param))
+  {
+    ast_t* p_type = ast_type(param);
+    if(consume_type(p_type, TK_NONE) == NULL)
+    {
+      ast_error(opt->check.errors, p_type, "illegal type for parameter");
+    }
+  }
+
 
   // Check partial functions.
   if(ast_id(can_error) == TK_QUESTION)
