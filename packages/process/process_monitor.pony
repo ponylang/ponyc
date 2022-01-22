@@ -17,7 +17,7 @@ actor ProcessMonitor
   var _stdin: _Pipe = _Pipe.none()
   var _stdout: _Pipe = _Pipe.none()
   var _stderr: _Pipe = _Pipe.none()
-  var _err: _Pipe = _Pipe.none()
+  let _err: _Pipe = _Pipe.none()
   var _child: _Process = _ProcessNone
 
   let _max_size: USize = 4096
