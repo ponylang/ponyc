@@ -14,7 +14,7 @@ actor ProcessMonitor
   let _notifier: ProcessNotify
   let _backpressure_auth: BackpressureAuth
 
-  var _stdin: _Pipe = _Pipe.none()
+  let _stdin: _Pipe = _Pipe.none()
   var _stdout: _Pipe = _Pipe.none()
   var _stderr: _Pipe = _Pipe.none()
   var _err: _Pipe = _Pipe.none()
