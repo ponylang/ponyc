@@ -1,0 +1,32 @@
+name: Scheduled job failure
+
+on:
+  check_run:
+    type:
+      - completed
+
+jobs:
+  send-notification-to-zulip:
+    name: Send failure notification to Zulip
+    # Don't send failures for PRs that we can get UI notifications for.
+    # Gating is...
+    #   - if a check run resulted in failure. i.e. a job failed
+    #   - sender.login is the user who kicked off the job. PRs from forks
+    #       don't show up as a PR so we can't filter them out that way.
+    #       They do all however come from the special user "ghost" in the event
+    #       So if the sender.login is "ghost", don't send a notification.
+    #   - don't send if the check_run has an associated PR. This only gets set
+    #       for PRs that come from the repo itself, not from forks.
+    if: github.event.check_run.conclusion == 'failure' && github.event.sender.login != 'ghost' && toJson(github.event.check_run.pull_requests) == '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send
+        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.event.check_run.details_url }} failed.
