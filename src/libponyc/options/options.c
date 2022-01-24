@@ -58,7 +58,6 @@ enum
   OPT_FILENAMES,
   OPT_CHECKTREE,
   OPT_EXTFUN,
-  OPT_SIMPLEBUILTIN,
   OPT_LINT_LLVM,
   OPT_LLVM_ARGS,
 
@@ -106,7 +105,6 @@ static opt_arg_t std_args[] =
   {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
   {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
-  {"simplebuiltin", '\0', OPT_ARG_NONE, OPT_SIMPLEBUILTIN},
   {"lint-llvm", '\0', OPT_ARG_NONE, OPT_LINT_LLVM},
 #ifndef NDEBUG
   {"llvm-args", '\0', OPT_ARG_REQUIRED, OPT_LLVM_ARGS},
@@ -191,7 +189,6 @@ static void usage(void)
     "  --checktree      Verify AST well-formedness.\n"
     "  --verify         Verify LLVM IR.\n"
     "  --extfun         Set function default linkage to external.\n"
-    "  --simplebuiltin  Use a minimal builtin package.\n"
     "  --files          Print source file names as each is processed.\n"
     "  --bnf            Print out the Pony grammar as human readable BNF.\n"
     "  --antlr          Print out the Pony grammar as an ANTLR file.\n"
@@ -348,7 +345,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_IMMERR: errors_set_immediate(opt->check.errors, true); break;
       case OPT_VERIFY: opt->verify = true; break;
       case OPT_EXTFUN: opt->extfun = true; break;
-      case OPT_SIMPLEBUILTIN: opt->simple_builtin = true; break;
       case OPT_FILENAMES: opt->print_filenames = true; break;
       case OPT_CHECKTREE: opt->check_tree = true; break;
       case OPT_LINT_LLVM: opt->lint_llvm = true; break;

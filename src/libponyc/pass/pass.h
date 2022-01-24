@@ -273,7 +273,6 @@ typedef struct pass_opt_t
   bool print_stats;
   bool verify;
   bool extfun;
-  bool simple_builtin;
   bool strip_debug;
   bool print_filenames;
   bool check_tree;
