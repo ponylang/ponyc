@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove simplebuiltin compiler option ([PR #3965](https://github.com/ponylang/ponyc/pull/3965))
 
 ## [0.46.0] - 2022-01-16
 
