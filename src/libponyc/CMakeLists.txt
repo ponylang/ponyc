@@ -112,15 +112,15 @@ if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(libponyc PRIVATE
         lldMachO
     )
-  elseif(MSVC)
+elseif(MSVC)
     target_link_libraries(libponyc PRIVATE
         lldCOFF
     )
-  else()
+else()
     target_link_libraries(libponyc PRIVATE
       lldELF
     )
-  endif()
+endif()
 
 target_compile_definitions(libponyc PRIVATE
     PONY_ALWAYS_ASSERT

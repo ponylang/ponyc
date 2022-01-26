@@ -21,6 +21,19 @@
 #  include <unistd.h>
 #endif
 
+class CaptureOStream : public llvm::raw_ostream {
+public:
+  std::string Data;
+
+  CaptureOStream() : raw_ostream(/*unbuffered=*/true), Data() {}
+
+  void write_impl(const char *Ptr, size_t Size) override {
+    Data.append(Ptr, Size);
+  }
+
+  uint64_t current_pos() const override { return Data.size(); }
+};
+
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
@@ -261,63 +274,174 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-lponyrt";
 #endif
 
-#if defined(PLATFORM_IS_MACOSX)
-  char* arch = strchr(c->opt->triple, '-');
+const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename,
+#ifdef PLATFORM_IS_WINDOWS
+      ".exe"
+#else
+      ""
+#endif
+    );
 
-  if(arch == NULL)
-  {
-    errorf(errors, NULL, "couldn't determine architecture from %s",
-      c->opt->triple);
-    return false;
-  }
-
-  const char* file_exe =
-    suffix_filename(c, c->opt->output, "", c->filename, "");
-
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Linking %s\n", file_exe);
-
-  program_lib_build_args(program, c->opt, "-L", NULL, "", "", "-l", "");
-  const char* lib_args = program_lib_args(program);
-
-  size_t arch_len = arch - c->opt->triple;
-  const char* linker = c->opt->linker != NULL ? c->opt->linker : "ld";
-  const char* sanitizer_arg =
+const char* sanitizer_arg =
 #if defined(PONY_SANITIZER)
     "-fsanitize=" PONY_SANITIZER;
 #else
     "";
 #endif
 
-  size_t ld_len = 256 + arch_len + strlen(linker) + strlen(file_exe) +
-    strlen(file_o) + strlen(lib_args) + strlen(sanitizer_arg);
+#if defined(PLATFORM_IS_MACOSX)
+  char* separator = strchr(c->opt->triple, '-');
 
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-
-  snprintf(ld_cmd, ld_len,
-#if defined(PLATFORM_IS_ARM)
-    "%s -execute -arch %.*s "
-#else
-    "%s -execute -no_pie -arch %.*s "
-#endif
-    "-o %s %s %s %s "
-    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
-           linker, (int)arch_len, c->opt->triple, file_exe, file_o,
-           lib_args, ponyrt, sanitizer_arg
-    );
-
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", ld_cmd);
-
-  if(system(ld_cmd) != 0)
+  if(separator == NULL)
   {
-    errorf(errors, NULL, "unable to link: %s", ld_cmd);
-    ponyint_pool_free_size(ld_len, ld_cmd);
+    errorf(errors, NULL, "couldn't determine architecture from %s",
+      c->opt->triple);
+
     return false;
   }
 
-  ponyint_pool_free_size(ld_len, ld_cmd);
+  size_t arch_len = separator - c->opt->triple + 1;
 
+  char* arch = (char*)ponyint_pool_alloc_size(arch_len);
+
+  memset(arch, 0, arch_len);
+  memcpy((void*)arch, (void*)c->opt->triple, arch_len - 1);
+
+  // STA: im not sure about -sdk_version and 10.12
+  // nor am i sure about ponyrt going here, it might need to be later.
+  const char * cmd[] = {
+     "-execute",
+#if defined(PLATFORM_IS_ARM)
+     "",
+#else
+     "-no_pie",
+#endif
+     "-arch", arch,
+     "-sdk_version",
+     "10.12", ponyrt,
+     "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib",
+     "-lSystem", "-o", file_o,
+     sanitizer_arg, file_exe
+  };
+
+  size_t cmd_len = sizeof(cmd) / sizeof(char*);
+
+  program_linker_build_args(program, c->opt, "-L", NULL, "", "", "-l", "",
+    cmd, cmd_len);
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
+  const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
+
+  const char* mcx16_arg = (target_is_lp64(c->opt->triple)
+    && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
+
+  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
+  const char* atomic = (target_is_linux(c->opt->triple)
+    || target_is_dragonfly(c->opt->triple)) ? "-latomic" : "";
+  const char* staticbin = c->opt->staticbin ? "-static" : "";
+
+  const char* dtrace_args =
+#if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
+   "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
+#else
+    "";
+#endif
+
+  const char* lexecinfo =
+#if (defined(PLATFORM_IS_LINUX) && !defined(__GLIBC__)) || \
+    defined(PLATFORM_IS_BSD)
+   "-lexecinfo";
+#else
+    "";
+#endif
+
+// TODO arm32 linker options
+
+  const char * cmd[] = {
+     "-march", arch, mcx16_arg,
+     staticbin, ponyrt, ldl,
+     lexecinfo, atomic,
+#ifdef PLATFORM_IS_OPENBSD
+     // On OpenBSD, the unwind symbols are contained within libc++abi.
+     "-lc++abi",
+#endif
+// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
+#ifndef NDEBUG
+    // Allows the implementation of `pony_assert` to correctly get symbol names
+    // for backtrace reporting.
+     "-rdynamic",
+#endif
+     "-lpthread", "-lm", "-o",
+     file_o, sanitizer_arg, file_exe
+  };
+
+  //TODO: PONY_USE_LTO
+
+  size_t cmd_len = sizeof(cmd) / sizeof(char*);
+
+  program_linker_build_args(program, c->opt, "-L", "-Wl,-rpath,",
+    "-Wl,--start-group ", "-Wl,--end-group ", "-l", "", cmd, cmd_len);
+#elif defined(PLATFORM_IS_WINDOWS)
+  vcvars_t vcvars;
+
+  if(!vcvars_get(c, &vcvars, errors))
+  {
+    errorf(errors, NULL, "unable to link: no vcvars");
+    return false;
+  }
+
+  program_lib_build_args(program, c->opt,
+    "/LIBPATH:", NULL, "", "", "", ".lib");
+
+  char ucrt_lib[MAX_PATH + 12];
+
+  if (strlen(vcvars.ucrt) > 0)
+    snprintf(ucrt_lib, MAX_PATH + 12, "/LIBPATH:\"%s\"", vcvars.ucrt);
+  else
+    ucrt_lib[0] = '\0';
+
+  const char * cmd[] = {
+    "/DEBUG", "/NOLOGO", "/MACHINE:X64",
+    "/ignore:4099", "/OUT:", file_exe,
+    file_o, ucrt_lib, "/LIBPATH:", vcvars.kernel32,
+    "/LIBPATH:", vcvars.msvcrt, vcvars.default_libs,
+    ponyrt
+  };
+#endif
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
+
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    fprintf(stderr, "%s\n", program_lib_args(program));
+
+  const char** linker_args = program_linker_args(program);
+
+  llvm::ArrayRef<const char *> args = llvm::makeArrayRef(linker_args,
+    program_linker_args_size(program));
+
+  CaptureOStream output;
+  bool link_success = true;
+
+#if defined(PLATFORM_IS_MACOSX)
+    lld::mach_o::link(args, false);
+#elif defined(PLATFORM_IS_POSIX_BASED)
+    lld::elf::link(args, false, output, output);
+#elif defined(PLATFORM_IS_WINDOWS)
+    lld:coff::link(args, false);
+#endif
+
+#if defined(PLATFORM_IS_MACOSX)
+    ponyint_pool_free_size(arch_len, arch);
+#endif
+
+  if (!link_success)
+  {
+    errorf(errors, NULL, "unable to link: %s", program_lib_args(program));
+    return false;
+  }
+
+#if defined(PLATFORM_IS_MACOSX)
   if(!c->opt->strip_debug)
   {
     size_t dsym_len = 16 + strlen(file_exe);
@@ -333,175 +457,6 @@ static bool link_exe(compile_t* c, ast_t* program,
 
     ponyint_pool_free_size(dsym_len, dsym_cmd);
   }
-
-#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
-  const char* file_exe =
-    suffix_filename(c, c->opt->output, "", c->filename, "");
-
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Linking %s\n", file_exe);
-
-  program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
-    "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
-  const char* lib_args = program_lib_args(program);
-
-  const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
-  bool fallback_linker = false;
-  const char* linker = c->opt->linker != NULL ? c->opt->linker :
-    env_cc_or_pony_compiler(&fallback_linker);
-  const char* mcx16_arg = (target_is_lp64(c->opt->triple)
-    && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
-  const char* fuseldcmd = c->opt->link_ldcmd != NULL ? c->opt->link_ldcmd :
-    (target_is_linux(c->opt->triple) ? "gold" : "");
-  const char* fuseld = strlen(fuseldcmd) ? "-fuse-ld=" : "";
-  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
-  const char* atomic =
-    (target_is_linux(c->opt->triple) || target_is_dragonfly(c->opt->triple))
-    ? "-latomic" : "";
-  const char* staticbin = c->opt->staticbin ? "-static" : "";
-  const char* dtrace_args =
-#if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
-   "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
-#else
-    "";
-#endif
-  const char* lexecinfo =
-#if (defined(PLATFORM_IS_LINUX) && !defined(__GLIBC__)) || \
-    defined(PLATFORM_IS_BSD)
-   "-lexecinfo";
-#else
-    "";
-#endif
-
-  const char* sanitizer_arg =
-#if defined(PONY_SANITIZER)
-    "-fsanitize=" PONY_SANITIZER;
-#else
-    "";
-#endif
-
-  const char* arm32_linker_args = target_is_arm32(c->opt->triple)
-    ? " -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libgnustl_shared.so -Wl,--exclude-libs,libunwind.a"
-    : "";
-
-  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
-                  + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl) + strlen(atomic) + strlen(staticbin)
-                  + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg) + strlen(arm32_linker_args);
-
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-
-#ifdef PONY_USE_LTO
-  if (strcmp(arch, "x86_64") == 0)
-    arch = "x86-64";
-#endif
-  snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
-    "%s "
-#ifdef PONY_USE_LTO
-    "-flto -fuse-linker-plugin "
-#endif
-// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
-#ifndef NDEBUG
-    // Allows the implementation of `pony_assert` to correctly get symbol names
-    // for backtrace reporting.
-    "-rdynamic "
-#endif
-#ifdef PLATFORM_IS_OPENBSD
-    // On OpenBSD, the unwind symbols are contained within libc++abi.
-    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s"
-#else
-    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s"
-#endif
-    "%s",
-    linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
-    arm32_linker_args,
-    lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
-    );
-
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", ld_cmd);
-
-  if(system(ld_cmd) != 0)
-  {
-    if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
-    {
-      fprintf(stderr,
-        "Warning: environment variable $CC undefined, using %s as the linker\n",
-        PONY_COMPILER);
-    }
-
-    errorf(errors, NULL, "unable to link: %s", ld_cmd);
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    return false;
-  }
-
-  ponyint_pool_free_size(ld_len, ld_cmd);
-#elif defined(PLATFORM_IS_WINDOWS)
-  vcvars_t vcvars;
-
-  if(!vcvars_get(c, &vcvars, errors))
-  {
-    errorf(errors, NULL, "unable to link: no vcvars");
-    return false;
-  }
-
-  const char* file_exe = suffix_filename(c, c->opt->output, "", c->filename,
-    ".exe");
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Linking %s\n", file_exe);
-
-  program_lib_build_args(program, c->opt,
-    "/LIBPATH:", NULL, "", "", "", ".lib");
-  const char* lib_args = program_lib_args(program);
-
-  char ucrt_lib[MAX_PATH + 12];
-  if (strlen(vcvars.ucrt) > 0)
-    snprintf(ucrt_lib, MAX_PATH + 12, "/LIBPATH:\"%s\"", vcvars.ucrt);
-  else
-    ucrt_lib[0] = '\0';
-
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
-    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-
-  char* linker = vcvars.link;
-  if (c->opt->linker != NULL && strlen(c->opt->linker) > 0)
-    linker = c->opt->linker;
-
-  while (true)
-  {
-    size_t num_written = snprintf(ld_cmd, ld_len,
-      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 /ignore:4099 "
-      "/OUT:%s "
-      "%s %s "
-      "/LIBPATH:\"%s\" "
-      "/LIBPATH:\"%s\" "
-      "%s %s %s \"",
-      linker, file_exe, file_o, ucrt_lib, vcvars.kernel32,
-      vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
-    );
-
-    if (num_written < ld_len)
-      break;
-
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    ld_len += 256;
-    ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-  }
-
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", ld_cmd);
-
-  int result = system(ld_cmd);
-  if (result != 0)
-  {
-    errorf(errors, NULL, "unable to link: %s: %d", ld_cmd, result);
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    return false;
-  }
-
-  ponyint_pool_free_size(ld_len, ld_cmd);
 #endif
 
   return true;

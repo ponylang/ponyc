@@ -52,6 +52,18 @@ add_executable(libponyc.tests
     verify.cc
 )
 
+target_link_libraries(libponyc.tests PRIVATE
+    lldDriver
+    lldReaderWriter
+    lldCore
+    lldCommon
+    lldWasm
+    lldYAML
+    lldMachO
+    lldCOFF
+    lldELF
+)
+
 target_compile_definitions(libponyc.tests PRIVATE
     PONY_ALWAYS_ASSERT
 )

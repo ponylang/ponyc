@@ -34,7 +34,7 @@ TEST(ProgramTest, NoLibs)
   pass_opt_t opt;
   pass_opt_init(&opt);
 
-  program_lib_build_args(prog, &opt, "", "", "pre", "post", "", "");
+  program_linker_build_args(prog, &opt, "", "", "pre", "post", "", "", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -55,7 +55,7 @@ TEST(ProgramTest, OneLib)
 
   ASSERT_TRUE(use_library(prog, "foo", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "", "", "", "", "", "");
+  program_linker_build_args(prog, &opt, "", "", "", "", "", "", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -78,7 +78,7 @@ TEST(ProgramTest, OneLibWithAmbles)
 
   ASSERT_TRUE(use_library(prog, "foo", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "", "", "pre", "post", "lpre", "lpost");
+  program_linker_build_args(prog, &opt, "", "", "pre", "post", "lpre", "lpost", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -103,7 +103,7 @@ TEST(ProgramTest, MultipleLibs)
   ASSERT_TRUE(use_library(prog, "bar", NULL, &opt));
   ASSERT_TRUE(use_library(prog, "wombat", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "", "", "", "", "", "");
+  program_linker_build_args(prog, &opt, "", "", "", "", "", "", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -128,7 +128,7 @@ TEST(ProgramTest, MultipleLibsWithAmbles)
   ASSERT_TRUE(use_library(prog, "bar", NULL, &opt));
   ASSERT_TRUE(use_library(prog, "wombat", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "", "", "pre", "post", "lpre", "lpost");
+  program_linker_build_args(prog, &opt, "", "", "pre", "post", "lpre", "lpost", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -157,7 +157,7 @@ TEST(ProgramTest, RepeatedLibs)
   ASSERT_TRUE(use_library(prog, "foo", NULL, &opt));
   ASSERT_TRUE(use_library(prog, "wombat", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "", "", "" "", "", "", "");
+  program_linker_build_args(prog, &opt, "", "", "" "", "", "", "", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -207,7 +207,7 @@ TEST(ProgramTest, LibPathsRelative)
   // pretend we issue a use "path:..." from within that package
   ASSERT_TRUE(use_path(pkg, "bar", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "static", "dynamic", "", "", "", "");
+  program_linker_build_args(prog, &opt, "static", "dynamic", "", "", "", "", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);
@@ -239,7 +239,7 @@ TEST(ProgramTest, LibPathsAbsolute)
   // pretend we issue a use "path:..." from within that package
   ASSERT_TRUE(use_path(pkg, "/bar", NULL, &opt));
 
-  program_lib_build_args(prog, &opt, "static", "dynamic", "", "", "", "");
+  program_linker_build_args(prog, &opt, "static", "dynamic", "", "", "", "", NULL, 0);
 
   ASSERT_EQ(errors_get_count(opt.check.errors), 0);
   errors_print(opt.check.errors);

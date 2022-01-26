@@ -30,17 +30,22 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
 /** Build the required linker arguments based on the libraries we're using.
  * Once this has been called no more calls to use_library() are permitted.
  */
-void program_lib_build_args(ast_t* program, pass_opt_t* opt,
+void program_linker_build_args(ast_t* program, pass_opt_t* opt,
   const char* path_preamble, const char* rpath_preamble,
   const char* global_preamble, const char* global_postamble,
-  const char* lib_premable, const char* lib_postamble);
+  const char* lib_premable, const char* lib_postamble,
+  const char** command, size_t length);
 
 /** Report the command line options for the user specified libraries, if any.
- * May only be called after program_lib_build_args().
- * The returned string is valid for the lifetime of the associated AST and
+ * May only be called after program_linker_build_args().
+ * The returned string array is valid for the lifetime of the associated AST and
  * should not be freed by the caller.
  */
+const char** program_linker_args(ast_t* program);
+
 const char* program_lib_args(ast_t* program);
+
+size_t program_linker_args_size(ast_t* program);
 
 const char* program_signature(ast_t* program);
 

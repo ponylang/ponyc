@@ -18,7 +18,9 @@ typedef struct program_t
   strlist_t* libs;
   size_t lib_args_size;
   size_t lib_args_alloced;
-  char* lib_args;
+  size_t lib_args_length;
+  char* lib_args_str;
+  char** lib_args;
 } program_t;
 
 
@@ -28,21 +30,28 @@ static void append_to_args(program_t* program, const char* text)
   pony_assert(program != NULL);
   pony_assert(text != NULL);
 
-  size_t text_len = strlen(text);
-  size_t new_len = program->lib_args_size + text_len + 1; // +1 for terminator
+  size_t new_len = program->lib_args_size + sizeof(char*);
+  size_t text_len = strlen(text) + 1;
+
+  program->lib_args_length = program->lib_args_length + strlen(text) + 1;
 
   if(new_len > program->lib_args_alloced)
   {
-    size_t new_alloc = 2 * new_len; // 2* so there's spare space for next arg
-    char* new_args = (char*)ponyint_pool_alloc_size(new_alloc);
-    memcpy(new_args, program->lib_args, program->lib_args_size + 1);
+    size_t new_alloc = 2 * new_len; // 2* so there's spare space for next args
+    char** new_args = (char**)ponyint_pool_alloc_size(new_alloc);
+    memcpy(new_args, program->lib_args, program->lib_args_size);
     ponyint_pool_free_size(program->lib_args_alloced, program->lib_args);
     program->lib_args = new_args;
     program->lib_args_alloced = new_alloc;
   }
 
-  strcat(program->lib_args, text);
-  program->lib_args_size = new_len - 1; // Don't add terminator to length
+
+  char** arg = program->lib_args + program->lib_args_size;
+
+  *arg = (char*)ponyint_pool_alloc_size(text_len);
+  memcpy(*arg, text, text_len);
+
+  program->lib_args_size++;
 }
 
 
@@ -55,6 +64,7 @@ program_t* program_create()
   p->libpaths = NULL;
   p->libs = NULL;
   p->lib_args_size = -1;
+  p->lib_args_str = NULL;
   p->lib_args = NULL;
 
   return p;
@@ -63,6 +73,9 @@ program_t* program_create()
 
 void program_free(program_t* program)
 {
+  size_t length = 0;
+  const char* arg = NULL;
+
   pony_assert(program != NULL);
 
   package_group_list_free(program->package_groups);
@@ -73,8 +86,21 @@ void program_free(program_t* program)
   strlist_free(program->libpaths);
   strlist_free(program->libs);
 
-  if(program->lib_args != NULL)
+  if(program->lib_args != NULL) {
+    for(size_t i = 0; i < program->lib_args_size; i++) {
+      arg = program->lib_args[i];
+      length = (strlen(arg) + 1) * sizeof(char*);
+
+      ponyint_pool_free_size(length, (void*)arg);
+    }
+
     ponyint_pool_free_size(program->lib_args_alloced, program->lib_args);
+  }
+
+  if(program->lib_args_str != NULL) {
+    length = strlen(program->lib_args_str);
+    ponyint_pool_free_size(length, program->lib_args_str);
+  }
 
   POOL_FREE(program_t, program);
 }
@@ -174,10 +200,11 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
 }
 
 
-void program_lib_build_args(ast_t* program, pass_opt_t* opt,
+void program_linker_build_args(ast_t* program, pass_opt_t* opt,
   const char* path_preamble, const char* rpath_preamble,
   const char* global_preamble, const char* global_postamble,
-  const char* lib_premable, const char* lib_postamble)
+  const char* lib_premable, const char* lib_postamble,
+  const char** command, size_t length)
 {
   pony_assert(program != NULL);
   pony_assert(ast_id(program) == TK_PROGRAM);
@@ -191,10 +218,13 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   pony_assert(data->lib_args == NULL); // Not yet built args
 
   // Start with an arbitrary amount of space
-  data->lib_args_alloced = 256;
-  data->lib_args = (char*)ponyint_pool_alloc_size(data->lib_args_alloced);
-  data->lib_args[0] = '\0';
+  data->lib_args_alloced = 32 * sizeof(char*);
+  data->lib_args = (char**)ponyint_pool_alloc_size(data->lib_args_alloced);
+
+  memset(data->lib_args, 0, data->lib_args_alloced);
+
   data->lib_args_size = 0;
+  data->lib_args_length = 0;
 
   // Library paths defined in the source code.
   for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
@@ -202,13 +232,11 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
     const char* libpath = strlist_data(p);
     append_to_args(data, path_preamble);
     append_to_args(data, libpath);
-    append_to_args(data, " ");
 
     if(rpath_preamble != NULL)
     {
       append_to_args(data, rpath_preamble);
       append_to_args(data, libpath);
-      append_to_args(data, " ");
     }
   }
 
@@ -222,13 +250,11 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
 
     append_to_args(data, path_preamble);
     append_to_args(data, libpath);
-    append_to_args(data, " ");
 
     if(rpath_preamble != NULL)
     {
       append_to_args(data, rpath_preamble);
       append_to_args(data, libpath);
-      append_to_args(data, " ");
     }
   }
 
@@ -248,14 +274,20 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
     if(amble)
       append_to_args(data, lib_postamble);
 
-    append_to_args(data, " ");
   }
 
   append_to_args(data, global_postamble);
+
+  // Take over provided linker args
+  if(command != NULL) {
+    for(size_t i = 0; i < length; i++) {
+      append_to_args(data, command[i]);
+    }
+  }
 }
 
 
-const char* program_lib_args(ast_t* program)
+const char** program_linker_args(ast_t* program)
 {
   pony_assert(program != NULL);
   pony_assert(ast_id(program) == TK_PROGRAM);
@@ -264,9 +296,40 @@ const char* program_lib_args(ast_t* program)
   pony_assert(data != NULL);
   pony_assert(data->lib_args != NULL); // Args have been built
 
-  return data->lib_args;
+  return (const char**)data->lib_args;
 }
 
+size_t program_linker_args_size(ast_t* program) {
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+
+  pony_assert(data != NULL);
+  pony_assert(data->lib_args != NULL);
+
+  return data->lib_args_size;
+}
+
+const char* program_lib_args(ast_t* program) {
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+
+  pony_assert(data != NULL);
+  pony_assert(data->lib_args != NULL);
+
+  data->lib_args_str = ponyint_pool_alloc_size(data->lib_args_length * sizeof(char*));
+
+  sprintf(data->lib_args_str, "%s", data->lib_args[0]);
+
+  for(size_t i = 1; i < data->lib_args_size; i++) {
+    sprintf(data->lib_args_str, "%s %s", data->lib_args_str, data->lib_args[i]);
+  }
+
+  return data->lib_args_str;
+}
 
 const char* program_signature(ast_t* program)
 {
@@ -391,13 +454,13 @@ static void program_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->lib_args_size = program->lib_args_size;
   dst->lib_args_alloced = program->lib_args_size + 1;
 
-  ptr_offset = pony_serialise_offset(ctx, program->lib_args);
-  dst->lib_args = (char*)ptr_offset;
+  ptr_offset = pony_serialise_offset(ctx, program->lib_args_str);
+  dst->lib_args_str = (char*)ptr_offset;
 
-  if(dst->lib_args != NULL)
+  if(dst->lib_args_str != NULL)
   {
     char* dst_lib = (char*)((uintptr_t)buf + ptr_offset);
-    memcpy(dst_lib, program->lib_args, program->lib_args_size + 1);
+    memcpy(dst_lib, program->lib_args_str, strlen(program->lib_args_str) + 1);
   }
 }
 
@@ -413,8 +476,8 @@ static void program_deserialise(pony_ctx_t* ctx, void* object)
     strlist_pony_type(), (uintptr_t)program->libpaths);
   program->libs = (strlist_t*)pony_deserialise_offset(ctx, strlist_pony_type(),
     (uintptr_t)program->libs);
-  program->lib_args = (char*)pony_deserialise_block(ctx,
-    (uintptr_t)program->lib_args, program->lib_args_size + 1);
+  program->lib_args_str = (char*)pony_deserialise_block(ctx,
+    (uintptr_t)program->lib_args_str, strlen(program->lib_args_str) + 1);
 }
 
 
