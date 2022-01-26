@@ -15,6 +15,8 @@
 #include "ponyassert.h"
 #include <string.h>
 
+#include <lld/Common/Driver.h>
+
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
 #endif

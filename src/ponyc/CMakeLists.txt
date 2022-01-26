@@ -14,6 +14,30 @@ target_link_directories(ponyc
     PRIVATE ../../build/libs/lib
 )
 
+target_link_libraries(ponyc PRIVATE
+    lldDriver
+    lldMachO
+    lldReaderWriter
+    lldCore
+    lldCommon
+    lldWasm
+    lldYAML
+)
+
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(ponyc PRIVATE
+        lldMachO
+    )
+  elseif(MSVC)
+    target_link_libraries(ponyc PRIVATE
+        lldCOFF
+    )
+  else()
+    target_link_libraries(ponyc PRIVATE
+      lldELF
+    )
+  endif()
+
 if (MSVC)
     target_link_libraries(ponyc
         PRIVATE libponyc
