@@ -226,6 +226,8 @@ void program_linker_build_args(ast_t* program, pass_opt_t* opt,
   data->lib_args_size = 0;
   data->lib_args_length = 0;
 
+  append_to_args(data, "ld.lld");
+
   // Library paths defined in the source code.
   for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
   {
@@ -278,7 +280,6 @@ void program_linker_build_args(ast_t* program, pass_opt_t* opt,
 
   append_to_args(data, global_postamble);
 
-  // Take over provided linker args
   if(command != NULL) {
     for(size_t i = 0; i < length; i++) {
       append_to_args(data, command[i]);

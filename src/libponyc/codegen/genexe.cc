@@ -358,7 +358,6 @@ const char* sanitizer_arg =
 // TODO arm32 linker options
 
   const char * cmd[] = {
-     "-march", arch, mcx16_arg,
      staticbin, ponyrt, ldl,
      lexecinfo, atomic,
 #ifdef PLATFORM_IS_OPENBSD
@@ -379,8 +378,8 @@ const char* sanitizer_arg =
 
   size_t cmd_len = sizeof(cmd) / sizeof(char*);
 
-  program_linker_build_args(program, c->opt, "-L", "-Wl,-rpath,",
-    "-Wl,--start-group ", "-Wl,--end-group ", "-l", "", cmd, cmd_len);
+  program_linker_build_args(program, c->opt, "-L", "-rpath",
+    "", "", "-l", "", cmd, cmd_len);
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
@@ -390,7 +389,8 @@ const char* sanitizer_arg =
     return false;
   }
 
-  program_lib_build_args(program, c->opt,
+  // TODO: this is probably wrong
+  program_linker_build_args(program, c->opt,
     "/LIBPATH:", NULL, "", "", "", ".lib");
 
   char ucrt_lib[MAX_PATH + 12];
@@ -421,8 +421,7 @@ const char* sanitizer_arg =
     program_linker_args_size(program));
 
   CaptureOStream output;
-  bool link_success = true;
-
+  bool link_success =
 #if defined(PLATFORM_IS_MACOSX)
     lld::mach_o::link(args, false);
 #elif defined(PLATFORM_IS_POSIX_BASED)
@@ -438,6 +437,7 @@ const char* sanitizer_arg =
   if (!link_success)
   {
     errorf(errors, NULL, "unable to link: %s", program_lib_args(program));
+    errorf(errors, NULL, "error: %s", output.Data.c_str());
     return false;
   }
 
