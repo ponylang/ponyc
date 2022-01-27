@@ -1914,12 +1914,10 @@ static void make_cpuid(compile_t* c)
     LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type, false);
     LLVMSetFunctionCallConv(fun, LLVMCCallConv);
     codegen_startfun(c, fun, NULL, NULL, NULL, false);
+    LLVMValueRef cpuid = LLVMGetInlineAsm(f_type, "cpuid", 5, "={ax},={bx},={cx},={dx},{ax}", 28, false, false, LLVMInlineAsmDialectATT, false);
+    LLVMValueRef arg = LLVMGetParam(fun, 0);
 
-    LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
-      "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
-    LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
-
-    LLVMValueRef result = LLVMBuildCall(c->builder, cpuid, &zero, 1, "");
+    LLVMValueRef result = LLVMBuildCall(c->builder, cpuid, &arg, 1, "");
     LLVMBuildRet(c->builder, result);
 
     codegen_finishfun(c);
