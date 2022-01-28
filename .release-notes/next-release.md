@@ -4,3 +4,17 @@ The ponyc option `simplebuiltin` was never useful to users but had been exposed 
 
 Technically, this is a breaking change, but no end-users should be impacted.
 
+## Fix return checking in behaviours and constructors
+
+Our checks to make sure that the usage of return in behaviours and constructors was overly restrictive. It was checking for any usage of `return` that had a value including when the return wasn't from the method itself.
+
+For example:
+
+```pony
+actor Main
+  new create(env: Env) =>
+    let f = {() => if true then return None end}
+```
+
+Would return an error despite the return being in a lambda and therefore not returning a value from the constructor.
+
