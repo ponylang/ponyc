@@ -764,7 +764,7 @@ static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
 
     if(value_count > 0)
     {
-      if((ast_id(opt->check.frame->method) == TK_NEW))
+      if(ast_id(opt->check.frame->method) == TK_NEW)
       {
         bool should_error = true;
 
