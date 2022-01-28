@@ -771,13 +771,13 @@ static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
         ast_t* pparent = parent;
         while (pparent != NULL)
         {
-          if (ast_id(pparent) == TK_LAMBDA) {
-            should_error = false;
-            break;
-          }
-
-          if (ast_id(pparent) == TK_NEW) {
-            break;
+          switch(ast_id(pparent))
+          {
+            case TK_LAMBDA:
+              should_error = false;
+            case TK_NEW:
+              break;
+            default: {}
           }
 
           pparent = ast_parent(pparent);
