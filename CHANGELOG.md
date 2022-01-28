@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix return checking in behaviours and constructors ([PR #3971](https://github.com/ponylang/ponyc/pull/3971))
 
 ### Added
 
