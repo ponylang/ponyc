@@ -519,68 +519,6 @@ static bool verify_assign(pass_opt_t* opt, ast_t* ast)
 }
 
 
-static bool verify_return(pass_opt_t* opt, ast_t* ast)
-{
-  pony_assert(ast != NULL);
-
-  ast_t* value_seq = ast_child(ast);
-  //if (ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE)
-  //  printf("NEW: %d  %d %d\n", ast_id(value_seq), TK_SEQ, TK_NONE);
-
-  //pony_assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
-  size_t value_count = ast_childcount(value_seq);
-
-  /*if(value_count > max_value_count)
-  {
-    ast_error(opt->check.errors,
-      ast_childidx(value_seq, max_value_count), "Unreachable code");
-    return false;
-  }*/
-
-  /*ast_t* parent = ast_parent(ast);
-  ast_t* current = ast;
-  while(ast_id(parent) == TK_SEQ)
-  {
-    if(ast_sibling(current) != NULL)
-    {
-      ast_error(opt->check.errors,
-        ast_sibling(current), "Unreachable code");
-      return false;
-    }
-    current = parent;
-    parent = ast_parent(parent);
-  }*/
-
-  if(ast_id(ast) == TK_RETURN)
-  {
-    /*if(opt->check.frame->method_body == NULL)
-    {
-      ast_error(opt->check.errors, ast, "return must occur in a method body");
-      return false;
-    }*/
-
-    if(value_count > 0)
-    {
-      if(ast_id(opt->check.frame->method) == TK_NEW)
-      {
-        ast_error(opt->check.errors, ast,
-          "A return in a constructor must not have an expression");
-        return false;
-      }
-
-      /*if(ast_id(opt->check.frame->method) == TK_BE)
-      {
-        ast_error(opt->check.errors, ast,
-          "A return in a behaviour must not have an expression");
-        return false;
-      }*/
-    }
-  }
-
-  return true;
-}
-
-
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -588,7 +526,6 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_RETURN:       r = verify_return(options, ast); break;
     case TK_STRUCT:       r = verify_struct(options, ast); break;
     case TK_ASSIGN:       r = verify_assign(options, ast); break;
     case TK_FUN:
