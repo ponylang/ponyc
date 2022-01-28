@@ -764,18 +764,39 @@ static ast_result_t syntax_return(pass_opt_t* opt, ast_t* ast,
 
     if(value_count > 0)
     {
-      if(ast_id(opt->check.frame->method) == TK_NEW)
+      if (ast_id(opt->check.frame->method) == TK_BE ||
+        ast_id(opt->check.frame->method) == TK_NEW)
       {
-        ast_error(opt->check.errors, ast,
-          "A return in a constructor must not have an expression");
-        return AST_ERROR;
-      }
+        bool should_error = true;
+        ast_t* pparent = parent;
 
-      if(ast_id(opt->check.frame->method) == TK_BE)
-      {
-        ast_error(opt->check.errors, ast,
-          "A return in a behaviour must not have an expression");
-        return AST_ERROR;
+        switch(ast_id(opt->check.frame->method))
+        {
+          case TK_BE:
+          case TK_NEW:
+            while (pparent != NULL)
+            {
+              switch(ast_id(pparent))
+              {
+                case TK_LAMBDA:
+                  should_error = false;
+                case TK_BE:
+                case TK_NEW:
+                  break;
+                default: {}
+              }
+
+              pparent = ast_parent(pparent);
+            }
+          default: {}
+        }
+
+        if (should_error)
+        {
+          ast_error(opt->check.errors, ast,
+            "A return in a constructor or a behaviour can't return a value");
+          return AST_ERROR;
+        }
       }
     }
   }
