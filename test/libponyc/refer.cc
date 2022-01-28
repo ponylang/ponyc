@@ -853,7 +853,7 @@ TEST_F(ReferTest, ConsumeTupleAccessorOfFunctionValResult)
 
 TEST_F(ReferTest, DoubleConsumeWithFieldAccessor)
 {
-  const char* src = 
+  const char* src =
     "class Problem\n"
       "let _unwrap_me: U8 = 0\n"
       "fun iso unwrap() =>\n"
@@ -886,7 +886,7 @@ TEST_F(ReferTest, ConsumeAfterMemberAccessWithConsumeLhs)
 
 TEST_F(ReferTest, MemberAccessWithConsumeLhs)
 {
-  const char* src = 
+  const char* src =
     "actor Main\n"
       "new create(env:Env val) =>\n"
         "let f : Foo iso = recover Foo end\n"
