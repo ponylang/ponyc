@@ -2,7 +2,7 @@ use "ponytest"
 use "random"
 use "time"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -34,7 +34,7 @@ actor Main is TestList
     test(_TestRing)
     test(_TestSort)
 
-class iso _TestList is UnitTest
+class \nodoc\ iso _TestList is UnitTest
   fun name(): String => "collections/List"
 
   fun apply(h: TestHelper) ? =>
@@ -60,7 +60,7 @@ class iso _TestList is UnitTest
     h.assert_eq[U32](b(3)?, 1)
     h.assert_eq[U32](b(4)?, 2)
 
-class iso _TestListsFrom is UnitTest
+class \nodoc\ iso _TestListsFrom is UnitTest
   fun name(): String => "collections/Lists/from()"
 
   fun apply(h: TestHelper) ? =>
@@ -76,7 +76,7 @@ class iso _TestListsFrom is UnitTest
     let b = List[U32].from(Array[U32])
     h.assert_eq[USize](b.size(), 0)
 
-class iso _TestMap is UnitTest
+class \nodoc\ iso _TestMap is UnitTest
   fun name(): String => "collections/Map"
 
   fun apply(h: TestHelper) ? =>
@@ -148,7 +148,7 @@ class iso _TestMap is UnitTest
     let e = d + ("a", 1)
     h.assert_eq[U32](1, e("a")?)
 
-class iso _TestMapRemove is UnitTest
+class \nodoc\ iso _TestMapRemove is UnitTest
   fun name(): String => "collections/Map.remove"
 
   fun apply(h: TestHelper) ? =>
@@ -166,7 +166,7 @@ class iso _TestMapRemove is UnitTest
     x(11) = "here"
     h.assert_eq[String](x(11)?, "here")
 
-class iso _TestMapUpsert is UnitTest
+class \nodoc\ iso _TestMapUpsert is UnitTest
   fun name(): String => "collections/Map.upsert"
 
   fun apply(h: TestHelper) ? =>
@@ -221,7 +221,7 @@ class iso _TestMapUpsert is UnitTest
     x4.upsert(2, 4, i)
     h.assert_eq[I64](-4, x4(2)?)
 
-class iso _TestMapHashFunc is UnitTest
+class \nodoc\ iso _TestMapHashFunc is UnitTest
   fun name(): String => "collections/Map.hashfunc"
 
   fun apply(h: TestHelper) =>
@@ -245,7 +245,7 @@ class iso _TestMapHashFunc is UnitTest
       h.assert_eq[USize](h2, 17028932028986796913)
     end
 
-class iso _TestRing is UnitTest
+class \nodoc\ iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
 
   fun apply(h: TestHelper) ? =>
@@ -269,7 +269,7 @@ class iso _TestRing is UnitTest
 
     h.assert_error({() ? => a(6)? }, "Read ring 6")
 
-class iso _TestListsMap is UnitTest
+class \nodoc\ iso _TestListsMap is UnitTest
   fun name(): String => "collections/Lists/map()"
 
   fun apply(h: TestHelper) ? =>
@@ -284,7 +284,7 @@ class iso _TestListsMap is UnitTest
     h.assert_eq[U32](c(1)?, 2)
     h.assert_eq[U32](c(2)?, 4)
 
-class iso _TestListsFlatMap is UnitTest
+class \nodoc\ iso _TestListsFlatMap is UnitTest
   fun name(): String => "collections/Lists/flat_map()"
 
   fun apply(h: TestHelper) ? =>
@@ -302,7 +302,7 @@ class iso _TestListsFlatMap is UnitTest
     h.assert_eq[U32](c(4)?, 2)
     h.assert_eq[U32](c(5)?, 4)
 
-class iso _TestListsFilter is UnitTest
+class \nodoc\ iso _TestListsFilter is UnitTest
   fun name(): String => "collections/Lists/filter()"
 
   fun apply(h: TestHelper) ? =>
@@ -316,7 +316,7 @@ class iso _TestListsFilter is UnitTest
     h.assert_eq[U32](b(0)?, 2)
     h.assert_eq[U32](b(1)?, 3)
 
-class iso _TestListsFold is UnitTest
+class \nodoc\ iso _TestListsFold is UnitTest
   fun name(): String => "collections/Lists/fold()"
 
   fun apply(h: TestHelper) ? =>
@@ -337,7 +337,7 @@ class iso _TestListsFold is UnitTest
     h.assert_eq[U32](resList(2)?, 4)
     h.assert_eq[U32](resList(3)?, 6)
 
-class iso _TestListsEvery is UnitTest
+class \nodoc\ iso _TestListsEvery is UnitTest
   fun name(): String => "collections/Lists/every()"
 
   fun apply(h: TestHelper) =>
@@ -359,7 +359,7 @@ class iso _TestListsEvery is UnitTest
     let empty = b.every(f)
     h.assert_eq[Bool](empty, true)
 
-class iso _TestListsExists is UnitTest
+class \nodoc\ iso _TestListsExists is UnitTest
   fun name(): String => "collections/Lists/exists()"
 
   fun apply(h: TestHelper) =>
@@ -381,7 +381,7 @@ class iso _TestListsExists is UnitTest
     let empty = b.exists(f)
     h.assert_eq[Bool](empty, false)
 
-class iso _TestListsPartition is UnitTest
+class \nodoc\ iso _TestListsPartition is UnitTest
   fun name(): String => "collections/Lists/partition()"
 
   fun apply(h: TestHelper) ? =>
@@ -404,7 +404,7 @@ class iso _TestListsPartition is UnitTest
     h.assert_eq[USize](emptyEvens.size(), 0)
     h.assert_eq[USize](emptyOdds.size(), 0)
 
-class iso _TestListsDrop is UnitTest
+class \nodoc\ iso _TestListsDrop is UnitTest
   fun name(): String => "collections/Lists/drop()"
 
   fun apply(h: TestHelper) ? =>
@@ -428,7 +428,7 @@ class iso _TestListsDrop is UnitTest
     let l = empty.drop(3)
     h.assert_eq[USize](l.size(), 0)
 
-class iso _TestListsTake is UnitTest
+class \nodoc\ iso _TestListsTake is UnitTest
   fun name(): String => "collections/Lists/take()"
 
   fun apply(h: TestHelper) ? =>
@@ -467,7 +467,7 @@ class iso _TestListsTake is UnitTest
     let l = empty.take(3)
     h.assert_eq[USize](l.size(), 0)
 
-class iso _TestListsTakeWhile is UnitTest
+class \nodoc\ iso _TestListsTakeWhile is UnitTest
   fun name(): String => "collections/Lists/take_while()"
 
   fun apply(h: TestHelper) ? =>
@@ -502,7 +502,7 @@ class iso _TestListsTakeWhile is UnitTest
     let l = empty.take_while(g)
     h.assert_eq[USize](l.size(), 0)
 
-class iso _TestListsContains is UnitTest
+class \nodoc\ iso _TestListsContains is UnitTest
   fun name(): String => "collections/Lists/contains()"
 
   fun apply(h: TestHelper) =>
@@ -514,7 +514,7 @@ class iso _TestListsContains is UnitTest
     h.assert_eq[Bool](a.contains(2), true)
     h.assert_eq[Bool](a.contains(3), false)
 
-class iso _TestListsReverse is UnitTest
+class \nodoc\ iso _TestListsReverse is UnitTest
   fun name(): String => "collections/Lists/reverse()"
 
   fun apply(h: TestHelper) ? =>
@@ -533,7 +533,7 @@ class iso _TestListsReverse is UnitTest
     h.assert_eq[U32](b(1)?, 1)
     h.assert_eq[U32](b(2)?, 0)
 
-class iso _TestHashSetContains is UnitTest
+class \nodoc\ iso _TestHashSetContains is UnitTest
   fun name(): String => "collections/HashSet/contains()"
 
   fun apply(h: TestHelper) =>
@@ -558,7 +558,7 @@ class iso _TestHashSetContains is UnitTest
     a.set(0)
     h.assert_true(a.contains(0), not_found_fail)
 
-class iso _TestHashSetIntersect is UnitTest
+class \nodoc\ iso _TestHashSetIntersect is UnitTest
   fun name(): String => "collections/HashSet/intersect()"
 
   fun apply(h: TestHelper) =>
@@ -581,7 +581,7 @@ class iso _TestHashSetIntersect is UnitTest
       end
     end
 
-class iso _TestSort is UnitTest
+class \nodoc\ iso _TestSort is UnitTest
   fun name(): String => "collections/Sort"
 
   fun apply(h: TestHelper) =>
@@ -605,7 +605,7 @@ class iso _TestSort is UnitTest
   =>
     h.assert_array_eq[A](sorted, Sort[Array[A], A](unsorted))
 
-class iso _TestRange is UnitTest
+class \nodoc\ iso _TestRange is UnitTest
   fun name(): String => "collections/Range"
 
   fun apply(h: TestHelper) =>
@@ -687,7 +687,7 @@ class iso _TestRange is UnitTest
     end
     count
 
-class iso _TestHeap is UnitTest
+class \nodoc\ iso _TestHeap is UnitTest
   fun name(): String => "collections/BinaryHeap"
 
   fun apply(t: TestHelper) ? =>
@@ -755,7 +755,7 @@ class iso _TestHeap is UnitTest
       _verify[P](t, h, b)?
     end
 
-class iso _TestFlags is UnitTest
+class \nodoc\ iso _TestFlags is UnitTest
   fun name(): String => "collections/Flags"
 
   fun apply(h: TestHelper) =>
@@ -919,7 +919,7 @@ class iso _TestFlags is UnitTest
     h.assert_true(t(_TestFlagD))
 
 type _TestFlagsFlags is Flags[(_TestFlagA|_TestFlagB|_TestFlagC|_TestFlagD), U8]
-primitive _TestFlagA fun value(): U8 => 1
-primitive _TestFlagB fun value(): U8 => 2
-primitive _TestFlagC fun value(): U8 => 4
-primitive _TestFlagD fun value(): U8 => 8
+primitive \nodoc\ _TestFlagA fun value(): U8 => 1
+primitive \nodoc\ _TestFlagB fun value(): U8 => 2
+primitive \nodoc\ _TestFlagC fun value(): U8 => 4
+primitive \nodoc\ _TestFlagD fun value(): U8 => 8

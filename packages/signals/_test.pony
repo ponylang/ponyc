@@ -1,13 +1,13 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
   fun tag tests(test: PonyTest) =>
     test(_TestSignalINT)
 
-class _TestSighupNotify is SignalNotify
+class \nodoc\ _TestSighupNotify is SignalNotify
   let _h: TestHelper
 
   new iso create(h: TestHelper) =>
@@ -17,7 +17,7 @@ class _TestSighupNotify is SignalNotify
     _h.complete(true)
     false
 
-class iso _TestSignalINT is UnitTest
+class \nodoc\ iso _TestSignalINT is UnitTest
   var _signal: (SignalHandler | None) = None
 
   fun name(): String => "signals/INT"

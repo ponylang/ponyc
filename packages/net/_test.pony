@@ -1,7 +1,7 @@
 use "files"
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -26,7 +26,7 @@ actor Main is TestList
       test(_TestBroadcast)
     end
 
-class _TestPing is UDPNotify
+class \nodoc\ _TestPing is UDPNotify
   let _h: TestHelper
   let _ip: NetAddress
 
@@ -77,7 +77,7 @@ class _TestPing is UDPNotify
     _h.assert_eq[String box](s, "pong!")
     _h.complete(true)
 
-class _TestPong is UDPNotify
+class \nodoc\ _TestPong is UDPNotify
   let _h: TestHelper
 
   new create(h: TestHelper) =>
@@ -114,7 +114,7 @@ class _TestPong is UDPNotify
       recover val [[U8('p'); U8('o'); U8('n'); U8('g'); U8('!')]] end,
       from)
 
-class iso _TestBroadcast is UnitTest
+class \nodoc\ iso _TestBroadcast is UnitTest
   """
   Test broadcasting with UDP.
   """
@@ -141,7 +141,7 @@ class iso _TestBroadcast is UnitTest
       exclude this test by passing the --exclude="net/Broadcast" option.
     """)
 
-class _TestTCP is TCPListenNotify
+class \nodoc\ _TestTCP is TCPListenNotify
   """
   Run a typical TCP test consisting of a single TCPListener that accepts a
   single TCPConnection as a client, using a dynamic available listen port.
@@ -193,7 +193,7 @@ class _TestTCP is TCPListenNotify
       error
     end
 
-class iso _TestTCPExpect is UnitTest
+class \nodoc\ iso _TestTCPExpect is UnitTest
   """
   Test expecting framed data with TCP.
   """
@@ -209,7 +209,7 @@ class iso _TestTCPExpect is UnitTest
 
     _TestTCP(h)(_TestTCPExpectNotify(h, false), _TestTCPExpectNotify(h, true))
 
-class iso _TestTCPExpectOverBufferSize is UnitTest
+class \nodoc\ iso _TestTCPExpectOverBufferSize is UnitTest
   """
   Test expecting framed data with TCP.
   """
@@ -225,7 +225,7 @@ class iso _TestTCPExpectOverBufferSize is UnitTest
     _TestTCP(h)(_TestTCPExpectOverBufferSizeNotify(h),
       _TestTCPExpectOverBufferSizeNotify(h))
 
-class _TestTCPExpectNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
   let _h: TestHelper
   let _server: Bool
   var _expect: USize = 4
@@ -310,7 +310,7 @@ class _TestTCPExpectNotify is TCPConnectionNotify
     buf.append(data)
     conn.write(consume buf)
 
-class _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
   let _h: TestHelper
   let _expect: USize = 6_000_000_000
 
@@ -339,7 +339,7 @@ class _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
       _h.complete_action("connected")
     end
 
-class iso _TestTCPWritev is UnitTest
+class \nodoc\ iso _TestTCPWritev is UnitTest
   """
   Test writev (and sent/sentv notification).
   """
@@ -352,7 +352,7 @@ class iso _TestTCPWritev is UnitTest
 
     _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h))
 
-class _TestTCPWritevNotifyClient is TCPConnectionNotify
+class \nodoc\ _TestTCPWritevNotifyClient is TCPConnectionNotify
   let _h: TestHelper
 
   new iso create(h: TestHelper) =>
@@ -370,7 +370,7 @@ class _TestTCPWritevNotifyClient is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("client connect failed")
 
-class _TestTCPWritevNotifyServer is TCPConnectionNotify
+class \nodoc\ _TestTCPWritevNotifyServer is TCPConnectionNotify
   let _h: TestHelper
   var _buffer: String iso = recover iso String end
 
@@ -397,7 +397,7 @@ class _TestTCPWritevNotifyServer is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connect failed")
 
-class iso _TestTCPMute is UnitTest
+class \nodoc\ iso _TestTCPMute is UnitTest
   """
   Test that the `mute` behavior stops us from reading incoming data. The
   test assumes that send/recv works correctly and that the absence of
@@ -426,7 +426,7 @@ class iso _TestTCPMute is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(true)
 
-class _TestTCPMuteReceiveNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
   """
   Notifier to fail a test if we receive data after muting the connection.
   """
@@ -455,7 +455,7 @@ class _TestTCPMuteReceiveNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
 
-class _TestTCPMuteSendNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
   """
   Notifier that sends data back when it receives any. Used in conjunction with
   the mute receiver to verify that after muting, we don't get any data on
@@ -485,7 +485,7 @@ class _TestTCPMuteSendNotify is TCPConnectionNotify
      _h.complete_action("sender sent data")
      true
 
-class iso _TestTCPUnmute is UnitTest
+class \nodoc\ iso _TestTCPUnmute is UnitTest
   """
   Test that the `unmute` behavior will allow a connection to start reading
   incoming data again. The test assumes that `mute` works correctly and that
@@ -512,7 +512,7 @@ class iso _TestTCPUnmute is UnitTest
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
       _TestTCPUnmuteReceiveNotify(h))
 
-class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   """
   Notifier to test that after muting and unmuting a connection, we get data
   """
@@ -542,7 +542,7 @@ class _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
 
-class iso _TestTCPThrottle is UnitTest
+class \nodoc\ iso _TestTCPThrottle is UnitTest
   """
   Test that when we experience backpressure when sending that the `throttled`
   method is called on our `TCPConnectionNotify` instance.
@@ -569,7 +569,7 @@ class iso _TestTCPThrottle is UnitTest
     _TestTCP(h)(_TestTCPThrottleSendNotify(h),
       _TestTCPThrottleReceiveNotify(h))
 
-class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPThrottleReceiveNotify is TCPConnectionNotify
   """
   Notifier to that mutes itself on startup. We then send data to it in order
   to trigger backpressure on the sender.
@@ -590,7 +590,7 @@ class _TestTCPThrottleReceiveNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
 
-class _TestTCPThrottleSendNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPThrottleSendNotify is TCPConnectionNotify
   """
   Notifier that sends data back when it receives any. Used in conjunction with
   the mute receiver to verify that after muting, we don't get any data on
@@ -632,7 +632,7 @@ class _TestTCPThrottleSendNotify is TCPConnectionNotify
     end
     data
 
-class _TestTCPProxy is UnitTest
+class \nodoc\ _TestTCPProxy is UnitTest
   """
   Check that the proxy callback is called on creation of a TCPConnection.
   """
@@ -646,7 +646,7 @@ class _TestTCPProxy is UnitTest
     _TestTCP(h)(_TestTCPProxyNotify(h),
       _TestTCPProxyNotify(h))
 
-class _TestTCPProxyNotify is TCPConnectionNotify
+class \nodoc\ _TestTCPProxyNotify is TCPConnectionNotify
   let _h: TestHelper
   new iso create(h: TestHelper) =>
     _h = h
@@ -661,7 +661,7 @@ class _TestTCPProxyNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connect failed")
 
-class _TestTCPConnectionFailed is UnitTest
+class \nodoc\ _TestTCPConnectionFailed is UnitTest
   fun name(): String => "net/TCPConnectionFailed"
 
   fun ref apply(h: TestHelper) =>
@@ -686,7 +686,7 @@ class _TestTCPConnectionFailed is UnitTest
     h.long_test(30_000_000_000)
     h.dispose_when_done(connection)
 
-class _TestTCPConnectionToClosedServerFailed is UnitTest
+class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
   """
   Check that you can't connect to a closed listener.
   """
@@ -731,7 +731,7 @@ class _TestTCPConnectionToClosedServerFailed is UnitTest
     h.dispose_when_done(listener)
     h.long_test(30_000_000_000)
 
-actor _TCPConnectionToClosedServerFailedConnector
+actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>
     let connection = TCPConnection(
       h.env.root,

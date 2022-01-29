@@ -1,7 +1,7 @@
 use "ponytest"
 use "collections"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -10,7 +10,7 @@ actor Main is TestList
     test(_TestApply)
     test(_TestInt)
 
-class iso _TestApply is UnitTest
+class \nodoc\ iso _TestApply is UnitTest
   fun name(): String => "format/apply"
 
   fun apply(h: TestHelper) =>
@@ -21,7 +21,7 @@ class iso _TestApply is UnitTest
     h.assert_eq[String]("   fmt   ",
       Format("fmt", FormatDefault, PrefixDefault, -1, 9, AlignCenter))
 
-class iso _TestInt is UnitTest
+class \nodoc\ iso _TestInt is UnitTest
   fun name(): String => "format/int"
 
   fun apply(h: TestHelper) =>

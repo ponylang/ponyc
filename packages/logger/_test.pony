@@ -1,7 +1,7 @@
 use "ponytest"
 use "promises"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -13,7 +13,7 @@ actor Main is TestList
     test(_TestObjectLogging)
     test(_TestWarn)
 
-class iso _TestError is _StringLoggerTest
+class \nodoc\ iso _TestError is _StringLoggerTest
   fun name(): String => "logger/error"
 
   fun level(): LogLevel => Error
@@ -27,7 +27,7 @@ class iso _TestError is _StringLoggerTest
     logger(Info) and logger.log("info message")
     logger(Fine) and logger.log("fine message")
 
-class iso _TestWarn is _StringLoggerTest
+class \nodoc\ iso _TestWarn is _StringLoggerTest
   fun name(): String => "logger/warn"
 
   fun level(): LogLevel => Warn
@@ -41,7 +41,7 @@ class iso _TestWarn is _StringLoggerTest
     logger(Info) and logger.log("info message")
     logger(Fine) and logger.log("fine message")
 
-class iso _TestInfo is _StringLoggerTest
+class \nodoc\ iso _TestInfo is _StringLoggerTest
   fun name(): String => "logger/info"
 
   fun level(): LogLevel => Info
@@ -55,7 +55,7 @@ class iso _TestInfo is _StringLoggerTest
     logger(Info) and logger.log("info message")
     logger(Fine) and logger.log("fine message")
 
-class iso _TestFine is _StringLoggerTest
+class \nodoc\ iso _TestFine is _StringLoggerTest
   fun name(): String => "logger/fine"
 
   fun level(): LogLevel => Fine
@@ -69,7 +69,7 @@ class iso _TestFine is _StringLoggerTest
     logger(Info) and logger.log("info message")
     logger(Fine) and logger.log("fine message")
 
-class _TestObjectLogging is _LoggerTest[U64]
+class \nodoc\ _TestObjectLogging is _LoggerTest[U64]
   fun name(): String => "logger/object"
 
   fun logger(
@@ -91,11 +91,11 @@ class _TestObjectLogging is _LoggerTest[U64]
   fun log(logger': Logger[U64]) =>
     logger'(Error) and logger'.log(U64(42))
 
-primitive _TestFormatter is LogFormatter
+primitive \nodoc\ _TestFormatter is LogFormatter
   fun apply(msg: String, loc: SourceLoc): String =>
     msg + "\n"
 
-actor _TestStream is OutStream
+actor \nodoc\ _TestStream is OutStream
   let _output: String ref = String
   let _h: TestHelper
   let _promise: Promise[String]
@@ -129,7 +129,7 @@ actor _TestStream is OutStream
     let s: String = _output.clone()
     _promise(s)
 
-trait _LoggerTest[A] is UnitTest
+trait \nodoc\ _LoggerTest[A] is UnitTest
   fun apply(h: TestHelper) =>
     let promise = Promise[String]
     promise.next[None](recover this~_fulfill(h) end)
@@ -158,7 +158,7 @@ trait _LoggerTest[A] is UnitTest
 
   fun log(logger': Logger[A])
 
-trait _StringLoggerTest is _LoggerTest[String]
+trait \nodoc\ _StringLoggerTest is _LoggerTest[String]
   fun logger(
     level': LogLevel,
     stream': OutStream,

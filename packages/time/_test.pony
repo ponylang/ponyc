@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -9,7 +9,7 @@ actor Main is TestList
     test(_TestNanos)
     test(_TestPosixDate)
 
-class iso _TestNanos is UnitTest
+class \nodoc\ iso _TestNanos is UnitTest
   fun name(): String => "time/Nanos"
 
   fun apply(h: TestHelper) =>
@@ -21,7 +21,7 @@ class iso _TestNanos is UnitTest
     h.assert_eq[U64](1_230_000, Nanos.from_millis_f(1.23))
     h.assert_eq[U64](1_230, Nanos.from_micros_f(1.23))
 
-class iso _TestPosixDate is UnitTest
+class \nodoc\ iso _TestPosixDate is UnitTest
   fun name(): String => "time/PosixDate"
 
   fun apply(h: TestHelper) =>

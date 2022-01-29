@@ -16,7 +16,7 @@ use @ponyint_pagemap_get[Pointer[None]](p: Pointer[None] tag)
 use "ponytest"
 use "collections"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -103,7 +103,7 @@ actor Main is TestList
   fun @runtime_override_defaults(rto: RuntimeOptions) =>
      rto.ponynoblock = true
 
-class iso _TestAbs is UnitTest
+class \nodoc\ iso _TestAbs is UnitTest
   """
   Test abs function
   """
@@ -144,7 +144,7 @@ class iso _TestAbs is UnitTest
     h.assert_eq[U128](124, I128(-124).abs())
     h.assert_eq[U128](0, I128(0).abs())
 
-class iso _TestRotate is UnitTest
+class \nodoc\ iso _TestRotate is UnitTest
   """
   Test rotl and rotr function
   """
@@ -201,7 +201,7 @@ class iso _TestRotate is UnitTest
     h.assert_eq[U128](0x0F00, U128(0x0F00).rotr(128))
     h.assert_eq[U128](0x00F0, U128(0x0F00).rotr(132))
 
-class iso _TestStringRunes is UnitTest
+class \nodoc\ iso _TestStringRunes is UnitTest
   """
   Test iterating over the unicode codepoints in a string.
   """
@@ -216,7 +216,7 @@ class iso _TestStringRunes is UnitTest
 
     h.assert_array_eq[U32]([0x16dd; 'x'; 0xfb04], result)
 
-class iso _TestIntToString is UnitTest
+class \nodoc\ iso _TestIntToString is UnitTest
   """
   Test converting integers to strings.
   """
@@ -227,7 +227,7 @@ class iso _TestIntToString is UnitTest
     h.assert_eq[String]("3", U32(3).string())
     h.assert_eq[String]("1234", U32(1234).string())
 
-class iso _TestFloatToString is UnitTest
+class \nodoc\ iso _TestFloatToString is UnitTest
   """
   Test converting floats to strings.
   """
@@ -241,7 +241,7 @@ class iso _TestFloatToString is UnitTest
     h.assert_eq[String]("-0.35", F64(-3.5e-1).string())
     h.assert_eq[String]("123.125", F64(123.125).string())
 
-class iso _TestStringToBool is UnitTest
+class \nodoc\ iso _TestStringToBool is UnitTest
   """
   Test converting strings to Bools.
   """
@@ -255,7 +255,7 @@ class iso _TestStringToBool is UnitTest
 
     h.assert_error({() ? => "bogus".bool()? })
 
-class iso _TestStringToFloat is UnitTest
+class \nodoc\ iso _TestStringToFloat is UnitTest
   """
   Test converting strings to floats.
   """
@@ -324,7 +324,7 @@ class iso _TestStringToFloat is UnitTest
       h.assert_error({() ? => invalid_float.f64()? }, invalid_float + " did not fail for .f64()")
     end
 
-class iso _TestStringToU8 is UnitTest
+class \nodoc\ iso _TestStringToU8 is UnitTest
   """
   Test converting strings to U8s.
   """
@@ -353,7 +353,7 @@ class iso _TestStringToU8 is UnitTest
     h.assert_error({() ? => "0b3".u8()? }, "U8 0b3")
     h.assert_error({() ? => "0d4".u8()? }, "U8 0d4")
 
-class iso _TestStringToI8 is UnitTest
+class \nodoc\ iso _TestStringToI8 is UnitTest
   """
   Test converting strings to I8s.
   """
@@ -383,7 +383,7 @@ class iso _TestStringToI8 is UnitTest
     h.assert_error({() ? => "0b3".i8()? }, "U8 0b3")
     h.assert_error({() ? => "0d4".i8()? }, "U8 0d4")
 
-class iso _TestStringToIntLarge is UnitTest
+class \nodoc\ iso _TestStringToIntLarge is UnitTest
   """
   Test converting strings to I* and U* types bigger than 8 bit.
   """
@@ -432,7 +432,7 @@ class iso _TestStringToIntLarge is UnitTest
     h.assert_eq[I128](-10, "-10".i128()?)
     h.assert_error({() ? => "30L".i128()? }, "I128 30L")
 
-class iso _TestStringLstrip is UnitTest
+class \nodoc\ iso _TestStringLstrip is UnitTest
   """
   Test stripping leading characters from a string.
   """
@@ -446,7 +446,7 @@ class iso _TestStringLstrip is UnitTest
     h.assert_eq[String](recover "  foobar  ".clone() .> lstrip() end,
       "foobar  ")
 
-class iso _TestStringRstrip is UnitTest
+class \nodoc\ iso _TestStringRstrip is UnitTest
   """
   Test stripping trailing characters from a string.
   """
@@ -460,7 +460,7 @@ class iso _TestStringRstrip is UnitTest
     h.assert_eq[String](recover "  foobar  ".clone() .> rstrip() end,
       "  foobar")
 
-class iso _TestStringStrip is UnitTest
+class \nodoc\ iso _TestStringStrip is UnitTest
   """
   Test stripping leading and trailing characters from a string.
   """
@@ -473,7 +473,7 @@ class iso _TestStringStrip is UnitTest
     h.assert_eq[String](recover "foobarfoo".clone() .> strip("bar") end,
       "foobarfoo")
 
-class iso _TestStringStripNonAscii is UnitTest
+class \nodoc\ iso _TestStringStripNonAscii is UnitTest
   """
   Test stripping leading and trailing characters from a string that
   contains non-ascii text data.
@@ -495,7 +495,7 @@ class iso _TestStringStripNonAscii is UnitTest
     h.assert_eq[String](recover "\nპონი\n".clone() .> strip("\n") end, "პონი")
 
 
-class iso _TestStringRemove is UnitTest
+class \nodoc\ iso _TestStringRemove is UnitTest
   """
   Test removing characters from a string (independent of leading or trailing).
   """
@@ -522,7 +522,7 @@ class iso _TestStringRemove is UnitTest
     h.assert_eq[String](consume s3, "foobar!")
     h.assert_eq[String](consume s4, "f-o-o-b-a-r!")
 
-class iso _TestStringSubstring is UnitTest
+class \nodoc\ iso _TestStringSubstring is UnitTest
   """
   Test copying range of characters.
   """
@@ -536,7 +536,7 @@ class iso _TestStringSubstring is UnitTest
     h.assert_eq[String]("3456", "0123456".substring(3))
     h.assert_eq[String]("345", "0123456".substring(3, -1))
 
-class iso _TestStringCut is UnitTest
+class \nodoc\ iso _TestStringCut is UnitTest
   """
   Test cutting part of a string
   """
@@ -547,7 +547,7 @@ class iso _TestStringCut is UnitTest
     h.assert_eq[String]("0123", "0123456".cut(4, 7))
     h.assert_eq[String]("0123", "0123456".cut(4))
 
-class iso _TestStringTrim is UnitTest
+class \nodoc\ iso _TestStringTrim is UnitTest
   """
   Test trimming part of a string.
   """
@@ -571,7 +571,7 @@ class iso _TestStringTrim is UnitTest
     h.assert_eq[USize](3,
       "0123456789".clone().>trim_in_place(1, 8).trim(3, 6).space())
 
-class iso _TestStringTrimInPlace is UnitTest
+class \nodoc\ iso _TestStringTrimInPlace is UnitTest
   """
   Test trimming part of a string in place.
   """
@@ -608,7 +608,7 @@ class iso _TestStringTrimInPlace is UnitTest
       h.assert_eq[USize](pre_trim_pagemap.usize(), post_trim_pagemap.usize())
     end
 
-class iso _TestStringTrimInPlaceWithAppend is UnitTest
+class \nodoc\ iso _TestStringTrimInPlaceWithAppend is UnitTest
   """
   Test trimming part of a string in place then append and trim again
 
@@ -628,7 +628,7 @@ class iso _TestStringTrimInPlaceWithAppend is UnitTest
     a.append("Hello")
     h.assert_eq[String box]("Hello", a)
 
-class iso _TestStringIsNullTerminated is UnitTest
+class \nodoc\ iso _TestStringIsNullTerminated is UnitTest
   """
   Test checking if a string is null terminated.
   """
@@ -651,7 +651,7 @@ class iso _TestStringIsNullTerminated is UnitTest
         ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'] // power of two sized array
       end).is_null_terminated())
 
-class iso _TestSpecialValuesF32 is UnitTest
+class \nodoc\ iso _TestSpecialValuesF32 is UnitTest
   """
   Test whether a F32 is infinite or NaN.
   """
@@ -683,7 +683,7 @@ class iso _TestSpecialValuesF32 is UnitTest
     h.assert_false(F32(0.0 / 0.0).infinite())
     h.assert_true(F32(0.0 / 0.0).nan())
 
-class iso _TestSpecialValuesF64 is UnitTest
+class \nodoc\ iso _TestSpecialValuesF64 is UnitTest
   """
   Test whether a F64 is infinite or NaN.
   """
@@ -715,7 +715,7 @@ class iso _TestSpecialValuesF64 is UnitTest
     h.assert_false(F64(0.0 / 0.0).infinite())
     h.assert_true(F64(0.0 / 0.0).nan())
 
-class iso _TestStringReplace is UnitTest
+class \nodoc\ iso _TestStringReplace is UnitTest
   """
   Test String.replace
   """
@@ -726,7 +726,7 @@ class iso _TestStringReplace is UnitTest
     s.replace("is a", "is not a")
     h.assert_eq[String box](s, "this is not a robbery, this is not a stickup")
 
-class iso _TestStringSplit is UnitTest
+class \nodoc\ iso _TestStringSplit is UnitTest
   """
   Test String.split
   """
@@ -763,7 +763,7 @@ class iso _TestStringSplit is UnitTest
     h.assert_eq[String](r(2)?, "")
     h.assert_eq[String](r(3)?, "3,, 4")
 
-class iso _TestStringSplitBy is UnitTest
+class \nodoc\ iso _TestStringSplitBy is UnitTest
   """
   Test String.split_by
   """
@@ -824,7 +824,7 @@ class iso _TestStringSplitBy is UnitTest
     h.assert_eq[String](r(0)?, "try with trailing ")
     h.assert_eq[String](r(1)?, "patternpattern")
 
-class iso _TestStringAdd is UnitTest
+class \nodoc\ iso _TestStringAdd is UnitTest
   """
   Test String.add
   """
@@ -842,7 +842,7 @@ class iso _TestStringAdd is UnitTest
     h.assert_eq[String]("" + "abc".trim(1, 2), "b")
     h.assert_eq[String]("a" + "".trim(1, 1), "a")
 
-class iso _TestStringJoin is UnitTest
+class \nodoc\ iso _TestStringJoin is UnitTest
   """
   Test String.join
   """
@@ -855,7 +855,7 @@ class iso _TestStringJoin is UnitTest
     h.assert_eq[String](" ".join([U32(1); U32(4)].values()), "1 4")
     h.assert_eq[String](" ".join(Array[String].values()), "")
 
-class iso _TestStringCount is UnitTest
+class \nodoc\ iso _TestStringCount is UnitTest
   """
   Test String.count
   """
@@ -875,7 +875,7 @@ class iso _TestStringCount is UnitTest
     h.assert_eq[USize]("atata".count("ata"), 1)
     h.assert_eq[USize]("tttt".count("tt"), 2)
 
-class iso _TestStringCompare is UnitTest
+class \nodoc\ iso _TestStringCompare is UnitTest
   """
   Test comparing strings.
   """
@@ -945,7 +945,7 @@ class iso _TestStringCompare is UnitTest
     h.assert_eq[Compare](Equal, "abc".compare_sub("babc", 4, 1, 2),
       "\"xbc\" == \"xxbc\"")
 
-class iso _TestStringContains is UnitTest
+class \nodoc\ iso _TestStringContains is UnitTest
   fun name(): String => "builtin/String.contains"
 
   fun apply(h: TestHelper) =>
@@ -979,7 +979,7 @@ class iso _TestStringContains is UnitTest
     h.assert_eq[Bool](s.contains(" hello"), false)
     h.assert_eq[Bool](s.contains("?!"), false)
 
-class iso _TestStringReadInt is UnitTest
+class \nodoc\ iso _TestStringReadInt is UnitTest
   """
   Test converting string at given index to integer.
   """
@@ -1026,7 +1026,7 @@ class iso _TestStringReadInt is UnitTest
     u8_misc = "...-0...".read_int[U8](3, 10)?
     h.assert_true((u8_misc._1 == 0) and (u8_misc._2 == 0))
 
-class iso _TestStringUTF32 is UnitTest
+class \nodoc\ iso _TestStringUTF32 is UnitTest
   """
   Test the UTF32 encoding and decoding
   """
@@ -1067,7 +1067,7 @@ class iso _TestStringUTF32 is UnitTest
     h.assert_eq[U8](0x8E, s(3)?)
     h.assert_eq[U32](0x2070E, s.utf32(0)?._1)
 
-class iso _TestStringRFind is UnitTest
+class \nodoc\ iso _TestStringRFind is UnitTest
   fun name(): String => "builtin/String.rfind"
 
   fun apply(h: TestHelper) ? =>
@@ -1076,7 +1076,7 @@ class iso _TestStringRFind is UnitTest
     h.assert_eq[ISize](s.rfind("-", -2)?, 8)
     h.assert_eq[ISize](s.rfind("-bar", 7)?, 4)
 
-class iso _TestStringFromArray is UnitTest
+class \nodoc\ iso _TestStringFromArray is UnitTest
   fun name(): String => "builtin/String.from_array"
 
   fun apply(h: TestHelper) =>
@@ -1088,7 +1088,7 @@ class iso _TestStringFromArray is UnitTest
     h.assert_eq[String](s_no_null, "foo")
     h.assert_eq[USize](s_no_null.size(), 3)
 
-class iso _TestStringFromIsoArray is UnitTest
+class \nodoc\ iso _TestStringFromIsoArray is UnitTest
   fun name(): String => "builtin/String.from_iso_array"
 
   fun apply(h: TestHelper) =>
@@ -1107,7 +1107,7 @@ class iso _TestStringFromIsoArray is UnitTest
     h.assert_eq[USize](s2.size(), 8)
     h.assert_true((s2.space() == 8) xor s2.is_null_terminated())
 
-class iso _TestStringSpace is UnitTest
+class \nodoc\ iso _TestStringSpace is UnitTest
   fun name(): String => "builtin/String.space"
 
   fun apply(h: TestHelper) =>
@@ -1120,7 +1120,7 @@ class iso _TestStringSpace is UnitTest
     h.assert_eq[USize](s.space(), 8)
     h.assert_false(s.is_null_terminated())
 
-class iso _TestStringRecalc is UnitTest
+class \nodoc\ iso _TestStringRecalc is UnitTest
   fun name(): String => "builtin/String.recalc"
 
   fun apply(h: TestHelper) =>
@@ -1147,7 +1147,7 @@ class iso _TestStringRecalc is UnitTest
     h.assert_eq[USize](s3.space(), 7)
     h.assert_true(s3.is_null_terminated())
 
-class iso _TestStringTruncate is UnitTest
+class \nodoc\ iso _TestStringTruncate is UnitTest
   fun name(): String => "builtin/String.truncate"
 
   fun apply(h: TestHelper) =>
@@ -1174,7 +1174,7 @@ class iso _TestStringTruncate is UnitTest
     h.assert_eq[USize](s.size(), 3)
     h.assert_eq[USize](s.space(), 31)
 
-class iso _TestStringChop is UnitTest
+class \nodoc\ iso _TestStringChop is UnitTest
   """
   Test chopping a string
   """
@@ -1200,7 +1200,7 @@ class iso _TestStringChop is UnitTest
     h.assert_eq[String box](expected_left, consume left)
     h.assert_eq[String box](expected_right, consume right)
 
-class iso _TestStringChopWithPush is UnitTest
+class \nodoc\ iso _TestStringChopWithPush is UnitTest
   """
   Test chopping a string then pushing to the left side
   """
@@ -1213,7 +1213,7 @@ class iso _TestStringChopWithPush is UnitTest
     h.assert_eq[String box]("cats", consume cat)
     h.assert_eq[String box]("dog", consume dog)
 
-class iso _TestStringUnchop is UnitTest
+class \nodoc\ iso _TestStringUnchop is UnitTest
   """
   Test unchopping a string
   """
@@ -1277,7 +1277,7 @@ class iso _TestStringUnchop is UnitTest
       error
     end
 
-class iso _TestStringRepeatStr is UnitTest
+class \nodoc\ iso _TestStringRepeatStr is UnitTest
   """
   Test repeating a string
   """
@@ -1295,7 +1295,7 @@ class iso _TestStringRepeatStr is UnitTest
       "123".repeat_str(6, ", "))
     h.assert_eq[String box]("123123123123123123", "123" * 6)
 
-class iso _TestStringConcatOffsetLen is UnitTest
+class \nodoc\ iso _TestStringConcatOffsetLen is UnitTest
   """
   Test String.concat working correctly for non-default offset and len arguments
   """
@@ -1304,7 +1304,7 @@ class iso _TestStringConcatOffsetLen is UnitTest
   fun apply(h: TestHelper) =>
     h.assert_eq[String](recover String.>concat("ABCD".values(), 1, 2) end, "BC")
 
-class iso _TestStringFromCPointer is UnitTest
+class \nodoc\ iso _TestStringFromCPointer is UnitTest
   """
   Test creating a string from a pointer
   """
@@ -1314,7 +1314,7 @@ class iso _TestStringFromCPointer is UnitTest
     let str = String.from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, str.size())
 
-class iso _TestArrayAppend is UnitTest
+class \nodoc\ iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
 
   fun apply(h: TestHelper) ? =>
@@ -1348,7 +1348,7 @@ class iso _TestArrayAppend is UnitTest
     h.assert_eq[String]("three", a(2)?)
     h.assert_eq[String]("five", a(3)?)
 
-class iso _TestArrayConcat is UnitTest
+class \nodoc\ iso _TestArrayConcat is UnitTest
   fun name(): String => "builtin/Array.concat"
 
   fun apply(h: TestHelper) ? =>
@@ -1382,7 +1382,7 @@ class iso _TestArrayConcat is UnitTest
     h.assert_eq[String]("three", a(2)?)
     h.assert_eq[String]("five", a(3)?)
 
-class iso _TestArraySlice is UnitTest
+class \nodoc\ iso _TestArraySlice is UnitTest
   """
   Test slicing arrays.
   """
@@ -1417,7 +1417,7 @@ class iso _TestArraySlice is UnitTest
     h.assert_eq[String]("three", e(1)?)
     h.assert_eq[String]("one", e(2)?)
 
-class iso _TestArrayTrim is UnitTest
+class \nodoc\ iso _TestArrayTrim is UnitTest
   """
   Test trimming part of a string.
   """
@@ -1436,7 +1436,7 @@ class iso _TestArrayTrim is UnitTest
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
     h.assert_eq[USize](0, orig.trim(4, 1).space())
 
-class iso _TestArrayTrimInPlace is UnitTest
+class \nodoc\ iso _TestArrayTrimInPlace is UnitTest
   """
   Test trimming part of a string in place.
   """
@@ -1470,7 +1470,7 @@ class iso _TestArrayTrimInPlace is UnitTest
       h.assert_eq[USize](pre_trim_pagemap.usize(), post_trim_pagemap.usize())
     end
 
-class iso _TestArrayTrimInPlaceWithAppend is UnitTest
+class \nodoc\ iso _TestArrayTrimInPlaceWithAppend is UnitTest
   """
   Test trimming part of a array in place then append and trim again
 
@@ -1490,7 +1490,7 @@ class iso _TestArrayTrimInPlaceWithAppend is UnitTest
     a.append([0; 10])
     h.assert_array_eq[U8]([0; 10], a)
 
-class iso _TestArrayInsert is UnitTest
+class \nodoc\ iso _TestArrayInsert is UnitTest
   """
   Test inserting new element into array
   """
@@ -1511,7 +1511,7 @@ class iso _TestArrayInsert is UnitTest
 
     h.assert_error({() ? => ["one"; "three"].insert(3, "invalid")? })
 
-class iso _TestArrayValuesRewind is UnitTest
+class \nodoc\ iso _TestArrayValuesRewind is UnitTest
   """
   Test rewinding an ArrayValues object
   """
@@ -1535,12 +1535,12 @@ class iso _TestArrayValuesRewind is UnitTest
     h.assert_eq[U32](4, av.next()?)
     h.assert_eq[Bool](false, av.has_next())
 
-class _FindTestCls
+class \nodoc\ _FindTestCls
   let i: ISize
   new create(i': ISize = 0) => i = i'
   fun eq(other: _FindTestCls box): Bool => i == other.i
 
-class iso _TestArrayFind is UnitTest
+class \nodoc\ iso _TestArrayFind is UnitTest
   """
   Test finding elements in an array.
   """
@@ -1586,7 +1586,7 @@ class iso _TestArrayFind is UnitTest
     h.assert_eq[USize](0, b.find(_FindTestCls where
       predicate = {(l, r) => l == r })?)
 
-class iso _TestArraySwapElements is UnitTest
+class \nodoc\ iso _TestArraySwapElements is UnitTest
   """
   Test swapping array elements
   """
@@ -1622,7 +1622,7 @@ class iso _TestArraySwapElements is UnitTest
       [as I32: 1; 2; 3].swap_elements(3, 4)?
     })
 
-class iso _TestArrayChop is UnitTest
+class \nodoc\ iso _TestArrayChop is UnitTest
   """
   Test chopping an array
   """
@@ -1647,7 +1647,7 @@ class iso _TestArrayChop is UnitTest
     h.assert_array_eq[U8](expected_left, consume left)
     h.assert_array_eq[U8](expected_right, consume right)
 
-class iso _TestArrayChopWithPush is UnitTest
+class \nodoc\ iso _TestArrayChopWithPush is UnitTest
   """
   Test chopping an array with a subsequent push to the left side
   """
@@ -1660,7 +1660,7 @@ class iso _TestArrayChopWithPush is UnitTest
     h.assert_array_eq[U8](['c'; 'a'; 't'; 's'], consume cat)
     h.assert_array_eq[U8](['d'; 'o'; 'g'], consume dog)
 
-class iso _TestArrayUnchop is UnitTest
+class \nodoc\ iso _TestArrayUnchop is UnitTest
   """
   Test unchopping an array
   """
@@ -1733,7 +1733,7 @@ class iso _TestArrayUnchop is UnitTest
       error
     end
 
-class iso _TestArrayFromCPointer is UnitTest
+class \nodoc\ iso _TestArrayFromCPointer is UnitTest
   """
   Test creating an array from a pointer
   """
@@ -1743,7 +1743,7 @@ class iso _TestArrayFromCPointer is UnitTest
     let arr = Array[U8].from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, arr.size())
 
-class iso _TestMath128 is UnitTest
+class \nodoc\ iso _TestMath128 is UnitTest
   """
   Test 128 bit integer math.
   """
@@ -1870,7 +1870,7 @@ class iso _TestMath128 is UnitTest
     h.assert_eq[I128](-5, I128(-13) %% -8)
     h.assert_eq[I128](-28, I128(-40_000_000_028) %% -10_000_000_000)
 
-class iso _TestRem is UnitTest
+class \nodoc\ iso _TestRem is UnitTest
   """
   Test rem on various bit widths.
   """
@@ -1907,7 +1907,7 @@ class iso _TestRem is UnitTest
     test_rem_unsigned[ULong](h)
     test_rem_unsigned[U128](h)
 
-class iso _TestFld is UnitTest
+class \nodoc\ iso _TestFld is UnitTest
   fun name(): String => "builtin/Fld"
 
   fun test_fld_signed[T: (Integer[T] val & Signed)](h: TestHelper, type_name: String) =>
@@ -1953,7 +1953,7 @@ class iso _TestFld is UnitTest
     test_fld_unsigned[USize](h, "USize")
     test_fld_unsigned[U128](h, "U128")
 
-class iso _TestMod is UnitTest
+class \nodoc\ iso _TestMod is UnitTest
   fun name(): String => "builtin/Mod"
 
   fun test_mod_signed[T: (Integer[T] val & Signed)](h: TestHelper, type_name: String) =>
@@ -2035,7 +2035,7 @@ class iso _TestMod is UnitTest
     test_mod_float[F32](h, "F32")?
     test_mod_float[F64](h, "F64")?
 
-trait iso SafeArithmeticTest is UnitTest
+trait \nodoc\ iso SafeArithmeticTest is UnitTest
   fun test[A: (Equatable[A] #read & Stringable #read)](
     h: TestHelper,
     expected: (A, Bool),
@@ -2052,7 +2052,7 @@ trait iso SafeArithmeticTest is UnitTest
   =>
     h.assert_eq[Bool](true, actual._2)
 
-class iso _TestAddc is SafeArithmeticTest
+class \nodoc\ iso _TestAddc is SafeArithmeticTest
   """
   Test addc on various bit widths.
   """
@@ -2118,7 +2118,7 @@ class iso _TestAddc is SafeArithmeticTest
     test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, true),
       I128(-0x8000_0000_0000_0000_0000_0000_0000_0000).addc(-1))
 
-class iso _TestSubc is SafeArithmeticTest
+class \nodoc\ iso _TestSubc is SafeArithmeticTest
   """
   Test addc on various bit widths.
   """
@@ -2180,7 +2180,7 @@ class iso _TestSubc is SafeArithmeticTest
     test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff, true),
       I128(-0x8000_0000_0000_0000_0000_0000_0000_0000).subc( 1))
 
-class iso _TestMulc is SafeArithmeticTest
+class \nodoc\ iso _TestMulc is SafeArithmeticTest
   fun name(): String => "builtin/Mulc"
 
   fun apply(h: TestHelper) =>
@@ -2263,7 +2263,7 @@ class iso _TestMulc is SafeArithmeticTest
     test[I128](h, (0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_fffe,  true),
       I128(0x4000_0000_0000_0000_0000_0000_0000_0001).mulc(-2))
 
-class iso _TestDivc is SafeArithmeticTest
+class \nodoc\ iso _TestDivc is SafeArithmeticTest
   fun name(): String => "builtin/Divc"
 
   fun apply(h: TestHelper) =>
@@ -2320,7 +2320,7 @@ class iso _TestDivc is SafeArithmeticTest
     test_overflow[I128](h, I128(0x40).divc(0))
     test_overflow[I128](h, I128.min_value().divc(I128(-1)))
 
-class iso _TestFldc is SafeArithmeticTest
+class \nodoc\ iso _TestFldc is SafeArithmeticTest
   fun name(): String => "builtin/Fldc"
 
   fun apply(h: TestHelper) =>
@@ -2377,7 +2377,7 @@ class iso _TestFldc is SafeArithmeticTest
     test_overflow[I128](h, I128(0x40).fldc(0))
     test_overflow[I128](h, I128.min_value().fldc(I128(-1)))
 
-class iso _TestRemc is SafeArithmeticTest
+class \nodoc\ iso _TestRemc is SafeArithmeticTest
   fun name(): String => "builtin/Remc"
 
   fun apply(h: TestHelper) =>
@@ -2451,7 +2451,7 @@ class iso _TestRemc is SafeArithmeticTest
     test_overflow[ISize](h, ISize(-0x40).remc(0))
     test_overflow[ISize](h, ISize.min_value().remc(-1))
 
-class iso _TestModc is SafeArithmeticTest
+class \nodoc\ iso _TestModc is SafeArithmeticTest
   fun name(): String => "builtin/Modc"
 
   fun apply(h: TestHelper) =>
@@ -2525,7 +2525,7 @@ class iso _TestModc is SafeArithmeticTest
     test_overflow[ISize](h, ISize(-0x40).modc(0))
     test_overflow[ISize](h, ISize.min_value().modc(-1))
 
-primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
+primitive \nodoc\ _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>
     //addition
     h.assert_error({()? => T.max_value() +? T(1) })
@@ -2561,7 +2561,7 @@ primitive _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
     h.assert_eq[T](T(5), divr)
     h.assert_eq[T](T(1), remr)
 
-primitive _UnsignedPartialArithmeticTests[T: (Integer[T] val & Unsigned)]
+primitive \nodoc\ _UnsignedPartialArithmeticTests[T: (Integer[T] val & Unsigned)]
   fun apply(h: TestHelper) =>
     // division
     h.assert_no_error({()? => T.min_value() /? T(-1) })
@@ -2579,7 +2579,7 @@ primitive _UnsignedPartialArithmeticTests[T: (Integer[T] val & Unsigned)]
     // divrem
     h.assert_no_error({()? => T.min_value().divrem_partial(T(-1))? })
 
-primitive _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
+primitive \nodoc\ _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
   fun apply(h: TestHelper) =>
     // addition
     h.assert_error({()? => T.min_value() +? T(-1) })
@@ -2619,7 +2619,7 @@ primitive _SignedPartialArithmeticTests[T: (Integer[T] val & Signed)]
     // divrem
     h.assert_error({()? => T.min_value().divrem_partial(T(-1))? })
 
-class iso _TestSignedPartialArithmetic is UnitTest
+class \nodoc\ iso _TestSignedPartialArithmetic is UnitTest
   fun name(): String => "builtin/PartialArithmetic/signed"
 
   fun apply(h: TestHelper)? =>
@@ -2638,7 +2638,7 @@ class iso _TestSignedPartialArithmetic is UnitTest
     _CommonPartialArithmeticTests[ISize](h)?
     _SignedPartialArithmeticTests[ISize](h)
 
-class iso _TestUnsignedPartialArithmetic is UnitTest
+class \nodoc\ iso _TestUnsignedPartialArithmetic is UnitTest
   fun name(): String => "builtin/PartialArithmetic/unsigned"
   fun apply(h: TestHelper)? =>
     _CommonPartialArithmeticTests[U8](h)?
@@ -2656,7 +2656,7 @@ class iso _TestUnsignedPartialArithmetic is UnitTest
     _CommonPartialArithmeticTests[USize](h)?
     _UnsignedPartialArithmeticTests[USize](h)
 
-class iso _TestNextPow2 is UnitTest
+class \nodoc\ iso _TestNextPow2 is UnitTest
   """
   Test power of 2 computations.
   """
@@ -2698,7 +2698,7 @@ class iso _TestNextPow2 is UnitTest
     h.assert_eq[U128](1, U128(0).next_pow2())
     h.assert_eq[U128](1, U128.max_value().next_pow2())
 
-class iso _TestNumberConversionSaturation is UnitTest
+class \nodoc\ iso _TestNumberConversionSaturation is UnitTest
   """
   Test saturation semantics for floating point/integer conversions.
   """
@@ -2750,7 +2750,7 @@ struct _TestStruct
   var i: U32 = 0
   new create() => None
 
-class iso _TestNullablePointer is UnitTest
+class \nodoc\ iso _TestNullablePointer is UnitTest
   """
   Test the NullablePointer type.
   """
@@ -2771,7 +2771,7 @@ class iso _TestNullablePointer is UnitTest
     let from_b = b()?
     h.assert_eq[U32](s.i, from_b.i)
 
-class iso _TestLambdaCapture is UnitTest
+class \nodoc\ iso _TestLambdaCapture is UnitTest
   """
   Test free variable capture in lambdas.
   """

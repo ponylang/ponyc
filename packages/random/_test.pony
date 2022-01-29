@@ -1,7 +1,7 @@
 use "ponytest"
 use "collections"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -14,7 +14,7 @@ actor Main is TestList
     test(_TestXorOshiro128StarStar)
     test(_TestXorShift128Plus)
 
-class iso _TestMT is UnitTest
+class \nodoc\ iso _TestMT is UnitTest
   fun name(): String => "random/MT"
 
   fun apply(h: TestHelper) =>
@@ -226,7 +226,7 @@ class iso _TestMT is UnitTest
     h.assert_eq[U64](mt.next(), 1395685694494152690)
     h.assert_eq[U64](mt.next(), 3117577794082200174)
 
-class iso _TestRandomShuffle is UnitTest
+class \nodoc\ iso _TestRandomShuffle is UnitTest
   fun name(): String => "random/Random.shuffle"
 
   fun apply(h: TestHelper) ? =>
@@ -245,7 +245,7 @@ class iso _TestRandomShuffle is UnitTest
     h.assert_eq[String](words(7)?, "brown")
     h.assert_eq[String](words(8)?, "lazy")
 
-class iso _TestXorOshiro128StarStar is UnitTest
+class \nodoc\ iso _TestXorOshiro128StarStar is UnitTest
   """
   Test against the C reference implementation from
 
@@ -357,7 +357,7 @@ class iso _TestXorOshiro128StarStar is UnitTest
     h.assert_eq[U64](xoroshiro128.next(), 13375816837716530149)
     h.assert_eq[U64](xoroshiro128.next(), 3536320040830893476)
 
-class iso _TestSplitMix64 is UnitTest
+class \nodoc\ iso _TestSplitMix64 is UnitTest
   """
   Testing the first 100 values
   against values from the C reference implementation from
@@ -471,7 +471,7 @@ class iso _TestSplitMix64 is UnitTest
     h.assert_eq[U64](splitmix64.next(), 294447012135918062)
     h.assert_eq[U64](splitmix64.next(), 8011763185713273331)
 
-class iso _TestXorOshiro128Plus is UnitTest
+class \nodoc\ iso _TestXorOshiro128Plus is UnitTest
   """
   Test against the C reference implementation from
 
@@ -586,7 +586,7 @@ class iso _TestXorOshiro128Plus is UnitTest
     h.assert_eq[U64](xoroshiro128.next(), 16201330389507750660)
     h.assert_eq[U64](xoroshiro128.next(), 3565034805594144162)
 
-class iso _TestXorShift128Plus is UnitTest
+class \nodoc\ iso _TestXorShift128Plus is UnitTest
   """
   Test against the C reference implementation from
 

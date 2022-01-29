@@ -1,7 +1,7 @@
 use "ponytest"
 use "collections"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -24,7 +24,7 @@ actor Main is TestList
     test(_TestPrintObject)
     test(_TestPrintString)
 
-class iso _TestParseBasic is UnitTest
+class \nodoc\ iso _TestParseBasic is UnitTest
   """
   Test Json basic parsing, eg allowing whitespace.
   """
@@ -43,7 +43,7 @@ class iso _TestParseBasic is UnitTest
     h.assert_error({() ? => JsonDoc.parse("   ")? })
     h.assert_error({() ? => JsonDoc.parse("true true")? })
 
-class iso _TestParseKeyword is UnitTest
+class \nodoc\ iso _TestParseKeyword is UnitTest
   """
   Test Json parsing of keywords.
   """
@@ -66,7 +66,7 @@ class iso _TestParseKeyword is UnitTest
     h.assert_error({() ? => JsonDoc.parse("truez")? })
     h.assert_error({() ? => JsonDoc.parse("TRUE")? })
 
-class iso _TestParseNumber is UnitTest
+class \nodoc\ iso _TestParseNumber is UnitTest
   """
   Test Json parsing of numbers.
   """
@@ -116,7 +116,7 @@ class iso _TestParseNumber is UnitTest
     h.assert_error({() ? => JsonDoc.parse("-01")? })
     h.assert_error({() ? => JsonDoc.parse("-012")? })
 
-class iso _TestParseString is UnitTest
+class \nodoc\ iso _TestParseString is UnitTest
   """
   Test Json parsing of strings.
   """
@@ -157,7 +157,7 @@ class iso _TestParseString is UnitTest
     h.assert_error({() ? => JsonDoc.parse(""" "\uD834" """)? })
     h.assert_error({() ? => JsonDoc.parse(""" "\uDD1E" """)? })
 
-class iso _TestParseArray is UnitTest
+class \nodoc\ iso _TestParseArray is UnitTest
   """
   Test Json parsing of arrays.
   """
@@ -209,7 +209,7 @@ class iso _TestParseArray is UnitTest
     h.assert_error({() ? => JsonDoc.parse("[true")? })
     h.assert_error({() ? => JsonDoc.parse("[true,")? })
 
-class iso _TestParseObject is UnitTest
+class \nodoc\ iso _TestParseObject is UnitTest
   """
   Test Json parsing of objects.
   """
@@ -265,7 +265,7 @@ class iso _TestParseObject is UnitTest
     h.assert_error({() ? => JsonDoc.parse("""{"a" true}""")? })
     h.assert_error({() ? => JsonDoc.parse("""{:true}""")? })
 
-class iso _TestParseRFC1 is UnitTest
+class \nodoc\ iso _TestParseRFC1 is UnitTest
   """
   Test Json parsing of first example from RFC7159.
   """
@@ -321,7 +321,7 @@ class iso _TestParseRFC1 is UnitTest
     h.assert_eq[I64](234, array.data(2)? as I64)
     h.assert_eq[I64](38793, array.data(3)? as I64)
 
-class iso _TestParseRFC2 is UnitTest
+class \nodoc\ iso _TestParseRFC2 is UnitTest
   """
   Test Json parsing of second example from RFC7159.
   """
@@ -385,7 +385,7 @@ class iso _TestParseRFC2 is UnitTest
     h.assert_eq[String]("94085", obj2.data("Zip")? as String)
     h.assert_eq[String]("US", obj2.data("Country")? as String)
 
-class iso _TestPrintKeyword is UnitTest
+class \nodoc\ iso _TestPrintKeyword is UnitTest
   """
   Test Json printing of keywords.
   """
@@ -403,7 +403,7 @@ class iso _TestPrintKeyword is UnitTest
     doc.data = None
     h.assert_eq[String]("null", doc.string())
 
-class iso _TestPrintNumber is UnitTest
+class \nodoc\ iso _TestPrintNumber is UnitTest
   """
   Test Json printing of numbers.
   """
@@ -433,7 +433,7 @@ class iso _TestPrintNumber is UnitTest
     // We don't test exponent formatted output because it can be slightly
     // different on different platforms
 
-class iso _TestPrintString is UnitTest
+class \nodoc\ iso _TestPrintString is UnitTest
   """
   Test Json printing of strings.
   """
@@ -463,7 +463,7 @@ class iso _TestPrintString is UnitTest
     doc.data = "Foo\U01D11Ebar"
     h.assert_eq[String](""""Foo\uD834\uDD1Ebar"""", doc.string())
 
-class iso _TestPrintArray is UnitTest
+class \nodoc\ iso _TestPrintArray is UnitTest
   """
   Test Json printing of arrays.
   """
@@ -500,7 +500,7 @@ class iso _TestPrintArray is UnitTest
     h.assert_eq[String]("[\n  true,\n  [\n    52,\n    null\n  ]\n]",
       doc.string("  ", true))
 
-class iso _TestNoPrettyPrintArray is UnitTest
+class \nodoc\ iso _TestNoPrettyPrintArray is UnitTest
   """
   Test Json none-pretty printing of arrays.
   """
@@ -537,7 +537,7 @@ class iso _TestNoPrettyPrintArray is UnitTest
     h.assert_eq[String]("[true,[52,null]]",
       doc.string())
 
-class iso _TestPrintObject is UnitTest
+class \nodoc\ iso _TestPrintObject is UnitTest
   """
   Test Json printing of objects.
   """
@@ -564,7 +564,7 @@ class iso _TestPrintObject is UnitTest
     // We don't test with more fields in the object because we don't know what
     // order they will be printed in
 
-class iso _TestNoPrettyPrintObject is UnitTest
+class \nodoc\ iso _TestNoPrettyPrintObject is UnitTest
   """
   Test Json none-pretty printing of objects.
   """
@@ -591,7 +591,7 @@ class iso _TestNoPrettyPrintObject is UnitTest
     // We don't test with more fields in the object because we don't know what
     // order they will be printed in
 
-class iso _TestParsePrint is UnitTest
+class \nodoc\ iso _TestParsePrint is UnitTest
   """
   Test Json parsing a complex example and then reprinting it.
   """

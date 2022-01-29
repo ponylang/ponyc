@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Remove library mode option from ponyc ([PR #3975](https://github.com/ponylang/ponyc/pull/3975))
 - Change `builtin/AsioEventNotify` from an interface to a trait ([PR #3973](https://github.com/ponylang/ponyc/pull/3973))
 - Don't allow interfaces to have private methods ([PR #3973](https://github.com/ponylang/ponyc/pull/3973))
+- Remove hack that prevented documentation generation for "test classes" ([PR #3978](https://github.com/ponylang/ponyc/pull/3978))
 
 ## [0.46.0] - 2022-01-16
 

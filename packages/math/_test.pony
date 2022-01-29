@@ -1,7 +1,7 @@
 use "ponytest"
 use "random"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -21,7 +21,7 @@ actor Main is TestList
     test(_MersennePrimeTest[ULong]("ULong"))
     test(_MersennePrimeTest[USize]("USize"))
 
-primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
+primitive \nodoc\ _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   """
   All integers (excluding 2 and 3), can be expressed as (6k + i),
   where i = −1, 0, 1, 2, 3, or 4 and k is greater than 0.
@@ -61,7 +61,7 @@ primitive _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
         h.assert_false(IsPrime[A](1))
     end
 
-primitive _MersennePrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
+primitive \nodoc\ _MersennePrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
   """
   A Mersenne prime is a prime of the form (2 ^ p) - 1 where p is itself prime
   """

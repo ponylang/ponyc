@@ -1,7 +1,7 @@
 use "ponytest"
 use "time"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -18,7 +18,7 @@ actor Main is TestList
     test(_TestPromisesJoinThenReject)
     test(_TestPromiseTimeout)
 
-class iso _TestPromise is UnitTest
+class \nodoc\ iso _TestPromise is UnitTest
   fun name(): String => "promises/Promise"
 
   fun apply(h: TestHelper) =>
@@ -44,7 +44,7 @@ class iso _TestPromise is UnitTest
 
     p.reject()
 
-class iso _TestPromiseAdd is UnitTest
+class \nodoc\ iso _TestPromiseAdd is UnitTest
   fun name(): String => "promises/Promise.add"
 
   fun apply(h: TestHelper) =>
@@ -81,7 +81,7 @@ class iso _TestPromiseAdd is UnitTest
     p1(2)
     p2.reject()
 
-class iso _TestPromiseSelect is UnitTest
+class \nodoc\ iso _TestPromiseSelect is UnitTest
   fun name(): String => "promises/Promise.select"
 
   fun apply(h: TestHelper) =>
@@ -102,7 +102,7 @@ class iso _TestPromiseSelect is UnitTest
 
     pa("a")
 
-class iso _TestPromiseTimeout is UnitTest
+class \nodoc\ iso _TestPromiseTimeout is UnitTest
   fun name(): String => "promises/Promise.timeout"
 
   fun apply(h: TestHelper) =>
@@ -114,7 +114,7 @@ class iso _TestPromiseTimeout is UnitTest
         FulfillIdentity[None],
         {() => h.complete_action("timeout") } iso)
 
-class iso _TestPromisesJoin is UnitTest
+class \nodoc\ iso _TestPromisesJoin is UnitTest
   fun name(): String => "promises/Promise.join"
 
   fun apply(h: TestHelper) =>
@@ -136,7 +136,7 @@ class iso _TestPromisesJoin is UnitTest
     b("b")
     c("c")
 
-class iso _TestPromisesJoinThenReject is UnitTest
+class \nodoc\ iso _TestPromisesJoinThenReject is UnitTest
   fun name(): String => "promises/Promise.join"
 
   fun apply(h: TestHelper) =>
@@ -151,7 +151,7 @@ class iso _TestPromisesJoinThenReject is UnitTest
     b("b")
     c.reject()
 
-class iso _TestFlattenNextHappyPath is UnitTest
+class \nodoc\ iso _TestFlattenNextHappyPath is UnitTest
   """
   This is the happy path, everything works `flatten_next` test.
 
@@ -181,7 +181,7 @@ class iso _TestFlattenNextHappyPath is UnitTest
 
     start(initial_string)
 
-class iso _TestFlattenNextFirstHasFulfillError is UnitTest
+class \nodoc\ iso _TestFlattenNextFirstHasFulfillError is UnitTest
   """
   Two promises chained `flatten_next` test where the fulfill action for the
   first promise fails.
@@ -215,7 +215,7 @@ class iso _TestFlattenNextFirstHasFulfillError is UnitTest
     start(initial_string)
 
 
-class iso _TestFlattenNextSecondHasFulfillError is UnitTest
+class \nodoc\ iso _TestFlattenNextSecondHasFulfillError is UnitTest
   """
   Two promises chained `flatten_next` test where the fulfill action for the
   second promise fails.
@@ -246,7 +246,7 @@ class iso _TestFlattenNextSecondHasFulfillError is UnitTest
 
     start(initial_string)
 
-class iso _TestFlattenNextRejectFirst is UnitTest
+class \nodoc\ iso _TestFlattenNextRejectFirst is UnitTest
   """
   Two promises chained `flatten_next` test where the first promise is rejected.
 
@@ -278,7 +278,7 @@ class iso _TestFlattenNextRejectFirst is UnitTest
 
     start.reject()
 
-primitive _FlattenNextFirstPromise
+primitive \nodoc\ _FlattenNextFirstPromise
   """
   Callback functions called after fulfilled/reject is called on the 1st
   promise in our `flatten_next` tests.
@@ -317,7 +317,7 @@ primitive _FlattenNextFirstPromise
     h.fail("reject shouldn't have been run on _FlattenNextFirstPromise")
     Promise[String]
 
-primitive _FlattenNextSecondPromise
+primitive \nodoc\ _FlattenNextSecondPromise
   """
   Callback functions called after fulfilled/reject is called on the second
   promise in our `flatten_next` tests.
