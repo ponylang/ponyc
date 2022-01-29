@@ -91,7 +91,7 @@ bool verify_interface(pass_opt_t* opt, ast_t* ast)
         if(is_name_private(type_id_name))
         {
           ast_error(opt->check.errors, id,
-            "interfaces can't have private methods, only traits can.");
+            "interfaces can't have private methods, only traits can");
           ok = false;
         }
       }

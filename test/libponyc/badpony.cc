@@ -1111,5 +1111,5 @@ TEST_F(BadPonyTest, InterfacesCantHavePrivateMethods)
     "  fun ref _set(i: USize, value: U8): U8";
 
   TEST_ERRORS_1(src,
-    "interfaces can't have private methods, only traits can.")
+    "interfaces can't have private methods, only traits can")
 }
