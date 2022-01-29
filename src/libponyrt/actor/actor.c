@@ -350,7 +350,10 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
-  pony_assert(!ponyint_is_muted(actor));
+  // see long explanation in "Mute/Unmute/Check mute status functions" for a
+  // detailed explanation of why this check and early return are in place
+  if(ponyint_is_muted(actor)) return false;
+
   ctx->current = actor;
   size_t batch = PONY_SCHED_BATCH;
 
@@ -1048,8 +1051,8 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 //
 // 1. Across schedulers, an actor should never been seen as muted when it is not
 // in fact muted.
-// 2. It's ok for a muted actor to be seen as unmuted in a transient fashion
-// across actors
+// 2. It's usually ok for a muted actor to be seen as unmuted in a transient
+// fashion across actors
 //
 // If rule #1 is violated, we might end up deadlocking because an actor was
 // muted for sending to an actor that might never be unmuted (because it isn't
@@ -1060,10 +1063,32 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 // additional messages and the sender won't be muted. As this is a transient
 // situtation that should be shortly rectified, there's no harm done.
 //
-// Our handling of atomic operations in `ponyint_is_muted` and
-// `ponyint_unmute_actor` are to assure that rule #1 isn't violated.
-// We have far more relaxed usage of atomics in `ponyint_mute_actor` given the
-// far more relaxed rule #2.
+// There is one scenario where the violation of rule #2 is problematic and as
+// such we defined against that specific scenario:
+//
+// - if an actor has 1 last message in its queue.
+// - AND it gets muted on the last message send so that it is muted and has an
+//     empty queue
+//
+// Then another actor sends to it and see that the queue was empty we end up in
+// this code:
+//
+//    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+//    {
+//      // if the receiving actor is currently not unscheduled AND it's not
+//      // muted, schedule it.
+//      ponyint_sched_add(ctx, to);
+//    }
+//
+// If we see this muted actor as unmuted (which rule 2 says is usually ok) then
+// this muted actor gets scheduled.
+//
+// We have a guard ponyint_actor_run to defend against this highly unlikely
+// scenario:
+//
+// bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
+//{
+//  if(ponyint_is_muted(actor)) return;
 //
 // An actor's `is_muted` field is effectively a `bool` value. However, by
 // using a `uint8_t`, we use the same amount of space that we would for a
