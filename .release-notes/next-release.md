@@ -18,3 +18,9 @@ actor Main
 
 Would return an error despite the return being in a lambda and therefore not returning a value from the constructor.
 
+## Fix issue that could lead to a muted actor being run
+
+A small logical flaw was discovered in the Pony runtime backpressure system that could lead to an actor that has been muted to prevent it from overloading other actors to be run despite a rule that says muted actors shouldn't be run.
+
+The series of events that need to happen are exceedingly unlikely but we do seem them from time to time in our Arm64 runtime stress tests. In the event that a muted actor was run, if an even more unlikely confluence of events was to occur, then "very bad things" could happen in the Pony runtime where "very bad things" means "we the Pony developers are unable to reason about what might happen".
+
