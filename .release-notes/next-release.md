@@ -24,3 +24,11 @@ A small logical flaw was discovered in the Pony runtime backpressure system that
 
 The series of events that need to happen are exceedingly unlikely but we do seem them from time to time in our Arm64 runtime stress tests. In the event that a muted actor was run, if an even more unlikely confluence of events was to occur, then "very bad things" could happen in the Pony runtime where "very bad things" means "we the Pony developers are unable to reason about what might happen".
 
+## Remove library mode option from ponyc
+
+From the very early days of the Pony runtime, a "library mode" has been around that allows you to compile a Pony program to a C compatible library that you can then start up using various runtime APIs to do things like initialize the runtime, create actors, send messages and more. We've made extensive changes to the runtime over the years and have no faith that library mode and its related functionality work.
+
+Our lack of faith extends back many years and we've stated as the Pony core team that we don't consider library mode to be supported; until now, we haven't done anything about what "not supported" means.
+
+With this release, library mode has been removed as an option.
+
