@@ -352,7 +352,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
   // see long explanation in "Mute/Unmute/Check mute status functions" for a
   // detailed explanation of why this check and early return are in place
-  if(ponyint_is_muted(actor)) return;
+  if(ponyint_is_muted(actor)) return false;
 
   ctx->current = actor;
   size_t batch = PONY_SCHED_BATCH;
