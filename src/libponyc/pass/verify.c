@@ -528,6 +528,7 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
   {
     case TK_STRUCT:       r = verify_struct(options, ast); break;
     case TK_ASSIGN:       r = verify_assign(options, ast); break;
+    case TK_INTERFACE:    r = verify_interface(options, ast); break;
     case TK_FUN:
     case TK_NEW:
     case TK_BE:           r = verify_fun(options, ast); break;

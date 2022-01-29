@@ -10,7 +10,7 @@ use @pony_asio_event_setnsec[U32](event: AsioEventID, nsec: U64)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
-actor Timers
+actor Timers is AsioEventNotify
   """
   A hierarchical set of timing wheels.
   """

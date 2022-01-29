@@ -6,7 +6,7 @@ use "time"
 
 type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
 
-actor ProcessMonitor
+actor ProcessMonitor is AsioEventNotify
   """
   Fork+execs / creates a child process and monitors it. Notifies a client about
   STDOUT / STDERR events.

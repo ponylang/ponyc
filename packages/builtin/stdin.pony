@@ -39,7 +39,7 @@ interface tag InputStream
     """
     None
 
-actor Stdin
+actor Stdin is AsioEventNotify
   """
   Asynchronous access to stdin. The constructor is private to ensure that
   access is provided only via an environment.
