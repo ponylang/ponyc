@@ -181,7 +181,7 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
   // Let's use RLIMIT_STACK's current limit if it is sane.
   if(getrlimit(RLIMIT_STACK, &limit) == 0 &&
     limit.rlim_cur != RLIM_INFINITY &&
-    limit.rlim_cur >= PTHREAD_STACK_MIN)
+    limit.rlim_cur >= (rlim_t)PTHREAD_STACK_MIN)
   {
 #if defined(PLATFORM_IS_LINUX)
     if(cpu != (uint32_t)-1 && use_numa)
