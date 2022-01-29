@@ -29,7 +29,6 @@ enum
   OPT_PATHS,
   OPT_OUTPUT,
   OPT_BIN_NAME,
-  OPT_LIBRARY,
   OPT_RUNTIMEBC,
   OPT_STATIC,
   OPT_PIC,
@@ -76,7 +75,6 @@ static opt_arg_t std_args[] =
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"bin-name", 'b', OPT_ARG_REQUIRED, OPT_BIN_NAME},
-  {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
   {"runtimebc", '\0', OPT_ARG_NONE, OPT_RUNTIMEBC},
   {"static", '\0', OPT_ARG_NONE, OPT_STATIC},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
@@ -140,7 +138,6 @@ static void usage(void)
     "    =path          Defaults to the current directory.\n"
     "  --bin-name, -b   Name of executable binary.\n"
     "    =name          Defaults to name of the directory.\n"
-    "  --library, -l    Generate a C-API compatible static library.\n"
     "  --runtimebc      Compile with the LLVM bitcode file for the runtime.\n"
     "  --static         Compile a static binary (experimental, Linux-only).\n"
     "  --pic            Compile using position independent code.\n"
@@ -298,7 +295,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_PATHS: package_add_paths(s->arg_val, opt); break;
       case OPT_OUTPUT: opt->output = s->arg_val; break;
       case OPT_BIN_NAME: opt->bin_name = s->arg_val; break;
-      case OPT_LIBRARY: opt->library = true; break;
       case OPT_RUNTIMEBC: opt->runtimebc = true; break;
       case OPT_STATIC: opt->staticbin = true; break;
       case OPT_PIC: opt->pic = true; break;

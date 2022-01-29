@@ -1425,8 +1425,7 @@ static void optimise(compile_t* c, bool pony_specific)
   fpm.doFinalization();
   mpm.run(*m);
 
-  if(!c->opt->library)
-    lpm.run(*m);
+  lpm.run(*m);
 }
 
 bool genopt(compile_t* c, bool pony_specific)

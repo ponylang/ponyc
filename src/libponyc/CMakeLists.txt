@@ -30,7 +30,6 @@ add_library(libponyc STATIC
     codegen/genfun.c
     codegen/genheader.c
     codegen/genident.c
-    codegen/genlib.c
     codegen/genmatch.c
     codegen/genname.c
     codegen/genobj.c
