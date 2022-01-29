@@ -24,7 +24,7 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
 {
   Optional<Reloc::Model> reloc;
 
-  if(opt->pic || opt->library)
+  if(opt->pic)
     reloc = Reloc::PIC_;
 
   // The Arm debug fix is a "temporary" fix for issue #3874
