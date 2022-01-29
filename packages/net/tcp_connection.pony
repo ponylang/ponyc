@@ -30,7 +30,7 @@ use @pony_os_peername[Bool](fd: U32, ip: NetAddress tag)
 
 type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
 
-actor TCPConnection
+actor TCPConnection is AsioEventNotify
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
 

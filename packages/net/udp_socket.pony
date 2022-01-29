@@ -18,7 +18,7 @@ use @pony_os_multicast_interface[None](fd: U32, from: Pointer[U8] tag)
 
 type UDPSocketAuth is (AmbientAuth | NetAuth | UDPAuth)
 
-actor UDPSocket
+actor UDPSocket is AsioEventNotify
   """
   Creates a UDP socket that can be used for sending and receiving UDP messages.
 

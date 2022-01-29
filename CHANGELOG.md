@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix return checking in behaviours and constructors ([PR #3971](https://github.com/ponylang/ponyc/pull/3971))
 - Fix issue that could lead to a muted actor being run ([PR #3974](https://github.com/ponylang/ponyc/pull/3974))
+- Fix loophole that allowed interfaces to be used to violate encapsulation ([PR #3973](https://github.com/ponylang/ponyc/pull/3973))
 
 ### Added
 
@@ -16,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Remove simplebuiltin compiler option ([PR #3965](https://github.com/ponylang/ponyc/pull/3965))
 - Remove library mode option from ponyc ([PR #3975](https://github.com/ponylang/ponyc/pull/3975))
+- Change `builtin/AsioEventNotify` from an interface to a trait ([PR #3973](https://github.com/ponylang/ponyc/pull/3973))
 
 ## [0.46.0] - 2022-01-16
 

@@ -7,7 +7,7 @@ use @pony_asio_event_create[AsioEventID](
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
 
-actor SignalHandler
+actor SignalHandler is AsioEventNotify
   """
   Listen for a specific signal.
   If the wait parameter is true, the program will not terminate until the SignalHandler's dispose method is called, or if the SignalNotify returns false, after handling the signal as this also disposes the SignalHandler and unsubscribes it.

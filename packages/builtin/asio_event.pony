@@ -1,6 +1,6 @@
 type AsioEventID is Pointer[AsioEvent] tag
 
-interface tag AsioEventNotify
+trait tag AsioEventNotify
   be _event_notify(event: AsioEventID, flags: U32, arg: U32)
 
 primitive AsioEvent

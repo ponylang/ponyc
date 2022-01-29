@@ -66,3 +66,41 @@ bool verify_struct(pass_opt_t* opt, ast_t* ast)
 
   return ok;
 }
+
+bool verify_interface(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_INTERFACE);
+
+  bool ok = true;
+
+  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FUN:
+      case TK_BE:
+      {
+        AST_GET_CHILDREN(member, cap, id, type_params, params, return_type,
+          error, body, docstring);
+
+        const char* type_id_name = ast_name(id);
+
+        if(is_name_private(type_id_name))
+        {
+          ast_error(opt->check.errors, id,
+            "interfaces can't have private methods, only traits can");
+          ok = false;
+        }
+      }
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return ok;
+}
+

@@ -8,7 +8,7 @@ use @pony_os_listen_tcp6[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] 
 
 type TCPListenerAuth is (AmbientAuth | NetAuth | TCPAuth | TCPListenAuth)
 
-actor TCPListener
+actor TCPListener is AsioEventNotify
   """
   Listens for new network connections.
 
