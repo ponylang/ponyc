@@ -1060,11 +1060,11 @@ TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeddedType)
     "  embed ok: Ok = Ok\n"
     "  embed not_ok: Pointer[None] = Pointer[None]\n"
     "  embed also_not_ok: NullablePointer[Ok] = NullablePointer[Ok](Ok)\n"
-    
+
     "actor Main\n"
     "new create(env: Env) =>\n"
     "  Whoops";
-    
+
   TEST_ERRORS_2(src,
     "embedded fields must be classes or structs",
     "embedded fields must be classes or structs")
@@ -1101,4 +1101,15 @@ TEST_F(BadPonyTest, AllowNestedTupleAccess)
 
   TEST_ERRORS_1(src,
     "Cannot look up member _2 on a literal")
+}
+
+TEST_F(BadPonyTest, InterfacesCantHavePrivateMethods)
+{
+  // From issue #2287
+  const char* src =
+    "interface Foo\n"
+    "  fun ref _set(i: USize, value: U8): U8";
+
+  TEST_ERRORS_1(src,
+    "interfaces can't have private methods, only traits can.")
 }
