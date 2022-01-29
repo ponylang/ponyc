@@ -71,9 +71,11 @@ bool verify_interface(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_INTERFACE);
 
-  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
+  bool ok = true;
 
+  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
   ast_t* member = ast_child(members);
+
   while(member != NULL)
   {
     switch(ast_id(member))
@@ -88,8 +90,9 @@ bool verify_interface(pass_opt_t* opt, ast_t* ast)
 
         if(is_name_private(type_id_name))
         {
-          ast_error(opt->check.errors, member,
-          "interfaces can't have private methods, only traits can.");
+          ast_error(opt->check.errors, id,
+            "interfaces can't have private methods, only traits can.");
+          ok = false;
         }
       }
       default: {}
@@ -98,6 +101,6 @@ bool verify_interface(pass_opt_t* opt, ast_t* ast)
     member = ast_sibling(member);
   }
 
-  return true;
+  return ok;
 }
 
