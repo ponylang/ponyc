@@ -109,3 +109,7 @@ As far as we know, there are two codebases that will be impacted by this change:
 - [Lori](https://github.com/seantallen-org/lori)
 - [Wallaroo](https://github.com/wallaroolabs/wally)
 
+## Fix compiler assertion failure when assigning error to a variable
+
+This release fixes a compiler assertion failure being triggered when one attempted to assign an error expression surrounded by parenthesis to a variable.
+
