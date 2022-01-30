@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix return checking in behaviours and constructors ([PR #3971](https://github.com/ponylang/ponyc/pull/3971))
 - Fix issue that could lead to a muted actor being run ([PR #3974](https://github.com/ponylang/ponyc/pull/3974))
 - Fix loophole that allowed interfaces to be used to violate encapsulation ([PR #3973](https://github.com/ponylang/ponyc/pull/3973))
+- Fix compiler assertion failure when assigning error to a variable ([PR #3980](https://github.com/ponylang/ponyc/pull/3980))
 
 ### Added
 
