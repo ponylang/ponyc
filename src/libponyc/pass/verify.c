@@ -519,40 +519,6 @@ static bool verify_assign(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static bool verify_definition(pass_opt_t* opt, ast_t* ast)
-{
-    AST_GET_CHILDREN(ast, var, var_type);
-
-    if (!is_compat_type(var_type, var_type))
-    {
-      ast_error(opt->check.errors, ast,
-        "Invalid type for variable: '%s'",
-        ast_print_type(var_type));
-      switch(ast_id(var_type))
-      {
-        case TK_NOMINAL:
-        case TK_TYPEPARAMREF:
-          {
-            ast_t* cap = cap_fetch(var_type);
-            ast_t* eph = ast_sibling(cap);
-
-            if(ast_id(eph) == TK_EPHEMERAL)
-            {
-              ast_error(opt->check.errors, ast,
-                "Variables cannot have ephemeral capability. "
-                "Instead remove the ephemeral modifier and consume the variable");
-            }
-          }
-
-        default: {}
-      }
-      return false;
-    }
-    ast_inheritflags(ast);
-
-    return true;
-}
-
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -576,9 +542,6 @@ ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
     case TK_TRY:
     case TK_TRY_NO_CHECK: r = verify_try(options, ast); break;
     case TK_ERROR:        ast_seterror(ast); break;
-    case TK_LET:
-    case TK_VAR:
-    case TK_EMBED:        r = verify_definition(options, ast); break;
 
     default:              ast_inheritflags(ast); break;
   }
