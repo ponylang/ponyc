@@ -2,12 +2,12 @@ class List[A] is Seq[A]
   """
   A doubly linked list.
 
-  (The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).)
+  The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).
 
   A doubly linked list is a linked data structure that consists of a set of sequentially
-  linked records called nodes. (Implemented in Ponylang via the collections.ListNode class.) Each
+  linked records called nodes (implemented in Pony via the collections.ListNode class). Each
   node contains four fields: two link fields (references to the previous and to the next node in
-  the sequence of nodes), one data field, and the reference to the in which it resides.  A doubly
+  the sequence of nodes), one data field, and the reference to the List in which it resides. A doubly
   linked list can be conceptualized as two singly linked lists formed from the same data items, but
   in opposite sequential orders.
 
@@ -122,19 +122,32 @@ class List[A] is Seq[A]
 
   new create(len: USize = 0) =>
     """
-    Do nothing, but be compatible with Seq.
+    Always creates an empty list with 0 nodes, `len` is ignored.
+
+    Required method for `List` to satisfy the `Seq` interface.
+    ```pony
+    let my_list = List[String]
+    ```
     """
     None
 
   new unit(a: A) =>
     """
-    Builds a new list from an element.
+    Creates a list with 1 node of element.
+
+    ```pony
+    let my_list = List[String].unit("element")
+    ```
     """
     push(consume a)
 
   new from(seq: Array[A^]) =>
     """
-    Builds a new list from the sequence passed in.
+    Creates a list equivalent to the provided Array (both node number and order are preserved).
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    ```
     """
     for value in seq.values() do
       push(consume value)
@@ -142,33 +155,54 @@ class List[A] is Seq[A]
 
   fun ref reserve(len: USize) =>
     """
-    Do nothing, but be compatible with Seq.
+    Do nothing
+
+    Required method for `List` to satisfy the `Seq` interface.
     """
     None
 
   fun size(): USize =>
     """
     Returns the number of items in the list.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.size() // 3
+    ```
     """
     _size
 
   fun apply(i: USize = 0): this->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.apply(1)? end // "b"
+    ```
     """
     index(i)?()?
 
   fun ref update(i: USize, value: A): A^ ? =>
     """
-    Change the i-th element, raising an error if the index is out of bounds.
-    Returns the previous value, which may be None if the node has been popped
-    but left on the list.
+    Change the i-th element, raising an error if the index is out of bounds, and
+    returning the previous value.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.update(1, "z")? end // Returns "b" and List now contains ["a"; "z"; "c"]
+    ```
     """
     index(i)?()? = consume value
 
   fun index(i: USize): this->ListNode[A] ? =>
     """
     Gets the i-th node, raising an error if the index is out of bounds.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.index(0)? end // Returns a ListNode[String] containing "a"
+    ```
     """
     if i >= _size then
       error
@@ -186,8 +220,13 @@ class List[A] is Seq[A]
 
   fun ref remove(i: USize): ListNode[A] ? =>
     """
-    Remove the i-th node, raising an error if the index is out of bounds.
-    The removed node is returned.
+    Remove the i-th node, raising an error if the index is out of bounds, and
+    returning the removed node.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.remove(0)? end // Returns a ListNode[String] containing "a" and List now contains ["b"; "c"]
+    ```
     """
     index(i)? .> remove()
 
@@ -201,19 +240,35 @@ class List[A] is Seq[A]
 
   fun head(): this->ListNode[A] ? =>
     """
-    Get the head of the list.
+    Show the head of the list, raising an error if the head is empty.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.head()? end // Returns a ListNode[String] containing "a"
+    ```
     """
     _head as this->ListNode[A]
 
   fun tail(): this->ListNode[A] ? =>
     """
-    Get the tail of the list.
+    Show the tail of the list, raising an error if the tail is empty.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.tail()? end // Returns a ListNode[String] containing "c"
+    ```
     """
     _tail as this->ListNode[A]
 
   fun ref prepend_node(node: ListNode[A]) =>
     """
     Adds a node to the head of the list.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let new_head = ListNode[String]("0")
+    my_list.prepend_node(new_head) // ["0", "a"; "b"; "c"]
+    ```
     """
     match _head
     | let head': ListNode[A] =>
@@ -225,6 +280,12 @@ class List[A] is Seq[A]
   fun ref append_node(node: ListNode[A]) =>
     """
     Adds a node to the tail of the list.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let new_tail = ListNode[String]("0")
+    my_list.append_node(new_head) // ["a"; "b"; "c", "0"]
+    ```
     """
     match _tail
     | let tail': ListNode[A] =>
@@ -235,7 +296,13 @@ class List[A] is Seq[A]
 
   fun ref append_list(that: List[A]) =>
     """
-    Remove all nodes from that and append them to this.
+    Empties the provided List by appending all elements onto the receiving List.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.append_list(other_list)  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is empty
+    ```
     """
     if this isnt that then
       while that._size > 0 do
@@ -245,7 +312,13 @@ class List[A] is Seq[A]
 
   fun ref prepend_list(that: List[A]) =>
     """
-    Remove all nodes from that and prepend them to this.
+    Empties the provided List by prepending all elements onto the receiving List.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.prepend_list(other_list)  // my_list is ["d"; "e"; "f"; "a"; "b"; "c"], other_list is empty
+    ```
     """
     if this isnt that then
       while that._size > 0 do
@@ -255,25 +328,45 @@ class List[A] is Seq[A]
 
   fun ref push(a: A) =>
     """
-    Adds a value to the tail of the list.
+    Adds a new tail value.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.push("d")  // my_list is ["a"; "b"; "c"; "d"]
+    ```
     """
     append_node(ListNode[A](consume a))
 
   fun ref pop(): A^ ? =>
     """
-    Removes a value from the tail of the list.
+    Removes the tail value, raising an error if the tail is empty.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.pop() end  // Returns "c" and my_list is ["a"; "b"]
+    ```
     """
     tail()? .> remove().pop()?
 
   fun ref unshift(a: A) =>
     """
-    Adds a value to the head of the list.
+    Adds a new head value.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.unshift("d")  // my_list is ["d"; "a"; "b"; "c"]
+    ```
     """
     prepend_node(ListNode[A](consume a))
 
   fun ref shift(): A^ ? =>
     """
-    Removes a value from the head of the list.
+    Removes the head value, raising an error if the head is empty.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    try my_list.shift() end  // Returns "a" and my_list is ["b"; "c"]
+    ```
     """
     head()? .> remove().pop()?
 
@@ -284,6 +377,16 @@ class List[A] is Seq[A]
   =>
     """
     Append len elements from a sequence, starting from the given offset.
+
+    When len is -1, all elements of sequence are pushed.
+
+    Does not remove elements from sequence.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.append(other_list)  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is unchanged
+    ```
     """
     if offset >= seq.size() then
       return
@@ -304,8 +407,18 @@ class List[A] is Seq[A]
 
   fun ref concat(iter: Iterator[A^], offset: USize = 0, len: USize = -1) =>
     """
-    Add len iterated elements to the end of the list, starting from the given
+    Add len iterated elements to the tail of the list, starting from the given
     offset.
+
+    When len is -1, all elements of iterator are pushed.
+
+    Does not remove elements from iterator.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = List[String].from(["d"; "e"; "f"])
+    my_list.concat(other_list.values())  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is unchanged
+    ```
     """
     try
       for i in Range(0, offset) do
@@ -327,8 +440,13 @@ class List[A] is Seq[A]
 
   fun ref truncate(len: USize) =>
     """
-    Truncate the list to the given length, discarding excess elements.
+    Pop tail elements until the list is len size.
     If the list is already smaller than len, do nothing.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    my_list.truncate(1)  // my_list is ["a"]
+    ```
     """
     try
       while _size > len do
@@ -338,7 +456,14 @@ class List[A] is Seq[A]
 
   fun clone(): List[this->A!]^ =>
     """
-    Clone the list.
+    Clone all elements into a new List.
+
+    Note: elements are not copied, an additional reference to each element is created in the new List.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.clone()  // my_list is ["a"; "b"; "c"], other_list is ["a"; "b"; "c"]
+    ```
     """
     let out = List[this->A!]
 
@@ -349,7 +474,12 @@ class List[A] is Seq[A]
 
   fun map[B](f: {(this->A!): B^} box): List[B]^ =>
     """
-    Builds a new list by applying a function to every member of the list.
+    Builds a new `List` by applying a function to every element of the `List`.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.map[String]( {(s: String): String => "m: " + s } )  // other_list is ["m: a"; "m: b"; "m: c"]
+    ```
     """
     try
       _map[B](head()?, f, List[B])
@@ -364,7 +494,7 @@ class List[A] is Seq[A]
     : List[B]^
   =>
     """
-    Private helper for map, recursively working with ListNodes.
+    Private helper for `map`, recursively working with `ListNode`s.
     """
     try acc.push(f(ln()?)) end
 
@@ -376,8 +506,13 @@ class List[A] is Seq[A]
 
   fun flat_map[B](f: {(this->A!): List[B]} box): List[B]^ =>
     """
-    Builds a new list by applying a function to every member of the list and
-    using the elements of the resulting lists.
+    Builds a new `List` by applying a function to every element of the `List`, 
+    producing a new `List` for each element, then flattened into a single `List`.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.flat_map[String]( {(s: String): List[String] => List[String].from( ["m"; s] )} )  // other_list is ["m"; "a"; "m"; "b"; "m"; c"]
+    ```
     """
     try
       _flat_map[B](head()?, f, List[B])
@@ -391,7 +526,7 @@ class List[A] is Seq[A]
     acc: List[B]): List[B]^
   =>
     """
-    Private helper for flat_map, recursively working with ListNodes.
+    Private helper for `flat_map`, recursively working with `ListNode`s.
     """
     try acc.append_list(f(ln()?)) end
 
@@ -403,7 +538,12 @@ class List[A] is Seq[A]
 
   fun filter(f: {(this->A!): Bool} box): List[this->A!]^ =>
     """
-    Builds a new list with those elements that satisfy a provided predicate.
+    Builds a new `List` with those elements that satisfy the predicate.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.filter( {(s: String): Bool => s == "b" } )  // other_list is ["b"]
+    ```
     """
     try
       _filter(head()?, f, List[this->A!])
@@ -417,7 +557,7 @@ class List[A] is Seq[A]
     acc: List[this->A!]): List[this->A!]
   =>
     """
-    Private helper for filter, recursively working with ListNodes.
+    Private helper for `filter`, recursively working with `ListNode`s.
     """
     try
       let cur = ln()?
@@ -432,7 +572,16 @@ class List[A] is Seq[A]
 
   fun fold[B](f: {(B!, this->A!): B^} box, acc: B): B =>
     """
-    Folds the elements of the list using the supplied function.
+    Folds the elements of the `List` using the supplied function.
+
+    On the first iteration, the `B` argument in `f` is the value `acc`, 
+    on the second iteration `B` is the result of the first iteration,
+    on the third iteration `B` is the result of the second iteration, and so on.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let folded = my_list.fold[String]( {(str: String, s: String): String => str + s }, "z")  // "zabc"
+    ```
     """
     let h = try
       head()?
@@ -449,7 +598,7 @@ class List[A] is Seq[A]
     : B
   =>
     """
-    Private helper for fold, recursively working with ListNodes.
+    Private helper for `fold`, recursively working with `ListNode`s.
     """
     let nextAcc: B = try f(acc, ln()?) else consume acc end
     let h = try
@@ -462,8 +611,12 @@ class List[A] is Seq[A]
 
   fun every(f: {(this->A!): Bool} box): Bool =>
     """
-    Returns true if every element satisfies the provided predicate, false
-    otherwise.
+    Returns `true` if every element satisfies the predicate, otherwise returns `false`.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let all_z = my_list.every( {(s: String): Bool => s == "z"} ) // false
+    ```
     """
     try
       _every(head()?, f)
@@ -473,7 +626,7 @@ class List[A] is Seq[A]
 
   fun _every(ln: this->ListNode[A], f: {(this->A!): Bool} box): Bool =>
     """
-    Private helper for every, recursively working with ListNodes.
+    Private helper for `every`, recursively working with `ListNode`s.
     """
     try
       if not(f(ln()?)) then
@@ -487,8 +640,12 @@ class List[A] is Seq[A]
 
   fun exists(f: {(this->A!): Bool} box): Bool =>
     """
-    Returns true if at least one element satisfies the provided predicate,
-    false otherwise.
+    Returns `true` if at least one element satisfies the predicate, otherwise returns `false`.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let b_exists = my_list.exists( {(s: String): Bool => s == "b"} ) // true
+    ```
     """
     try
       _exists(head()?, f)
@@ -498,7 +655,7 @@ class List[A] is Seq[A]
 
   fun _exists(ln: this->ListNode[A], f: {(this->A!): Bool} box): Bool =>
     """
-    Private helper for exists, recursively working with ListNodes.
+    Private helper for `exists`, recursively working with `ListNode`s.
     """
     try
       if f(ln()?) then
@@ -515,9 +672,14 @@ class List[A] is Seq[A]
     : (List[this->A!]^, List[this->A!]^)
   =>
     """
-    Builds a pair of lists, the first of which is made up of the elements
-    satisfying the supplied predicate and the second of which is made up of
+    Builds a pair of `List`s, the first of which is made up of the elements
+    satisfying the predicate and the second of which is made up of
     those that do not.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    (let lt_b, let gt_b) = my_list.partition( {(s: String): Bool => s < "b"} )  // lt_b is ["a"], while gt_b is ["b"; "c"]
+    ```
     """
     let l1 = List[this->A!]
     let l2 = List[this->A!]
@@ -528,7 +690,12 @@ class List[A] is Seq[A]
 
   fun drop(n: USize): List[this->A!]^ =>
     """
-    Builds a list by dropping the first n elements.
+    Builds a `List` by dropping the first `n` elements.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.drop(1)  // ["b"; "c"]
+    ```
     """
     let l = List[this->A!]
 
@@ -546,7 +713,12 @@ class List[A] is Seq[A]
 
   fun take(n: USize): List[this->A!] =>
     """
-    Builds a list of the first n elements.
+    Builds a `List` by keeping the first `n` elements.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.drop(1)  // ["a"]
+    ```
     """
     let l = List[this->A!]
 
@@ -564,8 +736,12 @@ class List[A] is Seq[A]
 
   fun take_while(f: {(this->A!): Bool} box): List[this->A!]^ =>
     """
-    Builds a list of elements satisfying the provided predicate until one does
-    not.
+    Builds a `List` of elements satisfying the predicate, stopping at the first `false` return.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.take_while( {(s: String): Bool => s < "b"} )  // ["a"]
+    ```
     """
     let l = List[this->A!]
 
@@ -584,7 +760,12 @@ class List[A] is Seq[A]
 
   fun reverse(): List[this->A!]^ =>
     """
-    Builds a new list by reversing the elements in the list.
+    Builds a new `List` by reversing the elements in the `List`.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let other_list = my_list.reverse() // ["c"; "b"; "a"]
+    ```
     """
     try
       _reverse(head()?, List[this->A!])
@@ -594,7 +775,7 @@ class List[A] is Seq[A]
 
   fun _reverse(ln: this->ListNode[A], acc: List[this->A!]): List[this->A!]^ =>
     """
-    Private helper for reverse, recursively working with ListNodes.
+    Private helper for `reverse`, recursively working with `ListNode`s.
     """
     try acc.unshift(ln()?) end
 
@@ -606,7 +787,12 @@ class List[A] is Seq[A]
 
   fun contains[B: (A & HasEq[A!] #read) = A](a: box->B): Bool =>
     """
-    Returns true if the list contains the provided element, false otherwise.
+    Returns `true` if the `List` contains the provided element, otherwise returns `false`.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let contains_b = my_list.contains[String]("b") // true
+    ```
     """
     try
       _contains[B](head()?, a)
@@ -620,7 +806,7 @@ class List[A] is Seq[A]
     : Bool
   =>
     """
-    Private helper for contains, recursively working with ListNodes.
+    Private helper for `contains`, recursively working with `ListNode`s.
     """
     try
       if a == ln()? then
@@ -634,41 +820,77 @@ class List[A] is Seq[A]
 
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
-    Return an iterator on the nodes in the list.
+    Return an iterator on the nodes in the `List` in forward order.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let nodes = my_list.nodes()  // node with "a" is before node with "c"
+    ```
     """
     ListNodes[A, this->ListNode[A]](_head)
 
   fun rnodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
-    Return an iterator on the nodes in the list.
+    Return an iterator on the nodes in the `List` in reverse order.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let rnodes = my_list.rnodes()  // node with "c" is before node with "a"
+    ```
     """
     ListNodes[A, this->ListNode[A]](_head, true)
 
   fun values(): ListValues[A, this->ListNode[A]]^ =>
     """
-    Return an iterator on the values in the list.
+    Return an iterator on the values in the `List` in forward order.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let values = my_list.values()  // value "a" is before value "c"
+    ```
     """
     ListValues[A, this->ListNode[A]](_head)
 
   fun rvalues(): ListValues[A, this->ListNode[A]]^ =>
     """
-    Return an iterator on the values in the list.
+    Return an iterator on the values in the `List` in reverse order.
+
+    ```pony
+    let my_list = List[String].from(["a"; "b"; "c"])
+    let rvalues = my_list.rvalues()  // value "c" is before value "a"
+    ```
     """
     ListValues[A, this->ListNode[A]](_head, true)
 
   fun ref _increment() =>
+    """
+    Private method to control mutating `_size` field.
+    """
     _size = _size + 1
 
   fun ref _decrement() =>
+    """
+    Private method to control mutating `_size` field.
+    """
     _size = _size - 1
 
   fun ref _set_head(head': (ListNode[A] | None)) =>
+    """
+    Private method to control mutating `_head` field.
+    """
     _head = head'
 
   fun ref _set_tail(tail': (ListNode[A] | None)) =>
+    """
+    Private method to control mutating `_tail` field.
+    """
     _tail = tail'
 
   fun ref _set_both(node: ListNode[A]) =>
+    """
+    Private method to set both `_head` and `_tail` to the same node,
+    creating a `List` with a `_size` of 1.
+    """
     node._set_list(this)
     _head = node
     _tail = node
@@ -676,27 +898,32 @@ class List[A] is Seq[A]
 
 class ListNodes[A, N: ListNode[A] #read] is Iterator[N]
   """
-  Iterate over the nodes in a list.
+  Iterate over the nodes in a `List`.
   """
   var _next: (N | None)
   let _reverse: Bool
 
   new create(head: (N | None), reverse: Bool = false) =>
     """
-    Keep the next list node to be examined.
+    Build the iterator over nodes.
+
+    `reverse` of `false` iterates forward, while
+    `reverse` of `true` iterates in reverse.
     """
     _next = head
     _reverse = reverse
 
   fun has_next(): Bool =>
     """
-    If we have a list node, we have more values.
+    Indicates whether there are any nodes remaining in the iterator.
     """
     _next isnt None
 
   fun ref next(): N ? =>
     """
-    Get the list node and replace it with the next one.
+    Return the next node in the iterator, advancing the iterator by one element.
+    
+    Order of return is determined by `reverse` argument during creation.
     """
     match _next
     | let next': N =>
@@ -713,27 +940,32 @@ class ListNodes[A, N: ListNode[A] #read] is Iterator[N]
 
 class ListValues[A, N: ListNode[A] #read] is Iterator[N->A]
   """
-  Iterate over the values in a list.
+  Iterate over the values in a `List`.
   """
   var _next: (N | None)
   let _reverse: Bool
 
   new create(head: (N | None), reverse: Bool = false) =>
     """
-    Keep the next list node to be examined.
+    Build the iterator over values.
+
+    `reverse` of `false` iterates forward, while
+    `reverse` of `true` iterates in reverse.
     """
     _next = head
     _reverse = reverse
 
   fun has_next(): Bool =>
     """
-    If we have a list node, we have more values.
+    Indicates whether there are any values remaining in the iterator.
     """
     _next isnt None
 
   fun ref next(): N->A ? =>
     """
-    Get the value of the list node and replace it with the next one.
+    Return the next node in the iterator, advancing the iterator by one element.
+    
+    Order of return is determined by `reverse` argument during creation.
     """
     match _next
     | let next': N =>
