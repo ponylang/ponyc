@@ -53,6 +53,7 @@ struct reach_method_t
 
   // Linked list of instantiations that use the same func.
   reach_method_t* subordinate;
+  bool is_subordinate;
 
   size_t param_count;
   reach_param_t* params;
