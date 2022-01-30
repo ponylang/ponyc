@@ -335,7 +335,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(r_type))
   {
     if(errors_get_count(opt->check.errors) == 0){
-      ast_error(opt->check.errors, ast,
+      ast_error(opt->check.errors, right,
         "right side must be something that can be assigned");
     }
     return false;
