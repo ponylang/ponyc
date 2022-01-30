@@ -1113,3 +1113,15 @@ TEST_F(BadPonyTest, InterfacesCantHavePrivateMethods)
   TEST_ERRORS_1(src,
     "interfaces can't have private methods, only traits can")
 }
+
+TEST_F(BadPonyTest, CantAssignErrorExpression)
+{
+  // From issue #3823
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x: String = (error)";
+
+  TEST_ERRORS_1(src,
+    "right side must be something that can be assigned")
+}
