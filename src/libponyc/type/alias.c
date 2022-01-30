@@ -208,6 +208,7 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
       {
         case TK_ISO:
         case TK_TRN:
+          ast_free_unattached(type);
           return NULL;
 
         default: {}

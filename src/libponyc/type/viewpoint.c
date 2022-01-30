@@ -354,7 +354,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
               ast_t* c_with = consume_type(with, TK_NONE);
               if (c_with != NULL)
               {
-                a_with = with;
+                a_with = c_with;
               }
               break;
             }

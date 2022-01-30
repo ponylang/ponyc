@@ -557,6 +557,7 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     if(consume_type(p_type, TK_NONE) == NULL)
     {
       ast_error(opt->check.errors, p_type, "illegal type for parameter");
+      return false;
     }
   }
 
