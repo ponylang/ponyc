@@ -40,3 +40,4 @@ actor Main
     let cfp = ContainsFunctionPointer
     // The partial application of a bare method yields a bare lambda.
     cfp.ptr = Callback~callback()
+    @do_callback(cfp.ptr, env)

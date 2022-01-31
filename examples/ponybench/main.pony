@@ -49,7 +49,7 @@ class iso _Timer is AsyncMicroBenchmark
     _ns = ns
 
   fun name(): String =>
-    "_Timer (" + _ns.string() + " ns)"
+    "_Timer(" + _ns.string() + " ns)"
 
   fun apply(c: AsyncBenchContinue) =>
     _ts(Timer(
