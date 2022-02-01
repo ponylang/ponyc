@@ -3,7 +3,7 @@ use mut = "collections"
 use "random"
 use "time"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -33,7 +33,7 @@ actor Main is TestList
     test(_TestVec)
     test(_TestVecIterators)
 
-class iso _TestListPrepend is UnitTest
+class \nodoc\ iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List (prepend)"
 
   fun apply(h: TestHelper) ? =>
@@ -58,7 +58,7 @@ class iso _TestListPrepend is UnitTest
     h.assert_eq[U32](e.head(), 10)
     h.assert_eq[USize](e.tail().size(), 0)
 
-class iso _TestListFrom is UnitTest
+class \nodoc\ iso _TestListFrom is UnitTest
   fun name(): String => "collections/persistent/Lists (from)"
 
   fun apply(h: TestHelper) ? =>
@@ -66,7 +66,7 @@ class iso _TestListFrom is UnitTest
     h.assert_eq[USize](l1.size(), 3)
     h.assert_eq[U32](l1.head()?, 1)
 
-class iso _TestListApply is UnitTest
+class \nodoc\ iso _TestListApply is UnitTest
   fun name(): String => "collections/persistent/List (apply)"
 
   fun apply(h: TestHelper) ? =>
@@ -80,7 +80,7 @@ class iso _TestListApply is UnitTest
     let l2 = Lists[U32].empty()
     h.assert_error({() ? => l2(0)? })
 
-class iso _TestListValues is UnitTest
+class \nodoc\ iso _TestListValues is UnitTest
   fun name(): String => "collections/persistent/List (values)"
 
   fun apply(h: TestHelper) ? =>
@@ -96,7 +96,7 @@ class iso _TestListValues is UnitTest
     h.assert_false(iter.has_next())
     h.assert_false(try iter.next()?; true else false end)
 
-class iso _TestListConcat is UnitTest
+class \nodoc\ iso _TestListConcat is UnitTest
   fun name(): String => "collections/persistent/List (concat)"
 
   fun apply(h: TestHelper) ? =>
@@ -118,14 +118,14 @@ class iso _TestListConcat is UnitTest
     let l9 = l8.reverse()
     h.assert_true(Lists[U32].eq(l9, Lists[U32]([1]))?)
 
-class iso _TestListMap is UnitTest
+class \nodoc\ iso _TestListMap is UnitTest
   fun name(): String => "collections/persistent/Lists (map)"
 
   fun apply(h: TestHelper) ? =>
     let l5 = Lists[U32]([1; 2; 3]).map[U32]({(x) => x * 2 })
     h.assert_true(Lists[U32].eq(l5, Lists[U32]([2; 4; 6]))?)
 
-class iso _TestListFlatMap is UnitTest
+class \nodoc\ iso _TestListFlatMap is UnitTest
   fun name(): String => "collections/persistent/Lists (flat_map)"
 
   fun apply(h: TestHelper) ? =>
@@ -133,7 +133,7 @@ class iso _TestListFlatMap is UnitTest
     let l6 = Lists[U32]([2; 5; 8]).flat_map[U32](f)
     h.assert_true(Lists[U32].eq(l6, Lists[U32]([1; 2; 3; 4; 5; 6; 7; 8; 9]))?)
 
-class iso _TestListFilter is UnitTest
+class \nodoc\ iso _TestListFilter is UnitTest
   fun name(): String => "collections/persistent/Lists (filter)"
 
   fun apply(h: TestHelper) ? =>
@@ -141,7 +141,7 @@ class iso _TestListFilter is UnitTest
     let l7 = Lists[U32]([1; 2; 3; 4; 5; 6; 7; 8]).filter(is_even)
     h.assert_true(Lists[U32].eq(l7, Lists[U32]([2; 4; 6; 8]))?)
 
-class iso _TestListFold is UnitTest
+class \nodoc\ iso _TestListFold is UnitTest
   fun name(): String => "collections/persistent/Lists (fold)"
 
   fun apply(h: TestHelper) ? =>
@@ -156,7 +156,7 @@ class iso _TestListFold is UnitTest
         doubleAndPrepend, Lists[U32].empty())
     h.assert_true(Lists[U32].eq(l8, Lists[U32]([6; 4; 2]))?)
 
-class iso _TestListEveryExists is UnitTest
+class \nodoc\ iso _TestListEveryExists is UnitTest
   fun name(): String => "collections/persistent/Lists (every, exists)"
 
   fun apply(h: TestHelper) =>
@@ -177,7 +177,7 @@ class iso _TestListEveryExists is UnitTest
     h.assert_eq[Bool](l12.exists(is_even), true)
     h.assert_eq[Bool](l13.exists(is_even), false)
 
-class iso _TestListPartition is UnitTest
+class \nodoc\ iso _TestListPartition is UnitTest
   fun name(): String => "collections/persistent/Lists (partition)"
 
   fun apply(h: TestHelper) ? =>
@@ -187,7 +187,7 @@ class iso _TestListPartition is UnitTest
     h.assert_true(Lists[U32].eq(hits, Lists[U32]([2; 4; 6]))?)
     h.assert_true(Lists[U32].eq(misses, Lists[U32]([1; 3; 5]))?)
 
-class iso _TestListDrop is UnitTest
+class \nodoc\ iso _TestListDrop is UnitTest
   fun name(): String => "collections/persistent/List (drop)"
 
   fun apply(h: TestHelper) ? =>
@@ -198,7 +198,7 @@ class iso _TestListDrop is UnitTest
     h.assert_true(Lists[U32].eq(l2.drop(3), Lists[U32].empty())?)
     h.assert_true(Lists[String].eq(empty.drop(3), Lists[String].empty())?)
 
-class iso _TestListDropWhile is UnitTest
+class \nodoc\ iso _TestListDropWhile is UnitTest
   fun name(): String => "collections/persistent/List (drop_while)"
 
   fun apply(h: TestHelper) ? =>
@@ -209,7 +209,7 @@ class iso _TestListDropWhile is UnitTest
       Lists[U32]([1; 3; 4; 6]))?)
     h.assert_true(Lists[U32].eq(empty.drop_while(is_even), Lists[U32].empty())?)
 
-class iso _TestListTake is UnitTest
+class \nodoc\ iso _TestListTake is UnitTest
   fun name(): String => "collections/persistent/List (take)"
 
   fun apply(h: TestHelper) ? =>
@@ -220,7 +220,7 @@ class iso _TestListTake is UnitTest
     h.assert_true(Lists[U32].eq(l2.take(3), Lists[U32]([1; 2]))?)
     h.assert_true(Lists[String].eq(empty.take(3), Lists[String].empty())?)
 
-class iso _TestListTakeWhile is UnitTest
+class \nodoc\ iso _TestListTakeWhile is UnitTest
   fun name(): String => "collections/persistent/List (take_while)"
 
   fun apply(h: TestHelper) ? =>
@@ -230,7 +230,7 @@ class iso _TestListTakeWhile is UnitTest
     h.assert_true(Lists[U32].eq(l.take_while(is_even), Lists[U32]([4; 2; 6]))?)
     h.assert_true(Lists[U32].eq(empty.take_while(is_even), Lists[U32].empty())?)
 
-class iso _TestMap is UnitTest
+class \nodoc\ iso _TestMap is UnitTest
   fun name(): String =>
     "collections/persistent/Map (update, remove, concat, add, sub)"
 
@@ -337,17 +337,17 @@ class iso _TestMap is UnitTest
     end
     ops
 
-type _Map is HashMap[U64, U64, CollisionHash]
+type _Map is HashMap[U64, U64, _CollisionHash]
 
-primitive CollisionHash is mut.HashFunction[U64]
+primitive \nodoc\ _CollisionHash is mut.HashFunction[U64]
   fun hash(x: U64): USize => x.usize() % 100
   fun eq(x: U64, y: U64): Bool => x == y
 
-interface val _TestOp
+interface \nodoc\ val _TestOp
   fun apply(a: _Map, b: mut.Map[U64, U64]): _Map ?
   fun str(): String
 
-class val _OpMapUpdate
+class \nodoc\ val _OpMapUpdate
   let k: U64
   let v: U64
 
@@ -360,9 +360,9 @@ class val _OpMapUpdate
     a(k) = v
 
   fun str(): String =>
-    "".join(["Update("; k; "_"; CollisionHash.hash(k); ", "; v; ")"].values())
+    "".join(["Update("; k; "_"; _CollisionHash.hash(k); ", "; v; ")"].values())
 
-class val _OpMapRemove
+class \nodoc\ val _OpMapRemove
   let k: U64
 
   new val create(k': U64) =>
@@ -375,7 +375,7 @@ class val _OpMapRemove
   fun str(): String =>
     "".join(["Remove("; k; ")"].values())
 
-class iso _TestMapVsMap is UnitTest
+class \nodoc\ iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map (persistent vs mutable)"
 
   fun apply(h: TestHelper) ? =>
@@ -409,7 +409,7 @@ class iso _TestMapVsMap is UnitTest
     h.assert_eq[USize](p_map.size(), c)
     h.assert_eq[USize](m_map.size(), 0)
 
-class iso _TestSet is UnitTest
+class \nodoc\ iso _TestSet is UnitTest
   fun name(): String => "collections/persistent/Set"
 
   fun apply(h: TestHelper) =>
@@ -434,7 +434,7 @@ class iso _TestSet is UnitTest
     h.assert_true(a.without(b) == (Set[USize] + 1))
     h.assert_true(b.without(a) == (Set[USize] + 4))
 
-class iso _TestVec is UnitTest
+class \nodoc\ iso _TestVec is UnitTest
   fun name(): String => "collections/persistent/Vec"
 
   fun apply(h: TestHelper) ? =>
@@ -503,7 +503,7 @@ class iso _TestVec is UnitTest
     h.assert_eq[USize](v(n - 12)?, n - 1)
     h.assert_eq[USize](v.size(), n - 11)
 
-class iso _TestVecIterators is UnitTest
+class \nodoc\ iso _TestVecIterators is UnitTest
   fun name(): String => "collections/persistent/Vec (iterators)"
 
   fun apply(h: TestHelper) ? =>

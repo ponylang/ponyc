@@ -1,7 +1,7 @@
 use "ponytest"
 use "collections"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -12,7 +12,7 @@ actor Main is TestList
     test(_TestBase64EncodeDecode)
     test(_TestBase64Quote)
 
-class iso _TestBase64Encode is UnitTest
+class \nodoc\ iso _TestBase64Encode is UnitTest
   """
   Test base64 encoding.
   Using test examples from RFC 4648.
@@ -28,7 +28,7 @@ class iso _TestBase64Encode is UnitTest
     h.assert_eq[String]("Zm9vYmE=", Base64.encode("fooba"))
     h.assert_eq[String]("Zm9vYmFy", Base64.encode("foobar"))
 
-class iso _TestBase64Decode is UnitTest
+class \nodoc\ iso _TestBase64Decode is UnitTest
   """
   Test base64 decoding. Examples with and without padding are tested.
   Using test examples from RFC 4648.
@@ -52,7 +52,7 @@ class iso _TestBase64Decode is UnitTest
     h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE")?)
     h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
 
-class iso _TestBase64EncodeDecode is UnitTest
+class \nodoc\ iso _TestBase64EncodeDecode is UnitTest
   """
   Test base64 encoding.
   Check encoding then decoding gives back original.
@@ -66,7 +66,7 @@ class iso _TestBase64EncodeDecode is UnitTest
 
     h.assert_eq[String](src, dec)
 
-class iso _TestBase64Quote is UnitTest
+class \nodoc\ iso _TestBase64Quote is UnitTest
   """
   Test base64 encoding.
   Check encoding then decoding something a bit longer.

@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -8,7 +8,7 @@ actor Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestIniParse)
 
-class iso _TestIniParse is UnitTest
+class \nodoc\ iso _TestIniParse is UnitTest
   fun name(): String => "ini/IniParse"
 
   fun apply(h: TestHelper) ? =>

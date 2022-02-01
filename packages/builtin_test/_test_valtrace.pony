@@ -1,6 +1,6 @@
 use "ponytest"
 
-class iso _TestValtrace is UnitTest
+class \nodoc\ iso _TestValtrace is UnitTest
   """
   Test val trace optimisation
   """
@@ -10,7 +10,7 @@ class iso _TestValtrace is UnitTest
     _Valtrace.one(h)
     h.long_test(10_000_000_000) // 10 second timeout
 
-actor _Valtrace
+actor \nodoc\ _Valtrace
   var count: U32 = 0
 
   be one(h: TestHelper) =>

@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -9,7 +9,7 @@ actor Main is TestList
     test(_TestCustodian)
     test(_TestRegistrar)
 
-class iso _TestCustodian is UnitTest
+class \nodoc\ iso _TestCustodian is UnitTest
   """
   Dispose of an actor using a Custodian.
   """
@@ -21,7 +21,7 @@ class iso _TestCustodian is UnitTest
     c(_TestDisposable(h))
     c.dispose()
 
-class iso _TestRegistrar is UnitTest
+class \nodoc\ iso _TestRegistrar is UnitTest
   """
   Register an actor and retrieve it.
   """
@@ -34,7 +34,7 @@ class iso _TestRegistrar is UnitTest
 
     r[_TestDisposable]("test").next[None]({(value) => value.dispose() })
 
-actor _TestDisposable
+actor \nodoc\ _TestDisposable
   let _h: TestHelper
 
   new create(h: TestHelper) =>

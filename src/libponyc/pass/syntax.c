@@ -1327,6 +1327,26 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
           "declaration");
         return false;
     }
+  } else if(strcmp(str, "nodoc") == 0) {
+    switch(ast_id(ast_parent(ast)))
+    {
+      case TK_ACTOR:
+      case TK_CLASS:
+      case TK_STRUCT:
+      case TK_PRIMITIVE:
+      case TK_TRAIT:
+      case TK_INTERFACE:
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+        break;
+
+      default:
+        ast_error(opt->check.errors, loc,
+          "'nodoc' annotation isn't valid here");
+
+        return false;
+    }
   }
 
   return true;

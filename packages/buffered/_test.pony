@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -9,7 +9,7 @@ actor Main is TestList
     test(_TestReader)
     test(_TestWriter)
 
-class iso _TestReader is UnitTest
+class \nodoc\ iso _TestReader is UnitTest
   """
   Test adding to and reading from a Reader.
   """
@@ -198,7 +198,7 @@ class iso _TestReader is UnitTest
     // the last byte is consumed by the reader
     h.assert_eq[USize](b.size(), 0)
 
-class iso _TestWriter is UnitTest
+class \nodoc\ iso _TestWriter is UnitTest
   """
   Test writing to and reading from a Writer.
   """

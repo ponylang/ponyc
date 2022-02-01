@@ -7,7 +7,7 @@ use "itertools"
 use "time"
 use "signals"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -28,7 +28,7 @@ actor Main is TestList
     test(_TestWaitingOnClosedProcessTwice)
     test(_TestWritevOrdering)
 
-class _PathResolver
+class \nodoc\ _PathResolver
   let _path: Array[FilePath] val
 
   new create(env_vars: Array[String] val, auth: AmbientAuth) =>
@@ -66,7 +66,7 @@ class _PathResolver
     end
     error
 
-primitive _SleepCommand
+primitive \nodoc\ _SleepCommand
   fun path(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\ping.exe"
@@ -81,7 +81,7 @@ primitive _SleepCommand
       ["sleep"; seconds.string()]
     end
 
-primitive _CatCommand
+primitive \nodoc\ _CatCommand
   fun path(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\find.exe"
@@ -96,7 +96,7 @@ primitive _CatCommand
       ["cat"]
     end
 
-primitive _EchoPath
+primitive \nodoc\ _EchoPath
   fun apply(path_resolver: _PathResolver): String ? =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c echo ..."
@@ -104,7 +104,7 @@ primitive _EchoPath
       path_resolver.resolve("echo")?.path
     end
 
-primitive _PwdPath
+primitive \nodoc\ _PwdPath
   fun apply(): String =>
     ifdef windows then
       "C:\\Windows\\System32\\cmd.exe" // Have to use "cmd /c cd"
@@ -112,7 +112,7 @@ primitive _PwdPath
       "/bin/pwd"
     end
 
-primitive _PwdArgs
+primitive \nodoc\ _PwdArgs
   fun apply(): Array[String] val =>
     ifdef windows then
       ["cmd"; "/c"; "cd"]
@@ -120,7 +120,7 @@ primitive _PwdArgs
       ["pwd"]
     end
 
-class iso _TestFileExecCapabilityIsRequired is UnitTest
+class \nodoc\ iso _TestFileExecCapabilityIsRequired is UnitTest
   fun name(): String =>
     "process/TestFileExecCapabilityIsRequired"
 
@@ -152,7 +152,7 @@ class iso _TestFileExecCapabilityIsRequired is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestNonExecutablePathResultsInExecveError is UnitTest
+class \nodoc\ iso _TestNonExecutablePathResultsInExecveError is UnitTest
   fun name(): String =>
     "process/_TestNonExecutablePathResultsInExecveError"
 
@@ -201,7 +201,7 @@ class iso _TestNonExecutablePathResultsInExecveError is UnitTest
         _path.remove()
     end end
 
-class iso _TestStdinStdout is UnitTest
+class \nodoc\ iso _TestStdinStdout is UnitTest
   fun name(): String =>
     "process/STDIN-STDOUT"
 
@@ -232,7 +232,7 @@ class iso _TestStdinStdout is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestStderr is UnitTest
+class \nodoc\ iso _TestStderr is UnitTest
   var _pm: (ProcessMonitor | None) = None
 
   fun name(): String =>
@@ -281,7 +281,7 @@ class iso _TestStderr is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestExpect is UnitTest
+class \nodoc\ iso _TestExpect is UnitTest
   fun name(): String =>
     "process/Expect"
 
@@ -347,7 +347,7 @@ class iso _TestExpect is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestWritevOrdering is UnitTest
+class \nodoc\ iso _TestWritevOrdering is UnitTest
   fun name(): String =>
     "process/WritevOrdering"
 
@@ -379,7 +379,7 @@ class iso _TestWritevOrdering is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestPrintvOrdering is UnitTest
+class \nodoc\ iso _TestPrintvOrdering is UnitTest
   fun name(): String =>
     "process/PrintvOrdering"
 
@@ -411,7 +411,7 @@ class iso _TestPrintvOrdering is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestStdinWriteBuf is UnitTest
+class \nodoc\ iso _TestStdinWriteBuf is UnitTest
   var _pm: (ProcessMonitor | None) = None
   let _test_start: U64 = Time.nanos()
 
@@ -465,7 +465,7 @@ class iso _TestStdinWriteBuf is UnitTest
     end
     h.complete(false)
 
-class _TestChdir is UnitTest
+class \nodoc\ _TestChdir is UnitTest
   fun name(): String =>
     "process/Chdir"
 
@@ -490,7 +490,7 @@ class _TestChdir is UnitTest
     h.dispose_when_done(pm)
     h.long_test(30_000_000_000)
 
-class _TestBadChdir is UnitTest
+class \nodoc\ _TestBadChdir is UnitTest
   fun name(): String =>
     "process/BadChdir"
 
@@ -514,7 +514,7 @@ class _TestBadChdir is UnitTest
     h.dispose_when_done(pm)
     h.long_test(30_000_000_000)
 
-class _TestBadExec is UnitTest
+class \nodoc\ _TestBadExec is UnitTest
 
   let _bad_exec_sh_contents: String =
     """
@@ -568,7 +568,7 @@ class _TestBadExec is UnitTest
       h.fail("bad_exec_path not set!")
     end
 
-class iso _TestLongRunningChild is UnitTest
+class \nodoc\ iso _TestLongRunningChild is UnitTest
   fun name(): String => "process/long-running-child"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper) =>
@@ -614,7 +614,7 @@ class iso _TestLongRunningChild is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestKillLongRunningChild is UnitTest
+class \nodoc\ iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper) =>
@@ -671,7 +671,7 @@ class iso _TestKillLongRunningChild is UnitTest
   fun timed_out(h: TestHelper) =>
     h.complete(false)
 
-class iso _TestWaitingOnClosedProcessTwice is UnitTest
+class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
   fun name(): String => "process/wait-on-closed-process-twice"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper) =>
@@ -747,7 +747,7 @@ class iso _TestWaitingOnClosedProcessTwice is UnitTest
       h.fail("process monitor threw an error")
     end
 
-class _ProcessClient is ProcessNotify
+class \nodoc\ _ProcessClient is ProcessNotify
   """
   Notifications for Process connections.
   """

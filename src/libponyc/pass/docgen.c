@@ -122,37 +122,6 @@ static void doc_list_add(ast_list_t* list, ast_t* ast, const char* name,
   prev->next = n;
 }
 
-static bool is_for_testing(const char* name, ast_t* list)
-{
-  pony_assert(name != NULL);
-  pony_assert(list != NULL);
-
-  if (strncmp(name, "_Test", 5) == 0) return true;
-
-  if(ast_id(list) == TK_NONE) return false;
-
-  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
-  {
-    if (ast_id(p) == TK_PROVIDES) {
-        // descent 1 level down to TK_NOMINAL
-        p = ast_child(p);
-    }
-    if(ast_id(p) == TK_NOMINAL)
-    {
-      ast_t* id = ast_childidx(p, 1);
-
-      if(strcmp(ast_name(id), "TestList") == 0) return true;
-      if(strcmp(ast_name(id), "UnitTest") == 0) return true;
-
-      ast_t* p_def = (ast_t*)ast_data(p);
-      ast_t* p_list = ast_childidx(p_def, 3);
-      return is_for_testing(ast_name(id), p_list);
-    }
-  }
-
-  return false;
-}
-
 // detect if a whole package is for testing purposes
 // statically checks if package name is "test" or "builtin_test"
 static bool is_package_for_testing(const char* name)
@@ -173,13 +142,13 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   pony_assert(list != NULL);
   pony_assert(ast != NULL);
 
+  if(ast_has_annotation(ast, "nodoc"))
+    return;
+
   const char* name = ast_name(ast_childidx(ast, id_index));
   pony_assert(name != NULL);
 
   if(is_name_internal_test(name))  // Ignore internally generated names
-    return;
-
-  if(is_for_testing(name, ast)) // Ignore test types
     return;
 
   bool has_private_name = is_name_private(name);

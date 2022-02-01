@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -8,7 +8,7 @@ actor Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestStringsCommonPrefix)
 
-class iso _TestStringsCommonPrefix is UnitTest
+class \nodoc\ iso _TestStringsCommonPrefix is UnitTest
   """
   Test strings/CommonPrefix
   """

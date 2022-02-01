@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -18,7 +18,7 @@ actor Main is TestList
     test(_TestFailures)
     test(_TestSimple)
 
-class _MachineWords
+class \nodoc\ _MachineWords
   var bool1: Bool = true
   var bool2: Bool = false
   var i8: I8 = 0x3
@@ -44,7 +44,7 @@ class _MachineWords
       and (f32 == that.f32)
       and (f64 == that.f64)
 
-class _StructWords
+class \nodoc\ _StructWords
   var u8: U8 = 0x3
   var u16: U16 = 0xABCD
   var u32: U32 = 0x12345678
@@ -62,7 +62,7 @@ class _StructWords
       and (ulong == that.ulong)
       and (usize == that.usize)
 
-class _Simple
+class \nodoc\ _Simple
   var words1: _MachineWords = _MachineWords
   embed words2: _MachineWords = _MachineWords
   var words3: _StructWords = _StructWords
@@ -107,7 +107,7 @@ class _Simple
       and (a_ref is words1)
       and (that.a_ref is that.words1)
 
-class iso _TestSimple is UnitTest
+class \nodoc\ iso _TestSimple is UnitTest
   """
   Test serialising simple fields.
   """
@@ -124,7 +124,7 @@ class iso _TestSimple is UnitTest
     h.assert_true(x isnt y)
     h.assert_true(x == y)
 
-class iso _TestArrays is UnitTest
+class \nodoc\ iso _TestArrays is UnitTest
   """
   Test serialising arrays.
   """
@@ -189,12 +189,12 @@ class iso _TestArrays is UnitTest
     h.assert_true(x7 isnt y7)
     h.assert_array_eq[U64](x7, y7)
 
-actor _EmptyActor
+actor \nodoc\ _EmptyActor
 
-class _HasActor
+class \nodoc\ _HasActor
   var x: _EmptyActor = _EmptyActor
 
-class iso _TestFailures is UnitTest
+class \nodoc\ iso _TestFailures is UnitTest
   """
   Test serialisation failures.
   """
@@ -206,10 +206,10 @@ class iso _TestFailures is UnitTest
 
     h.assert_error({() ? => Serialised(serialise, _HasActor)? })
 
-class _BoxedWord
+class \nodoc\ _BoxedWord
   var f: Any val = U32(3)
 
-class iso _TestBoxedMachineWord is UnitTest
+class \nodoc\ iso _TestBoxedMachineWord is UnitTest
   """
   Test serialising boxed machine words.
   """

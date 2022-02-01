@@ -1,6 +1,6 @@
 use "ponytest"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
@@ -31,7 +31,7 @@ actor Main is TestList
     test(_TestUnknownLong)
     test(_TestUnknownShort)
 
-class iso _TestMinimal is UnitTest
+class \nodoc\ iso _TestMinimal is UnitTest
   fun name(): String => "ponycli/minimal"
 
   fun apply(h: TestHelper) ? =>
@@ -52,7 +52,7 @@ class iso _TestMinimal is UnitTest
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[Bool](true, cmd.option("aflag").bool())
 
-class iso _TestMinimalWithHelp is UnitTest
+class \nodoc\ iso _TestMinimalWithHelp is UnitTest
   fun name(): String => "ponycli/minimal_help"
 
   fun apply(h: TestHelper) ? =>
@@ -65,7 +65,7 @@ class iso _TestMinimalWithHelp is UnitTest
     // test for successful parsing
     let cmdErr = CommandParser(cs).parse(args) as Command
 
-class iso _TestBadName is UnitTest
+class \nodoc\ iso _TestBadName is UnitTest
   fun name(): String => "ponycli/badname"
 
   // Negative test: command names must be alphanum tokens
@@ -75,7 +75,7 @@ class iso _TestBadName is UnitTest
       h.fail("expected error on bad command name: " + cs.name())
     end
 
-class iso _TestUnknownCommand is UnitTest
+class \nodoc\ iso _TestUnknownCommand is UnitTest
   fun name(): String => "ponycli/unknown_command"
 
   // Negative test: unknown command should report
@@ -99,7 +99,7 @@ class iso _TestUnknownCommand is UnitTest
       h.fail("expected syntax error for unknown command: " + cmdErr.string())
     end
 
-class iso _TestUnexpectedArg is UnitTest
+class \nodoc\ iso _TestUnexpectedArg is UnitTest
   fun name(): String => "ponycli/unexpected_arg"
 
   // Negative test: unexpected arg/command token should report
@@ -124,7 +124,7 @@ class iso _TestUnexpectedArg is UnitTest
       h.fail("expected syntax error for unknown command: " + cmdErr.string())
     end
 
-class iso _TestUnknownShort is UnitTest
+class \nodoc\ iso _TestUnknownShort is UnitTest
   fun name(): String => "ponycli/unknown_short"
 
   // Negative test: unknown short option should report
@@ -149,7 +149,7 @@ class iso _TestUnknownShort is UnitTest
         "expected syntax error for unknown short option: " + cmdErr.string())
     end
 
-class iso _TestUnknownLong is UnitTest
+class \nodoc\ iso _TestUnknownLong is UnitTest
   fun name(): String => "ponycli/unknown_long"
 
   // Negative test: unknown long option should report
@@ -175,7 +175,7 @@ class iso _TestUnknownLong is UnitTest
         "expected syntax error for unknown long option: " + cmdErr.string())
     end
 
-class iso _TestHyphenArg is UnitTest
+class \nodoc\ iso _TestHyphenArg is UnitTest
   fun name(): String => "ponycli/hyphen"
 
   // Rule 1
@@ -194,7 +194,7 @@ class iso _TestHyphenArg is UnitTest
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[String]("-", cmd.arg("name").string())
 
-class iso _TestBools is UnitTest
+class \nodoc\ iso _TestBools is UnitTest
   fun name(): String => "ponycli/bools"
 
   // Rules 2, 3, 5, 7 w/ Bools
@@ -215,7 +215,7 @@ class iso _TestBools is UnitTest
     h.assert_eq[Bool](true, cmd.option("ccc").bool())
     h.assert_eq[Bool](false, cmd.option("ddd").bool())
 
-class iso _TestDefaults is UnitTest
+class \nodoc\ iso _TestDefaults is UnitTest
   fun name(): String => "ponycli/defaults"
 
   // Rules 2, 3, 5, 6
@@ -238,7 +238,7 @@ class iso _TestDefaults is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
     h.assert_eq[USize](0, cmd.option("stringso").string_seq().size())
 
-class iso _TestShortsAdj is UnitTest
+class \nodoc\ iso _TestShortsAdj is UnitTest
   fun name(): String => "ponycli/shorts_adjacent"
 
   // Rules 2, 3, 5, 6, 8
@@ -278,7 +278,7 @@ class iso _TestShortsAdj is UnitTest
       h.fail("expected syntax error for ambiguous args: " + cmdSyntax.string())
     end
 
-class iso _TestShortsEq is UnitTest
+class \nodoc\ iso _TestShortsEq is UnitTest
   fun name(): String => "ponycli/shorts_eq"
 
   // Rules 2, 3, 5, 7
@@ -306,7 +306,7 @@ class iso _TestShortsEq is UnitTest
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
-class iso _TestShortsNext is UnitTest
+class \nodoc\ iso _TestShortsNext is UnitTest
   fun name(): String => "ponycli/shorts_next"
 
   // Rules 2, 3, 5, 8
@@ -335,7 +335,7 @@ class iso _TestShortsNext is UnitTest
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
-class iso _TestLongsEq is UnitTest
+class \nodoc\ iso _TestLongsEq is UnitTest
   fun name(): String => "ponycli/longs_eq"
 
   // Rules 4, 5, 7
@@ -364,7 +364,7 @@ class iso _TestLongsEq is UnitTest
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
-class iso _TestLongsNext is UnitTest
+class \nodoc\ iso _TestLongsNext is UnitTest
   fun name(): String => "ponycli/longs_next"
 
   // Rules 4, 5, 8
@@ -392,7 +392,7 @@ class iso _TestLongsNext is UnitTest
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
-class iso _TestEnvs is UnitTest
+class \nodoc\ iso _TestEnvs is UnitTest
   fun name(): String => "ponycli/envs"
 
   // Rules
@@ -420,7 +420,7 @@ class iso _TestEnvs is UnitTest
     h.assert_eq[U64](47, cmd.option("uintr").u64())
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
-class iso _TestOptionStop is UnitTest
+class \nodoc\ iso _TestOptionStop is UnitTest
   fun name(): String => "ponycli/option_stop"
 
   // Rules 2, 3, 5, 7, 9
@@ -440,7 +440,7 @@ class iso _TestOptionStop is UnitTest
     h.assert_eq[String]("-f=1.0", cmd.arg("words").string())
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
 
-class iso _TestDuplicate is UnitTest
+class \nodoc\ iso _TestDuplicate is UnitTest
   fun name(): String => "ponycli/duplicate"
 
   // Rules 4, 5, 7, 10
@@ -459,7 +459,7 @@ class iso _TestDuplicate is UnitTest
 
     h.assert_eq[String]("newstring", cmd.option("stringr").string())
 
-class iso _TestChat is UnitTest
+class \nodoc\ iso _TestChat is UnitTest
   fun name(): String => "ponycli/chat"
 
   fun apply(h: TestHelper) ? =>
@@ -501,7 +501,7 @@ class iso _TestChat is UnitTest
     h.assert_eq[String]("yo", words(1)?)
     h.assert_eq[String]("hey", words(2)?)
 
-class iso _TestMustBeLeaf is UnitTest
+class \nodoc\ iso _TestMustBeLeaf is UnitTest
   fun name(): String => "ponycli/must_be_leaf"
 
   // Negative test: can't just supply parent command
@@ -524,7 +524,7 @@ class iso _TestMustBeLeaf is UnitTest
       h.fail("expected syntax error for non-leaf command: " + cmdErr.string())
     end
 
-class iso _TestHelp is UnitTest
+class \nodoc\ iso _TestHelp is UnitTest
   fun name(): String => "ponycli/help"
 
   fun apply(h: TestHelper) ? =>
@@ -537,7 +537,7 @@ class iso _TestHelp is UnitTest
     h.log(help)
     h.assert_true(help.contains("Address of the server"))
 
-class iso _TestHelpFalse is UnitTest
+class \nodoc\ iso _TestHelpFalse is UnitTest
   fun name(): String => "ponycli/help-false"
 
   fun apply(h: TestHelper) ? =>
@@ -559,7 +559,7 @@ class iso _TestHelpFalse is UnitTest
       h.fail("--help=false is not handled correctly: " + se.string())
     end
 
-class iso _TestHelpMultipleArgs is UnitTest
+class \nodoc\ iso _TestHelpMultipleArgs is UnitTest
   fun name(): String => "ponycli/help-multiple-args"
 
   fun apply(h: TestHelper) ? =>
@@ -570,7 +570,7 @@ class iso _TestHelpMultipleArgs is UnitTest
     h.assert_true(
       help.contains("simple <words> <argz>"))
 
-class iso _TestMultipleEndOfOptions is UnitTest
+class \nodoc\ iso _TestMultipleEndOfOptions is UnitTest
   fun name(): String => "ponycli/multiple-end-of-options"
 
   fun apply(h: TestHelper) ? =>
