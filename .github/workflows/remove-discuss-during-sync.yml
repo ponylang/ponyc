@@ -1,0 +1,18 @@
+name: Remove discuss during sync label
+
+on:
+  issues:
+    types:
+      - closed
+  pull_request_target:
+    types:
+      - closed
+
+jobs:
+  remove-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove label
+        uses: andymckay/labeler@467347716a3bdbca7f277cb6cd5fa9c5205c5412
+        with:
+          remove-labels: "discuss during sync"
