@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add "nodoc" annotation ([PR #3978](https://github.com/ponylang/ponyc/pull/3978))
 
 ### Changed
 
