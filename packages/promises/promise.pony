@@ -203,7 +203,7 @@ actor Promise[A: Any #share]
       let p: Promise[B] = outer
 
       fun ref apply(value: A) =>
-        let fulfill' = f = _PendingFulFill[A, B]
+        let fulfill' = f = _PromiseFulFill[A, B]
 
         try
           let inner = (consume fulfill').apply(value)?
@@ -421,9 +421,9 @@ actor _Join[A: Any #share]
 primitive _None
 
 
-class iso _PendingFulFill[A: Any #share, B: Any #share] is Fulfill[A, Promise[B]]
+class iso _PromiseFulFill[A: Any #share, B: Any #share] is Fulfill[A, Promise[B]]
   """
-  Fulfill returning a promise that is never fulfilled.
+  Fulfill discarding its input value of `A` and returning a promise of type `B`.
   """
   new iso create() => None
   fun ref apply(value: A): Promise[B] => Promise[B]
