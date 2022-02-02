@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add a pony primitive that exposes scheduler information ([PR #3984](https://github.com/ponylang/ponyc/pull/3984))
 
 ### Changed
 
