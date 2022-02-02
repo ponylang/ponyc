@@ -25,4 +25,5 @@ jobs:
       - name: Add "discuss during sync" label to active GH entity
         uses: andymckay/labeler@467347716a3bdbca7f277cb6cd5fa9c5205c5412
         with:
+          repo-token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           add-labels: "discuss during sync"

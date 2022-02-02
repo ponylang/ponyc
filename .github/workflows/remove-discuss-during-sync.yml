@@ -15,4 +15,5 @@ jobs:
       - name: Remove label
         uses: andymckay/labeler@467347716a3bdbca7f277cb6cd5fa9c5205c5412
         with:
+          repo-token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           remove-labels: "discuss during sync"
