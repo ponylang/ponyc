@@ -1,4 +1,4 @@
-# Add a pony primitive that exposes scheduler information
+## Add a pony primitive that exposes scheduler information
 
 Previously, when users wanted to optimize the parallelizing work based on the maximum number of actors that can be run at a single time, we were pointing them to using the private runtime method `@ponyint_sched_cores()`.
 
