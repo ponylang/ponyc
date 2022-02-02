@@ -144,7 +144,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     {
       case OPT_MAXTHREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
-      case OPT_NOSCALE: opt->noscale= true; break;
+      case OPT_NOSCALE: opt->noscale = true; break;
       case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
