@@ -1205,12 +1205,12 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
   }
 }
 
-uint32_t ponyint_sched_cores()
+PONY_API uint32_t pony_schedulers()
 {
   return scheduler_count;
 }
 
-uint32_t ponyint_active_sched_count()
+PONY_API uint32_t pony_active_schedulers()
 {
   return get_active_scheduler_count();
 }

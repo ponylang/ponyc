@@ -102,8 +102,6 @@ void ponyint_sched_stop();
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
-uint32_t ponyint_sched_cores();
-
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv);
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
