@@ -1215,6 +1215,16 @@ PONY_API uint32_t pony_active_schedulers()
   return get_active_scheduler_count();
 }
 
+PONY_API uint32_t pony_min_schedulers()
+{
+  return min_scheduler_count;
+}
+
+PONY_API bool pony_scheduler_yield()
+{
+  return use_yield;
+}
+
 PONY_API void pony_register_thread()
 {
   if(this_scheduler != NULL)
