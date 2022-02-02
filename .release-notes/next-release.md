@@ -1,0 +1,15 @@
+# Add a pony primitive that exposes scheduler information
+
+Previously, when users wanted to optimize the parallelizing work based on the maximum number of actors that can be run at a single time, we were pointing them to using the private runtime method `@ponyint_sched_cores()`.
+
+This was problematic for two reasons:
+
+1. We were pointing users at an internal implementation method that we hadn't promised not to change.
+2. We were requiring users to muck about with FFI for something that has become somewhat common for users wanting to maximize performance want to know.
+
+We've now exposed some information about scheduler threads via a new package `runtime_info` thereby resolving both of the problems mentioned above.
+
+Pony users should expect to see additional information added to the `runtime_info` package moving forward.
+
+Anyone who was using the internal `ponyint_sched_cores()` FFI call will need to update to using `runtime_info` as the internal function has been removed.
+
