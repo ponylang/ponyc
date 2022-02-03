@@ -360,7 +360,6 @@ class Iter[A] is Iterator[A]
           _store_iter.next()?
       end)
 
-  /*
   fun ref dedup[H: HashFunction[A] val = HashIs[A]](): Iter[A!]^ =>
     """
     Return an iterator that removes duplicates from consecutive identical
@@ -369,12 +368,34 @@ class Iter[A] is Iterator[A]
     ## Example
 
     ```pony
-    Iter[I64]([as I64: 1; 1; 2; 3; 3; 2; 2].values())
+    Iter[USize]([as USize: 1; 1; 2; 3; 3; 2; 2].values())
       .dedup()
     ```
     `1 2 3 2`
     """
-  */
+    Iter[A!](
+      object is Iterator[A!]
+        var _prev_hash: (USize | None) = None
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          let v = _iter.next()?
+          let cur_hash = H.hash(v)
+          match _prev_hash
+          | let x: USize =>
+            if x == cur_hash then
+              this.next()?
+            else
+              _prev_hash = cur_hash
+              v
+            end
+          | None => 
+            _prev_hash = cur_hash
+            v
+          end
+      end)
 
   fun ref enum[B: (Real[B] val & Number) = USize](): Iter[(B, A)]^ =>
     """

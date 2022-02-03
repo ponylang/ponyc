@@ -14,6 +14,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterCollect)
     test(_TestIterCount)
     test(_TestIterCycle)
+    test(_TestIterDedup)
     test(_TestIterEnum)
     test(_TestIterFilter)
     test(_TestIterFilterMap)
@@ -186,6 +187,19 @@ class \nodoc\ iso _TestIterCycle is UnitTest
     end
 
     h.assert_array_eq[String](expected, actual)
+
+class \nodoc\ iso _TestIterDedup is UnitTest
+  fun name(): String => "itertools/Iter.dedup"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[USize]([as USize: 1; 1; 2; 3; 3; 2; 2].values()).dedup()
+    let expected = [as USize: 1; 2; 3; 2]
+
+    var i: USize = 0
+    for v in iter do
+      h.assert_eq[USize](v, expected(i)?)
+      i = i + 1
+    end
 
 class \nodoc\ iso _TestIterEnum is UnitTest
   fun name(): String => "itertools/Iter.enum"
