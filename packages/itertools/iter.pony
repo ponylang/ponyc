@@ -884,11 +884,22 @@ class Iter[A] is Iterator[A]
     ```
     `1 2 3 4`
     """
-    let set: HashSet[A!, H] = HashSet[A!, H](this.count())
-    for v in _iter do
-      set.set(v)
-    end
-    Iter[A!](set.values())
+    Iter[A!](
+      object
+        let _set: HashSet[A!, H] = HashSet[A!, H]()
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          let v = _iter.next()?
+          if _set.contains(v) then
+            next()?
+          else
+            _set.set(v)
+            v
+          end
+      end)
 
   fun ref zip[B](i2: Iterator[B]): Iter[(A, B)]^ =>
     """
