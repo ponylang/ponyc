@@ -22,6 +22,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterFold)
     test(_TestIterInterleave)
     test(_TestIterInterleaveShortest)
+    test(_TestIterIntersperse)
     test(_TestIterLast)
     test(_TestIterMap)
     test(_TestIterNextOr)
@@ -336,6 +337,19 @@ class \nodoc\ iso _TestIterInterleaveShortest is UnitTest
   fun apply(h: TestHelper) ? =>
     let iter = Iter[USize](Range(0, 4)).interleave_shortest(Range(4, 6))
     let expected = [as USize: 0; 4; 1; 5; 2]
+
+    var i: USize = 0
+    for v in iter do
+      h.assert_eq[USize](v, expected(i)?)
+      i = i + 1
+    end
+
+class \nodoc\ iso _TestIterIntersperse is UnitTest
+  fun name(): String => "itertools/Iter.intersperse"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[USize](Range(0, 3)).intersperse(8)
+    let expected = [as USize: 0; 8; 1; 8; 2]
 
     var i: USize = 0
     for v in iter do
