@@ -32,6 +32,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterSkipWhile)
     test(_TestIterTake)
     test(_TestIterTakeWhile)
+    test(_TestIterUnique)
     test(_TestIterZip)
 
 class \nodoc\ iso _TestIterChain is UnitTest
@@ -529,6 +530,19 @@ class \nodoc\ iso _TestIterTakeWhile is UnitTest
     h.assert_eq[USize](0, infinite.next()?)
     h.assert_eq[USize](1, infinite.next()?)
     h.assert_false(infinite.has_next())
+
+class \nodoc\ iso _TestIterUnique is UnitTest
+  fun name(): String => "itertools/Iter.unique"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[USize]([as USize: 1; 2; 1; 1; 3; 4; 1].values()).unique()
+    let expected = [as USize: 1; 2; 3; 4]
+
+    var i: USize = 0
+    for v in iter do
+      h.assert_eq[USize](v, expected(i)?)
+      i = i + 1
+    end
 
 class \nodoc\ iso _TestIterZip is UnitTest
   fun name(): String => "itertools/Iter.zip"

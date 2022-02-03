@@ -836,7 +836,6 @@ class Iter[A] is Iterator[A]
           end
       end)
 
-  /*
   fun ref unique[H: HashFunction[A] val = HashIs[A]](): Iter[A!]^ =>
     """
     Return an iterator that filters out elements that have already been
@@ -845,12 +844,16 @@ class Iter[A] is Iterator[A]
     ## Example
 
     ```pony
-    Iter[I64]([as I64: 1; 2; 1; 1; 3; 4; 1].values())
+    Iter[USize]([as USize: 1; 2; 1; 1; 3; 4; 1].values())
         .unique()
     ```
     `1 2 3 4`
     """
-  */
+    let set: HashSet[A!, H] = HashSet[A!, H](this.count())
+    for v in _iter do
+      set.set(v)
+    end
+    Iter[A!](set.values())
 
   fun ref zip[B](i2: Iterator[B]): Iter[(A, B)]^ =>
     """
