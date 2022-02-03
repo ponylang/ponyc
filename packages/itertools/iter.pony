@@ -632,7 +632,7 @@ class Iter[A] is Iterator[A]
           end
       end)
 
-  fun ref intersperse(value: A^, n: USize = 1): Iter[A!] =>
+  fun ref intersperse(value: A, n: USize = 1): Iter[A!] =>
     """
     Return an iterator that yields the value after every `n` elements of the
     original iterator.
@@ -647,6 +647,7 @@ class Iter[A] is Iterator[A]
     Iter[A!](
       object is Iterator[A!]
         var _count: USize = 0
+        let _v: A = consume value
 
         fun ref has_next(): Bool =>
           _iter.has_next()
@@ -654,7 +655,7 @@ class Iter[A] is Iterator[A]
         fun ref next(): A! ? =>
           if (_count == n) then
             _count = 0
-            value
+            _v
           else
             _count = _count + 1
             _iter.next()?
