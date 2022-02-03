@@ -20,6 +20,8 @@ actor \nodoc\ Main is TestList
     test(_TestIterFind)
     test(_TestIterFlatMap)
     test(_TestIterFold)
+    test(_TestIterInterleave)
+    test(_TestIterInterleaveShortest)
     test(_TestIterLast)
     test(_TestIterMap)
     test(_TestIterNextOr)
@@ -313,6 +315,32 @@ class \nodoc\ iso _TestIterFold is UnitTest
       Iter[I64](ns.values())
         .fold_partial[I64](0, {(acc, x) ? => error })?
     })
+
+class \nodoc\ iso _TestIterInterleave is UnitTest
+  fun name(): String => "itertools/Iter.interleave"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[USize](Range(0, 4)).interleave(Range(4, 6))
+    let expected = [as USize: 0; 4; 1; 5; 2; 3]
+
+    var i: USize = 0
+    for v in iter do
+      h.assert_eq[USize](v, expected(i)?)
+      i = i + 1
+    end
+
+class \nodoc\ iso _TestIterInterleaveShortest is UnitTest
+  fun name(): String => "itertools/Iter.interleave_shortest"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[USize](Range(0, 4)).interleave_shortest(Range(4, 6))
+    let expected = [as USize: 0; 4; 1; 5; 2]
+
+    var i: USize = 0
+    for v in iter do
+      h.assert_eq[USize](v, expected(i)?)
+      i = i + 1
+    end
 
 class \nodoc\ iso _TestIterLast is UnitTest
   fun name(): String => "itertools/Iter.last"

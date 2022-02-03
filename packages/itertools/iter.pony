@@ -530,7 +530,6 @@ class Iter[A] is Iterator[A]
     end
     acc'
 
-  /*
   fun ref interleave(other: Iterator[A]): Iter[A!] =>
     """
     Return an iterator that alternates the values of the original iterator and
@@ -544,6 +543,35 @@ class Iter[A] is Iterator[A]
     ```
     `0 4 1 5 2 3`
     """
+    Iter[A!](
+      object is Iterator[A!]
+        var _use_original: Bool = true
+
+        fun ref has_next(): Bool =>
+          _iter.has_next() or other.has_next()
+
+        fun ref next(): A! ? =>
+          // Oscillate between iterators
+          if _use_original then
+            _use_original = _use_original.op_not()
+
+            // _iter might be empty, get next value from other
+            if _iter.has_next() then
+              _iter.next()?
+            else
+              other.next()?
+            end
+          else
+            _use_original = _use_original.op_not()
+
+            // other might be empty, get next value from _iter
+            if other.has_next() then
+              other.next()?
+            else
+              _iter.next()?
+            end
+          end
+      end)
 
   fun ref interleave_shortest(other: Iterator[A]): Iter[A!] =>
     """
@@ -554,11 +582,36 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[USize](Range(0, 4))
-      .interleave(Range(4, 6))
+      .interleave_shortest(Range(4, 6))
     ```
     `0 4 1 5 2`
     """
+    Iter[A!](
+      object is Iterator[A!]
+        var _use_original: Bool = true
 
+        fun ref has_next(): Bool =>
+          if _use_original then
+            _iter.has_next()
+          else
+            other.has_next()
+          end
+
+        fun ref next(): A! ? =>
+          if this.has_next() then
+            if _use_original then
+              _use_original = _use_original.op_not()
+              _iter.next()?
+            else
+              _use_original = _use_original.op_not()
+              other.next()?
+            end
+          else
+            error
+          end
+      end)
+
+  /*
   fun ref intersperse(value: A, n: USize = 1): Iter[A!] =>
     """
     Return an iterator that yields the value after every `n` elements of the
