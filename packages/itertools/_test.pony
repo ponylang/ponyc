@@ -32,6 +32,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterRun)
     test(_TestIterSkip)
     test(_TestIterSkipWhile)
+    test(_TestIterStepBy)
     test(_TestIterTake)
     test(_TestIterTakeWhile)
     test(_TestIterUnique)
@@ -494,6 +495,19 @@ class \nodoc\ iso _TestIterSkipWhile is UnitTest
       Iter[I64](input.values()).skip_while({(x) => x <= 0 }).next()?)
     h.assert_eq[I64](-1,
       Iter[I64](input.values()).skip_while({(x) => x < -2 }).next()?)
+
+class \nodoc\ iso _TestIterStepBy is UnitTest
+  fun name(): String => "itertools/Iter.step_by"
+
+  fun apply(h: TestHelper) ? =>
+    let iter = Iter[USize](Range(0, 10)).step_by(2)
+    let expected = [as USize: 1; 3; 5; 7; 9]
+
+    var i: USize = 0
+    for v in iter do
+      h.assert_eq[USize](v, expected(i)?)
+      i = i + 1
+    end
 
 class \nodoc\ iso _TestIterTake is UnitTest
   fun name(): String => "itertools/Iter.take"

@@ -797,6 +797,34 @@ class Iter[A] is Iterator[A]
           end
       end)
 
+  fun ref step_by(n: USize = 1): Iter[A!] =>
+    """
+    Return an iterator that yields every `n`th element of the
+    original iterator. n == 0 is treated like n == 1 rather than an error.
+
+    ## Example
+    ```pony
+    Iter[USize](Range(0, 10))
+      .step_by(2)
+    ```
+    `1 3 5 7 9`
+    """
+    Iter[A!](
+      object is Iterator[A!]
+        let _step: USize = if n == 0 then 1 else n end
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          var steps_to_burn: USize = _step - 1
+          while steps_to_burn != 0 do
+            try _iter.next()? end
+            steps_to_burn = steps_to_burn - 1
+          end
+          _iter.next()?
+      end)
+
   fun ref take(n: USize): Iter[A]^ =>
     """
     Return an iterator for the first n elements.
