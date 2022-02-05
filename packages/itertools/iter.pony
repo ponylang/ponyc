@@ -574,7 +574,7 @@ class Iter[A] is Iterator[A]
         fun ref next(): A! ? =>
           // Oscillate between iterators
           if _use_original then
-            _use_original = _use_original.op_not()
+            _use_original = not _use_original
 
             // _iter might be empty, get next value from other
             if _iter.has_next() then
@@ -583,7 +583,7 @@ class Iter[A] is Iterator[A]
               other.next()?
             end
           else
-            _use_original = _use_original.op_not()
+            _use_original = not _use_original
 
             // other might be empty, get next value from _iter
             if other.has_next() then
@@ -621,10 +621,10 @@ class Iter[A] is Iterator[A]
         fun ref next(): A! ? =>
           if this.has_next() then
             if _use_original then
-              _use_original = _use_original.op_not()
+              _use_original = not _use_original
               _iter.next()?
             else
-              _use_original = _use_original.op_not()
+              _use_original = not _use_original
               other.next()?
             end
           else
