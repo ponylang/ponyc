@@ -47,3 +47,7 @@ The bug that [#3781](https://github.com/ponylang/ponyc/pull/3781) aka "prevent n
 
 We've introduced a full fix in [#3993](https://github.com/ponylang/ponyc/pull/3993) that removes the need for [#3871](https://github.com/ponylang/ponyc/pull/3781).
 
+## Update to LLVM 13.0.1
+
+We've updated the LLVM used to build Pony to 13.0.1.
+
