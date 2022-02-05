@@ -173,7 +173,8 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     if(type == NULL)
     {
       // other checks should have blocked us already
-      //pony_assert(0);
+      // TODO: sean
+      pony_assert(0);
       ast_error_frame(&err2, type,
         "invalid parameter type: %s",
         ast_print_type(type));
