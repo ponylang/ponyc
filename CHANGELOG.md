@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix runtime crash when tracing class iso containing struct val ([PR #3993](https://github.com/ponylang/ponyc/pull/3993))
 
 ### Added
 
