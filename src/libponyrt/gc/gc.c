@@ -20,7 +20,7 @@ static void acquire_object(pony_ctx_t* ctx, pony_actor_t* actor, void* address,
   bool immutable)
 {
   actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
-  object_t* obj = ponyint_actorref_getorput(aref, address, 0);
+  object_t* obj = ponyint_actorref_getorput(aref, address, actor->type, 0);
 
   obj->rc += GC_INC_MORE;
   obj->immutable = immutable;
@@ -139,7 +139,7 @@ static void send_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
-  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, gc->mark);
+  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, t, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -209,7 +209,7 @@ static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
-  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, gc->mark);
+  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, t, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -267,7 +267,7 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   size_t mem_allocated_before = ponyint_objectmap_total_alloc_size(&aref->map);
 #endif
 
-  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, t, gc->mark);
 
 #ifdef USE_MEMTRACK
   size_t mem_used_after = ponyint_objectmap_total_mem_size(&aref->map);
@@ -329,7 +329,7 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   size_t mem_allocated_before = ponyint_objectmap_total_alloc_size(&aref->map);
 #endif
 
-  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, t, gc->mark);
 
 #ifdef USE_MEMTRACK
   size_t mem_used_after = ponyint_objectmap_total_mem_size(&aref->map);
@@ -381,7 +381,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   size_t mem_allocated_before = ponyint_objectmap_total_alloc_size(&aref->map);
 #endif
 
-  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, t, gc->mark);
 
 #ifdef USE_MEMTRACK
   size_t mem_used_after = ponyint_objectmap_total_mem_size(&aref->map);
@@ -443,7 +443,7 @@ static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
-  object_t* obj = ponyint_actorref_getorput(aref, p, gc->mark);
+  object_t* obj = ponyint_actorref_getorput(aref, p, t, gc->mark);
 
   if(obj->mark == gc->mark)
     return;
@@ -651,8 +651,7 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
       // Mark in our heap and recurse if it wasn't already marked.
       void* p = obj->address;
       chunk_t* chunk = ponyint_pagemap_get(p);
-      pony_type_t* type = *(pony_type_t**)p;
-      mark_local_object(ctx, chunk, p, type, PONY_TRACE_IMMUTABLE);
+      mark_local_object(ctx, chunk, p, obj->type, PONY_TRACE_IMMUTABLE);
     }
   }
 }
@@ -726,7 +725,7 @@ bool ponyint_gc_acquire(gc_t* gc, actorref_t* aref)
     // Add to our RC. The object may not be in our object map, if it was
     // reached through another immutable reference.
     object_t* obj_local = ponyint_objectmap_getorput(&gc->local, obj->address,
-      gc->mark);
+      obj->type, gc->mark);
     obj_local->rc += obj->rc;
 
     // Mark as immutable if necessary.

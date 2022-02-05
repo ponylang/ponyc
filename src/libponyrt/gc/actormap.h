@@ -20,7 +20,7 @@ typedef struct actorref_t
 object_t* ponyint_actorref_getobject(actorref_t* aref, void* address);
 
 object_t* ponyint_actorref_getorput(actorref_t* aref, void* address,
-  uint32_t mark);
+  pony_type_t* type, uint32_t mark);
 
 void ponyint_actorref_free(actorref_t* aref);
 
