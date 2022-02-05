@@ -487,95 +487,6 @@ static bool show_partiality(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
-// From https://github.com/ponylang/ponyc/issues/3765:
-//
-// When an immutable object is sent across actors, the garbage collector traces
-// its associated object graph, using the associated type descriptor.
-// Structs don't have a type descriptor, so the GC can't trace them.
-//
-// An option is to track additional information for objects without type
-// descriptors, but this incurs in severe overhead for the normal case.
-//
-// Another option is to disallow non-opaque objects without type descriptors to
-// be the root of an object graph. Essentially, this means that one has to wrap
-// non-tag structs (and tuple containing non-tag structs, since the GC will try
-// to trace each element) inside another object with a type descriptor.
-bool verify_behaviour_root_struct_param(pass_opt_t* opt, ast_t* type, bool is_in_tuple)
-{
-  // For correct error location, keep track of the original AST node,
-  // even if we have to use the node's data as type node.
-  ast_t* type_node = type;
-  ast_t* cap = NULL;
-  if (ast_id(type) == TK_NOMINAL)
-  {
-    // We're still interested in the capability of the type as it was used,
-    // so save that information.
-    cap = ast_childidx(type, 3);
-    type = (ast_t*)ast_data(type);
-  }
-
-  switch(ast_id(type))
-  {
-    case TK_STRUCT:
-    {
-      if(cap == NULL)
-        cap = ast_childidx(type, 2);
-
-      if(ast_id(cap) == TK_TAG)
-        return true;
-
-      if(is_in_tuple)
-      {
-        ast_error(opt->check.errors, type_node,
-          "cannot use a tuple with a struct type member as parameter to a behaviour; "
-          "you will need to wrap the struct in a class or actor, "
-          "or change its capability to \"tag\"");
-      } else {
-        ast_error(opt->check.errors, type_node,
-          "only \"tag\" structs can be used as parameters to a behaviour; "
-          "you will need to wrap the struct in a class or actor, "
-          "or change its capability to \"tag\"");
-      }
-      ast_error_continue(opt->check.errors, type, "definition is here");
-      return false;
-    }
-
-    case TK_TUPLETYPE:
-    {
-      ast_t* member = ast_child(type);
-      while(member != NULL)
-      {
-        if(!verify_behaviour_root_struct_param(opt, member, true))
-          return false;
-        member = ast_sibling(member);
-      }
-    }
-
-    default: {}
-  }
-
-  return true;
-}
-
-bool verify_behaviour_parameters(pass_opt_t* opt, ast_t* ast)
-{
-  if(ast_id(ast) != TK_BE)
-    return true;
-
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
-  ast_t* param = ast_child(params);
-  while(param != NULL)
-  {
-    ast_t* type = ast_type(param);
-    if(!verify_behaviour_root_struct_param(opt, type, false))
-      return false;
-
-    param = ast_sibling(param);
-  }
-
-  return true;
-}
-
 bool verify_fun(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert((ast_id(ast) == TK_BE) || (ast_id(ast) == TK_FUN) ||
@@ -587,8 +498,7 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     !verify_main_runtime_override_defaults(opt, ast) ||
     !verify_primitive_init(opt, ast) ||
     !verify_any_final(opt, ast) ||
-    !verify_any_serialise(opt, ast) ||
-    !verify_behaviour_parameters(opt, ast))
+    !verify_any_serialise(opt, ast))
     return false;
 
   // Check partial functions.
