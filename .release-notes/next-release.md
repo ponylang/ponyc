@@ -41,3 +41,9 @@ actor Main
     None // Do something with wrap.f
 ```
 
+## Revert "prevent non-opaque structs from being used as behaviour parameters"
+
+The bug that [#3781](https://github.com/ponylang/ponyc/pull/3781) aka "prevent non-opaque structs from being used as behaviour parameters" was an attempt at preventing, as only partially solved by the change.
+
+We've introduced a full fix in [#3993](https://github.com/ponylang/ponyc/pull/3993) that removes the need for [#3871](https://github.com/ponylang/ponyc/pull/3781).
+
