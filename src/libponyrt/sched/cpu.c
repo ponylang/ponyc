@@ -317,7 +317,7 @@ void ponyint_cpu_affinity(uint32_t cpu)
 /**
  * Only nanosleep if sufficient cycles have elapsed.
  */
-void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
+void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2)
 {
   uint64_t diff = ponyint_cpu_tick_diff(tsc, tsc2);
 
@@ -331,42 +331,39 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   struct timespec ts = {0, 0};
 #endif
 
-  if(yield)
+  // A billion cycles is roughly half a second, depending on clock speed.
+  if(diff > 10000000000)
   {
-    // A billion cycles is roughly half a second, depending on clock speed.
-    if(diff > 10000000000)
-    {
-      // If it has been 10 billion cycles, pause 30 ms.
+    // If it has been 10 billion cycles, pause 30 ms.
 #ifdef PLATFORM_IS_WINDOWS
-      ts = 30;
+    ts = 30;
 #else
-      ts.tv_nsec = 30000000;
+    ts.tv_nsec = 30000000;
 #endif
-    } else if(diff > 3000000000) {
-      // If it has been 3 billion cycles, pause 10 ms.
+  } else if(diff > 3000000000) {
+    // If it has been 3 billion cycles, pause 10 ms.
 #ifdef PLATFORM_IS_WINDOWS
-      ts = 10;
+    ts = 10;
 #else
-      ts.tv_nsec = 10000000;
+    ts.tv_nsec = 10000000;
 #endif
-    } else if(diff > 1000000000) {
-      // If it has been 1 billion cycles, pause 1 ms.
+  } else if(diff > 1000000000) {
+    // If it has been 1 billion cycles, pause 1 ms.
 #ifdef PLATFORM_IS_WINDOWS
-      ts = 1;
+    ts = 1;
 #else
-      ts.tv_nsec = 1000000;
+    ts.tv_nsec = 1000000;
 #endif
-    }
-    else
-    {
+  }
+  else
+  {
 #ifdef PLATFORM_IS_WINDOWS
-      // Otherwise, pause for 1 ms (minimum on windows)
-      ts = 1;
+    // Otherwise, pause for 1 ms (minimum on windows)
+    ts = 1;
 #else
-      // Otherwise, pause for 100 microseconds
-      ts.tv_nsec = 100000;
+    // Otherwise, pause for 100 microseconds
+    ts.tv_nsec = 100000;
 #endif
-    }
   }
 
 #ifdef PLATFORM_IS_WINDOWS
