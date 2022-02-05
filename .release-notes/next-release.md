@@ -19,3 +19,25 @@ Ubuntu 21.04 hit its end-of-life at the end of January 2022. We are no longer bu
 
 The next Ubuntu LTS release is coming in April of 2022 and we'll be adding prebuilt ponyc for it. If have upgraded to a non-LTS Ubuntu after 21.04 that s still supported and would like us to do ponyc releases for it, please let us know via a [GitHub issue](https://github.com/ponylang/ponyc/issues) or via [the Ponylang Zulip](https://ponylang.zulipchat.com/).
 
+## Fix runtime crash when tracing class iso containing struct val
+
+Prior to this fix, you could crash the runtime if you sent a `val` struct wrapper in an `iso` class. For example:
+
+```pony
+use "collections"
+
+struct val Foo
+
+class Bar
+  let f: Foo = Foo
+
+actor Main
+  new create(env: Env) =>
+    for i in Range(0, 20000) do
+      inspect(recover Bar end)
+    end
+
+  be inspect(wrap: Bar iso) =>
+    None // Do something with wrap.f
+```
+
