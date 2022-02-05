@@ -375,25 +375,28 @@ class Iter[A] is Iterator[A]
     """
     Iter[A!](
       object is Iterator[A!]
-        var _prev_hash: (USize | None) = None
+        var _prev_value: (A! | None) = None
+        var _prev_hash: USize = 0
 
         fun ref has_next(): Bool =>
           _iter.has_next()
 
         fun ref next(): A! ? =>
-          let v = _iter.next()?
-          let cur_hash = H.hash(v)
-          match _prev_hash
-          | let x: USize =>
-            if x == cur_hash then
+          let cur_value: A! = _iter.next()?
+          let cur_hash: USize = H.hash(cur_value)
+          match _prev_value
+          | let prev_value: A! =>
+            if (_prev_hash == cur_hash) and H.eq(prev_value, cur_value) then
               this.next()?
             else
+              _prev_value = cur_value
               _prev_hash = cur_hash
-              v
+              cur_value
             end
           | None => 
+            _prev_value = cur_value
             _prev_hash = cur_hash
-            v
+            cur_value
           end
       end)
 
