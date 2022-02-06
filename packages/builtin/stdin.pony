@@ -2,10 +2,7 @@ use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
   flags: U32, nsec: U64, noisy: Bool)
 use @pony_asio_event_unsubscribe[None](event: AsioEventID)
 use @pony_asio_event_destroy[None](event: AsioEventID)
-use @pony_os_stdin_read[USize](
-  buffer: Pointer[U8] tag,
-  size: USize,
-  out_again: Pointer[Bool])
+use @pony_os_stdin_read[USize](buffer: Pointer[U8] tag, size: USize)
 
 interface InputNotify
   """
@@ -147,11 +144,8 @@ actor Stdin
       while true do
         let chunk_size = _chunk_size
         var data = recover Array[U8] .> undefined(chunk_size) end
-        var again: Bool = false
 
-        let len =
-          @pony_os_stdin_read(data.cpointer(), data.size(),
-            addressof again)
+        let len = @pony_os_stdin_read(data.cpointer(), data.size())
 
         match len
         | -1 =>
@@ -168,7 +162,7 @@ actor Stdin
         data.truncate(len)
         notify(consume data)
 
-        if not again then
+        ifdef windows then
           // Not allowed to call pony_os_stdin_read again yet, exit loop.
           return true
         end
