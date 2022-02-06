@@ -447,7 +447,7 @@ PONY_API bool pony_os_stdin_setup()
   return stdin_event_based;
 }
 
-PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
+PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
 {
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
@@ -497,7 +497,6 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
   if(len != 0)  // Start listening to stdin notifications again
     ponyint_iocp_resume_stdin();
 
-  *out_again = false;
   return len;
 #else
   struct pollfd pfd;
@@ -508,12 +507,8 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space, bool* out_again)
   int n = poll(&pfd, 1, 0);
 
   if(n != 1)
-  {
-    *out_again = false;
     return -1;
-  }
 
-  *out_again = true;
   return read(STDIN_FILENO, buffer, space);
 #endif
 }
