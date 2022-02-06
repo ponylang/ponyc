@@ -30,17 +30,15 @@ use "files"
 
 actor Main
   new create(env: Env) =>
-    try
-      for file_name in env.args.slice(1).values() do
-        let path = FilePath(env.root, file_name)
-        match OpenFile(path)
-        | let file: File =>
-          while file.errno() is FileOK do
-            env.out.write(file.read(1024))
-          end
-        else
-          env.err.print("Error opening file '" + file_name + "'")
+    for file_name in env.args.slice(1).values() do
+      let path = FilePath(env.root, file_name)
+      match OpenFile(path)
+      | let file: File =>
+        while file.errno() is FileOK do
+          env.out.write(file.read(1024))
         end
+      else
+        env.err.print("Error opening file '" + file_name + "'")
       end
     end
 ```
