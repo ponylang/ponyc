@@ -20,7 +20,8 @@ static void acquire_object(pony_ctx_t* ctx, pony_actor_t* actor, void* address,
   bool immutable)
 {
   actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
-  object_t* obj = ponyint_actorref_getorput(aref, address, actor->type, 0);
+  pony_type_t* type = *(pony_type_t**)address;
+  object_t* obj = ponyint_actorref_getorput(aref, address, type, 0);
 
   obj->rc += GC_INC_MORE;
   obj->immutable = immutable;
