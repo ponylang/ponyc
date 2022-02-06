@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Stop creating prebuilt ponyc releases for Ubuntu 21.04 ([PR #3990](https://github.com/ponylang/ponyc/pull/3990))
 - Revert "prevent non-opaque structs from being used as behaviour parameters" ([PR #3995](https://github.com/ponylang/ponyc/pull/3995))
 - Update LLVM to 13.0.1 ([PR #3994](https://github.com/ponylang/ponyc/pull/3994))
+- Remove out parameter from `pony_os_stdin_read` ([PR #4000](https://github.com/ponylang/ponyc/pull/4000))
 
 ## [0.47.0] - 2022-02-02
 
