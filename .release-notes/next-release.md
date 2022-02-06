@@ -64,3 +64,19 @@ It is permitted to call the `pony_os_stdin_read` function again in a loop if the
 
 Technically this is a breaking change, because the function is prefixed with `pony_` and is thus a public API. But it is unlikely that any code out there is directly using the `pony_os_stdin_read` function, apart from the `Stdin` actor in the standard library, which has been updated in its internal implementation details to match the new signature.
 
+## Expose additional scheduler information in the runtime_info package
+
+Three additional methods have been added to `SchedulerInfo`.
+
+- minimum_schedulers
+
+Returns the minimum number of schedulers that will be active.
+
+- scaling_is_active
+
+Returns if scheduler scaling is on
+
+- will_yield_cpu
+
+Returns if scheduler threads are yielding the CPU to other processes when they have no work to do.
+
