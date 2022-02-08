@@ -8,7 +8,7 @@ use "math"
 actor Main
   new create(env: Env) =>
     try
-      let gcd = GreatestCommonDivisor(10, 20)?
+      let gcd = GreatestCommonDivisor[I64](10, 20)?
       env.out.print(gcd.string())
     else
       env.out.print("No GCD")
@@ -17,7 +17,7 @@ actor Main
 
 ## Add least common multiple to `math` package
 
-Code to determine the least common multiple of two integers has been added to the standard library:
+Code to determine the least common multiple of two unsigned integers has been added to the standard library:
 
 ```pony
 use "math"
@@ -25,7 +25,7 @@ use "math"
 actor Main
   new create(env: Env) =>
     try
-      let lcm = LeastCommonMultiple(10, 20)?
+      let lcm = LeastCommonMultiple[U64](10, 20)?
       env.out.print(lcm.string())
     else
       env.out.print("No LCM")
