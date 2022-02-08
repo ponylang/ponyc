@@ -360,7 +360,6 @@ class Iter[A] is Iterator[A]
           _store_iter.next()?
       end)
 
-  /*
   fun ref dedup[H: HashFunction[A] val = HashIs[A]](): Iter[A!]^ =>
     """
     Return an iterator that removes duplicates from consecutive identical
@@ -369,12 +368,37 @@ class Iter[A] is Iterator[A]
     ## Example
 
     ```pony
-    Iter[I64]([as I64: 1; 1; 2; 3; 3; 2; 2].values())
+    Iter[USize]([as USize: 1; 1; 2; 3; 3; 2; 2].values())
       .dedup()
     ```
     `1 2 3 2`
     """
-  */
+    Iter[A!](
+      object is Iterator[A!]
+        var _prev_value: (A! | None) = None
+        var _prev_hash: USize = 0
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          let cur_value: A! = _iter.next()?
+          let cur_hash: USize = H.hash(cur_value)
+          match _prev_value
+          | let prev_value: A! =>
+            if (_prev_hash == cur_hash) and H.eq(prev_value, cur_value) then
+              this.next()?
+            else
+              _prev_value = cur_value
+              _prev_hash = cur_hash
+              cur_value
+            end
+          | None => 
+            _prev_value = cur_value
+            _prev_hash = cur_hash
+            cur_value
+          end
+      end)
 
   fun ref enum[B: (Real[B] val & Number) = USize](): Iter[(B, A)]^ =>
     """
@@ -530,7 +554,6 @@ class Iter[A] is Iterator[A]
     end
     acc'
 
-  /*
   fun ref interleave(other: Iterator[A]): Iter[A!] =>
     """
     Return an iterator that alternates the values of the original iterator and
@@ -544,6 +567,35 @@ class Iter[A] is Iterator[A]
     ```
     `0 4 1 5 2 3`
     """
+    Iter[A!](
+      object is Iterator[A!]
+        var _use_original: Bool = true
+
+        fun ref has_next(): Bool =>
+          _iter.has_next() or other.has_next()
+
+        fun ref next(): A! ? =>
+          // Oscillate between iterators
+          if _use_original then
+            _use_original = not _use_original
+
+            // _iter might be empty, get next value from other
+            if _iter.has_next() then
+              _iter.next()?
+            else
+              other.next()?
+            end
+          else
+            _use_original = not _use_original
+
+            // other might be empty, get next value from _iter
+            if other.has_next() then
+              other.next()?
+            else
+              _iter.next()?
+            end
+          end
+      end)
 
   fun ref interleave_shortest(other: Iterator[A]): Iter[A!] =>
     """
@@ -554,10 +606,34 @@ class Iter[A] is Iterator[A]
 
     ```pony
     Iter[USize](Range(0, 4))
-      .interleave(Range(4, 6))
+      .interleave_shortest(Range(4, 6))
     ```
     `0 4 1 5 2`
     """
+    Iter[A!](
+      object is Iterator[A!]
+        var _use_original: Bool = true
+
+        fun ref has_next(): Bool =>
+          if _use_original then
+            _iter.has_next()
+          else
+            other.has_next()
+          end
+
+        fun ref next(): A! ? =>
+          if this.has_next() then
+            if _use_original then
+              _use_original = not _use_original
+              _iter.next()?
+            else
+              _use_original = not _use_original
+              other.next()?
+            end
+          else
+            error
+          end
+      end)
 
   fun ref intersperse(value: A, n: USize = 1): Iter[A!] =>
     """
@@ -571,7 +647,23 @@ class Iter[A] is Iterator[A]
     ```
     `0 8 1 8 2`
     """
-  */
+    Iter[A!](
+      object is Iterator[A!]
+        var _count: USize = 0
+        let _v: A = consume value
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          if (_count == n) then
+            _count = 0
+            _v
+          else
+            _count = _count + 1
+            _iter.next()?
+          end
+      end)
 
   fun ref last(): A ? =>
     """
@@ -708,6 +800,34 @@ class Iter[A] is Iterator[A]
           end
       end)
 
+  fun ref step_by(n: USize = 1): Iter[A!] =>
+    """
+    Return an iterator that yields every `n`th element of the
+    original iterator. n == 0 is treated like n == 1 rather than an error.
+
+    ## Example
+    ```pony
+    Iter[USize](Range(0, 10))
+      .step_by(2)
+    ```
+    `1 3 5 7 9`
+    """
+    Iter[A!](
+      object is Iterator[A!]
+        let _step: USize = if n == 0 then 1 else n end
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          var steps_to_burn: USize = _step - 1
+          while steps_to_burn != 0 do
+            try _iter.next()? end
+            steps_to_burn = steps_to_burn - 1
+          end
+          _iter.next()?
+      end)
+
   fun ref take(n: USize): Iter[A]^ =>
     """
     Return an iterator for the first n elements.
@@ -783,7 +903,6 @@ class Iter[A] is Iterator[A]
           end
       end)
 
-  /*
   fun ref unique[H: HashFunction[A] val = HashIs[A]](): Iter[A!]^ =>
     """
     Return an iterator that filters out elements that have already been
@@ -792,12 +911,27 @@ class Iter[A] is Iterator[A]
     ## Example
 
     ```pony
-    Iter[I64]([as I64: 1; 2; 1; 1; 3; 4; 1].values())
+    Iter[USize]([as USize: 1; 2; 1; 1; 3; 4; 1].values())
         .unique()
     ```
     `1 2 3 4`
     """
-  */
+    Iter[A!](
+      object
+        let _set: HashSet[A!, H] = HashSet[A!, H]()
+
+        fun ref has_next(): Bool =>
+          _iter.has_next()
+
+        fun ref next(): A! ? =>
+          let v = _iter.next()?
+          if _set.contains(v) then
+            next()?
+          else
+            _set.set(v)
+            v
+          end
+      end)
 
   fun ref zip[B](i2: Iterator[B]): Iter[(A, B)]^ =>
     """
