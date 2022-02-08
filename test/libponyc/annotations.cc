@@ -8,83 +8,6 @@
 class AnnotationsTest : public PassTest
 {};
 
-
-TEST_F(AnnotationsTest, AnnotateTypes)
-{
-  const char* src =
-    "actor \\a, b\\ A\n"
-    "class \\a, b\\ C\n"
-    "primitive \\a, b\\ P\n"
-    "struct \\a, b\\ S\n"
-    "interface \\a, b\\ I\n"
-    "trait \\a, b\\ T";
-
-  TEST_COMPILE(src, "syntax");
-}
-
-TEST_F(AnnotationsTest, AnnotateMethods)
-{
-  const char* src =
-    "actor A\n"
-    "  new \\a, b\\ create() => None\n"
-    "  be \\a, b\\ apply() => None\n"
-    "  fun \\a, b\\ apply() => None";
-
-  TEST_COMPILE(src, "syntax");
-}
-
-TEST_F(AnnotationsTest, AnnotateCompoundExpr)
-{
-  const char* src =
-    "class C\n"
-    "  fun apply() =>\n"
-    "    if \\a, b\\ foo then\n"
-    "      None\n"
-    "    elseif \\a, b\\ bar then\n"
-    "      None\n"
-    "    else \\a, b\\ \n"
-    "      None\n"
-    "    end\n"
-
-    "    ifdef \\a, b\\ \"foo\" then\n"
-    "      None\n"
-    "    elseif \\a, b\\ \"bar\" then\n"
-    "      None\n"
-    "    else \\a, b\\ \n"
-    "      None\n"
-    "    end\n"
-
-    "    while \\a, b\\ foo do\n"
-    "      None\n"
-    "    else \\a, b\\ \n"
-    "      None\n"
-    "    end\n"
-
-    "    repeat \\a, b\\ \n"
-    "      None\n"
-    "    until \\a, b\\ foo else \\a, b\\ \n"
-    "      None\n"
-    "    end\n"
-
-    "    match \\a, b\\ x\n"
-    "    | \\a, b\\ foo => None\n"
-    "    else \\a, b\\ \n"
-    "      None\n"
-    "    end\n"
-
-    "    try \\a, b\\ \n"
-    "      None\n"
-    "    else \\a, b\\ \n"
-    "      None\n"
-    "    then \\a, b\\ \n"
-    "      None\n"
-    "    end\n"
-
-    "    recover \\a, b\\ foo end";
-
-  TEST_COMPILE(src, "syntax");
-}
-
 TEST_F(AnnotationsTest, UnterminatedAnnotationError)
 {
   const char* src =
@@ -186,19 +109,6 @@ TEST_F(AnnotationsTest, InternalAnnotation)
     "actor \\ponyint\\ A\n";
 
   TEST_ERROR(src);
-}
-
-TEST_F(AnnotationsTest, StandardAnnotationLocationGood)
-{
-  const char* src =
-    "struct \\packed\\ Foo\n"
-    "  fun foo() =>\n"
-    "    if \\likely\\ bar then None end\n"
-    "    while \\unlikely\\ bar do None end\n"
-    "    repeat None until \\likely\\ bar end\n"
-    "    match bar | \\unlikely\\ bar => None end";
-
-  TEST_COMPILE(src, "syntax");
 }
 
 TEST_F(AnnotationsTest, StandardAnnotationLocationBad)
