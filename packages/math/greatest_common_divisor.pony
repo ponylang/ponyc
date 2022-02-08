@@ -1,6 +1,8 @@
 primitive GreatestCommonDivisor
   """
-  Get greatest common divisor of x and y
+  Get greatest common divisor of x and y.
+
+  Providing 0 will result in an error.
   """
   fun apply[A: Integer[A] val](x: A, y: A): A ? =>
     let zero = A.from[U8](0)
