@@ -3,6 +3,21 @@ primitive GreatestCommonDivisor
   Get greatest common divisor of x and y.
 
   Providing 0 will result in an error.
+
+  Example usage:
+
+  ```pony
+  use "math"
+
+  actor Main
+    new create(env: Env) =>
+      try
+        let gcd = GreatestCommonDivisor[I64](10, 20)?
+        env.out.print(gcd.string())
+      else
+        env.out.print("No GCD")
+      end
+  ```
   """
   fun apply[A: Integer[A] val](x: A, y: A): A ? =>
     let zero = A.from[U8](0)
