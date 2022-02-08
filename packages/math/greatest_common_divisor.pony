@@ -2,15 +2,16 @@ primitive GreatestCommonDivisor
   """
   Get greatest common divisor of x and y
   """
-  fun apply(x: USize, y: USize): USize ? =>
-    if (x == 0) or (y == 0) then
+  fun apply[A: Integer[A] val](x: A, y: A): A ? =>
+    let zero = A.from[U8](0)
+    if (x == zero) or (y == zero) then
       error
     end
 
-    var x': USize = x
-    var y': USize = y
+    var x': A = x
+    var y': A = y
 
-    while y' != 0 do
+    while y' != zero do
       let z = y'
       y' = x' % y'
       x' = z
