@@ -21,4 +21,4 @@ primitive LeastCommonMultiple
   ```
   """
   fun apply[A: (Integer[A] val & Unsigned)](x: A, y: A): A ? =>
-    (x / GreatestCommonDivisor[IA](x, y)?) *? y
+    (x / GreatestCommonDivisor[A](x, y)?) *? y
