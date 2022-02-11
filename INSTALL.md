@@ -82,11 +82,13 @@ At this time, we don't offer prebuilt Pony binaries for M1 Apple Silicon. You wi
 
 Windows users will need to install:
 
-- Visual Studio 2019 or 2017 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019 or 2017 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
-  - If using Visual Studio, install the `Desktop Development with C++` workload.
-  - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `C++ core features` individual component.
-  - Install the latest `Windows 10 SDK (10.x.x.x) for Desktop` component.
+- Visual Studio 2022 or 2019 (available [here](https://www.visualstudio.com/vs/community/)) or the Microsoft C++ Build Tools (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
+  - Install the `Desktop Development with C++` workload, along with the latest `Windows 10 SDK (10.x.x.x) for Desktop` individual component.
 
-Once you have installed the prerequisites, you can download the latest ponyc release from [Cloudsmith](https://dl.cloudsmith.io/public/ponylang/releases/raw/versions/latest/ponyc-x86-64-pc-windows-msvc.zip).
+Once you have installed the prerequisites, you can get prebuilt release or nightly builds via [ponyup](https://github.com/ponylang/ponyup).  To install the most recent ponyc on Windows:
 
-Unzip the release file in a convenient location, and you will find `ponyc.exe` in the `bin` directory. Following extraction, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<directory you unzipped to>\bin"`
+```pwsh
+ponyup update ponyc release
+```
+
+You can also download the latest ponyc release from [Cloudsmith](https://dl.cloudsmith.io/public/ponylang/releases/raw/versions/latest/ponyc-x86-64-pc-windows-msvc.zip). Unzip the release file in a convenient location, and you will find `ponyc.exe` in the `bin` directory. Following extraction, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<directory you unzipped to>\bin"`
