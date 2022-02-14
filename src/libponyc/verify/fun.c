@@ -487,6 +487,51 @@ static bool show_partiality(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
+bool verify_fields_are_defined_in_constructor(pass_opt_t* opt, ast_t* ast)
+{
+  bool result = true;
+
+  if(ast_id(ast) != TK_NEW)
+    return result;
+
+  ast_t* members = ast_parent(ast);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_EMBED:
+      {
+        sym_status_t status;
+        ast_t* id = ast_child(member);
+        ast_t* def = ast_get(ast, ast_name(id), &status);
+
+        if((def != member) || (status != SYM_DEFINED))
+        {
+          ast_error(opt->check.errors, def,
+            "field left undefined in constructor");
+          result = false;
+        }
+
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  if(!result)
+    ast_error(opt->check.errors, ast,
+      "constructor with undefined fields is here");
+
+  return result;
+}
+
 bool verify_fun(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert((ast_id(ast) == TK_BE) || (ast_id(ast) == TK_FUN) ||
@@ -498,7 +543,8 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     !verify_main_runtime_override_defaults(opt, ast) ||
     !verify_primitive_init(opt, ast) ||
     !verify_any_final(opt, ast) ||
-    !verify_any_serialise(opt, ast))
+    !verify_any_serialise(opt, ast) ||
+    !verify_fields_are_defined_in_constructor(opt, ast))
     return false;
 
   // Check partial functions.
