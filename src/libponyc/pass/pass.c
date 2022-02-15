@@ -8,6 +8,7 @@
 #include "traits.h"
 #include "refer.h"
 #include "expr.h"
+#include "completeness.h"
 #include "verify.h"
 #include "finalisers.h"
 #include "serialisers.h"
@@ -60,6 +61,7 @@ const char* pass_name(pass_id pass)
     case PASS_DOCS: return "docs";
     case PASS_REFER: return "refer";
     case PASS_EXPR: return "expr";
+    case PASS_COMPLETENESS: return "completeness";
     case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
     case PASS_SERIALISER: return "serialise";
@@ -271,6 +273,13 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_EXPR);
+
+  if(!visit_pass(astp, options, last, &r, PASS_COMPLETENESS, NULL,
+    pass_completeness))
+    return r;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_COMPLETENESS);
 
   if(!visit_pass(astp, options, last, &r, PASS_VERIFY, NULL, pass_verify))
     return r;

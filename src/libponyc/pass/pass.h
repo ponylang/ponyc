@@ -153,6 +153,14 @@ Also performs some "sugar" replacements that require knowledge of types.
 Mutates the AST extensively.
 
 
+* Completeness pass (AST)
+
+Does fixup of the AST that needs to be done after the expression pass and before
+verification.
+
+Mutates the AST.
+
+
 * Verify pass (AST)
 
 Perform various checks that are not required for type resolution, and are not
@@ -218,6 +226,7 @@ typedef enum pass_id
   PASS_DOCS,
   PASS_REFER,
   PASS_EXPR,
+  PASS_COMPLETENESS,
   PASS_VERIFY,
   PASS_FINALISER,
   PASS_SERIALISER,
@@ -245,6 +254,7 @@ typedef enum pass_id
     "    =docs\n" \
     "    =refer\n" \
     "    =expr\n" \
+    "    =completeness\n" \
     "    =verify\n" \
     "    =final\n" \
     "    =serialise\n" \

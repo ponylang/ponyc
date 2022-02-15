@@ -1258,49 +1258,6 @@ static bool refer_pre_new(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static bool refer_new(pass_opt_t* opt, ast_t* ast)
-{
-  pony_assert(ast_id(ast) == TK_NEW);
-
-  ast_t* members = ast_parent(ast);
-  ast_t* member = ast_child(members);
-  bool result = true;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        sym_status_t status;
-        ast_t* id = ast_child(member);
-        ast_t* def = ast_get(ast, ast_name(id), &status);
-
-        if((def != member) || (status != SYM_DEFINED))
-        {
-          ast_error(opt->check.errors, def,
-            "field left undefined in constructor");
-          result = false;
-        }
-
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  if(!result)
-    ast_error(opt->check.errors, ast,
-      "constructor with undefined fields is here");
-
-  return result;
-}
-
 static bool refer_local(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast != NULL);
@@ -1843,7 +1800,6 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
     case TK_CONSUME:   r = refer_consume(options, ast); break;
 
     case TK_THIS:      r = refer_this(options, ast); break;
-    case TK_NEW:       r = refer_new(options, ast); break;
     case TK_VAR:
     case TK_LET:       r = refer_local(options, ast); break;
 
