@@ -1634,10 +1634,16 @@ static bool refer_try(pass_opt_t* opt, ast_t* ast)
   size_t branch_count = 0;
 
   if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  {
     branch_count++;
+    ast_inheritbranch(then_clause, body);
+  }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
+  {
     branch_count++;
+    ast_inheritbranch(then_clause, else_clause);
+  }
 
   if(ast_checkflag(then_clause, AST_FLAG_JUMPS_AWAY))
   {
@@ -1645,6 +1651,8 @@ static bool refer_try(pass_opt_t* opt, ast_t* ast)
       "then clause always terminates the function");
     return false;
   }
+
+  ast_consolidate_branches(then_clause, branch_count);
 
   // If all branches jump away with no value, then we do too.
   if(branch_count == 0)
