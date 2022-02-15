@@ -1523,21 +1523,19 @@ static bool refer_while(pass_opt_t* opt, ast_t* ast)
   }
 
   size_t branch_count = 0;
-
-  // No symbol status is inherited from the loop body. Nothing from outside the
-  // loop body can be consumed, and definitions in the body may not occur.
   if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  {
     branch_count++;
+    ast_inheritbranch(ast, body);
+  }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
     branch_count++;
-    ast_inheritbranch(ast, body);
-
-    // Use a branch count of two instead of one. This means we will pick up any
-    // consumes, but not any definitions, since definitions may not occur.
-    ast_consolidate_branches(ast, 2);
+    ast_inheritbranch(ast, else_clause);
   }
+
+  ast_consolidate_branches(ast, branch_count);
 
   // If all branches jump away with no value, then we do too.
   if(branch_count == 0)
