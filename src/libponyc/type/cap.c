@@ -6,7 +6,7 @@
 #include "ponyassert.h"
 
 // The resulting eph will always be TK_EPHEMERAL or TK_NONE.
-static void cap_aliasing(token_id* cap, token_id* eph)
+void cap_aliasing(token_id* cap, token_id* eph)
 {
   switch(*eph)
   {
@@ -402,15 +402,31 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
   if((left_cap == TK_TAG) || (right_cap == TK_TAG))
     return true;
 
-  // Every possible instantiation of the left cap must be compatible with every
-  // possible instantiation of right cap.
+  // We assume that generic cap constraints came from the same source,
+  // as with is_cap_sub_cap_constraint.
   switch(left_cap)
   {
+    // special-case to keep current behavior
+    // but this is a hack and is part of generic unsoundness
+    // see: https://github.com/ponylang/ponyc/issues/1931
+    case TK_CAP_ANY:
+      switch(right_cap)
+      {
+        case TK_CAP_ANY:
+          return left_eph == TK_NONE && right_eph == TK_NONE;
+
+        case TK_CAP_ALIAS:
+          return true; // same source, and any cap is compatible with its own alias
+
+        default: {}
+      }
+      break;
+
     case TK_ISO:
       switch(right_cap)
       {
         case TK_ISO:
-          return true;
+          return left_eph == TK_NONE && right_eph == TK_NONE;
 
         default: {}
       }
@@ -420,6 +436,7 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
       switch(right_cap)
       {
         case TK_TRN:
+          return left_eph == TK_NONE && right_eph == TK_NONE;
         case TK_BOX:
           return true;
 
@@ -467,9 +484,21 @@ bool is_cap_compat_cap(token_id left_cap, token_id left_eph,
       break;
 
     case TK_CAP_READ:
+      switch(right_cap)
+      {
+        case TK_CAP_READ:
+        case TK_BOX:
+          return true;
+
+        default: {}
+      }
+      break;
+
     case TK_CAP_ALIAS:
       switch(right_cap)
       {
+        case TK_CAP_ANY: // same source, and any cap is compatible with its own alias
+        case TK_CAP_ALIAS:
         case TK_BOX:
           return true;
 

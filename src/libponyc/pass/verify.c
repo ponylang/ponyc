@@ -1,6 +1,7 @@
 #include "verify.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
+#include "../type/compattype.h"
 #include "../type/lookup.h"
 #include "../verify/call.h"
 #include "../verify/control.h"
@@ -517,7 +518,6 @@ static bool verify_assign(pass_opt_t* opt, ast_t* ast)
 
   return true;
 }
-
 
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)
 {

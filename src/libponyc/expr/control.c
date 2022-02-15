@@ -443,7 +443,14 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       if (is_local_or_param(body))
       {
           r_type = consume_type(body_type, TK_NONE);
-          body_type = r_type;
+          if (r_type != NULL)
+          {
+            // n.b. r_type should almost never be NULL
+            // But it might be due to current unsoundness of generics.
+            // Until we get a #stable cap constriant or otherwise,
+            // we might reify a generic so that we have e.g. iso^ variables.
+            body_type = r_type;
+          }
       }
       if(!is_subtype(body_type, type, &info, opt))
       {
