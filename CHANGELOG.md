@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Ban variables whose capability is unsound to alias ([PR #3953](https://github.com/ponylang/ponyc/pull/3953))
 
 ### Added
 
