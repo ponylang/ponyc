@@ -65,6 +65,27 @@ ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
   ast_t* cap_ast = cap_fetch(ast);
   token_id cap = ast_id(cap_ast);
 
+  ast_t* constraint = typeparam_constraint(ast);
+  if (constraint != NULL && ast_id(constraint) == TK_TUPLETYPE)
+  {
+    // It is possible that we have an illegal constraint using a tuple here.
+    // It can happen due to an ordering of passes. We check for tuples in
+    // constraints in syntax but if the tuple constraint is part of a type
+    // alias, we don't see that tuple until we are in flatten.
+    //
+    // For example:
+    //
+    // type Blocksize is (U8, U32)
+    // class Block[T: Blocksize]
+    //
+    // We handle that case here with the an error message that is similar to
+    // the one used in syntax.
+
+    ast_error(opt->check.errors, constraint,
+      "constraint contains a tuple; tuple types can't be used as type constraints");
+    return AST_ERROR;
+  }
+
   typeparam_set_cap(ast);
 
   token_id set_cap = ast_id(cap_ast);
