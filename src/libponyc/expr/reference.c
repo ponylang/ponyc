@@ -172,8 +172,9 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
 
     if(type == NULL)
     {
-      // other checks should have blocked us already
-      // TODO: sean
+      // This should never happen. We've left this assert here for now because
+      // we're not sure it won't happen. If enough time passes and this hasn't
+      // triggered, we can remove it. -- February 2022
       pony_assert(0);
       ast_error_frame(&err2, type,
         "invalid parameter type: %s",
