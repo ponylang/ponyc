@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Ban variables whose capability is unsound to alias ([PR #3953](https://github.com/ponylang/ponyc/pull/3953))
+- Add workaround for compiler assertion failure in Promise.flatten_next ([PR #3991](https://github.com/ponylang/ponyc/pull/3991))
 
 ### Added
 
