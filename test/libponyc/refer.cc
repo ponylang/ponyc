@@ -900,3 +900,58 @@ TEST_F(ReferTest, MemberAccessWithConsumeLhs)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(ReferTest, WhileElseNoFieldInitializationInBody)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "new create(env: Env) =>\n"
+    "  var i: USize = 0\n"
+    "  while i < 5 do\n"
+    "    i = i + 1\n"
+    "  else\n"
+    "    _s = \"else\"\n"
+    "  end";
+
+    TEST_ERRORS_2(src,
+      "field left undefined in constructor",
+      "constructor with undefined fields is here");
+}
+
+TEST_F(ReferTest, WhileElseNoFieldInitializationInElse)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "new create(env: Env) =>\n"
+    "  var i: USize = 0\n"
+    "  while i < 5 do\n"
+    "    _s = \"body\"\n"
+    "    i = i + 1\n"
+    "  else\n"
+    "    None\n"
+    "  end";
+
+    TEST_ERRORS_2(src,
+      "field left undefined in constructor",
+      "constructor with undefined fields is here");
+}
+
+TEST_F(ReferTest, WhileElseNoFieldInitialization)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "new create(env: Env) =>\n"
+    "  var i: USize = 0\n"
+    "  while i < 5 do\n"
+    "    i = i + 1\n"
+    "  else\n"
+    "    None\n"
+    "  end";
+
+    TEST_ERRORS_2(src,
+      "field left undefined in constructor",
+      "constructor with undefined fields is here");
+}
