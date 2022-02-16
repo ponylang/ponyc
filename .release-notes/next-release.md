@@ -122,3 +122,7 @@ class Block[T: Blocksize]
 
 We've added an additional check to the compiler in a later pass to report an error on the "smuggled" tuple type as a constraint.
 
+## Fix incorrect code returned by `ANSI.erase`
+
+`erase` was intended to erase all characters to the left of the cursor but was instead returning the code to erase all characters to the right.
+
