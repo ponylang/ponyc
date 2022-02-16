@@ -41,3 +41,37 @@ class Block[T: Blocksize]
 
 We've added an additional check to the compiler in a later pass to report an error on the "smuggled" tuple type as a constraint.
 
+## Add greatest common divisor to `math` package
+
+Code to determine the greatest common divisor for two integers has been added to the standard library:
+
+```pony
+use "math"
+
+actor Main
+  new create(env: Env) =>
+    try
+      let gcd = GreatestCommonDivisor[I64](10, 20)?
+      env.out.print(gcd.string())
+    else
+      env.out.print("No GCD")
+    end
+```
+
+## Add least common multiple to `math` package
+
+Code to determine the least common multiple of two unsigned integers has been added to the standard library:
+
+```pony
+use "math"
+
+actor Main
+  new create(env: Env) =>
+    try
+      let lcm = LeastCommonMultiple[U64](10, 20)?
+      env.out.print(lcm.string())
+    else
+      env.out.print("No LCM")
+    end
+```
+
