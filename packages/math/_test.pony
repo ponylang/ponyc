@@ -20,6 +20,11 @@ actor \nodoc\ Main is TestList
     test(_MersennePrimeTest[U64]("U64"))
     test(_MersennePrimeTest[ULong]("ULong"))
     test(_MersennePrimeTest[USize]("USize"))
+    test(_TestGreatestCommonDivisor)
+    test(_TestGreatestCommonDivisorErrorsOnZero)
+    test(_TestLeastCommonMultiple)
+    test(_TestLeastCommonMultipleErrorsOnOverflow)
+    test(_TestLeastCommonMultipleErrorsOnZero)
 
 primitive \nodoc\ _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   """
@@ -88,3 +93,69 @@ primitive \nodoc\ _MersennePrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
           x = x >> 1
         end
     end
+
+class \nodoc\ iso _TestGreatestCommonDivisorErrorsOnZero is UnitTest
+  """
+  Verify that giving a zero to GreatestCommonDivisor will result in an error.
+  """
+  fun name(): String => "math/GreatestCommonDivisorErrorsOnZero"
+
+  fun apply(h: TestHelper) =>
+    h.assert_error({() ? => GreatestCommonDivisor[U8](0,1)? })
+    h.assert_error({() ? => GreatestCommonDivisor[U8](1,0)? })
+    h.assert_error({() ? => GreatestCommonDivisor[U8](0,0)? })
+
+class \nodoc\ iso _TestGreatestCommonDivisor is UnitTest
+  """
+  A few tests to verify we get a value that we expect. This is far from being an
+  exhaustive test.
+  """
+  fun name(): String => "math/GreatestCommonDivisor"
+
+  fun apply(h: TestHelper) ? =>
+    h.assert_eq[U64](1, GreatestCommonDivisor[U64](1,10)?)
+    h.assert_eq[U64](1, GreatestCommonDivisor[U64](10,1)?)
+    h.assert_eq[U64](1, GreatestCommonDivisor[U64](7,53)?)
+    h.assert_eq[U64](1, GreatestCommonDivisor[U64](53,7)?)
+    h.assert_eq[U64](4, GreatestCommonDivisor[U64](4,20)?)
+    h.assert_eq[U64](4, GreatestCommonDivisor[U64](20,4)?)
+    h.assert_eq[U64](5, GreatestCommonDivisor[U64](25,20)?)
+    h.assert_eq[U64](5, GreatestCommonDivisor[U64](20,25)?)
+
+class \nodoc\ iso _TestLeastCommonMultipleErrorsOnZero is UnitTest
+  """
+  Verify that giving a zero to LeastCommonMultiple will result in an error.
+  """
+  fun name(): String => "math/LeastCommonMultipleErrorsOnZero"
+
+  fun apply(h: TestHelper) =>
+    h.assert_error({() ? => LeastCommonMultiple[U8](0,1)? })
+    h.assert_error({() ? => LeastCommonMultiple[U8](1,0)? })
+    h.assert_error({() ? => LeastCommonMultiple[U8](0,0)? })
+
+class \nodoc\ iso _TestLeastCommonMultipleErrorsOnOverflow is UnitTest
+  """
+  Verify creating an lcm that overflows results in an error
+  """
+  fun name(): String => "math/LeastCommonMultipleErrorsOnOverflow"
+
+  fun apply(h: TestHelper) =>
+    h.assert_error({() ? => LeastCommonMultiple[U8](200,205)? })
+    h.assert_error({() ? => LeastCommonMultiple[U8](205,200)? })
+
+class \nodoc\ iso _TestLeastCommonMultiple is UnitTest
+  """
+  A few tests to verify we get a value that we expect. This is far from being an
+  exhaustive test.
+  """
+  fun name(): String => "math/LeastCommonMultiple"
+
+  fun apply(h: TestHelper) ? =>
+    h.assert_eq[U64](8200, LeastCommonMultiple[U64](200,205)?)
+    h.assert_eq[U64](8200, LeastCommonMultiple[U64](205,200)?)
+    h.assert_eq[U64](1683, LeastCommonMultiple[U64](17,99)?)
+    h.assert_eq[U64](1683, LeastCommonMultiple[U64](99,17)?)
+    h.assert_eq[U64](20, LeastCommonMultiple[U64](4,20)?)
+    h.assert_eq[U64](20, LeastCommonMultiple[U64](20,4)?)
+    h.assert_eq[U64](100, LeastCommonMultiple[U64](25,20)?)
+    h.assert_eq[U64](100, LeastCommonMultiple[U64](20,25)?)
