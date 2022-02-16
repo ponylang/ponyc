@@ -34,7 +34,7 @@ Tuple types aren't legal constraints on generics in Pony and we have a check in 
 
 The type aliases aren't flattened into their various components until after the code that disallows tuples as generic constraints which would result in the following code causing ponyc to assert:
 
-```ponyc
+```pony
 type Blocksize is (U8, U32)
 class Block[T: Blocksize]
 ```
