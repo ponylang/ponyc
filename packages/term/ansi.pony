@@ -64,7 +64,7 @@ primitive ANSI
     """
     Erases everything to the left of the cursor on the line the cursor is on.
     """
-    "\x1B[0K"
+    "\x1B[1K"
 
   fun reset(): String =>
     """
