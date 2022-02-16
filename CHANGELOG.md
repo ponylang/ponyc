@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash related to using tuples as a generic constraint ([PR #4005](https://github.com/ponylang/ponyc/pull/4005))
 - Fix incorrect "field not initialized" error with while/else ([PR #4009](https://github.com/ponylang/ponyc/pull/4009))
 - Fix incorrect "field not initialized" error with try/else ([PR #4011](https://github.com/ponylang/ponyc/pull/4011))
+- Fix compiler crash related to using tuples in a union as a generic constraint ([PR #4017](https://github.com/ponylang/ponyc/pull/4017))
 
 ### Added
 
