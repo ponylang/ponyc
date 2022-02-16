@@ -188,6 +188,8 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
   ast_t* eph = ast_sibling(cap);
   token_id tcap = ast_id(cap);
   token_id teph = ast_id(eph);
+  // TODO: Sean and Jason this might be important.
+  //cap_aliasing(&tcap, &teph);
   ast_setid(cap, tcap);
   ast_setid(eph, teph);
 
