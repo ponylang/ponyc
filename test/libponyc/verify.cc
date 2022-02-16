@@ -5869,3 +5869,56 @@ TEST_F(VerifyTest,
 
   TEST_COMPILE(src);
 }
+
+TEST_F(VerifyTest, WhileElseNoFieldInitializationInBody)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "new create(env: Env) =>\n"
+    "  while true do\n"
+    "    None\n"
+    "  else\n"
+    "    _s = None\n"
+    "  end";
+
+    TEST_ERRORS_2(src,
+      "field left undefined in constructor",
+      "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, WhileElseNoFieldInitializationInElse)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "new create(env: Env) =>\n"
+    "  var i: U8 = 0\n"
+    "  while true do\n"
+    "    _s = None\n"
+    "  else\n"
+    "    None\n"
+    "  end";
+
+    TEST_ERRORS_2(src,
+      "field left undefined in constructor",
+      "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, WhileElseNoFieldInitialization)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "new create(env: Env) =>\n"
+    "  var i: U8 = 0\n"
+    "  while true do\n"
+    "    None\n"
+    "  else\n"
+    "    None\n"
+    "  end";
+
+    TEST_ERRORS_2(src,
+      "field left undefined in constructor",
+      "constructor with undefined fields is here");
+}
