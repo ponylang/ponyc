@@ -774,6 +774,10 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
 
   // Pop the try before generating the else block.
   // TODO sean: is this needed?
+  // IF YES, then the above should be renamed
+  // uncommenting breaks `with-return` test
+  // but that doesn't mean this is bad.
+  // it does result in with-return having the same crash as all the other tests
   //codegen_poptry(c);
 
   // TODO SEAN: ask Joe to review here
