@@ -905,9 +905,8 @@ DEF(with);
   SCOPE();
   RULE("with expression", withexpr);
   SKIP(NULL, TK_DO);
-  RULE("with body", seq);
+  RULE("with body", rawseq);
   TERMINATE("with expression", TK_END);
-  OPT RULE("dispose clause", rawseq);
   DONE();
 
 // TRY [annotations] seq [ELSE annotatedseq] [THEN annotatedseq] END

@@ -552,9 +552,20 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 
 static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 {
-  AST_GET_CHILDREN(*astp, withexpr, body, dispose_clause);
+  AST_EXTRACT_CHILDREN(*astp, withexpr, body);
+  ast_t* main_annotation = ast_consumeannotation(*astp);
 
-  expand_none(dispose_clause, false);
+  // First build a skeleton disposing block without the "with" variables
+  BUILD(replace, *astp,
+    NODE(TK_SEQ,
+      NODE(TK_DISPOSING_BLOCK,
+        ANNOTATE(main_annotation)
+        NODE(TK_SEQ, AST_SCOPE
+          TREE(body))
+        NODE(TK_SEQ, AST_SCOPE))));
+
+  ast_t* dblock = ast_child(replace);
+  AST_GET_CHILDREN(dblock, dbody, dexit);
 
   // Add the "with" variables from each with element
   for(ast_t* p = ast_child(withexpr); p != NULL; p = ast_sibling(p))
@@ -573,10 +584,13 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
         TREE(idseq)
         NODE(TK_REFERENCE, ID(init_name))));
 
-    build_with_dispose(dispose_clause, idseq);
-    ast_add(dispose_clause, local);
+    ast_add(replace, assign);
+    ast_add(dbody, local);
+    build_with_dispose(dexit, idseq);
+    ast_add(dexit, local);
   }
 
+  ast_replace(astp, replace);
   return AST_OK;
 }
 
