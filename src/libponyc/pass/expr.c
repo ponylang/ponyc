@@ -471,6 +471,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_CASE:
     case TK_TRY:
     case TK_TRY_NO_CHECK:
+    case TK_DISPOSING_BLOCK:
     case TK_CALL:
       return find_antecedent_type(opt, parent, is_recovered);
 
