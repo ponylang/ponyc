@@ -74,13 +74,12 @@ TEST_F(AnnotationsTest, AnnotateSugar)
   ASSERT_FALSE(ast_has_annotation(ast, "b"));
   ASSERT_TRUE(ast_has_annotation(ast_childidx(ast, 2), "b"));
 
-  // Get the sugared `try` node.
+  // Get the sugared `with` node.
   ast = lookup_in(c_type, "test_with");
   ast = ast_childidx(ast_child(ast_childidx(ast, 6)), 1);
 
   ASSERT_TRUE(ast_has_annotation(ast, "a"));
   ASSERT_FALSE(ast_has_annotation(ast, "b"));
-  ASSERT_TRUE(ast_has_annotation(ast_childidx(ast, 1), "b"));
 }
 
 TEST_F(AnnotationsTest, AnnotateLambda)
