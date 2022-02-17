@@ -60,8 +60,6 @@ TEST_F(AnnotationsTest, AnnotateSugar)
     "  fun test_with() =>\n"
     "    with \\a\\ x = 42 do\n"
     "      None\n"
-    "    else \\b\\ \n"
-    "      None\n"
     "    end\n";
 
   TEST_COMPILE(src, "scope");
