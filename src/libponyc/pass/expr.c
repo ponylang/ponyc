@@ -142,8 +142,6 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
     case TK_MATCH:
     case TK_IFDEF:
       // The condition is not the result.
-    case TK_WITH:
-      // The with variable is not the result
       if(ast_child(parent) == ast)
         return false;
       break;
@@ -174,8 +172,15 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
 
     case TK_TRY:
     case TK_TRY_NO_CHECK:
-      // The finally block is not the result.
+      // The then block is not the result.
       if(ast_childidx(parent, 2) == ast)
+        return false;
+      break;
+
+    // TODO SEAN: I'm 99.9999999999999% sure we want child 1
+    case TK_DISPOSING_BLOCK:
+      // The dispose block is not the result.
+      if(ast_childidx(parent, 1) == ast)
         return false;
       break;
 
