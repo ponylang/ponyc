@@ -807,6 +807,11 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   size_t clause;
   ast_t* try_expr = ast_try_clause(ast, &clause);
 
+  // TODO SEAN
+  // This assumes a try/else/then
+  // but we could have a disposing block here as well
+  // I need to look into what is going on with clause here more
+
   // Do the then block only if we error out in the else clause.
   if((try_expr != NULL) && (clause == 1))
     gen_expr(c, ast_childidx(try_expr, 2));
