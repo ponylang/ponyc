@@ -7,7 +7,7 @@
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
-
+#include <stdio.h>
 
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
@@ -772,16 +772,6 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-  // Pop the try before generating the else block.
-  // TODO sean: is this needed?
-  // IF YES, then the above should be renamed
-  // uncommenting breaks `with-return` test
-  // but that doesn't mean this is bad.
-  // it does result in with-return having the same crash as all the other tests
-  // i dont think we need because i think it is the else block that
-  // would be pushed in gen_try so not needed for us.
-  // codegen_poptry(c);
-
   // TODO SEAN: ask Joe to review here
   // The landing pad is marked as a cleanup, since exceptions are typeless and
   // valueless. The first landing pad is always the destination.
@@ -800,6 +790,8 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     return GEN_NOVALUE;
 
+  // TODO SEAN:
+  // something here is bad
   // Continue in the post block.
   LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
