@@ -504,6 +504,15 @@ static void gen_then_clauses(compile_t* c, ast_t* ast, bool within_loop)
           gen_expr(c, ast_childidx(parent, 2));
         break;
       }
+      case TK_DISPOSING_BLOCK:
+      {
+        // TODO Sean
+        // I'm pretty sure this is correct
+        if(ast_index(last) != 1)
+          gen_expr(c, ast_childidx(parent, 1));
+        break;
+      }
+
       default: {}
     }
     last = parent;
