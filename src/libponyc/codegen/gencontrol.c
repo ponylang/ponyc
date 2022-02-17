@@ -772,6 +772,55 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
+/*
+  if(ast_canerror(ast))
+  {
+    // we need to create an else that rethrows the error
+    printf("can error\n");
+
+    // need an else block here and clause
+    LLVMBasicBlockRef else_block = codegen_block(c, "disposing_block_else");
+
+    // Else block.
+    LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
+    LLVMPositionBuilderAtEnd(c->builder, else_block);
+
+    // The landing pad is marked as a cleanup, since exceptions are typeless and
+    // valueless. The first landing pad is always the destination.
+    LLVMTypeRef lp_elements[2];
+    lp_elements[0] = c->void_ptr;
+    lp_elements[1] = c->i32;
+    LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
+      false);
+
+    LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
+      c->personality, 1, "");
+
+    LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
+
+    LLVMValueRef else_value = gen_expr(c, else_clause);
+
+    if(else_value != GEN_NOVALUE)
+    {
+      if(needed)
+      {
+        ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
+        else_value = gen_assign_cast(c, phi_type->use_type, else_value,
+          else_type);
+        ast_free_unattached(else_type);
+      }
+
+      if(else_value == NULL)
+        return NULL;
+
+      gen_expr(c, dispose_clause);
+
+      else_block = LLVMGetInsertBlock(c->builder);
+      LLVMBuildBr(c->builder, post_block);
+    }
+  }
+*/
+
   // If we jump away, we return a sentinel value.
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     return GEN_NOVALUE;
@@ -804,25 +853,18 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
       case TK_TRY:
       case TK_TRY_NO_CHECK:
       {
-        // TODO SEAN:
-        // this makes no sense to me
         // Do the then block only if we error out in the else clause.
         if((error_handler_expr != NULL) && (clause == 1))
           gen_expr(c, ast_childidx(error_handler_expr, 2));
       }
       break;
 
-      // TODO SEAN... is this needed?
-     /* case TK_DISPOSING_BLOCK:
+      case TK_DISPOSING_BLOCK:
       {
-        // TODO SEAN:
-        // I think this is correct
-        // in the sense that the TK_TRY logic this mirrors makes
-        // no sense to me
-        //if((error_handler_expr != NULL) && (clause == 0))
-        //  gen_expr(c, ast_childidx(error_handler_expr, 1));
+        if((error_handler_expr != NULL) && (clause == 0))
+          gen_expr(c, ast_childidx(error_handler_expr, 1));
       }
-      break;*/
+      break;
 
       default: {}
     }

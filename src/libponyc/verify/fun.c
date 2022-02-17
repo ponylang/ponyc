@@ -460,6 +460,7 @@ static bool show_partiality(pass_opt_t* opt, ast_t* ast)
   ast_t* child = ast_child(ast);
   bool found = false;
 
+  // TODO SEAN: is disposing block needed here?
   if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
   {
       pony_assert(child != NULL);
