@@ -778,7 +778,9 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
   // uncommenting breaks `with-return` test
   // but that doesn't mean this is bad.
   // it does result in with-return having the same crash as all the other tests
-  //codegen_poptry(c);
+  // i dont think we need because i think it is the else block that
+  // would be pushed in gen_try so not needed for us.
+  // codegen_poptry(c);
 
   // TODO SEAN: ask Joe to review here
   // The landing pad is marked as a cleanup, since exceptions are typeless and
