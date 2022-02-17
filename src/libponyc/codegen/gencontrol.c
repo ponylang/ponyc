@@ -812,16 +812,17 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
       }
       break;
 
-      case TK_DISPOSING_BLOCK:
+      // TODO SEAN... is this needed?
+     /* case TK_DISPOSING_BLOCK:
       {
         // TODO SEAN:
         // I think this is correct
         // in the sense that the TK_TRY logic this mirrors makes
         // no sense to me
-        if((error_handler_expr != NULL) && (clause == 0))
-          gen_expr(c, ast_childidx(error_handler_expr, 1));
+        //if((error_handler_expr != NULL) && (clause == 0))
+        //  gen_expr(c, ast_childidx(error_handler_expr, 1));
       }
-      break;
+      break;*/
 
       default: {}
     }
