@@ -231,6 +231,11 @@ static bool is_expr_constructor(ast_t* ast)
       ast_t* else_expr = ast_childidx(ast, 1);
       return is_expr_constructor(body) && is_expr_constructor(else_expr);
     }
+    case TK_DISPOSING_BLOCK:
+    {
+      ast_t* body = ast_childidx(ast, 0);
+      return is_expr_constructor(body);
+    }
     case TK_MATCH:
     {
       ast_t* cases = ast_childidx(ast, 1);
