@@ -222,6 +222,7 @@ static const lextoken_t keywords[] =
   { "$let", TK_MATCH_CAPTURE },
   { "$dontcare", TK_MATCH_DONTCARE },
   { "$iftype", TK_IFTYPE },
+  { "$disposing_block", TK_TEST_DISPOSING_BLOCK },
 
   { NULL, (token_id)0 }
 };
