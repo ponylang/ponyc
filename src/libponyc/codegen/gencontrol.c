@@ -814,16 +814,37 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 {
   size_t clause;
-  ast_t* try_expr = ast_try_clause(ast, &clause);
+  ast_t* error_handler_expr = ast_try_clause(ast, &clause);
 
-  // TODO SEAN
-  // This assumes a try/else/then
-  // but we could have a disposing block here as well
-  // I need to look into what is going on with clause here more
+  if (error_handler_expr != NULL)
+  {
+    switch(ast_id(error_handler_expr))
+    {
+      case TK_DISPOSING_BLOCK:
+      {
+        // TODO SEAN:
+        // I think this is correct
+        // in the sense that the TK_TRY logic this mirrors makes
+        // no sense to me
+        if((error_handler_expr != NULL) && (clause == 0))
+          gen_expr(c, ast_childidx(error_handler_expr, 1));
+        break;
+      }
 
-  // Do the then block only if we error out in the else clause.
-  if((try_expr != NULL) && (clause == 1))
-    gen_expr(c, ast_childidx(try_expr, 2));
+      case TK_TRY:
+      case TK_TRY_NO_CHECK:
+      {
+        // TODO SEAN:
+        // this makes no sense to me
+        // Do the then block only if we error out in the else clause.
+        if((error_handler_expr != NULL) && (clause == 1))
+          gen_expr(c, ast_childidx(error_handler_expr, 2));
+        break;
+      }
+
+      default: {}
+    }
+  }
 
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
