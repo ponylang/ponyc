@@ -6,6 +6,9 @@ bool verify_try(pass_opt_t* opt, ast_t* ast)
   pony_assert((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK));
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
+  // TODO: SEAN
+  // TK_TRY_NO_ERROR_REQUIRED
+  //
   // It has to be possible for the left side to result in an error.
   if((ast_id(ast) != TK_TRY_NO_CHECK) && !ast_canerror(body))
   {

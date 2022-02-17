@@ -336,10 +336,11 @@ RULE(for_loop,
   TK_FOR);
 
 RULE(with,
+  IS_SCOPE
   HAS_TYPE(type)
   CHILD(expr)    // With variable(s)
-  CHILD(rawseq)  // Body
-  CHILD(rawseq, none), // Else
+  CHILD(seq)  // Body
+  CHILD(rawseq, none), // Then body (generated in sugar pass)
   TK_WITH);
 
 RULE(match,

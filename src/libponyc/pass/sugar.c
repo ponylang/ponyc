@@ -552,32 +552,9 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
 
 static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 {
-  AST_EXTRACT_CHILDREN(*astp, withexpr, body, else_clause);
-  ast_t* main_annotation = ast_consumeannotation(*astp);
-  ast_t* else_annotation = ast_consumeannotation(else_clause);
-  token_id try_token;
+  AST_GET_CHILDREN(*astp, withexpr, body, dispose_clause);
 
-  if(ast_id(else_clause) == TK_NONE)
-    try_token = TK_TRY_NO_CHECK;
-  else
-    try_token = TK_TRY;
-
-  expand_none(else_clause, false);
-
-  // First build a skeleton try block without the "with" variables
-  BUILD(replace, *astp,
-    NODE(TK_SEQ,
-      NODE(try_token,
-        ANNOTATE(main_annotation)
-        NODE(TK_SEQ, AST_SCOPE
-          TREE(body))
-        NODE(TK_SEQ, AST_SCOPE
-          ANNOTATE(else_annotation)
-          TREE(else_clause))
-        NODE(TK_SEQ, AST_SCOPE))));
-
-  ast_t* tryexpr = ast_child(replace);
-  AST_GET_CHILDREN(tryexpr, try_body, try_else, try_then);
+  expand_none(dispose_clause, false);
 
   // Add the "with" variables from each with element
   for(ast_t* p = ast_child(withexpr); p != NULL; p = ast_sibling(p))
@@ -596,14 +573,10 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
         TREE(idseq)
         NODE(TK_REFERENCE, ID(init_name))));
 
-    ast_add(replace, assign);
-    ast_add(try_body, local);
-    ast_add(try_else, local);
-    build_with_dispose(try_then, idseq);
-    ast_add(try_then, local);
+    build_with_dispose(dispose_clause, idseq);
+    ast_add(dispose_clause, local);
   }
 
-  ast_replace(astp, replace);
   return AST_OK;
 }
 
