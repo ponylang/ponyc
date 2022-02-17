@@ -772,27 +772,10 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-  // TODO SEAN: ask Joe to review here
-  // The landing pad is marked as a cleanup, since exceptions are typeless and
-  // valueless. The first landing pad is always the destination.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->void_ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-
-  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
-
   // If we jump away, we return a sentinel value.
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     return GEN_NOVALUE;
 
-  // TODO SEAN:
-  // something here is bad
-  // Continue in the post block.
   LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
@@ -818,17 +801,6 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   {
     switch(ast_id(error_handler_expr))
     {
-      case TK_DISPOSING_BLOCK:
-      {
-        // TODO SEAN:
-        // I think this is correct
-        // in the sense that the TK_TRY logic this mirrors makes
-        // no sense to me
-        if((error_handler_expr != NULL) && (clause == 0))
-          gen_expr(c, ast_childidx(error_handler_expr, 1));
-        break;
-      }
-
       case TK_TRY:
       case TK_TRY_NO_CHECK:
       {
@@ -837,8 +809,19 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
         // Do the then block only if we error out in the else clause.
         if((error_handler_expr != NULL) && (clause == 1))
           gen_expr(c, ast_childidx(error_handler_expr, 2));
-        break;
       }
+      break;
+
+      case TK_DISPOSING_BLOCK:
+      {
+        // TODO SEAN:
+        // I think this is correct
+        // in the sense that the TK_TRY logic this mirrors makes
+        // no sense to me
+        if((error_handler_expr != NULL) && (clause == 0))
+          gen_expr(c, ast_childidx(error_handler_expr, 1));
+      }
+      break;
 
       default: {}
     }
