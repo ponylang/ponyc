@@ -799,8 +799,17 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
 
   LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
 
-  // so here for the else_value i think we want.
+  //codegen_pushscope(c, ast);
   gen_error(c, ast_parent(ast));
+  //gen_seq(c, dispose_clause);
+  //LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
+  //LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
+  //if(terminator == NULL)
+  //  codegen_scope_lifetime_end(c);
+  //codegen_popscope(c);
+
+  // so here for the else_value i think we want.
+  //gen_error(c, ast_parent(ast));
   // This errors out---
   //gen_expr(c, dispose_clause);
 
@@ -924,8 +933,14 @@ LLVMValueRef gen_disposing_block_sean(compile_t* c, ast_t* ast)
     c->personality, 1, "");
 
   LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
-  gen_expr(c, dispose_clause);
-  ast_print(dispose_clause, 80);
+
+  //codegen_pushscope(c, ast_parent(ast));
+  gen_error(c, ast_parent(ast));
+  //LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
+  //LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
+  //if(terminator == NULL)
+  //  codegen_scope_lifetime_end(c);
+  //codegen_popscope(c);
 
   return GEN_NOTNEEDED;
 }
@@ -934,7 +949,7 @@ LLVMValueRef gen_disposing_block_sean(compile_t* c, ast_t* ast)
 LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
 {
   if(ast_canerror(ast))
-    return gen_disposing_block_sean(c, ast);
+    return gen_disposing_block_can_error(c, ast);
   else
     return gen_disposing_block_cant_error(c, ast);
 }

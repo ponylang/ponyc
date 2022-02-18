@@ -336,7 +336,6 @@ RULE(for_loop,
   TK_FOR);
 
 RULE(with,
-  IS_SCOPE
   HAS_TYPE(type)
   CHILD(expr)    // With variable(s)
   CHILD(rawseq),  // Body

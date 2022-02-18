@@ -902,7 +902,6 @@ DEF(with);
   PRINT_INLINE();
   TOKEN(NULL, TK_WITH);
   ANNOTATE(annotations);
-  SCOPE();
   RULE("with expression", withexpr);
   SKIP(NULL, TK_DO);
   RULE("with body", rawseq);
