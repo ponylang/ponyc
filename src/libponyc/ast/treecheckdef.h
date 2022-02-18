@@ -344,7 +344,7 @@ RULE(with,
 RULE(disposing_block,
   HAS_TYPE(type)
   CHILD(seq) // body
-  CHILD(seq), // on exit body
+  CHILD(seq), // dispose
   TK_DISPOSING_BLOCK);
 
 RULE(match,

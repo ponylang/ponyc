@@ -177,7 +177,6 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
         return false;
       break;
 
-    // TODO SEAN: I'm 99.9999999999999% sure we want child 1
     case TK_DISPOSING_BLOCK:
       // The dispose block is not the result.
       if(ast_childidx(parent, 1) == ast)

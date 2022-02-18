@@ -1338,7 +1338,6 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
         if(body == ast)
         {
           // Push our consumes, but not defines, to the dispose clause.
-          // TODO SEAN: I think this is correct
           ast_inheritbranch(dispose_clause, body);
           ast_consolidate_branches(dispose_clause, 2);
         }

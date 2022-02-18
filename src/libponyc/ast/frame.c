@@ -101,10 +101,12 @@ bool frame_push(typecheck_t* t, ast_t* ast)
 
     case TK_TRY:
     case TK_TRY_NO_CHECK:
-    case TK_DISPOSING_BLOCK:
-      // TODO SEAN, this should be not `try_expr` for disposing block... I think
       pop = push_frame(t);
       t->frame->try_expr = ast;
+      break;
+
+    case TK_DISPOSING_BLOCK:
+      pop = push_frame(t);
       break;
 
     case TK_RECOVER:

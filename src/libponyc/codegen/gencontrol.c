@@ -506,8 +506,6 @@ static void gen_then_clauses(compile_t* c, ast_t* ast, bool within_loop)
       }
       case TK_DISPOSING_BLOCK:
       {
-        // TODO Sean
-        // I'm pretty sure this is correct
         if(ast_index(last) != 1)
           gen_expr(c, ast_childidx(parent, 1));
         break;
@@ -799,19 +797,8 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
 
   LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
 
-  //codegen_pushscope(c, ast);
+  gen_expr(c, dispose_clause);
   gen_error(c, ast_parent(ast));
-  //gen_seq(c, dispose_clause);
-  //LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
-  //LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
-  //if(terminator == NULL)
-  //  codegen_scope_lifetime_end(c);
-  //codegen_popscope(c);
-
-  // so here for the else_value i think we want.
-  //gen_error(c, ast_parent(ast));
-  // This errors out---
-  //gen_expr(c, dispose_clause);
 
   // If we jump away, we return a sentinel value.
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
@@ -934,13 +921,13 @@ LLVMValueRef gen_disposing_block_sean(compile_t* c, ast_t* ast)
 
   LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
 
-  //codegen_pushscope(c, ast_parent(ast));
+  codegen_pushscope(c, ast_parent(ast));
   gen_error(c, ast_parent(ast));
-  //LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
-  //LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
-  //if(terminator == NULL)
-  //  codegen_scope_lifetime_end(c);
-  //codegen_popscope(c);
+  LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
+  LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
+  if(terminator == NULL)
+    codegen_scope_lifetime_end(c);
+  codegen_popscope(c);
 
   return GEN_NOTNEEDED;
 }
@@ -968,16 +955,12 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
       {
         // Do the then block only if we error out in the else clause.
         if((error_handler_expr != NULL) && (clause == 1))
-        {
-          printf("fooooo\n");
           gen_expr(c, ast_childidx(error_handler_expr, 2));
-        }
       }
       break;
 
       case TK_DISPOSING_BLOCK:
       {
-        printf("heelo\n");
         if((error_handler_expr != NULL) && (clause == 0))
           gen_expr(c, ast_childidx(error_handler_expr, 1));
       }

@@ -1,10 +1,10 @@
 use @pony_exitcode[None](code: I32)
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 
-class Disposble
+class Disposable
   var _exit_code: I32
 
-  new create() =>
+  new iso create() =>
     _exit_code = 0
 
   fun ref set_exit(code: I32) =>
@@ -17,7 +17,7 @@ class Disposble
 actor Main
   new create(env: Env) =>
     try
-      with d = Disposble do
+      with d = Disposable do
         d.set_exit(10)
         errors()?
       end
