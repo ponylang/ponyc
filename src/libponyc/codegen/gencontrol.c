@@ -898,6 +898,8 @@ LLVMValueRef gen_disposing_block_sean(compile_t* c, ast_t* ast)
   else_block = codegen_block(c, "disposing_block_else");
 
   // Keep a reference to the else block.
+  // the also sets up the invoke_target needed when we do
+  // invoke_fun for handling error
   codegen_pushtry(c, else_block);
 
   // Body block.
