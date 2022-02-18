@@ -727,7 +727,104 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   return GEN_NOTNEEDED;
 }
 
-LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
+LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
+{
+  bool needed = is_result_needed(ast);
+  AST_GET_CHILDREN(ast, body, dispose_clause);
+
+  deferred_reification_t* reify = c->frame->reify;
+
+  compile_type_t* phi_type = NULL;
+
+  // We will have no type if our body has a return statement
+  if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
+    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    ast_free_unattached(type);
+  }
+
+  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef else_block = NULL;
+  LLVMBasicBlockRef post_block = NULL;
+
+  else_block = codegen_block(c, "disposing_block_else");
+
+  if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+    post_block = codegen_block(c, "disposing_block_post");
+
+  // Keep a reference to the else block.
+  codegen_pushtry(c, else_block);
+
+  // Body block.
+  LLVMPositionBuilderAtEnd(c->builder, block);
+  LLVMValueRef body_value = gen_expr(c, body);
+
+  if(body_value != GEN_NOVALUE)
+  {
+    if(needed)
+    {
+      ast_t* body_type = deferred_reify(reify, ast_type(body), c->opt);
+      body_value = gen_assign_cast(c, phi_type->use_type, body_value,
+        body_type);
+      ast_free_unattached(body_type);
+    }
+
+    if(body_value == NULL)
+      return NULL;
+
+    gen_expr(c, dispose_clause);
+    block = LLVMGetInsertBlock(c->builder);
+    LLVMBuildBr(c->builder, post_block);
+  }
+
+  // Pop the try before generating the else block.
+  codegen_poptry(c);
+
+  // we need to create an else that rethrows the error
+  // Else block.
+  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
+  LLVMPositionBuilderAtEnd(c->builder, else_block);
+
+  // The landing pad is marked as a cleanup, since exceptions are typeless and
+  // valueless. The first landing pad is always the destination.
+  LLVMTypeRef lp_elements[2];
+  lp_elements[0] = c->void_ptr;
+  lp_elements[1] = c->i32;
+  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
+    false);
+
+  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
+    c->personality, 1, "");
+
+  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
+
+  // so here for the else_value i think we want.
+  gen_error(c, ast_parent(ast));
+  // This errors out---
+  //gen_expr(c, dispose_clause);
+
+  // If we jump away, we return a sentinel value.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+    return GEN_NOVALUE;
+
+  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+
+  if(needed)
+  {
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type->use_type, "");
+
+    if(body_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &body_value, &block, 1);
+
+    return phi;
+  }
+
+  return GEN_NOTNEEDED;
+}
+
+LLVMValueRef gen_disposing_block_cant_error(compile_t* c, ast_t* ast)
 {
   bool needed = is_result_needed(ast);
   AST_GET_CHILDREN(ast, body, dispose_clause);
@@ -772,55 +869,6 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-/*
-  if(ast_canerror(ast))
-  {
-    // we need to create an else that rethrows the error
-    printf("can error\n");
-
-    // need an else block here and clause
-    LLVMBasicBlockRef else_block = codegen_block(c, "disposing_block_else");
-
-    // Else block.
-    LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
-    LLVMPositionBuilderAtEnd(c->builder, else_block);
-
-    // The landing pad is marked as a cleanup, since exceptions are typeless and
-    // valueless. The first landing pad is always the destination.
-    LLVMTypeRef lp_elements[2];
-    lp_elements[0] = c->void_ptr;
-    lp_elements[1] = c->i32;
-    LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-      false);
-
-    LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-      c->personality, 1, "");
-
-    LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
-
-    LLVMValueRef else_value = gen_expr(c, else_clause);
-
-    if(else_value != GEN_NOVALUE)
-    {
-      if(needed)
-      {
-        ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
-        else_value = gen_assign_cast(c, phi_type->use_type, else_value,
-          else_type);
-        ast_free_unattached(else_type);
-      }
-
-      if(else_value == NULL)
-        return NULL;
-
-      gen_expr(c, dispose_clause);
-
-      else_block = LLVMGetInsertBlock(c->builder);
-      LLVMBuildBr(c->builder, post_block);
-    }
-  }
-*/
-
   // If we jump away, we return a sentinel value.
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     return GEN_NOVALUE;
@@ -841,6 +889,54 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
   return GEN_NOTNEEDED;
 }
 
+LLVMValueRef gen_disposing_block_sean(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, body, dispose_clause);
+
+  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef else_block = NULL;
+  else_block = codegen_block(c, "disposing_block_else");
+
+  // Keep a reference to the else block.
+  codegen_pushtry(c, else_block);
+
+  // Body block.
+  LLVMPositionBuilderAtEnd(c->builder, block);
+  gen_expr(c, body);
+
+  // Pop the try before generating the else block.
+  codegen_poptry(c);
+
+  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
+  LLVMPositionBuilderAtEnd(c->builder, else_block);
+
+  // The landing pad is marked as a cleanup, since exceptions are typeless and
+  // valueless. The first landing pad is always the destination.
+  LLVMTypeRef lp_elements[2];
+  lp_elements[0] = c->void_ptr;
+  lp_elements[1] = c->i32;
+  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
+    false);
+
+  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
+    c->personality, 1, "");
+
+  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
+  gen_expr(c, dispose_clause);
+  ast_print(dispose_clause, 80);
+
+  return GEN_NOTNEEDED;
+}
+
+
+LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
+{
+  if(ast_canerror(ast))
+    return gen_disposing_block_sean(c, ast);
+  else
+    return gen_disposing_block_cant_error(c, ast);
+}
+
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 {
   size_t clause;
@@ -855,12 +951,16 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
       {
         // Do the then block only if we error out in the else clause.
         if((error_handler_expr != NULL) && (clause == 1))
+        {
+          printf("fooooo\n");
           gen_expr(c, ast_childidx(error_handler_expr, 2));
+        }
       }
       break;
 
       case TK_DISPOSING_BLOCK:
       {
+        printf("heelo\n");
         if((error_handler_expr != NULL) && (clause == 0))
           gen_expr(c, ast_childidx(error_handler_expr, 1));
       }
