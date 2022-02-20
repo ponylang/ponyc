@@ -272,7 +272,7 @@ typedef enum token_id
   TK_TEST_TRY_NO_CHECK,
   TK_TEST_ALIASED,
   TK_TEST_UPDATEARG,
-  TK_TEST_EXTRA,
+  TK_TEST_EXTRA
 } token_id;
 
 
