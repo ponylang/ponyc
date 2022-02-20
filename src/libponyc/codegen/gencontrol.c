@@ -7,7 +7,6 @@
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
-#include <stdio.h>
 
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
@@ -885,54 +884,6 @@ LLVMValueRef gen_disposing_block_cant_error(compile_t* c, ast_t* ast)
   return GEN_NOTNEEDED;
 }
 
-LLVMValueRef gen_disposing_block_sean(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, body, dispose_clause);
-
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef else_block = NULL;
-  else_block = codegen_block(c, "disposing_block_else");
-
-  // Keep a reference to the else block.
-  // the also sets up the invoke_target needed when we do
-  // invoke_fun for handling error
-  codegen_pushtry(c, else_block);
-
-  // Body block.
-  LLVMPositionBuilderAtEnd(c->builder, block);
-  gen_expr(c, body);
-
-  // Pop the try before generating the else block.
-  codegen_poptry(c);
-
-  LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
-  LLVMPositionBuilderAtEnd(c->builder, else_block);
-
-  // The landing pad is marked as a cleanup, since exceptions are typeless and
-  // valueless. The first landing pad is always the destination.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->void_ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-
-  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
-
-  codegen_pushscope(c, ast_parent(ast));
-  gen_error(c, ast_parent(ast));
-  LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef terminator = LLVMGetBasicBlockTerminator(current_bb);
-  if(terminator == NULL)
-    codegen_scope_lifetime_end(c);
-  codegen_popscope(c);
-
-  return GEN_NOTNEEDED;
-}
-
-
 LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
 {
   if(ast_canerror(ast))
@@ -944,7 +895,7 @@ LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast)
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 {
   size_t clause;
-  ast_t* error_handler_expr = ast_try_clause(ast, &clause);
+  ast_t* error_handler_expr = ast_error_handling_clause(ast, &clause);
 
   if (error_handler_expr != NULL)
   {

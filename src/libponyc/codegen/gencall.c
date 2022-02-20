@@ -893,9 +893,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       // instead of a call.
       codegen_debugloc(c, ast);
 
-      if(ast_canerror(ast) && (c->frame->invoke_target != NULL)) {
+      if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
         r = invoke_fun(c, func, args + arg_offset, i, "", !bare);
-      }
       else
         r = codegen_call(c, func, args + arg_offset, i, !bare);
 
@@ -1387,9 +1386,8 @@ void gencall_error(compile_t* c)
 {
   LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_error");
 
-  if(c->frame->invoke_target != NULL) {
+  if(c->frame->invoke_target != NULL)
     invoke_fun(c, func, NULL, 0, "", false);
-  }
   else
     LLVMBuildCall(c->builder, func, NULL, 0, "");
 

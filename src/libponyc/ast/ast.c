@@ -943,7 +943,7 @@ ast_t* ast_nearest(ast_t* ast, token_id id)
   return ast;
 }
 
-ast_t* ast_try_clause(ast_t* ast, size_t* clause)
+ast_t* ast_error_handling_clause(ast_t* ast, size_t* clause)
 {
   ast_t* last = NULL;
 

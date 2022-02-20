@@ -908,16 +908,6 @@ DEF(with);
   TERMINATE("with expression", TK_END);
   DONE();
 
-DEF(test_disposing_block);
-  PRINT_INLINE();
-  TOKEN(NULL, TK_TEST_DISPOSING_BLOCK);
-  ANNOTATE(annotations);
-  MAP_ID(TK_TEST_DISPOSING_BLOCK, TK_DISPOSING_BLOCK);
-  RULE("body", seq);
-  IF(TK_THEN, RULE("displosing block body", seq));
-  TERMINATE("disposing block expression", TK_END);
-  DONE();
-
 // TRY [annotations] seq [ELSE annotatedseq] [THEN annotatedseq] END
 DEF(try_block);
   PRINT_INLINE();
@@ -1007,8 +997,7 @@ DEF(test_ifdef_flag);
 DEF(term);
   RULE("value", cond, ifdef, iftypeset, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, pattern, const_expr, test_noseq,
-    test_seq_scope, test_try_block, test_disposing_block, test_ifdef_flag,
-    test_prefix);
+    test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
 // cond | ifdef | iftypeset | match | whileloop | repeat | forloop | with | try |
@@ -1016,8 +1005,7 @@ DEF(term);
 DEF(nextterm);
   RULE("value", cond, ifdef, iftypeset, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, nextpattern, const_expr, test_noseq,
-    test_seq_scope, test_try_block, test_disposing_block, test_ifdef_flag,
-    test_prefix);
+    test_seq_scope, test_try_block, test_ifdef_flag, test_prefix);
   DONE();
 
 // AS type
