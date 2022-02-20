@@ -199,3 +199,17 @@ TEST_F(StableTypeTest, IncompatibleIsectParameter)
 
   TEST_ERROR(src);
 }
+
+TEST_F(StableTypeTest, DoubleEphemeralInstantiation)
+{
+  const char* src =
+    "class Generic[T]\n"
+    "  fun get(f: {(): T^}): T =>\n"
+    "    f()\n"
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Generic[A iso^].get({() => A})\n";
+
+  TEST_COMPILE(src);
+}
