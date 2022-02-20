@@ -117,7 +117,7 @@ class Iter[A] is Iterator[A]
       default
     end
 
-  fun ref map_stateful[B](f: {ref(A!): B^ ?}): Iter[B]^ =>
+  fun ref map_stateful[B](f: {ref(A!): B ?}): Iter[B]^ =>
     """
     Allows stateful transformation of each element from the iterator, similar
     to `map`.
@@ -681,7 +681,7 @@ class Iter[A] is Iterator[A]
     else error
     end
 
-  fun ref map[B](f: {(A!): B^ ?} box): Iter[B]^ =>
+  fun ref map[B](f: {(A!): B ?} box): Iter[B]^ =>
     """
     Return an iterator where each item's value is the application of the given
     function to the value in the original iterator.
@@ -694,7 +694,7 @@ class Iter[A] is Iterator[A]
     ```
     `1 4 9`
     """
-    map_stateful[B]({(a: A!): B^ ? => f(a) ? })
+    map_stateful[B]({(a: A!): B ? => f(a) ? })
 
   fun ref nth(n: USize): A ? =>
     """
