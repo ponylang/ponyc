@@ -429,9 +429,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
     }
   }
 
-  if (use_yield)
-    ponyint_cpu_core_pause(tsc, tsc2);
-
+  ponyint_cpu_core_pause(tsc, tsc2, use_yield);
   return false;
 }
 
