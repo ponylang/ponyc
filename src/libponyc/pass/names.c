@@ -331,7 +331,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
       if((ast_id(defp) == TK_FUN)
         || (ast_id(defp) == TK_BE))
         {
-          ast_t* info = ast_data((ast_t *)defp);
+          ast_t* info = (ast_t *)ast_data(defp);
           if (info != NULL)
           {
             def = ast_get(info, name, NULL);

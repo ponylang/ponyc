@@ -449,7 +449,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
       if((ast_id(defp) == TK_FUN)
         || (ast_id(defp) == TK_BE))
         {
-          ast_t* info = ast_data((ast_t *)defp);
+          ast_t* info = (ast_t *)ast_data(defp);
           if (info != NULL)
           {
             def = ast_get(info, ast_name(ast_child(ast)), &status);
