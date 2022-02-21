@@ -73,7 +73,6 @@ static bool is_method(ast_t* ast)
   return (variety == TK_BE) || (variety == TK_FUN) || (variety == TK_NEW);
 }
 
-
 // Attach a new method_t structure to the given method.
 static method_t* attach_method_t(ast_t* method)
 {
@@ -247,7 +246,17 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
   ast_t* trait_def = (ast_t*)ast_data(trait_ref);
   pony_assert(trait_def != NULL);
   ast_t* type_args = ast_childidx(trait_ref, 2);
+  //ast_t* aliased_as = ast_childidx(trait_ref, 5);
   ast_t* type_params = ast_childidx(trait_def, 1);
+
+    const char* name = ast_name(ast_childidx(method, 1));
+    if(strcmp("sean", name) == 0)
+    {
+      ast_print(method, 80);
+      //ast_print(aliased_as, 80);
+      ast_print(trait_def, 80);
+      ast_print(ast_parent(trait_def), 80);
+    }
 
   if(!reify_defaults(type_params, type_args, true, opt))
     return NULL;
@@ -607,16 +616,17 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
 
       ast_t* reified = reify_provides_type(method, trait_ref, opt);
 
-      const char* name = ast_name(ast_childidx(reified, 1));
-      if(strcmp("sean", name) == 0)
-      {
-        ast_print(entity, 80);
-        //ast_print(method, 80);
-        const char* orig = ast_name(ast_childidx(trait_ref, 5));
-        printf("orig: %s\n", orig);
-        //ast_print(trait_ref, 80);
-        ast_print(reified, 80);
-      }
+
+      // const char* name = ast_name(ast_childidx(reified, 1));
+      // if(strcmp("sean", name) == 0)
+      // {
+      //   ast_print(entity, 80);
+      //   //ast_print(method, 80);
+      //   const char* orig = ast_name(ast_childidx(trait_ref, 5));
+      //   printf("orig: %s\n", orig);
+      //   //ast_print(trait_ref, 80);
+      //   ast_print(reified, 80);
+      // }
 
       if(reified == NULL)
       {
