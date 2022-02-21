@@ -255,6 +255,10 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
       ast_print(method, 80);
       //ast_print(aliased_as, 80);
       ast_print(trait_def, 80);
+      printf("here comes to boom...\n");
+      sym_status_t status;
+      ast_get(trait_def, "SeanPrimitive", &status);
+      printf("no boom\n");
       ast_print(ast_parent(trait_def), 80);
     }
 

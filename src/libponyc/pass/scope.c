@@ -97,10 +97,8 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   pony_assert(curr_package != NULL);
   package_add_dependency(curr_package, package);
 
-  if(name != NULL && ast_id(name) == TK_ID) { // We have an alias
-    printf("alias... %s\n", ast_name(name));
+  if(name != NULL && ast_id(name) == TK_ID) // We have an alias
     return set_scope(options, ast, name, package, false);
-  }
 
   ast_setflag(ast, AST_FLAG_IMPORT);
 
