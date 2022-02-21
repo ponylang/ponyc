@@ -10,6 +10,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
+
 /** The following defines how we determine the signature and body to use for
  * some method M in type T.
  * Note that the flatten pass will already have ensured that provides types
@@ -70,6 +71,7 @@ static bool is_method(ast_t* ast)
   token_id variety = ast_id(ast);
   return (variety == TK_BE) || (variety == TK_FUN) || (variety == TK_NEW);
 }
+
 
 // Attach a new method_t structure to the given method.
 static method_t* attach_method_t(ast_t* method)
