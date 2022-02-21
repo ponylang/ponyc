@@ -9,7 +9,8 @@
 #include "../type/reify.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
-
+#include <stdio.h>
+#include <string.h>
 
 /** The following defines how we determine the signature and body to use for
  * some method M in type T.
@@ -389,6 +390,21 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   }
 
   ast_t* local = ast_append(ast_childidx(entity, 4), basis_method);
+  //if(strcmp(name, "sean") == 0)
+  //{
+    //ast_print(basis_method, 80);
+    //ast_print(trait_ref, 80);
+    //ast_print(entity, 80);
+    //ast_t* sean = ast_parent(entity);
+    //ast_print(sean, 80);
+/*
+    while(sean != NULL)
+    {
+      ast_print(sean, 80);
+      sean = ast_parent(sean);
+    }
+*/
+ // }
   ast_set(entity, name, local, SYM_DEFINED, false);
   ast_t* body_donor = (ast_t*)ast_data(basis_method);
   method_t* info = attach_method_t(local);
@@ -590,6 +606,17 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
       pony_assert(is_method(method));
 
       ast_t* reified = reify_provides_type(method, trait_ref, opt);
+
+      const char* name = ast_name(ast_childidx(reified, 1));
+      if(strcmp("sean", name) == 0)
+      {
+        ast_print(entity, 80);
+        //ast_print(method, 80);
+        const char* orig = ast_name(ast_childidx(trait_ref, 5));
+        printf("orig: %s\n", orig);
+        //ast_print(trait_ref, 80);
+        ast_print(reified, 80);
+      }
 
       if(reified == NULL)
       {

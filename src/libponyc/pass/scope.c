@@ -9,6 +9,7 @@
 #include "../ast/id.h"
 #include "ponyassert.h"
 #include <string.h>
+#include <stdio.h>
 
 /**
  * Insert a name->AST mapping into the specified scope.
@@ -96,8 +97,10 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   pony_assert(curr_package != NULL);
   package_add_dependency(curr_package, package);
 
-  if(name != NULL && ast_id(name) == TK_ID) // We have an alias
+  if(name != NULL && ast_id(name) == TK_ID) { // We have an alias
+    printf("alias... %s\n", ast_name(name));
     return set_scope(options, ast, name, package, false);
+  }
 
   ast_setflag(ast, AST_FLAG_IMPORT);
 

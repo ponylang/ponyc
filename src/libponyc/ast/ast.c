@@ -1151,6 +1151,9 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   if(find != NULL)
     return false;
 
+  if(strcmp("l", name) == 0)
+    printf("we got through\n");
+
   return symtab_add(ast->symtab, name, value, status);
 }
 
