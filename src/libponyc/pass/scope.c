@@ -9,7 +9,6 @@
 #include "../ast/id.h"
 #include "ponyassert.h"
 #include <string.h>
-#include <stdio.h>
 
 /**
  * Insert a name->AST mapping into the specified scope.
