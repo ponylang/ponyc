@@ -1,5 +1,3 @@
-// foo.pony
-
 use "debug"
 
 trait Foo[T: Stringable #read]

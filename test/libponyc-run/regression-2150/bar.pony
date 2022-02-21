@@ -1,5 +1,3 @@
-// bar.pony
-
 class Bar[T: Stringable #read] is Foo[T]
   let _t: T
 
