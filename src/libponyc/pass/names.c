@@ -319,29 +319,10 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   }
 
   ast_t* def = ast_get(r_scope, name, NULL);
+  if(def == NULL)
+    def = ast_get_provided_symbol_definition(ast, name, NULL);
+
   bool r = true;
-
-  if (def == NULL)
-  {
-    bool c = true;
-    ast_t* defp = ast_parent(ast_child(ast));
-
-    while(defp != NULL && c)
-    {
-      if((ast_id(defp) == TK_FUN)
-        || (ast_id(defp) == TK_BE))
-        {
-          ast_t* info = (ast_t *)ast_data(defp);
-          if (info != NULL)
-          {
-            def = ast_get(info, name, NULL);
-          }
-          c = false;
-      }
-
-      defp = ast_parent(defp);
-    }
-  }
 
   if(def == NULL)
   {

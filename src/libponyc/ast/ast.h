@@ -213,6 +213,9 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       children); \
   }
 
+ast_t* ast_get_provided_symbol_definition(ast_t* ast,
+  const char* name, sym_status_t* status);
+
 pony_type_t* ast_signature_pony_type();
 
 pony_type_t* ast_nominal_pkg_id_signature_pony_type();

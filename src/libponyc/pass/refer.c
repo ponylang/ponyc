@@ -435,31 +435,10 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
     return true;
   }
 
-  // Everything we reference must be in scope, so we can use ast_get for lookup.
   sym_status_t status;
-  ast_t* def = ast_get(ast, ast_name(ast_child(ast)), &status);
-
-  if (def == NULL)
-  {
-    bool c = true;
-    ast_t* defp = ast_parent(ast_child(ast));
-
-    while(defp != NULL && c)
-    {
-      if((ast_id(defp) == TK_FUN)
-        || (ast_id(defp) == TK_BE))
-        {
-          ast_t* info = (ast_t *)ast_data(defp);
-          if (info != NULL)
-          {
-            def = ast_get(info, ast_name(ast_child(ast)), &status);
-          }
-          c = false;
-      }
-
-      defp = ast_parent(defp);
-    }
-  }
+  ast_t* def = ast_get(ast, name, &status);
+  if(def == NULL)
+    def = ast_get_provided_symbol_definition(ast, name, &status);
 
   // If nothing was found, we fail, but also try to suggest an alternate name.
   if(def == NULL)
