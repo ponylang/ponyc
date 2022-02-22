@@ -26,6 +26,8 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_try(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_disposing_block(compile_t* c, ast_t* ast);
+
 LLVMValueRef gen_error(compile_t* c, ast_t* ast);
 
 void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,

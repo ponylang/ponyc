@@ -79,6 +79,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_repeat(c, ast);
       break;
 
+    case TK_DISPOSING_BLOCK:
+      ret = gen_disposing_block(c, ast);
+      break;
+
     case TK_TRY:
     case TK_TRY_NO_CHECK:
       ret = gen_try(c, ast);
