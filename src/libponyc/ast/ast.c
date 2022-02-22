@@ -1910,9 +1910,7 @@ ast_t* ast_get_provided_symbol_definition(ast_t* ast,
       // of the provided body in the ast data.
       ast_t* info = (ast_t *)ast_data(defp);
       if (info != NULL)
-      {
-          def = ast_get(info, name, status);
-      }
+        def = ast_get(info, name, status);
       keep_looking = false;
     }
 
