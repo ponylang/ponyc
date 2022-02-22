@@ -200,3 +200,11 @@ The `map_stateful` and `map` methods on an Iter (from the itertools package) wer
 
 This change correctly makes them only require `B`.
 
+## Use symbol table from definition scope when looking up references from default method bodies
+
+Previously, symbols from default method bodies were only looked up in the local scope of the file into which they were included. This resulted in compilation errors if said symbol wasn't available in the local scope.
+
+Issues [#3737](https://github.com/ponylang/ponyc/issues/3737) and [#2150](https://github.com/ponylang/ponyc/issues/2150) were both examples of this problem.
+
+We've updated definition lookup to check if the enclosing method is provided by a trait or interface and if it is, to also check to definition scope for any needed symbols.
+
