@@ -63,6 +63,7 @@ actor \nodoc\ Main is TestList
     json.Main.make().tests(test)
     math.Main.make().tests(test)
     net.Main.make().tests(test)
+    pony_check.Main.make().tests(test)
     process.Main.make().tests(test)
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
