@@ -1893,6 +1893,33 @@ void ast_extract_children(ast_t* parent, size_t child_count,
   }
 }
 
+ast_t* ast_get_provided_symbol_definition(ast_t* ast,
+  const char* name, sym_status_t* status)
+{
+  // The definition isn't in the local scope. let's check to see if our
+  // parent has a provided method body from a trait or interface. If yes,
+  // then we will find our definition.
+  ast_t* def = NULL;
+  bool found = false;
+
+  while(ast != NULL && !found)
+  {
+    if((ast_id(ast) == TK_FUN) || (ast_id(ast) == TK_BE))
+    {
+      // Methods with defaults provided by a trait/interface store the ast
+      // of the provided body in the ast data.
+      ast_t* body_donor = (ast_t *)ast_data(ast);
+      if (body_donor != NULL)
+        def = ast_get(body_donor, name, status);
+      found = true;
+    }
+
+    ast = ast_parent(ast);
+  }
+
+  return def;
+}
+
 static void ast_signature_serialise_trace(pony_ctx_t* ctx, void* object)
 {
   ast_t* ast = (ast_t*)object;

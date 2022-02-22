@@ -319,6 +319,9 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
   }
 
   ast_t* def = ast_get(r_scope, name, NULL);
+  if(def == NULL)
+    def = ast_get_provided_symbol_definition(ast, name, NULL);
+
   bool r = true;
 
   if(def == NULL)
