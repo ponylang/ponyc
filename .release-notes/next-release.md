@@ -194,3 +194,9 @@ actor Main
 
 A future improvement to the `with` implementation will allow the usage of `iso` variables as `with` conditions.
 
+## Fix the interfaces for Iter's `map` and `map_stateful` methods to be less strict
+
+The `map_stateful` and `map` methods on an Iter (from the itertools package) were too strict in what they required, requiring a `B^` in order to produce an `Iter[B]`.
+
+This change correctly makes them only require `B`.
+
