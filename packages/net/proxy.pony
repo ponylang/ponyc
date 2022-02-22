@@ -10,7 +10,7 @@ class val NoProxy is Proxy
   actor MyClient
     new create(host: String, service: String, proxy: Proxy = NoProxy) =>
       let conn: TCPConnection = TCPConnection.create(
-        env.root,
+        TCPConnectAuth(env.root),
         proxy.apply(MyConnectionNotify.create()),
         "localhost",
         "80")

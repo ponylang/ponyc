@@ -23,14 +23,15 @@ actor Main
     let client = ProcessClient(env)
     let notifier: ProcessNotify iso = consume client
     // define the binary to run
-    let path = FilePath(env.root, "/bin/cat")
+    let path = FilePath(FileAuth(env.root), "/bin/cat")
     // define the arguments; first arg is always the binary name
     let args: Array[String] val = ["cat"]
     // define the environment variable for the execution
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
     // create a ProcessMonitor and spawn the child process
-    let auth = env.root
-    let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
+    let sp_auth = StartProcessAuth(env.root)
+    let bp_auth = ApplyReleaseBackpressureAuth(env.root)
+    let pm: ProcessMonitor = ProcessMonitor(sp_auth, bp_auth, consume notifier,
     path, args, vars)
     // write to STDIN of the child process
     pm.write("one, two, three")

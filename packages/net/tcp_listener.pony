@@ -6,8 +6,6 @@ use @pony_os_listen_tcp4[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] 
 use @pony_os_listen_tcp6[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] tag,
   service: Pointer[U8] tag)
 
-type TCPListenerAuth is (AmbientAuth | NetAuth | TCPAuth | TCPListenAuth)
-
 actor TCPListener is AsioEventNotify
   """
   Listens for new network connections.
@@ -41,7 +39,7 @@ actor TCPListener is AsioEventNotify
   actor Main
     new create(env: Env) =>
       try
-        TCPListener(env.root,
+        TCPListener(TCPListenAuth(env.root),
           recover MyTCPListenNotify end, "", "8989")
       end
   ```
@@ -58,7 +56,7 @@ actor TCPListener is AsioEventNotify
   let _yield_after_writing: USize
 
   new create(
-    auth: TCPListenerAuth,
+    auth: TCPListenAuth,
     notify: TCPListenNotify iso,
     host: String = "",
     service: String = "0",
@@ -81,7 +79,7 @@ actor TCPListener is AsioEventNotify
     _notify_listening()
 
   new ip4(
-    auth: TCPListenerAuth,
+    auth: TCPListenAuth,
     notify: TCPListenNotify iso,
     host: String = "",
     service: String = "0",
@@ -104,7 +102,7 @@ actor TCPListener is AsioEventNotify
     _notify_listening()
 
   new ip6(
-    auth: TCPListenerAuth,
+    auth: TCPListenAuth,
     notify: TCPListenNotify iso,
     host: String = "",
     service: String = "0",

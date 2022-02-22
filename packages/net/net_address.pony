@@ -74,14 +74,14 @@ class val NetAddress is Equatable[NetAddress]
     @pony_os_ipv6(this)
 
   fun name(
-    reversedns: (DNSLookupAuth | None) = None,
+    reversedns: (DNSAuth | None) = None,
     servicename: Bool = false)
     : (String, String) ?
   =>
     """
     Returns the host and service name.
 
-    If `reversedns` is an instance of `DNSLookupAuth`
+    If `reversedns` is `DNSAuth`,
     a DNS lookup will be executed and the hostname
     for this address is returned as first element of the result tuple.
     If no hostname could be found, an error is raised.
@@ -127,8 +127,8 @@ class val NetAddress is Equatable[NetAddress]
 
   fun length() : U8 =>
     """
-    For platforms (OSX/FreeBSD) with `length` field as part of 
-    its `struct sockaddr` definition, returns the `length`. 
+    For platforms (OSX/FreeBSD) with `length` field as part of
+    its `struct sockaddr` definition, returns the `length`.
     Else (Linux/Windows) returns the size of `sockaddr_in` or `sockaddr_in6`.
     """
 
@@ -169,7 +169,7 @@ class val NetAddress is Equatable[NetAddress]
 
     fun scope() : U32 =>
       """
-        Returns IPv6 scope identifier: Unicast, Anycast, Multicast and 
+        Returns IPv6 scope identifier: Unicast, Anycast, Multicast and
         unassigned scopes.
       """
 
@@ -184,7 +184,7 @@ class val NetAddress is Equatable[NetAddress]
 
     fun ipv6_addr() : (U32, U32, U32, U32) =>
       """
-        Returns IPV6 address as the 4-tuple (say `a`). 
+        Returns IPV6 address as the 4-tuple (say `a`).
         `a._1 = _addr1` // Bits 0-32 of the IPv6 address in host byte order.
         `a._2 = _addr2  // Bits 33-64 of the IPv6 address in host byte order.
         `a._3 = _addr3  // Bits 65-96 of the IPv6 address in host byte order.

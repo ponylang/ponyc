@@ -2,7 +2,7 @@ use "net"
 
 actor Main
   new create(env: Env) =>
-    TCPListener(env.root, Listener(env.out))
+    TCPListener(TCPListenAuth(env.root), Listener(env.out))
 
 class Listener is TCPListenNotify
   let _out: OutStream

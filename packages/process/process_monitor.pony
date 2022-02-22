@@ -3,16 +3,13 @@ use "collections"
 use "files"
 use "time"
 
-
-type ProcessMonitorAuth is (AmbientAuth | StartProcessAuth)
-
 actor ProcessMonitor is AsioEventNotify
   """
   Fork+execs / creates a child process and monitors it. Notifies a client about
   STDOUT / STDERR events.
   """
   let _notifier: ProcessNotify
-  let _backpressure_auth: BackpressureAuth
+  let _backpressure_auth: ApplyReleaseBackpressureAuth
 
   var _stdin: _Pipe = _Pipe.none()
   var _stdout: _Pipe = _Pipe.none()
@@ -36,8 +33,8 @@ actor ProcessMonitor is AsioEventNotify
   var _final_wait_result: (_WaitResult | None) = None
 
   new create(
-    auth: ProcessMonitorAuth,
-    backpressure_auth: BackpressureAuth,
+    auth: StartProcessAuth,
+    backpressure_auth: ApplyReleaseBackpressureAuth,
     notifier: ProcessNotify iso,
     filepath: FilePath,
     args: Array[String] val,

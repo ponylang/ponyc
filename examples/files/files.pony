@@ -6,7 +6,7 @@ actor Main
 
     try
       with file = OpenFile(
-        FilePath(env.root, env.args(1)?, caps)) as File
+        FilePath(FileAuth(env.root), env.args(1)?, caps)) as File
       do
         env.out.print(file.path.path)
         for line in file.lines() do

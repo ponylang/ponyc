@@ -54,7 +54,7 @@ class val FilePath
     """
 
   new val create(
-    base: (AmbientAuth | FileAuth),
+    base: FileAuth,
     path': String,
     caps': FileCaps val = recover val FileCaps .> all() end)
   =>
@@ -96,7 +96,7 @@ class val FilePath
     path = tmp_path
 
   new val mkdtemp(
-    base: (AmbientAuth | FileAuth | FilePath),
+    base: (FileAuth | FilePath),
     prefix: String = "",
     caps': FileCaps val = recover val FileCaps .> all() end) ?
   =>
@@ -104,7 +104,7 @@ class val FilePath
     Create a temporary directory and returns a path to it. The directory's name
     will begin with `prefix`.
 
-    If `AmbientAuth` or `FileAuth` are provided, the resulting `FilePath` will
+    If `FileAuth` is provided, the resulting `FilePath` will
     be relative to the program's working directory. Otherwise, it will be
     relative to the existing `FilePath`, and the existing `FilePath` must be a
     prefix of the resulting path.
@@ -114,7 +114,6 @@ class val FilePath
     """
     (let dir, let pre) = Path.split(prefix)
     let parent: FilePath = match base
-      | let base': AmbientAuth => FilePath(base', dir)
       | let base': FileAuth => FilePath(base', dir)
       | let base': FilePath => FilePath.from(base', dir)?
     end

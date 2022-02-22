@@ -31,7 +31,7 @@ actor \nodoc\ Main is TestList
 class \nodoc\ _PathResolver
   let _path: Array[FilePath] val
 
-  new create(env_vars: Array[String] val, auth: AmbientAuth) =>
+  new create(env_vars: Array[String] val, auth: FileAuth) =>
     let path =
       for env_var in env_vars.values() do
         try
@@ -131,18 +131,21 @@ class \nodoc\ iso _TestFileExecCapabilityIsRequired is UnitTest
     let notifier: ProcessNotify iso = _ProcessClient(0, "", 1, h,
       ProcessError(CapError))
     try
-      let auth = h.env.root
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
       let path =
         FilePath(
-          auth,
+          file_auth,
           _CatCommand.path(path_resolver)?,
           recover val FileCaps .> all() .> unset(FileExec) end)
       let args: Array[String] val = ["dontcare"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+        ProcessMonitor(process_auth, backpressure_auth, consume notifier, path,
+          args, vars)
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
     else
@@ -161,14 +164,16 @@ class \nodoc\ iso _TestNonExecutablePathResultsInExecveError is UnitTest
 
   fun apply(h: TestHelper) =>
     try
-      let auth = h.env.root
-      let path = FilePath.mkdtemp(auth, "pony_execve_test")?
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+      let path = FilePath.mkdtemp(file_auth, "pony_execve_test")?
       let args: Array[String] val = []
       let vars: Array[String] val = []
 
       let notifier = _setup_notifier(h, path)
-      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
-        path, args, vars)
+      let pm: ProcessMonitor = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
     else
@@ -213,14 +218,18 @@ class \nodoc\ iso _TestStdinStdout is UnitTest
     let size: USize = input.size() + ifdef windows then 2 else 0 end
     let notifier: ProcessNotify iso = _ProcessClient(size, "", 0, h)
     try
-      let auth = h.env.root
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
-      let path = FilePath(auth, _CatCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+        ProcessMonitor(process_auth, backpressure_auth, consume notifier, path,
+          args, vars)
       pm.write(input)
       pm.done_writing()  // closing stdin allows "cat" to terminate
       h.dispose_when_done(pm)
@@ -251,9 +260,13 @@ class \nodoc\ iso _TestStderr is UnitTest
     let exit_code: I32 = ifdef windows then 0 else 1 end
     let notifier: ProcessNotify iso = _ProcessClient(0, errmsg, exit_code, h)
     try
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
       let path = FilePath(
-        h.env.root,
+        file_auth,
         ifdef windows then
           "C:\\Windows\\System32\\cmd.exe"
         else
@@ -266,8 +279,8 @@ class \nodoc\ iso _TestStderr is UnitTest
       end
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      let auth = h.env.root
-      _pm  = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      _pm  = ProcessMonitor(process_auth, backpressure_auth, consume notifier,
+        path, args, vars)
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
         pm.done_writing() // closing stdin
@@ -325,8 +338,12 @@ class \nodoc\ iso _TestExpect is UnitTest
     end
 
     try
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
-      let path = FilePath(h.env.root, _EchoPath(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _EchoPath(path_resolver)?)
       let args: Array[String] val = ifdef windows then
         ["cmd"; "/c"; "echo"; "hello carl"]
       else
@@ -334,9 +351,8 @@ class \nodoc\ iso _TestExpect is UnitTest
       end
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      let auth = h.env.root
-      let pm: ProcessMonitor = ProcessMonitor(auth, auth, consume notifier,
-        path, args, vars)
+      let pm: ProcessMonitor = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
       pm.done_writing()  // closing stdin allows "echo" to terminate
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -358,14 +374,17 @@ class \nodoc\ iso _TestWritevOrdering is UnitTest
     let expected: USize = ifdef windows then 13 else 11 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
-      let path = FilePath(h.env.root, _CatCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      let auth = h.env.root
-      let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      let pm: ProcessMonitor = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
       let params: Array[String] val = ["one"; "two"; "three"]
 
       pm.writev(params)
@@ -390,14 +409,17 @@ class \nodoc\ iso _TestPrintvOrdering is UnitTest
     let expected: USize = ifdef windows then 17 else 14 end
     let notifier: ProcessNotify iso = _ProcessClient(expected, "", 0, h)
     try
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
-      let path = FilePath(h.env.root, _CatCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      let auth = h.env.root
-      let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      let pm: ProcessMonitor = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
       let params: Array[String] val = ["one"; "two"; "three"]
 
       pm.printv(params)
@@ -432,14 +454,18 @@ class \nodoc\ iso _TestStdinWriteBuf is UnitTest
 
     let notifier: ProcessNotify iso = _ProcessClient(out_size, "", 0, h)
     try
-      let path_resolver = _PathResolver(h.env.vars, h.env.root)
-      let path = FilePath(h.env.root, _CatCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _CatCommand.path(path_resolver)?)
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // fork the child process and attach a ProcessMonitor
-      let auth = h.env.root
-      _pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      _pm = ProcessMonitor(process_auth, backpressure_auth, consume notifier,
+        path, args, vars)
 
       if _pm isnt None then // write to STDIN of the child process
         let pm = _pm as ProcessMonitor
@@ -473,19 +499,21 @@ class \nodoc\ _TestChdir is UnitTest
     "process-monitor"
 
   fun ref apply(h: TestHelper) =>
+    let process_auth = StartProcessAuth(h.env.root)
+    let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+    let file_auth = FileAuth(h.env.root)
+
     let parent = Path.dir(Path.cwd())
     // expect path length + \n
     let notifier: ProcessNotify iso = _ProcessClient(parent.size()
       + (ifdef windows then 2 else 1 end), "", 0, h)
-    let auth = h.env.root
 
-    let path = FilePath(auth, _PwdPath())
+    let path = FilePath(file_auth, _PwdPath())
     let args: Array[String] val = _PwdArgs()
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-    let pm: ProcessMonitor =
-      ProcessMonitor(auth, auth, consume notifier, path,
-        args, vars, FilePath(auth, parent))
+    let pm: ProcessMonitor = ProcessMonitor(process_auth, backpressure_auth,
+      consume notifier, path, args, vars, FilePath(file_auth, parent))
     pm.done_writing()
     h.dispose_when_done(pm)
     h.long_test(30_000_000_000)
@@ -501,15 +529,17 @@ class \nodoc\ _TestBadChdir is UnitTest
     let badpath = Path.abs(Path.random(10))
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ChdirError))
-    let auth = h.env.root
 
-    let path = FilePath(auth, _PwdPath())
+    let process_auth = StartProcessAuth(h.env.root)
+    let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+    let file_auth = FileAuth(h.env.root)
+
+    let path = FilePath(file_auth, _PwdPath())
     let args: Array[String] val = _PwdArgs()
     let vars: Array[String] iso = recover Array[String](0) end
 
-    let pm: ProcessMonitor =
-      ProcessMonitor(auth, auth, consume notifier, path,
-        args, consume vars, FilePath(auth, badpath))
+    let pm: ProcessMonitor = ProcessMonitor(process_auth, backpressure_auth,
+      consume notifier, path, args, consume vars, FilePath(file_auth, badpath))
     pm.done_writing()
     h.dispose_when_done(pm)
     h.long_test(30_000_000_000)
@@ -533,11 +563,13 @@ class \nodoc\ _TestBadExec is UnitTest
 
 
   fun ref set_up(h: TestHelper) ? =>
-    let auth = h.env.root
+    let file_auth = FileAuth(h.env.root)
+
     ifdef windows then
-      _bad_exec_path = FilePath(auth, "C:\\Windows\\system.ini")
+      _bad_exec_path = FilePath(file_auth, "C:\\Windows\\system.ini")
     else
-      let tmp_dir = FilePath.mkdtemp(auth, "pony_stdlib_test_process_bad_exec")?
+      let tmp_dir = FilePath.mkdtemp(file_auth,
+        "pony_stdlib_test_process_bad_exec")?
       _tmp_dir = tmp_dir
       let bad_exec_path = tmp_dir.join("_bad_exec.sh")?
       _bad_exec_path = bad_exec_path
@@ -557,10 +589,13 @@ class \nodoc\ _TestBadExec is UnitTest
     let notifier: ProcessNotify iso =
       _ProcessClient(0, "", _EXOSERR(), h, ProcessError(ExecveError))
     try
-      let auth = h.env.root
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+
       let path = _bad_exec_path as FilePath
       let pm: ProcessMonitor =
-        ProcessMonitor(auth, auth, consume notifier, path, [], [])
+        ProcessMonitor(process_auth, backpressure_auth, consume notifier, path,
+          [], [])
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(30_000_000_000)
@@ -572,7 +607,6 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
   fun name(): String => "process/long-running-child"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper) =>
-    let auth = h.env.root
     let notifier =
       object iso is ProcessNotify
         fun ref created(process: ProcessMonitor ref) =>
@@ -596,13 +630,18 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
       end
 
     try
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
       let args = _SleepCommand.args(where seconds = 2)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      let pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      let pm = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
       pm.done_writing()
       h.dispose_when_done(pm)
       h.long_test(10_000_000_000)
@@ -618,7 +657,6 @@ class \nodoc\ iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper) =>
-    let auth = h.env.root
     let notifier =
       object iso is ProcessNotify
         fun ref created(process: ProcessMonitor ref) =>
@@ -654,13 +692,18 @@ class \nodoc\ iso _TestKillLongRunningChild is UnitTest
       end
 
     try
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
       let args = _SleepCommand.args(where seconds = 2)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      let pm = ProcessMonitor(auth, auth, consume notifier, path, args, vars)
+      let pm = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
       pm.dispose()
       pm.done_writing()
       h.long_test(10_000_000_000)
@@ -675,10 +718,13 @@ class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
   fun name(): String => "process/wait-on-closed-process-twice"
   fun exclusion_group(): String => "process-monitor"
   fun apply(h: TestHelper) =>
-    let auth = h.env.root
     try
-      let path_resolver = _PathResolver(h.env.vars, auth)
-      let path = FilePath(auth, _SleepCommand.path(path_resolver)?)
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
       let args = _SleepCommand.args(where seconds = 2)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
@@ -729,7 +775,8 @@ class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
             timers(consume timer2)
           end
       end
-      let pm = ProcessMonitor(auth, auth, consume pn, path, args, vars)
+      let pm = ProcessMonitor(process_auth, backpressure_auth, consume pn, path,
+        args, vars)
 
       let timer1 = Timer(
         object iso is TimerNotify

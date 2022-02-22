@@ -62,10 +62,10 @@ use "time"
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 
 class SlowDown is TCPConnectionNotify
-  let _auth: BackpressureAuth
+  let _auth: ApplyReleaseBackpressureAuth
   let _out: OutStream
 
-  new iso create(auth: BackpressureAuth, out: OutStream) =>
+  new iso create(auth: ApplyReleaseBackpressureAuth, out: OutStream) =>
     _auth = auth
     _out = out
 
@@ -118,7 +118,8 @@ class Send is TimerNotify
 
 actor Main
   new create(env: Env) =>
-    let socket = TCPConnection(env.root, recover SlowDown(env.root, env.out) end,
+    let socket = TCPConnection(TCPConnectAuth(env.root),
+      recover SlowDown(ApplyReleaseBackpressureAuth(env.root), env.out) end,
       "", "7669")
 
     let timers = Timers

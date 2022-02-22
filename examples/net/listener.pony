@@ -45,7 +45,7 @@ class Listener is TCPListenNotify
 
     _env.out.print("Client starting")
     TCPConnection(
-      _env.root,
+      TCPConnectAuth(_env.root),
       ClientSide(_env),
       _host,
       _service)

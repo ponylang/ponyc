@@ -8,5 +8,5 @@ actor Main
       1
     end
 
-    TCPListener(env.root, recover Listener(env, limit) end)
-    UDPSocket(env.root, recover Pong(env) end)
+    TCPListener(TCPListenAuth(env.root), recover Listener(env, limit) end)
+    UDPSocket(UDPAuth(env.root), recover Pong(env) end)
