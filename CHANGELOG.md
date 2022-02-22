@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix incorrect "field not initialized" error with try/else ([PR #4011](https://github.com/ponylang/ponyc/pull/4011))
 - Fix compiler crash related to using tuples in a union as a generic constraint ([PR #4017](https://github.com/ponylang/ponyc/pull/4017))
 - Fix incorrect code returned by ANSI.erase ([PR #4022](https://github.com/ponylang/ponyc/pull/4022))
+- Fix the signature of Iter's map_stateful/map to not require ephemerals ([PR #4026](https://github.com/ponylang/ponyc/pull/4026))
 
 ### Added
 
