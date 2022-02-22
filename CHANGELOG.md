@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Reimplement `with` ([PR #4024](https://github.com/ponylang/ponyc/pull/4024))
 
 ## [0.48.0] - 2022-02-08
 
