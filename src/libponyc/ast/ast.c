@@ -1899,22 +1899,21 @@ ast_t* ast_get_provided_symbol_definition(ast_t* ast,
   // parent has a provided method body from a trait or interface. If yes,
   // then we will find our definition.
   ast_t* def = NULL;
-  bool keep_looking = true;
-  ast_t* defp = ast;
+  bool found = false;
 
-  while(defp != NULL && keep_looking)
+  while(ast != NULL && !found)
   {
-    if((ast_id(defp) == TK_FUN) || (ast_id(defp) == TK_BE))
+    if((ast_id(ast) == TK_FUN) || (ast_id(ast) == TK_BE))
     {
       // Methods with defaults provided by a trait/interface store the ast
       // of the provided body in the ast data.
-      ast_t* info = (ast_t *)ast_data(defp);
-      if (info != NULL)
-        def = ast_get(info, name, status);
-      keep_looking = false;
+      ast_t* body_donor = (ast_t *)ast_data(ast);
+      if (body_donor != NULL)
+        def = ast_get(body_donor, name, status);
+      found = true;
     }
 
-    defp = ast_parent(defp);
+    ast = ast_parent(ast);
   }
 
   return def;
