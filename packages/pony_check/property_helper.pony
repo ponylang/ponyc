@@ -1,15 +1,14 @@
 
 interface val _PropertyRunNotify
   """
-  simple callback for notifying the runner
-  that a run completed
+  Simple callback for notifying the runner
+  that a run completed.
   """
   fun apply(success: Bool)
 
 interface tag _IPropertyRunner
   """
-  interface for a PropertyRunner without the generic type parameter
-
+  Interface for a PropertyRunner without the generic type parameter,
   and only with the behaviours we are interested in.
   """
 
@@ -28,7 +27,7 @@ class val PropertyHelper
   """
   Helper for PonyCheck properties.
 
-  Mirrors the [TestHelper](ponytest-TestHelper.md) API as close as possible.
+  Mirrors the [TestHelper](ponytest-TestHelper.md) API as closely as possible.
 
   Contains assertion functions and functions for completing asynchronous
   properties, for expecting and completing or failing actions.
@@ -50,10 +49,12 @@ class val PropertyHelper
 
   let env: Env
 
-  new val create(env': Env,
-                 runner: _IPropertyRunner,
-                 run_notify: _PropertyRunNotify,
-                 run_context: String) =>
+  new val create(
+    env': Env,
+    runner: _IPropertyRunner,
+    run_notify: _PropertyRunNotify,
+    run_context: String
+  ) =>
     env = env'
     _runner = runner
     _run_notify = run_notify
@@ -65,10 +66,10 @@ class val PropertyHelper
     """
     Log the given message.
 
-    The verbose parameter allows messages to be printed only when the --verbose
-    command line option is used. For example, by default assert failures are
-    logged, but passes are not. With --verbose both passes and fails are
-    reported.
+    The verbose parameter allows messages to be printed only when the
+    `--verbose` command line option is used. For example, by default assert
+    failures are logged, but passes are not. With `--verbose`, both passes and
+    fails are reported.
 
     Logs are printed one test at a time to avoid interleaving log lines from
     concurrent tests.
@@ -157,7 +158,7 @@ class val PropertyHelper
     : Bool
   =>
     """
-    Assert that the 2 given expressions resolve to the same instance
+    Assert that the 2 given expressions resolve to the same instance.
     """
     if expect isnt actual then
       _fail(_fmt_msg(loc, "Assert is failed. " + msg
@@ -360,7 +361,7 @@ class val PropertyHelper
 
   fun expect_action(name: String) =>
     """
-    expect some action of the given name to complete
+    Expect some action of the given name to complete
     for the property to hold.
 
     If all expected actions are completed successfully,

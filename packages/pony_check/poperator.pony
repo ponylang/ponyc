@@ -1,8 +1,8 @@
 class ref Poperator[T] is Iterator[T^]
   """
-  iterate over a [Seq](builtin-Seq.md) descructively by `pop`ing its elements
+  Iterate over a [Seq](builtin-Seq.md) descructively by `pop`ing its elements.
 
-  once `has_next()` returns `false`, the [Seq](builtin-Seq.md) is empty.
+  Once `has_next()` returns `false`, the [Seq](builtin-Seq.md) is empty.
 
   Nominee for the annual pony class-naming awards.
   """

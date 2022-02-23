@@ -2,7 +2,7 @@ use "time"
 
 class val PropertyParams is Stringable
   """
-  Parameters to control Property Execution
+  Parameters to control Property Execution.
 
   * seed: the seed for the source of Randomness
   * num_samples: the number of samples to produce from the property generator
@@ -46,26 +46,35 @@ trait Property1[T]
   """
   A property that consumes 1 argument of type `T`.
 
-  A property is defined by a [Generator](pony_check-Generator.md), returned by the [`gen()`](pony_check-Property1.md#gen) method
-  and a [`property`](pony_check-Property1#property) method that consumes the generators output and
-  verifies a custom property with the help of a [PropertyHelper](pony_check-PropertyHelper.md).
+  A property is defined by a [Generator](pony_check-Generator.md), returned by
+  the [`gen()`](pony_check-Property1.md#gen) method, and a
+  [`property`](pony_check-Property1#property) method that consumes the
+  generators' output and verifies a custom property with the help of a
+  [PropertyHelper](pony_check-PropertyHelper.md).
 
-  A property is verified if no failed assertion on [PropertyHelper](pony_check-PropertyHelper.md) has been
+  A property is verified if no failed assertion on
+  [PropertyHelper](pony_check-PropertyHelper.md) has been
   reported for all the samples it consumed.
 
   The property execution can be customized by returning a custom
-  [PropertyParams](pony_check-PropertyParams.md) from the [`params()`](pony_check-Property1.md#params) method.
+  [PropertyParams](pony_check-PropertyParams.md) from the
+  [`params()`](pony_check-Property1.md#params) method.
 
-  The [`gen()`](pony_check-Property1.md#gen) method is called exactly once to instantiate the generator.
-  The generator produces [PropertyParams.num_samples](pony_check-PropertyParams.md#num_samples) samples and each is
-  passed to the [property](pony_check-Property1.md#property) method for verification.
+  The [`gen()`](pony_check-Property1.md#gen) method is called exactly once to
+  instantiate the generator.
+  The generator produces
+  [PropertyParams.num_samples](pony_check-PropertyParams.md#num_samples)
+  samples and each is passed to the
+  [property](pony_check-Property1.md#property) method for verification.
 
-  If the property did not verify, the given sample is shrunken, if the
+  If the property did not verify, the given sample is shrunken if the
   generator supports shrinking.
   The smallest shrunken sample will then be reported to the user.
 
-  A [Property1](pony_check-Property1.md) can be run with [Ponytest](ponytest--index.md).
-  To that end it needs to be wrapped into a [Property1UnitTest](pony_check-Property1UnitTest.md).
+  A [Property1](pony_check-Property1.md) can be run with
+  [Ponytest](ponytest--index.md).
+  To that end it needs to be wrapped into a
+  [Property1UnitTest](pony_check-Property1UnitTest.md).
   """
   fun name(): String
     """
@@ -112,7 +121,8 @@ trait Property2[T1, T2] is Property1[(T1, T2)]
 
   fun ref property2(arg1: T1, arg2: T2, h: PropertyHelper) ?
     """
-    A method verifying that a certain property holds for all given `arg1` and `arg2`
+    A method verifying that a certain property holds for all given
+    `arg1` and `arg2`
     with the help of [PropertyHelper](pony_check-PropertyHelper.md) `h`.
     """
 
@@ -145,7 +155,8 @@ trait Property3[T1, T2, T3] is Property1[(T1, T2, T3)]
 
   fun ref property3(arg1: T1, arg2: T2, arg3: T3, h: PropertyHelper) ?
     """
-    A method verifying that a certain property holds for all given `arg1`, `arg2` and `arg3`
+    A method verifying that a certain property holds for all given
+    `arg1`,`arg2`, and `arg3`
     with the help of [PropertyHelper](pony_check-PropertyHelper.md) `h`.
     """
 
@@ -184,7 +195,8 @@ trait Property4[T1, T2, T3, T4] is Property1[(T1, T2, T3, T4)]
 
   fun ref property4(arg1: T1, arg2: T2, arg3: T3, arg4: T4, h: PropertyHelper) ?
     """
-    A method verifying that a certain property holds for all given `arg1`, `arg2`, `arg3`, `arg4`
+    A method verifying that a certain property holds for all given
+    `arg1`, `arg2`, `arg3`, and `arg4`
     with the help of [PropertyHelper](pony_check-PropertyHelper.md) `h`.
     """
 

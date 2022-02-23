@@ -24,4 +24,4 @@ use "pony_check"
 
 ### Update the PonyCheck primitive name
 
-If you were using the `Ponycheck` primitive, you'll need to change it to it's new name `PonyCheck`.
+If you were using the `Ponycheck` primitive, you'll need to change it to its new name `PonyCheck`.

@@ -2,7 +2,7 @@ use "ponytest"
 
 class iso Property1UnitTest[T] is UnitTest
   """
-  provides plumbing for integration of PonyCheck
+  Provides plumbing for integration of PonyCheck
   [Properties](pony_check-Property1.md) into [PonyTest](ponytest--index.md).
 
   Wrap your properties into this class and use it in a
@@ -35,10 +35,11 @@ class iso Property1UnitTest[T] is UnitTest
 
   new iso create(p1: Property1[T] iso, name': (String | None) = None) =>
     """
-    Wrap a [Property1](pony_check-Property1.md) to make it mimick the a PonyTest
+    Wrap a [Property1](pony_check-Property1.md) to make it mimic the PonyTest
     [UnitTest](ponytest-UnitTest.md).
 
-    If `name'` is given, use this as the test name, if not use the properties `name()`.
+    If `name'` is given, use this as the test name.
+    If not, use the property's `name()`.
     """
     _name =
       match name'

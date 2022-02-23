@@ -26,9 +26,9 @@ class _TCPSenderConnectionNotify is TCPConnectionNotify
 
 class val TCPSender
   """
-  Class under test
+  Class under test.
 
-  Simple class that sends a string to a tcp server
+  Simple class that sends a string to a TCP server.
   """
 
   let _auth: AmbientAuth

@@ -33,16 +33,16 @@ primitive ASCIINonPrintable
 
 primitive ASCIIAll
   """
-  represents all ASCII characters
-  excluding the NUL (\x00) character for its special treatment in C strings
+  Represents all ASCII characters,
+  excluding the NUL (\x00) character for its special treatment in C strings.
   """
   fun apply(): String =>
     ASCIIPrintable() + ASCIINonPrintable()
 
 primitive ASCIIAllWithNUL
   """
-  represents all ASCII characters
-  including the NUL (\x00) character for its special treatment in C strings
+  Represents all ASCII characters,
+  including the NUL (\x00) character for its special treatment in C strings.
   """
   fun apply(): String =>
     ASCIIAll() + ASCIINUL()

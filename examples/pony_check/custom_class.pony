@@ -67,9 +67,9 @@ class _CustomClassFlatMapProperty is Property1[MyLittlePony]
 
   ### Drawbacks
 
-  * the nested `flat_map` syntax is a little bit cumbersome (e.g. the captured
-    from the surrounding scope need to be provided explicitly)
-  * the resuling generator has only limited shrinking support.
+  * The nested `flat_map` syntax is a little bit cumbersome (e.g. the captured
+    from the surrounding scope need to be provided explicitly).
+  * The resulting generator has only limited shrinking support.
     Only on the innermost created generator in the last `flat_map` function
     will be properly shrunken.
   """

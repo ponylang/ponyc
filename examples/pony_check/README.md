@@ -4,7 +4,7 @@ A program showing example tests using the PonyCheck property based testing packa
 
 ## How to compile
 
-With a minimal Pony installation, in the same directory as this README file run `ponyc`. You should see content building the necessary packages, which ends with:
+With a minimal Pony installation, in the same directory as this README file, run `ponyc`. You should see content building the necessary packages, which ends with:
 
 ```console
 ...
@@ -23,7 +23,7 @@ Linking ./pony_check
 
 ## How to Run
 
-Once `pony_check` has been compiled, in the same directory as this README file run `./pony_check`. You should see a PonyTest runner output showing the tests run and their results; just like you would with PonyTest in general, except, the tests in question are PonyCheck tests.
+Once `pony_check` has been compiled, in the same directory as this README file, run `./pony_check`. You should see a PonyTest runner output showing the tests run and their results; just like you would with PonyTest in general, except the tests in question are PonyCheck tests.
 
 ```console
 1 test started, 0 complete: list/reverse/one started

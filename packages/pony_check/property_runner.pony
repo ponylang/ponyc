@@ -7,8 +7,8 @@ interface val PropertyLogger
 interface val PropertyResultNotify
   fun fail(msg: String)
     """
-    called when a Property has failed (did not hold for a sample)
-    or when execution errored.
+    Called when a Property has failed (did not hold for a sample)
+    or when execution raised an error.
 
     Does not necessarily denote completeness of the property execution,
     see `complete(success: Bool)` for that purpose.
@@ -16,7 +16,7 @@ interface val PropertyResultNotify
 
   fun complete(success: Bool)
     """
-    called when the Property execution is complete
+    Called when the Property execution is complete
     signalling whether it was successful or not.
     """
 
@@ -64,10 +64,10 @@ actor PropertyRunner[T]
 
   be complete_run(round: USize, success: Bool) =>
     """
-    complete a property run
+    Complete a property run.
 
-    this behaviour is called from the PropertyHelper
-    or from `_finished`.
+    This behaviour is called from the PropertyHelper
+    or from the actor itself.
     """
 
     // verify that this is an expected call
@@ -272,14 +272,14 @@ actor PropertyRunner[T]
 
   fun ref complete() =>
     """
-    complete the Property execution successfully
+    Complete the Property execution successfully.
     """
     _notify.complete(true)
 
   fun ref fail(repr: String, rounds: USize = 0, err: Bool = false) =>
     """
-    complete the Property execution
-    while signalling failure to the notify
+    Complete the Property execution
+    while signalling failure to the `PropertyResultNotify`.
     """
     if err then
       _report_error(repr, rounds)
@@ -292,8 +292,8 @@ actor PropertyRunner[T]
     shrink_rounds: USize = 0,
     loc: SourceLoc = __loc) =>
     """
-    report an error that happened during property evaluation
-    and signal failure to the notify
+    Report an error that happened during property evaluation
+    and signal failure to the `PropertyResultNotify`.
     """
     _notify.fail(
       "Property errored for sample "
@@ -307,7 +307,7 @@ actor PropertyRunner[T]
     shrink_rounds: USize = 0,
     loc: SourceLoc = __loc) =>
     """
-    report a failed property and signal failure to the notify
+    Report a failed property and signal failure to the `PropertyResultNotify`.
     """
     _notify.fail(
       "Property failed for sample "

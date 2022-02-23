@@ -497,8 +497,8 @@ class \nodoc\ iso _GenFrequencyTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     """
-    ensure that Generators.frequency(...) generators actually return values
-    from different with given frequency
+    ensure that Generators.frequency(...) generators actually return different
+    values with given frequency
     """
     let gen = Generators.frequency[U8]([
       as WeightedGenerator[U8]:

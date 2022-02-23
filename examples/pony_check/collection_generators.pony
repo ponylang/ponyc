@@ -16,7 +16,7 @@ use "collections"
 use "pony_check"
 
 class val _OperationOnCollection[T, R = String] is Stringable
-  """represents a certain operation on an element addressed by idx"""
+  """Represents a certain operation on an element addressed by idx."""
   let idx: USize
   let op: {(T): R} val
 
@@ -38,14 +38,14 @@ class _OperationOnCollectionProperty is Property1[(USize, Array[_OperationOnColl
       * a tuple of the number of elements of a collection to be created in the property code
       * an array of a randomly chosen operation on a random element of the collection
 
-    Therefore we first create a generator for the collection size,
-    then we flat_map over this generator, to generate one for an array of operations,
+    Therefore, we first create a generator for the collection size,
+    then we `flat_map` over this generator, to generate one for an array of operations,
     whose index is randomly chosen from a range of `[0, num_elements)`.
 
     The first generated value determines the further values, we want to construct a generator
     based on the value of another one. For this kind of construct, we use `Generator.flat_map`.
 
-    We then flat_map again over the Generator for the element index (that is bound by `num_elements`)
+    We then `flat_map` again over the Generator for the element index (that is bound by `num_elements`)
     to get a generator for an `_OperationOnCollection[String]` which needs the index as a constructor argument.
     The operation generator depends on the value of the randomly chosen element index,
     thus we use `Generator.flat_map` again.
