@@ -868,6 +868,19 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetParamTypes(f_type, params + (bare ? 1 : 0));
 
+    // For non-bare functions, ensure that we cast the receiver arg type
+    // to match the param type of the function.
+    if(!bare)
+    {
+      LLVMTypeRef func_receiver_type = params[0];
+      LLVMTypeRef call_receiver_type = LLVMTypeOf(args[0]);
+
+      if (func_receiver_type != call_receiver_type)
+        args[0] = LLVMBuildBitCast(c->builder, args[0], func_receiver_type, "");
+    }
+
+    // We also need to cast the rest of the arguments, using the same casting
+    // semantics as assignment.
     arg = ast_child(positional);
     i = 1;
 
