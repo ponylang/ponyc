@@ -55,7 +55,7 @@ enum
   OPT_TRACE,
   OPT_WIDTH,
   OPT_IMMERR,
-  OPT_VERIFY,
+  OPT_NOVERIFY,
   OPT_FILENAMES,
   OPT_CHECKTREE,
   OPT_EXTFUN,
@@ -102,7 +102,7 @@ static opt_arg_t std_args[] =
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
-  {"verify", '\0', OPT_ARG_NONE, OPT_VERIFY},
+  {"noverify", '\0', OPT_ARG_NONE, OPT_NOVERIFY},
   {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
   {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
@@ -189,7 +189,7 @@ static void usage(void)
     "    =columns       Defaults to the terminal width.\n"
     "  --immerr         Report errors immediately rather than deferring.\n"
     "  --checktree      Verify AST well-formedness.\n"
-    "  --verify         Verify LLVM IR.\n"
+    "  --noverify       Don't verify LLVM IR.\n"
     "  --extfun         Set function default linkage to external.\n"
     "  --files          Print source file names as each is processed.\n"
     "  --bnf            Print out the Pony grammar as human readable BNF.\n"
@@ -276,6 +276,9 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
 
   bool wants_help = false;
 
+  // default to running verify pass. require it to be turned off.
+  opt->verify = true;
+
   while((id = ponyint_opt_next(s)) != -1)
   {
     switch(id)
@@ -345,7 +348,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_TRACE: opt->parse_trace = true; break;
       case OPT_WIDTH: opt->ast_print_width = atoi(s->arg_val); break;
       case OPT_IMMERR: errors_set_immediate(opt->check.errors, true); break;
-      case OPT_VERIFY: opt->verify = true; break;
+      case OPT_NOVERIFY: opt->verify = false; break;
       case OPT_EXTFUN: opt->extfun = true; break;
       case OPT_FILENAMES: opt->print_filenames = true; break;
       case OPT_CHECKTREE: opt->check_tree = true; break;
