@@ -13,7 +13,7 @@ All tests can be run by compiling and running packages/stdlib.
 // Include ALL standard library packages here, even if they don't have tests.
 // That way stdlib can be used to type check the whole standard library,
 // generate docs for it, etc.
-use "ponytest"
+use "pony_test"
 use assert = "assert"
 use backpressure= "backpressure"
 use base64 = "encode/base64"

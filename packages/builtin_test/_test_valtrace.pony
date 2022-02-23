@@ -1,4 +1,4 @@
-use "ponytest"
+use "pony_test"
 
 class \nodoc\ iso _TestValtrace is UnitTest
   """

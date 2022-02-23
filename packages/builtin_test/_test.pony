@@ -13,7 +13,7 @@ use @pony_get_exitcode[I32]()
 use @pony_triggergc[None](ctx: Pointer[None])
 use @ponyint_pagemap_get[Pointer[None]](p: Pointer[None] tag)
 
-use "ponytest"
+use "pony_test"
 use "collections"
 
 actor \nodoc\ Main is TestList
