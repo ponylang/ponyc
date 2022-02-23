@@ -30,7 +30,6 @@ use format = "format"
 use ini = "ini"
 use itertools = "itertools"
 use json = "json"
-use logger = "logger"
 use math = "math"
 use net = "net"
 use ponybench = "ponybench"
@@ -62,7 +61,6 @@ actor \nodoc\ Main is TestList
     ini.Main.make().tests(test)
     itertools.Main.make().tests(test)
     json.Main.make().tests(test)
-    logger.Main.make().tests(test)
     math.Main.make().tests(test)
     net.Main.make().tests(test)
     process.Main.make().tests(test)
