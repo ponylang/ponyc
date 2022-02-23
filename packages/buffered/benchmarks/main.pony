@@ -1,5 +1,5 @@
 use ".."
-use "ponybench"
+use "pony_bench"
 use "collections"
 
 actor Main is BenchmarkList

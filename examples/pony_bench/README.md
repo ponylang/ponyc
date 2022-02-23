@@ -1,6 +1,6 @@
-# ponybench
+# pony_bench
 
-A program showing use of the `ponybench` package.
+A program showing use of the `pony_bench` package.
 
 ## How to Compile
 
@@ -17,16 +17,16 @@ Generating
  Functions
  Descriptors
 Optimising
-Writing ./ponybench.o
-Linking ./ponybench
+Writing ./pony_bench.o
+Linking ./pony_bench
 ```
 
 ## How to Run
 
-Once `ponybench` has been compiled, in the same directory as this README file run `./ponybench`. You should see a benchmark report including: benchmark name, mean, median, deviation, and iterations.
+Once `pony_bench` has been compiled, in the same directory as this README file run `./pony_bench`. You should see a benchmark report including: benchmark name, mean, median, deviation, and iterations.
 
 ```console
-$ ./ponybench
+$ ./pony_bench
 Benchmark results will have their mean and median adjusted for overhead.
 You may disable this with --noadjust.
 
@@ -43,7 +43,7 @@ _Timer (10000 ns)                        6025 ns           6060 ns      ±2.66% 
 Modify the program to add a benchmark using the math package's `Fibonacci` primitive.
 
 ```console
-$ ./ponybench
+$ ./pony_bench
 Benchmark results will have their mean and median adjusted for overhead.
 You may disable this with --noadjust.
 
