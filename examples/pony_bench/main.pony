@@ -1,4 +1,4 @@
-use "ponybench"
+use "pony_bench"
 use "time"
 
 actor Main is BenchmarkList

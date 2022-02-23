@@ -1,6 +1,6 @@
 use ".."
 use mut = "collections"
-use "ponybench"
+use "pony_bench"
 
 type K is String
 type V is U64
