@@ -64,7 +64,7 @@ trait Property1[T]
   generator supports shrinking.
   The smallest shrunken sample will then be reported to the user.
 
-  A [Property1](pony_check-Property1.md) can be run with [Ponytest](pony_test--index.md).
+  A [Property1](pony_check-Property1.md) can be run with [Ponytest](ponytest--index.md).
   To that end it needs to be wrapped into a [Property1UnitTest](pony_check-Property1UnitTest.md).
   """
   fun name(): String

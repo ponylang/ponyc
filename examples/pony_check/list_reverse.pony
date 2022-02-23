@@ -1,4 +1,4 @@
-use "pony_test"
+use "ponytest"
 use "pony_check"
 
 

@@ -1,4 +1,4 @@
-use "pony_test"
+use "ponytest"
 
 use "collections"
 use "itertools"
