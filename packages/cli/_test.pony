@@ -32,7 +32,7 @@ actor \nodoc\ Main is TestList
     test(_TestUnknownShort)
 
 class \nodoc\ iso _TestMinimal is UnitTest
-  fun name(): String => "ponycli/minimal"
+  fun name(): String => "cli/minimal"
 
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal", "", [
@@ -53,7 +53,7 @@ class \nodoc\ iso _TestMinimal is UnitTest
     h.assert_eq[Bool](true, cmd.option("aflag").bool())
 
 class \nodoc\ iso _TestMinimalWithHelp is UnitTest
-  fun name(): String => "ponycli/minimal_help"
+  fun name(): String => "cli/minimal_help"
 
   fun apply(h: TestHelper) ? =>
     let cs = CommandSpec.leaf("minimal_help", "",[])? .> add_help()?
@@ -66,7 +66,7 @@ class \nodoc\ iso _TestMinimalWithHelp is UnitTest
     let cmdErr = CommandParser(cs).parse(args) as Command
 
 class \nodoc\ iso _TestBadName is UnitTest
-  fun name(): String => "ponycli/badname"
+  fun name(): String => "cli/badname"
 
   // Negative test: command names must be alphanum tokens
   fun apply(h: TestHelper) =>
@@ -76,7 +76,7 @@ class \nodoc\ iso _TestBadName is UnitTest
     end
 
 class \nodoc\ iso _TestUnknownCommand is UnitTest
-  fun name(): String => "ponycli/unknown_command"
+  fun name(): String => "cli/unknown_command"
 
   // Negative test: unknown command should report
   fun apply(h: TestHelper) ? =>
@@ -100,7 +100,7 @@ class \nodoc\ iso _TestUnknownCommand is UnitTest
     end
 
 class \nodoc\ iso _TestUnexpectedArg is UnitTest
-  fun name(): String => "ponycli/unexpected_arg"
+  fun name(): String => "cli/unexpected_arg"
 
   // Negative test: unexpected arg/command token should report
   fun apply(h: TestHelper) ? =>
@@ -125,7 +125,7 @@ class \nodoc\ iso _TestUnexpectedArg is UnitTest
     end
 
 class \nodoc\ iso _TestUnknownShort is UnitTest
-  fun name(): String => "ponycli/unknown_short"
+  fun name(): String => "cli/unknown_short"
 
   // Negative test: unknown short option should report
   fun apply(h: TestHelper) ? =>
@@ -150,7 +150,7 @@ class \nodoc\ iso _TestUnknownShort is UnitTest
     end
 
 class \nodoc\ iso _TestUnknownLong is UnitTest
-  fun name(): String => "ponycli/unknown_long"
+  fun name(): String => "cli/unknown_long"
 
   // Negative test: unknown long option should report
   fun apply(h: TestHelper) ? =>
@@ -176,7 +176,7 @@ class \nodoc\ iso _TestUnknownLong is UnitTest
     end
 
 class \nodoc\ iso _TestHyphenArg is UnitTest
-  fun name(): String => "ponycli/hyphen"
+  fun name(): String => "cli/hyphen"
 
   // Rule 1
   fun apply(h: TestHelper) ? =>
@@ -195,7 +195,7 @@ class \nodoc\ iso _TestHyphenArg is UnitTest
     h.assert_eq[String]("-", cmd.arg("name").string())
 
 class \nodoc\ iso _TestBools is UnitTest
-  fun name(): String => "ponycli/bools"
+  fun name(): String => "cli/bools"
 
   // Rules 2, 3, 5, 7 w/ Bools
   fun apply(h: TestHelper) ? =>
@@ -216,7 +216,7 @@ class \nodoc\ iso _TestBools is UnitTest
     h.assert_eq[Bool](false, cmd.option("ddd").bool())
 
 class \nodoc\ iso _TestDefaults is UnitTest
-  fun name(): String => "ponycli/defaults"
+  fun name(): String => "cli/defaults"
 
   // Rules 2, 3, 5, 6
   fun apply(h: TestHelper) ? =>
@@ -239,7 +239,7 @@ class \nodoc\ iso _TestDefaults is UnitTest
     h.assert_eq[USize](0, cmd.option("stringso").string_seq().size())
 
 class \nodoc\ iso _TestShortsAdj is UnitTest
-  fun name(): String => "ponycli/shorts_adjacent"
+  fun name(): String => "cli/shorts_adjacent"
 
   // Rules 2, 3, 5, 6, 8
   fun apply(h: TestHelper) ? =>
@@ -279,7 +279,7 @@ class \nodoc\ iso _TestShortsAdj is UnitTest
     end
 
 class \nodoc\ iso _TestShortsEq is UnitTest
-  fun name(): String => "ponycli/shorts_eq"
+  fun name(): String => "cli/shorts_eq"
 
   // Rules 2, 3, 5, 7
   fun apply(h: TestHelper) ? =>
@@ -307,7 +307,7 @@ class \nodoc\ iso _TestShortsEq is UnitTest
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class \nodoc\ iso _TestShortsNext is UnitTest
-  fun name(): String => "ponycli/shorts_next"
+  fun name(): String => "cli/shorts_next"
 
   // Rules 2, 3, 5, 8
   fun apply(h: TestHelper) ? =>
@@ -336,7 +336,7 @@ class \nodoc\ iso _TestShortsNext is UnitTest
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class \nodoc\ iso _TestLongsEq is UnitTest
-  fun name(): String => "ponycli/longs_eq"
+  fun name(): String => "cli/longs_eq"
 
   // Rules 4, 5, 7
   fun apply(h: TestHelper) ? =>
@@ -365,7 +365,7 @@ class \nodoc\ iso _TestLongsEq is UnitTest
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class \nodoc\ iso _TestLongsNext is UnitTest
-  fun name(): String => "ponycli/longs_next"
+  fun name(): String => "cli/longs_next"
 
   // Rules 4, 5, 8
   fun apply(h: TestHelper) ? =>
@@ -393,7 +393,7 @@ class \nodoc\ iso _TestLongsNext is UnitTest
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
 class \nodoc\ iso _TestEnvs is UnitTest
-  fun name(): String => "ponycli/envs"
+  fun name(): String => "cli/envs"
 
   // Rules
   fun apply(h: TestHelper) ? =>
@@ -421,7 +421,7 @@ class \nodoc\ iso _TestEnvs is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floatr").f64())
 
 class \nodoc\ iso _TestOptionStop is UnitTest
-  fun name(): String => "ponycli/option_stop"
+  fun name(): String => "cli/option_stop"
 
   // Rules 2, 3, 5, 7, 9
   fun apply(h: TestHelper) ? =>
@@ -441,7 +441,7 @@ class \nodoc\ iso _TestOptionStop is UnitTest
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
 
 class \nodoc\ iso _TestDuplicate is UnitTest
-  fun name(): String => "ponycli/duplicate"
+  fun name(): String => "cli/duplicate"
 
   // Rules 4, 5, 7, 10
   fun apply(h: TestHelper) ? =>
@@ -460,7 +460,7 @@ class \nodoc\ iso _TestDuplicate is UnitTest
     h.assert_eq[String]("newstring", cmd.option("stringr").string())
 
 class \nodoc\ iso _TestChat is UnitTest
-  fun name(): String => "ponycli/chat"
+  fun name(): String => "cli/chat"
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()?
@@ -502,7 +502,7 @@ class \nodoc\ iso _TestChat is UnitTest
     h.assert_eq[String]("hey", words(2)?)
 
 class \nodoc\ iso _TestMustBeLeaf is UnitTest
-  fun name(): String => "ponycli/must_be_leaf"
+  fun name(): String => "cli/must_be_leaf"
 
   // Negative test: can't just supply parent command
   fun apply(h: TestHelper) ? =>
@@ -525,7 +525,7 @@ class \nodoc\ iso _TestMustBeLeaf is UnitTest
     end
 
 class \nodoc\ iso _TestHelp is UnitTest
-  fun name(): String => "ponycli/help"
+  fun name(): String => "cli/help"
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()?
@@ -538,7 +538,7 @@ class \nodoc\ iso _TestHelp is UnitTest
     h.assert_true(help.contains("Address of the server"))
 
 class \nodoc\ iso _TestHelpFalse is UnitTest
-  fun name(): String => "ponycli/help-false"
+  fun name(): String => "cli/help-false"
 
   fun apply(h: TestHelper) ? =>
     let cs =
@@ -560,7 +560,7 @@ class \nodoc\ iso _TestHelpFalse is UnitTest
     end
 
 class \nodoc\ iso _TestHelpMultipleArgs is UnitTest
-  fun name(): String => "ponycli/help-multiple-args"
+  fun name(): String => "cli/help-multiple-args"
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
@@ -571,7 +571,7 @@ class \nodoc\ iso _TestHelpMultipleArgs is UnitTest
       help.contains("simple <words> <argz>"))
 
 class \nodoc\ iso _TestMultipleEndOfOptions is UnitTest
-  fun name(): String => "ponycli/multiple-end-of-options"
+  fun name(): String => "cli/multiple-end-of-options"
 
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.corral_spec()?
