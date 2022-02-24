@@ -149,9 +149,6 @@ class \nodoc\ iso _TestFileExecCapabilityIsRequired is UnitTest
       h.fail("Could not create FilePath!")
     end
 
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
 class \nodoc\ iso _TestNonExecutablePathResultsInExecveError is UnitTest
   fun name(): String =>
     "process/_TestNonExecutablePathResultsInExecveError"
@@ -174,9 +171,6 @@ class \nodoc\ iso _TestNonExecutablePathResultsInExecveError is UnitTest
     else
       h.fail("Could not create temporary FilePath!")
     end
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
 
   fun _setup_notifier(h: TestHelper, path: FilePath): ProcessNotify iso^ =>
     recover object is ProcessNotify
@@ -229,9 +223,6 @@ class \nodoc\ iso _TestStdinStdout is UnitTest
       h.fail("Could not create FilePath!")
     end
 
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
 class \nodoc\ iso _TestStderr is UnitTest
   var _pm: (ProcessMonitor | None) = None
 
@@ -277,9 +268,6 @@ class \nodoc\ iso _TestStderr is UnitTest
     else
       h.fail("Could not create FilePath!")
     end
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
 
 class \nodoc\ iso _TestExpect is UnitTest
   fun name(): String =>
@@ -344,9 +332,6 @@ class \nodoc\ iso _TestExpect is UnitTest
       h.fail("Could not create FilePath!")
     end
 
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
 class \nodoc\ iso _TestWritevOrdering is UnitTest
   fun name(): String =>
     "process/WritevOrdering"
@@ -376,9 +361,6 @@ class \nodoc\ iso _TestWritevOrdering is UnitTest
       h.fail("Could not create FilePath!")
     end
 
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
 class \nodoc\ iso _TestPrintvOrdering is UnitTest
   fun name(): String =>
     "process/PrintvOrdering"
@@ -407,9 +389,6 @@ class \nodoc\ iso _TestPrintvOrdering is UnitTest
     else
       h.fail("Could not create FilePath!")
     end
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
 
 class \nodoc\ iso _TestStdinWriteBuf is UnitTest
   var _pm: (ProcessMonitor | None) = None
@@ -463,7 +442,6 @@ class \nodoc\ iso _TestStdinWriteBuf is UnitTest
     else
       h.fail("Error disposing of forked process in STDIN-WriteBuf test")
     end
-    h.complete(false)
 
 class \nodoc\ _TestChdir is UnitTest
   fun name(): String =>
@@ -610,10 +588,6 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
       h.fail("failed to set up calling sleep/timeout.")
     end
 
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
-
 class \nodoc\ iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
@@ -667,9 +641,6 @@ class \nodoc\ iso _TestKillLongRunningChild is UnitTest
     else
       h.fail("failed to set up calling sleep/timeout.")
     end
-
-  fun timed_out(h: TestHelper) =>
-    h.complete(false)
 
 class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
   fun name(): String => "process/wait-on-closed-process-twice"
