@@ -1,20 +1,22 @@
-trait _ProcessMonitorState
-  fun ref dispose(pm: ProcessMonitor)
+trait val _ProcessMonitorStateHandler
+  fun ref dispose(pm: ProcessMonitor ref)
 
-class _ProcessNotStarted is _ProcessMonitorState
-  fun ref dispose(pm: ProcessMonitor) =>
+primitive _ProcessNotStarted is _ProcessMonitorStateHandler
+  fun ref dispose(pm: ProcessMonitor ref) =>
     None
 
-class _ProcessFailed is _ProcessMonitorState
-  fun ref dispose(pm: ProcessMonitor) =>
+primitive _ProcessFailed is _ProcessMonitorStateHandler
+  fun ref dispose(pm: ProcessMonitor ref) =>
     pm._release_backpressure()
+    pm._close()
 
-class _ProcessRunning is _ProcessMonitorState
-  fun ref dispose(pm: ProcessMonitor) =>
-    _child.kill()
+primitive _ProcessRunning is _ProcessMonitorStateHandler
+  fun ref dispose(pm: ProcessMonitor ref) =>
     pm._release_backpressure()
+    pm._kill_child()
+    pm._close()
 
-class _ProcessFinished is _ProcessMonitorState
-  fun ref dispose(pm: ProcessMonitor) =>
+primitive _ProcessFinished is _ProcessMonitorStateHandler
+  fun ref dispose(pm: ProcessMonitor ref) =>
     pm._release_backpressure()
 
