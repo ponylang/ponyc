@@ -490,3 +490,9 @@ actor ProcessMonitor is AsioEventNotify
         return
       end
     end
+
+  fun ref _apply_backpressure() =>
+    Backpressure.apply(_backpressure_auth)
+
+  fun ref _release_backpressure() =>
+    Backpressure.release(_backpressure_auth)
