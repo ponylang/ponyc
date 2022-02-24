@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix the signature of Iter's map_stateful/map to not require ephemerals ([PR #4026](https://github.com/ponylang/ponyc/pull/4026))
 - Use symbol table from definition scope when looking up references from default method bodies ([PR #4027](https://github.com/ponylang/ponyc/pull/4027))
 - Fix LLVM IR verification error found via PonyCheck ([PR #4039](https://github.com/ponylang/ponyc/pull/4039))
+- Fix failed initialization bug in Process Monitor ([PR #4043](https://github.com/ponylang/ponyc/pull/4043))
 
 ### Added
 
