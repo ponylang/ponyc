@@ -199,9 +199,18 @@ actor ProcessMonitor is AsioEventNotify
     """
     Terminate child and close down everything.
     """
-    Backpressure.release(_backpressure_auth)
-    _child.kill()
-    _close()
+    match _child
+    | let never_started: _ProcessNone =>
+      // We never started a child process so do not do any disposal
+      // If we do, some weirdness can happen with dispose getting called
+      // on the notifier which is not supposed to happen if we never started
+      // a child (or haven't started one yet).
+      return
+    else
+      Backpressure.release(_backpressure_auth)
+      _child.kill()
+      _close()
+    end
 
   fun ref expect(qty: USize = 0) =>
     """

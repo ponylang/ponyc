@@ -171,7 +171,7 @@ interface _Process
 
 class _ProcessNone is _Process
   fun kill() => None
-  fun ref wait(): _WaitResult => Exited(0)
+  fun ref wait(): _WaitResult => Exited(255)
 
 class _ProcessPosix is _Process
   let pid: I32
