@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add LeastCommonMultiple and GreatestCommonDivisor to math package ([PR #4001](https://github.com/ponylang/ponyc/pull/4001))
+- Add PonyCheck to standard library ([PR #4034](https://github.com/ponylang/ponyc/pull/4034))
 
 ### Changed
 
