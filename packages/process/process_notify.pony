@@ -42,7 +42,7 @@ interface ProcessNotify
     expect a `dispose` call by having received a `created` call.
 
     `dispose` includes the exit status of the child process. If the process
-    finished, then `child_exist_status` will be an instance of [Exited](process-Exited.md).
+    finished, then `child_exit_status` will be an instance of [Exited](process-Exited.md).
 
     The childs exit code can be retrieved from the `Exited` instance by using
     [Exited.exit_code()](process-Exited.md#exit_code).
