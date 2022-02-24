@@ -28,7 +28,7 @@ class _TestDefinitions
   fun _str_pony_extension(): String => ".pony"
   fun _str_expected_exit_code(): String => "expected-exit-code.txt"
 
-  fun find(auth: (AmbientAuth | FileAuth), path': String)
+  fun find(auth: FileAuth, path': String)
     : (Array[_TestDefinition] val | None)
   =>
     let path = if path'.size() > 0 then path' else "." end
@@ -90,7 +90,7 @@ class _TestDefinitions
       definitions
     end
 
-  fun _get_definition(auth: (AmbientAuth | FileAuth), parent: String,
+  fun _get_definition(auth: FileAuth, parent: String,
     child: String): (_TestDefinition | None)
   =>
     let dir =

@@ -39,7 +39,7 @@ class \nodoc\ _TestPing is UDPNotify
     _h = h
 
     _ip = try
-      let auth = h.env.root
+      let auth = DNSAuth(h.env.root)
       (_, let service) = ip.name()?
 
       let list = if ip.ip4() then
@@ -100,10 +100,10 @@ class \nodoc\ _TestPong is UDPNotify
     let h = _h
     if ip.ip4() then
       _h.dispose_when_done(
-        UDPSocket.ip4(h.env.root, recover _TestPing(h, ip) end))
+        UDPSocket.ip4(UDPAuth(h.env.root), recover _TestPing(h, ip) end))
     else
       _h.dispose_when_done(
-        UDPSocket.ip6(h.env.root, recover _TestPing(h, ip) end))
+        UDPSocket.ip6(UDPAuth(h.env.root), recover _TestPing(h, ip) end))
     end
 
   fun ref received(
@@ -135,7 +135,8 @@ class \nodoc\ iso _TestBroadcast is UnitTest
     h.expect_action("pong receive")
     h.expect_action("ping receive")
 
-    h.dispose_when_done(UDPSocket(h.env.root, recover _TestPong(h) end))
+    h.dispose_when_done(
+      UDPSocket(UDPAuth(h.env.root), recover _TestPong(h) end))
 
     h.long_test(30_000_000_000)
 
@@ -168,7 +169,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     h.expect_action("client create")
     h.expect_action("server accept")
 
-    h.dispose_when_done(TCPListener(h.env.root, consume this))
+    h.dispose_when_done(TCPListener(TCPListenAuth(h.env.root), consume this))
     h.complete_action("server create")
 
     h.long_test(30_000_000_000)
@@ -182,7 +183,8 @@ class \nodoc\ _TestTCP is TCPListenNotify
     try
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()?
-      _h.dispose_when_done(TCPConnection(_h.env.root, consume notify, host, port))
+      _h.dispose_when_done(
+        TCPConnection(TCPConnectAuth(_h.env.root), consume notify, host, port))
       _h.complete_action("client create")
     else
       _h.fail_action("client create")
@@ -676,7 +678,7 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
     let port = "7669"
 
     let connection = TCPConnection(
-      h.env.root,
+      TCPConnectAuth(h.env.root),
       object iso is TCPConnectionNotify
         let _h: TestHelper = h
 
@@ -703,7 +705,7 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
     h.expect_action("client connection failed")
 
     let listener = TCPListener(
-      h.env.root,
+      TCPListenAuth(h.env.root),
       object iso is TCPListenNotify
         let _h: TestHelper = h
         var host: String = "?"
@@ -739,7 +741,7 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
 actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>
     let connection = TCPConnection(
-      h.env.root,
+      TCPConnectAuth(h.env.root),
       object iso is TCPConnectionNotify
         let _h: TestHelper = h
 

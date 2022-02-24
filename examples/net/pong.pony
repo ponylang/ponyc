@@ -15,9 +15,9 @@ class Pong is UDPNotify
       let env = _env
 
       if ip.ip4() then
-        UDPSocket.ip4(env.root, recover Ping(env, ip) end)
+        UDPSocket.ip4(UDPAuth(env.root), recover Ping(env, ip) end)
       elseif ip.ip6() then
-        UDPSocket.ip6(env.root, recover Ping(env, ip) end)
+        UDPSocket.ip6(UDPAuth(env.root), recover Ping(env, ip) end)
       else
         error
       end

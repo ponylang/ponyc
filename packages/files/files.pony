@@ -31,7 +31,7 @@ use "files"
 actor Main
   new create(env: Env) =>
     for file_name in env.args.slice(1).values() do
-      let path = FilePath(env.root, file_name)
+      let path = FilePath(FileAuth(env.root), file_name)
       match OpenFile(path)
       | let file: File =>
         while file.errno() is FileOK do

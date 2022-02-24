@@ -28,8 +28,6 @@ use @pony_os_connect_tcp6[U32](owner: AsioEventNotify, host: Pointer[U8] tag,
   service: Pointer[U8] tag, from: Pointer[U8] tag, flags: U32)
 use @pony_os_peername[Bool](fd: U32, ip: NetAddress tag)
 
-type TCPConnectionAuth is (AmbientAuth | NetAuth | TCPAuth | TCPConnectAuth)
-
 actor TCPConnection is AsioEventNotify
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
@@ -95,7 +93,7 @@ actor TCPConnection is AsioEventNotify
 
   ```pony
   // Here we have a TCPConnectionNotify that upon construction
-  // is given a BackpressureAuth token. This allows the notifier
+  // is given a ApplyReleaseBackpressureAuth token. This allows the notifier
   // to inform the Pony runtime when to apply and release backpressure
   // as the connection experiences it.
   // Note the calls to
@@ -110,10 +108,10 @@ actor TCPConnection is AsioEventNotify
   use "net"
 
   class SlowDown is TCPConnectionNotify
-    let _auth: BackpressureAuth
+    let _auth: ApplyReleaseBackpressureAuth
     let _out: StdStream
 
-    new iso create(auth: BackpressureAuth, out: StdStream) =>
+    new iso create(auth: ApplyReleaseBackpressureAuth, out: StdStream) =>
       _auth = auth
       _out = out
 
@@ -137,9 +135,10 @@ actor TCPConnection is AsioEventNotify
   actor Main
     new create(env: Env) =>
       try
-        let auth = env.root
-        let socket = TCPConnection(auth, recover SlowDown(auth, env.out) end,
-          "", "7669")
+        let c_auth = TCPConnectAuth(env.root)
+        let bp_auth = ApplyReleaseBackpressureAuth(env.root)
+        let socket = TCPConnection(c_auth,
+          recover SlowDown(bp_auth, env.out) end, "", "7669")
       end
 
   ```
@@ -231,7 +230,7 @@ actor TCPConnection is AsioEventNotify
   actor MyClient
     new create(host: String, service: String, proxy: Proxy = NoProxy) =>
       let conn: TCPConnection = TCPConnection.create(
-        env.root,
+        TCPConnectAuth(env.root),
         proxy.apply(MyConnectionNotify.create()),
         host,
         service)
@@ -315,7 +314,7 @@ actor TCPConnection is AsioEventNotify
   var _muted: Bool = false
 
   new create(
-    auth: TCPConnectionAuth,
+    auth: TCPConnectAuth,
     notify: TCPConnectionNotify iso,
     host: String,
     service: String,
@@ -346,7 +345,7 @@ actor TCPConnection is AsioEventNotify
     _notify_connecting()
 
   new ip4(
-    auth: TCPConnectionAuth,
+    auth: TCPConnectAuth,
     notify: TCPConnectionNotify iso,
     host: String,
     service: String,
@@ -376,7 +375,7 @@ actor TCPConnection is AsioEventNotify
     _notify_connecting()
 
   new ip6(
-    auth: TCPConnectionAuth,
+    auth: TCPConnectAuth,
     notify: TCPConnectionNotify iso,
     host: String,
     service: String,

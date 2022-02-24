@@ -34,7 +34,7 @@ it is under pressure.
 
 ```pony
 // Here we have a TCPConnectionNotify that upon construction
-// is given a BackpressureAuth token. This allows the notifier
+// is given a ApplyReleaseBackpressureAuth token. This allows the notifier
 // to inform the Pony runtime when to apply and release backpressure
 // as the connection experiences it.
 // Note the calls to
@@ -49,10 +49,10 @@ use "collections"
 use "net"
 
 class SlowDown is TCPConnectionNotify
-  let _auth: BackpressureAuth
+  let _auth: ApplyReleaseBackpressureAuth
   let _out: StdStream
 
-  new iso create(auth: BackpressureAuth, out: StdStream) =>
+  new iso create(auth: ApplyReleaseBackpressureAuth, out: StdStream) =>
     _auth = auth
     _out = out
 
@@ -70,7 +70,8 @@ class SlowDown is TCPConnectionNotify
 actor Main
   new create(env: Env) =>
     let socket = TCPConnection(env.root,
-    recover SlowDown(env.root, env.out) end, "", "7669")
+    recover SlowDown(
+      ApplyReleaseBackpressureAuth(env.root), env.out) end, "", "7669")
 ```
 
 ## Caveat
@@ -87,11 +88,9 @@ interfere with the runtime.
 use @pony_apply_backpressure[None]()
 use @pony_release_backpressure[None]()
 
-type BackpressureAuth is (AmbientAuth | ApplyReleaseBackpressureAuth)
-
 primitive Backpressure
-  fun apply(auth: BackpressureAuth) =>
+  fun apply(auth: ApplyReleaseBackpressureAuth) =>
     @pony_apply_backpressure()
 
-  fun release(auth: BackpressureAuth) =>
+  fun release(auth: ApplyReleaseBackpressureAuth) =>
     @pony_release_backpressure()

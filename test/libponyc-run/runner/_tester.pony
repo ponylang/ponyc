@@ -3,6 +3,7 @@ use "files"
 use "itertools"
 use "process"
 use "time"
+use "backpressure"
 
 interface tag _TesterNotify
   be succeeded(name: String)
@@ -89,9 +90,11 @@ actor _Tester
     _start_ms = Time.millis()
 
     _stage = _Building
-    _build_process = ProcessMonitor(_env.root, _env.root, _BuildProcessNotify(this),
+    let spa = StartProcessAuth(_env.root)
+    let bpa = ApplyReleaseBackpressureAuth(_env.root)
+    _build_process = ProcessMonitor(spa, bpa, _BuildProcessNotify(this),
       ponyc_file_path, consume args, _env.vars,
-      FilePath(_env.root, _definition.path))
+      FilePath(FileAuth(_env.root), _definition.path))
       .>done_writing()
 
   fun _get_build_args(ponyc_path: String): Array[String] val =>
@@ -171,9 +174,11 @@ actor _Tester
       end
 
       _stage = _Testing
-      _test_process = ProcessMonitor(_env.root, _env.root, _TestProcessNotify(this),
-        FilePath(_env.root, test_fname), [ test_fname ], vars,
-        FilePath(_env.root, _definition.path))
+      let spa = StartProcessAuth(_env.root)
+      let bpa = ApplyReleaseBackpressureAuth(_env.root)
+      _test_process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
+        FilePath(FileAuth(_env.root), test_fname), [ test_fname ], vars,
+        FilePath(FileAuth(_env.root), _definition.path))
         .>done_writing()
     end
 

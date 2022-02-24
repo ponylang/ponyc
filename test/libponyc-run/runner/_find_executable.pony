@@ -4,7 +4,7 @@ use "files"
 primitive _FindExecutable
   fun apply(env: Env, name: String): FilePath ? =>
     if Path.is_abs(name) then
-      FilePath(env.root, name)
+      FilePath(FileAuth(env.root), name)
     else
       (let vars, let key) =
         ifdef windows then
@@ -15,7 +15,7 @@ primitive _FindExecutable
       let path_var = vars.get_or_else(key, "")
       for dir in Path.split_list(path_var).values() do
         try
-          let dir_file_path = FilePath(env.root, dir)
+          let dir_file_path = FilePath(FileAuth(env.root), dir)
           ifdef windows then
             var bin_file_path: FilePath
             try

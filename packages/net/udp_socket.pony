@@ -16,8 +16,6 @@ use @pony_os_multicast_leave[None](fd: U32, group: Pointer[U8] tag,
   to: Pointer[U8] tag)
 use @pony_os_multicast_interface[None](fd: U32, from: Pointer[U8] tag)
 
-type UDPSocketAuth is (AmbientAuth | NetAuth | UDPAuth)
-
 actor UDPSocket is AsioEventNotify
   """
   Creates a UDP socket that can be used for sending and receiving UDP messages.
@@ -48,7 +46,7 @@ actor UDPSocket is AsioEventNotify
   actor Main
     new create(env: Env) =>
       try
-        UDPSocket(env.root,
+        UDPSocket(UDPAuth(env.root),
           MyUDPNotify, "", "8989")
       end
   ```
@@ -87,8 +85,8 @@ actor UDPSocket is AsioEventNotify
     new create(env: Env) =>
       try
         let destination =
-          DNS.ip4(env.root, "localhost", "8989")(0)?
-        UDPSocket(env.root,
+          DNS.ip4(DNSAuth(env.root), "localhost", "8989")(0)?
+        UDPSocket(UDPAuth(env.root),
           recover MyUDPNotify(env.out, consume destination) end)
       end
   ```
@@ -104,7 +102,7 @@ actor UDPSocket is AsioEventNotify
   embed _ip: NetAddress = NetAddress
 
   new create(
-    auth: UDPSocketAuth,
+    auth: UDPAuth,
     notify: UDPNotify iso,
     host: String = "",
     service: String = "0",
@@ -124,7 +122,7 @@ actor UDPSocket is AsioEventNotify
     _start_next_read()
 
   new ip4(
-    auth: UDPSocketAuth,
+    auth: UDPAuth,
     notify: UDPNotify iso,
     host: String = "",
     service: String = "0",
@@ -144,7 +142,7 @@ actor UDPSocket is AsioEventNotify
     _start_next_read()
 
   new ip6(
-    auth: UDPSocketAuth,
+    auth: UDPAuth,
     notify: UDPNotify iso,
     host: String = "",
     service: String = "0",

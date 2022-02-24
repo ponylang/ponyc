@@ -6,13 +6,11 @@ use @freeaddrinfo[None](addr: Pointer[None] tag)
 use @pony_os_host_ip4[Bool](host: Pointer[U8] tag)
 use @pony_os_host_ip6[Bool](host: Pointer[U8] tag)
 
-type DNSLookupAuth is (AmbientAuth | NetAuth | DNSAuth)
-
 primitive DNS
   """
   Helper functions for resolving DNS queries.
   """
-  fun apply(auth: DNSLookupAuth, host: String, service: String)
+  fun apply(auth: DNSAuth, host: String, service: String)
     : Array[NetAddress] iso^
   =>
     """
@@ -20,7 +18,7 @@ primitive DNS
     """
     _resolve(auth, 0, host, service)
 
-  fun ip4(auth: DNSLookupAuth, host: String, service: String)
+  fun ip4(auth: DNSAuth, host: String, service: String)
     : Array[NetAddress] iso^
   =>
     """
@@ -28,7 +26,7 @@ primitive DNS
     """
     _resolve(auth, 1, host, service)
 
-  fun ip6(auth: DNSLookupAuth, host: String, service: String)
+  fun ip6(auth: DNSAuth, host: String, service: String)
     : Array[NetAddress] iso^
   =>
     """
@@ -36,7 +34,7 @@ primitive DNS
     """
     _resolve(auth, 2, host, service)
 
-  fun broadcast_ip4(auth: DNSLookupAuth, service: String)
+  fun broadcast_ip4(auth: DNSAuth, service: String)
     : Array[NetAddress] iso^
   =>
     """
@@ -44,7 +42,7 @@ primitive DNS
     """
     ip4(auth, "255.255.255.255", service)
 
-  fun broadcast_ip6(auth: DNSLookupAuth, service: String)
+  fun broadcast_ip6(auth: DNSAuth, service: String)
     : Array[NetAddress] iso^
   =>
     """
@@ -65,7 +63,7 @@ primitive DNS
     @pony_os_host_ip6(host.cstring())
 
   fun _resolve(
-    auth: DNSLookupAuth,
+    auth: DNSAuth,
     family: U32,
     host: String,
     service: String)

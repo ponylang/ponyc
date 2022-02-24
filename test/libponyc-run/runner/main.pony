@@ -13,10 +13,10 @@ actor Main
       end
 
     var exit_code = I32(0)
-    if FilePath(env.root, options.output).exists() then
+    if FilePath(FileAuth(env.root), options.output).exists() then
       let td = _TestDefinitions(options.verbose, options.exclude, env.out,
         env.err)
-      match td.find(env.root, options.test_path)
+      match td.find(FileAuth(env.root), options.test_path)
       | let test_definitions: Array[_TestDefinition] val =>
         _Coordinator(env, options, test_definitions)
       else
