@@ -1,18 +1,18 @@
 use "files"
 use "time"
 
-actor ProcessMonitor2 is AsioEventNotify
+actor ProcessMonitor2 //is AsioEventNotify
   """
   Fork+execs / creates a child process and monitors it. Notifies a client about
   STDOUT / STDERR events.
   """
-  var _state_handler: _ProcessMonitorStateHandler = _ProcessNotStarted
-  let _notifier: ProcessNotify2
+  var _state_handler: _ProcessMonitorStateHandler
+  //let _notifier: ProcessNotify2
 
-  var _stdin: _Pipe = _Pipe.none()
-  var _stdout: _Pipe = _Pipe.none()
-  var _stderr: _Pipe = _Pipe.none()
-  var _err: _Pipe = _Pipe.none()
+  // var _stdin: _Pipe = _Pipe.none()
+  // var _stdout: _Pipe = _Pipe.none()
+  // var _stderr: _Pipe = _Pipe.none()
+  // var _err: _Pipe = _Pipe.none()
 
   // TODO: should be (_Process | None)
   var _child: _Process = _ProcessNone
@@ -27,16 +27,17 @@ actor ProcessMonitor2 is AsioEventNotify
     vars: Array[String] val,
     wdir: (FilePath | None) = None)
   =>
-    _notifier = consume notifier
+    _state_handler = _StartupHandler(consume notifier).start(filepath)
 
     // We need permission to execute and the
     // file itself needs to be an executable
-    if not filepath.caps(FileExec) then
+    /*if not filepath.caps(FileExec) then
       _notifier.failed(this, ProcessError(CapError, filepath.path
         + " is not an executable or we do not have execute capability."))
       return
-    end
+    end*/
 
+/*
     let ok = try
       FileInfo(filepath)?.file
     else
@@ -164,3 +165,4 @@ actor ProcessMonitor2 is AsioEventNotify
     """
     // TODO: sean
     None
+*/

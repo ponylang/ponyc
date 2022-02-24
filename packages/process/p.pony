@@ -1,4 +1,4 @@
-trait val _ProcessMonitorStateHandler
+/*trait val _ProcessMonitorStateHandler
   fun ref dispose(pm: ProcessMonitor ref)
 
 primitive _ProcessNotStarted is _ProcessMonitorStateHandler
@@ -18,5 +18,5 @@ primitive _ProcessRunning is _ProcessMonitorStateHandler
 
 primitive _ProcessFinished is _ProcessMonitorStateHandler
   fun ref dispose(pm: ProcessMonitor ref) =>
-    pm._release_backpressure()
+    pm._release_backpressure()*/
 
