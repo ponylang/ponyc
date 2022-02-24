@@ -165,7 +165,7 @@ interface _Process
   fun ref wait(): _WaitResult
     """
     Only polls, does not actually wait for the process to finish,
-    in order to notified block a scheduler thread.
+    in order to not block a scheduler thread.
     """
 
 
