@@ -165,13 +165,13 @@ interface _Process
   fun ref wait(): _WaitResult
     """
     Only polls, does not actually wait for the process to finish,
-    in order to not block a scheduler thread.
+    in order to notified block a scheduler thread.
     """
 
 
 class _ProcessNone is _Process
   fun kill() => None
-  fun ref wait(): _WaitResult => Exited(0)
+  fun ref wait(): _WaitResult => Exited(255)
 
 class _ProcessPosix is _Process
   let pid: I32
