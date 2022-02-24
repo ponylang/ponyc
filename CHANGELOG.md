@@ -28,6 +28,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reimplement `with` ([PR #4024](https://github.com/ponylang/ponyc/pull/4024))
 - Remove `logger` package from the standard library ([PR #4035](https://github.com/ponylang/ponyc/pull/4035))
 - Rename `ponybench` to match standard naming conventions. ([PR #4033](https://github.com/ponylang/ponyc/pull/4033))
+- Change the standard library pattern for object capabilities ([PR #4031](https://github.com/ponylang/ponyc/pull/4031))
 
 ## [0.48.0] - 2022-02-08
 
