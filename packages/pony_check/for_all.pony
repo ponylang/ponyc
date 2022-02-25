@@ -1,4 +1,4 @@
-use "ponytest"
+use "pony_test"
 
 class ForAll[T]
   let _gen: Generator[T] val

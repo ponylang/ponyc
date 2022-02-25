@@ -1,4 +1,4 @@
-use "ponytest"
+use "pony_test"
 use "pony_check"
 
 actor Main is TestList

@@ -1,7 +1,7 @@
 use "itertools"
 use "net"
 use "pony_check"
-use "ponytest"
+use "pony_test"
 
 class _TCPSenderConnectionNotify is TCPConnectionNotify
   let _message: String

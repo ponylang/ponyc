@@ -31,7 +31,7 @@ for the package.
 The following is a complete program with 2 trivial tests.
 
 ```pony
-use "ponytest"
+use "pony_test"
 
 actor Main is TestList
   new create(env: Env) =>
@@ -92,7 +92,7 @@ list function for each package. The following is an example that aggregates the
 tests from packages `foo` and `bar`.
 
 ```pony
-use "ponytest"
+use "pony_test"
 use bar = "bar"
 use foo = "foo"
 
@@ -171,7 +171,7 @@ By default label is empty. You can set it up by overriding `label(): String`
 method in unit test.
 
 ```pony
-use "ponytest"
+use "pony_test"
 
 class iso _I8AddTest is UnitTest
   fun name(): String => "_I8AddTest"
@@ -185,39 +185,39 @@ class iso _I8AddTest is UnitTest
 
 ### Set Up
 
-Any kind of fixture or environment necessary for executing a [UnitTest](ponytest-UnitTest.md)
-can be set up either in the tests constructor or in a function called [set_up()](ponytest-UnitTest.md#set_up).
+Any kind of fixture or environment necessary for executing a [UnitTest](pony_test-UnitTest.md)
+can be set up either in the tests constructor or in a function called [set_up()](pony_test-UnitTest.md#set_up).
 
-[set_up()](ponytest-UnitTest.md#set_up) is called before the test is executed. It is partial,
+[set_up()](pony_test-UnitTest.md#set_up) is called before the test is executed. It is partial,
 if it errors, the test is not executed but reported as failing during set up.
-The test's [TestHelper](ponytest-TestHelper.md) is handed to [set_up()](ponytest-UnitTest.md#set_up)
-in order to log messages or access the tests [Env](builtin-Env.md) via [TestHelper.env](ponytest-TestHelper.md#let-env-env-val).
+The test's [TestHelper](pony_test-TestHelper.md) is handed to [set_up()](pony_test-UnitTest.md#set_up)
+in order to log messages or access the tests [Env](builtin-Env.md) via [TestHelper.env](pony_test-TestHelper.md#let-env-env-val).
 
 ### Tear Down
 
-Each unit test object may define a [tear_down()](ponytest-UnitTest.md#tear_down) function. This is called after
+Each unit test object may define a [tear_down()](pony_test-UnitTest.md#tear_down) function. This is called after
 the test has finished to allow tearing down of any complex environment that had
 to be set up for the test.
 
-The [tear_down()](ponytest-UnitTest.md#tear_down) function is called for each test regardless of whether it
-passed or failed. If a test times out [tear_down()](ponytest-UnitTest.md#tear_down) will be called after
+The [tear_down()](pony_test-UnitTest.md#tear_down) function is called for each test regardless of whether it
+passed or failed. If a test times out [tear_down()](pony_test-UnitTest.md#tear_down) will be called after
 timed_out() returns.
 
-When a test is in an exclusion group, the [tear_down()](ponytest-UnitTest.md#tear_down) call is considered part
+When a test is in an exclusion group, the [tear_down()](pony_test-UnitTest.md#tear_down) call is considered part
 of the tests run. The next test in the exclusion group will not start until
-after [tear_down()](ponytest-UnitTest.md#tear_down) returns on the current test.
+after [tear_down()](pony_test-UnitTest.md#tear_down) returns on the current test.
 
-The test's [TestHelper](ponytest-TestHelper.md) is handed to [tear_down()](ponytest-UnitTest.md#tear_down) and it is permitted to log
+The test's [TestHelper](pony_test-TestHelper.md) is handed to [tear_down()](pony_test-UnitTest.md#tear_down) and it is permitted to log
 messages and call assert functions during tear down.
 
 ### Example
 
-The following example creates a temporary directory in the [set_up()](ponytest-UnitTest.md#set_up) function
-and removes it in the [tear_down()](ponytest-UnitTest.md#tear_down) function, thus
+The following example creates a temporary directory in the [set_up()](pony_test-UnitTest.md#set_up) function
+and removes it in the [tear_down()](pony_test-UnitTest.md#tear_down) function, thus
 simplifying the test function itself:
 
 ```pony
-use "ponytest"
+use "pony_test"
 use "files"
 
 class iso TempDirTest

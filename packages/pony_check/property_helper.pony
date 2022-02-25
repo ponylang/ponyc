@@ -27,7 +27,7 @@ class val PropertyHelper
   """
   Helper for PonyCheck properties.
 
-  Mirrors the [TestHelper](ponytest-TestHelper.md) API as closely as possible.
+  Mirrors the [TestHelper](pony_test-TestHelper.md) API as closely as possible.
 
   Contains assertion functions and functions for completing asynchronous
   properties, for expecting and completing or failing actions.

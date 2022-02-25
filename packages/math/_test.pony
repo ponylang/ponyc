@@ -1,4 +1,4 @@
-use "ponytest"
+use "pony_test"
 use "random"
 
 actor \nodoc\ Main is TestList

@@ -1,15 +1,15 @@
-use "ponytest"
+use "pony_test"
 
 class iso Property1UnitTest[T] is UnitTest
   """
   Provides plumbing for integration of PonyCheck
-  [Properties](pony_check-Property1.md) into [PonyTest](ponytest--index.md).
+  [Properties](pony_check-Property1.md) into [PonyTest](pony_test--index.md).
 
   Wrap your properties into this class and use it in a
-  [TestList](ponytest-TestList.md):
+  [TestList](pony_test-TestList.md):
 
   ```pony
-  use "ponytest"
+  use "pony_test"
   use "pony_check"
 
   class MyProperty is Property1[String]
@@ -36,7 +36,7 @@ class iso Property1UnitTest[T] is UnitTest
   new iso create(p1: Property1[T] iso, name': (String | None) = None) =>
     """
     Wrap a [Property1](pony_check-Property1.md) to make it mimic the PonyTest
-    [UnitTest](ponytest-UnitTest.md).
+    [UnitTest](pony_test-UnitTest.md).
 
     If `name'` is given, use this as the test name.
     If not, use the property's `name()`.

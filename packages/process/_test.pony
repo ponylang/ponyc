@@ -1,4 +1,4 @@
-use "ponytest"
+use "pony_test"
 use "backpressure"
 use "capsicum"
 use "collections"
