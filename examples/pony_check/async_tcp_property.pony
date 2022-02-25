@@ -31,9 +31,9 @@ class val TCPSender
   Simple class that sends a string to a TCP server.
   """
 
-  let _auth: AmbientAuth
+  let _auth: TCPConnectAuth
 
-  new val create(auth: AmbientAuth) =>
+  new val create(auth: TCPConnectAuth) =>
     _auth = auth
 
   fun send(
@@ -124,10 +124,10 @@ class _AsyncTCPSenderProperty is Property1[String]
     Generators.unicode()
 
   fun ref property(sample: String, ph: PropertyHelper) =>
-    let sender = TCPSender(ph.env.root)
+    let sender = TCPSender(TCPConnectAuth(ph.env.root))
     ph.dispose_when_done(
       TCPListener(
-        ph.env.root,
+        TCPListenAuth(ph.env.root),
         recover MyTCPListenNotify(sender, ph, "PONYCHECK") end,
         "127.0.0.1",
         "0"))
