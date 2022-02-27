@@ -213,3 +213,17 @@ TEST_F(StableTypeTest, DoubleEphemeralInstantiation)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(StableTypeTest, EphemeralIntersectInstantiation)
+{
+  const char* src =
+    "class Generic[T]\n"
+    "  fun get(f: {(): T^}): T =>\n"
+    "    f()\n"
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Generic[(A iso | None)].get({() => A})\n";
+
+  TEST_COMPILE(src);
+}

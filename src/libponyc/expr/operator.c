@@ -373,7 +373,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
     default: {}
   }
-  ast_t* wl_type = consume_type(fl_type, TK_NONE);
+  ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
 
   // Assignment is based on the alias of the right hand side.
   errorframe_t info = NULL;
@@ -475,7 +475,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(!check_embed_construction(opt, left, right))
     return false;
 
-  ast_settype(ast, consume_type(l_type, TK_NONE));
+  ast_settype(ast, consume_type(l_type, TK_NONE, false));
   return true;
 }
 
@@ -674,7 +674,7 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
     return false;
 
   token_id tcap = ast_id(cap);
-  ast_t* c_type = consume_type(type, tcap);
+  ast_t* c_type = consume_type(type, tcap, false);
 
   if(c_type == NULL)
   {

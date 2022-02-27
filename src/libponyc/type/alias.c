@@ -181,7 +181,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap,
   return type;
 }
 
-static ast_t* consume_single(ast_t* type, token_id ccap)
+static ast_t* consume_single(ast_t* type, token_id ccap, bool keep_double_ephemeral)
 {
   type = ast_dup(type);
   ast_t* cap = cap_fetch(type);
@@ -209,8 +209,11 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
       {
         case TK_ISO:
         case TK_TRN:
-          ast_free_unattached(type);
-          return NULL;
+          if (!keep_double_ephemeral)
+          {
+            ast_free_unattached(type);
+            return NULL;
+          }
 
         default: {}
       }
@@ -293,7 +296,7 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type, token_id cap)
+ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 {
   switch(ast_id(type))
   {
@@ -308,7 +311,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
 
         if(r_right == NULL)
         {
@@ -344,7 +347,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
 
         if(r_right != NULL)
         {
@@ -359,7 +362,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return consume_single(type, cap);
+      return consume_single(type, cap, keep_double_ephemeral);
 
     case TK_ARROW:
     {
@@ -367,7 +370,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
-      ast_t* r_right = consume_type(right, cap);
+      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral);
       if (r_right == NULL)
       {
         return NULL;

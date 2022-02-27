@@ -235,7 +235,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       return false;
     }
 
-    ast_t* wp_type = consume_type(p_type, TK_NONE);
+    ast_t* wp_type = consume_type(p_type, TK_NONE, false);
     errorframe_t info = NULL;
 
     if(wp_type == NULL)
