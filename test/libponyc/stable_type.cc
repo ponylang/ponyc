@@ -214,7 +214,7 @@ TEST_F(StableTypeTest, DoubleEphemeralInstantiation)
   TEST_COMPILE(src);
 }
 
-TEST_F(StableTypeTest, EphemeralIntersectInstantiation)
+TEST_F(StableTypeTest, EphemeralInstantiationRespectsUnions)
 {
   const char* src =
     "class Generic[T]\n"
