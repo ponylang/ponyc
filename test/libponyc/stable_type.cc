@@ -214,16 +214,31 @@ TEST_F(StableTypeTest, DoubleEphemeralInstantiation)
   TEST_COMPILE(src);
 }
 
-TEST_F(StableTypeTest, EphemeralInstantiationRespectsUnions)
+TEST_F(StableTypeTest, EphemeralInstantiationRespectsEphemeralUnions)
 {
   const char* src =
+    "type Arg is (A iso | None)\n"
     "class Generic[T]\n"
     "  fun get(f: {(): T^}): T =>\n"
     "    f()\n"
     "class A\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    Generic[(A iso | None)].get({() => A})\n";
+    "    Generic[Arg^].get({() => A})\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(StableTypeTest, EphemeralInstantiationRespectsUnionsOfEphemerals)
+{
+  const char* src =
+    "type Arg is (A iso^ | None)\n"
+    "class Generic[T]\n"
+    "  fun get(f: {(): T^}): T =>\n"
+    "    f()\n"
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Generic[Arg].get({() => A})\n";
 
   TEST_COMPILE(src);
 }
