@@ -270,28 +270,24 @@ class \nodoc\ iso _SuccessfulProperty4Test is UnitTest
     runner.run()
 
 class \nodoc\ iso _RunnerAsyncPropertyCompleteTest is UnitTest
-
   fun name(): String => "property_runner/async/complete"
 
   fun apply(h: TestHelper) =>
     _Async.run_async_test(h, {(ph) => ph.complete(true) }, true)
 
 class \nodoc\ iso _RunnerAsyncPropertyCompleteFalseTest is UnitTest
-
   fun name(): String => "property_runner/async/complete-false"
 
   fun apply(h: TestHelper) =>
     _Async.run_async_test(h,{(ph) => ph.complete(false) }, false)
 
 class \nodoc\ iso _RunnerAsyncFailTest is UnitTest
-
   fun name(): String => "property_runner/async/fail"
 
   fun apply(h: TestHelper) =>
     _Async.run_async_test(h, {(ph) => ph.fail("Oh noes!") }, false)
 
 class \nodoc\ iso _RunnerAsyncMultiCompleteSucceedTest is UnitTest
-
   fun name(): String => "property_runner/async/multi_succeed"
 
   fun apply(h: TestHelper) =>
@@ -314,7 +310,6 @@ class \nodoc\ iso _RunnerAsyncMultiCompleteFailTest is UnitTest
       }, false)
 
 class \nodoc\ iso _RunnerAsyncCompleteActionTest is UnitTest
-
   fun name(): String => "property_runner/async/complete_action"
 
   fun apply(h: TestHelper) =>
@@ -328,7 +323,6 @@ class \nodoc\ iso _RunnerAsyncCompleteActionTest is UnitTest
       true)
 
 class \nodoc\ iso _RunnerAsyncCompleteFalseActionTest is UnitTest
-
   fun name(): String => "property_runner/async/complete_action"
 
   fun apply(h: TestHelper) =>
@@ -341,7 +335,6 @@ class \nodoc\ iso _RunnerAsyncCompleteFalseActionTest is UnitTest
       }, false)
 
 class \nodoc\ iso _RunnerAsyncCompleteMultiActionTest is UnitTest
-
   fun name(): String => "property_runner/async/complete_multi_action"
 
   fun apply(h: TestHelper) =>
@@ -356,7 +349,6 @@ class \nodoc\ iso _RunnerAsyncCompleteMultiActionTest is UnitTest
       false)
 
 class \nodoc\ iso _RunnerAsyncCompleteMultiSucceedActionTest is UnitTest
-
   fun name(): String => "property_runner/async/complete_multi_fail_action"
 
   fun apply(h: TestHelper) =>
