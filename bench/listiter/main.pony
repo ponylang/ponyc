@@ -66,6 +66,13 @@ actor Main is BenchmarkList
     bench(_Filter(10_000, Skew))
     bench(_Filter(1_000_000, Skew))
 
+    bench(_Fold(100, Even))
+    bench(_Fold(10_000, Even))
+    bench(_Fold(1_000_000, Even))
+    bench(_Fold(100, Skew))
+    bench(_Fold(10_000, Skew))
+    bench(_Fold(1_000_000, Skew))
+
 class iso _Map is MicroBenchmark
   let _n: USize
   var _list: ListIter[U64]
@@ -118,4 +125,31 @@ class iso _Filter is MicroBenchmark
   fun apply() =>
     // prevent compiler from optimizing out this operation
     DoNotOptimise[ListIter[U64]](_list.filter( {(v: U64): Bool => (v % 2) == 0 } ))
+    DoNotOptimise.observe()
+
+class iso _Fold is MicroBenchmark
+  let _n: USize
+  var _list: ListIter[U64]
+  let _dist: Dist
+
+  new iso create(n: USize, dist: Dist) =>
+    _n = n
+    _list = ListIter[U64](n)
+    _dist = dist
+
+
+  fun ref before() =>
+    _list = match _dist
+      | Even => Distribution.even(_n)
+      | Skew => Distribution.skew(_n)
+    end
+
+  fun ref after() =>
+    _list.clear()
+
+  fun name(): String => "dist: " + _dist.string() + ", size: " + _n.string() + " func: fold max "
+
+  fun apply() =>
+    // prevent compiler from optimizing out this operation
+    DoNotOptimise[U64](_list.fold[U64]( {(acc: U64, v: U64): U64 => if acc > v then acc else v end }, 0 ))
     DoNotOptimise.observe()
