@@ -17,67 +17,105 @@ The reimplemented methods from List are as follows:
 + take_while
 */
 
+primitive Even is Stringable
+   fun string(): String iso^ => "even".clone()
+primitive Skew is Stringable
+   fun string(): String iso^ => "skew".clone()
+
+// An "enumeration" type
+type Dist is (Even | Skew)
+
+primitive Distribution
+  fun even(n: USize): ListIter[U64] =>
+    var list: ListIter[U64] iso = recover iso ListIter[U64](n) end
+    var remaining = n
+    let rnd = Randomness
+    while remaining != 0 do
+      list.push(rnd.u64())
+      remaining = remaining - 1
+    end
+    consume list
+
+  fun skew(n: USize): ListIter[U64] =>
+    var list: ListIter[U64] iso = recover iso ListIter[U64](n) end
+    var remaining = n
+    let rnd = Randomness
+    let max: U64 = U64.max_value() / 2
+    while remaining != 0 do
+      list.push(rnd.u64(0, max))
+      remaining = remaining - 1
+    end
+    consume list
+
 actor Main is BenchmarkList
   new create(env: Env) =>
     PonyBench(env, this)
 
   fun tag benchmarks(bench: PonyBench) =>
-    bench(_EvenDistributionMap(100))
-    bench(_EvenDistributionMap(10_000))
-    bench(_EvenDistributionMap(1_000_000))
-    bench(_SkewDistributionMap(100))
-    bench(_SkewDistributionMap(10_000))
-    bench(_SkewDistributionMap(1_000_000))
+    bench(_Map(100, Even))
+    bench(_Map(10_000, Even))
+    bench(_Map(1_000_000, Even))
+    bench(_Map(100, Skew))
+    bench(_Map(10_000, Skew))
+    bench(_Map(1_000_000, Skew))
 
-class iso _EvenDistributionMap is MicroBenchmark
+    bench(_Filter(100, Even))
+    bench(_Filter(10_000, Even))
+    bench(_Filter(1_000_000, Even))
+    bench(_Filter(100, Skew))
+    bench(_Filter(10_000, Skew))
+    bench(_Filter(1_000_000, Skew))
+
+class iso _Map is MicroBenchmark
+  let _n: USize
   var _list: ListIter[U64]
-  let _n: U64
+  let _dist: Dist
 
-  new iso create(n: U64) =>
-    _list = ListIter[U64]
+  new iso create(n: USize, dist: Dist) =>
     _n = n
+    _list = ListIter[U64](n)
+    _dist = dist
+
 
   fun ref before() =>
-    var remaining = _n
-    let rnd = Randomness
-    while remaining != 0 do
-      _list.push(rnd.u64())
-      remaining = remaining - 1
+    _list = match _dist
+      | Even => Distribution.even(_n)
+      | Skew => Distribution.skew(_n)
     end
 
   fun ref after() =>
     _list.clear()
 
-  fun name(): String => "dist: even, size: " + _n.string() + " func: map +1 "
+  fun name(): String => "dist: " + _dist.string() + ", size: " + _n.string() + " func: map +1 "
 
   fun apply() =>
     // prevent compiler from optimizing out this operation
     DoNotOptimise[ListIter[U64]](_list.map[U64]( {(v: U64): U64 => v + 1 } ))
     DoNotOptimise.observe()
 
-class iso _SkewDistributionMap is MicroBenchmark
+class iso _Filter is MicroBenchmark
+  let _n: USize
   var _list: ListIter[U64]
-  let _n: U64
+  let _dist: Dist
 
-  new iso create(n: U64) =>
-    _list = ListIter[U64]
+  new iso create(n: USize, dist: Dist) =>
     _n = n
+    _list = ListIter[U64](n)
+    _dist = dist
+
 
   fun ref before() =>
-    var remaining = _n
-    let rnd = Randomness
-    let max: U64 = U64.max_value() / 2
-    while remaining != 0 do
-      _list.push(rnd.u64(0, max))
-      remaining = remaining - 1
+    _list = match _dist
+      | Even => Distribution.even(_n)
+      | Skew => Distribution.skew(_n)
     end
 
   fun ref after() =>
     _list.clear()
 
-  fun name(): String => "dist: skew, size: " + _n.string() + " func: map +1 "
+  fun name(): String => "dist: " + _dist.string() + ", size: " + _n.string() + " func: filter v % 2 == 0 "
 
   fun apply() =>
     // prevent compiler from optimizing out this operation
-    DoNotOptimise[ListIter[U64]](_list.map[U64]( {(v: U64): U64 => v + 1 } ))
+    DoNotOptimise[ListIter[U64]](_list.filter( {(v: U64): Bool => (v % 2) == 0 } ))
     DoNotOptimise.observe()
