@@ -1,6 +1,7 @@
 #include "alias.h"
 #include "assemble.h"
 #include "cap.h"
+#include "compattype.h"
 #include "viewpoint.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
@@ -180,14 +181,17 @@ static ast_t* recover_single(ast_t* type, token_id rcap,
   return type;
 }
 
-static ast_t* consume_single(ast_t* type, token_id ccap)
+static ast_t* consume_single(ast_t* type, token_id ccap, bool keep_double_ephemeral)
 {
   type = ast_dup(type);
   ast_t* cap = cap_fetch(type);
   ast_t* eph = ast_sibling(cap);
   token_id tcap = ast_id(cap);
+  token_id teph = ast_id(eph);
+  ast_setid(cap, tcap);
+  ast_setid(eph, teph);
 
-  switch(ast_id(eph))
+  switch(teph)
   {
     case TK_NONE:
       ast_setid(eph, TK_EPHEMERAL);
@@ -197,6 +201,20 @@ static ast_t* consume_single(ast_t* type, token_id ccap)
       if(ccap == TK_ALIASED)
         ast_setid(eph, TK_NONE);
       break;
+
+    case TK_EPHEMERAL:
+      switch(tcap)
+      {
+        case TK_ISO:
+        case TK_TRN:
+          if (!keep_double_ephemeral)
+          {
+            ast_free_unattached(type);
+            return NULL;
+          }
+
+        default: {}
+      }
 
     default: {}
   }
@@ -276,15 +294,13 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type, token_id cap)
+ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 {
   switch(ast_id(type))
   {
     case TK_DONTCARETYPE:
       return type;
 
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
       // Consume each element.
@@ -293,7 +309,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
 
         if(r_right == NULL)
         {
@@ -308,9 +324,43 @@ ast_t* consume_type(ast_t* type, token_id cap)
       return r_type;
     }
 
+    case TK_ISECTTYPE:
+    {
+      // for intersection-only:
+      // check compatibility, since we can't have a variable
+      // which consists of incompatible caps
+      ast_t* first = ast_child(type);
+      ast_t* second = ast_sibling(first);
+      if (!is_compat_type(first, second))
+      {
+        return NULL;
+      }
+    }
+    // fall-through
+    case TK_UNIONTYPE:
+    {
+      // Consume each element.
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+
+        if(r_right != NULL)
+        {
+          ast_append(r_type, r_right);
+        }
+
+        child = ast_sibling(child);
+      }
+
+      return r_type;
+    }
+
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return consume_single(type, cap);
+      return consume_single(type, cap, keep_double_ephemeral);
 
     case TK_ARROW:
     {
@@ -318,10 +368,16 @@ ast_t* consume_type(ast_t* type, token_id cap)
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
+      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral);
+      if (r_right == NULL)
+      {
+        return NULL;
+      }
+
       BUILD(r_type, type,
         NODE(TK_ARROW,
         TREE(left)
-        TREE(consume_type(right, cap))));
+        TREE(r_right)));
 
       return r_type;
     }

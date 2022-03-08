@@ -8,6 +8,12 @@
 PONY_EXTERN_C_BEGIN
 
 /**
+ * Normalizes the capability and alias modifier to apply aliasing
+ * and remove unnecessary ephemeral modifiers.
+ */
+void cap_aliasing(token_id* cap, token_id* eph);
+
+/**
  * Every possible instantiation of sub is a subtype of every possible
  * instantiation of super.
  */

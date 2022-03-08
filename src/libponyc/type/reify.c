@@ -32,8 +32,23 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   switch(ast_id(ast_childidx(ast, 2)))
   {
     case TK_EPHEMERAL:
-      typearg = consume_type(typearg, TK_NONE);
+    {
+      ast_t* new_typearg = consume_type(typearg, TK_NONE, true);
+      // Will be NULL when instantiation produces double ephemerals A^^
+      // or equivalent.
+      //
+      // This might result from perfectly sound code,
+      // but probably implies a signature is too weak
+      // (e.g. returning T instead of T^).
+      //
+      // It could be avoided if we require a constraint on the parameter
+      // for this case.
+      if (new_typearg != NULL)
+      {
+        typearg = new_typearg;
+      }
       break;
+    }
 
     case TK_NONE:
       break;
