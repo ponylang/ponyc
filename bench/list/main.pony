@@ -52,26 +52,26 @@ actor Main is BenchmarkList
     PonyBench(env, this)
 
   fun tag benchmarks(bench: PonyBench) =>
-    // bench(_Map(100, Even))
-    // bench(_Map(10_000, Even))
-    // bench(_Map(1_000_000, Even))
-    // bench(_Map(100, Skew))
-    // bench(_Map(10_000, Skew))
-    // bench(_Map(1_000_000, Skew))
+    bench(_Map(100, Even))
+    bench(_Map(10_000, Even))
+    bench(_Map(1_000_000, Even))
+    bench(_Map(100, Skew))
+    bench(_Map(10_000, Skew))
+    bench(_Map(1_000_000, Skew))
 
-    // bench(_Filter(100, Even))
-    // bench(_Filter(10_000, Even))
-    // bench(_Filter(500_000, Even)) // Reduced size due to stack overflow from missing TCO
-    // bench(_Filter(100, Skew))
-    // bench(_Filter(10_000, Skew))
-    // bench(_Filter(500_000, Skew)) // Reduced size due to stack overflow from missing TCO
+    bench(_Filter(100, Even))
+    bench(_Filter(10_000, Even))
+    bench(_Filter(500_000, Even)) // Reduced size due to stack overflow from missing TCO
+    bench(_Filter(100, Skew))
+    bench(_Filter(10_000, Skew))
+    bench(_Filter(500_000, Skew)) // Reduced size due to stack overflow from missing TCO
 
-    // bench(_Fold(100, Even))
-    // bench(_Fold(10_000, Even))
-    // bench(_Fold(1_000_000, Even))
-    // bench(_Fold(100, Skew))
-    // bench(_Fold(10_000, Skew))
-    // bench(_Fold(1_000_000, Skew))
+    bench(_Fold(100, Even))
+    bench(_Fold(10_000, Even))
+    bench(_Fold(1_000_000, Even))
+    bench(_Fold(100, Skew))
+    bench(_Fold(10_000, Skew))
+    bench(_Fold(1_000_000, Skew))
 
     bench(_Every(100, Even))
     bench(_Every(10_000, Even))
