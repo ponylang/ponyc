@@ -450,12 +450,12 @@ class \nodoc\ iso _TestListIterFold is UnitTest
     a .> push(0) .> push(1) .> push(2) .> push(3)
 
     let f = {(acc: U32, x: U32): U32 => acc + x }
-    let value = a.fold[U32](0, f)
+    let value = a.fold[U32](f, 0)
 
     h.assert_eq[U32](value, 6)
 
     let g = {(acc: ListIter[U32], x: U32): ListIter[U32] => acc .> push(x * 2) }
-    let resList = a.fold[ListIter[U32]](ListIter[U32], g)
+    let resList = a.fold[ListIter[U32]](g, ListIter[U32])
 
     h.assert_eq[USize](resList.size(), 4)
     h.assert_eq[U32](resList(0)?, 0)

@@ -388,11 +388,11 @@ class ListIter[A] is Seq[A]
     """
     Iter[this->A!](this.values()).filter(f).collect[ListIter[this->A!]^](ListIter[this->A!])
 
-  fun fold[B](acc: B^, f: {(B!, this->A!): B^} box): B =>
+  fun fold[B](f: {(B!, this->A!): B^} box, acc: B): B =>
     """
     Folds the elements of the list using the supplied function.
     """
-    Iter[this->A!](this.values()).fold[B](acc, f)
+    Iter[this->A!](this.values()).fold[B](consume acc, f)
 
   fun every(f: {(this->A!): Bool} box): Bool =>
     """
