@@ -7,8 +7,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
+#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/SourceMgr.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Target/TargetOptions.h>
 
 #include "llvm_config_end.h"
