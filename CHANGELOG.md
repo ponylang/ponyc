@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix crash with exhaustive match and generics ([PR #4057](https://github.com/ponylang/ponyc/pull/4057))
 
 ### Added
 
