@@ -821,8 +821,13 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
     if(match != MATCHTYPE_ACCEPT)
     {
-      // If there's no possible match, jump directly to the next block.
-      LLVMBuildBr(c->builder, next_block);
+      if (next_block != NULL)
+      {
+        // If there's no possible match, jump directly to the next block.
+        LLVMBuildBr(c->builder, next_block);
+      } else {
+        LLVMBuildUnreachable(c->builder);
+      }
     } else {
       // Check the pattern.
       ok = static_match(c, match_value, match_type, pattern, next_block);
