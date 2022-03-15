@@ -55,7 +55,7 @@ jobs:
       github.event.client_payload.data.name == 'ponyc-x86-64-pc-windows-msvc.zip'
 
     name: Build latest Windows Docker image
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
       - name: Docker login
@@ -110,7 +110,7 @@ jobs:
       github.event.client_payload.data.name == 'ponyc-x86-64-pc-windows-msvc.zip'
 
     name: Build release Windows Docker image
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
       - name: Docker login
