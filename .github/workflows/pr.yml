@@ -36,7 +36,7 @@ jobs:
 
   validate-windows-docker-latest-image-builds:
     name: Validate Windows Docker image builds
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
       - name: Docker build
@@ -60,7 +60,7 @@ jobs:
 
   validate-windows-docker-release-image-builds:
     name: Validate Windows Docker release image builds
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
       - name: Docker build
