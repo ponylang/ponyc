@@ -598,25 +598,14 @@ static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
   pony_assert(ast != NULL);
   ast_result_t r = AST_OK;
 
-  ast_t* ffi_args;
-  ast_t* ffi_named_args;
-
+  AST_GET_CHILDREN(ast, id, typeargs, ffi_args, ffi_named_args);
   // We don't check FFI names are legal, if the lexer allows it so do we
-  if(is_declaration)
+  if((ast_child(typeargs) == NULL && is_declaration) ||
+    ast_childidx(typeargs, 1) != NULL)
   {
-    AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
-    ffi_args = args;
-    ffi_named_args = named_args;
-    if((ast_child(typeargs) == NULL) || (ast_childidx(typeargs, 1) != NULL))
-    {
-      ast_error(opt->check.errors, typeargs,
-        "FFI declarations must specify a single return type");
-      r = AST_ERROR;
-    }
-  } else {
-    AST_GET_CHILDREN(ast, id, args, named_args);
-    ffi_args = args;
-    ffi_named_args = named_args;
+    ast_error(opt->check.errors, typeargs,
+      "FFI functions must specify a single return type");
+    r = AST_ERROR;
   }
 
   for(ast_t* p = ast_child(ffi_args); p != NULL; p = ast_sibling(p))

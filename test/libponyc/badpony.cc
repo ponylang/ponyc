@@ -781,6 +781,18 @@ TEST_F(BadPonyTest, FFIDeclaredTupleReturn)
   TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
 }
 
+TEST_F(BadPonyTest, FFIDeclaredTupleReturnAtCallSite)
+{
+  const char* src =
+    "use @foo[None]()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo[(U8, U8)]()";
+
+  TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
+}
+
 TEST_F(BadPonyTest, MatchExhaustiveLastCaseUnionSubset)
 {
   // From issue #2048
