@@ -553,7 +553,7 @@ TEST_F(SugarTest, FunctionNoReturnBody)
 }
 
 
-TEST_F(SugarTest, FunctionParamMustBeId)
+TEST_F(SugarTest, MethodParamMustBeId)
 {
   const char* good1 =
     "trait Foo\n"
@@ -561,11 +561,17 @@ TEST_F(SugarTest, FunctionParamMustBeId)
 
   TEST_COMPILE(good1);
 
-  const char* good2 =
+  const char* good1_be =
     "trait Foo\n"
-    "  fun foo(_: U64) => 3";
+    "  be foo(x: U64) => 3";
 
-  TEST_COMPILE(good2);
+  TEST_COMPILE(good1_be);
+
+  const char* good1_new =
+    "class Foo\n"
+    "  new create(x: U64) => 3";
+
+  TEST_COMPILE(good1_new);
 
   const char* bad1 =
     "trait Foo\n"
@@ -573,11 +579,89 @@ TEST_F(SugarTest, FunctionParamMustBeId)
 
   TEST_ERROR(bad1);
 
+  const char* bad1_be =
+    "trait Foo\n"
+    "  be foo(x.y(): U64) => 3";
+
+  TEST_ERROR(bad1_be);
+
+  const char* bad1_new =
+    "class Foo\n"
+    "  new create(x.y(): U64) => 3";
+
+  TEST_ERROR(bad1_new);
+
   const char* bad2 =
     "trait Foo\n"
     "  fun foo($: U64) => 3";
 
   TEST_ERROR(bad2);
+
+  const char* bad2_be =
+    "trait Foo\n"
+    "  be foo($: U64) => 3";
+
+  TEST_ERROR(bad2_be);
+
+  const char* bad2_new =
+    "class Foo\n"
+    "  new create($: U64) => 3";
+
+  TEST_ERROR(bad2_new);
+
+  const char* bad3 =
+    "trait Foo\n"
+    "  fun foo(__: U64) => 3";
+
+  TEST_ERROR(bad3);
+
+  const char* bad3_be =
+    "trait Foo\n"
+    "  be foo(__: U64) => 3";
+
+  TEST_ERROR(bad3_be);
+
+  const char* bad3_new =
+    "class Foo\n"
+    "  new create(__: U64) => 3";
+
+  TEST_ERROR(bad3_new);
+
+  const char* bad4 =
+    "trait Foo\n"
+    "  fun foo(_x: U64) => 3";
+
+  TEST_ERROR(bad4);
+
+  const char* bad4_be =
+    "trait Foo\n"
+    "  be foo(_x: U64) => 3";
+
+  TEST_ERROR(bad4_be);
+
+  const char* bad4_new =
+    "class Foo\n"
+    "  new create(_x: U64) => 3";
+
+  TEST_ERROR(bad4_new);
+
+  const char* bad5 =
+    "trait Foo\n"
+    "  fun foo(_x: U64) => 3";
+
+  TEST_ERROR(bad5);
+
+  const char* bad5_be =
+    "trait Foo\n"
+    "  be foo(_x: U64) => 3";
+
+  TEST_ERROR(bad5_be);
+
+  const char* bad5_new =
+    "class Foo\n"
+    "  new create(_x: U64) => 3";
+
+  TEST_ERROR(bad5_new);
 }
 
 
