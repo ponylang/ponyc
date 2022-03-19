@@ -321,6 +321,51 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 }
 
 
+static ast_result_t check_params(pass_opt_t* opt, ast_t* params)
+{
+  pony_assert(params != NULL);
+  ast_result_t result = AST_OK;
+
+  // Check each parameter.
+  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
+  {
+    if(ast_id(p) == TK_ELLIPSIS)
+      continue;
+
+    AST_GET_CHILDREN(p, id, type, def_arg);
+
+    if(ast_id(id) != TK_ID)
+    {
+      ast_error(opt->check.errors, p, "expected parameter name");
+      result = AST_ERROR;
+    }
+    else if(!is_name_internal_test(ast_name(id)) && !check_id_param(opt, id))
+    {
+      result = AST_ERROR;
+    }
+
+    if(ast_id(type) == TK_NONE)
+    {
+      ast_error(opt->check.errors, type, "expected parameter type");
+      result = AST_ERROR;
+    }
+  }
+
+  return result;
+}
+
+
+static ast_result_t check_method(pass_opt_t* opt, ast_t* method)
+{
+  pony_assert(method != NULL);
+
+  ast_result_t result = AST_OK;
+  ast_t* params = ast_childidx(method, 3);
+  result = check_params(opt, params);
+
+  return result;
+}
+
 
 static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
 {
@@ -348,7 +393,7 @@ static ast_result_t sugar_new(pass_opt_t* opt, ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return AST_OK;
+  return check_method(opt, ast);
 }
 
 
@@ -367,7 +412,7 @@ static ast_result_t sugar_be(pass_opt_t* opt, ast_t* ast)
   }
 
   sugar_docstring(ast);
-  return AST_OK;
+  return check_method(opt, ast);
 }
 
 
@@ -405,10 +450,9 @@ void fun_defaults(ast_t* ast)
 
 static ast_result_t sugar_fun(pass_opt_t* opt, ast_t* ast)
 {
-  (void)opt;
   fun_defaults(ast);
   sugar_docstring(ast);
-  return AST_OK;
+  return check_method(opt, ast);
 }
 
 
