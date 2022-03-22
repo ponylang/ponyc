@@ -30,7 +30,7 @@ class Iter[A] is Iterator[A]
     Take an iterator of iterators and return an Iter containing the
     items of the first one, then the second one, and so on.
 
-    ## Example
+    #### Example
     ```pony
     let xs = [as I64: 1; 2].values()
     let ys = [as I64: 3; 4].values()
@@ -83,7 +83,7 @@ class Iter[A] is Iterator[A]
     """
     Create an iterator that returns the given value forever.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[U32].repeat_value(7)
@@ -103,7 +103,7 @@ class Iter[A] is Iterator[A]
     """
     Return the next value, or the given default.
 
-    ## Example
+    #### Example
 
     ```pony
     let x: (U64 | None) = 42
@@ -236,7 +236,7 @@ class Iter[A] is Iterator[A]
     predicate `f`. This method short-circuits at the first value where the
     predicate returns false, otherwise true is returned.
 
-    ## Examples
+    #### Examples
 
     ```pony
     Iter[I64]([2; 4; 6].values())
@@ -263,7 +263,7 @@ class Iter[A] is Iterator[A]
     `f`. This method short-circuits at the first value where the predicate
     returns true, otherwise false is returned.
 
-    ## Examples
+    #### Examples
 
     ```pony
     Iter[I64]([2; 4; 6].values())
@@ -288,7 +288,7 @@ class Iter[A] is Iterator[A]
     """
     Push each value from the iterator into the collection `coll`.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -305,7 +305,7 @@ class Iter[A] is Iterator[A]
     """
     Return the number of values in the iterator.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -326,7 +326,7 @@ class Iter[A] is Iterator[A]
     WARNING: The values returned by the original iterator are cached, so
     the input iterator should be finite.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -365,7 +365,7 @@ class Iter[A] is Iterator[A]
     Return an iterator that removes duplicates from consecutive identical
     elements. Equality is determined by the HashFunction `H`.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[USize]([as USize: 1; 1; 2; 3; 3; 2; 2].values())
@@ -405,7 +405,7 @@ class Iter[A] is Iterator[A]
     An iterator which yields the current iteration count as well as the next
     value from the iterator.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -427,7 +427,7 @@ class Iter[A] is Iterator[A]
     """
     Return an iterator that only returns items that match the predicate `f`.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
@@ -441,7 +441,7 @@ class Iter[A] is Iterator[A]
     """
     Return the nth value in the iterator that satisfies the predicate `f`.
 
-    ## Examples
+    #### Examples
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -473,7 +473,7 @@ class Iter[A] is Iterator[A]
     returned, then the iterator will try again by applying `f` to the next
     element. Otherwise, the value of type `B` is returned.
 
-    ## Example
+    #### Example
     ```pony
     Iter[I64]([as I64: 1; -2; 4; 7; -5])
       .filter_map[USize](
@@ -489,7 +489,7 @@ class Iter[A] is Iterator[A]
     Return an iterator over the values of the iterators produced from the
     application of the given function.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[String](["alpha"; "beta"; "gamma"])
@@ -530,7 +530,7 @@ class Iter[A] is Iterator[A]
     """
     Apply a function to every element, producing an accumulated value.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -559,7 +559,7 @@ class Iter[A] is Iterator[A]
     Return an iterator that alternates the values of the original iterator and
     the other until both run out.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[USize](Range(0, 4))
@@ -602,7 +602,7 @@ class Iter[A] is Iterator[A]
     Return an iterator that alternates the values of the original iterator and
     the other until one of them runs out.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[USize](Range(0, 4))
@@ -640,7 +640,7 @@ class Iter[A] is Iterator[A]
     Return an iterator that yields the value after every `n` elements of the
     original iterator.
 
-    ## Example
+    #### Example
     ```pony
     Iter[USize](Range(0, 3))
       .intersperse(8)
@@ -669,7 +669,7 @@ class Iter[A] is Iterator[A]
     """
     Return the last value of the iterator.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -686,7 +686,7 @@ class Iter[A] is Iterator[A]
     Return an iterator where each item's value is the application of the given
     function to the value in the original iterator.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -700,7 +700,7 @@ class Iter[A] is Iterator[A]
     """
     Return the nth value of the iterator.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -725,7 +725,7 @@ class Iter[A] is Iterator[A]
     function `on_error` will be called if the iterator's `has_next` method
     returns true but its `next` method throws an error.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3].values())
@@ -750,7 +750,7 @@ class Iter[A] is Iterator[A]
     """
     Skip the first n values of the iterator.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
@@ -778,7 +778,7 @@ class Iter[A] is Iterator[A]
     """
     Skip values of the iterator while the predicate `f` returns true.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
@@ -805,7 +805,7 @@ class Iter[A] is Iterator[A]
     Return an iterator that yields every `n`th element of the
     original iterator. n == 0 is treated like n == 1 rather than an error.
 
-    ## Example
+    #### Example
     ```pony
     Iter[USize](Range(0, 10))
       .step_by(2)
@@ -832,7 +832,7 @@ class Iter[A] is Iterator[A]
     """
     Return an iterator for the first n elements.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
@@ -862,7 +862,7 @@ class Iter[A] is Iterator[A]
     true. This iterator short-circuits the first time that `f` returns false or
     raises an error.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2; 3; 4; 5; 6].values())
@@ -908,7 +908,7 @@ class Iter[A] is Iterator[A]
     Return an iterator that filters out elements that have already been
     produced. Uniqueness is determined by the HashFunction `H`.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[USize]([as USize: 1; 2; 1; 1; 3; 4; 1].values())
@@ -940,7 +940,7 @@ class Iter[A] is Iterator[A]
     of the second iterator. The number of items returned is the minimum of
     the number of items returned by the two iterators.
 
-    ## Example
+    #### Example
 
     ```pony
     Iter[I64]([1; 2].values())
