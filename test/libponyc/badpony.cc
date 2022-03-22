@@ -781,6 +781,74 @@ TEST_F(BadPonyTest, FFIDeclaredTupleReturn)
   TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
 }
 
+TEST_F(BadPonyTest, FFICallInDefaultInterfaceFun)
+{
+  const char* src =
+    "use @foo[None]()\n"
+
+    "interface Foo\n"
+    "  fun apply() =>\n"
+    "    @foo()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "Can't call an FFI function in a default method or behavior");
+}
+
+TEST_F(BadPonyTest, FFICallInDefaultInterfaceBe)
+{
+  const char* src =
+    "use @foo[None]()\n"
+
+    "interface Foo\n"
+    "  be apply() =>\n"
+    "    @foo()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "Can't call an FFI function in a default method or behavior");
+}
+
+TEST_F(BadPonyTest, FFICallInDefaultTraitFun)
+{
+  const char* src =
+    "use @foo[None]()\n"
+
+    "trait Foo\n"
+    "  fun apply() =>\n"
+    "    @foo()\n"
+
+    "actor Main is Foo\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "Can't call an FFI function in a default method or behavior");
+}
+
+TEST_F(BadPonyTest, FFICallInDefaultTraitBe)
+{
+  const char* src =
+    "use @foo[None]()\n"
+
+    "trait Foo\n"
+    "  be apply() =>\n"
+    "    @foo()\n"
+
+    "actor Main is Foo\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "Can't call an FFI function in a default method or behavior");
+}
+
 TEST_F(BadPonyTest, FFIDeclaredTupleReturnAtCallSite)
 {
   const char* src =

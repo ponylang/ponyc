@@ -635,6 +635,50 @@ static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
 }
 
 
+static ast_result_t syntax_ffi_decl(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_FFIDECL);
+  return syntax_ffi(opt, ast, true);
+}
+
+static ast_result_t syntax_ffi_call(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_FFICALL);
+  ast_result_t r = AST_OK;
+
+  if (ast_id(opt->check.frame->method) == TK_BE ||
+    ast_id(opt->check.frame->method )== TK_FUN)
+  {
+    ast_t* parent = ast_parent(ast);
+    switch(ast_id(opt->check.frame->method))
+    {
+    case TK_BE:
+    case TK_FUN:
+      while(parent != NULL)
+      {
+        switch(ast_id(parent)) {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+          ast_error(opt->check.errors, ast,
+            "Can't call an FFI function in a default method or behavior");
+          r = AST_ERROR;
+          break;
+        default: {}
+        }
+
+        parent = ast_parent(parent);
+      }
+    default: {}
+    }
+  }
+
+  if(syntax_ffi(opt, ast, false) == AST_ERROR)
+    r = AST_ERROR;
+
+  return r;
+}
+
+
 static ast_result_t syntax_ellipsis(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast != NULL);
@@ -1417,8 +1461,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TUPLETYPE:  r = syntax_tupletype(options, ast); break;
     case TK_NOMINAL:    r = syntax_nominal(options, ast); break;
     case TK_MATCH:      r = syntax_match(options, ast); break;
-    case TK_FFIDECL:    r = syntax_ffi(options, ast, true); break;
-    case TK_FFICALL:    r = syntax_ffi(options, ast, false); break;
+    case TK_FFIDECL:    r = syntax_ffi_decl(options, ast); break;
+    case TK_FFICALL:    r = syntax_ffi_call(options, ast); break;
     case TK_ELLIPSIS:   r = syntax_ellipsis(options, ast); break;
     case TK_CONSUME:    r = syntax_consume(options, ast); break;
     case TK_RETURN:
