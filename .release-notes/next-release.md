@@ -8,3 +8,7 @@ In 2018, when we [removed case functions](https://github.com/ponylang/ponyc/pull
 
 We've added checking of parameter names to make sure they match the naming rules for parameters in Pony.
 
+## Fixed bug that caused the compiler to crash
+
+We've fixed a [bug](https://github.com/ponylang/ponyc/issues/4059) that caused a compiler crash.
+
