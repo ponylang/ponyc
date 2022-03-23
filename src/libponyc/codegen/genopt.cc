@@ -190,15 +190,6 @@ public:
       invoke->getUnwindDest()->removePredecessor(call.getParent());
     }
 
-    CallGraphWrapperPass* cg_pass =
-      getAnalysisIfAvailable<CallGraphWrapperPass>();
-    CallGraph* cg = cg_pass ? &cg_pass->getCallGraph() : nullptr;
-    CallGraphNode* cg_node = cg ? (*cg)[&f] : nullptr;
-    if (cg_node)
-    {
-      cg_node->removeCallEdgeFor(call);
-    }
-
     inst->eraseFromParent();
 
     for(auto new_call: new_calls)
