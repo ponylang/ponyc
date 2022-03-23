@@ -185,7 +185,7 @@ TEST_F(CodegenFFITest, DeclParameterTypeConflict)
 
   add_package("pkg", pkg);
 
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: parameters "
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: parameters "
     "have incompatible types");
 }
 
@@ -209,7 +209,7 @@ TEST_F(CodegenFFITest, DeclReturnTypeConflict)
 
   add_package("pkg", pkg);
 
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: return values "
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
     "have incompatible types");
 }
 
@@ -233,7 +233,7 @@ TEST_F(CodegenFFITest, DeclReturnTypeVoidConflict)
 
   add_package("pkg", pkg);
 
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: return values "
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
     "have incompatible types");
 }
 
