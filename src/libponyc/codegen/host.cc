@@ -35,12 +35,11 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
       target_is_arm(opt->triple) ? CodeGenOpt::Default : CodeGenOpt::None;
 
   TargetOptions options;
-  options.TrapUnreachable = true;
 
   Target* t = reinterpret_cast<Target*>(target);
 
-TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
-  opt->features, options, reloc, llvm::None, opt_level, false);
+  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+    opt->features, options, reloc, llvm::None, opt_level, false);
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
 }
