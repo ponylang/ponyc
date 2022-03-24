@@ -82,6 +82,14 @@ primitive \nodoc\ _FileHelper
     end
     top.path
 
+primitive \nodoc\ _GetUID
+  fun apply(): U32 =>
+    ifdef not windows then
+      @getuid()
+    else
+      compile_error "getuid not available on windows"
+    end
+
 trait \nodoc\ iso _NonRootTest is UnitTest
 
   fun apply_as_non_root(h: TestHelper) ?
@@ -102,7 +110,7 @@ trait \nodoc\ iso _NonRootTest is UnitTest
       true
     else
       ifdef not windows then
-        @getuid() == 0
+        _GetUID() == 0
       else
         false
       end
