@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Don't allow FFI calls in default methods or behaviors ([PR #4065](https://github.com/ponylang/ponyc/pull/4065))
 
 ## [0.49.1] - 2022-03-13
 
