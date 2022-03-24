@@ -61,7 +61,10 @@ static size_t tuple_indices_pop(call_tuple_indices_t* ti)
 struct ffi_decl_t
 {
   LLVMValueRef func;
+  // First declaration encountered
   ast_t* decl;
+  // First call encountered
+  ast_t* call;
 };
 
 static size_t ffi_decl_hash(ffi_decl_t* d)
@@ -1102,12 +1105,15 @@ static void report_ffi_type_err(compile_t* c, ffi_decl_t* decl, ast_t* ast,
   const char* name)
 {
   ast_error(c->opt->check.errors, ast,
-    "conflicting declarations for FFI function: %s have incompatible types",
+    "conflicting calls for FFI function: %s have incompatible types",
     name);
 
   if(decl != NULL)
+  {
     ast_error_continue(c->opt->check.errors, decl->decl, "first declaration is "
       "here");
+    ast_error_continue(c->opt->check.errors, decl->call, "first call is here");
+  }
 }
 
 static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
@@ -1155,7 +1161,7 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, args, named_args, can_err);
+  AST_GET_CHILDREN(ast, id, typeargs, args, named_args, can_err);
   bool err = (ast_id(can_err) == TK_QUESTION);
 
   // Get the function name, +1 to skip leading @
@@ -1205,6 +1211,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     ffi_decl = POOL_ALLOC(ffi_decl_t);
     ffi_decl->func = func;
     ffi_decl->decl = decl;
+    ffi_decl->call = ast;
 
     ffi_decls_putindex(&c->ffi_decls, ffi_decl, index);
   } else {

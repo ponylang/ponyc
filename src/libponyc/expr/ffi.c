@@ -39,7 +39,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   pony_assert(decl != NULL);
   pony_assert(ast_id(decl) == TK_FFIDECL);
 
-  AST_GET_CHILDREN(call, call_name, args, named_args, call_error);
+  AST_GET_CHILDREN(call, call_name, call_ret_typeargs, args, named_args, call_error);
   AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
     decl_error);
 
@@ -113,6 +113,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   }
 
   // Check return types
+  ast_t* call_ret_type = ast_child(call_ret_typeargs);
   ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
 
   const char* f_name = ast_name(decl_name) + 1;
@@ -126,16 +127,33 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     return false;
   }
 
+  // The return type at the call site might be different from declaration
+  if(!intrinsic &&
+    (call_ret_type != NULL) && (ast_id(call_ret_type) == TK_TUPLETYPE))
+  {
+    ast_error(opt->check.errors, call_ret_type, "an FFI function cannot return "
+      "a tuple");
+    return false;
+  }
+
+  // Return types at the call site completely override any types
+  // found at the declaration
+  ast_t* ret_type;
+  if(call_ret_type != NULL)
+    ret_type = call_ret_type;
+  else
+    ret_type = decl_ret_type;
+
   // Store the declaration so that codegen can generate a non-variadic
   // signature for the FFI call.
   ast_setdata(call, decl);
-  ast_settype(call, decl_ret_type);
+  ast_settype(call, ret_type);
   return true;
 }
 
 bool expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, name, args, namedargs, question);
+  AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   pony_assert(name != NULL);
 
   ast_t* decl;

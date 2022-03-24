@@ -6,6 +6,10 @@
 
 #define TEST_ERROR(src) DO(test_error(src, "expr"))
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
+
 #define TEST_ERRORS_2(src, err1, err2) \
   { const char* errs[] = {err1, err2, NULL}; \
     DO(test_expected_errors(src, "expr", errs)); }
@@ -40,6 +44,29 @@ TEST_F(FFITest, Declaration)
   TEST_COMPILE(src);
 }
 
+TEST_F(FFITest, DeclarationMultipleReturn)
+{
+  const char* src =
+    "use @foo[Bool, U32]()\n"
+
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    @foo()";
+
+  TEST_ERRORS_1(src, "FFI functions must specify a single return type");
+}
+
+TEST_F(FFITest, DeclarationMultipleReturnAtCallSite)
+{
+  const char* src =
+    "use @foo[Bool]()\n"
+
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    @foo[Bool, U32]()";
+
+  TEST_ERRORS_1(src, "FFI functions must specify a single return type");
+}
 
 TEST_F(FFITest, DeclarationArgs)
 {

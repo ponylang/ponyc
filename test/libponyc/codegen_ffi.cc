@@ -185,7 +185,7 @@ TEST_F(CodegenFFITest, DeclParameterTypeConflict)
 
   add_package("pkg", pkg);
 
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: parameters "
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: parameters "
     "have incompatible types");
 }
 
@@ -209,7 +209,22 @@ TEST_F(CodegenFFITest, DeclReturnTypeConflict)
 
   add_package("pkg", pkg);
 
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: return values "
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
+    "have incompatible types");
+}
+
+TEST_F(CodegenFFITest, CallReturnTypeConflict)
+{
+  const char* src =
+    "use @foo[U64]()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo()\n"
+    "    @foo[U32]()";
+
+
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
     "have incompatible types");
 }
 
@@ -233,7 +248,7 @@ TEST_F(CodegenFFITest, DeclReturnTypeVoidConflict)
 
   add_package("pkg", pkg);
 
-  TEST_ERRORS_1(src, "conflicting declarations for FFI function: return values "
+  TEST_ERRORS_1(src, "conflicting calls for FFI function: return values "
     "have incompatible types");
 }
 
