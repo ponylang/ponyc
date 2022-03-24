@@ -98,3 +98,85 @@ When specifying a different return type for an FFI function, make sure that the 
 
 Specifying an incompatible type will result in a compile-time error
 
+## Don't allow FFI calls in default methods or behaviors
+
+In Pony, when you `use` an external library, you import the public types defined by that library. An exception to this rule is FFI declarations: any FFI declarations in a library will not be visible by external users. Given that the compiler only allows a single FFI declaration per package for any given function, if external FFI declarations were imported, deciding which declaration to use would be ambiguous.
+
+When added to the fact that every FFI function must have a matching declaration, a consequence of not importing external declarations is that if a library contains a public interface or trait with default methods (or behaviors), performing an FFI call on those methods will render them unusable to external consumers.
+
+Consider the following code:
+
+```pony
+// src/lib/lib.pony
+use @printf[I32](fmt: Pointer[None] tag, ...)
+
+trait Foo
+  fun apply() =>
+    @printf("Hello from trait Foo\n".cstring())
+
+// src/main.pony
+use "./lib"
+
+actor Main is Foo
+  new create(env: Env) =>
+    this.apply()
+```
+
+Up until ponyc 0.49.1, the above failed to compile, because `main.pony` never defined an FFI declaration for `printf`. One way of making the above code compile is by moving the call to `@printf` to a separate type:
+
+```pony
+// src/lib/lib.pony
+use @printf[I32](fmt: Pointer[None] tag, ...)
+
+trait Foo
+  fun apply() =>
+    Printf("Hello from trait Foo\n")
+
+primitive Printf
+  fun apply(str: String) =>
+    @printf(str.cstring())
+
+// src/main.pony
+use "./lib"
+
+actor Main is Foo
+  new create(env: Env) =>
+    this.apply()
+```
+
+Given that the original error is not immediately obvious, starting from this release, it is now a compile error to call FFI functions in default methods (or behaviors). However, this means that code that used to be legal will now fail with a compiler error. For example:
+
+```pony
+use @printf[I32](fmt: Pointer[None] tag, ...)
+
+actor Main is _PrivateFoo
+  new create(env: Env) =>
+    this.apply()
+
+trait _PrivateFoo
+  fun apply() =>
+    // Error: can't call an FFI function in a default method or behavior.
+    @printf("Hello from private trait _PrivateFoo\n".cstring())
+```
+
+As mentioned above, to fix the code above, you will need to move any FFI calls to external function:
+
+```pony
+use @printf[I32](fmt: Pointer[None] tag, ...)
+
+actor Main is _PrivateFoo
+  new create(env: Env) =>
+    this.apply()
+
+trait _PrivateFoo
+  fun apply() =>
+    // OK
+    Printf("Hello from private trait _PrivateFoo\n")
+
+primitive Printf
+  fun apply(str: String) =>
+    @printf(str.cstring())
+```
+
+We believe that the impact of this change should be small, given the usability problems outlined above.
+
