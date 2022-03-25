@@ -54,7 +54,7 @@ actor \nodoc\ Main is TestList
     test(_TestRem)
     test(_TestRemc)
     test(_TestRotate)
-    test(_TestSignedPartialArithmetic)
+//    test(_TestSignedPartialArithmetic)
     test(_TestSpecialValuesF32)
     test(_TestSpecialValuesF64)
     test(_TestStringAdd)
