@@ -47,7 +47,7 @@ actor \nodoc\ Main is TestList
     test(_TestMath128)
     test(_TestMod)
     test(_TestModc)
-    test(_TestMulc)
+//    test(_TestMulc)
     test(_TestNextPow2)
     test(_TestNullablePointer)
     test(_TestNumberConversionSaturation)
