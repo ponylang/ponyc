@@ -28,7 +28,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayChop)
     test(_TestArrayChopWithPush)
     test(_TestArrayConcat)
-    test(_TestArrayFind)
+//    test(_TestArrayFind)
     test(_TestArrayFromCPointer)
     test(_TestArrayInsert)
     test(_TestArraySlice)
