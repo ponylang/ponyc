@@ -102,6 +102,17 @@ make build
 sudo make install arch=armv8-a
 ```
 
+### Asahi
+
+Installing on Asahi is slightly different due to running on the M1 processor. You'll need to override the `arch` option to configure, but otherwise, everything is the same.
+
+```bash
+make libs
+make configure arch=armv8
+make build
+sudo make install
+```
+
 ## macOS
 
 For Intel-based macOS:
