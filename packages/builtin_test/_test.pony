@@ -32,7 +32,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayFromCPointer)
 //    test(_TestArrayInsert)
     test(_TestArraySlice)
-    test(_TestArraySwapElements)
+//    test(_TestArraySwapElements)
     test(_TestArrayTrim)
     test(_TestArrayTrimInPlace)
     test(_TestArrayTrimInPlaceWithAppend)
