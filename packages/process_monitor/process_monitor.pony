@@ -65,9 +65,15 @@ primitive ProcessMonitorCreator
       compile_error "unsupported platform"
     end
 
-interface tag ProcessMonitor
+trait tag ProcessMonitor
+  be dispose()
+  be done_writing()
+  be print(data: ByteSeq)
+  be write(data: ByteSeq)
+  be printv(data: ByteSeqIter)
+  be writev(data: ByteSeqIter)
 
-actor _PosixProcessMonitor is AsioEventNotify
+actor _PosixProcessMonitor is (ProcessMonitor & AsioEventNotify)
   let _process: _ProcessPosix
   let _notifier: ProcessNotify
 
@@ -82,7 +88,31 @@ actor _PosixProcessMonitor is AsioEventNotify
     // TODO: implementation
     None
 
-actor _WindowsProcessMonitor
+  be dispose() =>
+    // TODO: implementation
+    None
+
+  be done_writing() =>
+    // TODO: implementation
+    None
+
+  be print(data: ByteSeq) =>
+    // TODO: implementation
+    None
+
+  be write(data: ByteSeq) =>
+    // TODO: implementation
+    None
+
+  be printv(data: ByteSeqIter) =>
+    // TODO: implementation
+    None
+
+  be writev(data: ByteSeqIter) =>
+    // TODO: implementation
+    None
+
+actor _WindowsProcessMonitor is ProcessMonitor
   let _process: _ProcessWindows
   let _notifier: ProcessNotify
   let _timers: Timers = Timers
@@ -99,16 +129,40 @@ actor _WindowsProcessMonitor
     let tn =
       object iso is TimerNotify
         fun ref apply(timer: Timer, count: U64): Bool =>
-          pm.timer_notify()
+          pm._timer_notify()
           true
       end
     let timer = Timer(consume tn, 50_000_000, 10_000_000)
     _timers(consume timer)
 
-  be timer_notify() =>
+  be _timer_notify() =>
     """
     Windows IO polling timer has fired
     """
 
+    // TODO: implementation
+    None
+
+  be dispose() =>
+    // TODO: implementation
+    None
+
+  be done_writing() =>
+    // TODO: implementation
+    None
+
+  be print(data: ByteSeq) =>
+    // TODO: implementation
+    None
+
+  be write(data: ByteSeq) =>
+    // TODO: implementation
+    None
+
+  be printv(data: ByteSeqIter) =>
+    // TODO: implementation
+    None
+
+  be writev(data: ByteSeqIter) =>
     // TODO: implementation
     None
