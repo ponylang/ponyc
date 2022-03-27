@@ -168,24 +168,28 @@ interface _Process
     in order to not block a scheduler thread.
     """
 
-
-class _ProcessNone is _Process
-  fun kill() => None
-  fun ref wait(): _WaitResult => Exited(255)
-
 class _ProcessPosix is _Process
   let pid: I32
+  let _stdin: _Pipe
+  let _stdout: _Pipe
+  let _stderr: _Pipe
+  let _err: _Pipe
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
     wdir: (FilePath | None),
-    err: _Pipe,
-    stdin: _Pipe,
-    stdout: _Pipe,
-    stderr: _Pipe) ?
+    err: _Pipe iso,
+    stdin: _Pipe iso,
+    stdout: _Pipe iso,
+    stderr: _Pipe iso) ?
   =>
+    _stdin = consume stdin
+    _stdout = consume stdout
+    _stderr = consume stderr
+    _err = consume err
+
     // Prepare argp and envp ahead of fork() as it's not safe to allocate in
     // the child after fork() is called.
     let argp = _make_argv(args)
@@ -194,7 +198,7 @@ class _ProcessPosix is _Process
     pid = @fork()
     match pid
     | -1 => error
-    | 0 => _child_fork(path, argp, envp, wdir, err, stdin, stdout, stderr)
+    | 0 => _child_fork(path, argp, envp, wdir)
     end
 
   fun tag _make_argv(args: Array[String] box): Array[Pointer[U8] tag] =>
@@ -213,8 +217,7 @@ class _ProcessPosix is _Process
     path: String,
     argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag],
-    wdir: (FilePath | None),
-    err: _Pipe, stdin: _Pipe, stdout: _Pipe, stderr: _Pipe)
+    wdir: (FilePath | None))
   =>
     """
     We are now in the child process. We redirect STDIN, STDOUT and STDERR
@@ -224,9 +227,9 @@ class _ProcessPosix is _Process
     loaded. We've set the FD_CLOEXEC flag on all file descriptors to ensure
     that they are all closed automatically once @execve gets called.
     """
-    _dup2(stdin.far_fd, _STDINFILENO())   // redirect stdin
-    _dup2(stdout.far_fd, _STDOUTFILENO()) // redirect stdout
-    _dup2(stderr.far_fd, _STDERRFILENO()) // redirect stderr
+    _dup2(_stdin.far_fd, _STDINFILENO())   // redirect stdin
+    _dup2(_stdout.far_fd, _STDOUTFILENO()) // redirect stdout
+    _dup2(_stderr.far_fd, _STDERRFILENO()) // redirect stderr
 
     var step: U8 = _StepChdir()
 
@@ -234,7 +237,7 @@ class _ProcessPosix is _Process
     | let d: FilePath =>
       let dir: Pointer[U8] tag = d.path.cstring()
       if 0 > @chdir(dir) then
-        @write(err.far_fd, addressof step, USize(1))
+        @write(_err.far_fd, addressof step, USize(1))
         @_exit(_EXOSERR())
       end
     | None => None
@@ -244,7 +247,7 @@ class _ProcessPosix is _Process
     if 0 > @execve(path.cstring(), argp.cpointer(),
       envp.cpointer())
     then
-      @write(err.far_fd, addressof step, USize(1))
+      @write(_err.far_fd, addressof step, USize(1))
       @_exit(_EXOSERR())
     end
 
@@ -280,6 +283,12 @@ class _ProcessPosix is _Process
         end
       end
     end
+
+  fun ref link(monitor: AsioEventNotify) =>
+    _stdin.begin(monitor)
+    _stdout.begin(monitor)
+    _stderr.begin(monitor)
+    _err.begin(monitor)
 
   fun ref wait(): _WaitResult =>
     """Only polls, does not block."""
@@ -348,16 +357,23 @@ class _ProcessWindows is _Process
   let h_process: USize
   let process_error: (ProcessError | None)
   var final_wait_result: (_WaitResult | None) = None
+  let _stdin: _Pipe
+  let _stdout: _Pipe
+  let _stderr: _Pipe
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
     wdir: (FilePath | None),
-    stdin: _Pipe,
-    stdout: _Pipe,
-    stderr: _Pipe)
+    stdin: _Pipe iso,
+    stdout: _Pipe iso,
+    stderr: _Pipe iso)
   =>
+    _stdin = consume stdin
+    _stdout = consume stdout
+    _stderr = consume stderr
+
     ifdef windows then
       let wdir_ptr =
         match wdir
@@ -371,7 +387,7 @@ class _ProcessWindows is _Process
           _make_cmdline(args).cstring(),
           _make_environ(vars).cpointer(),
           wdir_ptr,
-          stdin.far_fd, stdout.far_fd, stderr.far_fd,
+          _stdin.far_fd, _stdout.far_fd, _stderr.far_fd,
           addressof error_code, addressof error_message)
       process_error =
         if h_process == 0 then

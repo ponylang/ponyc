@@ -31,79 +31,71 @@ primitive ProcessMonitorCreator
     let err: _Pipe iso = recover iso _Pipe.incoming()? end
 
     ifdef posix then
-      let child: _Process iso = _ProcessPosix.create(
-        executable.path, args, vars, wdir, err, stdin, stdout, stderr)?
+      let child: _ProcessPosix iso = recover iso _ProcessPosix(
+        executable.path,
+        args,
+        vars,
+        wdir,
+        consume err,
+        consume stdin,
+        consume stdout,
+        consume stderr)?
+      end
 
-        return ProcessMonitor(consume child,
-          consume notifier,
-          consume stdin,
-          consume stdout,
-          consume stderr,
-          consume err)
+      return _PosixProcessMonitor(consume child, consume notifier)
     elseif windows then
-      let child: _Process iso = _ProcessWindows.create(
-        executable.path, args, vars, wdir, stdin, stdout, stderr)
+      let child: _ProcessWindows iso = recover iso _ProcessWindows(
+        executable.path,
+        args,
+        vars,
+        wdir,
+        consume stdin,
+        consume stdout,
+        consume stderr)
+      end
+
       // notify about errors
       match child.process_error
       | let pe: ProcessError =>
         error
       end
 
-      return ProcessMonitor(consume child,
-        consume notifier,
-        consume stdin,
-        consume stdout,
-        consume stderr,
-        consume err)
+      return _WindowsProcessMonitor(consume child, consume notifier)
     else
       compile_error "unsupported platform"
     end
 
-actor ProcessMonitor is AsioEventNotify
-  let _process: _Process
+interface tag ProcessMonitor
+
+actor _PosixProcessMonitor is AsioEventNotify
+  let _process: _ProcessPosix
   let _notifier: ProcessNotify
-  let _stdin: _Pipe
-  let _stdout: _Pipe
-  let _stderr: _Pipe
-  let _err: _Pipe
 
-  // For windows due to lack of ASIO.
-  // We used this for polling.
-  // TODO: We could
-  // consider that perhaps life would be easier
-  // with Posix if we didn't use ASIO and only polled
-  // Realistically, do we need ASIO for this?
-  var _timers: (Timers tag | None) = None
-
-  new _create(
-    process: _Process iso,
-    notifier: ProcessNotify iso,
-    stdin: _Pipe iso,
-    stdout: _Pipe iso,
-    stderr: _Pipe iso,
-    err: _Pipe iso)
-  =>
+  new create(process: _ProcessPosix iso, notifier: ProcessNotify iso) =>
     _process = consume process
     _notifier = consume notifier
-    _stdin = consume stdin
-    _stdout = consume stdout
-    _stderr = consume stderr
-    _err = consume err
 
-    _stdin.begin(this)
-    _stdout.begin(this)
-    _stderr.begin(this)
-    _err.begin(this)
-
-    // Asio is not wired up for Windows, so use a timer for now.
-    ifdef windows then
-      _setup_windows_timers()
-    end
+    _process.link(this)
     _notifier.created(this)
 
-  fun ref _setup_windows_timers() =>
-    let timers = _ensure_timers()
-    let pm: ProcessMonitor tag = this
+  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
+    // TODO: implementation
+    None
+
+actor _WindowsProcessMonitor
+  let _process: _ProcessWindows
+  let _notifier: ProcessNotify
+  let _timers: Timers = Timers
+
+  new create(process: _ProcessWindows iso, notifier: ProcessNotify iso) =>
+    _process = consume process
+    _notifier = consume notifier
+
+    _setup_timers()
+    _notifier.created(this)
+
+  fun ref _setup_timers() =>
+    let pm: _WindowsProcessMonitor tag = this
     let tn =
       object iso is TimerNotify
         fun ref apply(timer: Timer, count: U64): Bool =>
@@ -111,16 +103,12 @@ actor ProcessMonitor is AsioEventNotify
           true
       end
     let timer = Timer(consume tn, 50_000_000, 10_000_000)
-    timers(consume timer)
+    _timers(consume timer)
 
-  fun ref _ensure_timers(): Timers =>
-    match _timers
-    | None =>
-      let ts = Timers
-      _timers = ts
-      ts
-    | let ts: Timers => ts
-    end
+  be timer_notify() =>
+    """
+    Windows IO polling timer has fired
+    """
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
+    // TODO: implementation
     None
