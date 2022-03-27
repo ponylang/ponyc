@@ -42,6 +42,8 @@ primitive ProcessMonitorCreator
         consume stderr)?
       end
 
+      // TODO: we really need to notice a posix startup failure here.
+      // in the existing, it is done in _pending_reads with _err.near_fd
       return _PosixProcessMonitor(consume child, consume notifier)
     elseif windows then
       let child: _ProcessWindows iso = recover iso _ProcessWindows(
@@ -122,6 +124,8 @@ actor _WindowsProcessMonitor is ProcessMonitor
     _notifier = consume notifier
 
     _setup_timers()
+    // TODO: we need to do some kind of calling of "begin" on our process
+    // pipes to close the far end but currently that requires an AsioEventNotify
     _notifier.created(this)
 
   fun ref _setup_timers() =>

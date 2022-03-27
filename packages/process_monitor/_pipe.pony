@@ -128,6 +128,8 @@ class _Pipe
     let result = @fcntl(fd, _FSETFL(), flags)
     if result < 0 then error end
 
+  // TODO this is entirely posix specific in the tyep
+  // but we really need something that works for windows as well
   fun ref begin(owner: AsioEventNotify) =>
     """
     Prepare the pipe for read or write, and listening, after the far end has
