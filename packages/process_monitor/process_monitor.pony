@@ -44,6 +44,14 @@ primitive ProcessMonitorCreator
 
       // TODO: we really need to notice a posix startup failure here.
       // in the existing, it is done in _pending_reads with _err.near_fd
+      // we can do a direct read from err but really, err is only used in
+      // on Posix so it doesn't need to be _Pipe.
+      // It can be something simpler perhaps. I think though leaving as
+      // _Pipe is fine. I do need to initalize some memory here and do a read.
+      // and get the result.
+      // If it is _Pipe, then we need to deal with it having been set
+      // non-blocking on this side. It being blocking on this side would be
+      // easier to deal with on this end
       return _PosixProcessMonitor(consume child, consume notifier)
     elseif windows then
       let child: _ProcessWindows iso = recover iso _ProcessWindows(

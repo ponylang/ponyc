@@ -154,6 +154,7 @@ class _Pipe
   fun ref read(read_buf: Array[U8] iso, offset: USize):
     (Array[U8] iso^, ISize, I32)
   =>
+    // TODO: This should check to see if its closed or not
     ifdef posix then
       let len =
         @read(near_fd, read_buf.cpointer(offset),
