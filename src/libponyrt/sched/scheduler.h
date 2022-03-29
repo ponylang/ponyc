@@ -106,7 +106,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
 
-bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
+void ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /** Mark asio as being noisy
  */

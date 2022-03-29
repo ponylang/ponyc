@@ -265,6 +265,23 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
+    case ACTORMSG_RESCHEDULE_AFTER_MUTING:
+    {
+      // There's nothing to do for this message. It exists entirely to provide
+      // a safe way to reschedule a muted actor without hitting a TOCTOU bug
+      // that would result in the actor being on two different scheduler queues.
+      // See ponyint_sched_unmute_senders in scheduler.c for additional
+      // information.
+      pony_assert(!ponyint_is_cycle(actor));
+      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
+      if(has_flag(actor, FLAG_BLOCKED_SENT))
+      {
+        // send unblock if we've sent a block
+        send_unblock(actor);
+      }
+      return false;
+    }
+
     default:
     {
 #ifdef USE_MEMTRACK_MESSAGES

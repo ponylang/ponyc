@@ -292,11 +292,9 @@ static void handle_sched_unblock(scheduler_t* sched)
   sched->ack_count = 0;
 }
 
-static bool read_msg(scheduler_t* sched)
+static void read_msg(scheduler_t* sched)
 {
   pony_msgi_t* m;
-
-  bool run_queue_changed = false;
 
   while((m = (pony_msgi_t*)ponyint_thread_messageq_pop(&sched->mq
 #ifdef USE_DYNAMIC_TRACE
@@ -353,9 +351,7 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_UNMUTE_ACTOR:
       {
-        if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i))
-          run_queue_changed = true;
-
+        ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i);
         break;
       }
 
@@ -376,8 +372,6 @@ static bool read_msg(scheduler_t* sched)
       default: {}
     }
   }
-
-  return run_queue_changed;
 }
 
 /**
@@ -552,17 +546,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
       if(actor != NULL)
         break;
 
-      if(read_msg(sched))
-      {
-        // An actor was unmuted and added to our run queue. Pop it and return.
-        // Effectively, we are "stealing" from ourselves. We need to verify that
-        // popping succeeded (actor != NULL) as some other scheduler might have
-        // stolen the newly scheduled actor from us already. Schedulers, what a
-        // bunch of thieving bastards!
-        actor = pop_global(sched);
-        if(actor != NULL)
-          break;
-      }
+      read_msg(sched);
 
       // if ASIO is no longer noisy due to reading a message from the ASIO
       // thread
@@ -729,17 +713,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     uint64_t tsc2 = ponyint_cpu_tick();
 
-    if(read_msg(sched))
-    {
-      // An actor was unmuted and added to our run queue. Pop it and return.
-      // Effectively, we are "stealing" from ourselves. We need to verify that
-      // popping succeeded (actor != NULL) as some other scheduler might have
-      // stolen the newly scheduled actor from us already. Schedulers, what a
-      // bunch of thieving bastards!
-      actor = pop_global(sched);
-      if(actor != NULL)
-        break;
-    }
+    read_msg(sched);
 
     if(quiescent(sched, tsc, tsc2))
     {
@@ -922,13 +896,7 @@ static void run(scheduler_t* sched)
       }
     }
 
-    // In response to reading a message, we might have unmuted an actor and
-    // added it back to our queue. if we don't have an actor to run, we want
-    // to pop from our queue to check for a recently unmuted actor
-    if(read_msg(sched) && actor == NULL)
-    {
-      actor = pop_global(sched);
-    }
+    read_msg(sched);
 
     if(actor == NULL)
     {
@@ -1437,9 +1405,8 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 
-bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  size_t actors_rescheduled = 0;
   scheduler_t* sched = ctx->scheduler;
   size_t index = HASHMAP_UNKNOWN;
   muteref_t key;
@@ -1492,9 +1459,9 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       {
         ponyint_unmute_actor(to_unmute);
 
-        ponyint_sched_add(ctx, to_unmute);
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
-        actors_rescheduled++;
+        // TODO: big message here for why it has to be done via message.
+        // problem: who knows what ctx->current is set to, does that matter?
+        pony_send(ctx, to_unmute, ACTORMSG_RESCHEDULE_AFTER_MUTING);
       }
 
       ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
@@ -1507,8 +1474,6 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
   pony_assert(ctx->mem_allocated ==
     (int64_t)ponyint_mutemap_total_alloc_size(&sched->mute_mapping));
 #endif
-
-  return actors_rescheduled > 0;
 }
 
 // Return the scheduler's index

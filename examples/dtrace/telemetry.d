@@ -3,7 +3,8 @@
 #pragma D option quiet
 
 inline unsigned int UINT32_MAX = -1;
-inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 11);
+inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 12);
+inline unsigned int ACTORMSG_RESCHEDULE_AFTER_MUTING = (UINT32_MAX - 11);
 inline unsigned int ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);
 inline unsigned int ACTORMSG_DESTROYED = (UINT32_MAX - 9);
 inline unsigned int ACTORMSG_CREATED = (UINT32_MAX - 8);
@@ -19,6 +20,12 @@ pony$target:::actor-msg-send
 / (unsigned int)arg1 <= (unsigned int)ACTORMSG_APPLICATION_START /
 {
   @counts[arg0, "Application Messages Sent"] = count();
+}
+
+pony$target:::actor-msg-send
+/ (unsigned int)arg1 <= (unsigned int)ACTORMSG_APPLICATION_START /
+{
+  @counts[arg0, "Reschedule After Muting Messages Sent"] = count();
 }
 
 pony$target:::actor-msg-send
