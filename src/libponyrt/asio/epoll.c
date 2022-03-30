@@ -383,7 +383,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 #endif
     if((sig < MAX_SIGNAL) &&
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
-      memory_order_release, memory_order_relaxed))
+      memory_order_acq_rel, memory_order_relaxed))
     {
       struct sigaction new_action;
       new_action.sa_handler = signal_handler;
@@ -487,7 +487,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 #endif
     if((sig < MAX_SIGNAL) &&
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
-      memory_order_release, memory_order_relaxed))
+      memory_order_acq_rel, memory_order_relaxed))
     {
       struct sigaction new_action;
 

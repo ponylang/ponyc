@@ -125,7 +125,7 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
       ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
       if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
-        memory_order_release, memory_order_acquire))
+        memory_order_acq_rel, memory_order_acquire))
       {
 #ifdef USE_VALGRIND
         ANNOTATE_HAPPENS_AFTER(next_node);
@@ -183,7 +183,7 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
         ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
         if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
-          memory_order_release, memory_order_acquire))
+          memory_order_acq_rel, memory_order_acquire))
         {
 #ifdef USE_VALGRIND
           ANNOTATE_HAPPENS_AFTER(next_node);

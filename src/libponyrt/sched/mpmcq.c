@@ -139,7 +139,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     xchg.counter = cmp.counter + 1;
   }
   while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
-    memory_order_relaxed, memory_order_relaxed));
+    memory_order_acq_rel, memory_order_relaxed));
 
   // Synchronise on tail->next to ensure we see the write to next->data from
   // the push. Also synchronise on next->data (see comment below).

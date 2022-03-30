@@ -289,7 +289,7 @@ bool ponyint_messageq_markempty(messageq_t* q)
   ANNOTATE_HAPPENS_BEFORE(&q->head);
 #endif
   return atomic_compare_exchange_strong_explicit(&q->head, &tail, head,
-    memory_order_release, memory_order_relaxed);
+    memory_order_acq_rel, memory_order_relaxed);
 }
 
 bool ponyint_messageq_isempty(messageq_t* q)

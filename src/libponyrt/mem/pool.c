@@ -721,7 +721,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
 #endif
   }
   while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
-    xchg, memory_order_release, memory_order_relaxed));
+    xchg, memory_order_acq_rel, memory_order_relaxed));
 }
 
 static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
@@ -748,7 +748,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
     xchg.counter = cmp.counter + 1;
   }
   while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
-    xchg, memory_order_acquire, memory_order_relaxed));
+    xchg, memory_order_acq_rel, memory_order_relaxed));
 
   // We need to synchronise twice on global->central to make sure we see every
   // previous write to the memory we're going to use before we use it.
