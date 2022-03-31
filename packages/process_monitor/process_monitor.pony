@@ -24,13 +24,13 @@ primitive ProcessMonitorCreator
       error
     end
 
-    // TODO: handle shutting things down if any fail
-    let stdin: _Pipe iso = recover iso _Pipe.outgoing()? end
-    let stdout: _Pipe iso = recover iso _Pipe.incoming()? end
-    let stderr: _Pipe iso = recover iso _Pipe.incoming()? end
-    let err: _Pipe iso = recover iso _Pipe.incoming()? end
-
     ifdef posix then
+      // TODO: handle shutting things down if any fail
+      let stdin: _PosixPipe iso = recover iso _PosixPipe.outgoing()? end
+      let stdout: _PosixPipe iso = recover iso _PosixPipe.incoming()? end
+      let stderr: _PosixPipe iso = recover iso _PosixPipe.incoming()? end
+      let err: _PosixPipe iso = recover iso _PosixPipe.incoming()? end
+
       let child: _ProcessPosix iso = recover iso _ProcessPosix(
         executable.path,
         args,
@@ -54,6 +54,11 @@ primitive ProcessMonitorCreator
       // easier to deal with on this end
       return _PosixProcessMonitor(consume child, consume notifier)
     elseif windows then
+      // TODO: handle shutting things down if any fail
+      let stdin: _WindowsPipe iso = recover iso _WindowsPipe.outgoing()? end
+      let stdout: _WindowsPipe iso = recover iso _WindowsPipe.incoming()? end
+      let stderr: _WindowsPipe iso = recover iso _WindowsPipe.incoming()? end
+
       let child: _ProcessWindows iso = recover iso _ProcessWindows(
         executable.path,
         args,

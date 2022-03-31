@@ -54,7 +54,7 @@ primitive _ERRORNODATA
     ifdef windows then 232
     else compile_error "no ERROR_NO_DATA" end
 
-class _Pipe
+class _PosixPipe
   """
   A pipe is a unidirectional data channel that can be used for interprocess
   communication. Outgoing pipes are written to by this process, incoming pipes
@@ -106,18 +106,6 @@ class _Pipe
       _set_fd(near_fd, _FDCLOEXEC())?
       _set_fd(far_fd, _FDCLOEXEC())?
       _set_fl(near_fd, _ONONBLOCK())? // and non-blocking on parent side of pipe
-
-    elseif windows then
-      near_fd = 0
-      far_fd = 0
-      // create the pipe and set one handle to not inherit. That needs
-      // to be done with the knowledge of which way this pipe goes.
-      if @ponyint_win_pipe_create(addressof near_fd, addressof far_fd,
-          _outgoing) == 0 then
-        error
-      end
-    else
-      compile_error "unsupported platform"
     end
 
   fun _set_fd(fd: U32, flags: I32) ? =>
@@ -128,17 +116,13 @@ class _Pipe
     let result = @fcntl(fd, _FSETFL(), flags)
     if result < 0 then error end
 
-  // TODO this is entirely posix specific in the tyep
-  // but we really need something that works for windows as well
   fun ref begin(owner: AsioEventNotify) =>
     """
     Prepare the pipe for read or write, and listening, after the far end has
     been handed to the other process.
     """
-    ifdef posix then
-      let flags = if _outgoing then AsioEvent.write() else AsioEvent.read() end
-      event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
-    end
+    let flags = if _outgoing then AsioEvent.write() else AsioEvent.read() end
+    event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
     close_far()
 
   fun ref close_far() =>
@@ -164,7 +148,130 @@ class _Pipe
       else
         (consume read_buf, len, 0)
       end
-    else // windows
+    else
+      compile_error "we should never get here. this satisfies the type system."
+    end
+
+  fun ref write(data: ByteSeq box, offset: USize): (ISize, I32) =>
+    ifdef posix then
+      let len = @write(near_fd, data.cpointer(offset),
+        data.size() - offset)
+      if len == -1 then // OS signals write error
+        (len, @pony_os_errno())
+      else
+        (len, 0)
+      end
+    else
+      compile_error "we should never get here. this satisfies the type system."
+    end
+
+  fun ref is_closed(): Bool =>
+    near_fd == -1
+
+  fun ref close_near() =>
+    """
+    Close the near end of the pipe--the end that this process is using
+    directly. Also handle unsubscribing the asio event (if there was one). File
+    descriptors should always be closed _after_ unsubscribing its event,
+    otherwise there is the possibility of reusing the file descriptor in
+    another thread and then unsubscribing the reused file descriptor here!
+    Unsubscribing and closing the file descriptor should be treated as one
+    operation.
+    """
+    if near_fd != -1 then
+      if event isnt AsioEvent.none() then
+        @pony_asio_event_unsubscribe(event)
+      end
+      @close(near_fd)
+      near_fd = -1
+    end
+
+  fun ref close() =>
+    close_far()
+    close_near()
+
+  fun ref dispose() =>
+    @pony_asio_event_destroy(event)
+    event = AsioEvent.none()
+
+class _WindowsPipe
+  """
+  A pipe is a unidirectional data channel that can be used for interprocess
+  communication. Outgoing pipes are written to by this process, incoming pipes
+  are read from by this process.
+  """
+  let _outgoing: Bool
+  var near_fd: U32 = -1
+  var far_fd: U32 = -1
+  var event: AsioEventID = AsioEvent.none()
+
+  new none() =>
+    """
+    Creates a nil pipe for use as a placeholder.
+    """
+    _outgoing = true
+
+  new outgoing() ? =>
+    """
+    Creates an outgoing pipe.
+    """
+    _outgoing = true
+    _create()?
+
+  new incoming() ? =>
+    """
+    Creates an incoming pipe.
+    """
+    _outgoing = false
+    _create()?
+
+  fun ref _create() ? =>
+    """
+    Do the actual system object creation for the pipe.
+    """
+    ifdef windows then
+      near_fd = 0
+      far_fd = 0
+      // create the pipe and set one handle to not inherit. That needs
+      // to be done with the knowledge of which way this pipe goes.
+      if @ponyint_win_pipe_create(addressof near_fd, addressof far_fd,
+          _outgoing) == 0 then
+        error
+      end
+    end
+
+  fun _set_fd(fd: U32, flags: I32) ? =>
+    let result = @fcntl(fd, _FSETFD(), flags)
+    if result < 0 then error end
+
+  fun _set_fl(fd: U32, flags: I32) ? =>
+    let result = @fcntl(fd, _FSETFL(), flags)
+    if result < 0 then error end
+
+  // TODO this is entirely posix specific in the tyep
+  // but we really need something that works for windows as well
+  fun ref begin() =>
+    """
+    Prepare the pipe for read or write, and listening, after the far end has
+    been handed to the other process.
+    """
+    close_far()
+
+  fun ref close_far() =>
+    """
+    Close the far end of the pipe--the end that the other process will be
+    using. This is used to cleanup this process' handles that it wont use.
+    """
+    if far_fd != -1 then
+      @close(far_fd)
+      far_fd = -1
+    end
+
+  fun ref read(read_buf: Array[U8] iso, offset: USize):
+    (Array[U8] iso^, ISize, I32)
+  =>
+    // TODO: This should check to see if its closed or not
+    ifdef windows then
       let hnd = @_get_osfhandle(near_fd)
       var bytes_to_read: U32 = (read_buf.size() - offset).u32()
       // Peek ahead to see if there is anything to read, return if not
@@ -210,18 +317,12 @@ class _Pipe
         // buffer back, bytes read, no error
         (consume read_buf, bytes_read.isize(), 0)
       end
+    else
+      compile_error "we should never get here. this satisfies the type system."
     end
 
   fun ref write(data: ByteSeq box, offset: USize): (ISize, I32) =>
-    ifdef posix then
-      let len = @write(near_fd, data.cpointer(offset),
-        data.size() - offset)
-      if len == -1 then // OS signals write error
-        (len, @pony_os_errno())
-      else
-        (len, 0)
-      end
-    else // windows
+    ifdef windows then
       let hnd = @_get_osfhandle(near_fd)
       let bytes_to_write: U32 = (data.size() - offset).u32()
       var bytes_written: U32 = 0
@@ -244,6 +345,8 @@ class _Pipe
       else
         (bytes_written.isize(), 0)
       end
+    else
+      compile_error "we should never get here. this satisfies the type system."
     end
 
   fun ref is_closed(): Bool =>
@@ -252,17 +355,9 @@ class _Pipe
   fun ref close_near() =>
     """
     Close the near end of the pipe--the end that this process is using
-    directly. Also handle unsubscribing the asio event (if there was one). File
-    descriptors should always be closed _after_ unsubscribing its event,
-    otherwise there is the possibility of reusing the file descriptor in
-    another thread and then unsubscribing the reused file descriptor here!
-    Unsubscribing and closing the file descriptor should be treated as one
-    operation.
+    directly.
     """
     if near_fd != -1 then
-      if event isnt AsioEvent.none() then
-        @pony_asio_event_unsubscribe(event)
-      end
       @close(near_fd)
       near_fd = -1
     end
@@ -270,7 +365,3 @@ class _Pipe
   fun ref close() =>
     close_far()
     close_near()
-
-  fun ref dispose() =>
-    @pony_asio_event_destroy(event)
-    event = AsioEvent.none()

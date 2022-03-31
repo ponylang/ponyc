@@ -170,20 +170,20 @@ interface _Process
 
 class _ProcessPosix is _Process
   let pid: I32
-  let _stdin: _Pipe
-  let _stdout: _Pipe
-  let _stderr: _Pipe
-  let _err: _Pipe
+  let _stdin: _PosixPipe
+  let _stdout: _PosixPipe
+  let _stderr: _PosixPipe
+  let _err: _PosixPipe
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
     wdir: (FilePath | None),
-    err: _Pipe iso,
-    stdin: _Pipe iso,
-    stdout: _Pipe iso,
-    stderr: _Pipe iso) ?
+    err: _PosixPipe iso,
+    stdin: _PosixPipe iso,
+    stdout: _PosixPipe iso,
+    stderr: _PosixPipe iso) ?
   =>
     _stdin = consume stdin
     _stdout = consume stdout
@@ -352,23 +352,22 @@ primitive _WaitPidStatus
   fun continued(wstatus: I32): Bool =>
     wstatus == 0xffff
 
-
 class _ProcessWindows is _Process
   let h_process: USize
   let process_error: (ProcessError | None)
   var final_wait_result: (_WaitResult | None) = None
-  let _stdin: _Pipe
-  let _stdout: _Pipe
-  let _stderr: _Pipe
+  let _stdin: _WindowsPipe
+  let _stdout: _WindowsPipe
+  let _stderr: _WindowsPipe
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
     wdir: (FilePath | None),
-    stdin: _Pipe iso,
-    stdout: _Pipe iso,
-    stderr: _Pipe iso)
+    stdin: _WindowsPipe iso,
+    stdout: _WindowsPipe iso,
+    stderr: _WindowsPipe iso)
   =>
     _stdin = consume stdin
     _stdout = consume stdout
