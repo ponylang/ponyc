@@ -65,12 +65,6 @@ class _PosixPipe
   var far_fd: U32 = -1
   var event: AsioEventID = AsioEvent.none()
 
-  new none() =>
-    """
-    Creates a nil pipe for use as a placeholder.
-    """
-    _outgoing = true
-
   new outgoing() ? =>
     """
     Creates an outgoing pipe.
@@ -105,7 +99,8 @@ class _PosixPipe
       // capturing by another thread.
       _set_fd(near_fd, _FDCLOEXEC())?
       _set_fd(far_fd, _FDCLOEXEC())?
-      _set_fl(near_fd, _ONONBLOCK())? // and non-blocking on parent side of pipe
+      // and non-blocking on parent side of pipe
+      _set_fl(near_fd, _ONONBLOCK())?
     end
 
   fun _set_fd(fd: U32, flags: I32) ? =>
@@ -365,3 +360,36 @@ class _WindowsPipe
   fun ref close() =>
     close_far()
     close_near()
+
+primitive _PosixCommunicationPipeCreator
+  """
+  Sets up the file descriptors needed to communicate with a Posix process as it
+  starts up and reports if it was successful forking and execing.
+  """
+  fun apply(): (U32, U32) ? =>
+    """
+    Creates a pipe and opens two file descriptors for near side and far side
+    communcation. _1 is the near side, _2 the far.
+    """
+    var near_fd: U32 = -1
+    var far_fd: U32 = -1
+
+    ifdef posix then
+      var fds = (U32(0), U32(0))
+      if @pipe(addressof fds) < 0 then
+        error
+      end
+      near_fd = fds._1
+      far_fd = fds._2
+
+      // We need to set the flag on the two file descriptors here to prevent
+      // capturing by another thread.
+      _set_fd(near_fd, _FDCLOEXEC())?
+      _set_fd(far_fd, _FDCLOEXEC())?
+    end
+
+    (near_fd, far_fd)
+
+  fun _set_fd(fd: U32, flags: I32) ? =>
+    let result = @fcntl(fd, _FSETFD(), flags)
+    if result < 0 then error end

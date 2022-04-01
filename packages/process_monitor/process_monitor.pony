@@ -29,30 +29,44 @@ primitive ProcessMonitorCreator
       let stdin: _PosixPipe iso = recover iso _PosixPipe.outgoing()? end
       let stdout: _PosixPipe iso = recover iso _PosixPipe.incoming()? end
       let stderr: _PosixPipe iso = recover iso _PosixPipe.incoming()? end
-      let err: _PosixPipe iso = recover iso _PosixPipe.incoming()? end
+      let comm_fds = _PosixCommunicationPipeCreator()?
+      // TODO: we need to close comm_fds before we do any exiting so there's
+      // some reworking to do
 
       let child: _ProcessPosix iso = recover iso _ProcessPosix(
         executable.path,
         args,
         vars,
         wdir,
-        consume err,
+        comm_fds._2,
         consume stdin,
         consume stdout,
         consume stderr)?
       end
 
-      // TODO: we really need to notice a posix startup failure here.
-      // in the existing, it is done in _pending_reads with _err.near_fd
-      // we can do a direct read from err but really, err is only used in
-      // on Posix so it doesn't need to be _Pipe.
-      // It can be something simpler perhaps. I think though leaving as
-      // _Pipe is fine. I do need to initalize some memory here and do a read.
-      // and get the result.
-      // If it is _Pipe, then we need to deal with it having been set
-      // non-blocking on this side. It being blocking on this side would be
-      // easier to deal with on this end
-      return _PosixProcessMonitor(consume child, consume notifier)
+      var start_result: Array[U8] iso = recover iso
+        Array[U8] .> undefined(1)
+      end
+
+      // This is a blocking operation that is guaranteed to return immediately.
+      // The result value has already been written to the pipe.
+      let len = @read(comm_fds._1, start_result.cpointer(0), 1)
+      if len <=0 then // read error
+        // TODO: unexpected. something else here
+        error
+      end
+
+      let result: U8 = try start_result.read_u8(0)? else -1 end
+      match result
+      | _StepSuccess() =>
+        return _PosixProcessMonitor(consume child, consume notifier)
+      | _StepChdir() =>
+        error
+      | _StepExecve() =>
+        error
+      else
+        error
+      end
     elseif windows then
       // TODO: handle shutting things down if any fail
       let stdin: _WindowsPipe iso = recover iso _WindowsPipe.outgoing()? end

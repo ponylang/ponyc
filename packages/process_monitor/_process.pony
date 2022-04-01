@@ -71,6 +71,9 @@ primitive _EXOSERR
   fun apply(): I32 => 71
 
 // For handling errors between @fork and @execve
+primitive _StepSuccess
+  fun apply(): U8 => 0
+
 primitive _StepChdir
   fun apply(): U8 => 1
 
@@ -173,14 +176,13 @@ class _ProcessPosix is _Process
   let _stdin: _PosixPipe
   let _stdout: _PosixPipe
   let _stderr: _PosixPipe
-  let _err: _PosixPipe
 
   new create(
     path: String,
     args: Array[String] val,
     vars: Array[String] val,
     wdir: (FilePath | None),
-    err: _PosixPipe iso,
+    result_fd: U32,
     stdin: _PosixPipe iso,
     stdout: _PosixPipe iso,
     stderr: _PosixPipe iso) ?
@@ -188,7 +190,6 @@ class _ProcessPosix is _Process
     _stdin = consume stdin
     _stdout = consume stdout
     _stderr = consume stderr
-    _err = consume err
 
     // Prepare argp and envp ahead of fork() as it's not safe to allocate in
     // the child after fork() is called.
@@ -198,7 +199,7 @@ class _ProcessPosix is _Process
     pid = @fork()
     match pid
     | -1 => error
-    | 0 => _child_fork(path, argp, envp, wdir)
+    | 0 => _child_fork(path, argp, envp, wdir, result_fd)
     end
 
   fun tag _make_argv(args: Array[String] box): Array[Pointer[U8] tag] =>
@@ -217,7 +218,8 @@ class _ProcessPosix is _Process
     path: String,
     argp: Array[Pointer[U8] tag],
     envp: Array[Pointer[U8] tag],
-    wdir: (FilePath | None))
+    wdir: (FilePath | None),
+    result_fd: U32)
   =>
     """
     We are now in the child process. We redirect STDIN, STDOUT and STDERR
@@ -237,7 +239,7 @@ class _ProcessPosix is _Process
     | let d: FilePath =>
       let dir: Pointer[U8] tag = d.path.cstring()
       if 0 > @chdir(dir) then
-        @write(_err.far_fd, addressof step, USize(1))
+        @write(result_fd, addressof step, USize(1))
         @_exit(_EXOSERR())
       end
     | None => None
@@ -247,9 +249,15 @@ class _ProcessPosix is _Process
     if 0 > @execve(path.cstring(), argp.cpointer(),
       envp.cpointer())
     then
-      @write(_err.far_fd, addressof step, USize(1))
+      @write(result_fd, addressof step, USize(1))
       @_exit(_EXOSERR())
     end
+
+    step = _StepSuccess()
+    @write(result_fd, addressof step, USize(1))
+    // TODO: do we want to close? this is new Sean addition
+    // I think this is correct
+    @close(result_fd)
 
   fun tag _dup2(oldfd: U32, newfd: U32) =>
     """
@@ -288,7 +296,6 @@ class _ProcessPosix is _Process
     _stdin.begin(monitor)
     _stdout.begin(monitor)
     _stderr.begin(monitor)
-    _err.begin(monitor)
 
   fun ref wait(): _WaitResult =>
     """Only polls, does not block."""
