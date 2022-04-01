@@ -603,6 +603,34 @@ task:
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
+  - name: "Stress Test: x86-64-unknown-linux-ubuntu20.04 [cd] [release]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+    environment:
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      TARGET: test-stress-with-cd-release
+  - name: "Stress Test: x86-64-unknown-linux-ubuntu20.04 [cd] [debug]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+    environment:
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      TARGET: test-stress-with-cd-debug
+    depends_on:
+      - "Stress Test: x86-64-unknown-linux-ubuntu20.04 [cd] [release]"
+  - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+    environment:
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      TARGET: test-stress-with-cd-release
+  - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+    environment:
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      TARGET: test-stress-with-cd-debug
+    depends_on:
+      - "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
 
   container:
     cpu: 8
@@ -644,6 +672,16 @@ task:
         TARGET: test-stress-debug
       depends_on:
         - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
+    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
+      environment:
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+        TARGET: test-stress-with-cd-release
+    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]"
+      environment:
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+        TARGET: test-stress-with-cd-debug
+      depends_on:
+        - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
 
   libs_cache:
     folder: build/libs

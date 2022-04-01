@@ -213,6 +213,12 @@ test-stress-release: all
 test-stress-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
+test-stress-with-cd-release: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+
+test-stress-with-cd-debug: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true
 	$(SILENT)rm -rf $(crossBuildDir)
