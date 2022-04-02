@@ -226,7 +226,7 @@ bool ponyint_lsda_scan(uintptr_t* ttype_index __attribute__ ((unused)),
     return false;
 
   const uint8_t* p = lsda.call_site_table;
-  uintptr_t ip = lsda.ip;
+  //uintptr_t ip = lsda.ip;
 
   while(p < lsda.action_table)
   {
