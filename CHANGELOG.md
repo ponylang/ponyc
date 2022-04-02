@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix crash with exhaustive match and generics ([PR #4057](https://github.com/ponylang/ponyc/pull/4057))
 - Fix parameter names not being checked ([PR #4061](https://github.com/ponylang/ponyc/pull/4061))
 - Fix compiler crash in HeapToStack optimization pass ([PR #4067](https://github.com/ponylang/ponyc/pull/4067))
+- Strengthen the ordering for some atomic operations ([PR #4083](https://github.com/ponylang/ponyc/pull/4083))
 
 ### Added
 
