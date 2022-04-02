@@ -107,7 +107,7 @@ PONY_API _Unwind_Reason_Code ponyint_personality_v0(_Unwind_State state,
 
         // No need to search again, just set the registers.
         uintptr_t ignored;
-        set_registers(&ignored, exception, context);
+        set_registers(0, exception, context);
         return _URC_INSTALL_CONTEXT;
       }
 

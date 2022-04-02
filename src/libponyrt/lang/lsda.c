@@ -242,8 +242,6 @@ bool ponyint_lsda_scan(uintptr_t* ttype_index __attribute__ ((unused)),
       if(landing_pad == 0)
         return false;
 
-      // Pony doesn't read the type index or look up types. We treat cleanup
-      // landing pads the same as any other landing pad.
       *lp = lsda.landing_pads + landing_pad;
       if(action_index == 0)
         return false;
@@ -251,7 +249,8 @@ bool ponyint_lsda_scan(uintptr_t* ttype_index __attribute__ ((unused)),
       // Convert 1-based byte offset into
       const uint8_t* action = lsda.action_table + (action_index - 1);
       int64_t tti = read_sleb128(&action);
-      ttype_index = (uintptr_t*)&tti;
+      if(tti > 0)
+        ttype_index = (uintptr_t*)&tti;
 
       return true;
     }
