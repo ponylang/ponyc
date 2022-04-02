@@ -88,7 +88,7 @@ size_t ponyint_pagemap_alloc_size()
 chunk_t* ponyint_pagemap_get(const void* addr)
 {
   PONY_ATOMIC(void*)* next_node = &root;
-  void* node = atomic_load_explicit(next_node, memory_order_relaxed);
+  void* node = atomic_load_explicit(next_node, memory_order_acquire);
 
   for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
   {
@@ -97,7 +97,7 @@ chunk_t* ponyint_pagemap_get(const void* addr)
 
     uintptr_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
     next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-    node = atomic_load_explicit(next_node, memory_order_relaxed);
+    node = atomic_load_explicit(next_node, memory_order_acquire);
   }
 
   return (chunk_t*)node;
@@ -125,7 +125,7 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
       ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
       if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
-        memory_order_release, memory_order_acquire))
+        memory_order_acq_rel, memory_order_acquire))
       {
 #ifdef USE_VALGRIND
         ANNOTATE_HAPPENS_AFTER(next_node);
@@ -150,7 +150,7 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
     next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
   }
 
-  atomic_store_explicit(next_node, chunk, memory_order_relaxed);
+  atomic_store_explicit(next_node, chunk, memory_order_release);
 }
 
 void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
@@ -183,7 +183,7 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
         ANNOTATE_HAPPENS_BEFORE(next_node);
 #endif
         if(!atomic_compare_exchange_strong_explicit(next_node, &node, new_node,
-          memory_order_release, memory_order_acquire))
+          memory_order_acq_rel, memory_order_acquire))
         {
 #ifdef USE_VALGRIND
           ANNOTATE_HAPPENS_AFTER(next_node);
@@ -212,7 +212,7 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
     // segment.
     do
     {
-      atomic_store_explicit(next_node, chunk, memory_order_relaxed);
+      atomic_store_explicit(next_node, chunk, memory_order_release);
       addr_ptr += POOL_ALIGN;
       ix++;
       next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);

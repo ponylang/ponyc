@@ -77,15 +77,15 @@ bool ponyint_asio_stop()
 bool ponyint_asio_stoppable()
 {
   // can only stop if we have no noisy actors
-  return atomic_load_explicit(&running_base.noisy_count, memory_order_relaxed) == 0;
+  return atomic_load_explicit(&running_base.noisy_count, memory_order_acquire) == 0;
 }
 
 uint64_t ponyint_asio_noisy_add()
 {
-  return atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+  return atomic_fetch_add_explicit(&running_base.noisy_count, 1, memory_order_release);
 }
 
 uint64_t ponyint_asio_noisy_remove()
 {
-  return atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_relaxed);
+  return atomic_fetch_sub_explicit(&running_base.noisy_count, 1, memory_order_release);
 }

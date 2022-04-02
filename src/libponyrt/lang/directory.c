@@ -59,7 +59,7 @@ PONY_API char* pony_os_cwd()
     ANNOTATE_HAPPENS_BEFORE(&cwd_cache);
 #endif
     if(!atomic_compare_exchange_strong_explicit(&cwd_cache, &cwd,
-      (const char*)cwd_alloc, memory_order_release, memory_order_acquire))
+      (const char*)cwd_alloc, memory_order_acq_rel, memory_order_acquire))
     {
 #ifdef USE_VALGRIND
       ANNOTATE_HAPPENS_AFTER(&cwd_cache);

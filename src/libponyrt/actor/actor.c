@@ -358,7 +358,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   size_t app = 0;
 
   // If we have been scheduled, the head will not be marked as empty.
-  pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_relaxed);
+  pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
 
   while((msg = ponyint_actor_messageq_pop(&actor->q
 #ifdef USE_DYNAMIC_TRACE

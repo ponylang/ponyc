@@ -139,7 +139,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     xchg.counter = cmp.counter + 1;
   }
   while(!bigatomic_compare_exchange_weak_explicit(&q->tail, &cmp, xchg,
-    memory_order_relaxed, memory_order_relaxed));
+    memory_order_acq_rel, memory_order_acquire));
 
   // Synchronise on tail->next to ensure we see the write to next->data from
   // the push. Also synchronise on next->data (see comment below).
@@ -155,7 +155,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   atomic_thread_fence(memory_order_acq_rel);
 #endif
 
-  void* data = atomic_load_explicit(&next->data, memory_order_relaxed);
+  void* data = atomic_load_explicit(&next->data, memory_order_acquire);
 
   // Since we will be freeing the old tail, we need to be sure no other
   // consumer is still reading the old tail. To do this, we set the data
@@ -164,9 +164,9 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // We synchronised on next->data to make sure all memory writes we've done
   // will be visible from the thread that will free our tail when it starts
   // freeing it.
-  atomic_store_explicit(&next->data, NULL, memory_order_relaxed);
+  atomic_store_explicit(&next->data, NULL, memory_order_release);
 
-  while(atomic_load_explicit(&tail->data, memory_order_relaxed) != NULL)
+  while(atomic_load_explicit(&tail->data, memory_order_acquire) != NULL)
     ponyint_cpu_relax();
 
   // Synchronise on tail->data to make sure we see every previous write to the

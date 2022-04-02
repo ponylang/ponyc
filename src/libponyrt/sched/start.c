@@ -111,7 +111,7 @@ static int parse_uint(uint32_t* target, int min, const char *value) {
   }
   *target = v;
   return 0;
-} 
+}
 
 static int parse_size(size_t* target, int min, const char *value) {
   int v = atoi(value);
@@ -120,7 +120,7 @@ static int parse_size(size_t* target, int min, const char *value) {
   }
   *target = v;
   return 0;
-} 
+}
 
 static int parse_udouble(double* target, double min, const char *value) {
   double v = atof(value);
@@ -129,7 +129,7 @@ static int parse_udouble(double* target, double min, const char *value) {
   }
   *target = v;
   return 0;
-} 
+}
 
 static int parse_opts(int argc, char** argv, options_t* opt)
 {
@@ -356,10 +356,10 @@ PONY_API int pony_stop()
 
 PONY_API void pony_exitcode(int code)
 {
-  atomic_store_explicit(&rt_exit_code, code, memory_order_relaxed);
+  atomic_store_explicit(&rt_exit_code, code, memory_order_release);
 }
 
 PONY_API int pony_get_exitcode()
 {
-  return atomic_load_explicit(&rt_exit_code, memory_order_relaxed);
+  return atomic_load_explicit(&rt_exit_code, memory_order_acquire);
 }
