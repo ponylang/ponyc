@@ -246,13 +246,23 @@ bool ponyint_lsda_scan(uintptr_t* ttype_index __attribute__ ((unused)),
       if(action_index == 0)
         return false;
 
-      // Convert 1-based byte offset into
-      const uint8_t* action = lsda.action_table + (action_index - 1);
-      int64_t tti = read_sleb128(&action);
-      if(tti > 0)
-        ttype_index = (uintptr_t*)&tti;
+      while(true)
+      {
+        // Convert 1-based byte offset into
+        const uint8_t* action = lsda.action_table + (action_index - 1);
+        int64_t tti = read_sleb128(&action);
+        if(tti > 0 || tti < 0) {
+          ttype_index = (uintptr_t*)&tti;
+          return true;
+        }
 
-      return true;
+        const uint8_t* temp = action;
+        int64_t action_offset = read_sleb128(&temp);
+        if(action_offset == 0)
+          return false;
+
+        action += action_offset;
+      }
     }
   }
 
