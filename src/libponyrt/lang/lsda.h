@@ -18,7 +18,7 @@ typedef struct _Unwind_Context exception_context_t;
 typedef DISPATCHER_CONTEXT exception_context_t;
 #endif
 
-bool ponyint_lsda_scan(uintptr_t* ttype_index __attribute__ ((unused)),
+bool ponyint_lsda_scan(uintptr_t* ttype_index,
   exception_context_t* context,
   uintptr_t* lp);
 

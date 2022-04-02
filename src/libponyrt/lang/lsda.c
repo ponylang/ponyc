@@ -216,7 +216,7 @@ static bool lsda_init(lsda_t* lsda, exception_context_t* context)
   return true;
 }
 
-bool ponyint_lsda_scan(uintptr_t* ttype_index,
+bool ponyint_lsda_scan(uintptr_t* ttype_index __attribute__ ((unused)),
   exception_context_t* context,
   uintptr_t* lp)
 {
