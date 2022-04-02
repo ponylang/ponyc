@@ -106,7 +106,8 @@ PONY_API _Unwind_Reason_Code ponyint_personality_v0(_Unwind_State state,
         landing_pad = exception->barrier_cache.bitpattern[3];
 
         // No need to search again, just set the registers.
-        set_registers(exception, context);
+        uintptr_t ignored;
+        set_registers(&ignored, exception, context);
         return _URC_INSTALL_CONTEXT;
       }
 
