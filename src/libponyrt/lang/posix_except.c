@@ -39,12 +39,13 @@ PONY_API void pony_error()
   abort();
 }
 
-static void set_registers(struct _Unwind_Exception* exception,
+static void set_registers(uintptr_t ttype_index,
+  struct _Unwind_Exception* exception,
   struct _Unwind_Context* context)
 {
   _Unwind_SetGR(context, __builtin_eh_return_data_regno(0),
     (uintptr_t)exception);
-  _Unwind_SetGR(context, __builtin_eh_return_data_regno(1), 0);
+  _Unwind_SetGR(context, __builtin_eh_return_data_regno(1), ttype_index);
   _Unwind_SetIP(context, landing_pad);
 }
 
@@ -79,7 +80,8 @@ PONY_API _Unwind_Reason_Code ponyint_personality_v0(_Unwind_State state,
   {
     case _US_VIRTUAL_UNWIND_FRAME:
     {
-      if(!ponyint_lsda_scan(context, &landing_pad))
+      uintptr_t ignore;
+      if(!ponyint_lsda_scan(&ignore, context, &landing_pad))
         return continue_unwind(exception, context);
 
       // Save r13.
@@ -133,10 +135,13 @@ PONY_API _Unwind_Reason_Code ponyint_personality_v0(int version,
   if(ex_class != PONY_EXCEPTION_CLASS)
     return _URC_CONTINUE_UNWIND;
 
+  uintptr_t ttype_index;
+  bool scan_result = ponyint_lsda_scan(&ttype_index, context, &landing_pad);
+
   // The search phase sets up the landing pad.
   if(actions & _UA_SEARCH_PHASE)
   {
-    if(!ponyint_lsda_scan(context, &landing_pad))
+    if(!scan_result)
       return _URC_CONTINUE_UNWIND;
 
     return _URC_HANDLER_FOUND;
@@ -148,7 +153,7 @@ PONY_API _Unwind_Reason_Code ponyint_personality_v0(int version,
       return _URC_CONTINUE_UNWIND;
 
     // No need to search again, just set the registers.
-    set_registers(exception, context);
+    set_registers(ttype_index, exception, context);
     return _URC_INSTALL_CONTEXT;
   }
 

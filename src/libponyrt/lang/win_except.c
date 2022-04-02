@@ -93,7 +93,8 @@ PONY_API EXCEPTION_DISPOSITION ponyint_personality_v0(
   if(!(ExcRecord->ExceptionFlags &
     (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)))
   {
-    if(!ponyint_lsda_scan(DispatcherContext, &landing_pad))
+    uintptr_t ignore;
+    if(!ponyint_lsda_scan(&ignore, DispatcherContext, &landing_pad))
       return ExceptionContinueSearch;
 
     RtlUnwindEx(EstablisherFrame, (PVOID)landing_pad, ExcRecord,

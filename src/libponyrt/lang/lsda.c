@@ -216,7 +216,9 @@ static bool lsda_init(lsda_t* lsda, exception_context_t* context)
   return true;
 }
 
-bool ponyint_lsda_scan(exception_context_t* context, uintptr_t* lp)
+bool ponyint_lsda_scan(uintptr_t* ttype_index,
+  exception_context_t* context,
+  uintptr_t* lp)
 {
   lsda_t lsda;
 
@@ -231,8 +233,11 @@ bool ponyint_lsda_scan(exception_context_t* context, uintptr_t* lp)
     uintptr_t length = read_encoded_ptr(&p, lsda.call_site_encoding);
     uintptr_t landing_pad = read_encoded_ptr(&p, lsda.call_site_encoding);
 
-    // Pony ignores the action index, since it uses only cleanup landing pads.
-    read_uleb128(&p);
+    uintptr_t action_index = read_uleb128(&p);
+
+    const uint8_t* action = lsda.action_table + (action_index - 1);
+    int64_t tti = read_sleb128(&action);
+    ttype_index = (uintptr_t*)&tti;
 
     if((start <= lsda.ip_offset) && (lsda.ip_offset < (start + length)))
     {
