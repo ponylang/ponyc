@@ -180,3 +180,9 @@ primitive Printf
 
 We believe that the impact of this change should be small, given the usability problems outlined above.
 
+## Fix concurrency bugs in runtime on Arm
+
+Due to some incorrect memory ordering usage within various atomic operations in the runtime, it was possible for "bad things to happen" on Arm platforms. "Bad things" being violations of invariants in the runtime that could lead to incorrect runtime behavior that could exhibit in a variety of ways.
+
+We've strengthened a number of memory orderings on Arm which should address the issues we have observed.
+
