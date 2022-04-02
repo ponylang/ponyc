@@ -219,7 +219,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pthread_sigmask(SIG_BLOCK, &set, NULL);
 #endif
 
-  while(!atomic_load_explicit(&b->terminate, memory_order_relaxed))
+  while(!atomic_load_explicit(&b->terminate, memory_order_acquire))
   {
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1);
 
@@ -383,7 +383,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 #endif
     if((sig < MAX_SIGNAL) &&
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
-      memory_order_acq_rel, memory_order_relaxed))
+      memory_order_acq_rel, memory_order_acquire))
     {
       struct sigaction new_action;
       new_action.sa_handler = signal_handler;
@@ -487,7 +487,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 #endif
     if((sig < MAX_SIGNAL) &&
       atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
-      memory_order_acq_rel, memory_order_relaxed))
+      memory_order_acq_rel, memory_order_acquire))
     {
       struct sigaction new_action;
 
