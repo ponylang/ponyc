@@ -96,7 +96,7 @@ void ponyint_messageq_init(messageq_t* q)
 void ponyint_messageq_destroy(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_relaxed) &
+  pony_assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
     ~(uintptr_t)1)) == (uintptr_t)tail);
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
@@ -231,7 +231,7 @@ pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
   )
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
+  pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_acquire);
 
   if(next != NULL)
   {
@@ -295,7 +295,7 @@ bool ponyint_messageq_markempty(messageq_t* q)
 bool ponyint_messageq_isempty(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_relaxed);
+  pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_acquire);
 
   if(((uintptr_t)head & 1) != 0)
     return true;
