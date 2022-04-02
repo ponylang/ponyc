@@ -356,10 +356,10 @@ PONY_API int pony_stop()
 
 PONY_API void pony_exitcode(int code)
 {
-  atomic_store_explicit(&rt_exit_code, code, memory_order_acquire);
+  atomic_store_explicit(&rt_exit_code, code, memory_order_release);
 }
 
 PONY_API int pony_get_exitcode()
 {
-  return atomic_load_explicit(&rt_exit_code, memory_order_release);
+  return atomic_load_explicit(&rt_exit_code, memory_order_acquire);
 }
