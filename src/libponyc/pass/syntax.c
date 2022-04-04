@@ -646,8 +646,9 @@ static ast_result_t syntax_ffi_call(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_FFICALL);
   ast_result_t r = AST_OK;
 
-  if (ast_id(opt->check.frame->method) == TK_BE ||
-    ast_id(opt->check.frame->method )== TK_FUN)
+  ast_t* in_method = opt->check.frame->method;
+  if((in_method != NULL) &&
+    (ast_id(in_method) == TK_BE || ast_id(in_method) == TK_FUN))
   {
     ast_t* parent = ast_parent(ast);
     switch(ast_id(opt->check.frame->method))
