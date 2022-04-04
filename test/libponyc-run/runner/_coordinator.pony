@@ -31,8 +31,18 @@ actor _Coordinator is _TesterNotify
     _success = Map[String, Bool](_num_to_run)
     _timers = Timers
 
-    _env.out.print(_Colors.info("Running " + _num_to_run.string()
-      + " tests.", true))
+    let start_message = recover val
+      var m: String ref = "Running " + _num_to_run.string() + " tests"
+
+      if _options.debug then
+        m = m + " compiled in debug mode."
+      else
+        m = m + " compiled in release mode."
+      end
+      m
+    end
+
+    _env.out.print(_Colors.info(start_message, true))
 
     if _num_to_run > 0 then
       if _options.sequential then

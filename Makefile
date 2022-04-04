@@ -190,10 +190,21 @@ test-cross-ci: test-stdlib-debug test-stdlib-release
 test-check-version: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --version
 
-test-core: all
+test-core: all test-libponyrt test-libponyc test-full-programs-release test-full-programs-debug
+
+test-libponyrt: all
 	$(SILENT)cd '$(outDir)' && ./libponyrt.tests --gtest_shuffle
+
+test-libponyc: all
 	$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --sequential=true --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir) --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+
+test-full-programs-release: all
+	@mkdir -p $(outDir)/runner-tests/release
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --sequential=true --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+
+test-full-programs-debug: all
+	@mkdir -p $(outDir)/runner-tests/debug
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --sequential=true --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential
