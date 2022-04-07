@@ -4,14 +4,33 @@ This program shows how to use the Pony `struct` type, as well as passing them to
 
 ## How to Compile
 
-The first step is to compile our C code to a shared library. For this example, we're using `clang` on macOS. The exact details may vary when using other compilers and platforms, so be sure to check the appropriate documentation. Run the following commands in the same directory as this README:
+The first step is to compile our C code to a shared library. The exact details may vary when using other compilers, so be sure to check the appropriate documentation. Run the following platform specific commands in the same directory as this README:
+
+### MacOS
 
 ```console
 clang -fPIC -Wall -Wextra -g -c -o struct.o struct.c
 clang -shared -o libffi-struct.dylib struct.o
 ```
 
-Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc`. You should see content building the necessary packages, which ends with:
+### FreeBSD/Linux
+
+```console
+clang -fPIC -Wall -Wextra -g -c -o struct.o struct.c
+clang -shared -o libffi-struct.so struct.o
+```
+
+### Windows
+
+Assumes you are using `X64 Native Tools Command Prompt for VS 2022` if you are on 64-bit Windows (X86 if on 32-bit WIndows).
+
+```console
+mkdir lib
+cl.exe /c /Fo"lib\ffi-struct.obj" struct.c
+lib.exe .\lib\ffi-struct.obj
+```
+
+Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc` on MacOS/FreeBSD/Linux and `ponyc.exe --path .\lib` on Windows. You should see content building the necessary packages, which ends with:
 
 ```console
 ...

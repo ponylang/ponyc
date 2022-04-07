@@ -4,14 +4,33 @@ This program shows how to pass Pony functions as callbacks to C functions. In th
 
 ## How to Compile
 
-The first step is to compile our C code to a shared library. For this example, we're using `clang` on macOS. The exact details may vary when using other compilers and platforms, so be sure to check the appropriate documentation. Run the following commands in the same directory as this README:
+The first step is to compile our C code to a shared library. The exact details may vary when using other compilers, so be sure to check the appropriate documentation. Run the following platform specific commands in the same directory as this README:
+
+### MacOS
 
 ```console
 clang -fPIC -Wall -Wextra -g -c -o callbacks.o callbacks.c
 clang -shared -o libffi-callbacks.dylib callbacks.o
 ```
 
-Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc`. You should see content building the necessary packages, which ends with:
+### FreeBSD/Linux
+
+```console
+clang -fPIC -Wall -Wextra -g -c -o callbacks.o callbacks.c
+clang -shared -o libffi-callbacks.so callbacks.o
+```
+
+### Windows
+
+Assumes you are using `X64 Native Tools Command Prompt for VS 2022` if you are on 64-bit Windows (X86 if on 32-bit WIndows).
+
+```console
+mkdir lib
+cl.exe /c /Fo"lib\ffi-callbacks.obj" callbacks.c
+lib.exe .\lib\ffi-callbacks.obj
+```
+
+Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc` on MacOS/FreeBSD/Linux and `ponyc.exe --path .\lib` on Windows. You should see content building the necessary packages, which ends with:
 
 ```console
 ...
