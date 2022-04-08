@@ -50,9 +50,9 @@ use "net"
 
 class SlowDown is TCPConnectionNotify
   let _auth: ApplyReleaseBackpressureAuth
-  let _out: StdStream
+  let _out: OutStream
 
-  new iso create(auth: ApplyReleaseBackpressureAuth, out: StdStream) =>
+  new iso create(auth: ApplyReleaseBackpressureAuth, out: OutStream) =>
     _auth = auth
     _out = out
 
@@ -69,7 +69,7 @@ class SlowDown is TCPConnectionNotify
 
 actor Main
   new create(env: Env) =>
-    let socket = TCPConnection(env.root,
+    let socket = TCPConnection(TCPConnectAuth(env.root),
     recover SlowDown(
       ApplyReleaseBackpressureAuth(env.root), env.out) end, "", "7669")
 ```
