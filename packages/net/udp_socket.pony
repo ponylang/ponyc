@@ -45,10 +45,8 @@ actor UDPSocket is AsioEventNotify
 
   actor Main
     new create(env: Env) =>
-      try
-        UDPSocket(UDPAuth(env.root),
-          MyUDPNotify, "", "8989")
-      end
+      UDPSocket(UDPAuth(env.root),
+        MyUDPNotify, "", "8989")
   ```
 
   The client is implemented like this:
