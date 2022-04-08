@@ -14,6 +14,7 @@ STDIN. Output received on STDOUT of the child process is forwarded to the
 ProcessNotify client and printed.
 
 ```pony
+use "backpressure"
 use "process"
 use "files"
 
