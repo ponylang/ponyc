@@ -3,6 +3,7 @@
 #include "viewpoint.h"
 #include "assemble.h"
 #include "alias.h"
+#include "compattype.h"
 #include "../ast/token.h"
 #include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
@@ -468,19 +469,37 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
     ast_free_unattached(r_constraint);
 
     // A constructable constraint can only be fulfilled by a concrete typearg.
-    if(is_constructable(constraint) && !is_concrete(typearg))
+    if(is_constructable(constraint))
     {
-      if(report_errors)
+      if (!is_concrete(typearg))
       {
-        ast_error(opt->check.errors, orig, "a constructable constraint can "
-          "only be fulfilled by a concrete type argument");
-        ast_error_continue(opt->check.errors, typearg, "argument: %s",
-          ast_print_type(typearg));
-        ast_error_continue(opt->check.errors, typeparam, "constraint: %s",
-          ast_print_type(constraint));
-      }
+        if(report_errors)
+        {
+          ast_error(opt->check.errors, orig, "a constructable constraint can "
+            "only be fulfilled by a concrete type argument");
+          ast_error_continue(opt->check.errors, typearg, "argument: %s",
+            ast_print_type(typearg));
+          ast_error_continue(opt->check.errors, typeparam, "constraint: %s",
+            ast_print_type(constraint));
+        }
 
-      return false;
+        return false;
+      }
+      else if (!is_stable_type(typearg))
+      {
+        if(report_errors)
+        {
+          ast_error(opt->check.errors, orig, "a constructable constraint can "
+            "only be fulfilled by a type with a stable capability "
+            "(any capability except iso^ and trn^)");
+          ast_error_continue(opt->check.errors, typearg, "argument: %s",
+            ast_print_type(typearg));
+          ast_error_continue(opt->check.errors, typeparam, "constraint: %s",
+            ast_print_type(constraint));
+        }
+
+        return false;
+      }
     }
 
     typeparam = ast_sibling(typeparam);

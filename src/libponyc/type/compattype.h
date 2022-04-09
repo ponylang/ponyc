@@ -18,6 +18,13 @@ PONY_EXTERN_C_BEGIN
  */
 bool is_compat_type(ast_t* a, ast_t* b);
 
+/**
+ * Returns true if the type could safely be the type of a variable.
+ *
+ * This is a descriptive synonym for is_compat_type(a, a).
+ */
+bool is_stable_type(ast_t* a);
+
 PONY_EXTERN_C_END
 
 #endif

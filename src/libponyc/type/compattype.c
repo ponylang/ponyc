@@ -319,3 +319,8 @@ bool is_compat_type(ast_t* a, ast_t* b)
   pony_assert(0);
   return false;
 }
+
+bool is_stable_type(ast_t* a)
+{
+  return is_compat_type(a, a);
+}
