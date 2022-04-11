@@ -16,7 +16,7 @@ class iso Property1UnitTest[T] is UnitTest
     fun name(): String => "my_property"
 
     fun gen(): Generator[String] =>
-      Generatos.ascii_printable()
+      Generators.ascii_printable()
 
     fun property(arg1: String, h: PropertyHelper) =>
       h.assert_true(arg1.size() > 0)

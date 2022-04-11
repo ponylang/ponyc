@@ -56,7 +56,7 @@ class ListNode[A]
         else
           env.out.print("The ListNode has no (None) item.")
         end
-  ...
+  ```
   """
   var _item: (A | None)
   var _list: (List[A] | None) = None

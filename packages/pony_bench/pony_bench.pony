@@ -9,6 +9,7 @@ by their output.
 
 ```pony
 use "time"
+use "pony_bench"
 
 actor Main is BenchmarkList
   new create(env: Env) =>
