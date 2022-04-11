@@ -38,10 +38,8 @@ actor TCPListener is AsioEventNotify
 
   actor Main
     new create(env: Env) =>
-      try
-        TCPListener(TCPListenAuth(env.root),
-          recover MyTCPListenNotify end, "", "8989")
-      end
+      TCPListener(TCPListenAuth(env.root),
+        recover MyTCPListenNotify end, "", "8989")
   ```
   """
   var _notify: TCPListenNotify
