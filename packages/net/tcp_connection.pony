@@ -63,10 +63,8 @@ actor TCPConnection is AsioEventNotify
 
   actor Main
     new create(env: Env) =>
-      try
-        TCPConnection(env.root,
-          recover MyTCPConnectionNotify(env.out) end, "", "8989")
-      end
+      TCPConnection(TCPConnectAuth(env.root),
+        recover MyTCPConnectionNotify(env.out) end, "", "8989")
   ```
 
   Note: when writing to the connection data will be silently discarded if the
@@ -109,9 +107,9 @@ actor TCPConnection is AsioEventNotify
 
   class SlowDown is TCPConnectionNotify
     let _auth: ApplyReleaseBackpressureAuth
-    let _out: StdStream
+    let _out: OutStream
 
-    new iso create(auth: ApplyReleaseBackpressureAuth, out: StdStream) =>
+    new iso create(auth: ApplyReleaseBackpressureAuth, out: OutStream) =>
       _auth = auth
       _out = out
 
@@ -134,12 +132,10 @@ actor TCPConnection is AsioEventNotify
 
   actor Main
     new create(env: Env) =>
-      try
-        let c_auth = TCPConnectAuth(env.root)
-        let bp_auth = ApplyReleaseBackpressureAuth(env.root)
-        let socket = TCPConnection(c_auth,
-          recover SlowDown(bp_auth, env.out) end, "", "7669")
-      end
+      let c_auth = TCPConnectAuth(env.root)
+      let bp_auth = ApplyReleaseBackpressureAuth(env.root)
+      let socket = TCPConnection(c_auth,
+        recover SlowDown(bp_auth, env.out) end, "", "7669")
 
   ```
 
@@ -178,10 +174,8 @@ actor TCPConnection is AsioEventNotify
 
   actor Main
     new create(env: Env) =>
-      try
-        TCPConnection(env.root,
-          recover ThrowItAway end, "", "7669")
-      end
+      TCPConnection(TCPConnectAuth(env.root),
+        recover ThrowItAway end, "", "7669")
   ```
 
   In general, unless you have a very specific use case, we strongly advise that
