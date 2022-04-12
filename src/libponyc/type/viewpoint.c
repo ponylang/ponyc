@@ -351,7 +351,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
           {
             case TK_EPHEMERAL:
             {
-              ast_t* c_with = consume_type(with, TK_NONE, true);
+              ast_t* c_with = consume_type(with, TK_NONE, false);
               if (c_with != NULL)
               {
                 a_with = c_with;

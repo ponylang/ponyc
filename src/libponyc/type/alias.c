@@ -355,6 +355,11 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
         child = ast_sibling(child);
       }
 
+      if (ast_sibling(ast_child(r_type)) == NULL)
+      {
+        ast_replace(&r_type, ast_child(r_type));
+      }
+
       return r_type;
     }
 

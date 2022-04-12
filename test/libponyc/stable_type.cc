@@ -224,7 +224,7 @@ TEST_F(StableTypeTest, EphemeralInstantiationRespectsEphemeralUnions)
     "class A\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    Generic[Arg^].get({() => A})\n";
+    "    Generic[Arg^].get({() => None})\n";
 
   TEST_COMPILE(src);
 }
@@ -238,7 +238,37 @@ TEST_F(StableTypeTest, EphemeralInstantiationRespectsUnionsOfEphemerals)
     "class A\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    Generic[Arg].get({() => A})\n";
+    "    Generic[Arg].get({() => None})\n";
 
   TEST_COMPILE(src);
+}
+TEST_F(StableTypeTest, DoubleEphemeralUnionDisallowed)
+{
+  const char* src =
+    "type Arg is (A iso | None)\n"
+    "class Generic[T]\n"
+    "  fun get(f: {(): T^}): T =>\n"
+    "    f()\n"
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Generic[Arg^].get({() => A})\n";
+
+  TEST_ERROR(src);
+  // We should reject it since A iso^ </= A iso^^ and A isn't None
+}
+TEST_F(StableTypeTest, EphemeralInstantiationUnionsOfEphemeralsDisallowed)
+{
+  const char* src =
+    "type Arg is (A iso^ | None)\n"
+    "class Generic[T]\n"
+    "  fun get(f: {(): T^}): T =>\n"
+    "    f()\n"
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Generic[Arg].get({() => A})\n";
+
+  TEST_ERROR(src);
+  // We should reject it since A iso^ </= A iso^^ and A isn't None
 }
