@@ -31,6 +31,21 @@ void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
 void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
   LLVMValueRef node);
 
+// These are copies of the original LLVM functions which are now deprecated
+LLVMValueRef LLVMBuildStructGEP_P(LLVMBuilderRef B, LLVMValueRef Pointer,
+  unsigned Idx, const char *Name);
+LLVMValueRef LLVMConstInBoundsGEP_P(LLVMValueRef ConstantVal,
+  LLVMValueRef *ConstantIndices, unsigned NumIndices);
+LLVMValueRef LLVMBuildInBoundsGEP_P(LLVMBuilderRef B, LLVMValueRef Pointer,
+  LLVMValueRef *Indices, unsigned NumIndices, const char *Name);
+LLVMValueRef LLVMBuildLoad_P(LLVMBuilderRef B, LLVMValueRef PointerVal,
+  const char *Name);
+LLVMValueRef LLVMBuildCall_P(LLVMBuilderRef B, LLVMValueRef Fn,
+  LLVMValueRef *Args, unsigned NumArgs, const char *Name);
+LLVMValueRef LLVMBuildInvoke_P(LLVMBuilderRef B, LLVMValueRef Fn,
+  LLVMValueRef *Args, unsigned NumArgs, LLVMBasicBlockRef Then,
+  LLVMBasicBlockRef Catch, const char *Name);
+
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);

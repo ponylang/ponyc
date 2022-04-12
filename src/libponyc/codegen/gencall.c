@@ -97,7 +97,7 @@ static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMMoveBasicBlockAfter(then_block, this_block);
   LLVMBasicBlockRef else_block = c->frame->invoke_target;
 
-  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
+  LLVMValueRef invoke = LLVMBuildInvoke_P(c->builder, fun, args, count,
     then_block, else_block, ret);
 
   if(setcc)
@@ -343,8 +343,10 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   if(t->underlying == TK_STRUCT)
     return;
 
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, value, 0, "");
-  LLVMBuildStore(c->builder, ((compile_type_t*)t->c_type)->desc, desc_ptr);
+  compile_type_t* c_t = (compile_type_t*) t->c_type;
+
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP_P(c->builder, value, 0, "");
+  LLVMBuildStore(c->builder, c_t->desc, desc_ptr);
 }
 
 // This function builds a stack of indices such that for an AST nested in an
@@ -566,7 +568,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   for(unsigned int i = 0; i < m->param_count; i++)
   {
-    LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i + 3, "");
+    LLVMValueRef arg_ptr = LLVMBuildStructGEP_P(c->builder, msg_ptr, i + 3, "");
     LLVMBuildStore(c->builder, cast_args[i+1], arg_ptr);
   }
 
@@ -1286,7 +1288,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   if(err && (c->frame->invoke_target != NULL))
     result = invoke_fun(c, func, f_args, count, "", false);
   else
-    result = LLVMBuildCall(c->builder, func, f_args, count, "");
+    result = LLVMBuildCall_P(c->builder, func, f_args, count, "");
 
   codegen_debugloc(c, NULL);
   ponyint_pool_free_size(buf_size, f_args);
@@ -1322,7 +1324,7 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 
   pony_assert(func != NULL);
 
-  return LLVMBuildCall(c->builder, func, args, count, ret);
+  return LLVMBuildCall_P(c->builder, func, args, count, ret);
 }
 
 LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
@@ -1409,7 +1411,7 @@ void gencall_error(compile_t* c)
   if(c->frame->invoke_target != NULL)
     invoke_fun(c, func, NULL, 0, "", false);
   else
-    LLVMBuildCall(c->builder, func, NULL, 0, "");
+    LLVMBuildCall_P(c->builder, func, NULL, 0, "");
 
   LLVMBuildUnreachable(c->builder);
 }
@@ -1424,7 +1426,7 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   args[1] = src;
   args[2] = n;
   args[3] = LLVMConstInt(c->i1, 0, false);
-  LLVMBuildCall(c->builder, func, args, 4, "");
+  LLVMBuildCall_P(c->builder, func, args, 4, "");
 }
 
 void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
@@ -1437,7 +1439,7 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   args[1] = src;
   args[2] = n;
   args[3] = LLVMConstInt(c->i1, 0, false);
-  LLVMBuildCall(c->builder, func, args, 4, "");
+  LLVMBuildCall_P(c->builder, func, args, 4, "");
 }
 
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
@@ -1449,7 +1451,7 @@ void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
   args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  LLVMBuildCall(c->builder, func, args, 2, "");
+  LLVMBuildCall_P(c->builder, func, args, 2, "");
 }
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
@@ -1461,5 +1463,5 @@ void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
   args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  LLVMBuildCall(c->builder, func, args, 2, "");
+  LLVMBuildCall_P(c->builder, func, args, 2, "");
 }

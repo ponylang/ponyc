@@ -66,8 +66,9 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   // Extract the primitive type from element 1 and call the real function.
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
-  LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
-  LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
+  LLVMValueRef primitive_ptr = LLVMBuildStructGEP_P(c->builder, this_ptr, 1,
+    "");
+  LLVMValueRef primitive = LLVMBuildLoad_P(c->builder, primitive_ptr, "");
 
   primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
 
@@ -478,15 +479,15 @@ void gendesc_table(compile_t* c)
 
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
 {
-  LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, desc, index, "");
-  LLVMValueRef field = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef ptr = LLVMBuildStructGEP_P(c->builder, desc, index, "");
+  LLVMValueRef field = LLVMBuildLoad_P(c->builder, ptr, "");
   return field;
 }
 
 LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
 {
-  LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, object, 0, "");
-  LLVMValueRef desc = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef ptr = LLVMBuildStructGEP_P(c->builder, object, 0, "");
+  LLVMValueRef desc = LLVMBuildLoad_P(c->builder, ptr, "");
   return desc;
 }
 
@@ -512,14 +513,15 @@ LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef desc)
 
 LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef desc, size_t colour)
 {
-  LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, DESC_VTABLE, "");
+  LLVMValueRef vtable = LLVMBuildStructGEP_P(c->builder, desc, DESC_VTABLE, "");
 
   LLVMValueRef gep[2];
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = LLVMConstInt(c->i32, colour, false);
 
-  LLVMValueRef func_ptr = LLVMBuildInBoundsGEP(c->builder, vtable, gep, 2, "");
-  LLVMValueRef fun = LLVMBuildLoad(c->builder, func_ptr, "");
+  LLVMValueRef func_ptr = LLVMBuildInBoundsGEP_P(c->builder, vtable, gep, 2,
+    "");
+  LLVMValueRef fun = LLVMBuildLoad_P(c->builder, func_ptr, "");
   return fun;
 }
 
@@ -531,7 +533,7 @@ LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object,
   offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
 
   LLVMValueRef base = LLVMBuildBitCast(c->builder, object, c->void_ptr, "");
-  return LLVMBuildInBoundsGEP(c->builder, base, &offset, 1, "");
+  return LLVMBuildInBoundsGEP_P(c->builder, base, &offset, 1, "");
 }
 
 LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef desc)
@@ -547,9 +549,9 @@ LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = LLVMConstInt(c->i32, index, false);
 
-  LLVMValueRef field_desc = LLVMBuildInBoundsGEP(c->builder, fields, gep, 2,
+  LLVMValueRef field_desc = LLVMBuildInBoundsGEP_P(c->builder, fields, gep, 2,
     "");
-  LLVMValueRef field_info = LLVMBuildLoad(c->builder, field_desc, "");
+  LLVMValueRef field_info = LLVMBuildLoad_P(c->builder, field_desc, "");
   return field_info;
 }
 
@@ -558,7 +560,7 @@ LLVMValueRef gendesc_fieldptr(compile_t* c, LLVMValueRef ptr,
 {
   LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_info, 0, "");
   offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
-  return LLVMBuildInBoundsGEP(c->builder, ptr, &offset, 1, "");
+  return LLVMBuildInBoundsGEP_P(c->builder, ptr, &offset, 1, "");
 }
 
 LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
@@ -569,7 +571,7 @@ LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
     LLVMPointerType(c->object_ptr, 0), "");
   // gendesc_fieldload is called from trace functions, no need for TBAA metadata
   // here.
-  return LLVMBuildLoad(c->builder, object_ptr, "");
+  return LLVMBuildLoad_P(c->builder, object_ptr, "");
 }
 
 LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info)
@@ -631,8 +633,8 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
   args[0] = LLVMConstInt(c->intptr, 0, false);
   args[1] = shift;
 
-  LLVMValueRef index = LLVMBuildInBoundsGEP(c->builder, bitmap, args, 2, "");
-  index = LLVMBuildLoad(c->builder, index, "");
+  LLVMValueRef index = LLVMBuildInBoundsGEP_P(c->builder, bitmap, args, 2, "");
+  index = LLVMBuildLoad_P(c->builder, index, "");
 
   LLVMValueRef has_trait = LLVMBuildAnd(c->builder, index, mask, "");
   has_trait = LLVMBuildICmp(c->builder, LLVMIntNE, has_trait,

@@ -354,8 +354,8 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 
   for(int i = 1; i < (int)count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 2, "");
-    args[i] = LLVMBuildLoad(c->builder, field, "");
+    LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, msg, i + 2, "");
+    args[i] = LLVMBuildLoad_P(c->builder, field, "");
     args[i] = gen_assign_cast(c, param_types[i], args[i],
       params[i - 1].type->ast_cap);
   }
@@ -410,9 +410,10 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
     if(final_fn == NULL)
       continue;
 
-    LLVMValueRef field_ref = LLVMBuildStructGEP(c->builder, obj, base + i, "");
+    LLVMValueRef field_ref = LLVMBuildStructGEP_P(c->builder, obj, base + i,
+      "");
     codegen_debugloc(c, call_location);
-    LLVMBuildCall(c->builder, final_fn, &field_ref, 1, "");
+    LLVMBuildCall_P(c->builder, final_fn, &field_ref, 1, "");
     codegen_debugloc(c, NULL);
   }
 }

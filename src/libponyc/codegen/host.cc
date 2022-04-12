@@ -4,6 +4,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Linker/Linker.h>
@@ -135,6 +136,67 @@ void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
   MDNode *cn = extractMDNode(unwrap<MetadataAsValue>(node));
   pn->replaceOperandWith(i, cn);
 }
+
+LLVMValueRef LLVMBuildStructGEP_P(LLVMBuilderRef B, LLVMValueRef Pointer,
+  unsigned Idx, const char *Name)
+{
+  Value *Val = unwrap(Pointer);
+  Type *Ty = Val->getType()->getScalarType()->getNonOpaquePointerElementType();
+  return wrap(unwrap(B)->CreateStructGEP(Ty, Val, Idx, Name));
+}
+
+LLVMValueRef LLVMConstInBoundsGEP_P(LLVMValueRef ConstantVal,
+                                  LLVMValueRef *ConstantIndices,
+                                  unsigned NumIndices) {
+  ArrayRef<Constant *> IdxList(unwrap<Constant>(ConstantIndices, NumIndices),
+                               NumIndices);
+  Constant *Val = unwrap<Constant>(ConstantVal);
+  Type *Ty = Val->getType()->getScalarType()->getNonOpaquePointerElementType();
+  return wrap(ConstantExpr::getInBoundsGetElementPtr(Ty, Val, IdxList));
+}
+
+LLVMValueRef LLVMBuildInBoundsGEP_P(LLVMBuilderRef B, LLVMValueRef Pointer,
+                                  LLVMValueRef *Indices, unsigned NumIndices,
+                                  const char *Name) {
+  ArrayRef<Value *> IdxList(unwrap(Indices), NumIndices);
+  Value *Val = unwrap(Pointer);
+  Type *Ty = Val->getType()->getScalarType()->getNonOpaquePointerElementType();
+  return wrap(unwrap(B)->CreateInBoundsGEP(Ty, Val, IdxList, Name));
+}
+
+LLVMValueRef LLVMBuildLoad_P(LLVMBuilderRef B, LLVMValueRef PointerVal,
+                           const char *Name) {
+  Value *V = unwrap(PointerVal);
+  PointerType *Ty = cast<PointerType>(V->getType());
+
+  return wrap(
+      unwrap(B)->CreateLoad(Ty->getNonOpaquePointerElementType(), V, Name));
+}
+
+LLVMValueRef LLVMBuildCall_P(LLVMBuilderRef B, LLVMValueRef Fn,
+                           LLVMValueRef *Args, unsigned NumArgs,
+                           const char *Name) {
+  Value *V = unwrap(Fn);
+  FunctionType *FnT =
+      cast<FunctionType>(V->getType()->getNonOpaquePointerElementType());
+
+  return wrap(unwrap(B)->CreateCall(FnT, unwrap(Fn),
+                                    makeArrayRef(unwrap(Args), NumArgs), Name));
+}
+
+LLVMValueRef LLVMBuildInvoke_P(LLVMBuilderRef B, LLVMValueRef Fn,
+                             LLVMValueRef *Args, unsigned NumArgs,
+                             LLVMBasicBlockRef Then, LLVMBasicBlockRef Catch,
+                             const char *Name) {
+  Value *V = unwrap(Fn);
+  FunctionType *FnT =
+      cast<FunctionType>(V->getType()->getNonOpaquePointerElementType());
+
+  return wrap(
+      unwrap(B)->CreateInvoke(FnT, unwrap(Fn), unwrap(Then), unwrap(Catch),
+                              makeArrayRef(unwrap(Args), NumArgs), Name));
+}
+
 
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
 {

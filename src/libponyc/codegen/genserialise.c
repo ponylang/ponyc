@@ -23,11 +23,11 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
       if(c_t->primitive != NULL)
       {
-        LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, 1, "");
+        LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, object, 1, "");
         LLVMValueRef f_size = LLVMConstInt(c->intptr,
           LLVMOffsetOfElement(c->target_data, structure, 1), false);
-        LLVMValueRef f_offset = LLVMBuildInBoundsGEP(c->builder, offset,
-                                                     &f_size, 1, "");
+        LLVMValueRef f_offset = LLVMBuildInBoundsGEP_P(c->builder, offset,
+          &f_size, 1, "");
 
         genserialise_element(c, t, false, ctx, field, f_offset);
       }
@@ -55,10 +55,10 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
       if(LLVMTypeOf(object) == c_t->structure_ptr)
       {
         genserialise_typeid(c, t, offset);
-        object = LLVMBuildStructGEP(c->builder, object, 1, "");
+        object = LLVMBuildStructGEP_P(c->builder, object, 1, "");
         LLVMValueRef size = LLVMConstInt(c->intptr,
           LLVMOffsetOfElement(c->target_data, structure, 1), false);
-        offset = LLVMBuildInBoundsGEP(c->builder, offset, &size, 1, "");
+        offset = LLVMBuildInBoundsGEP_P(c->builder, offset, &size, 1, "");
       }
 
       structure = c_t->primitive;
@@ -70,10 +70,11 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
+    LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, object, i + extra,
+      "");
     LLVMValueRef f_size = LLVMConstInt(c->intptr,
       LLVMOffsetOfElement(c->target_data, structure, i + extra), false);
-    LLVMValueRef f_offset = LLVMBuildInBoundsGEP(c->builder, offset, &f_size,
+    LLVMValueRef f_offset = LLVMBuildInBoundsGEP_P(c->builder, offset, &f_size,
       1, "");
 
     genserialise_element(c, t->fields[i].type, t->fields[i].embed,
@@ -84,7 +85,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   {
     LLVMValueRef f_size = LLVMConstInt(c->intptr,
       LLVMStoreSizeOfType(c->target_data, structure), false);
-    LLVMValueRef f_offset = LLVMBuildInBoundsGEP(c->builder, offset, &f_size,
+    LLVMValueRef f_offset = LLVMBuildInBoundsGEP_P(c->builder, offset, &f_size,
       1, "");
 
     LLVMValueRef args[2];
@@ -121,7 +122,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
 
   LLVMBasicBlockRef current_block = LLVMGetInsertBlock(c->builder);
 
-  LLVMValueRef obj = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef obj = LLVMBuildLoad_P(c->builder, ptr, "");
   obj = LLVMBuildBitCast(c->builder, obj, c->void_ptr, "");
 
   LLVMBasicBlockRef post_block = codegen_block(c, "bare_post");
@@ -168,7 +169,7 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
     serialise(c, t, ctx, ptr, offset);
   } else if(c_t->primitive != NULL) {
     // Machine word, write the bits to the buffer.
-    LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+    LLVMValueRef value = LLVMBuildLoad_P(c->builder, ptr, "");
     LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
       LLVMPointerType(c_t->mem_type, 0), "");
     LLVMBuildStore(c->builder, value, loc);
@@ -191,7 +192,7 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
     }
   } else {
     // Lookup the pointer and get the offset, write that.
-    LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+    LLVMValueRef value = LLVMBuildLoad_P(c->builder, ptr, "");
 
     LLVMValueRef args[2];
     args[0] = ctx;
@@ -226,8 +227,8 @@ static void make_serialise(compile_t* c, reach_type_t* t)
 
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, c_t->structure_ptr,
     "");
-  LLVMValueRef offset_addr = LLVMBuildInBoundsGEP(c->builder, addr, &offset, 1,
-    "");
+  LLVMValueRef offset_addr = LLVMBuildInBoundsGEP_P(c->builder, addr, &offset,
+    1, "");
 
   serialise(c, t, ctx, object, offset_addr);
 
@@ -266,7 +267,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
       if(LLVMTypeOf(object) == c_t->structure_ptr)
       {
         gendeserialise_typeid(c, c_t, object);
-        object = LLVMBuildStructGEP(c->builder, object, 1, "");
+        object = LLVMBuildStructGEP_P(c->builder, object, 1, "");
       }
       break;
     }
@@ -276,7 +277,8 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
   for(uint32_t i = 0; i < t->field_count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
+    LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, object, i + extra,
+      "");
     gendeserialise_element(c, t->fields[i].type, t->fields[i].embed,
       ctx, field);
   }
@@ -285,21 +287,21 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 void gendeserialise_typeid(compile_t* c, compile_type_t* t, LLVMValueRef object)
 {
   // Write the descriptor instead of the type id.
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, object, 0, "");
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP_P(c->builder, object, 0, "");
   LLVMBuildStore(c->builder, t->desc, desc_ptr);
 }
 
 static void deserialise_bare_interface(compile_t* c, LLVMValueRef ptr)
 {
-  LLVMValueRef type_id = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef type_id = LLVMBuildLoad_P(c->builder, ptr, "");
 
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i32, 0, false);
   args[1] = LLVMBuildPtrToInt(c->builder, type_id, c->intptr, "");
 
-  LLVMValueRef desc = LLVMBuildInBoundsGEP(c->builder, c->desc_table, args, 2,
+  LLVMValueRef desc = LLVMBuildInBoundsGEP_P(c->builder, c->desc_table, args, 2,
     "");
-  desc = LLVMBuildLoad(c->builder, desc, "");
+  desc = LLVMBuildLoad_P(c->builder, desc, "");
   LLVMValueRef func = gendesc_instance(c, desc);
   LLVMBuildStore(c->builder, func, ptr);
 }
@@ -338,7 +340,7 @@ void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
     }
   } else {
     // Lookup the pointer and write that.
-    LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+    LLVMValueRef value = LLVMBuildLoad_P(c->builder, ptr, "");
 
     LLVMValueRef args[3];
     args[0] = ctx;
