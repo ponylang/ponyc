@@ -99,7 +99,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     // discarded.
     if(is_dontcare)
     {
-      ast_t* p_type = consume_type(type, TK_NONE, false);
+      ast_t* p_type = consume_type(type, TK_NONE);
       ast_t* v_type = ast_type(value);
       errorframe_t info = NULL;
       errorframe_t frame = NULL;

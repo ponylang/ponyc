@@ -320,7 +320,7 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
     astlist_t* cursor = possible_element_types;
     for(; cursor != NULL; cursor = astlist_next(cursor))
     {
-      ast_t* cursor_type = consume_type(astlist_data(cursor), TK_NONE, false);
+      ast_t* cursor_type = consume_type(astlist_data(cursor), TK_NONE);
 
       bool supertype_of_all = true;
       ast_t* elem = ast_child(ast_childidx(ast, 1));
@@ -452,7 +452,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return false;
 
       c_type = ast_type(ele); // May have changed due to literals
-      ast_t* w_type = consume_type(type, TK_NONE, false);
+      ast_t* w_type = consume_type(type, TK_NONE);
 
       errorframe_t info = NULL;
       errorframe_t frame = NULL;

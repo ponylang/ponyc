@@ -166,7 +166,7 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     if(is_typecheck_error(init_type))
       return false;
 
-    type = consume_type(type, TK_NONE, false);
+    type = consume_type(type, TK_NONE);
     errorframe_t err = NULL;
     errorframe_t err2 = NULL;
 
@@ -545,7 +545,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   // Automatically consume a local if the function is done.
   ast_t* r_type = type;
   if(is_method_return(&opt->check, ast))
-    r_type = consume_type(type, TK_NONE, false);
+    r_type = consume_type(type, TK_NONE);
 
   ast_settype(ast, r_type);
   return true;
@@ -576,7 +576,7 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
   // Automatically consume a parameter if the function is done.
   ast_t* r_type = type;
   if(is_method_return(&opt->check, ast))
-    r_type = consume_type(type, TK_NONE, false);
+    r_type = consume_type(type, TK_NONE);
 
   ast_settype(ast, r_type);
   return true;

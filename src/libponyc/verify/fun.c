@@ -554,7 +554,7 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
   for(ast_t* param = ast_child(params); param != NULL; param = ast_sibling(param))
   {
     ast_t* p_type = ast_type(param);
-    if(consume_type(p_type, TK_NONE, false) == NULL)
+    if(consume_type(p_type, TK_NONE) == NULL)
     {
       ast_error(opt->check.errors, p_type, "illegal type for parameter");
       return false;

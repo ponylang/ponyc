@@ -10,7 +10,7 @@ PONY_EXTERN_C_BEGIN
 // Alias a type in expression handling.
 ast_t* alias(ast_t* type);
 
-ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral);
+ast_t* consume_type(ast_t* type, token_id cap);
 
 ast_t* recover_type(ast_t* type, token_id cap);
 

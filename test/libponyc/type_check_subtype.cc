@@ -367,8 +367,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ASSERT_TRUE(is_subtype(type_of("t1valand2box"), type_of("t1val"), NULL, &opt));
 
   // ephemerals
-  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE, true);
-  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE, true);
+  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE);
+  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE);
   ASSERT_TRUE(is_subtype(t3isohat, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t3isohat, type_of("t1valand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t3trnhat, type_of("t1refand2box"), NULL, &opt));
@@ -376,8 +376,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ast_free_unattached(t3isohat);
   ast_free_unattached(t3trnhat);
 
-  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE, true);
-  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE, true);
+  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE);
+  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE);
   ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t1t2trn, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1valand2box"), NULL, &opt));

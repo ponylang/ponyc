@@ -484,7 +484,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(!check_embed_construction(opt, left, right))
     return false;
 
-  ast_settype(ast, consume_type(l_type, TK_NONE, false));
+  ast_settype(ast, consume_type(l_type, TK_NONE));
   return true;
 }
 
@@ -683,7 +683,7 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
     return false;
 
   token_id tcap = ast_id(cap);
-  ast_t* c_type = consume_type(type, tcap, false);
+  ast_t* c_type = consume_type(type, tcap);
 
   if(c_type == NULL)
   {

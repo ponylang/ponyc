@@ -533,10 +533,10 @@ TEST_F(MatchTypeTest, GenericCap)
   ast_t* any_base = type_of("any");
 
   ast_t* read = type_of("read");
-  ast_t* send = consume_type(send_base, TK_NONE, true);
+  ast_t* send = consume_type(send_base, TK_NONE);
   ast_t* share = type_of("share");
   ast_t* alias = type_of("alias");
-  ast_t* any = consume_type(any_base, TK_NONE, true);
+  ast_t* any = consume_type(any_base, TK_NONE);
 
   ast_t* iso = type_of("iso'");
   ast_t* trn = type_of("trn'");

@@ -181,7 +181,7 @@ static ast_t* recover_single(ast_t* type, token_id rcap,
   return type;
 }
 
-static ast_t* consume_single(ast_t* type, token_id ccap, bool keep_double_ephemeral)
+static ast_t* consume_single(ast_t* type, token_id ccap)
 {
   type = ast_dup(type);
   ast_t* cap = cap_fetch(type);
@@ -207,11 +207,8 @@ static ast_t* consume_single(ast_t* type, token_id ccap, bool keep_double_epheme
       {
         case TK_ISO:
         case TK_TRN:
-          if (!keep_double_ephemeral)
-          {
-            ast_free_unattached(type);
-            return NULL;
-          }
+          ast_free_unattached(type);
+          return NULL;
 
         default: {}
       }
@@ -294,7 +291,7 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
+ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
@@ -309,7 +306,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+        ast_t* r_right = consume_type(child, cap);
 
         if(r_right == NULL)
         {
@@ -345,7 +342,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+        ast_t* r_right = consume_type(child, cap);
 
         if(r_right != NULL)
         {
@@ -369,7 +366,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return consume_single(type, cap, keep_double_ephemeral);
+      return consume_single(type, cap);
 
     case TK_ARROW:
     {
@@ -377,7 +374,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
-      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral);
+      ast_t* r_right = consume_type(right, cap);
       if (r_right == NULL)
       {
         return NULL;

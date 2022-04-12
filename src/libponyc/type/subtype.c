@@ -341,8 +341,8 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   while((sub_param != NULL) && (super_param != NULL))
   {
     // observational: must pass K^ to argument of type K
-    ast_t* sub_type = consume_type(ast_childidx(sub_param, 1), TK_NONE, false);
-    ast_t* super_type = consume_type(ast_childidx(super_param, 1), TK_NONE, false);
+    ast_t* sub_type = consume_type(ast_childidx(sub_param, 1), TK_NONE);
+    ast_t* super_type = consume_type(ast_childidx(super_param, 1), TK_NONE);
     if (sub_type == NULL || super_type == NULL)
     {
       // invalid function types
