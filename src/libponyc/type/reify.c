@@ -34,7 +34,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   {
     case TK_EPHEMERAL:
     {
-      ast_t* new_typearg = consume_type(typearg, TK_NONE, false);
+      ast_t* new_typearg = consume_type(typearg, TK_NONE);
       // Will be NULL when instantiation produces double ephemerals A^^
       // or equivalent.
       //
