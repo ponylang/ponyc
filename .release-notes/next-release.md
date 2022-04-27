@@ -200,3 +200,13 @@ we haven't had a crash reported for this code path.
 
 Now that path has been fixed by rearranging the order of the code.
 
+## Add prebuilt ponyc binaries for Ubuntu 22.04
+
+We've added prebuilt ponyc binaries specifically made to work on Ubuntu 22.04.
+
+You can opt into using the Ubuntu binaries when using ponyup by running:
+
+```bash
+ponyup default ubuntu22.04
+```
+
