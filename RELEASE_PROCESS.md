@@ -52,6 +52,7 @@ Package names will be:
 * ponyc-x86-64-unknown-linux-rocky8.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz
+* ponyc-x86-64-unknown-linux-ubuntu22.04.tar.gz
 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
