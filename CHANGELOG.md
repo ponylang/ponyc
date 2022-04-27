@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Allow to override the return type of FFI functions ([PR #4060](https://github.com/ponylang/ponyc/pull/4060))
+- Add prebuilt ponyc releases for Ubuntu 22.04 ([PR #4097](https://github.com/ponylang/ponyc/pull/4097))
 
 ### Changed
 
