@@ -50,12 +50,12 @@ task:
   timeout_in: 120m
 
   arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+    IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
 
   name: "aarch64 Linux glibc"
 
