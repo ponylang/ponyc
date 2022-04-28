@@ -10,9 +10,9 @@ task:
   matrix:
   - name: "x86-64 Linux glibc"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
   - name: "x86-64 Linux musl"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
