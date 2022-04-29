@@ -671,28 +671,28 @@ task:
   timeout_in: 120m
 
   arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
     cpu: 8
     memory: 4
 
   matrix:
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
         TARGET: test-stress-release
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [debug]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
         TARGET: test-stress-debug
       depends_on:
         - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
         TARGET: test-stress-with-cd-release
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu20.04-builder:20211003
+        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
         TARGET: test-stress-with-cd-debug
       depends_on:
         - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
