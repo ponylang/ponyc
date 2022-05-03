@@ -17,6 +17,7 @@
 #  include <atomic>
 #  define PONY_ATOMIC(T) std::atomic<T>
 #  define PONY_ATOMIC_RVALUE(T) std::atomic<T>
+#  define PONY_ATOMIC_INIT(T, N, V) std::atomic<T> N{V}
 #  ifdef PONY_WANT_ATOMIC_DEFS
 using std::memory_order_relaxed;
 using std::memory_order_consume;
@@ -42,16 +43,19 @@ using std::atomic_thread_fence;
 #      include <atomic>
 #      define PONY_ATOMIC(T) std::atomic<T>
 #      define PONY_ATOMIC_RVALUE(T) std::atomic<T>
+#      define PONY_ATOMIC_INIT(T, N, V) std::atomic<T> N{V}
 #    else
 #      ifdef PONY_WANT_ATOMIC_DEFS
 #        include <stdatomic.h>
 #      endif
 #      define PONY_ATOMIC(T) T _Atomic
 #      define PONY_ATOMIC_RVALUE(T) T _Atomic
+#      define PONY_ATOMIC_INIT(T, N, V) T _Atomic N = V
 #    endif
 #  elif ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((4) << 16) + (7))
 #    define PONY_ATOMIC(T) alignas(sizeof(T)) T
 #    define PONY_ATOMIC_RVALUE(T) T
+#    define PONY_ATOMIC_INIT(T, N, V) T N = V
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use GCC >= 4.7"
@@ -63,9 +67,11 @@ using std::atomic_thread_fence;
 #    endif
 #    define PONY_ATOMIC(T) T _Atomic
 #    define PONY_ATOMIC_RVALUE(T) T _Atomic
+#    define PONY_ATOMIC_INIT(T, N, V) T _Atomic N = V
 #  elif __clang_major__ >= 3 && __clang_minor__ >= 4
 #    define PONY_ATOMIC(T) alignas(sizeof(T)) T
 #    define PONY_ATOMIC_RVALUE(T) T
+#    define PONY_ATOMIC_INIT(T, N, V) T N = V
 #    define PONY_ATOMIC_BUILTINS
 #  else
 #    error "Please use Clang >= 3.4"

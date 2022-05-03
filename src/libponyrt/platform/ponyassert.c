@@ -16,7 +16,7 @@
 
 #include <pony/detail/atomics.h>
 
-static PONY_ATOMIC(bool) assert_guard = false;
+static PONY_ATOMIC_INIT(bool, assert_guard, false);
 
 #ifdef PLATFORM_IS_POSIX_BASED
 
