@@ -48,16 +48,16 @@ class box CommandHelp
     _parent = parent'
     _spec = spec'
 
-  fun box fullname(): String =>
+  fun fullname(): String =>
     match _parent
     | let p: CommandHelp => p.fullname() + " " + _spec.name()
     else
       _spec.name()
     end
 
-  fun box string(): String => fullname()
+  fun string(): String => fullname()
 
-  fun box help_string(): String =>
+  fun help_string(): String =>
     """
     Renders the help message as a String.
     """
@@ -67,7 +67,7 @@ class box CommandHelp
     for bytes in w.done().values() do str.append(bytes) end
     str
 
-  fun box print_help(os: OutStream) =>
+  fun print_help(os: OutStream) =>
     """
     Prints the help message to an OutStream.
     """
@@ -75,7 +75,7 @@ class box CommandHelp
     _write_help(w)
     os.writev(w.done())
 
-  fun box _write_help(w: Writer) =>
+  fun _write_help(w: Writer) =>
     _write_usage(w)
     if _spec.descr().size() > 0 then
       w.write("\n")
@@ -97,7 +97,7 @@ class box CommandHelp
       _write_args(w, args)
     end
 
-  fun box _write_usage(w: Writer) =>
+  fun _write_usage(w: Writer) =>
     w.write("usage: " + fullname())
     if _any_options() then
       w.write(" [<options>]")
@@ -114,19 +114,19 @@ class box CommandHelp
     end
     w.write("\n")
 
-  fun box _write_options(w: Writer, options: Array[OptionSpec box] box) =>
+  fun _write_options(w: Writer, options: Array[OptionSpec box] box) =>
     let cols = Array[(USize,String,String)]()
     for o in options.values() do
       cols.push((2, o.help_string(), o.descr()))
     end
     _Columns.write(w, cols)
 
-  fun box _write_commands(w: Writer) =>
+  fun _write_commands(w: Writer) =>
     let cols = Array[(USize,String,String)]()
     _list_commands(_spec, cols, 1)
     _Columns.write(w, cols)
 
-  fun box _list_commands(
+  fun _list_commands(
     cs: CommandSpec box,
     cols: Array[(USize,String,String)],
     level: USize)
@@ -136,14 +136,14 @@ class box CommandHelp
       _list_commands(c, cols, level + 1)
     end
 
-  fun box _write_args(w: Writer, args: Array[ArgSpec] box) =>
+  fun _write_args(w: Writer, args: Array[ArgSpec] box) =>
     let cols = Array[(USize,String,String)]()
     for a in args.values() do
       cols.push((2, a.help_string(), a.descr()))
     end
     _Columns.write(w, cols)
 
-  fun box _any_options(): Bool =>
+  fun _any_options(): Bool =>
     if _spec.options().size() > 0 then
       true
     else
@@ -154,12 +154,12 @@ class box CommandHelp
       end
     end
 
-  fun box _all_options(): Array[OptionSpec box] =>
+  fun _all_options(): Array[OptionSpec box] =>
     let options = Array[OptionSpec box]()
     _all_options_fill(options)
     options
 
-  fun box _all_options_fill(options: Array[OptionSpec box]) =>
+  fun _all_options_fill(options: Array[OptionSpec box]) =>
     match _parent
     | let p: CommandHelp => p._all_options_fill(options)
     end

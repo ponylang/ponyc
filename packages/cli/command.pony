@@ -48,13 +48,13 @@ class box Command
     """
     _fullname
 
-  fun box option(name: String): Option =>
+  fun option(name: String): Option =>
     """
     Returns the Option by name, defaulting to a fake Option if unknown.
     """
     try _options(name)? else Option(OptionSpec.bool(name), false) end
 
-  fun box arg(name: String): Arg =>
+  fun arg(name: String): Arg =>
     """
     Returns the Arg by name, defaulting to a fake Arg if unknown.
     """

@@ -179,7 +179,7 @@ class Array[A] is Seq[A]
       _ptr = _ptr._realloc(_alloc)
     end
 
-  fun box _element_size(): USize =>
+  fun _element_size(): USize =>
     """
     Element size in bytes for an element.
     """
@@ -210,7 +210,7 @@ class Array[A] is Seq[A]
     reserve(len)
     _size = len
 
-  fun box read_u8[B: (A & Real[B] val & U8) = A](offset: USize): U8 ? =>
+  fun read_u8[B: (A & Real[B] val & U8) = A](offset: USize): U8 ? =>
     """
     Reads a U8 from offset. This is only allowed for an array of U8s.
     """
@@ -220,7 +220,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun box read_u16[B: (A & Real[B] val & U8) = A](offset: USize): U16 ? =>
+  fun read_u16[B: (A & Real[B] val & U8) = A](offset: USize): U16 ? =>
     """
     Reads a U16 from offset. This is only allowed for an array of U8s.
     """
@@ -231,7 +231,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun box read_u32[B: (A & Real[B] val & U8) = A](offset: USize): U32 ? =>
+  fun read_u32[B: (A & Real[B] val & U8) = A](offset: USize): U32 ? =>
     """
     Reads a U32 from offset. This is only allowed for an array of U8s.
     """
@@ -242,7 +242,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun box read_u64[B: (A & Real[B] val & U8) = A](offset: USize): U64 ? =>
+  fun read_u64[B: (A & Real[B] val & U8) = A](offset: USize): U64 ? =>
     """
     Reads a U64 from offset. This is only allowed for an array of U8s.
     """
@@ -253,7 +253,7 @@ class Array[A] is Seq[A]
       error
     end
 
-  fun box read_u128[B: (A & Real[B] val & U8) = A](offset: USize): U128 ? =>
+  fun read_u128[B: (A & Real[B] val & U8) = A](offset: USize): U128 ? =>
     """
     Reads a U128 from offset. This is only allowed for an array of U8s.
     """

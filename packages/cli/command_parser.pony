@@ -341,7 +341,7 @@ primitive _ArgParser
     end
 
 primitive _ValueParser
-  fun box parse(typ: _ValueType, arg: String): (_Value | SyntaxError) =>
+  fun parse(typ: _ValueType, arg: String): (_Value | SyntaxError) =>
     try
       typ.value_of(arg)?
     else
