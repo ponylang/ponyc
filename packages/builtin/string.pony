@@ -206,7 +206,7 @@ actor Main
     end
     _set(_size, 0)
 
-  fun box _copy_to(ptr: Pointer[U8] ref, copy_len: USize,
+  fun _copy_to(ptr: Pointer[U8] ref, copy_len: USize,
     from_offset: USize = 0, to_offset: USize = 0) =>
     """
     Copy `copy_len` bytes from this to that at specified offsets.
