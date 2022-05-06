@@ -678,6 +678,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
     LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
     LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
 
+    LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, align_attr);
   }
