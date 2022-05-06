@@ -298,7 +298,6 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
@@ -346,7 +345,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -360,7 +359,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_small_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -374,7 +373,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_large_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -389,7 +388,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -403,7 +402,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -417,7 +416,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_small_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -431,7 +430,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_large_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
@@ -445,7 +444,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // void pony_trace(i8*, i8*)
@@ -558,7 +557,7 @@ static void init_runtime(compile_t* c)
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
 
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;

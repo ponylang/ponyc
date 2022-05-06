@@ -117,7 +117,6 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable_or_null, size);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
 
-  LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
 
@@ -151,7 +150,7 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable_or_null, size);
   LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
 
-  LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
+  //LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
 

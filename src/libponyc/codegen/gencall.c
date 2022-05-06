@@ -346,8 +346,7 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
   compile_type_t* c_t = (compile_type_t*) t->c_type;
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP_P(c->builder, value, 0, "");
-  LLVMValueRef store_inst = LLVMBuildStore(c->builder, c_t->desc, desc_ptr);
-  LLVMSetVolatile(store_inst, true);
+  LLVMBuildStore(c->builder, c_t->desc, desc_ptr);
 }
 
 // This function builds a stack of indices such that for an AST nested in an
