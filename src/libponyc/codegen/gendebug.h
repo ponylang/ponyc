@@ -76,9 +76,6 @@ LLVMMetadataRef LLVMDIBuilderGetOrCreateArray(LLVMDIBuilderRef d,
 LLVMMetadataRef LLVMDIBuilderGetOrCreateTypeArray(LLVMDIBuilderRef d,
   LLVMMetadataRef* data, size_t length);
 
-LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef d,
-  int64_t* addr, size_t length);
-
 LLVMValueRef LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
   LLVMValueRef value, LLVMMetadataRef info, LLVMMetadataRef expr,
   unsigned line, unsigned col, LLVMMetadataRef scope, LLVMBasicBlockRef block);

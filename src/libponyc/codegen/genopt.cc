@@ -633,7 +633,7 @@ public:
 
     int alloc_type;
 
-    if(call.getNumArgOperands() < 2)
+    if(call.arg_size() < 2)
       return false;
 
     Value* arg0 = call.getArgOperand(0);
@@ -861,21 +861,17 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
       &m);
 
-    unsigned functionIndex = AttributeList::FunctionIndex;
-    unsigned returnIndex = AttributeList::ReturnIndex;
+    fn->addFnAttr(Attribute::NoUnwind);
+    fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
 
-    fn->addAttribute(functionIndex, Attribute::NoUnwind);
-    fn->addAttribute(functionIndex,
-      Attribute::InaccessibleMemOrArgMemOnly);
-
+    AttrBuilder attrs(m.getContext());
     if(can_be_null)
-      fn->addDereferenceableOrNullAttr(returnIndex, min_size);
+      attrs.addDereferenceableOrNullAttr(min_size);
     else
-      fn->addDereferenceableAttr(returnIndex, min_size);
+      attrs.addDereferenceableAttr(min_size);
+    attrs.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
+    fn->addRetAttrs(attrs);
 
-    AttrBuilder attr;
-    attr.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
-    fn->addAttributes(returnIndex, AttributeSet::get(m.getContext(), attr));
     return fn;
   }
 
@@ -1302,9 +1298,7 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
 
-    unsigned functionIndex = AttributeList::FunctionIndex;
-
-    fn->addAttribute(functionIndex, Attribute::NoUnwind);
+    fn->addFnAttr(Attribute::NoUnwind);
     return fn;
   }
 
@@ -1317,10 +1311,10 @@ public:
 
     unsigned functionIndex = AttributeList::FunctionIndex;
 
-    fn->addAttribute(functionIndex, Attribute::NoUnwind);
-    fn->addAttribute(functionIndex, Attribute::ArgMemOnly);
-    fn->addAttribute(1, Attribute::NoCapture);
-    fn->addAttribute(2, Attribute::ReadNone);
+    fn->addFnAttr(Attribute::NoUnwind);
+    fn->addFnAttr(Attribute::ArgMemOnly);
+    fn->addParamAttr(1, Attribute::NoCapture);
+    fn->addParamAttr(2, Attribute::ReadNone);
     return fn;
   }
 };

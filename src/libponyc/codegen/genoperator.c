@@ -329,7 +329,7 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
   reach_type_t* t = reach_type(c->reach, l_type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
+  LLVMValueRef result = LLVMBuildLoad_P(c->builder, l_value, "");
   result = gen_assign_cast(c, c_t->use_type, result, l_type);
 
   // Cast the rvalue appropriately.
@@ -351,7 +351,7 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   pony_assert(t != NULL);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
+  LLVMValueRef result = LLVMBuildLoad_P(c->builder, l_value, "");
 
   // Cast the rvalue appropriately.
   r_value = gen_assign_cast(c, c_t->mem_type, r_value, r_type);

@@ -75,17 +75,19 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
 
   LLVMPositionBuilderAtEnd(c->builder, this_block);
 
-  LLVMValueRef field = LLVMBuildStructGEP(c->builder, lfi_object, 0, "");
+  LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, lfi_object, 0, "");
   LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
 
-  field = LLVMBuildStructGEP(c->builder, lfi_object, 1, "");
+  field = LLVMBuildStructGEP_P(c->builder, lfi_object, 1,
+    "");
   LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
 
-  field = LLVMBuildStructGEP(c->builder, lfi_object, 2, "");
+  field = LLVMBuildStructGEP_P(c->builder, lfi_object, 2,
+    "");
   LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, c->desc_table,
     desc_ptr_ptr, ""), field);
 
-  field = LLVMBuildStructGEP(c->builder, lfi_object, 3, "");
+  field = LLVMBuildStructGEP_P(c->builder, lfi_object, 3, "");
   LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
     field);
 
@@ -138,7 +140,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   // Run primitive initialisers using the main actor's heap.
   if(c->primitives_init != NULL)
-    LLVMBuildCall(c->builder, c->primitives_init, NULL, 0, "");
+    LLVMBuildCall_P(c->builder, c->primitives_init, NULL, 0, "");
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -159,7 +161,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   // Set the message contents.
-  LLVMValueRef env_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, 3, "");
+  LLVMValueRef env_ptr = LLVMBuildStructGEP_P(c->builder, msg_ptr, 3, "");
   LLVMBuildStore(c->builder, env, env_ptr);
 
   // Trace the message.
@@ -207,7 +209,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   if(c->primitives_final != NULL)
   {
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
-    LLVMBuildCall(c->builder, c->primitives_final, NULL, 0, "");
+    LLVMBuildCall_P(c->builder, c->primitives_final, NULL, 0, "");
     args[0] = ctx;
     args[1] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 2, "");

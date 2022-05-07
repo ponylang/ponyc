@@ -141,7 +141,7 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
     LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr,
       ptr_type, "");
-    LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
+    LLVMValueRef object = LLVMBuildLoad_P(c->builder, object_ptr, "");
     LLVMValueRef object_desc = gendesc_fetch(c, object);
     object_ptr = gendesc_ptr_to_fields(c, object, object_desc);
 
@@ -285,7 +285,7 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
   LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr, ptr_type,
     "");
-  LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
+  LLVMValueRef object = LLVMBuildLoad_P(c->builder, object_ptr, "");
   LLVMValueRef object_desc = gendesc_fetch(c, object);
 
   if(!dynamic_match_object(c, object, object_desc, pattern, next_block))
@@ -362,7 +362,7 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   LLVMTypeRef ptr_type = LLVMPointerType(((compile_type_t*)t->c_type)->use_type,
     0);
   ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
-  LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef value = LLVMBuildLoad_P(c->builder, ptr, "");
 
   return check_value(c, pattern, param_type, value, next_block);
 }
@@ -400,7 +400,7 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   LLVMTypeRef ptr_type = LLVMPointerType(((compile_type_t*)t->c_type)->use_type,
     0);
   ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
-  LLVMValueRef value = LLVMBuildLoad(c->builder, ptr, "");
+  LLVMValueRef value = LLVMBuildLoad_P(c->builder, ptr, "");
 
   LLVMValueRef r = gen_assign_value(c, pattern, value, pattern_type);
 

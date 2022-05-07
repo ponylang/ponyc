@@ -75,7 +75,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   if(ast_id(def) == TK_ACTOR)
     index++;
 
-  return LLVMBuildStructGEP(c->builder, l_value, index, "");
+  return LLVMBuildStructGEP_P(c->builder, l_value, index, "");
 }
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
@@ -110,7 +110,7 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  field = LLVMBuildLoad(c->builder, field, "");
+  field = LLVMBuildLoad_P(c->builder, field, "");
 
   return gen_assign_cast(c, c_t->use_type, field, t->ast_cap);
 }
@@ -292,7 +292,7 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef value = LLVMBuildLoad(c->builder, local_ptr, "");
+  LLVMValueRef value = LLVMBuildLoad_P(c->builder, local_ptr, "");
   return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }
 
