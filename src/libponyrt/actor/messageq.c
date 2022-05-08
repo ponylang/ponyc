@@ -88,9 +88,9 @@ void ponyint_messageq_init(messageq_t* q)
     memory_order_relaxed);
   q->tail = stub;
 
-#ifndef PONY_NDEBUG
-  messageq_size_debug(q);
-#endif
+// #ifndef PONY_NDEBUG
+//   messageq_size_debug(q);
+// #endif
 }
 
 void ponyint_messageq_destroy(messageq_t* q)
