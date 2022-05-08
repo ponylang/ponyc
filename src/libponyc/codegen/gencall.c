@@ -1202,13 +1202,13 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     size_t index = HASHMAP_UNKNOWN;
 
-#ifndef PONY_NDEBUG
+/*#ifndef PONY_NDEBUG
     ffi_decl_t k;
     k.func = func;
 
     ffi_decl = ffi_decls_get(&c->ffi_decls, &k, &index);
     pony_assert(ffi_decl == NULL);
-#endif
+#endif*/
 
     ffi_decl = POOL_ALLOC(ffi_decl_t);
     ffi_decl->func = func;

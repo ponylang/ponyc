@@ -728,6 +728,7 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
   return true;
 }
 
+/*
 #ifndef NDEBUG
 // Process the llvm-args option and pass to LLVMParseCommandLineOptions
 static void process_llvm_args(pass_opt_t* opt) {
@@ -777,6 +778,7 @@ static void process_llvm_args(pass_opt_t* opt) {
   free(buffer);
 }
 #endif
+*/
 
 bool codegen_llvm_init()
 {
@@ -815,9 +817,9 @@ void codegen_llvm_shutdown()
 
 bool codegen_pass_init(pass_opt_t* opt)
 {
-#ifndef NDEBUG
-  process_llvm_args(opt);
-#endif
+//#ifndef NDEBUG
+//  process_llvm_args(opt);
+//#endif
 
   char *triple;
 
