@@ -28,9 +28,9 @@ struct token_t
     lexint_t integer;
   };
 
-// #ifndef PONY_NDEBUG
-//   bool frozen;
-// #endif
+#ifndef PONY_NDEBUG
+  bool frozen;
+#endif
 };
 
 
@@ -67,7 +67,7 @@ token_t* token_dup(token_t* token)
   token_t* t = POOL_ALLOC(token_t);
   memcpy(t, token, sizeof(token_t));
   t->printed = NULL;
- // t->frozen = false;
+  t->frozen = false;
   return t;
 }
 
@@ -95,10 +95,10 @@ void token_free(token_t* token)
 void token_freeze(token_t* token)
 {
   (void)token;
-// #ifndef PONY_NDEBUG
-//   pony_assert(token != NULL);
-//   token->frozen = true;
-// #endif
+#ifndef PONY_NDEBUG
+  pony_assert(token != NULL);
+  token->frozen = true;
+#endif
 }
 
 
@@ -303,7 +303,7 @@ size_t token_line_position(token_t* token)
 void token_set_id(token_t* token, token_id id)
 {
   pony_assert(token != NULL);
-//  pony_assert(!token->frozen);
+  pony_assert(!token->frozen);
   token->id = id;
 }
 
@@ -312,7 +312,7 @@ void token_set_string(token_t* token, const char* value, size_t length)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_STRING || token->id == TK_ID);
-//  pony_assert(!token->frozen);
+  pony_assert(!token->frozen);
   pony_assert(value != NULL);
 
   if(length == 0)
@@ -327,7 +327,7 @@ void token_set_float(token_t* token, double value)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_FLOAT);
-//  pony_assert(!token->frozen);
+  pony_assert(!token->frozen);
   token->real = value;
 }
 
@@ -336,7 +336,7 @@ void token_set_int(token_t* token, lexint_t* value)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_INT);
-//  pony_assert(!token->frozen);
+  pony_assert(!token->frozen);
   token->integer = *value;
 }
 
@@ -344,7 +344,7 @@ void token_set_int(token_t* token, lexint_t* value)
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 {
   pony_assert(token != NULL);
-//  pony_assert(!token->frozen);
+  pony_assert(!token->frozen);
 
   if(source != NULL)
     token->source = source;
@@ -499,9 +499,9 @@ static void token_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->line = token->line;
   dst->pos = token->pos;
   dst->printed = NULL;
-// #ifndef PONY_NDEBUG
-//   dst->frozen = token->frozen;
-// #endif
+#ifndef PONY_NDEBUG
+  dst->frozen = token->frozen;
+#endif
 
   switch(token->id)
   {
