@@ -646,7 +646,7 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   if(!c->opt->release || c->opt->extfun)
     c->linkage = LLVMExternalLinkage;
   else
-    c->linkage = LLVMPrivateLinkage;
+    c->linkage = LLVMExternalLinkage;
 
   c->machine = make_machine(opt);
 
