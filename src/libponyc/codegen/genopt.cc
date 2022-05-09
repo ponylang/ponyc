@@ -1367,6 +1367,8 @@ static void optimise(compile_t* c, bool pony_specific)
     pmb.MergeFunctions = true;
   } else {
     pmb.OptLevel = 0;
+    pmb.Inliner = createFunctionInliningPass(275);
+    pmb.MergeFunctions = true;
   }
 
   pmb.LoopVectorize = true;
