@@ -200,7 +200,7 @@ static void make_function_debug(compile_t* c, reach_type_t* t,
 
   c_m->di_method = LLVMDIBuilderCreateMethod(c->di, scope, ast_name(id),
     m->full_name, c_m->di_file, (unsigned)ast_line(m->fun->ast), subroutine,
-    func, c->opt->release);
+    func, true);
 
   ponyint_pool_free_size(md_size, md);
 }

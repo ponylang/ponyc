@@ -1287,7 +1287,7 @@ static void platform_debug(compile_t* c, reach_type_t* t, token_id cap)
   FIND_METHOD("debug", cap);
   start_function(c, t, m, c->i1, &c_t->use_type, 1);
 
-  LLVMValueRef result = LLVMConstInt(c->i1, !c->opt->release, false);
+  LLVMValueRef result = LLVMConstInt(c->i1, false, false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }

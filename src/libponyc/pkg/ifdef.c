@@ -446,7 +446,7 @@ bool ifdef_cond_eval(ast_t* ast, pass_opt_t* opt)
   if(ast_id(ast) == TK_NONE)  // No condition to evaluate
     return true;
 
-  return cond_eval(ast, NULL, opt->release, opt);
+  return cond_eval(ast, NULL, true, opt);
 }
 
 

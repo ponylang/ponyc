@@ -678,7 +678,7 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
     strlen(filename), dirname, strlen(dirname));
   c->di_unit = LLVMDIBuilderCreateCompileUnit(c->di,
     LLVMDWARFSourceLanguageC_plus_plus, fileRef,
-    version, strlen(version), opt->release,
+    version, strlen(version), true,
     opt->all_args ? opt->all_args : "",
     opt->all_args ? strlen(opt->all_args) : 0,
     0, "", 0, LLVMDWARFEmissionFull, 0,
