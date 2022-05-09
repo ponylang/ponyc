@@ -61,9 +61,9 @@ void ponyint_mpmcq_init(mpmcq_t* q)
   q->tail.object = node;
   q->tail.counter = 0;
 
-#ifndef PONY_NDEBUG
+//#ifndef PONY_NDEBUG
   //mpmcq_size_debug(q);
-#endif
+//#endif
 }
 
 void ponyint_mpmcq_destroy(mpmcq_t* q)

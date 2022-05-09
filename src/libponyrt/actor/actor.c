@@ -728,7 +728,7 @@ PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   msg->index = index;
   msg->id = id;
 //#ifndef PONY_NDEBUG
-  atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
+//  atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
 //#endif
 
   return msg;
