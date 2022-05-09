@@ -1366,7 +1366,7 @@ static void optimise(compile_t* c, bool pony_specific)
     pmb.Inliner = createFunctionInliningPass(275);
     pmb.MergeFunctions = true;
   } else {
-    pmb.OptLevel = 0;
+    pmb.OptLevel = 3;
     pmb.Inliner = createFunctionInliningPass(275);
     pmb.MergeFunctions = true;
   }
