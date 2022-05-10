@@ -225,9 +225,7 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   vcvars->ucrt[0] = '\0';
   strcpy(vcvars->default_libs,
     "kernel32.lib "
-#if !defined(DEBUG)
     "msvcrt.lib "
-#endif
     "Ws2_32.lib advapi32.lib vcruntime.lib "
     "legacy_stdio_definitions.lib dbghelp.lib");
 
