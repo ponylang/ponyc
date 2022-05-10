@@ -67,7 +67,9 @@ token_t* token_dup(token_t* token)
   token_t* t = POOL_ALLOC(token_t);
   memcpy(t, token, sizeof(token_t));
   t->printed = NULL;
+ #ifndef PONY_NDEBUG
   t->frozen = false;
+#endif
   return t;
 }
 
