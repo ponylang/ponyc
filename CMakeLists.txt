@@ -192,7 +192,6 @@ if(MSVC)
     add_compile_options(
         /wd4142
         /wd4996
-        $<$<CONFIG:Debug>:/MD>
         /WX
         /EHa
     )
