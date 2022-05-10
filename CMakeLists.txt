@@ -199,7 +199,6 @@ if(MSVC)
     add_compile_definitions(
         _MBCS
         _CRT_SECURE_NO_WARNINGS
-        $<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>
     )
 else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall -Wno-unknown-warning-option ${PONY_PIC_FLAG} -fexceptions")
