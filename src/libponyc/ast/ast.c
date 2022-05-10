@@ -1559,7 +1559,9 @@ void ast_free(ast_t* ast)
   if(ast == NULL)
     return;
 
+#ifndef PONY_NDEBUG
   ast->frozen = false;
+#endif
 
   ast_t* child = ast->child;
   ast_t* next;
