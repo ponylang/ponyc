@@ -164,7 +164,7 @@ add_compile_definitions(
     $<$<CONFIG:MinSizeRel>:PONY_BUILD_CONFIG="release">
     PONY_USE_BIGINT
     PONY_VERSION="${PONYC_VERSION}"
-    $<$<CONFIG:Debug>:DEBUG>
+    $<$<CONFIG:Debug>:NDEBUG>
     $<$<CONFIG:Release>:NDEBUG>
     $<$<CONFIG:RelWithDebInfo>:NDEBUG>
     $<$<CONFIG:MinSizeRel>:NDEBUG>
