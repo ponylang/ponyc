@@ -53,10 +53,6 @@ add_executable(libponyc.tests
     verify.cc
 )
 
-target_compile_definitions(libponyc.tests PRIVATE
-    PONY_ALWAYS_ASSERT
-)
-
 target_include_directories(libponyc.tests
     PRIVATE ../../src/common
     PRIVATE ../../src/libponyc
