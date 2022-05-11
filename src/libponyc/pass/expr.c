@@ -377,6 +377,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_FUN:
     {
       ast_t* body = ast_childidx(parent, 6);
+      (void)body;
       pony_assert(ast == body);
 
       ast_t* ret_type = ast_childidx(parent, 4);

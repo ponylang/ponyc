@@ -338,7 +338,6 @@ static void set_scope_and_parent(ast_t* ast, ast_t* parent)
 // Set the scope for the given node, but set it no have no parent
 static void set_scope_no_parent(ast_t* ast, ast_t* scope)
 {
-  ast = NULL;
   pony_assert(ast != NULL);
   pony_assert(!ast->frozen);
 
@@ -1613,6 +1612,7 @@ bool ast_is_frozen(ast_t* ast)
 #ifndef PONY_NDEBUG
   return ast->frozen;
 #else
+  (void)ast;
   return false;
 #endif
 }

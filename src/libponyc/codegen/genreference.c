@@ -129,6 +129,7 @@ LLVMValueRef gen_fieldembed(compile_t* c, ast_t* ast)
 static LLVMValueRef make_tupleelemptr(compile_t* c, LLVMValueRef l_value,
   ast_t* l_type, ast_t* right)
 {
+  (void)l_type;
   pony_assert(ast_id(l_type) == TK_TUPLETYPE);
   int index = (int)ast_int(right)->low;
 

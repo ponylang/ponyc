@@ -286,6 +286,7 @@ const char* program_signature(ast_t* program)
 
     blake2b_state hash_state;
     int status = blake2b_init(&hash_state, SIGNATURE_LENGTH);
+    (void)status;
     pony_assert(status == 0);
 
     package_group_list_t* iter = data->package_groups;
