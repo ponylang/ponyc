@@ -27,10 +27,11 @@ fi
 TODAY=$(date +%Y%m%d)
 
 # Compiler target parameters
-ARCH=arm64
+MACHINE=arm64
+PROCESSOR=armv8
 
 # Triple construction
-TRIPLE=${ARCH}-${TRIPLE_VENDOR}-${TRIPLE_OS}
+TRIPLE=${MACHINE}-${TRIPLE_VENDOR}-${TRIPLE_OS}
 
 # Build parameters
 MAKE_PARALLELISM=8
@@ -53,10 +54,10 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
-make configure arch=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
+make configure arch=${PROCESSOR} build_flags=-j${MAKE_PARALLELISM} \
   version="${PONY_VERSION}"
 make build version="${PONY_VERSION}"
-make install arch=${ARCH} prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
+make install arch=${PROCESSOR} prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."
