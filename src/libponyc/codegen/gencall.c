@@ -1019,6 +1019,7 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
 
   if(t->underlying == TK_TUPLETYPE)
   {
+    (void)intrinsic;
     pony_assert(intrinsic);
 
     // Can't use the named type. Build an unnamed type with the same elements.

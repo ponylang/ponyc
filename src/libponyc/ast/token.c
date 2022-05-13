@@ -430,9 +430,10 @@ static void token_docstring_signature_serialise_trace(pony_ctx_t* ctx,
   void* object)
 {
   (void)ctx;
+  (void)object;
 
   token_t* token = (token_t*)object;
-
+  (void)token;
   pony_assert(token->id == TK_STRING);
 }
 

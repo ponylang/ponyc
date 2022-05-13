@@ -1612,6 +1612,7 @@ bool ast_is_frozen(ast_t* ast)
 #ifndef PONY_NDEBUG
   return ast->frozen;
 #else
+  (void)ast;
   return false;
 #endif
 }
