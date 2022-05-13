@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Update base image for glibc Linux docker images ([PR #4100](https://github.com/ponylang/ponyc/pull/4100))
 - Update LLVM to 14.0.3 ([PR #4055](https://github.com/ponylang/ponyc/pull/4055))
+- Don't use "mostly debug runtime" with release configurations ([PR #4112](https://github.com/ponylang/ponyc/pull/4112))
 
 ## [0.50.0] - 2022-04-30
 
