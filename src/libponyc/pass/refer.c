@@ -702,9 +702,9 @@ static bool qualify_typeref(pass_opt_t* opt, ast_t* ast)
   ast_setdata(ast, (void*)def);
   ast_setid(ast, TK_TYPEREF);
 
-  ast_t* popped = ast_pop(ast);
-  (void)popped;
-  pony_assert(typeref == popped);
+  ast_t* first_child = ast_pop(ast);
+  (void)first_child;
+  pony_assert(typeref == first_child);
   ast_t* package   = ast_pop(typeref);
   ast_t* type_name = ast_pop(typeref);
   ast_free(typeref);
