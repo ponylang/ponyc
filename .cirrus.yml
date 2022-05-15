@@ -416,7 +416,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-base:latest
+    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
 
   name: "nightly: arm64-apple-darwin"
 
@@ -427,7 +427,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-base:latest 20220511"
+    fingerprint_script: echo "`md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
