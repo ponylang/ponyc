@@ -9,6 +9,7 @@ actor Main
       try
         _CliOptions(env)?
       else
+        env.exitcode(1)
         return
       end
 
