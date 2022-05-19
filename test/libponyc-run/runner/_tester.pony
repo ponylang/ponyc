@@ -6,6 +6,7 @@ use "time"
 use "backpressure"
 
 interface tag _TesterNotify
+  be print(name: String, str: String)
   be succeeded(name: String)
   be failed(name: String)
 
@@ -60,7 +61,7 @@ actor _Tester
     _err_buf.append(consume buf)
 
   be start_building() =>
-    _env.out.print(_Colors.run(_definition.name))
+    _notify.print(_definition.name, _Colors.run(_definition.name))
 
     // find ponyc executable
     let ponyc_file_path =
@@ -80,10 +81,11 @@ actor _Tester
         args_join.append(" ")
         args_join.append(arg)
       end
-      _env.out.print(_Colors.info(_definition.name + ": building in: "
-        + _definition.path))
-      _env.out.print(_Colors.info(_definition.name + ": building: "
-        + _options.ponyc + args_join))
+      _notify.print(_definition.name,
+        _Colors.info(_definition.name + ": building in: " + _definition.path))
+      _notify.print(_definition.name,
+        _Colors.info(_definition.name + ": building: " + _options.ponyc
+          + args_join))
     end
 
     // run ponyc to build the test program
@@ -130,8 +132,8 @@ actor _Tester
         end
 
       if _options.verbose then
-        _env.out.print(_Colors.info(_definition.name + ": testing: "
-          + test_fname))
+        _notify.print(_definition.name,
+          _Colors.info(_definition.name + ": testing: " + test_fname))
       end
 
       _out_buf.clear()
@@ -167,7 +169,8 @@ actor _Tester
         if _options.verbose then
           for v in vars.values() do
             if v.contains("DYLD_LIBRARY_PATH") then
-              _env.out.print(_Colors.info(_definition.name + ": testing: " + v))
+              _notify.print(_definition.name,
+                _Colors.info(_definition.name + ": testing: " + v))
             end
           end
         end
@@ -212,7 +215,7 @@ actor _Tester
   fun ref _shutdown_succeeded() =>
     if not (_stage is _Succeeded) then
       _end_ms = Time.millis()
-      _env.out.print(_Colors.ok(_definition.name + " ("
+      _notify.print(_definition.name, _Colors.ok(_definition.name + " ("
         + (_end_ms - _start_ms).string() + " ms)"))
       _timers.cancel(_timer)
       _stage = _Succeeded
@@ -223,7 +226,7 @@ actor _Tester
     if not (_stage is _Failed) then
       _end_ms = Time.millis()
 
-      _env.out.print(_Colors.fail(_definition.name + " ("
+      _notify.print(_definition.name, _Colors.fail(_definition.name + " ("
         + (_end_ms - _start_ms).string() + " ms): " + msg))
 
       match _build_process
@@ -245,10 +248,10 @@ actor _Tester
 
   fun ref _dump_io_streams() =>
     if _out_buf.size() > 0 then
-      _env.out.print(_definition.name + ": STDOUT:\n"
+      _notify.print(_definition.name, _definition.name + ": STDOUT:\n"
         + recover val _out_buf.clone() end)
     end
     if _err_buf.size() > 0 then
-      _env.out.print(_definition.name + ": STDERR\n"
+      _notify.print(_definition.name, _definition.name + ": STDERR\n"
         + recover val _err_buf.clone() end)
     end
