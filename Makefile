@@ -198,13 +198,19 @@ test-libponyrt: all
 test-libponyc: all
 	$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
 
+ifeq ($(shell uname -s),FreeBSD)
+  num_cores := `sysctl -n hw.ncpu`
+else
+  num_cores := `nproc --all`
+endif
+
 test-full-programs-release: all
 	@mkdir -p $(outDir)/runner-tests/release
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --sequential=true --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-full-programs-debug: all
 	@mkdir -p $(outDir)/runner-tests/debug
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --sequential=true --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential
