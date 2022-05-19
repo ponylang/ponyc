@@ -5,8 +5,8 @@ This package provides support for serialising and deserialising arbitrary data
 structures.
 
 The API is designed to require capability tokens, as otherwise serialising
-would leak the bit patterns of all private information in a type (since the
-resulting Array[U8] could be examined.
+would leak the bit patterns of all private information in a type by examining
+the resulting Array[U8].
 
 Deserialisation is fundamentally unsafe currently: there isn't yet a
 verification pass to check that the resulting object graph maintains a
@@ -20,11 +20,11 @@ due to the use of type identifiers rather than a heavy-weight self-describing
 serialisation schema. This also means it isn't safe to deserialise something
 serialised by the same program compiled for a different platform.
 
-The Serialise.signature method is provided for the purposes of comparing
-communicating Pony binaries to determine if they are the same. Confirming this
-before deserialising data can help mitigate the risk of accidental serialisation
-across different Pony binaries, but does not on its own address the security
-issues of accepting data from untrusted sources.
+The [Serialise.signature](serialise-Serialise.md#signature) method is provided
+for the purposes of comparing communicating Pony binaries to determine if they
+are the same. Confirming this before deserialising data can help mitigate the
+risk of accidental serialisation across different Pony binaries, but does not on
+its own address the security issues of accepting data from untrusted sources.
 """
 
 use @"internal.signature"[Array[U8] val]()
@@ -59,7 +59,7 @@ primitive SerialiseAuth
 primitive DeserialiseAuth
   """
   This is a capability token that allows the holder to deserialise objects. It
-  does not allow the holder to serialise objects or examine serialised.
+  does not allow the holder to serialise objects or examine serialised data.
   """
   new create(auth: AmbientAuth) =>
     None
@@ -68,7 +68,7 @@ primitive OutputSerialisedAuth
   """
   This is a capability token that allows the holder to examine serialised data.
   This should only be provided to types that need to write serialised data to
-  some output stream, such as a file or socket. A type with the SerialiseAuth
+  some output stream, such as a file or socket. A type with the [SerialiseAuth](serialise-SerialiseAuth.md)
   capability should usually not also have OutputSerialisedAuth, as the
   combination gives the holder the ability to examine the bitwise contents of
   any object it has a reference to.
@@ -78,7 +78,7 @@ primitive OutputSerialisedAuth
 
 primitive InputSerialisedAuth
   """
-  This is a capability token that allows the holder to treat data arbitrary
+  This is a capability token that allows the holder to treat arbitrary
   bytes as serialised data. This is the most dangerous capability, as currently
   it is possible for a malformed chunk of data to crash your program if it is
   deserialised.
