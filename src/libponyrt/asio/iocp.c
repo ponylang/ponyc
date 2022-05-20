@@ -244,7 +244,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   }
 
   CloseHandle(b->wakeup);
-  ponyint_messageq_destroy(&b->q);
+  ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
   pony_unregister_thread();
   return NULL;

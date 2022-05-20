@@ -1032,7 +1032,7 @@ static void ponyint_sched_shutdown()
       , i
 #endif
       ) != NULL) { ; }
-    ponyint_messageq_destroy(&scheduler[i].mq);
+    ponyint_messageq_destroy(&scheduler[i].mq, false);
     ponyint_mpmcq_destroy(&scheduler[i].q);
 
 #if defined(PLATFORM_IS_WINDOWS)

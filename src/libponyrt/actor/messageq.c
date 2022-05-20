@@ -93,11 +93,20 @@ void ponyint_messageq_init(messageq_t* q)
 #endif
 }
 
-void ponyint_messageq_destroy(messageq_t* q)
+void ponyint_messageq_destroy(messageq_t* q, bool maybe_non_empty)
 {
   pony_msg_t* tail = q->tail;
-  pony_assert((((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
-    ~(uintptr_t)1)) == (uintptr_t)tail);
+
+  // If maybe_non_empty is set to true, we take it to mean that the caller
+  // doesn't care if the queue is non-empty (i.e. a memory leak), such as
+  // when the ASIO thread is destroying its queue at program termination.
+  // That is, the queue may sometimes be non-empty in those cases, but the
+  // otherwise memory leak is not a problem because the program is terminating.
+  (void)maybe_non_empty;
+  pony_assert(maybe_non_empty || (
+    (((uintptr_t)atomic_load_explicit(&q->head, memory_order_acquire) &
+    ~(uintptr_t)1)) == (uintptr_t)tail));
+
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
 #endif
