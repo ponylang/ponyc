@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add prebuilt ponyc releases on MacOS for Apple Silicon ([PR #4119](https://github.com/ponylang/ponyc/pull/4119))
 
 ### Changed
 
