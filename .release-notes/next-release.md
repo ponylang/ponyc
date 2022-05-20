@@ -14,3 +14,7 @@ The inclusion of assertions was great for error reports from users for compiler 
 
 We've turned off PONY_ALWAYS_ASSERT. Programs will be somewhat faster, the compiler will be a little faster, and the compiler will use a little less memory. In return, if you report a compiler bug, we'll definitely need a minimal reproduction to have any idea what is causing your bug.
 
+## Add prebuilt ponyc binaries for MacOS on Apple Silicon
+
+We've added prebuilt ponyc binaries specifically made to work MacOS Monterey on Apple Silicon. They can be downloaded directly from Cloudsmith. ponyup installation support will be coming in the near future.
+
