@@ -208,6 +208,12 @@ task:
   upload_caches:
     - libs
 
+  debug_config_script:
+    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019"
+  debug_build_script:
+    - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019"
+  debug_test_script:
+    - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
   release_config_script:
     - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
   release_build_script:
