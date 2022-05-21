@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Disable incorrect runtime assert for ASIO thread shutdown. ([PR #4122](https://github.com/ponylang/ponyc/pull/4122))
 
 ### Added
 
