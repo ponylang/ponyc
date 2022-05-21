@@ -18,7 +18,7 @@ PONY_EXTERN_C_BEGIN
 
 void ponyint_messageq_init(messageq_t* q);
 
-void ponyint_messageq_destroy(messageq_t* q);
+void ponyint_messageq_destroy(messageq_t* q, bool maybe_non_empty);
 
 bool ponyint_actor_messageq_push(messageq_t* q,
   pony_msg_t* first, pony_msg_t* last

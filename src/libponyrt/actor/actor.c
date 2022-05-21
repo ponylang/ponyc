@@ -585,7 +585,7 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   ANNOTATE_HAPPENS_AFTER(&actor->q.head);
 #endif
 
-  ponyint_messageq_destroy(&actor->q);
+  ponyint_messageq_destroy(&actor->q, false);
   ponyint_gc_destroy(&actor->gc);
   ponyint_heap_destroy(&actor->heap);
 
