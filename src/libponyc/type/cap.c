@@ -1012,15 +1012,13 @@ bool cap_immutable_or_opaque(token_id cap)
   return false;
 }
 
-
-
 static ast_t* modified_cap_single(ast_t* type, cap_mutation* mutation)
 {
   ast_t* cap = cap_fetch(type);
   ast_t* ephemeral = ast_sibling(cap);
 
   token_id cap_token = ast_id(cap);
-  token_id eph_token = ast_id(cap);
+  token_id eph_token = ast_id(ephemeral);
 
   if (mutation(&cap_token, &eph_token))
   {
@@ -1153,4 +1151,3 @@ ast_t* unisolated(ast_t* type)
 {
   return modified_cap(type, unisolated_mod);
 }
-

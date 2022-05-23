@@ -194,8 +194,53 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
   return true;
 }
 
-static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
-  bool partial)
+static ast_t* method_receiver_type(ast_t* method);
+
+bool check_auto_recover_newref(ast_t* ast)
+{
+  while (ast != NULL && ast_id(ast) != TK_CALL)
+  {
+    ast = ast_child(ast);
+  }
+
+  if (ast)
+  {
+    AST_GET_CHILDREN(ast, lhs, positional, named);
+
+    if (ast_id(lhs) == TK_NEWREF)
+    {
+      ast_t* receiver_type = method_receiver_type(lhs);
+
+      ast_t* arg = ast_child(positional);
+      while (arg != NULL)
+      {
+        ast_t* arg_type = ast_type(arg);
+        if (is_typecheck_error(arg_type))
+          return false;
+
+        ast_t* arg_type_aliased = alias(arg_type);
+        bool ok = safe_to_autorecover(receiver_type, arg_type_aliased, WRITE);
+        ast_free_unattached(arg_type_aliased);
+
+        if (!ok)
+          return false;
+
+        arg = ast_sibling(arg);
+      }
+
+      AST_GET_CHILDREN(receiver_type, package, id, tparams, cap);
+      if (ast_id(cap) == TK_REF || ast_id(cap) == TK_BOX)
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+static bool check_arg_types(pass_opt_t* opt, ast_t* r_type, ast_t* params,
+  ast_t* positional, bool partial)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -235,8 +280,16 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       return false;
     }
 
-    ast_t* wp_type = consume_type(p_type, TK_NONE, false);
     errorframe_t info = NULL;
+    ast_t* wp_type;
+    if(check_auto_recover_newref(arg))
+    {
+      wp_type = unisolated(p_type);
+    }
+    else
+    {
+      wp_type = consume_type(p_type, TK_NONE, false);
+    }
 
     if(wp_type == NULL)
     {
@@ -576,7 +629,8 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
-  if(!check_arg_types(opt, params, positional, partial))
+  ast_t* r_type = method_receiver_type(lhs);
+  if(!check_arg_types(opt, r_type, params, positional, partial))
     return false;
 
   switch(ast_id(lhs))
