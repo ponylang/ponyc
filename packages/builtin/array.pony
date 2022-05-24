@@ -124,7 +124,9 @@ class Array[A] is Seq[A]
   new from_cpointer(ptr: Pointer[A], len: USize, alloc: USize = 0) =>
     """
     Create an array from a C-style pointer and length. The contents are not
-    copied.
+    copied. This must be done only with C-FFI functions that return
+    pony_alloc'd memory. If a null pointer is given then an empty array
+    is returned.
     """
     if ptr.is_null() then
       _size = 0
