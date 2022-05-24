@@ -738,3 +738,19 @@ TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+TEST_F(RecoverTest, CanAutorecover_Newref)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Bar.take_foo(Foo(88))\n"
+    "    let bar: Foo iso = Foo(88)\n"
+    "class Foo\n"
+    "  new create(v: U8) =>\n"
+    "    None\n"
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_COMPILE(src);
+}

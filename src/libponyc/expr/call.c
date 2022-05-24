@@ -199,42 +199,42 @@ static ast_t* method_receiver_type(ast_t* method);
 bool check_auto_recover_newref(ast_t* ast)
 {
   while (ast != NULL && ast_id(ast) != TK_CALL)
-  {
     ast = ast_child(ast);
-  }
 
-  if (ast)
+  if (ast == NULL)
+    return false;
+
+  AST_GET_CHILDREN(ast, newref, positional, named);
+  if (ast_id(newref) != TK_NEWREF)
+    return false;
+
+  // sometimes newrefs are nested?
+  ast_t* child = ast_child(newref);
+  if (child != NULL && ast_id(child) == TK_NEWREF)
+    newref = child;
+
+  ast_t* receiver_type = method_receiver_type(newref);
+
+  ast_t* arg = ast_child(positional);
+  while (arg != NULL)
   {
-    AST_GET_CHILDREN(ast, lhs, positional, named);
+    ast_t* arg_type = ast_type(arg);
+    if (is_typecheck_error(arg_type))
+      return false;
 
-    if (ast_id(lhs) == TK_NEWREF)
-    {
-      ast_t* receiver_type = method_receiver_type(lhs);
+    ast_t* arg_type_aliased = alias(arg_type);
+    bool ok = safe_to_autorecover(receiver_type, arg_type_aliased, WRITE);
+    ast_free_unattached(arg_type_aliased);
 
-      ast_t* arg = ast_child(positional);
-      while (arg != NULL)
-      {
-        ast_t* arg_type = ast_type(arg);
-        if (is_typecheck_error(arg_type))
-          return false;
+    if (!ok)
+      return false;
 
-        ast_t* arg_type_aliased = alias(arg_type);
-        bool ok = safe_to_autorecover(receiver_type, arg_type_aliased, WRITE);
-        ast_free_unattached(arg_type_aliased);
-
-        if (!ok)
-          return false;
-
-        arg = ast_sibling(arg);
-      }
-
-      AST_GET_CHILDREN(receiver_type, package, id, tparams, cap);
-      if (ast_id(cap) == TK_REF || ast_id(cap) == TK_BOX)
-      {
-        return true;
-      }
-    }
+    arg = ast_sibling(arg);
   }
+
+  token_id tcap = ast_id(cap_fetch(receiver_type));
+  if (tcap == TK_REF || tcap == TK_BOX)
+    return true;
 
   return false;
 }

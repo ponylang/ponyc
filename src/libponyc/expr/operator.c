@@ -3,6 +3,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
+#include "call.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../ast/lexer.h"
@@ -373,7 +374,16 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
     default: {}
   }
-  ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
+
+  ast_t* wl_type;
+  if(check_auto_recover_newref(right))
+  {
+    wl_type = unisolated(fl_type);
+  }
+  else
+  {
+    wl_type = consume_type(fl_type, TK_NONE, false);
+  }
 
   // Assignment is based on the alias of the right hand side.
   errorframe_t info = NULL;
