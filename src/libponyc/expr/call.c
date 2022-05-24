@@ -239,8 +239,8 @@ bool check_auto_recover_newref(ast_t* ast)
   return false;
 }
 
-static bool check_arg_types(pass_opt_t* opt, ast_t* r_type, ast_t* params,
-  ast_t* positional, bool partial)
+static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
+  bool partial)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -629,8 +629,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
-  ast_t* r_type = method_receiver_type(lhs);
-  if(!check_arg_types(opt, r_type, params, positional, partial))
+  if(!check_arg_types(opt, params, positional, partial))
     return false;
 
   switch(ast_id(lhs))
