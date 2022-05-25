@@ -5,8 +5,8 @@ This package provides support for serialising and deserialising arbitrary data
 structures.
 
 The API is designed to require capability tokens, as otherwise serialising
-would leak the bit patterns of all private information in a type by examining
-the resulting Array[U8].
+would leak the bit patterns of all private information in a type if the
+resulting Array[U8] could be examined.
 
 Deserialisation is fundamentally unsafe currently: there isn't yet a
 verification pass to check that the resulting object graph maintains a
