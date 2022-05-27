@@ -652,8 +652,6 @@ class \nodoc\ iso _TestRange is UnitTest
     _assert_infinite[F64](h, 0, 10, p_inf)
     _assert_infinite[F64](h, 100, 10, n_inf)
 
-
-
   fun _assert_infinite[N: (Real[N] val & Number)](
     h: TestHelper,
     min: N,
@@ -665,7 +663,8 @@ class \nodoc\ iso _TestRange is UnitTest
 
     h.assert_true(range.is_infinite(), range_str + " should be infinite")    
     try
-      range.next()?
+      let nextval = range.next()?
+      h.assert_eq[N](nextval, min)
     else
       h.fail(range_str + ".next(): first call should not fail but should produce " + min.string())
     end
