@@ -661,7 +661,7 @@ class \nodoc\ iso _TestRange is UnitTest
     let range: Range[N] = Range[N](min, max, step)
     let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
 
-    h.assert_true(range.is_infinite(), range_str + " should be infinite")    
+    h.assert_true(range.is_infinite(), range_str + " should be infinite")
     try
       let nextval = range.next()?
       h.assert_eq[N](nextval, min)
