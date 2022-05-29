@@ -16,7 +16,7 @@ We've turned off PONY_ALWAYS_ASSERT. Programs will be somewhat faster, the compi
 
 ## Add prebuilt ponyc binaries for MacOS on Apple Silicon
 
-We've added prebuilt ponyc binaries specifically made to work MacOS Monterey on Apple Silicon. They can be downloaded directly from Cloudsmith. ponyup installation support will be coming in the near future.
+We've added prebuilt ponyc binaries specifically made to work MacOS Monterey on Apple Silicon. You can install them with ponyup that is now also available for MacOS on Apple Silicon.
 
 ## Disable incorrect runtime assert for ASIO thread shutdown.
 
