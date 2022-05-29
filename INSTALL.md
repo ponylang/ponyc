@@ -69,15 +69,13 @@ If you get that error, it means that the Glibc we compiled ponyc with isn't comp
 
 ## macOS
 
-Prebuilt macOS for Intel packages are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
+Prebuilt macOS packages are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
 
-To install the most recent ponyc on macOS for Intel:
+To install the most recent ponyc on macOS:
 
 ```bash
 ponyup update ponyc release
 ```
-
-At this time, we don't offer prebuilt Pony binaries for M1 Apple Silicon. You will need to build Pony [from source](BUILD.md).
 
 ## Windows
 
