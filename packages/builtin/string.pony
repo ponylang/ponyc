@@ -1,8 +1,8 @@
 use @memcmp[I32](dst: Pointer[None] tag, src: Pointer[None] tag, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
-use @strtof[F32](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
-use @strtod[F64](nptr: Pointer[U8] box, endptr: Pointer[Pointer[U8] box] ref)
+use @strtof[F32](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
+use @strtod[F64](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
 use @pony_os_clear_errno[None]()
 use @pony_os_errno[I32]()
 
@@ -1607,11 +1607,12 @@ actor Main
     """
     let index = offset_to_index(offset)
     if index < _size then
-      @pony_os_clear_errno()
+      let ptr = this.cstring()
       var endp: Pointer[U8] box = Pointer[U8]
-      let res = @strtof(_ptr._offset(index), addressof endp)
+      @pony_os_clear_errno()
+      let res = @strtof(ptr.offset(index), addressof endp)
       let errno: I32 = @pony_os_errno()
-      if (errno != 0) or (endp != _ptr._offset(_size)) then
+      if (errno != 0) or (endp != ptr.offset(_size)) then
         error
       else
         res
@@ -1640,11 +1641,12 @@ actor Main
     """
     let index = offset_to_index(offset)
     if index < _size then
-      @pony_os_clear_errno()
+      let ptr = this.cstring()
       var endp: Pointer[U8] box = Pointer[U8]
-      let res = @strtod(_ptr._offset(index), addressof endp)
+      @pony_os_clear_errno()
+      let res = @strtod(ptr.offset(index), addressof endp)
       let errno: I32 = @pony_os_errno()
-      if (errno != 0) or (endp != _ptr._offset(_size)) then
+      if (errno != 0) or (endp != ptr.offset(_size)) then
         error
       else
         res
