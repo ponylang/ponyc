@@ -308,25 +308,25 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
 
     // Test that non-null terminated strings are well behaved
     //
-    // We craft a string that contains 1.1\0, chop the underlying
-    // array, and then create a new string that spans only the
-    // first character.
+    // We craft a string that contains 1.1\0, then build a new
+    // string that shares the underlying memory, but that only
+    // contains the first character.
     //
     // The implementation of f32 / f64 errors if:
     // 1. strof/strod fail by setting errno, or
     // 2. strof/strod don't consume the entire string
     //
-    // Point (2) is supposed to cover things like "1.23abc",
+    // (2) is supposed to cover things like "1.23abc",
     // but it also covers the situations where strod/strof
     // walk past the end of our memory allocation.
     //
-    // As such, a buggy version that calls strof/strod without
-    // checking for a null terminator will raise an error due to (2),
+    // In our example, a buggy version that calls strof/strod
+    // without checking for a null terminator will raise an error due to (2),
     // since C will happily walk the entire buffer until it reaches
-    // \0 at the end of str2.
-    (let str1: String val, let str2) = "1.1".clone().chop(1)
-    h.assert_no_error({()? => h.assert_eq[F32](1.0, str1.f32()? )}, str1 + " failed for .f32()")
-    h.assert_no_error({()? => h.assert_eq[F64](1.0, str1.f64()? )}, str1 + " failed for .f64()")
+    // \0 at the end of the old allocation for the original string.
+    let str = "1.1".trim(0, 1)
+    h.assert_no_error({()? => h.assert_eq[F32](1.0, str.f32()? )}, str + " failed for .f32()")
+    h.assert_no_error({()? => h.assert_eq[F64](1.0, str.f64()? )}, str + " failed for .f64()")
 
     let invalid_float_strings: Array[String] = [
       ""
