@@ -130,9 +130,6 @@ task:
 
   name: "x86-64 Apple Darwin"
 
-  install_script:
-    - brew install coreutils
-
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 lib/CMakeLists.txt` macos monterey-xcode-13.2 20210710"
@@ -162,9 +159,6 @@ task:
     image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
 
   name: "arm64 Apple Darwin"
-
-  install_script:
-    - brew install coreutils
 
   libs_cache:
     folder: build/libs
@@ -409,7 +403,7 @@ task:
     - libs
 
   install_script:
-    - brew install coreutils python
+    - brew install python
     - pip3 install --upgrade cloudsmith-cli
 
   nightly_script:
@@ -439,7 +433,7 @@ task:
     - libs
 
   install_script:
-    - brew install coreutils python
+    - brew install python
     - pip3 install --upgrade cloudsmith-cli
 
   nightly_script:
@@ -608,7 +602,7 @@ task:
     - libs
 
   install_script:
-    - brew install coreutils python
+    - brew install python
     - pip3 install --upgrade cloudsmith-cli
 
   release_script:
@@ -638,7 +632,7 @@ task:
     - libs
 
   install_script:
-    - brew install coreutils python
+    - brew install python
     - pip3 install --upgrade cloudsmith-cli
 
   nightly_script:

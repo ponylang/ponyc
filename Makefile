@@ -200,6 +200,8 @@ test-libponyc: all
 
 ifeq ($(shell uname -s),FreeBSD)
   num_cores := `sysctl -n hw.ncpu`
+else ifeq ($(shell uname -s),Darwin)
+  num_cores := `sysctl -n hw.ncpu`
 else
   num_cores := `nproc --all`
 endif
