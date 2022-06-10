@@ -1411,7 +1411,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
     int64_t old_mset_alloc_size = ponyint_muteset_alloc_size(&mref->value);
 #endif
     ponyint_muteset_putindex(&mref->value, sender, index2);
-    sender->muted--;
+    sender->muted++;
 #ifdef USE_MEMTRACK
     int64_t new_mset_mem_size = ponyint_muteset_mem_size(&mref->value);
     int64_t new_mset_alloc_size = ponyint_muteset_alloc_size(&mref->value);
