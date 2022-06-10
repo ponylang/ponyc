@@ -19,7 +19,7 @@
 #define PONY_SCHED_BATCH 100
 
 // Ignore padding at the end of the type.
-pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
+pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t) + sizeof(size_t)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
 static bool actor_noblock = false;
@@ -325,7 +325,7 @@ static bool maybe_mute(pony_actor_t* actor)
   //   a behavior.
   //   2. We should bail out from running the actor and return false so that
   //   it won't be rescheduled.
-  if(atomic_load_explicit(&actor->muted, memory_order_acquire) > 0)
+  if(actor->muted > 0)
   {
     ponyint_mute_actor(actor);
     return true;

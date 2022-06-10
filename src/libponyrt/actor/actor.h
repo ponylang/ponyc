@@ -32,13 +32,13 @@ typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
-  PONY_ATOMIC(size_t) muted;
   PONY_ATOMIC(uint8_t) flags;
   PONY_ATOMIC(uint8_t) is_muted;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
   gc_t gc; // 48/88 bytes
+  size_t muted; // 4/8 bytes
 } pony_actor_t;
 
 /** Padding for actor types.
@@ -46,19 +46,20 @@ typedef struct pony_actor_t
  * 56 bytes: initial header, not including the type descriptor
  * 52/104 bytes: heap
  * 48/88 bytes: gc
- * 28/0 bytes: padding to 64 bytes, ignored
+ * 4/8 bytes: muted counter
+ * 24/56 bytes: padding to 64 bytes, ignored
  */
 #if INTPTR_MAX == INT64_MAX
 #ifdef USE_MEMTRACK
-#  define PONY_ACTOR_PAD_SIZE 280
+#  define PONY_ACTOR_PAD_SIZE 288
 #else
-#  define PONY_ACTOR_PAD_SIZE 248
+#  define PONY_ACTOR_PAD_SIZE 256
 #endif
 #elif INTPTR_MAX == INT32_MAX
 #ifdef USE_MEMTRACK
-#  define PONY_ACTOR_PAD_SIZE 176
+#  define PONY_ACTOR_PAD_SIZE 180
 #else
-#  define PONY_ACTOR_PAD_SIZE 160
+#  define PONY_ACTOR_PAD_SIZE 164
 #endif
 #endif
 
