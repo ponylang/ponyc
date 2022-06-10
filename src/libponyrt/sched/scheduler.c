@@ -1467,9 +1467,8 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     {
       // This is safe because an actor can only ever be in a single scheduler's
       // mutemap
-      size_t muted_count = muted->muted;
+      pony_assert(muted->muted > 0);
       muted->muted--;
-      pony_assert(muted_count > 0);
 
       // If muted_count used to be 1 before we decremented it; then the actor
       // is longer muted
