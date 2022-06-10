@@ -1470,9 +1470,9 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       pony_assert(muted->muted > 0);
       muted->muted--;
 
-      // If muted_count used to be 1 before we decremented it; then the actor
+      // If muted->muted is 0 after we decremented it; then the actor
       // is longer muted
-      if(muted_count == 1)
+      if(muted->muted == 0)
       {
         needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
       }
