@@ -375,14 +375,13 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     default: {}
   }
 
-  ast_t* wl_type;
-  if(check_auto_recover_newref(right))
+  ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
+  if(check_auto_recover_newref(fl_type, right))
   {
-    wl_type = unisolated(fl_type);
-  }
-  else
-  {
-    wl_type = consume_type(fl_type, TK_NONE, false);
+    token_id left_cap = ast_id(cap_fetch(wl_type));
+    ast_t* recovered_left_type = recover_type(r_type, left_cap);
+    if (recovered_left_type)
+      r_type = recovered_left_type;
   }
 
   // Assignment is based on the alias of the right hand side.

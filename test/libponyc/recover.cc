@@ -738,3 +738,43 @@ TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+TEST_F(RecoverTest, CantAutoRecover_CtorArgWithNonSendableArg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String ref = String\n"
+    "    Bar.take_foo(Foo.from_str(s))\n"
+
+    "class Foo\n"
+    "  new from_u8(v: U8) =>\n"
+    "    None\n"
+    "  new from_str(s: String ref) =>\n"
+    "    None\n"
+
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+TEST_F(RecoverTest, CantAutoRecover_CtorAssignmentWithNonSendableArg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String ref = String\n"
+    "    let bar: Foo iso = Foo.from_str(s)\n"
+
+    "class Foo\n"
+    "  new from_u8(v: U8) =>\n"
+    "    None\n"
+    "  new from_str(s: String ref) =>\n"
+    "    None\n"
+
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}

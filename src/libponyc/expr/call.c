@@ -196,7 +196,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 
 static ast_t* method_receiver_type(ast_t* method);
 
-bool check_auto_recover_newref(ast_t* ast)
+bool check_auto_recover_newref(ast_t* param_type, ast_t* ast)
 {
   while (ast != NULL && ast_id(ast) != TK_CALL)
     ast = ast_child(ast);
@@ -214,6 +214,9 @@ bool check_auto_recover_newref(ast_t* ast)
     newref = child;
 
   ast_t* receiver_type = method_receiver_type(newref);
+  token_id rcap = ast_id(cap_fetch(receiver_type));
+  if (!(rcap == TK_REF || rcap == TK_BOX))
+    return false;
 
   ast_t* arg = ast_child(positional);
   while (arg != NULL)
@@ -223,7 +226,7 @@ bool check_auto_recover_newref(ast_t* ast)
       return false;
 
     ast_t* arg_type_aliased = alias(arg_type);
-    bool ok = safe_to_autorecover(receiver_type, arg_type_aliased, WRITE);
+    bool ok = safe_to_autorecover(param_type, arg_type_aliased, WRITE);
     ast_free_unattached(arg_type_aliased);
 
     if (!ok)
@@ -232,11 +235,7 @@ bool check_auto_recover_newref(ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  token_id tcap = ast_id(cap_fetch(receiver_type));
-  if (tcap == TK_REF || tcap == TK_BOX)
-    return true;
-
-  return false;
+  return true;
 }
 
 static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
@@ -281,14 +280,13 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     }
 
     errorframe_t info = NULL;
-    ast_t* wp_type;
-    if(check_auto_recover_newref(arg))
+    ast_t* wp_type = consume_type(p_type, TK_NONE, false);
+    if(check_auto_recover_newref(wp_type, arg))
     {
-      wp_type = unisolated(p_type);
-    }
-    else
-    {
-      wp_type = consume_type(p_type, TK_NONE, false);
+      token_id arg_cap = ast_id(cap_fetch(wp_type));
+      ast_t* recovered_arg_type = recover_type(arg_type, arg_cap);
+      if (recovered_arg_type)
+        arg_type = recovered_arg_type;
     }
 
     if(wp_type == NULL)
