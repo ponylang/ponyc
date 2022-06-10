@@ -198,6 +198,10 @@ static ast_t* method_receiver_type(ast_t* method);
 
 bool check_auto_recover_newref(ast_t* param_type, ast_t* ast)
 {
+  // we're not going to try auto-recovering to a complex type
+  if (ast_id(param_type) != TK_NOMINAL)
+    return false;
+
   while (ast != NULL && ast_id(ast) != TK_CALL)
     ast = ast_child(ast);
 
@@ -208,7 +212,7 @@ bool check_auto_recover_newref(ast_t* param_type, ast_t* ast)
   if (ast_id(newref) != TK_NEWREF)
     return false;
 
-  // sometimes newrefs are nested?
+  // sometimes for assignments there's a nested newref
   ast_t* child = ast_child(newref);
   if (child != NULL && ast_id(child) == TK_NEWREF)
     newref = child;

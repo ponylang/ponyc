@@ -778,3 +778,22 @@ TEST_F(RecoverTest, CantAutoRecover_CtorAssignmentWithNonSendableArg)
 
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
+TEST_F(RecoverTest, CantAutoRecover_CtorParamToComplexTypeWithNonSendableArg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let bar: (Foo iso | String ref) = Foo.from_u8(123)\n"
+
+    "class Foo\n"
+    "  new from_u8(v: U8) =>\n"
+    "    None\n"
+    "  new from_str(s: String ref) =>\n"
+    "    None\n"
+
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
