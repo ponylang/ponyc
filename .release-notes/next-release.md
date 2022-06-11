@@ -1,0 +1,4 @@
+## Fix String.f32 and String.f64 errors with non null terminated strings
+
+Until now, the `String.f32` and `String.f64` methods required null-terminated strings in order to work properly. This wasn't documented, and wasn't the intended behaviour. We've now fixed these cases and these functions should work as expected for non-null-terminated strings.
+
