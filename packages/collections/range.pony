@@ -93,6 +93,9 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
         or ((_min > _max) and (_inc > 0))
 
   fun has_next(): Bool =>
+    if _infinite then
+      return true
+    end
     if _forward then
       _idx < _max
     else
