@@ -1488,10 +1488,10 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     {
       needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
 
+      ponyint_unmute_actor(to_unmute);
+
       if(!has_flag(to_unmute, FLAG_UNSCHEDULED))
       {
-        ponyint_unmute_actor(to_unmute);
-
         ponyint_sched_add(ctx, to_unmute);
         DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
         actors_rescheduled++;
