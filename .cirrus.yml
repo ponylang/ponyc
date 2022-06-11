@@ -15,9 +15,9 @@ task:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
   - name: "x86-64 Linux musl"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
 
   container:
     cpu: 8
@@ -324,9 +324,9 @@ task:
         TRIPLE_OS: linux-ubuntu22.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
       environment:
-        CACHE_BUSTER: 20210224
+        CACHE_BUSTER: 20220611
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -698,15 +698,15 @@ task:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
@@ -726,15 +726,15 @@ task:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
       TARGET: test-stress-with-cd-release
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
       TARGET: test-stress-with-cd-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
