@@ -32,7 +32,7 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
 
   args[0] = ctx;
   args[1] = actor;
-  gencall_runtime(c, "pony_become", args, 2, "");
+  gencall_runtime(c, "ponyint_become", args, 2, "");
 
   return actor;
 }
@@ -217,7 +217,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   args[0] = ctx;
   args[1] = LLVMConstNull(c->object_ptr);
-  gencall_runtime(c, "pony_become", args, 2, "");
+  gencall_runtime(c, "ponyint_become", args, 2, "");
 
   LLVMValueRef rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
   LLVMValueRef minus_one = LLVMConstInt(c->i32, (unsigned long long)-1, true);

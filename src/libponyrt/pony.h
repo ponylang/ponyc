@@ -480,17 +480,6 @@ PONY_API void pony_exitcode(int code);
 PONY_API int pony_get_exitcode();
 
 /**
- * Call this to "become" an actor on a non-scheduler context, i.e. from outside
- * the pony runtime. Following this, pony API calls can be made as if the actor
- * in question were the current actor, eg. pony_alloc, pony_send, pony_create,
- * etc. This should only be called with an unscheduled actor.
- *
- * This can be called with NULL to make no actor the "current" actor for a
- * thread.
- */
-PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor);
-
-/**
  * Call this to handle an application message on an actor. This will do two
  * things: first, it will possibly gc, and second it will possibly handle a
  * pending application message.

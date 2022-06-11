@@ -951,7 +951,7 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
   ctx->current->heap.next_gc = 0;
 }
 
-PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
 }

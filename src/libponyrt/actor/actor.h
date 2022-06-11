@@ -82,6 +82,16 @@ enum
 
 bool has_flag(pony_actor_t* actor, uint8_t flag);
 
+/**
+ * Call this to "become" an actor on a non-scheduler context. It is used by
+ * the compiler code gen to start the `Main` actor and to run finalizers.
+ * It is also used by the `cycle detector` termination function.
+ *
+ * This can be called with NULL to make no actor the "current" actor for a
+ * thread.
+ */
+void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor);
+
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling);
 
 void ponyint_actor_destroy(pony_actor_t* actor);
