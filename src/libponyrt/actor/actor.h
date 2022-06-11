@@ -32,33 +32,37 @@ typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
-  PONY_ATOMIC(uint16_t) flags;
+  // sync flags are access from multiple scheduler threads concurrently
+  PONY_ATOMIC(uint8_t) sync_flags;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
-  gc_t gc; // 48/88 bytes
   size_t muted; // 4/8 bytes
+  // internal flags are only ever accessed from a single scheduler thread
+  uint8_t internal_flags; // 4/8 bytes (after alignment)
+  gc_t gc; // 48/88 bytes
 } pony_actor_t;
 
 /** Padding for actor types.
  *
  * 56 bytes: initial header, not including the type descriptor
  * 52/104 bytes: heap
- * 48/88 bytes: gc
  * 4/8 bytes: muted counter
+ * 4/8 bytes: internal flags (after alignment)
+ * 48/88 bytes: gc
  * 24/56 bytes: padding to 64 bytes, ignored
  */
 #if INTPTR_MAX == INT64_MAX
 #ifdef USE_MEMTRACK
-#  define PONY_ACTOR_PAD_SIZE 288
+#  define PONY_ACTOR_PAD_SIZE 296
 #else
-#  define PONY_ACTOR_PAD_SIZE 256
+#  define PONY_ACTOR_PAD_SIZE 264
 #endif
 #elif INTPTR_MAX == INT32_MAX
 #ifdef USE_MEMTRACK
-#  define PONY_ACTOR_PAD_SIZE 180
+#  define PONY_ACTOR_PAD_SIZE 184
 #else
-#  define PONY_ACTOR_PAD_SIZE 164
+#  define PONY_ACTOR_PAD_SIZE 168
 #endif
 #endif
 
@@ -73,14 +77,18 @@ enum
   FLAG_BLOCKED = 1 << 0,
   FLAG_BLOCKED_SENT = 1 << 1,
   FLAG_SYSTEM = 1 << 2,
-  FLAG_PENDINGDESTROY = 1 << 3,
-  FLAG_OVERLOADED = 1 << 4,
-  FLAG_UNDER_PRESSURE = 1 << 5,
-  FLAG_CD_CONTACTED = 1 << 6,
-  FLAG_MUTED = 1 << 7,
+  FLAG_CD_CONTACTED = 1 << 3,
 };
 
-bool has_flag(pony_actor_t* actor, uint16_t flag);
+enum
+{
+  SYNC_FLAG_PENDINGDESTROY = 1 << 0,
+  SYNC_FLAG_OVERLOADED = 1 << 1,
+  SYNC_FLAG_UNDER_PRESSURE = 1 << 2,
+  SYNC_FLAG_MUTED = 1 << 3,
+};
+
+bool has_internal_flag(pony_actor_t* actor, uint8_t flag);
 
 /**
  * Call this to "become" an actor on a non-scheduler context. It is used by
