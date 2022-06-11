@@ -480,21 +480,6 @@ PONY_API void pony_exitcode(int code);
 PONY_API int pony_get_exitcode();
 
 /**
- * If an actor is currently unscheduled, this will reschedule it. This is not
- * concurrency safe: only a single actor should reschedule another actor, and
- * it should be sure the target actor is actually unscheduled.
- */
-PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor);
-
-/**
- * The actor will no longer be scheduled. It will not handle messages on its
- * queue until it is rescheduled, or polled on a context. This is not
- * concurrency safe: this should be done on the current actor or an actor that
- * has never been sent a message.
- */
-PONY_API void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor);
-
-/**
  * Call this to "become" an actor on a non-scheduler context, i.e. from outside
  * the pony runtime. Following this, pony API calls can be made as if the actor
  * in question were the current actor, eg. pony_alloc, pony_send, pony_create,
