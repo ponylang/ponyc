@@ -27,22 +27,22 @@ static bool actor_noblock = false;
 // The flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.
 
-bool has_flag(pony_actor_t* actor, uint8_t flag)
+bool has_flag(pony_actor_t* actor, uint16_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  uint16_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
   return (flags & flag) != 0;
 }
 
-static void set_flag(pony_actor_t* actor, uint8_t flag)
+static void set_flag(pony_actor_t* actor, uint16_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  uint16_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
   atomic_store_explicit(&actor->flags, flags | flag, memory_order_relaxed);
 }
 
-static void unset_flag(pony_actor_t* actor, uint8_t flag)
+static void unset_flag(pony_actor_t* actor, uint16_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
-  atomic_store_explicit(&actor->flags, flags & (uint8_t)~flag,
+  uint16_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  atomic_store_explicit(&actor->flags, flags & (uint16_t)~flag,
     memory_order_relaxed);
 }
 
@@ -1030,36 +1030,24 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 // additional messages and the sender won't be muted. As this is a transient
 // situtation that should be shortly rectified, there's no harm done.
 //
-// Our handling of atomic operations in `ponyint_is_muted` and
-// `ponyint_unmute_actor` are to assure that rule #1 isn't violated.
-// We have far more relaxed usage of atomics in `ponyint_mute_actor` given the
-// far more relaxed rule #2.
-//
-// An actor's `is_muted` field is effectively a `bool` value. However, by
-// using a `uint8_t`, we use the same amount of space that we would for a
-// boolean but can use more efficient atomic operations. Given how often
-// these methods are called (at least once per message send), efficiency is
-// of primary importance.
+// Our handling of atomic operations in `ponyint_is_muted`, `ponyint_mute_actor`
+// and `ponyint_unmute_actor` are to assure that both rules aren't violated.
 
 bool ponyint_is_muted(pony_actor_t* actor)
 {
-  return (atomic_load_explicit(&actor->is_muted, memory_order_acquire) > 0);
+  return has_flag(actor, FLAG_MUTED);
 }
 
 void ponyint_mute_actor(pony_actor_t* actor)
 {
-   uint8_t is_muted = atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_acq_rel);
-   pony_assert(is_muted == 0);
-   DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
-   (void)is_muted;
+  set_flag(actor, FLAG_MUTED);
+  DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
 }
 
 void ponyint_unmute_actor(pony_actor_t* actor)
 {
-  uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_acq_rel);
-  pony_assert(is_muted == 1);
+  unset_flag(actor, FLAG_MUTED);
   DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
-  (void)is_muted;
 }
 
 #ifdef USE_MEMTRACK

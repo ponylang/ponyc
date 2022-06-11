@@ -32,8 +32,7 @@ typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
-  PONY_ATOMIC(uint8_t) flags;
-  PONY_ATOMIC(uint8_t) is_muted;
+  PONY_ATOMIC(uint16_t) flags;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
@@ -78,9 +77,10 @@ enum
   FLAG_OVERLOADED = 1 << 4,
   FLAG_UNDER_PRESSURE = 1 << 5,
   FLAG_CD_CONTACTED = 1 << 6,
+  FLAG_MUTED = 1 << 7,
 };
 
-bool has_flag(pony_actor_t* actor, uint8_t flag);
+bool has_flag(pony_actor_t* actor, uint16_t flag);
 
 /**
  * Call this to "become" an actor on a non-scheduler context. It is used by
