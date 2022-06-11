@@ -24,6 +24,23 @@ pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
 
 static bool actor_noblock = false;
 
+enum
+{
+  FLAG_BLOCKED = 1 << 0,
+  FLAG_BLOCKED_SENT = 1 << 1,
+  FLAG_SYSTEM = 1 << 2,
+  FLAG_UNSCHEDULED = 1 << 3,
+  FLAG_CD_CONTACTED = 1 << 4,
+};
+
+enum
+{
+  SYNC_FLAG_PENDINGDESTROY = 1 << 0,
+  SYNC_FLAG_OVERLOADED = 1 << 1,
+  SYNC_FLAG_UNDER_PRESSURE = 1 << 2,
+  SYNC_FLAG_MUTED = 1 << 3,
+};
+
 // The sync flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.
 static bool has_sync_flag(pony_actor_t* actor, uint8_t flag)
@@ -47,7 +64,7 @@ static void unset_sync_flag(pony_actor_t* actor, uint8_t flag)
 
 // The internal flags of a given actor are only ever read or written by a
 // single scheduler at a time and so need not be synchronization safe (atomics).
-bool has_internal_flag(pony_actor_t* actor, uint8_t flag)
+static bool has_internal_flag(pony_actor_t* actor, uint8_t flag)
 {
   return (actor->internal_flags & flag) != 0;
 }
@@ -60,6 +77,91 @@ static void set_internal_flag(pony_actor_t* actor, uint8_t flag)
 static void unset_internal_flag(pony_actor_t* actor, uint8_t flag)
 {
   actor->internal_flags = actor->internal_flags & (uint8_t)~flag;
+}
+
+//
+// Mute/Unmute/Check mute status functions
+//
+// For backpressure related muting and unmuting to work correctly, the following
+// rules have to be maintained.
+//
+// 1. Across schedulers, an actor should never been seen as muted when it is not
+// in fact muted.
+// 2. It's ok for a muted actor to be seen as unmuted in a transient fashion
+// across actors
+//
+// If rule #1 is violated, we might end up deadlocking because an actor was
+// muted for sending to an actor that might never be unmuted (because it isn't
+// muted). The actor muted actor would continue to remain muted and the actor
+// incorrectly seen as muted became actually muted and then unmuted.
+//
+// If rule #2 is violated, then a muted actor will receive from 1 to a few
+// additional messages and the sender won't be muted. As this is a transient
+// situtation that should be shortly rectified, there's no harm done.
+//
+// Our handling of atomic operations in `is_muted`, `mute_actor`
+// and `unmute_actor` are to assure that both rules aren't violated.
+
+static bool is_muted(pony_actor_t* actor)
+{
+  return has_sync_flag(actor, SYNC_FLAG_MUTED);
+}
+
+static void mute_actor(pony_actor_t* actor)
+{
+  set_sync_flag(actor, SYNC_FLAG_MUTED);
+  DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
+}
+
+void ponyint_unmute_actor(pony_actor_t* actor)
+{
+  unset_sync_flag(actor, SYNC_FLAG_MUTED);
+  DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
+}
+
+static bool triggers_muting(pony_actor_t* actor)
+{
+  return has_sync_flag(actor, SYNC_FLAG_OVERLOADED) ||
+    has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE) ||
+    is_muted(actor);
+}
+
+static void actor_setoverloaded(pony_actor_t* actor)
+{
+  pony_assert(!ponyint_is_cycle(actor));
+  set_sync_flag(actor, SYNC_FLAG_OVERLOADED);
+  DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
+}
+
+static void actor_unsetoverloaded(pony_actor_t* actor)
+{
+  pony_ctx_t* ctx = pony_ctx();
+  unset_sync_flag(actor, SYNC_FLAG_OVERLOADED);
+  DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
+  if (!has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE))
+  {
+    ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
+  }
+}
+
+static void maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
+{
+  if(ctx->current != NULL)
+  {
+    // only mute a sender IF:
+    // 1. the receiver is overloaded/under pressure/muted
+    // AND
+    // 2. the sender isn't overloaded or under pressure
+    // AND
+    // 3. we are sending to another actor (as compared to sending to self)
+    if(triggers_muting(to) &&
+       !has_sync_flag(ctx->current, SYNC_FLAG_OVERLOADED) &&
+       !has_sync_flag(ctx->current, SYNC_FLAG_UNDER_PRESSURE) &&
+       ctx->current != to)
+    {
+      ponyint_sched_mute(ctx, ctx->current, to);
+    }
+  }
 }
 
 #ifndef PONY_NDEBUG
@@ -320,36 +422,6 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
 }
 
-// return true if mute occurs
-static bool maybe_mute(pony_actor_t* actor)
-{
-  // if we become muted as a result of handling a message, bail out now.
-  // we aren't set to "muted" at this point. setting to muted during a
-  // a behavior can lead to race conditions that might result in a
-  // deadlock.
-  // Given that actor's are not run when they are muted, then when we
-  // started out batch, actor->muted would have been 0. If any of our
-  // message sends would result in the actor being muted, that value will
-  // have changed to greater than 0.
-  //
-  // We will then set the actor to "muted". Once set, any actor sending
-  // a message to it will be also be muted unless said sender is marked
-  // as overloaded.
-  //
-  // The key points here is that:
-  //   1. We can't set the actor to "muted" until after its finished running
-  //   a behavior.
-  //   2. We should bail out from running the actor and return false so that
-  //   it won't be rescheduled.
-  if(actor->muted > 0)
-  {
-    ponyint_mute_actor(actor);
-    return true;
-  }
-
-  return false;
-}
-
 static bool batch_limit_reached(pony_actor_t* actor, bool polling)
 {
   if(!has_sync_flag(actor, SYNC_FLAG_OVERLOADED) && !polling)
@@ -358,7 +430,7 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
     // only if we're not polling from C code.
     // Overloaded actors are allowed to send to other overloaded actors
     // and to muted actors without being muted themselves.
-    ponyint_actor_setoverloaded(actor);
+    actor_setoverloaded(actor);
   }
 
   return true;
@@ -366,7 +438,7 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
-  pony_assert(!ponyint_is_muted(actor));
+  pony_assert(!is_muted(actor));
   ctx->current = actor;
   size_t batch = PONY_SCHED_BATCH;
 
@@ -388,9 +460,29 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       app++;
       try_gc(ctx, actor);
 
-      // maybe mute actor; returns true if mute occurs
-      if(maybe_mute(actor))
+      // if we become muted as a result of handling a message, bail out now.
+      // we aren't set to "muted" at this point. setting to muted during a
+      // a behavior can lead to race conditions that might result in a
+      // deadlock.
+      // Given that actor's are not run when they are muted, then when we
+      // started out batch, actor->muted would have been 0. If any of our
+      // message sends would result in the actor being muted, that value will
+      // have changed to greater than 0.
+      //
+      // We will then set the actor to "muted". Once set, any actor sending
+      // a message to it will be also be muted unless said sender is marked
+      // as overloaded.
+      //
+      // The key points here is that:
+      //   1. We can't set the actor to "muted" until after its finished running
+      //   a behavior.
+      //   2. We should bail out from running the actor and return false so that
+      //   it won't be rescheduled.
+      if(actor->muted > 0)
+      {
+        mute_actor(actor);
         return false;
+      }
 
       // if we've reached our batch limit
       // or if we're polling where we want to stop after one app message
@@ -407,7 +499,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
-  pony_assert(!ponyint_is_muted(actor));
+  pony_assert(!is_muted(actor));
 
   if(has_sync_flag(actor, SYNC_FLAG_OVERLOADED))
   {
@@ -416,7 +508,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     // 1- sending to this actor is no longer grounds for an actor being muted
     // 2- this actor can no longer send to other actors free from muting should
     //    the receiver be overloaded or muted
-    ponyint_actor_unsetoverloaded(actor);
+    actor_unsetoverloaded(actor);
   }
 
   try_gc(ctx, actor);
@@ -776,7 +868,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   }
 
   if(has_app_msg)
-    ponyint_maybe_mute(ctx, to);
+    maybe_mute(ctx, to);
 
   if(ponyint_actor_messageq_push(&to->q, first, last
 #ifdef USE_DYNAMIC_TRACE
@@ -819,7 +911,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   }
 
   if(has_app_msg)
-    ponyint_maybe_mute(ctx, to);
+    maybe_mute(ctx, to);
 
   if(ponyint_actor_messageq_push_single(&to->q, first, last
 #ifdef USE_DYNAMIC_TRACE
@@ -832,26 +924,6 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
       ponyint_sched_add(ctx, to);
-    }
-  }
-}
-
-void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
-{
-  if(ctx->current != NULL)
-  {
-    // only mute a sender IF:
-    // 1. the receiver is overloaded/under pressure/muted
-    // AND
-    // 2. the sender isn't overloaded or under pressure
-    // AND
-    // 3. we are sending to another actor (as compared to sending to self)
-    if(ponyint_triggers_muting(to) &&
-       !has_sync_flag(ctx->current, SYNC_FLAG_OVERLOADED) &&
-       !has_sync_flag(ctx->current, SYNC_FLAG_UNDER_PRESSURE) &&
-       ctx->current != to)
-    {
-      ponyint_sched_mute(ctx, ctx->current, to);
     }
   }
 }
@@ -980,29 +1052,6 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
   ponyint_actor_run(ctx, ctx->current, true);
 }
 
-void ponyint_actor_setoverloaded(pony_actor_t* actor)
-{
-  pony_assert(!ponyint_is_cycle(actor));
-  set_sync_flag(actor, SYNC_FLAG_OVERLOADED);
-  DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
-}
-
-bool ponyint_actor_overloaded(pony_actor_t* actor)
-{
-  return has_sync_flag(actor, SYNC_FLAG_OVERLOADED);
-}
-
-void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
-{
-  pony_ctx_t* ctx = pony_ctx();
-  unset_sync_flag(actor, SYNC_FLAG_OVERLOADED);
-  DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
-  if (!has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE))
-  {
-    ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
-  }
-}
-
 PONY_API void pony_apply_backpressure()
 {
   pony_ctx_t* ctx = pony_ctx();
@@ -1017,53 +1066,6 @@ PONY_API void pony_release_backpressure()
   DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
   if (!has_sync_flag(ctx->current, SYNC_FLAG_OVERLOADED))
     ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
-}
-
-bool ponyint_triggers_muting(pony_actor_t* actor)
-{
-  return has_sync_flag(actor, SYNC_FLAG_OVERLOADED) ||
-    has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE) ||
-    ponyint_is_muted(actor);
-}
-
-//
-// Mute/Unmute/Check mute status functions
-//
-// For backpressure related muting and unmuting to work correctly, the following
-// rules have to be maintained.
-//
-// 1. Across schedulers, an actor should never been seen as muted when it is not
-// in fact muted.
-// 2. It's ok for a muted actor to be seen as unmuted in a transient fashion
-// across actors
-//
-// If rule #1 is violated, we might end up deadlocking because an actor was
-// muted for sending to an actor that might never be unmuted (because it isn't
-// muted). The actor muted actor would continue to remain muted and the actor
-// incorrectly seen as muted became actually muted and then unmuted.
-//
-// If rule #2 is violated, then a muted actor will receive from 1 to a few
-// additional messages and the sender won't be muted. As this is a transient
-// situtation that should be shortly rectified, there's no harm done.
-//
-// Our handling of atomic operations in `ponyint_is_muted`, `ponyint_mute_actor`
-// and `ponyint_unmute_actor` are to assure that both rules aren't violated.
-
-bool ponyint_is_muted(pony_actor_t* actor)
-{
-  return has_sync_flag(actor, SYNC_FLAG_MUTED);
-}
-
-void ponyint_mute_actor(pony_actor_t* actor)
-{
-  set_sync_flag(actor, SYNC_FLAG_MUTED);
-  DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
-}
-
-void ponyint_unmute_actor(pony_actor_t* actor)
-{
-  unset_sync_flag(actor, SYNC_FLAG_MUTED);
-  DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
 }
 
 #ifdef USE_MEMTRACK
