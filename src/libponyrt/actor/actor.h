@@ -72,6 +72,25 @@ typedef struct pony_actor_pad_t
   char pad[PONY_ACTOR_PAD_SIZE];
 } pony_actor_pad_t;
 
+enum
+{
+  FLAG_BLOCKED = 1 << 0,
+  FLAG_BLOCKED_SENT = 1 << 1,
+  FLAG_SYSTEM = 1 << 2,
+  FLAG_UNSCHEDULED = 1 << 3,
+  FLAG_CD_CONTACTED = 1 << 4,
+};
+
+enum
+{
+  SYNC_FLAG_PENDINGDESTROY = 1 << 0,
+  SYNC_FLAG_OVERLOADED = 1 << 1,
+  SYNC_FLAG_UNDER_PRESSURE = 1 << 2,
+  SYNC_FLAG_MUTED = 1 << 3,
+};
+
+bool has_internal_flag(pony_actor_t* actor, uint8_t flag);
+
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling);
 
 void ponyint_actor_destroy(pony_actor_t* actor);
@@ -94,11 +113,23 @@ void ponyint_actor_setnoblock(bool state);
 
 bool ponyint_actor_getnoblock();
 
+void ponyint_actor_setoverloaded(pony_actor_t* actor);
+
+void ponyint_actor_unsetoverloaded(pony_actor_t* actor);
+
 PONY_API void pony_apply_backpressure();
 
 PONY_API void pony_release_backpressure();
 
+void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to);
+
+bool ponyint_triggers_muting(pony_actor_t* actor);
+
+bool ponyint_is_muted(pony_actor_t* actor);
+
 void ponyint_unmute_actor(pony_actor_t* actor);
+
+void ponyint_mute_actor(pony_actor_t* actor);
 
 PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor);
 
