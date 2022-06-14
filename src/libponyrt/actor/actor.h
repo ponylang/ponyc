@@ -74,14 +74,23 @@ enum
   FLAG_BLOCKED = 1 << 0,
   FLAG_BLOCKED_SENT = 1 << 1,
   FLAG_SYSTEM = 1 << 2,
-  FLAG_UNSCHEDULED = 1 << 3,
-  FLAG_PENDINGDESTROY = 1 << 4,
-  FLAG_OVERLOADED = 1 << 5,
-  FLAG_UNDER_PRESSURE = 1 << 6,
-  FLAG_CD_CONTACTED = 1 << 7,
+  FLAG_PENDINGDESTROY = 1 << 3,
+  FLAG_OVERLOADED = 1 << 4,
+  FLAG_UNDER_PRESSURE = 1 << 5,
+  FLAG_CD_CONTACTED = 1 << 6,
 };
 
 bool has_flag(pony_actor_t* actor, uint8_t flag);
+
+/**
+ * Call this to "become" an actor on a non-scheduler context. It is used by
+ * the compiler code gen to start the `Main` actor and to run finalizers.
+ * It is also used by the `cycle detector` termination function.
+ *
+ * This can be called with NULL to make no actor the "current" actor for a
+ * thread.
+ */
+void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor);
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling);
 

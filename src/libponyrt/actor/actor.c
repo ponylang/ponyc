@@ -345,7 +345,7 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
     ponyint_actor_setoverloaded(actor);
   }
 
-  return !has_flag(actor, FLAG_UNSCHEDULED);
+  return true;
 }
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
@@ -404,13 +404,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   }
 
   try_gc(ctx, actor);
-
-  if(has_flag(actor, FLAG_UNSCHEDULED))
-  {
-    // When unscheduling, don't mark the queue as empty, since we don't want
-    // to get rescheduled if we receive a message.
-    return false;
-  }
 
   // If we have processed any application level messages, defer blocking.
   if(app > 0)
@@ -775,7 +768,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 #endif
     ))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+    if(!ponyint_is_muted(to))
     {
       ponyint_sched_add(ctx, to);
     }
@@ -818,7 +811,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 #endif
     ))
   {
-    if(!has_flag(to, FLAG_UNSCHEDULED) && !ponyint_is_muted(to))
+    if(!ponyint_is_muted(to))
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
@@ -958,30 +951,7 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
   ctx->current->heap.next_gc = 0;
 }
 
-PONY_API void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  if(!has_flag(actor, FLAG_UNSCHEDULED) || ponyint_is_muted(actor))
-    return;
-
-  unset_flag(actor, FLAG_UNSCHEDULED);
-  ponyint_sched_add(ctx, actor);
-}
-
-PONY_API void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  (void)ctx;
-
-  if(has_flag(actor, FLAG_BLOCKED_SENT))
-  {
-    // send unblock if we've sent a block
-    if(!actor_noblock)
-      send_unblock(actor);
-  }
-
-  set_flag(actor, FLAG_UNSCHEDULED);
-}
-
-PONY_API void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
 }

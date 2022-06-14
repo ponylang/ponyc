@@ -566,11 +566,11 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
-  // void pony_become(i8*, __object*)
+  // void ponyint_become(i8*, __object*)
   params[0] = c->void_ptr;
   params[1] = c->object_ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_become", type);
+  value = LLVMAddFunction(c->module, "ponyint_become", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,

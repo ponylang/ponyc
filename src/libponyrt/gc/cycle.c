@@ -1177,7 +1177,7 @@ void ponyint_cycle_terminate()
 {
   pony_ctx_t* ctx = ponyint_sched_get_inject_context();
 
-  pony_become(ctx, cycle_detector);
+  ponyint_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
   ponyint_destroy(ctx, cycle_detector);
   cycle_detector = NULL;
