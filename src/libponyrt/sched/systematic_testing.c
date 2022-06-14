@@ -69,7 +69,11 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
   SYSTEMATIC_TESTING_PRINTF("thread %lu: waiting to start...\n", thread);
 
   // sleep until it is this threads turn to do some work
+#if defined(PLATFORM_IS_WINDOWS)
+  while(active_thread->tid == thread)
+#else
   while(0 == pthread_equal(active_thread->tid, thread))
+#endif
   {
     SYSTEMATIC_TESTING_PRINTF("thread %lu: still waiting for it's turn... active thread: %lu\n", thread, active_thread->tid);
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
@@ -135,7 +139,11 @@ void ponyint_systematic_testing_yield()
   systematic_testing_thread_t *next_thread = &threads_to_track[next_index];
   systematic_testing_thread_t *current_thread = active_thread;
 
+#if defined(PLATFORM_IS_WINDOWS)
+  if(active_thread->tid == next_thread->tid)
+#else
   if(0 == pthread_equal(active_thread->tid, next_thread->tid))
+#endif
   {
     active_thread = next_thread;
 
