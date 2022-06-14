@@ -68,6 +68,18 @@ bool ponyint_asio_start();
  */
 asio_backend_t* ponyint_asio_get_backend();
 
+/** Returns the thread id assigned for the ASIO thread.
+ *
+ */
+pony_thread_id_t ponyint_asio_get_backend_tid();
+
+#if defined(USE_SYSTEMATIC_TESTING)
+/** Returns the sleep object assigned for the ASIO thread.
+ *
+ */
+pony_signal_event_t ponyint_asio_get_backend_sleep_object();
+#endif
+
 /** Returns the cpu assigned for the ASIO thread.
  *
  */

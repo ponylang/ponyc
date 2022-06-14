@@ -1,6 +1,7 @@
 #define PONY_WANT_ATOMIC_DEFS
 
 #include "scheduler.h"
+#include "systematic_testing.h"
 #include "cpu.h"
 #include "mpmcq.h"
 #include "../actor/actor.h"
@@ -189,7 +190,11 @@ static void signal_suspended_threads(uint32_t sched_count, int32_t curr_sched_id
   for(uint32_t i = 0; i < sched_count; i++)
   {
     if((int32_t)i != curr_sched_id)
+#if defined(USE_SYSTEMATIC_TESTING)
+      SYSTEMATIC_TESTING_YIELD();
+#else
       ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
+#endif
   }
 }
 
@@ -229,17 +234,17 @@ static void wake_suspended_threads(int32_t current_scheduler_id)
         memory_order_release);
 #endif
 
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+      // unlock mutex if using pthreads
+      pthread_mutex_unlock(&sched_mut);
+#endif
+
       // send signals to all scheduler threads that should be awake
       // this is somewhat wasteful if a scheduler thread is already awake
       // NOTE: this intentionally allows for the case where some scheduler
       // threads might miss the signal and not wake up. That is handled in
       // the following while loop
       signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // unlock mutex if using pthreads
-      pthread_mutex_unlock(&sched_mut);
-#endif
     }
 
     // wait for sleeping threads to wake and update check variable
@@ -429,7 +434,14 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
     }
   }
 
+#if defined(USE_SYSTEMATIC_TESTING)
+  (void)tsc;
+  (void)tsc2;
+  SYSTEMATIC_TESTING_YIELD();
+#else
   ponyint_cpu_core_pause(tsc, tsc2, use_yield);
+#endif
+
   return false;
 }
 
@@ -571,10 +583,18 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
     }
 
     // sleep waiting for signal to wake up again
+#if defined(USE_SYSTEMATIC_TESTING)
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+    SYSTEMATIC_TESTING_SUSPEND(&sched_mut);
+#else
+    SYSTEMATIC_TESTING_SUSPEND();
+#endif
+#else
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     ponyint_thread_suspend(sched->sleep_object, &sched_mut);
 #else
     ponyint_thread_suspend(sched->sleep_object);
+#endif
 #endif
   }
 
@@ -875,6 +895,9 @@ static pony_actor_t* steal(scheduler_t* sched)
  */
 static void run(scheduler_t* sched)
 {
+  // sleep thread until we're ready to start processing
+  SYSTEMATIC_TESTING_WAIT_START(sched->tid, sched->sleep_object);
+
   if(sched->index == 0) {
     pause_cycle_detection = false;
     last_cd_tsc = 0;
@@ -939,6 +962,7 @@ static void run(scheduler_t* sched)
       {
         // Termination.
         pony_assert(pop(sched) == NULL);
+        SYSTEMATIC_TESTING_STOP_THREAD();
         return;
       }
       DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
@@ -958,6 +982,7 @@ static void run(scheduler_t* sched)
 
     // Run the current actor and get the next actor.
     bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+    SYSTEMATIC_TESTING_YIELD();
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)
@@ -1066,7 +1091,12 @@ static void ponyint_sched_shutdown()
 }
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
-  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold)
+  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold
+#if defined(USE_SYSTEMATIC_TESTING)
+  , uint64_t systematic_testing_seed)
+#else
+  )
+#endif
 {
   pony_register_thread();
 
@@ -1146,6 +1176,9 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
     ponyint_mpmcq_init(&scheduler[i].q);
   }
 
+  // initialize systematic testing
+  SYSTEMATIC_TESTING_INIT(systematic_testing_seed, scheduler_count);
+
   ponyint_mpmcq_init(&inject);
   ponyint_asio_init(asio_cpu);
 
@@ -1178,6 +1211,11 @@ bool ponyint_sched_start(bool library)
       &scheduler[i]))
       return false;
   }
+
+#if defined(USE_SYSTEMATIC_TESTING)
+  // wake thread 0 to start processing
+  SYSTEMATIC_TESTING_START(scheduler[0].index, scheduler, ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
+#endif
 
   if(!library)
   {
@@ -1338,6 +1376,11 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
       memory_order_release);
 #endif
 
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+    // unlock mutex if using pthreads
+    pthread_mutex_unlock(&sched_mut);
+#endif
+
     // send signals to all scheduler threads that should be awake
     // this is somewhat wasteful if a scheduler thread is already awake
     // NOTE: this intentionally allows for the case where some scheduler
@@ -1345,11 +1388,6 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
     // part of the beginning of the `run` loop and the while loop in
     // ponyint_sched_maybe_wakeup_if_all_asleep
     signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // unlock mutex if using pthreads
-    pthread_mutex_unlock(&sched_mut);
-#endif
   }
 }
 
