@@ -188,7 +188,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   while(b->kq != -1)
   {
-    timespec* timeout = NULL;
+    struct timespec* timeout = NULL;
 #if defined(USE_SYSTEMATIC_TESTING)
     struct timespec ts;
     ts.tv_sec = 0;
