@@ -14,7 +14,7 @@ pony_static_assert(false, "Systematic testing requires pthreads (USE_SCHEDULER_S
 PONY_EXTERN_C_BEGIN
 
 void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads);
-void ponyint_systematic_testing_start(uint32_t index, scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal);
+void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal);
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal);
 void ponyint_systematic_testing_yield();
 bool ponyint_systematic_testing_asio_stopped();
@@ -27,7 +27,7 @@ void ponyint_systematic_testing_suspend();
 
 #define SYSTEMATIC_TESTING_PRINTF(f_, ...) fprintf(stderr, (f_), ##__VA_ARGS__)
 #define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS) ponyint_systematic_testing_init(RANDOM_SEED, MAX_THREADS)
-#define SYSTEMATIC_TESTING_START(INDEX, SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT) ponyint_systematic_testing_start(INDEX, SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
+#define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT) ponyint_systematic_testing_start(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
 #define SYSTEMATIC_TESTING_WAIT_START(THREAD, SIGNAL) ponyint_systematic_testing_wait_start(THREAD, SIGNAL)
 #define SYSTEMATIC_TESTING_YIELD() ponyint_systematic_testing_yield()
 #define SYSTEMATIC_TESTING_ASIO_STOPPED() ponyint_systematic_testing_asio_stopped()
@@ -44,7 +44,7 @@ PONY_EXTERN_C_END
 
 #define SYSTEMATIC_TESTING_PRINTF(f_, ...)
 #define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS)
-#define SYSTEMATIC_TESTING_START(INDEX, SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
+#define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
 #define SYSTEMATIC_TESTING_WAIT_START(THREAD, SIGNAL)
 #define SYSTEMATIC_TESTING_YIELD()
 #define SYSTEMATIC_TESTING_ASIO_STOPPED()

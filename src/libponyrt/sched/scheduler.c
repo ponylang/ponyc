@@ -1213,8 +1213,8 @@ bool ponyint_sched_start(bool library)
   }
 
 #if defined(USE_SYSTEMATIC_TESTING)
-  // wake thread 0 to start processing
-  SYSTEMATIC_TESTING_START(scheduler[0].index, scheduler, ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
+  // start processing
+  SYSTEMATIC_TESTING_START(scheduler, ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
 #endif
 
   if(!library)

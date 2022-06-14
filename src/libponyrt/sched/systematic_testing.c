@@ -53,17 +53,6 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   active_thread = threads_to_track;
 }
 
-static uint32_t get_thread_index(uint32_t index)
-{
-  uint32_t i = index + 1;
-  if (index < 0)
-    i = 0; // make sure asio gets put at the beginning of the array
-
-  pony_assert(i < total_threads);
-
-  return i;
-}
-
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal)
 {
   SYSTEMATIC_TESTING_PRINTF("thread %lu: waiting to start...\n", thread);
@@ -86,7 +75,7 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
   SYSTEMATIC_TESTING_PRINTF("thread %lu: started...\n", thread);
 }
 
-void ponyint_systematic_testing_start(uint32_t index, scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal)
+void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal)
 {
   threads_to_track[0].tid = asio_thread;
   threads_to_track[0].sleep_object = asio_signal;
@@ -99,9 +88,8 @@ void ponyint_systematic_testing_start(uint32_t index, scheduler_t* schedulers, p
     threads_to_track[i].stopped = false;
   }
 
-
-  uint32_t i = get_thread_index(index);
-  active_thread = &threads_to_track[i];
+  // always start the first scheduler thread (not asio which is 0)
+  active_thread = &threads_to_track[1];
 
   SYSTEMATIC_TESTING_PRINTF("Starting systematic testing with thread %lu...\n", active_thread->tid);
 
