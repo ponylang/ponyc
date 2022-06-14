@@ -59,7 +59,7 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
 
   // sleep until it is this threads turn to do some work
 #if defined(PLATFORM_IS_WINDOWS)
-  while(active_thread->tid == thread)
+  while(active_thread->tid != thread)
 #else
   while(0 == pthread_equal(active_thread->tid, thread))
 #endif
@@ -128,7 +128,7 @@ void ponyint_systematic_testing_yield()
   systematic_testing_thread_t *current_thread = active_thread;
 
 #if defined(PLATFORM_IS_WINDOWS)
-  if(active_thread->tid == next_thread->tid)
+  if(active_thread->tid != next_thread->tid)
 #else
   if(0 == pthread_equal(active_thread->tid, next_thread->tid))
 #endif
