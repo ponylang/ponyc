@@ -16,3 +16,7 @@ Even though all Range objects that contain NaN parameters or a zero step paramet
 
 did not run as expected, but rather produced an error on the first iteration. This is now fixed, and .next() calls on the above `Range[F64](0, 1000, nan)` now first yields 0 and subsequently indefinetely NaN values. Likewise, `Range(10, 10, 0)` will now indefinitely yield `10`.
 
+## Update to basing musl images off of Alpine 3.12
+
+We supply nightly and release Docker images for ponyc based on Alpine Linux. We've updated the version of Alpine we use from 3.12 which recently reached it's end of life to Alpine 3.16 which is supported until 2024.
+
