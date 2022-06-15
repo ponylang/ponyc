@@ -19,31 +19,47 @@
 #define PONY_SCHED_BATCH 100
 
 // Ignore padding at the end of the type.
-pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t) + sizeof(size_t)) ==
+pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
 static bool actor_noblock = false;
 
-// The flags of a given actor cannot be mutated from more than one actor at
+// The sync flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.
-
-bool has_flag(pony_actor_t* actor, uint8_t flag)
+static bool has_sync_flag(pony_actor_t* actor, uint8_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
+  uint8_t flags = atomic_load_explicit(&actor->sync_flags, memory_order_acquire);
   return (flags & flag) != 0;
 }
 
-static void set_flag(pony_actor_t* actor, uint8_t flag)
+static void set_sync_flag(pony_actor_t* actor, uint8_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
-  atomic_store_explicit(&actor->flags, flags | flag, memory_order_relaxed);
+  uint8_t flags = atomic_load_explicit(&actor->sync_flags, memory_order_acquire);
+  atomic_store_explicit(&actor->sync_flags, flags | flag, memory_order_release);
 }
 
-static void unset_flag(pony_actor_t* actor, uint8_t flag)
+static void unset_sync_flag(pony_actor_t* actor, uint8_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->flags, memory_order_relaxed);
-  atomic_store_explicit(&actor->flags, flags & (uint8_t)~flag,
-    memory_order_relaxed);
+  uint8_t flags = atomic_load_explicit(&actor->sync_flags, memory_order_acquire);
+  atomic_store_explicit(&actor->sync_flags, flags & (uint8_t)~flag,
+    memory_order_release);
+}
+
+// The internal flags of a given actor are only ever read or written by a
+// single scheduler at a time and so need not be synchronization safe (atomics).
+bool has_internal_flag(pony_actor_t* actor, uint8_t flag)
+{
+  return (actor->internal_flags & flag) != 0;
+}
+
+static void set_internal_flag(pony_actor_t* actor, uint8_t flag)
+{
+  actor->internal_flags = actor->internal_flags | flag;
+}
+
+static void unset_internal_flag(pony_actor_t* actor, uint8_t flag)
+{
+  actor->internal_flags = actor->internal_flags & (uint8_t)~flag;
 }
 
 #ifndef PONY_NDEBUG
@@ -86,7 +102,7 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 static void send_unblock(pony_actor_t* actor)
 {
   // Send unblock before continuing.
-  unset_flag(actor, FLAG_BLOCKED | FLAG_BLOCKED_SENT);
+  unset_internal_flag(actor, FLAG_BLOCKED | FLAG_BLOCKED_SENT);
   ponyint_cycle_unblock(actor);
 }
 
@@ -117,7 +133,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       if(ponyint_gc_acquire(&actor->gc, (actorref_t*)m->p) &&
-        has_flag(actor, FLAG_BLOCKED_SENT))
+        has_internal_flag(actor, FLAG_BLOCKED_SENT))
       {
         // send unblock if we've sent a block
         send_unblock(actor);
@@ -144,7 +160,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       if(ponyint_gc_release(&actor->gc, (actorref_t*)m->p) &&
-        has_flag(actor, FLAG_BLOCKED_SENT))
+        has_internal_flag(actor, FLAG_BLOCKED_SENT))
       {
         // send unblock if we've sent a block
         send_unblock(actor);
@@ -174,7 +190,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
-      if(has_flag(actor, FLAG_BLOCKED_SENT))
+      if(has_internal_flag(actor, FLAG_BLOCKED_SENT))
       {
         // We've sent a block message, send confirm.
         pony_msgi_t* m = (pony_msgi_t*)msg;
@@ -198,8 +214,8 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       pony_assert(!ponyint_actor_pendingdestroy(actor));
 
       pony_assert(!ponyint_is_cycle(actor));
-      if(has_flag(actor, FLAG_BLOCKED)
-        && !has_flag(actor, FLAG_BLOCKED_SENT)
+      if(has_internal_flag(actor, FLAG_BLOCKED)
+        && !has_internal_flag(actor, FLAG_BLOCKED_SENT)
         && (actor->gc.rc > 0))
       {
         // We're blocked, send block message if:
@@ -208,7 +224,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         //
         // Sending multiple "i'm blocked" messages to the cycle detector
         // will result in actor potentially being freed more than once.
-        set_flag(actor, FLAG_BLOCKED_SENT);
+        set_internal_flag(actor, FLAG_BLOCKED_SENT);
         pony_assert(ctx->current == actor);
         ponyint_cycle_block(actor, &actor->gc);
       }
@@ -273,7 +289,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
-      if(has_flag(actor, FLAG_BLOCKED_SENT))
+      if(has_internal_flag(actor, FLAG_BLOCKED_SENT))
       {
         // send unblock if we've sent a block
         send_unblock(actor);
@@ -336,7 +352,7 @@ static bool maybe_mute(pony_actor_t* actor)
 
 static bool batch_limit_reached(pony_actor_t* actor, bool polling)
 {
-  if(!has_flag(actor, FLAG_OVERLOADED) && !polling)
+  if(!has_sync_flag(actor, SYNC_FLAG_OVERLOADED) && !polling)
   {
     // If we hit our batch size, consider this actor to be overloaded
     // only if we're not polling from C code.
@@ -393,7 +409,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   pony_assert(app < batch);
   pony_assert(!ponyint_is_muted(actor));
 
-  if(has_flag(actor, FLAG_OVERLOADED))
+  if(has_sync_flag(actor, SYNC_FLAG_OVERLOADED))
   {
     // if we were overloaded and didn't process a full batch, set ourselves as
     // no longer overloaded. Once this is done:
@@ -410,13 +426,13 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     return true;
 
   // note that we're logically blocked
-  if(!has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM | FLAG_BLOCKED_SENT))
+  if(!has_internal_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM | FLAG_BLOCKED_SENT))
   {
-    set_flag(actor, FLAG_BLOCKED);
+    set_internal_flag(actor, FLAG_BLOCKED);
 
     if(!actor_noblock
       && (actor->gc.rc > 0)
-      && !has_flag(actor, FLAG_CD_CONTACTED)
+      && !has_internal_flag(actor, FLAG_CD_CONTACTED)
     )
     {
       // The cycle detector (CD) doesn't know we exist so it won't try
@@ -424,14 +440,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // in the future we will wait for the CD to reach out and ask
       // if we're blocked or not.
       // But, only if gc.rc > 0 because if gc.rc == 0 we are a zombie.
-      set_flag(actor, FLAG_BLOCKED_SENT);
-      set_flag(actor, FLAG_CD_CONTACTED);
+      set_internal_flag(actor, FLAG_BLOCKED_SENT);
+      set_internal_flag(actor, FLAG_CD_CONTACTED);
       ponyint_cycle_block(actor, &actor->gc);
     }
 
   }
 
-  if ((actor->gc.rc == 0) && has_flag(actor, FLAG_BLOCKED))
+  if ((actor->gc.rc == 0) && has_internal_flag(actor, FLAG_BLOCKED))
   {
     // Here, we is what we know to be true:
     //
@@ -467,7 +483,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // cycle detector isn't holding a reference to the actor. If we have never
       // sent a reference to the cycle detector (FLAG_CD_CONTACTED), then this
       // is perfectly safe to do.
-      if (actor_noblock || !has_flag(actor, FLAG_CD_CONTACTED))
+      if (actor_noblock || !has_internal_flag(actor, FLAG_CD_CONTACTED))
       {
         // mark the queue as empty or else destroy will hang
         bool empty = ponyint_messageq_markempty(&actor->q);
@@ -499,7 +515,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
           // need to undo set pending destroy because the cycle detector
           // sent the actor a message and it is not safe to destroy this
           // actor as a result.
-          unset_flag(actor, FLAG_PENDINGDESTROY);
+          unset_sync_flag(actor, SYNC_FLAG_PENDINGDESTROY);
 
           // If we mark the queue as empty, then it is no longer safe to do any
           // operations on this actor that aren't concurrency safe so make
@@ -520,7 +536,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // It's possible this might be a source of bug. If it is, then the
         // solution is probably to make this an if that encloses the remaining
         // logic in this block.
-        pony_assert(!has_flag(actor, FLAG_BLOCKED_SENT));
+        pony_assert(!has_internal_flag(actor, FLAG_BLOCKED_SENT));
 
         // Tell cycle detector that this actor is a zombie and will not get
         // any more messages/work and can be reaped.
@@ -537,7 +553,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // unblocked (which would create a race condition) and we've also
         // ensured that the cycle detector will not send this actor any more
         // messages (which would also create a race condition).
-        set_flag(actor, FLAG_BLOCKED_SENT);
+        set_internal_flag(actor, FLAG_BLOCKED_SENT);
         ponyint_cycle_block(actor, &actor->gc);
 
         // mark the queue as empty or else destroy will hang
@@ -561,7 +577,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
 void ponyint_actor_destroy(pony_actor_t* actor)
 {
-  pony_assert(has_flag(actor, FLAG_PENDINGDESTROY));
+  pony_assert(has_sync_flag(actor, SYNC_FLAG_PENDINGDESTROY));
 
   // Make sure the actor being destroyed has finished marking its queue
   // as empty. Otherwise, it may spuriously see that tail and head are not
@@ -604,7 +620,7 @@ heap_t* ponyint_actor_heap(pony_actor_t* actor)
 
 bool ponyint_actor_pendingdestroy(pony_actor_t* actor)
 {
-  return has_flag(actor, FLAG_PENDINGDESTROY);
+  return has_sync_flag(actor, SYNC_FLAG_PENDINGDESTROY);
 }
 
 void ponyint_actor_setpendingdestroy(pony_actor_t* actor)
@@ -614,7 +630,7 @@ void ponyint_actor_setpendingdestroy(pony_actor_t* actor)
   // cycle and an actor won't change its flags if it is part of a true cycle.
   // The synchronisation is done through the ACK message sent by the actor to
   // the cycle detector.
-  set_flag(actor, FLAG_PENDINGDESTROY);
+  set_sync_flag(actor, SYNC_FLAG_PENDINGDESTROY);
 }
 
 void ponyint_actor_final(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -642,7 +658,7 @@ void ponyint_actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor)
 
 void ponyint_actor_setsystem(pony_actor_t* actor)
 {
-  set_flag(actor, FLAG_SYSTEM);
+  set_internal_flag(actor, FLAG_SYSTEM);
 }
 
 void ponyint_actor_setnoblock(bool state)
@@ -831,8 +847,8 @@ void ponyint_maybe_mute(pony_ctx_t* ctx, pony_actor_t* to)
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
     if(ponyint_triggers_muting(to) &&
-       !has_flag(ctx->current, FLAG_OVERLOADED) &&
-       !has_flag(ctx->current, FLAG_UNDER_PRESSURE) &&
+       !has_sync_flag(ctx->current, SYNC_FLAG_OVERLOADED) &&
+       !has_sync_flag(ctx->current, SYNC_FLAG_UNDER_PRESSURE) &&
        ctx->current != to)
     {
       ponyint_sched_mute(ctx, ctx->current, to);
@@ -967,21 +983,21 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
 void ponyint_actor_setoverloaded(pony_actor_t* actor)
 {
   pony_assert(!ponyint_is_cycle(actor));
-  set_flag(actor, FLAG_OVERLOADED);
+  set_sync_flag(actor, SYNC_FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
 }
 
 bool ponyint_actor_overloaded(pony_actor_t* actor)
 {
-  return has_flag(actor, FLAG_OVERLOADED);
+  return has_sync_flag(actor, SYNC_FLAG_OVERLOADED);
 }
 
 void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
 {
   pony_ctx_t* ctx = pony_ctx();
-  unset_flag(actor, FLAG_OVERLOADED);
+  unset_sync_flag(actor, SYNC_FLAG_OVERLOADED);
   DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
-  if (!has_flag(actor, FLAG_UNDER_PRESSURE))
+  if (!has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE))
   {
     ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
   }
@@ -990,23 +1006,23 @@ void ponyint_actor_unsetoverloaded(pony_actor_t* actor)
 PONY_API void pony_apply_backpressure()
 {
   pony_ctx_t* ctx = pony_ctx();
-  set_flag(ctx->current, FLAG_UNDER_PRESSURE);
+  set_sync_flag(ctx->current, SYNC_FLAG_UNDER_PRESSURE);
   DTRACE1(ACTOR_UNDER_PRESSURE, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_release_backpressure()
 {
   pony_ctx_t* ctx = pony_ctx();
-  unset_flag(ctx->current, FLAG_UNDER_PRESSURE);
+  unset_sync_flag(ctx->current, SYNC_FLAG_UNDER_PRESSURE);
   DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
-  if (!has_flag(ctx->current, FLAG_OVERLOADED))
+  if (!has_sync_flag(ctx->current, SYNC_FLAG_OVERLOADED))
     ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
 }
 
 bool ponyint_triggers_muting(pony_actor_t* actor)
 {
-  return has_flag(actor, FLAG_OVERLOADED) ||
-    has_flag(actor, FLAG_UNDER_PRESSURE) ||
+  return has_sync_flag(actor, SYNC_FLAG_OVERLOADED) ||
+    has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE) ||
     ponyint_is_muted(actor);
 }
 
@@ -1030,36 +1046,24 @@ bool ponyint_triggers_muting(pony_actor_t* actor)
 // additional messages and the sender won't be muted. As this is a transient
 // situtation that should be shortly rectified, there's no harm done.
 //
-// Our handling of atomic operations in `ponyint_is_muted` and
-// `ponyint_unmute_actor` are to assure that rule #1 isn't violated.
-// We have far more relaxed usage of atomics in `ponyint_mute_actor` given the
-// far more relaxed rule #2.
-//
-// An actor's `is_muted` field is effectively a `bool` value. However, by
-// using a `uint8_t`, we use the same amount of space that we would for a
-// boolean but can use more efficient atomic operations. Given how often
-// these methods are called (at least once per message send), efficiency is
-// of primary importance.
+// Our handling of atomic operations in `ponyint_is_muted`, `ponyint_mute_actor`
+// and `ponyint_unmute_actor` are to assure that both rules aren't violated.
 
 bool ponyint_is_muted(pony_actor_t* actor)
 {
-  return (atomic_load_explicit(&actor->is_muted, memory_order_acquire) > 0);
+  return has_sync_flag(actor, SYNC_FLAG_MUTED);
 }
 
 void ponyint_mute_actor(pony_actor_t* actor)
 {
-   uint8_t is_muted = atomic_fetch_add_explicit(&actor->is_muted, 1, memory_order_acq_rel);
-   pony_assert(is_muted == 0);
-   DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
-   (void)is_muted;
+  set_sync_flag(actor, SYNC_FLAG_MUTED);
+  DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
 }
 
 void ponyint_unmute_actor(pony_actor_t* actor)
 {
-  uint8_t is_muted = atomic_fetch_sub_explicit(&actor->is_muted, 1, memory_order_acq_rel);
-  pony_assert(is_muted == 1);
+  unset_sync_flag(actor, SYNC_FLAG_MUTED);
   DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
-  (void)is_muted;
 }
 
 #ifdef USE_MEMTRACK
