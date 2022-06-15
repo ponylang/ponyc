@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "systematic_testing.h"
 
 #include <stdlib.h>
@@ -16,6 +18,7 @@ static systematic_testing_thread_t* active_thread = NULL;
 static systematic_testing_thread_t* threads_to_track = NULL;
 static uint32_t total_threads = 0;
 static uint32_t stopped_threads = 0;
+static PONY_ATOMIC(uint32_t) waiting_to_start_count;
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
 static pthread_mutex_t systematic_testing_mut;
@@ -33,6 +36,8 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   #if defined(USE_SCHEDULER_SCALING_PTHREADS)
   pthread_once(&systematic_testing_mut_once, systematic_testing_mut_init);
 #endif
+
+  atomic_store_explicit(&waiting_to_start_count, 0, memory_order_relaxed);
 
   if(0 == random_seed)
     random_seed = ponyint_cpu_tick();
@@ -56,6 +61,8 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal)
 {
   SYSTEMATIC_TESTING_PRINTF("thread %lu: waiting to start...\n", thread);
+
+  atomic_fetch_add_explicit(&waiting_to_start_count, 1, memory_order_relaxed);
 
   // sleep until it is this threads turn to do some work
 #if defined(PLATFORM_IS_WINDOWS)
@@ -91,6 +98,12 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
   // always start the first scheduler thread (not asio which is 0)
   active_thread = &threads_to_track[1];
 
+  while(total_threads != atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed))
+  {
+    SYSTEMATIC_TESTING_PRINTF("Waiting for all threads to be ready before starting execution..\n");
+    ponyint_cpu_core_pause(1, 10000002, true);
+  }
+
   SYSTEMATIC_TESTING_PRINTF("Starting systematic testing with thread %lu...\n", active_thread->tid);
 
   ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
@@ -116,6 +129,13 @@ void ponyint_systematic_testing_yield()
 {
   if(stopped_threads == total_threads)
   {
+    ponyint_pool_free_size(total_threads * sizeof(systematic_testing_thread_t), threads_to_track);
+    active_thread = NULL;
+    threads_to_track = NULL;
+    total_threads = 0;
+    stopped_threads = 0;
+    atomic_store_explicit(&waiting_to_start_count, 0, memory_order_relaxed);
+
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     pthread_mutex_unlock(&systematic_testing_mut);
 #endif
