@@ -25,6 +25,7 @@ void ponyint_systematic_testing_suspend(pthread_mutex_t* mut);
 void ponyint_systematic_testing_suspend();
 #endif
 
+// TODO: maybe make output conditional based on a `verbosity` argument that is CLI driven?
 #define SYSTEMATIC_TESTING_PRINTF(f_, ...) fprintf(stderr, (f_), ##__VA_ARGS__)
 #define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS) ponyint_systematic_testing_init(RANDOM_SEED, MAX_THREADS)
 #define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT) ponyint_systematic_testing_start(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
