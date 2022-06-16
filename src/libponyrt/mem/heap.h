@@ -31,6 +31,12 @@ typedef struct heap_t
 #endif
 } heap_t;
 
+enum
+{
+  TRACK_NO_FINALISERS = 0,
+  TRACK_ALL_FINALISERS = 0xFFFFFFFF,
+};
+
 uint32_t ponyint_heap_index(size_t size);
 
 void ponyint_heap_setinitialgc(size_t size);
@@ -44,34 +50,22 @@ void ponyint_heap_destroy(heap_t* heap);
 void ponyint_heap_final(heap_t* heap);
 
 __pony_spec_malloc__(
-  void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+  void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size,
+    uint32_t track_finalisers_mask)
   );
 
 __pony_spec_malloc__(
 void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
-  uint32_t sizeclass)
+  uint32_t sizeclass, uint32_t track_finalisers_mask)
   );
 
 __pony_spec_malloc__(
-void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
+void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
+  uint32_t track_finalisers_mask)
   );
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   size_t size);
-
-__pony_spec_malloc__(
-  void* ponyint_heap_alloc_final(pony_actor_t* actor, heap_t* heap, size_t size)
-  );
-
-__pony_spec_malloc__(
-void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
-  uint32_t sizeclass)
-  );
-
-__pony_spec_malloc__(
-void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
-  size_t size)
-  );
 
 /**
  * Adds to the used memory figure kept by the heap. This allows objects
