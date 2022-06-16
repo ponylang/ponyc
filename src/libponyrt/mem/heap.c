@@ -135,7 +135,7 @@ static void final_small(chunk_t* chunk, uint32_t force_finalisers_mask)
     return;
 
   // unset all finalisers bits since we're going to run them all now
-  chunk->finalisers = chunk->finalisers & ~chunk->slots;
+  chunk->finalisers = chunk->finalisers & ~(chunk->slots | force_finalisers_mask);
 
   // run any finalisers that need to be run
   void* p = NULL;
