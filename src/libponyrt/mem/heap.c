@@ -118,40 +118,28 @@ static void maybe_clear_chunk(chunk_t* chunk)
   }
 }
 
-static void final_small(chunk_t* chunk, uint32_t mark)
+static void final_small(chunk_t* chunk, uint32_t force_finalisers_mask)
 {
+  // this function is only called in one of two scenarios.
+  // 1. when the full chunk is being freed or destroyed. In this case
+  //    `force_finalisers_mask` should always be `0xFFFFFFFF` to make
+  //    all finalisers get run no matter what.
+  // 2. when part of the chunk is being freed. In this case
+  //    `force_finalisers_mask` should always be `0` to make sure that
+  //    only those finalisers get run as per the free `chunk->slots`
+  pony_assert(force_finalisers_mask == 0 || force_finalisers_mask == 0xFFFFFFFF);
+  uint32_t finalisers = chunk->finalisers & (chunk->slots | force_finalisers_mask);
+
+  // exit early before any memory writes if no finalisers to run
+  if(finalisers == 0)
+    return;
+
+  // unset all finalisers bits since we're going to run them all now
+  chunk->finalisers = chunk->finalisers & ~chunk->slots;
+
   // run any finalisers that need to be run
   void* p = NULL;
 
-  uint32_t finalisers = chunk->finalisers;
-  uint64_t bit = 0;
-
-  // if there's a finaliser to run for a used slot
-  while(finalisers != 0)
-  {
-    bit = __pony_ctz(finalisers);
-    p = chunk->m + (bit << HEAP_MINBITS);
-
-    // run finaliser
-    pony_assert((*(pony_type_t**)p)->final != NULL);
-    (*(pony_type_t**)p)->final(p);
-
-    // clear finaliser in chunk
-    chunk->finalisers &= ~((uint32_t)1 << bit);
-
-    // clear bit just found in our local finaliser map
-    finalisers &= (finalisers - 1);
-  }
-  (void)mark;
-}
-
-static void final_small_freed(chunk_t* chunk)
-{
-  // run any finalisers that need to be run for any newly freed slots
-  void* p = NULL;
-
-  uint32_t finalisers = chunk->finalisers & chunk->slots;
-  chunk->finalisers = chunk->finalisers & ~chunk->slots;
   uint64_t bit = 0;
 
   // if there's a finaliser to run for a used slot
@@ -186,7 +174,7 @@ static void destroy_small(chunk_t* chunk, uint32_t mark)
   (void)mark;
 
   // run any finalisers that need running
-  final_small(chunk, mark);
+  final_small(chunk, 0xFFFFFFFF);
 
   ponyint_pagemap_set(chunk->m, NULL);
   POOL_FREE(block_t, chunk->m);
@@ -257,7 +245,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
         (__pony_popcount(chunk->slots) * size));
 
       // run finalisers for freed slots
-      final_small_freed(chunk);
+      final_small(chunk, 0);
 
       // make chunk available for allocations only after finalisers have been
       // run to prevent premature reuse of memory slots by an allocation
@@ -371,8 +359,8 @@ void ponyint_heap_final(heap_t* heap)
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    chunk_list(final_small, heap->small_free[i], 0);
-    chunk_list(final_small, heap->small_full[i], 0);
+    chunk_list(final_small, heap->small_free[i], 0xFFFFFFFF);
+    chunk_list(final_small, heap->small_full[i], 0xFFFFFFFF);
   }
 }
 
