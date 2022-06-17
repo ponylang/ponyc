@@ -94,11 +94,6 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p);
 void ponyint_heap_mark_shallow(chunk_t* chunk, void* p);
 
 /**
- * Returns true if the address is marked (allocated).
- */
-bool ponyint_heap_ismarked(chunk_t* chunk, void* p);
-
-/**
  * Forcibly free this address.
  */
 void ponyint_heap_free(chunk_t* chunk, void* p);

@@ -22,6 +22,11 @@ typedef struct chunk_t
   struct chunk_t* next;
 } chunk_t;
 
+enum
+{
+  CHUNK_NEEDS_TO_BE_CLEARED = 0xFFFFFFFF,
+};
+
 typedef char block_t[POOL_ALIGN];
 typedef void (*chunk_fn)(chunk_t* chunk, uint32_t mark);
 
@@ -89,6 +94,28 @@ static void clear_chunk(chunk_t* chunk, uint32_t mark)
 {
   chunk->slots = mark;
   chunk->shallow = mark;
+}
+
+static void maybe_clear_chunk(chunk_t* chunk)
+{
+  // handle delayed clearing of the chunk since we don't do it
+  // before starting GC anymore as an optimization
+  // This is ignored in case of `sizeclass == 0` because
+  // the sizeclass_empty` value for it is also `0xFFFFFFFF`
+  // and it is still cleared befor starting GC
+  if(chunk->size != 0 && chunk->shallow == CHUNK_NEEDS_TO_BE_CLEARED)
+  {
+    if(chunk->size >= HEAP_SIZECLASSES)
+    {
+      chunk->slots = 1;
+      chunk->shallow = 1;
+    }
+    else
+    {
+      chunk->slots = sizeclass_empty[chunk->size];
+      chunk->shallow = sizeclass_empty[chunk->size];
+    }
+  }
 }
 
 static void final_small(chunk_t* chunk, uint32_t mark)
@@ -195,7 +222,16 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
   while(chunk != NULL)
   {
     next = chunk->next;
+
+    maybe_clear_chunk(chunk);
+
     chunk->slots &= chunk->shallow;
+
+    // set `chunk->shallow` to sentinel to avoid clearing
+    // for next GC cycle
+    // This is ignored in case of `sizeclass == 0` because
+    // the sizeclass_empty` value for it is also `0xFFFFFFFF`
+    chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
     if(chunk->slots == 0)
     {
@@ -249,7 +285,14 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
   while(chunk != NULL)
   {
     next = chunk->next;
+
+    maybe_clear_chunk(chunk);
+
     chunk->slots &= chunk->shallow;
+
+    // set `chunk->shallow` to sentinel to avoid clearing
+    // for next GC cycle
+    chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
     if(chunk->slots == 0)
     {
@@ -398,8 +441,14 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->finalisers = 0;
 
     // Clear the first bit.
-    n->shallow = n->slots = sizeclass_init[sizeclass];
+    n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
+
+    // set `chunk->shallow` to sentinel to avoid clearing
+    // for next GC cycle
+    // This is ignored in case of `sizeclass == 0` because
+    // the sizeclass_empty` value for it is also `0xFFFFFFFF`
+    n->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
     ponyint_pagemap_set(n->m, n);
 
@@ -460,8 +509,14 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
     n->finalisers = 1;
 
     // Clear the first bit.
-    n->shallow = n->slots = sizeclass_init[sizeclass];
+    n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
+
+    // set `chunk->shallow` to sentinel to avoid clearing
+    // for next GC cycle
+    // This is ignored in case of `sizeclass == 0` because
+    // the sizeclass_empty` value for it is also `0xFFFFFFFF`
+    n->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
     ponyint_pagemap_set(n->m, n);
 
@@ -494,7 +549,12 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   heap->mem_allocated += ponyint_pool_used_size(size);
 #endif
   chunk->slots = 0;
-  chunk->shallow = 0;
+
+  // set `chunk->shallow` to sentinel to avoid clearing
+  // for next GC cycle
+  // This is ignored in case of `sizeclass == 0` because
+  // the sizeclass_empty` value for it is also `0xFFFFFFFF`
+  chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
   // note that no finaliser needs to run
   chunk->finalisers = 0;
@@ -524,7 +584,12 @@ void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
   heap->mem_allocated += ponyint_pool_used_size(size);
 #endif
   chunk->slots = 0;
-  chunk->shallow = 0;
+
+  // set `chunk->shallow` to sentinel to avoid clearing
+  // for next GC cycle
+  // This is ignored in case of `sizeclass == 0` because
+  // the sizeclass_empty` value for it is also `0xFFFFFFFF`
+  chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
   // note that a finaliser needs to run
   chunk->finalisers = 1;
@@ -584,14 +649,12 @@ bool ponyint_heap_startgc(heap_t* heap)
   if(heap->used <= heap->next_gc)
     return false;
 
-  for(int i = 0; i < HEAP_SIZECLASSES; i++)
-  {
-    uint32_t mark = sizeclass_empty[i];
-    chunk_list(clear_chunk, heap->small_free[i], mark);
-    chunk_list(clear_chunk, heap->small_full[i], mark);
-  }
-
-  chunk_list(clear_chunk, heap->large, 1);
+  // only need to clear `sizeclass == 0` due to others
+  // being cleared as part of GC as an optimization
+  uint32_t mark = sizeclass_empty[0];
+  pony_assert(mark == 0xFFFFFFFF);
+  chunk_list(clear_chunk, heap->small_free[0], mark);
+  chunk_list(clear_chunk, heap->small_full[0], mark);
 
   // reset used to zero
   heap->used = 0;
@@ -608,6 +671,8 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p)
   // preserve the external pointer, but allow us to mark and recurse the
   // external pointer in the same pass.
   bool marked;
+
+  maybe_clear_chunk(chunk);
 
   if(chunk->size >= HEAP_SIZECLASSES)
   {
@@ -639,6 +704,8 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p)
 
 void ponyint_heap_mark_shallow(chunk_t* chunk, void* p)
 {
+  maybe_clear_chunk(chunk);
+
   if(chunk->size >= HEAP_SIZECLASSES)
   {
     chunk->shallow = 0;
@@ -652,18 +719,6 @@ void ponyint_heap_mark_shallow(chunk_t* chunk, void* p)
     // A clear bit is in-use, a set bit is available.
     chunk->shallow &= ~slot;
   }
-}
-
-bool ponyint_heap_ismarked(chunk_t* chunk, void* p)
-{
-  if(chunk->size >= HEAP_SIZECLASSES)
-    return (chunk->slots & chunk->shallow) == 0;
-
-  // Shift to account for smallest allocation size.
-  uint32_t slot = FIND_SLOT(p, chunk->m);
-
-  // Check if the slot is marked or shallow marked.
-  return (chunk->slots & chunk->shallow & slot) == 0;
 }
 
 void ponyint_heap_free(chunk_t* chunk, void* p)
