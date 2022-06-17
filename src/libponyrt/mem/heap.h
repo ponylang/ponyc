@@ -28,6 +28,9 @@ typedef struct heap_t
 #ifdef USE_MEMTRACK
   size_t mem_allocated;
   size_t mem_used; // actual mem used without "fake used" to trigger GC
+  size_t heap_alloc_counter;
+  size_t heap_free_counter;
+  size_t heap_gc_counter;
 #endif
 } heap_t;
 
@@ -99,6 +102,18 @@ pony_actor_t* ponyint_heap_owner(chunk_t* chunk);
 size_t ponyint_heap_size(chunk_t* chunk);
 
 #ifdef USE_MEMTRACK
+/** Get the total number of allocations on the heap.
+ */
+size_t ponyint_heap_alloc_counter(heap_t* heap);
+
+/** Get the total number of heap allocations freed.
+ */
+size_t ponyint_heap_free_counter(heap_t* heap);
+
+/** Get the total number of GC iterations run.
+ */
+size_t ponyint_heap_gc_counter(heap_t* heap);
+
 /** Get the memory used by the heap.
  */
 size_t ponyint_heap_mem_size(heap_t* heap);

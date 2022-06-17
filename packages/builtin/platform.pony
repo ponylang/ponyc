@@ -20,3 +20,4 @@ primitive Platform
 
   fun native128(): Bool => compile_intrinsic
   fun debug(): Bool => compile_intrinsic
+  fun memtrack(): Bool => compile_intrinsic

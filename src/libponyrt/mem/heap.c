@@ -63,6 +63,13 @@ static const uint32_t sizeclass_init[HEAP_SIZECLASSES] =
   0x00010000
 };
 
+#ifdef USE_MEMTRACK
+static const uint32_t sizeclass_slot_count[HEAP_SIZECLASSES] =
+{
+  32, 16, 8, 4, 2
+};
+#endif
+
 static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 {
   0, 1, 2, 2, 3, 3, 3, 3,
@@ -73,6 +80,27 @@ static size_t heap_initialgc = 1 << 14;
 static double heap_nextgc_factor = 2.0;
 
 #ifdef USE_MEMTRACK
+/** Get the total number of allocations on the heap.
+ */
+size_t ponyint_heap_alloc_counter(heap_t* heap)
+{
+  return heap->heap_alloc_counter;
+}
+
+/** Get the total number of heap allocations freed.
+ */
+size_t ponyint_heap_free_counter(heap_t* heap)
+{
+  return heap->heap_free_counter;
+}
+
+/** Get the total number of GC iterations run.
+ */
+size_t ponyint_heap_gc_counter(heap_t* heap)
+{
+  return heap->heap_gc_counter;
+}
+
 /** Get the memory used by the heap.
  */
 size_t ponyint_heap_mem_size(heap_t* heap)
@@ -206,11 +234,17 @@ static void destroy_large(chunk_t* chunk, uint32_t mark)
 
 static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
 #ifdef USE_MEMTRACK
-  uint32_t empty, size_t size, size_t* mem_allocated, size_t* mem_used)
+  uint32_t empty, size_t size, size_t* mem_allocated, size_t* mem_used,
+  size_t* heap_free_counter)
 #else
   uint32_t empty, size_t size)
 #endif
 {
+#ifdef USE_MEMTRACK
+  size_t num_slots_available = 0;
+  size_t num_slots_used = 0;
+#endif
+
   size_t used = 0;
   chunk_t* next;
 
@@ -228,6 +262,10 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
     // the sizeclass_empty` value for it is also `0xFFFFFFFF`
     chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
+#ifdef USE_MEMTRACK
+    num_slots_available += sizeclass_slot_count[size];
+#endif
+
     if(chunk->slots == 0)
     {
 #ifdef USE_MEMTRACK
@@ -235,6 +273,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
       *mem_allocated += POOL_ALLOC_SIZE(block_t);
       *mem_used += sizeof(chunk_t);
       *mem_used += sizeof(block_t);
+      num_slots_used += sizeclass_slot_count[size];
 #endif
       used += sizeof(block_t);
       chunk->next = *full;
@@ -247,6 +286,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
       *mem_allocated += POOL_ALLOC_SIZE(block_t);
       *mem_used += sizeof(chunk_t);
       *mem_used += sizeof(block_t);
+      num_slots_used += (sizeclass_slot_count[size] - __pony_popcount(chunk->slots));
 #endif
       used += (sizeof(block_t) -
         (__pony_popcount(chunk->slots) * size));
@@ -264,21 +304,34 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
     chunk = next;
   }
 
+#ifdef USE_MEMTRACK
+  *heap_free_counter = (num_slots_available - num_slots_used);
+#endif
+
   return used;
 }
 
 #ifdef USE_MEMTRACK
 static chunk_t* sweep_large(chunk_t* chunk, size_t* used, size_t* mem_allocated,
-  size_t* mem_used)
+  size_t* mem_used, size_t* heap_free_counter)
 #else
 static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
 #endif
 {
+#ifdef USE_MEMTRACK
+  size_t num_slots_available = 0;
+  size_t num_slots_used = 0;
+#endif
+
   chunk_t* list = NULL;
   chunk_t* next;
 
   while(chunk != NULL)
   {
+#ifdef USE_MEMTRACK
+    num_slots_available++;
+#endif
+
     next = chunk->next;
 
     maybe_clear_chunk(chunk);
@@ -298,6 +351,7 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
       *mem_allocated += ponyint_pool_used_size(chunk->size);
       *mem_used += sizeof(chunk_t);
       *mem_used += chunk->size;
+      num_slots_used++;
 #endif
       *used += chunk->size;
     } else {
@@ -306,6 +360,10 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
 
     chunk = next;
   }
+
+#ifdef USE_MEMTRACK
+  *heap_free_counter = (num_slots_available - num_slots_used);
+#endif
 
   return list;
 }
@@ -461,6 +519,7 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   }
 
 #ifdef USE_MEMTRACK
+  heap->heap_alloc_counter++;
   heap->mem_used += SIZECLASS_SIZE(sizeclass);
 #endif
   heap->used += SIZECLASS_SIZE(sizeclass);
@@ -488,6 +547,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
   heap->mem_used += chunk->size;
   heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
   heap->mem_allocated += ponyint_pool_used_size(size);
+  heap->heap_alloc_counter++;
 #endif
   chunk->slots = 0;
 
@@ -672,6 +732,7 @@ void ponyint_heap_endgc(heap_t* heap)
 #ifdef USE_MEMTRACK
   size_t mem_allocated = 0;
   size_t mem_used = 0;
+  size_t heap_free_counter = 0;
 #endif
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
@@ -690,9 +751,9 @@ void ponyint_heap_endgc(heap_t* heap)
 
 #ifdef USE_MEMTRACK
     used += sweep_small(list1, avail, full, empty, size,
-      &mem_allocated, &mem_used);
+      &mem_allocated, &mem_used, &heap_free_counter);
     used += sweep_small(list2, avail, full, empty, size,
-      &mem_allocated, &mem_used);
+      &mem_allocated, &mem_used, &heap_free_counter);
 #else
     used += sweep_small(list1, avail, full, empty, size);
     used += sweep_small(list2, avail, full, empty, size);
@@ -700,7 +761,8 @@ void ponyint_heap_endgc(heap_t* heap)
   }
 
 #ifdef USE_MEMTRACK
-  heap->large = sweep_large(heap->large, &used, &mem_allocated, &mem_used);
+  heap->large = sweep_large(heap->large, &used, &mem_allocated, &mem_used,
+    &heap_free_counter);
 #else
   heap->large = sweep_large(heap->large, &used);
 #endif
@@ -712,6 +774,8 @@ void ponyint_heap_endgc(heap_t* heap)
 #ifdef USE_MEMTRACK
   heap->mem_allocated += mem_allocated;
   heap->mem_used += mem_used;
+  heap->heap_free_counter += heap_free_counter;
+  heap->heap_gc_counter++;
 #endif
   heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 

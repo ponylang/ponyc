@@ -113,5 +113,16 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass
     return true;
   }
 
+  if(!strcmp(attribute, OS_MEMTRACK_NAME))
+  {
+#ifdef USE_MEMTRACK
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+
+    return true;
+  }
+
   return false;
 }
