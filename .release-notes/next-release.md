@@ -20,3 +20,10 @@ did not run as expected, but rather produced an error on the first iteration. Th
 
 We supply nightly and release Docker images for ponyc based on Alpine Linux. We've updated the version of Alpine we use from 3.12 which recently reached it's end of life to Alpine 3.16 which is supported until 2024.
 
+## More efficient actor heap garbage collection
+
+We have improved the actor heap garbage collection process
+to make it more efficient by deferring some initialization
+work and handling as part of the normal garbage collection
+mark and sweep passes.
+
