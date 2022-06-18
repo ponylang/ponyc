@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Avoid clearing chunks at start of GC ([PR #4143](https://github.com/ponylang/ponyc/pull/4143))
 
 ### Changed
 
