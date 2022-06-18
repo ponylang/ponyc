@@ -144,7 +144,7 @@ static void actor_unsetoverloaded(pony_actor_t* actor)
   }
 }
 
-static void maybe_mute_on_msg_send(pony_ctx_t* ctx, pony_actor_t* to)
+static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
 {
   if(ctx->current != NULL)
   {
@@ -423,7 +423,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 }
 
 // return true if mute occurs
-static bool maybe_mute(pony_actor_t* actor)
+static bool maybe_should_mute(pony_actor_t* actor)
 {
   // if we become muted as a result of handling a message, bail out now.
   // we aren't set to "muted" at this point. setting to muted during a
@@ -491,7 +491,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       try_gc(ctx, actor);
 
       // maybe mute actor; returns true if mute occurs
-      if(maybe_mute(actor))
+      if(maybe_should_mute(actor))
         return false;
 
       // if we've reached our batch limit
@@ -878,7 +878,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   }
 
   if(has_app_msg)
-    maybe_mute_on_msg_send(ctx, to);
+    maybe_mark_should_mute(ctx, to);
 
   if(ponyint_actor_messageq_push(&to->q, first, last
 #ifdef USE_DYNAMIC_TRACE
@@ -921,7 +921,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   }
 
   if(has_app_msg)
-    maybe_mute_on_msg_send(ctx, to);
+    maybe_mark_should_mute(ctx, to);
 
   if(ponyint_actor_messageq_push_single(&to->q, first, last
 #ifdef USE_DYNAMIC_TRACE
