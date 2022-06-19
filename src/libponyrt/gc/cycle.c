@@ -871,6 +871,8 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
 
         if(!ponyint_actor_pendingdestroy(m->actor))
         {
+          pony_assert(m->actor->muters != NULL ? ponyint_muteset_size(m->actor->muters) == 0 : true);
+          pony_assert(m->actor->muted == 0);
           ponyint_actor_setpendingdestroy(m->actor);
           ponyint_actor_final(ctx, m->actor);
           stack = ponyint_pendingdestroystack_push(stack, m->actor);
@@ -889,6 +891,8 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   {
     if(!ponyint_actor_pendingdestroy(view->actor))
     {
+      pony_assert(view->actor->muters != NULL ? ponyint_muteset_size(view->actor->muters) == 0 : true);
+      pony_assert(view->actor->muted == 0);
       ponyint_actor_setpendingdestroy(view->actor);
       ponyint_actor_final(ctx, view->actor);
       stack = ponyint_pendingdestroystack_push(stack, view->actor);
@@ -900,6 +904,8 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   while(stack != NULL)
   {
     stack = ponyint_pendingdestroystack_pop(stack, &actor);
+    pony_assert(actor->muters != NULL ? ponyint_muteset_size(actor->muters) == 0 : true);
+    pony_assert(actor->muted == 0);
     ponyint_actor_destroy(actor);
   }
 
