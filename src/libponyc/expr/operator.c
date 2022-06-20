@@ -443,7 +443,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     {
       left_lastchild = ast_child(left_lastchild);
     }
-    if(ast_id(left) == TK_FVARREF && ast_child(left) != NULL &&
+    if(ast_id(left) == TK_FVARREF &&
       ast_id(left_lastchild) == TK_THIS)
     {
       // We are writing to a field in this
