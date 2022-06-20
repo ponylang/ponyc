@@ -438,8 +438,13 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(!ok_safe)
   {
+    ast_t *left_lastchild= left;
+    while(ast_child(left_lastchild) != NULL)
+    {
+      left_lastchild= ast_child(left_lastchild);
+    }
     if(ast_id(left) == TK_FVARREF && ast_child(left) != NULL &&
-      ast_id(ast_child(left)) == TK_THIS)
+      ast_id(left_lastchild) == TK_THIS)
     {
       // We are writing to a field in this
       ast_t* fn = ast_nearest(left, TK_FUN);
