@@ -1098,7 +1098,8 @@ static void reachable_call(reach_t* r, deferred_reification_t* reify,
   reachable_fun(r, reify, postfix, opt);
 }
 
-static void reachable_ffi(reach_t* r, ast_t* ast, pass_opt_t* opt)
+static void reachable_ffi(reach_t* r, deferred_reification_t* reify,
+  ast_t* ast, pass_opt_t* opt)
 {
   ast_t* decl = (ast_t*)ast_data(ast);
   pony_assert(decl != NULL);
@@ -1106,8 +1107,21 @@ static void reachable_ffi(reach_t* r, ast_t* ast, pass_opt_t* opt)
   AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
     decl_error);
 
+  bool reified;
+  ast_t* return_typeargs = ast_childidx(ast, 1);
+  if(ast_child(return_typeargs) == NULL)
+  {
+    // We don't have any specified return type at the call site,
+    // use the type given by the declaration.
+    return_typeargs = decl_ret_typeargs;
+    reified = false;
+  } else {
+    return_typeargs = deferred_reify(reify, return_typeargs, opt);
+    reified = true;
+  }
+
   ast_t* arg = ast_child(params);
-  ast_t* return_type = ast_child(decl_ret_typeargs);
+  ast_t* return_type = ast_child(return_typeargs);
   add_type(r, return_type, opt);
   while(arg != NULL)
   {
@@ -1122,6 +1136,11 @@ static void reachable_ffi(reach_t* r, ast_t* ast, pass_opt_t* opt)
     }
 
     arg = ast_sibling(arg);
+  }
+
+  if(reified)
+  {
+    ast_free_unattached(return_typeargs);
   }
 }
 
@@ -1173,7 +1192,7 @@ static void reachable_expr(reach_t* r, deferred_reification_t* reify,
       break;
 
     case TK_FFICALL:
-      reachable_ffi(r, ast, opt);
+      reachable_ffi(r, reify, ast, opt);
       break;
 
     case TK_ADDRESS:
