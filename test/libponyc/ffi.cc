@@ -252,5 +252,40 @@ TEST_F(FFITest, DeclarationWithNullablePointer)
 
       "NullablePointer[P1 val] ref is not allowed: "
         "the type argument to NullablePointer must be a struct");
+}
 
+TEST_F(FFITest, FFIDeclaredTupleArgument)
+{
+  const char* src =
+    "use @foo[None](x: (U8, U8))\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo((0, 0))";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(FFITest, FFIDeclaredTupleReturn)
+{
+  const char* src =
+    "use @foo[(U8, U8)]()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(FFITest, FFIDeclaredTupleReturnAtCallSite)
+{
+  const char* src =
+    "use @foo[None]()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo[(U8, U8)]()";
+
+  TEST_COMPILE(src);
 }
