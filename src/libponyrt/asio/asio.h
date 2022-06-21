@@ -138,6 +138,16 @@ void ponyint_iocp_resume_stdin();
 
 #endif
 
+#ifdef USE_MEMTRACK
+/** Get the static memory used by the asio subsystem.
+ */
+size_t ponyint_asio_static_mem_size();
+
+/** Get the static memory allocated by the asio subsystem.
+ */
+size_t ponyint_asio_static_alloc_size();
+#endif
+
 PONY_EXTERN_C_END
 
 #endif

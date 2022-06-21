@@ -31,6 +31,26 @@ void systematic_testing_mut_init()
 }
 #endif
 
+#ifdef USE_MEMTRACK
+// holds only size of systematic_testing_thread_t array
+static size_t mem_allocated;
+static size_t mem_used;
+
+/** Get the static memory used by the systematic testing subsystem.
+ */
+size_t ponyint_systematic_testing_static_mem_size()
+{
+  return mem_used;
+}
+
+/** Get the static memory allocated by the systematic testing subsystem.
+ */
+size_t ponyint_systematic_testing_static_alloc_size()
+{
+  return mem_allocated;
+}
+#endif
+
 void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 {
   #if defined(USE_SCHEDULER_SCALING_PTHREADS)
@@ -52,11 +72,16 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   srand((int)random_seed);
 
   // initialize thead tracking array (should be max_threads + 1 to account for asio)
-  // TODO: memtrack tracking for these allocations
   total_threads = max_threads + 1;
+  size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
   threads_to_track = (systematic_testing_thread_t*)ponyint_pool_alloc_size(
-    total_threads * sizeof(systematic_testing_thread_t));;
-  memset(threads_to_track, 0, total_threads * sizeof(systematic_testing_thread_t));
+    mem_needed);
+  memset(threads_to_track, 0, mem_needed);
+
+#ifdef USE_MEMTRACK
+  mem_used += (mem_needed);
+  mem_allocated += (ponyint_pool_used_size(mem_needed));
+#endif
 
   active_thread = threads_to_track;
 }
@@ -132,7 +157,12 @@ void ponyint_systematic_testing_yield()
 {
   if(stopped_threads == total_threads)
   {
-    ponyint_pool_free_size(total_threads * sizeof(systematic_testing_thread_t), threads_to_track);
+    size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
+    ponyint_pool_free_size(mem_needed, threads_to_track);
+#ifdef USE_MEMTRACK
+    mem_used -= (mem_needed);
+    mem_allocated -= (ponyint_pool_used_size(mem_needed));
+#endif
     active_thread = NULL;
     threads_to_track = NULL;
     total_threads = 0;

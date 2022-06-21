@@ -13,6 +13,16 @@ pony_static_assert(false, "Systematic testing requires pthreads (USE_SCHEDULER_S
 
 PONY_EXTERN_C_BEGIN
 
+#ifdef USE_MEMTRACK
+/** Get the static memory used by the systematic testing subsystem.
+ */
+size_t ponyint_systematic_testing_static_mem_size();
+
+/** Get the static memory allocated by the systematic testing subsystem.
+ */
+size_t ponyint_systematic_testing_static_alloc_size();
+#endif
+
 void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads);
 void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal);
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal);

@@ -22,6 +22,27 @@ struct asio_base_t
 static asio_base_t running_base;
 static uint32_t asio_cpu;
 
+#ifdef USE_MEMTRACK
+// holds only size of pthread_cond_t condition variable when using pthreads
+static size_t mem_allocated;
+static size_t mem_used;
+
+/** Get the static memory used by the asio subsystem.
+ */
+size_t ponyint_asio_static_mem_size()
+{
+  return mem_used;
+}
+
+/** Get the static memory allocated by the asio subsystem.
+ */
+size_t ponyint_asio_static_alloc_size()
+{
+  return mem_allocated;
+}
+#endif
+
+
 /** Start an asynchronous I/O event mechanism.
  *
  *  Errors are always delegated to the owning actor of an I/O subscription and
@@ -64,7 +85,6 @@ void ponyint_asio_init(uint32_t cpu)
     // create wait event objects
     running_base.sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // TODO: memtrack accounting
     // create pthread condition object
     running_base.sleep_object = POOL_ALLOC(pthread_cond_t);
     int ret = pthread_cond_init(running_base.sleep_object, NULL);
@@ -74,6 +94,11 @@ void ponyint_asio_init(uint32_t cpu)
       POOL_FREE(pthread_cond_t, running_base.sleep_object);
       running_base.sleep_object = NULL;
     }
+
+#ifdef USE_MEMTRACK
+    mem_used += sizeof(pthread_cond_t);
+    mem_allocated += POOL_ALLOC_SIZE(pthread_cond_t);
+#endif
 #endif
 #endif
 }
@@ -113,6 +138,15 @@ bool ponyint_asio_stop()
 #endif
 
     ponyint_thread_join(running_base.tid);
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+    POOL_FREE(pthread_cond_t, running_base.sleep_object);
+    running_base.sleep_object = NULL;
+#ifdef USE_MEMTRACK
+    mem_used -= sizeof(pthread_cond_t);
+    mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
+#endif
+#endif
 
     running_base.backend = NULL;
     running_base.tid = 0;
