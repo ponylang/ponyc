@@ -376,99 +376,37 @@ void ponyint_heap_final(heap_t* heap)
   }
 }
 
-void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size,
+  uint32_t track_finalisers_mask)
 {
-  if(size == 0)
-  {
-    return NULL;
-  } else if(size <= HEAP_MAX) {
-    return ponyint_heap_alloc_small(actor, heap, ponyint_heap_index(size));
-  } else {
-    return ponyint_heap_alloc_large(actor, heap, size);
-  }
-}
+  // 1. when `track_finalisers_mask == TRACK_NO_FINALISERS` then finalisers are
+  //    disabled
+  // 2. when `track_finalisers_mask == TRACK_ALL_FINALISERS` then
+  //    finalisers are enabled
+  pony_assert(track_finalisers_mask == TRACK_NO_FINALISERS ||
+    track_finalisers_mask == TRACK_ALL_FINALISERS);
 
-void* ponyint_heap_alloc_final(pony_actor_t* actor, heap_t* heap, size_t size)
-{
   if(size == 0)
   {
     return NULL;
   } else if(size <= HEAP_MAX) {
-    return ponyint_heap_alloc_small_final(actor, heap,
-      ponyint_heap_index(size));
+    return ponyint_heap_alloc_small(actor, heap, ponyint_heap_index(size),
+      track_finalisers_mask);
   } else {
-    return ponyint_heap_alloc_large_final(actor, heap, size);
+    return ponyint_heap_alloc_large(actor, heap, size, track_finalisers_mask);
   }
 }
 
 void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
-  uint32_t sizeclass)
+  uint32_t sizeclass, uint32_t track_finalisers_mask)
 {
-  chunk_t* chunk = heap->small_free[sizeclass];
-  void* m;
+  // 1. when `track_finalisers_mask == TRACK_NO_FINALISERS` then finalisers are
+  //    disabled
+  // 2. when `track_finalisers_mask == TRACK_ALL_FINALISERS` then
+  //    finalisers are enabled
+  pony_assert(track_finalisers_mask == TRACK_NO_FINALISERS ||
+    track_finalisers_mask == TRACK_ALL_FINALISERS);
 
-  // If there are none in this size class, get a new one.
-  if(chunk != NULL)
-  {
-    // Clear and use the first available slot.
-    uint32_t slots = chunk->slots;
-    uint32_t bit = __pony_ctz(slots);
-    slots &= ~(1 << bit);
-
-    m = chunk->m + (bit << HEAP_MINBITS);
-    chunk->slots = slots;
-
-    if(slots == 0)
-    {
-      heap->small_free[sizeclass] = chunk->next;
-      chunk->next = heap->small_full[sizeclass];
-      heap->small_full[sizeclass] = chunk;
-    }
-  } else {
-    chunk_t* n = (chunk_t*) POOL_ALLOC(chunk_t);
-    n->actor = actor;
-    n->m = (char*) POOL_ALLOC(block_t);
-    n->size = sizeclass;
-#ifdef USE_MEMTRACK
-    heap->mem_used += sizeof(chunk_t);
-    heap->mem_used += POOL_ALLOC_SIZE(block_t);
-    heap->mem_used -= SIZECLASS_SIZE(sizeclass);
-    heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
-    heap->mem_allocated += POOL_ALLOC_SIZE(block_t);
-#endif
-
-    // note that no finaliser needs to run
-    n->finalisers = 0;
-
-    // Clear the first bit.
-    n->slots = sizeclass_init[sizeclass];
-    n->next = NULL;
-
-    // set `chunk->shallow` to sentinel to avoid clearing
-    // for next GC cycle
-    // This is ignored in case of `sizeclass == 0` because
-    // the sizeclass_empty` value for it is also `0xFFFFFFFF`
-    n->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
-
-    ponyint_pagemap_set(n->m, n);
-
-    heap->small_free[sizeclass] = n;
-    chunk = n;
-
-    // Use the first slot.
-    m = chunk->m;
-  }
-
-#ifdef USE_MEMTRACK
-  heap->mem_used += SIZECLASS_SIZE(sizeclass);
-#endif
-  heap->used += SIZECLASS_SIZE(sizeclass);
-  return m;
-}
-
-void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
-  uint32_t sizeclass)
-{
   chunk_t* chunk = heap->small_free[sizeclass];
   void* m;
 
@@ -483,8 +421,8 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
     m = chunk->m + (bit << HEAP_MINBITS);
     chunk->slots = slots;
 
-    // note that a finaliser needs to run
-    chunk->finalisers |= ((uint32_t)1 << bit);
+    // note if a finaliser needs to run or not
+    chunk->finalisers |= (track_finalisers_mask & ((uint32_t)1 << bit));
 
     if(slots == 0)
     {
@@ -505,8 +443,8 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
     heap->mem_allocated += POOL_ALLOC_SIZE(block_t);
 #endif
 
-    // note that a finaliser needs to run
-    n->finalisers = 1;
+    // note if a finaliser needs to run or not
+    n->finalisers = (track_finalisers_mask & 1);
 
     // Clear the first bit.
     n->slots = sizeclass_init[sizeclass];
@@ -534,8 +472,16 @@ void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
   return m;
 }
 
-void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
+void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
+  uint32_t track_finalisers_mask)
 {
+  // 1. when `track_finalisers_mask == TRACK_NO_FINALISERS` then finalisers are
+  //    disabled
+  // 2. when `track_finalisers_mask == TRACK_ALL_FINALISERS` then
+  //    finalisers are enabled
+  pony_assert(track_finalisers_mask == TRACK_NO_FINALISERS ||
+    track_finalisers_mask == TRACK_ALL_FINALISERS);
+
   size = ponyint_pool_adjust_size(size);
 
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
@@ -556,43 +502,8 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   // the sizeclass_empty` value for it is also `0xFFFFFFFF`
   chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
 
-  // note that no finaliser needs to run
-  chunk->finalisers = 0;
-
-  large_pagemap(chunk->m, size, chunk);
-
-  chunk->next = heap->large;
-  heap->large = chunk;
-  heap->used += chunk->size;
-
-  return chunk->m;
-}
-
-void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
-  size_t size)
-{
-  size = ponyint_pool_adjust_size(size);
-
-  chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
-  chunk->actor = actor;
-  chunk->size = size;
-  chunk->m = (char*) ponyint_pool_alloc_size(size);
-#ifdef USE_MEMTRACK
-  heap->mem_used += sizeof(chunk_t);
-  heap->mem_used += chunk->size;
-  heap->mem_allocated += POOL_ALLOC_SIZE(chunk_t);
-  heap->mem_allocated += ponyint_pool_used_size(size);
-#endif
-  chunk->slots = 0;
-
-  // set `chunk->shallow` to sentinel to avoid clearing
-  // for next GC cycle
-  // This is ignored in case of `sizeclass == 0` because
-  // the sizeclass_empty` value for it is also `0xFFFFFFFF`
-  chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
-
-  // note that a finaliser needs to run
-  chunk->finalisers = 1;
+  // note if a finaliser needs to run or not
+  chunk->finalisers = (track_finalisers_mask & 1);
 
   large_pagemap(chunk->m, size, chunk);
 
@@ -607,7 +518,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   size_t size)
 {
   if(p == NULL)
-    return ponyint_heap_alloc(actor, heap, size);
+    return ponyint_heap_alloc(actor, heap, size, TRACK_NO_FINALISERS);
 
   chunk_t* chunk = ponyint_pagemap_get(p);
 
@@ -634,7 +545,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
     oldsize = size;
 
   // Get new memory and copy from the old memory.
-  void* q = ponyint_heap_alloc(actor, heap, size);
+  void* q = ponyint_heap_alloc(actor, heap, size, TRACK_NO_FINALISERS);
   memcpy(q, p, oldsize);
   return q;
 }
