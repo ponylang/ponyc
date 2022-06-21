@@ -5,17 +5,17 @@
 #endif
 
 int identity(int a) {
-    return a;
+  return a;
 }
 
 int add(int a, int b) {
-    return a + b;
+  return a + b;
 }
 
 EXPORT_SYMBOL void* get_function(int type)
 {
-    if(type == 0)
-        return identity;
+  if(type == 0)
+    return identity;
 
-    return add;
+  return add;
 }
