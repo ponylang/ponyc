@@ -65,7 +65,7 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   SYSTEMATIC_TESTING_PRINTF("Systematic testing using seed: %lu...\n", random_seed);
   SYSTEMATIC_TESTING_PRINTF("(rerun with `<app> --ponysystematictestingseed %lu` to reproduce)\n", random_seed);
 
-  // TODO: maybe replace with better RNG?
+  // TODO systematic testing: maybe replace with better RNG?
   // probably best to replace this with a RNG that has the exact same behavior
   // on all platform so we can deterministically reproduce the same thread
   // interleaving everywhere if needed
