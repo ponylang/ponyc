@@ -43,10 +43,15 @@ enum
 
 // The sync flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.
-static bool has_sync_flag(pony_actor_t* actor, uint8_t flag)
+static bool has_sync_flag_any(pony_actor_t* actor, uint8_t check_flags)
 {
   uint8_t flags = atomic_load_explicit(&actor->sync_flags, memory_order_acquire);
-  return (flags & flag) != 0;
+  return (flags & check_flags) != 0;
+}
+
+static bool has_sync_flag(pony_actor_t* actor, uint8_t flag)
+{
+  return has_sync_flag_any(actor, flag);
 }
 
 static void set_sync_flag(pony_actor_t* actor, uint8_t flag)
@@ -99,13 +104,8 @@ static void unset_internal_flag(pony_actor_t* actor, uint8_t flag)
 // additional messages and the sender won't be muted. As this is a transient
 // situtation that should be shortly rectified, there's no harm done.
 //
-// Our handling of atomic operations in `is_muted`, `mute_actor`
+// Our handling of atomic operations in `mute_actor`
 // and `unmute_actor` are to assure that both rules aren't violated.
-
-static bool is_muted(pony_actor_t* actor)
-{
-  return has_sync_flag(actor, SYNC_FLAG_MUTED);
-}
 
 static void mute_actor(pony_actor_t* actor)
 {
@@ -121,9 +121,8 @@ void ponyint_unmute_actor(pony_actor_t* actor)
 
 static bool triggers_muting(pony_actor_t* actor)
 {
-  return has_sync_flag(actor, SYNC_FLAG_OVERLOADED) ||
-    has_sync_flag(actor, SYNC_FLAG_UNDER_PRESSURE) ||
-    is_muted(actor);
+  return has_sync_flag_any(actor, SYNC_FLAG_OVERLOADED |
+    SYNC_FLAG_UNDER_PRESSURE | SYNC_FLAG_MUTED);
 }
 
 static void actor_setoverloaded(pony_actor_t* actor)
@@ -155,9 +154,9 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
     if(triggers_muting(to) &&
-       !has_sync_flag(ctx->current, SYNC_FLAG_OVERLOADED) &&
-       !has_sync_flag(ctx->current, SYNC_FLAG_UNDER_PRESSURE) &&
-       ctx->current != to)
+      !has_sync_flag_any(ctx->current, SYNC_FLAG_OVERLOADED |
+        SYNC_FLAG_UNDER_PRESSURE) &&
+      ctx->current != to)
     {
       ponyint_sched_mute(ctx, ctx->current, to);
     }
@@ -468,7 +467,7 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
-  pony_assert(!is_muted(actor));
+  pony_assert(!has_sync_flag(actor, SYNC_FLAG_MUTED));
   ctx->current = actor;
   size_t batch = PONY_SCHED_BATCH;
 
@@ -509,7 +508,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   // We didn't hit our app message batch limit. We now believe our queue to be
   // empty, but we may have received further messages.
   pony_assert(app < batch);
-  pony_assert(!is_muted(actor));
+  pony_assert(!has_sync_flag(actor, SYNC_FLAG_MUTED));
 
   if(has_sync_flag(actor, SYNC_FLAG_OVERLOADED))
   {
@@ -886,7 +885,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
 #endif
     ))
   {
-    if(!is_muted(to))
+    if(!has_sync_flag(to, SYNC_FLAG_MUTED))
     {
       ponyint_sched_add(ctx, to);
     }
@@ -929,7 +928,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 #endif
     ))
   {
-    if(!is_muted(to))
+    if(!has_sync_flag(to, SYNC_FLAG_MUTED))
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
