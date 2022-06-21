@@ -757,30 +757,6 @@ TEST_F(BadPonyTest, AsFromUninferredReference)
     "cannot infer type of b");
 }
 
-TEST_F(BadPonyTest, FFIDeclaredTupleArgument)
-{
-  const char* src =
-    "use @foo[None](x: (U8, U8))\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    @foo((0, 0))";
-
-  TEST_ERRORS_1(src, "cannot pass tuples as FFI arguments");
-}
-
-TEST_F(BadPonyTest, FFIDeclaredTupleReturn)
-{
-  const char* src =
-    "use @foo[(U8, U8)]()\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    @foo()";
-
-  TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
-}
-
 TEST_F(BadPonyTest, FFICallInDefaultInterfaceFun)
 {
   const char* src =
@@ -847,18 +823,6 @@ TEST_F(BadPonyTest, FFICallInDefaultTraitBe)
 
   TEST_ERRORS_1(src,
     "Can't call an FFI function in a default method or behavior");
-}
-
-TEST_F(BadPonyTest, FFIDeclaredTupleReturnAtCallSite)
-{
-  const char* src =
-    "use @foo[None]()\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-    "    @foo[(U8, U8)]()";
-
-  TEST_ERRORS_1(src, "an FFI function cannot return a tuple");
 }
 
 TEST_F(BadPonyTest, MatchExhaustiveLastCaseUnionSubset)

@@ -1019,8 +1019,6 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
 
   if(t->underlying == TK_TUPLETYPE)
   {
-    (void)intrinsic;
-    pony_assert(intrinsic);
 
     // Can't use the named type. Build an unnamed type with the same elements.
     unsigned int count = LLVMCountStructElementTypes(c_t->use_type);
@@ -1028,19 +1026,22 @@ static LLVMTypeRef ffi_return_type(compile_t* c, reach_type_t* t,
     LLVMTypeRef* e_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetStructElementTypes(c_t->use_type, e_types);
 
-    ast_t* child = ast_child(t->ast);
-    size_t i = 0;
-
-    while(child != NULL)
+    if(intrinsic)
     {
-      // A Bool in an intrinsic tuple return type is an i1.
-      if(is_bool(child))
-        e_types[i] = c->i1;
+      ast_t* child = ast_child(t->ast);
+      size_t i = 0;
 
-      child = ast_sibling(child);
-      i++;
+      while(child != NULL)
+      {
+        // A Bool in an intrinsic tuple return type is an i1.
+        if(is_bool(child))
+          e_types[i] = c->i1;
+
+        child = ast_sibling(child);
+        i++;
+      }
     }
-
+    
     LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, e_types, count,
       false);
     ponyint_pool_free_size(buf_size, e_types);
