@@ -22,7 +22,7 @@ Hello, world.
 thread 139871776585472: yielding to thread: 139871768192768.. next_index: 4
 <SNIPPED LOTS OF OUTPUT>
 Systematic testing successfully finished!
-me@home:~/ponyc$ 
+me@home:~/ponyc$
 ```
 
 ## Uses
