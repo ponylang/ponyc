@@ -74,6 +74,32 @@ bool method_check_type_params(pass_opt_t* opt, ast_t** astp)
   return true;
 }
 
+static bool void_star_param(ast_t* param_type, ast_t* arg_type)
+{
+  pony_assert(param_type != NULL);
+  pony_assert(arg_type != NULL);
+
+  if(!is_pointer(param_type))
+    return false;
+
+  ast_t* type_args = ast_childidx(param_type, 2);
+
+  if(ast_childcount(type_args) != 1 || !is_none(ast_child(type_args)))
+    return false;
+
+  // Parameter type is Pointer[None]
+  // If the argument is Pointer[A], NullablePointer[A] or USize, allow it
+  while(ast_id(arg_type) == TK_ARROW)
+    arg_type = ast_childidx(arg_type, 1);
+
+  if(is_pointer(arg_type) ||
+    is_nullable_pointer(arg_type) ||
+    is_literal(arg_type, "USize"))
+    return true;
+
+  return false;
+}  
+
 static bool extend_positional_args(pass_opt_t* opt, ast_t* params,
   ast_t* positional)
 {
@@ -195,7 +221,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 }
 
 static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
-  bool partial)
+  bool partial, bool is_bare)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -249,7 +275,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
       return false;
     }
-    else if(!is_subtype(arg_type, wp_type, &info, opt))
+    else if(!is_subtype(arg_type, wp_type, &info, opt) && (!is_bare || (!void_star_param(wp_type, arg_type))))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
@@ -569,6 +595,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
+  bool bare = (ast_id(ast_child(type)) == TK_AT);
 
   if(!extend_positional_args(opt, params, positional))
     return false;
@@ -576,14 +603,14 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
-  if(!check_arg_types(opt, params, positional, partial))
+  if(!check_arg_types(opt, params, positional, partial, bare))
     return false;
 
   switch(ast_id(lhs))
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(ast_id(ast_child(type)) != TK_AT)
+      if(!bare)
       {
         if(!check_receiver_cap(opt, ast, NULL))
           return false;

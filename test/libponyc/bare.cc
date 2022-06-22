@@ -190,6 +190,16 @@ TEST_F(BareTest, BareLambda_IsVal)
   TEST_COMPILE(src);
 }
 
+TEST_F(BareTest, BareLambda_DeclarationVoidStarPointer)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "  let foo = @{(ptr: Pointer[None] tag) => None}\n"
+    "  foo(Pointer[I32])";
+
+  TEST_COMPILE(src);
+}
 
 TEST_F(BareTest, BareLambda_CantChangeCap)
 {
