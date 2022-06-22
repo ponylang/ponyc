@@ -12,7 +12,7 @@ Instructions for how to build with systematic testing enabled can be found in [B
 
 The output of building and running `examples/helloworld` with systematic testing enabled will look something like:
 
-```
+```bash
 me@home:~/ponyc$ ./helloworld
 Systematic testing using seed: 360200870782547...
 (rerun with `<app> --ponysystematictestingseed 360200870782547` to reproduce)
