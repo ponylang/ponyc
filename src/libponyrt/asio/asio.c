@@ -140,11 +140,13 @@ bool ponyint_asio_stop()
     ponyint_thread_join(running_base.tid);
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
+#if defined(USE_SYSTEMATIC_TESTING)
     POOL_FREE(pthread_cond_t, running_base.sleep_object);
     running_base.sleep_object = NULL;
 #ifdef USE_MEMTRACK
     mem_used -= sizeof(pthread_cond_t);
     mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
+#endif
 #endif
 #endif
 
