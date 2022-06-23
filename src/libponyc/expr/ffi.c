@@ -7,7 +7,7 @@
 #include "ponyassert.h"
 #include <string.h>
 
-static bool void_star_param(ast_t* param_type, ast_t* arg_type)
+bool void_star_param(ast_t* param_type, ast_t* arg_type)
 {
   pony_assert(param_type != NULL);
   pony_assert(arg_type != NULL);
