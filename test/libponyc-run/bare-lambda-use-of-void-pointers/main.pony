@@ -1,9 +1,7 @@
-use @printf[I32](fmt: Pointer[None] tag, ...)
-use @pony_exitcode[None](code: I32) 
+use @pony_exitcode[None](code: I32)
 
 actor Main
-
   new create(env: Env) =>
-    let printer = @{(fmt: Pointer[None] tag): I32 => @printf(fmt)}
-    let chr_num = printer("Hello world!\n".cstring())
-    @pony_exitcode(chr_num) // expected 13
+    let cb = @{(p: Pointer[None], n: I32): I32 => n}
+    let sum = cb(Pointer[U8].create(), 1) + cb(Pointer[U32].create(), 1)
+    @pony_exitcode(sum) // should be 2

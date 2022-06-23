@@ -4,9 +4,8 @@ use @pony_exitcode[None](code: I32)
 actor Main
 
   new create(env: Env) =>
-    let cb = this~print()
-    let chr_num = cb("Hello world!\n".cstring())
-    @pony_exitcode(chr_num) // expected 13
+    let cb = this~foo()
+    let sum = cb(Pointer[U8].create(), 1) + cb(Pointer[U32].create(), 1)
+    @pony_exitcode(sum) // expected 13
 
-  fun @print(fmt: Pointer[None]): I32 =>
-    @printf(fmt)
+  fun @foo(p: Pointer[None], n: I32): I32 => n
