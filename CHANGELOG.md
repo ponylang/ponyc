@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix String.f32 and String.f64 errors with non null terminated strings ([PR #4132](https://github.com/ponylang/ponyc/pull/4132))
 - Fix for infinite Ranges ([PR #4127](https://github.com/ponylang/ponyc/pull/4127))
+- Ensure reachability of types returned by FFI calls ([PR #4149](https://github.com/ponylang/ponyc/pull/4149))
 
 ### Added
 
