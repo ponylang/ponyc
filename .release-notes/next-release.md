@@ -27,3 +27,7 @@ to make it more efficient by deferring some initialization
 work and handling as part of the normal garbage collection
 mark and sweep passes.
 
+## Fix compiler crash related to explicit FFI return types
+
+After we re-added the ability to override the return type for FFI function calls in a [previous release](https://github.com/ponylang/ponyc/releases/tag/0.50.0), we forgot to reintroduce some checks in the compiler that ensured that the specified return types would be known to the code generation pass. This caused some programs that introduced a new type (for example, a bare lambda) in the context of a FFI return type to crash the compiler. This is now fixed.
+
