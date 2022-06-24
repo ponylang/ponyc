@@ -1,4 +1,5 @@
 #include "call.h"
+#include "ffi.h"
 #include "postfix.h"
 #include "control.h"
 #include "literal.h"
@@ -195,7 +196,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 }
 
 static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
-  bool partial)
+  bool partial, bool is_bare)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -249,7 +250,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
       return false;
     }
-    else if(!is_subtype(arg_type, wp_type, &info, opt))
+    else if(!is_subtype(arg_type, wp_type, &info, opt) && (!is_bare || (!void_star_param(wp_type, arg_type))))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
@@ -569,6 +570,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
+  bool bare = (ast_id(cap) == TK_AT);
 
   if(!extend_positional_args(opt, params, positional))
     return false;
@@ -576,14 +578,14 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
-  if(!check_arg_types(opt, params, positional, partial))
+  if(!check_arg_types(opt, params, positional, partial, bare))
     return false;
 
   switch(ast_id(lhs))
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(ast_id(ast_child(type)) != TK_AT)
+      if(!bare)
       {
         if(!check_receiver_cap(opt, ast, NULL))
           return false;

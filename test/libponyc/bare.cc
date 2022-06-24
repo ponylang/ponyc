@@ -190,7 +190,6 @@ TEST_F(BareTest, BareLambda_IsVal)
   TEST_COMPILE(src);
 }
 
-
 TEST_F(BareTest, BareLambda_CantChangeCap)
 {
   const char* src =

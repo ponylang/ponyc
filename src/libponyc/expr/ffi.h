@@ -8,6 +8,7 @@
 PONY_EXTERN_C_BEGIN
 
 bool expr_ffi(pass_opt_t* opt, ast_t* ast);
+bool void_star_param(ast_t* param_type, ast_t* arg_type);
 
 PONY_EXTERN_C_END
 
