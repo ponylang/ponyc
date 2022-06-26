@@ -555,6 +555,7 @@ static bool maybe_should_unschedule_actor(pony_ctx_t* ctx, pony_actor_t* actor)
     // ask muters to unmute us before we get unscheduled or else
     // we will never get rescheduled again
     pony_assert(size > 0);
+    (void)size;
     size_t i = HASHMAP_BEGIN;
 
     pony_actor_t* muter;
