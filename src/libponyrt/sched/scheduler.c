@@ -1650,10 +1650,23 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     {
       needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
 
+      // check if the actor has any messages waiting to be processed
+      // note: this must be done before the actor is unmuted to
+      // avoid a race condition
+      bool should_reschedule = !ponyint_messageq_isempty(&to_unmute->q);
+
+      // unmute actor
       ponyint_unmute_actor(to_unmute);
-      ponyint_sched_add(ctx, to_unmute);
-      DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
-      actors_rescheduled++;
+
+      // only reschedule if the actor had messages waiting to be processed
+      // before we unnmuted it to ensure it cannot be concurrently
+      // scheduled on multiple scheduler threads
+      if(should_reschedule)
+      {
+        ponyint_sched_add(ctx, to_unmute);
+        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
+        actors_rescheduled++;
+      }
 
       ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
     }
