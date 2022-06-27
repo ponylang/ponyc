@@ -1,25 +1,13 @@
-/// additional.c
-#ifdef _MSC_VER
-#  define EXPORT_SYMBOL __declspec(dllexport)
-#else
-#  define EXPORT_SYMBOL
-#endif
+// additional.c
+#include <stdio.h>
+#include <stdint.h>
 
-#pragma pack(1)
-typedef struct Vector2i {
-  int x;
-  int y;
-} Vector2i;
+struct Vector {
+  uint64_t x;
+  uint64_t y;
+  uint64_t z;
+};
 
-int add(int a, int b) {
-  return a + b;
-}
-
-int add_struct(Vector2i v) {
-  return v.x + v.y;
-}
-
-Vector2i divmod(int arg, int divisor)
-{
-  return (Vector2i){ arg / divisor, arg % divisor };
+struct Vector build_vector(uint64_t init) {
+  return (struct Vector) {.x=init, .y=init, .z=init};
 }
