@@ -277,6 +277,5 @@ class Tick is TimerNotify
     fun ref apply(timer: Timer, count: U64): Bool =>
       _tick_count = _tick_count + count
       let done = (_report_count > 0) and (_tick_count >= _report_count)
-      @printf(("Tick fired: " + _tick_count.string() + "\n").cstring())
       _coordinator.tick_fired(done, _tick_count)
       not (done)
