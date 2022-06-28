@@ -41,7 +41,7 @@
   "                   pressure actors before a muted sending actor gets\n" \
   "                   unscheduled so it cannot continue to overwhelm\n" \
   "                   muted/overloaded/under pressure actors.\n" \
-  "                   Defaults to 10.\n" \
+  "                   Defaults to 1.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
   "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n" \

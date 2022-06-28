@@ -243,7 +243,7 @@ PONY_API int pony_init(int argc, char** argv)
   opt.gc_factor = 2.0f;
   opt.pin = false;
   opt.stats_interval = UINT32_MAX;
-  opt.msgs_til_mute = 10;
+  opt.msgs_til_mute = 1;
 
 #if defined(USE_SYSTEMATIC_TESTING)
   opt.systematic_testing_seed = 0;

@@ -63,6 +63,3 @@ class UnderPressureWaker is TimerNotify
 actor Main
   new create(env: Env) =>
     Incrementer(env)
-
-  fun @runtime_override_defaults(rto: RuntimeOptions) =>
-    rto.ponymsgstilmute = 1

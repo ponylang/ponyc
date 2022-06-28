@@ -82,11 +82,11 @@ struct RuntimeOptions
     current value. This is a floating point value. Defaults to 2.0.
     """
 
-  var ponymsgstilmute: U32 = 10
+  var ponymsgstilmute: U32 = 1
     """
     Number of messages sent to muted/overloaded/under pressure actors before
     a muted sending actor gets unscheduled so it cannot continue to overwhelm
-    muted/overloaded/under pressure actors. Defaults to 10.
+    muted/overloaded/under pressure actors. Defaults to 1.
     """
 
   var ponynoyield: Bool = false
