@@ -202,6 +202,19 @@ ponyc --runtimebc
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 
+### systematic testing
+
+Systematic testing allows for running of Pony programs in a deterministic manner. It accomplishes this by coordinating the interleaving of the multiple runtime scheduler threads in a deterministic and reproducible manner instead of allowing them all to run in parallel like happens normally. This ability to reproduce a particular runtime behavior is invaluable for debugging runtime issues.
+
+Systematic testing is enabled by setting `use=scheduler_scaling_pthreads,systematic_testing` in the build command line like:
+
+```bash
+make configure use=scheduler_scaling_pthreads,systematic_testing
+make build
+```
+
+More information about systematic testing can be found in [SYSTEMATIC_TESTING.md](SYSTEMATIC_TESTING.md).
+
 ## Compiler Development
 
 To ease development and support LSP tools like [clangd](https://clangd.llvm.org), create a `compile_commands.json` file with the following steps:

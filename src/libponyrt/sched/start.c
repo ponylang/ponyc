@@ -34,6 +34,9 @@ typedef struct options_t
   bool pin;
   bool pinasio;
   bool version;
+#if defined(USE_SYSTEMATIC_TESTING)
+  uint64_t systematic_testing_seed;
+#endif
   bool ponyhelp;
 } options_t;
 
@@ -65,6 +68,9 @@ enum
   OPT_PIN,
   OPT_PINASIO,
   OPT_VERSION,
+#if defined(USE_SYSTEMATIC_TESTING)
+  OPT_SYSTEMATIC_TESTING_SEED,
+#endif
   OPT_PONYHELP
 };
 
@@ -82,6 +88,9 @@ static opt_arg_t args[] =
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
+#if defined(USE_SYSTEMATIC_TESTING)
+  {"ponysystematictestingseed", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_SEED},
+#endif
   {"ponyhelp", 0, OPT_ARG_NONE, OPT_PONYHELP},
 
   OPT_ARGS_FINISH
@@ -112,6 +121,22 @@ static int parse_uint(uint32_t* target, int min, const char *value) {
   *target = v;
   return 0;
 }
+
+#if defined(USE_SYSTEMATIC_TESTING)
+static int parse_uint64(uint64_t* target, uint64_t min, const char *value) {
+#if defined(PLATFORM_IS_WINDOWS)
+  uint64_t v = _strtoui64(value, NULL, 10);
+#else
+  uint64_t v = strtoull(value, NULL, 10);
+#endif
+
+  if (v < (min < 0 ? 0 : min)) {
+    return 1;
+  }
+  *target = v;
+  return 0;
+}
+#endif
 
 static int parse_size(size_t* target, int min, const char *value) {
   int v = atoi(value);
@@ -154,6 +179,9 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_PIN: opt->pin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_VERSION: opt->version = true; break;
+#if defined(USE_SYSTEMATIC_TESTING)
+      case OPT_SYSTEMATIC_TESTING_SEED: if(parse_uint64(&opt->systematic_testing_seed, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
+#endif
       case OPT_PONYHELP: opt->ponyhelp = true; break;
 
       case -2:
@@ -206,6 +234,9 @@ PONY_API int pony_init(int argc, char** argv)
   opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
   opt.pin = false;
+#if defined(USE_SYSTEMATIC_TESTING)
+  opt.systematic_testing_seed = 0;
+#endif
 
   pony_register_thread();
 
@@ -252,7 +283,12 @@ PONY_API int pony_init(int argc, char** argv)
   pony_exitcode(0);
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
-    opt.pinasio, opt.min_threads, opt.thread_suspend_threshold);
+    opt.pinasio, opt.min_threads, opt.thread_suspend_threshold
+#if defined(USE_SYSTEMATIC_TESTING)
+    , opt.systematic_testing_seed);
+#else
+    );
+#endif
 
   ponyint_cycle_create(ctx, opt.cd_detect_interval);
 

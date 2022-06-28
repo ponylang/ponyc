@@ -68,6 +68,18 @@ bool ponyint_asio_start();
  */
 asio_backend_t* ponyint_asio_get_backend();
 
+/** Returns the thread id assigned for the ASIO thread.
+ *
+ */
+pony_thread_id_t ponyint_asio_get_backend_tid();
+
+#if defined(USE_SYSTEMATIC_TESTING)
+/** Returns the sleep object assigned for the ASIO thread.
+ *
+ */
+pony_signal_event_t ponyint_asio_get_backend_sleep_object();
+#endif
+
 /** Returns the cpu assigned for the ASIO thread.
  *
  */
@@ -124,6 +136,16 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch);
 // Should only be called from stdfd.c.
 void ponyint_iocp_resume_stdin();
 
+#endif
+
+#ifdef USE_MEMTRACK
+/** Get the static memory used by the asio subsystem.
+ */
+size_t ponyint_asio_static_mem_size();
+
+/** Get the static memory allocated by the asio subsystem.
+ */
+size_t ponyint_asio_static_alloc_size();
 #endif
 
 PONY_EXTERN_C_END

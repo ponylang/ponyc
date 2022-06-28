@@ -84,6 +84,11 @@ if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
     add_compile_options(-DUSE_SCHEDULER_SCALING_PTHREADS)
 endif()
 
+if(PONY_USE_SYSTEMATIC_TESTING)
+    set(PONY_OUTPUT_SUFFIX "-systematic_testing")
+    add_compile_options(-DUSE_SYSTEMATIC_TESTING)
+endif()
+
 if(PONY_USE_MEMTRACK_MESSAGES)
     set(PONY_OUTPUT_SUFFIX "-memtrack_messages")
     add_compile_options(-DUSE_MEMTRACK -DUSE_MEMTRACK_MESSAGES)

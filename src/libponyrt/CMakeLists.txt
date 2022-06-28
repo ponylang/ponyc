@@ -46,6 +46,7 @@ set(_c_src
     sched/mutemap.c
     sched/scheduler.c
     sched/start.c
+    sched/systematic_testing.c
 )
 
 set(_ll_except_src "${CMAKE_CURRENT_SOURCE_DIR}/lang/except_try_catch.ll")

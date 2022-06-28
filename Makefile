@@ -135,6 +135,8 @@ define USE_CHECK
     PONY_USES += -DPONY_USE_DTRACE=true
   else ifeq ($1,scheduler_scaling_pthreads)
     PONY_USES += -DPONY_USE_SCHEDULER_SCALING_PTHREADS=true
+  else ifeq ($1,systematic_testing)
+    PONY_USES += -DPONY_USE_SYSTEMATIC_TESTING=true
   else ifeq ($1,memtrack)
     PONY_USES += -DPONY_USE_MEMTRACK=true
   else ifeq ($1,memtrack_messages)
