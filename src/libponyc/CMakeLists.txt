@@ -27,6 +27,7 @@ add_library(libponyc STATIC
     codegen/gendesc.c
     codegen/genexe.c
     codegen/genexpr.c
+    codegen/genffi.c
     codegen/genfun.c
     codegen/genheader.c
     codegen/genident.c
