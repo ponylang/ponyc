@@ -210,11 +210,11 @@ endif
 
 test-full-programs-release: all
 	@mkdir -p $(outDir)/runner-tests/release
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run $(extra_args)
 
 test-full-programs-debug: all
 	@mkdir -p $(outDir)/runner-tests/debug
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run --only ffi-tuple-parameters
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run $(extra_args)
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential

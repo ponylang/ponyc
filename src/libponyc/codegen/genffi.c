@@ -1,4 +1,5 @@
 #include "genffi.h"
+#include "genopt.h"
 #include "gencall.h"
 #include "gentype.h"
 #include "genexpr.h"
@@ -102,20 +103,52 @@ static reach_type_t* ffi_decl_reach_type_for_return(compile_t* c,
   return t;
 }
 
-static bool is_ffi_llvm_type_indirect(compile_t* c, LLVMTypeRef t)
+static bool is_llvm_type_abi_direct_hfa(compile_t* c, LLVMTypeRef t)
 {
-  // LLVM struct types are passed indirectly in cdecl ABI when their
+  // Among the platforms Pony supports, only ARM platforms treat HFAs as direct.
+  if(!target_is_arm(c->opt->triple))
+    return false;
+
+  // An HFA type must be a struct type.
+  if(LLVMGetTypeKind(t) != LLVMStructTypeKind)
+    return false;
+
+  // An HFA type must have between 2 and 4 fields (inclusive).
+  int field_count = (int)LLVMCountStructElementTypes(t);
+  if(field_count < 2 || field_count > 4)
+    return false;
+
+  // An HFA type must contain only floating-point types for its fields.
+  LLVMTypeKind field_kind = LLVMGetTypeKind(LLVMStructGetTypeAtIndex(t, 0));
+  if(field_kind != LLVMFloatTypeKind && field_kind != LLVMDoubleTypeKind)
+    return false;
+
+  // An HFA type must contain all fields of the same type.
+  for(int i = 1; i < field_count; i++)
+  {
+    if(LLVMGetTypeKind(LLVMStructGetTypeAtIndex(t, 0)) != field_kind)
+    return false;
+  }
+
+  return true;
+}
+
+static bool is_llvm_type_abi_indirect(compile_t* c, LLVMTypeRef t)
+{
+  // LLVM struct types are passed indirectly in cdecl ABI only if their
   // type exceeds a certain size, which is specific to a platform.
   // It happens to be the same on all the platforms we currently support,
-  // but for defensiveness, we will raise an error here if the platform
-  // being compiled is not one of the known supported ones.
-  const size_t size = (size_t)LLVMABISizeOfType(c->target_data, t);
-  return size > // (in bytes)
-#if defined(PLATFORM_IS_X86) || defined(PLATFORM_IS_ARM)
-  16;
-#else
-#  error PLATFORM NOT SUPPORTED!
-#endif
+  // so at this time we do not have platform-specific checks here.
+  const int max_direct_size = 16;
+  if((int)LLVMABISizeOfType(c->target_data, t) <= max_direct_size)
+    return false;
+
+  // Some platforms treat Homogenous Floating-Point Aggregates (HFAs) as being
+  // direct, even if they exceed the earlier checked size limit for directness.
+  if(is_llvm_type_abi_direct_hfa(c, t))
+    return false;
+
+  return true;
 }
 
 static bool is_ffi_type_indirect(compile_t* c, reach_type_t* t) {
@@ -123,7 +156,7 @@ static bool is_ffi_type_indirect(compile_t* c, reach_type_t* t) {
   if (t->underlying != TK_TUPLETYPE)
     return false;
 
-  return is_ffi_llvm_type_indirect(c, ((compile_type_t*)t->c_type)->use_type);
+  return is_llvm_type_abi_indirect(c, ((compile_type_t*)t->c_type)->use_type);
 }
 
 static bool ffi_decl_has_indirect_return(compile_t* c, ffi_decl_t* ffi_decl)
@@ -183,18 +216,49 @@ static LLVMTypeRef ffi_decl_llvm_return_type(compile_t* c, ffi_decl_t* ffi_decl)
   return c_t->use_type;
 }
 
-static LLVMTypeRef abi_return_type_for(compile_t* c, LLVMTypeRef return_type)
+static bool fields_match_llvm_type_within_offset_range(compile_t* c,
+  LLVMTypeRef struct_type, LLVMTypeRef match_type, int start, int end)
 {
-  // Only struct return values are handled specially by this ABI transformation.
-  // All other types will pass through unchanged.
-  if(LLVMGetTypeKind(return_type) != LLVMStructTypeKind)
-    return return_type;
+  pony_assert(LLVMGetTypeKind(struct_type) == LLVMStructTypeKind);
 
-  // We should never reach this point if the return type demands indirection.
-  pony_assert(!is_ffi_llvm_type_indirect(c, return_type));
+  // If any field in the given offset range doesn't match the given match type,
+  // then return false - the whole range must match the given match type.
+  int field_count = (int)LLVMCountStructElementTypes(struct_type);
+  for(int i = 0; i < field_count; i++)
+  {
+    int offset = (int)LLVMOffsetOfElement(c->target_data, struct_type, i);
+    if(offset < start || offset >= end)
+      continue;
+
+    LLVMTypeRef field_type = LLVMStructGetTypeAtIndex(struct_type, i);
+    if(field_type != match_type)
+      return false;
+  }
+
+  return true;
+}
+
+static LLVMTypeRef abi_type_for(compile_t* c, ffi_decl_t* ffi_decl,
+  LLVMTypeRef type)
+{
+  // Intrinsic functions are left untouched by this ABI transformation.
+  if(ffi_decl_is_intrinsic(ffi_decl))
+    return type;
+
+  // Only struct values are handled specially by this ABI transformation.
+  // All other types will pass through unchanged.
+  if(LLVMGetTypeKind(type) != LLVMStructTypeKind)
+    return type;
+
+  // We should never reach this point if the type demands indirection.
+  pony_assert(!is_llvm_type_abi_indirect(c, type));
+
+  // If it's an HFA on platforms where that matters, we need no transformation.
+  if(is_llvm_type_abi_direct_hfa(c, type))
+    return type;
 
   // Determine the total struct size and the size of a register on this target.
-  int total_size = (int)LLVMABISizeOfType(c->target_data, return_type);
+  int total_size = (int)LLVMABISizeOfType(c->target_data, type);
   int register_size = (int)LLVMABISizeOfType(c->target_data, c->intptr);
 
   // We will split the total size into register-sized chunks, rounding
@@ -208,20 +272,45 @@ static LLVMTypeRef abi_return_type_for(compile_t* c, LLVMTypeRef return_type)
     registers = (LLVMTypeRef*)ponyint_pool_alloc_size(
       registers_count * sizeof(LLVMTypeRef));
 
-  // Fill the buffer with register-sized integers.
+  // On some platforms we will treat floating point types as distinct from
+  // other types in the way we will encode them in the struct.
+  bool use_distinct_float = target_is_x86(c->opt->triple);
+
+  // Fill the buffer with integer types, each one either the size of a register
+  // or the largest sub-register size that can fit in the remaining space.
+  // This ensures that all the struct data can be encoded in registers, with
+  // register boundaries in the right places.
   int registers_total_size = 0;
   for(int i = 0; i < registers_count; i++)
   {
     int remaining_size = total_size - registers_total_size;
-    if(remaining_size >= register_size)
-    {
-      registers[i] = c->intptr;
-      registers_total_size += register_size;
-    } else if(remaining_size >= 8) {
-      registers[i] = c->i64;
+    // The following clauses will be sufficient for platforms with up to 64-bit
+    // register sizes. If Pony gets ported to some super cool 128-bit platform,
+    // then we'll need to add some extra logic here.
+    if(remaining_size >= 8 && register_size >= 8) {
+      if(use_distinct_float &&
+        fields_match_llvm_type_within_offset_range(c, type, c->f32,
+          registers_total_size, registers_total_size + 8)
+      ) {
+        registers[i] = LLVMVectorType(c->f32, 2);
+      } else if(use_distinct_float &&
+        fields_match_llvm_type_within_offset_range(c, type, c->f64,
+          registers_total_size, registers_total_size + 8)
+      ) {
+        registers[i] = c->f64;
+      } else {
+        registers[i] = c->i64;
+      }
       registers_total_size += 8;
     } else if(remaining_size >= 4) {
-      registers[i] = c->i32;
+      if(use_distinct_float &&
+        fields_match_llvm_type_within_offset_range(c, type, c->f32,
+          registers_total_size, registers_total_size + 4)
+      ) {
+        registers[i] = c->f32;
+      } else {
+        registers[i] = c->i32;
+      }
       registers_total_size += 4;
     } else if(remaining_size >= 2) {
       registers[i] = c->i16;
@@ -235,15 +324,22 @@ static LLVMTypeRef abi_return_type_for(compile_t* c, LLVMTypeRef return_type)
   }
 
   // Create an anonymous struct type with the collected registers as elements.
-  LLVMTypeRef anon_struct_type =
+  LLVMTypeRef abi_type =
     LLVMStructTypeInContext(c->context, registers, registers_count, false);
 
   // We no longer need the register type list that we allocated.
   if(registers != NULL)
     ponyint_pool_free_size(registers_count * sizeof(LLVMTypeRef), registers);
 
-  // Return the anonymous struct type - this is our ABI-friendly return type.
-  return anon_struct_type;
+  // Check that the new type is greater than or equal to the orginal size,
+  // and that they both round up to the same nearest power of 2.
+  int abi_size = (int)LLVMABISizeOfType(c->target_data, abi_type);
+  pony_assert(total_size <= abi_size);
+  pony_assert(ponyint_next_pow2(total_size) == ponyint_next_pow2(abi_size));
+  (void)abi_size;
+
+  // Return the anonymous struct type - this is our ABI-friendly type.
+  return abi_type;
 }
 
 static void ffi_decl_gen_func(compile_t* c, ffi_decl_t* ffi_decl)
@@ -279,9 +375,13 @@ static void ffi_decl_gen_func(compile_t* c, ffi_decl_t* ffi_decl)
 
   // Allocate a buffer to hold the list of LLVM parameter types we will collect.
   LLVMTypeRef* ffi_params = NULL;
-  if(ffi_params_count > 0)
+  bool* ffi_params_are_indirect = NULL;
+  if(ffi_params_count > 0) {
+    ffi_params_are_indirect = (bool*)ponyint_pool_alloc_size(
+      ffi_params_count * sizeof(bool));
     ffi_params = (LLVMTypeRef*)ponyint_pool_alloc_size(
       ffi_params_count * sizeof(LLVMTypeRef));
+  }
 
   // Loop over the list of AST parameters and collect the LLVM parameter types.
   deferred_reification_t* reify = c->frame->reify;
@@ -293,6 +393,7 @@ static void ffi_decl_gen_func(compile_t* c, ffi_decl_t* ffi_decl)
     if(has_indirect_return && (i == 0))
     {
       ffi_params[i] = LLVMPointerType(llvm_return_type, 0);
+      ffi_params_are_indirect[i] = false; // (it's an indirect return, not an indirect arg)
       continue; // go to the first real parameter, with `i == 1`
     }
 
@@ -305,13 +406,19 @@ static void ffi_decl_gen_func(compile_t* c, ffi_decl_t* ffi_decl)
     pony_assert(param_type != NULL);
     ast_free_unattached(ast_param_type);
 
+    // Determine if this parameter will be passed indirectly.
+    bool is_param_indirect =
+      is_ffi_type_indirect(c, param_type) && !ffi_decl_is_intrinsic(ffi_decl);
+    ffi_params_are_indirect[i] = (bool)is_param_indirect;
+
     // Collect the LLVM type into the list.
     // If this parameter is marked as indirect, we add pointer indirection.
+    // Otherwise it will be the direct param type, maybe coerced for the ABI.
     LLVMTypeRef ffi_param_type =
       ((compile_type_t*)param_type->c_type)->use_type;
-    ffi_params[i] = is_ffi_type_indirect(c, param_type)
+    ffi_params[i] = is_param_indirect
       ? LLVMPointerType(ffi_param_type, 0)
-      : ffi_param_type;
+      : abi_type_for(c, ffi_decl, ffi_param_type);
 
     // Go to the next AST parameter and continue the loop.
     ast_param = ast_sibling(ast_param);
@@ -320,8 +427,9 @@ static void ffi_decl_gen_func(compile_t* c, ffi_decl_t* ffi_decl)
   // Determine the return type that should go in the actual function signature.
   // Note that if the return value is indirect, the return type will be void.
   // Otherwise it will be the specified return type, maybe coerced for the ABI.
-  LLVMTypeRef sig_return_type =
-    has_indirect_return ? c->void_type : abi_return_type_for(c, llvm_return_type);
+  LLVMTypeRef sig_return_type = has_indirect_return
+    ? c->void_type
+    : abi_type_for(c, ffi_decl, llvm_return_type);
 
   // Finally, declare the function with the given signature.
   LLVMTypeRef f_type = LLVMFunctionType(sig_return_type,
@@ -329,9 +437,39 @@ static void ffi_decl_gen_func(compile_t* c, ffi_decl_t* ffi_decl)
   LLVMValueRef func =
     LLVMAddFunction(c->module, ffi_decl_name(ffi_decl), f_type);
 
-  // We no longer need the parameter list that we allocated.
+  // If the function has an indirect return, we need to apply the sret attribute
+  // which lets LLVM know that the pointer type is used in this special way.
+  if(has_indirect_return)
+  {
+    unsigned int sret_attr_id =
+      LLVMGetEnumAttributeKindForName("sret", sizeof("sret") - 1);
+    LLVMAttributeRef sret_attr =
+      LLVMCreateTypeAttribute(c->context, sret_attr_id, llvm_return_type);
+    LLVMAddAttributeAtIndex(func, 1, sret_attr); // (note the 1-based indexing)
+  }
+
+  // We also may need to declare special attributes for any indirect parameters.
+  for(int i = 0; i < ffi_params_count; i++)
+  {
+    if(!ffi_params_are_indirect[i])
+      continue;
+
+    LLVM_DECLARE_ATTRIBUTEREF(noundef_attr, noundef, 0);
+    unsigned int byval_attr_id =
+      LLVMGetEnumAttributeKindForName("byval", sizeof("byval") - 1);
+    LLVMAttributeRef byval_attr = LLVMCreateTypeAttribute(c->context,
+      byval_attr_id, LLVMGetElementType(ffi_params[i]));
+
+    LLVMAddAttributeAtIndex(func, i + 1, noundef_attr);
+    LLVMAddAttributeAtIndex(func, i + 1, byval_attr);
+    // (note the 1-based indexing for the parameter numbers)
+  }
+
+  // We no longer need the parameter info lists that we allocated.
   if(ffi_params != NULL)
     ponyint_pool_free_size(ffi_params_count * sizeof(LLVMTypeRef), ffi_params);
+  if(ffi_params_are_indirect != NULL)
+    ponyint_pool_free_size(ffi_params_count * sizeof(bool), ffi_params_are_indirect);
 
   // Emit the newly declared function by writing it into the `ffi_decl` struct.
   ffi_decl->func = func;
@@ -376,55 +514,18 @@ static void report_ffi_type_err(compile_t* c, ffi_decl_t* ffi_decl,
 static bool ffi_decl_get_or_gen(compile_t* c, ffi_decl_t* ffi_decl)
 {
   pony_assert(ffi_decl->func == NULL);
-  pony_assert(ffi_decl->decl == NULL);
+  pony_assert(ffi_decl->decl != NULL);
   pony_assert(ffi_decl->call != NULL);
 
-  // Get the function. First check if the name is in use by a global and error
-  // if it's the case.
-  bool is_func = false;
-  ffi_decl->func = LLVMGetNamedGlobal(c->module, ffi_decl_name(ffi_decl));
+  // Get the function by name in LLVM.
+  ffi_decl->func = LLVMGetNamedFunction(c->module, ffi_decl_name(ffi_decl));
 
-  if(ffi_decl->func == NULL)
-  {
-    ffi_decl->func = LLVMGetNamedFunction(c->module, ffi_decl_name(ffi_decl));
-    is_func = true;
-  }
-
-  if(ffi_decl->func == NULL)
-  {
-    // Prototypes are mandatory, the declaration is already stored.
-    ffi_decl->decl = (ast_t*)ast_data(ffi_decl->call);
-    pony_assert(ffi_decl->decl != NULL);
-
-    ffi_decl_gen_func(c, ffi_decl);
-    pony_assert(ffi_decl->func != NULL);
-
-    size_t index = HASHMAP_UNKNOWN;
-
-#ifndef PONY_NDEBUG
-    ffi_decl_t k;
-    k.func = ffi_decl->func;
-
-    ffi_decl_t* existing_ffi_decl = ffi_decls_get(&c->ffi_decls, &k, &index);
-    pony_assert(existing_ffi_decl == NULL);
-#endif
-
-    ffi_decl_t* new_ffi_decl = POOL_ALLOC(ffi_decl_t);
-    new_ffi_decl->func = ffi_decl->func;
-    new_ffi_decl->decl = ffi_decl->decl;
-    new_ffi_decl->call = ffi_decl->call;
-
-    ffi_decls_putindex(&c->ffi_decls, new_ffi_decl, index);
-    return true;
-  }
-
-  ffi_decl_t k;
-  k.func = ffi_decl->func;
-  size_t index = HASHMAP_UNKNOWN;
-
-  ffi_decl_t* existing_ffi_decl = ffi_decls_get(&c->ffi_decls, &k, &index);
-
-  if((existing_ffi_decl == NULL) && (!is_func || LLVMHasMetadataStr(ffi_decl->func, "pony.abi")))
+  // Raise an error if the function exists and is internal to the Pony ABI.
+  // Such functions are not allowed to be used via FFI.
+  // Show the same error if there is a global variable with that name.
+  if(
+    ((ffi_decl->func != NULL) && LLVMHasMetadataStr(ffi_decl->func, "pony.abi"))
+    || LLVMGetNamedGlobal(c->module, ffi_decl_name(ffi_decl)) != NULL)
   {
     ast_error(c->opt->check.errors, ffi_decl->call, "cannot use '%s' "
       "as an FFI name: name is already in use by the internal ABI",
@@ -432,13 +533,53 @@ static bool ffi_decl_get_or_gen(compile_t* c, ffi_decl_t* ffi_decl)
     return false;
   }
 
-  ffi_decl->func = existing_ffi_decl->func;
-  ffi_decl->decl = existing_ffi_decl->decl;
-  // Do NOT copy the `existing_ffi_decl->call` into our `ffi_decl->call`.
-  // We want to keep using our own call site AST in our local copy of this
-  // data structure, because the types may differ at different call sites.
+  // If the functions doesn't exist yet, we'll create it now and store the
+  // ffi_decl to the hash map for later lookup by other call sites.
+  // Then we can go ahead and return successfully. Our work here is done.
+  if(ffi_decl->func == NULL)
+  {
+    ffi_decl_gen_func(c, ffi_decl);
+    pony_assert(ffi_decl->func != NULL);
 
-  pony_assert(is_func);
+    ffi_decl_t* new_ffi_decl = POOL_ALLOC(ffi_decl_t);
+    new_ffi_decl->func = ffi_decl->func;
+    new_ffi_decl->decl = ffi_decl->decl;
+    new_ffi_decl->call = ffi_decl->call;
+    size_t index = HASHMAP_UNKNOWN;
+    ffi_decls_putindex(&c->ffi_decls, new_ffi_decl, index);
+
+    return true;
+  }
+
+  // If we get to this point, then the function exists, but it may not yet be
+  // known to the hash map as an existing FFI declaration. We'll look it up.
+  ffi_decl_t k;
+  k.func = ffi_decl->func;
+  size_t index = HASHMAP_UNKNOWN;
+  ffi_decl_t* existing_ffi_decl = ffi_decls_get(&c->ffi_decls, &k, &index);
+
+  // If it is already declared, we'll fill in info from the existing and return.
+  if(existing_ffi_decl != NULL)
+  {
+    ffi_decl->func = existing_ffi_decl->func;
+    ffi_decl->decl = existing_ffi_decl->decl;
+    // Do NOT copy the `existing_ffi_decl->call` into our `ffi_decl->call`.
+    // We want to keep using our own call site AST in our local copy of this
+    // data structure, because the types may differ at different call sites.
+
+    return true;
+  }
+
+  // Otherwise, it has no declaration yet even though the LLVM function exists.
+  // This can happen if the function was declared during the normal Pony codegen
+  // (which happens for some libc functions, Pony runtime functions, and
+  // methods of user types in the Pony program).
+  ffi_decl_t* new_ffi_decl = POOL_ALLOC(ffi_decl_t);
+  new_ffi_decl->func = ffi_decl->func;
+  new_ffi_decl->decl = ffi_decl->decl;
+  new_ffi_decl->call = ffi_decl->call;
+  index = HASHMAP_UNKNOWN;
+  ffi_decls_putindex(&c->ffi_decls, new_ffi_decl, index);
 
   return true;
 }
@@ -471,9 +612,6 @@ static LLVMValueRef cast_abi_ffi_struct_value(compile_t* c, LLVMValueRef value,
   return LLVMBuildLoad_P(c->builder, dest, "");
 }
 
-static LLVMValueRef cast_indirect_ffi_arg(compile_t* c, ffi_decl_t* decl,
-  LLVMValueRef arg, LLVMTypeRef param_type);
-
 static LLVMValueRef cast_ffi_value(compile_t* c, ffi_decl_t* ffi_decl,
   LLVMValueRef arg, LLVMTypeRef param_type, bool is_result)
 {
@@ -495,9 +633,7 @@ static LLVMValueRef cast_ffi_value(compile_t* c, ffi_decl_t* ffi_decl,
   switch(LLVMGetTypeKind(param_type))
   {
     case LLVMPointerTypeKind:
-      if((LLVMGetTypeKind(arg_type) == LLVMStructTypeKind) && !is_result)
-        return cast_indirect_ffi_arg(c, ffi_decl, arg, param_type);
-      else if(LLVMGetTypeKind(arg_type) == LLVMIntegerTypeKind)
+      if(LLVMGetTypeKind(arg_type) == LLVMIntegerTypeKind)
         return LLVMBuildIntToPtr(c->builder, arg, param_type, "");
       else
         return LLVMBuildBitCast(c->builder, arg, param_type, "");
@@ -509,7 +645,7 @@ static LLVMValueRef cast_ffi_value(compile_t* c, ffi_decl_t* ffi_decl,
 
     case LLVMStructTypeKind:
       pony_assert(LLVMGetTypeKind(arg_type) == LLVMStructTypeKind);
-      if((param_type != arg_type) && is_result)
+      if(param_type != arg_type)
         return cast_abi_ffi_struct_value(c, arg, param_type);
 
       return arg;
@@ -544,8 +680,23 @@ static LLVMValueRef cast_indirect_ffi_arg(compile_t* c, ffi_decl_t* decl,
   return alloca;
 }
 
-static LLVMValueRef* ffi_decl_alloc_and_fill_args_list(compile_t* c,
-  ffi_decl_t* ffi_decl, int* out_count)
+static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* ffi_decl,
+  LLVMValueRef arg, LLVMTypeRef param_type, bool* out_is_indirect)
+{
+  if(is_llvm_type_abi_indirect(c, LLVMTypeOf(arg)) &&
+    !ffi_decl_is_intrinsic(ffi_decl)
+  ) {
+    *out_is_indirect = true;
+    return cast_indirect_ffi_arg(c, ffi_decl, arg, param_type);
+  }
+
+  *out_is_indirect = false;
+  return cast_ffi_value(c, ffi_decl, arg, param_type, false);
+}
+
+static bool ffi_decl_alloc_and_fill_args_list(compile_t* c,
+  ffi_decl_t* ffi_decl, int* out_count, LLVMValueRef** out_ffi_args,
+  bool** out_ffi_args_are_indirect)
 {
   // Determine how many LLVM-level arguments we will pass to the FFI function.
   // Note that this may be one more than the number of Pony-level arguments
@@ -556,69 +707,106 @@ static LLVMValueRef* ffi_decl_alloc_and_fill_args_list(compile_t* c,
   if(has_indirect_return)
     count++;
 
-  // Let the caller know the count as well.
-  *out_count = count;
-
-  // If there are zero arguments, we don't need to do anything further.
-  if (count == 0)
-    return NULL;
-
   // Allocate a buffer to hold the list of argument values.
-  size_t buf_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* ffi_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMValueRef* ffi_args = NULL;
+  bool* ffi_args_are_indirect = NULL;
+  if(count > 0) {
+    ffi_args =
+      (LLVMValueRef*)ponyint_pool_alloc_size(count * sizeof(LLVMValueRef));
+    ffi_args_are_indirect =
+      (bool*)ponyint_pool_alloc_size(count * sizeof(bool));
+  }
 
-  // TODO: Add comments for everything below here, and validate that logic.
+  // Send outputs to the caller.
+  *out_count = count;
+  *out_ffi_args = ffi_args;
+  *out_ffi_args_are_indirect = ffi_args_are_indirect;
 
+  // Get the function type and determine if it is marked as having var-args.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(ffi_decl->func));
   bool vararg = (LLVMIsFunctionVarArg(f_type) != 0);
 
-  LLVMTypeRef* f_params = NULL;
-  if(!vararg)
+  // For functions that are not marked as var-args, the call site must have
+  // the exact same number of parameters as the declaration had.
+  if(!vararg && (count != (int)LLVMCountParamTypes(f_type)))
   {
-    if(count != (int)LLVMCountParamTypes(f_type))
-    {
-      ast_error(c->opt->check.errors, ffi_decl->call,
-        "conflicting declarations for FFI function: declarations have an "
-        "incompatible number of parameters");
+    ast_error(c->opt->check.errors, ffi_decl->call,
+      "conflicting declarations for FFI function: declarations have an "
+      "incompatible number of parameters");
 
-      ast_error_continue(c->opt->check.errors, ffi_decl->decl,
-        "first declaration is here");
+    ast_error_continue(c->opt->check.errors, ffi_decl->decl,
+      "first declaration is here");
 
-      return NULL;
-    }
+    ponyint_pool_free_size(count * sizeof(LLVMValueRef), ffi_args);
+    ponyint_pool_free_size(count * sizeof(bool), ffi_args_are_indirect);
+    return false;
+  }
 
-    f_params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  // If there are zero arguments, we don't need to do anything further.
+  if(count == 0)
+    return true;
+
+  // Get the list of declared parameter types from the function signature.
+  int f_params_count = LLVMCountParamTypes(f_type);
+  LLVMTypeRef* f_params = NULL;
+  if (f_params_count > 0) {
+    f_params =
+      (LLVMTypeRef*)ponyint_pool_alloc_size(count * sizeof(LLVMTypeRef));
     LLVMGetParamTypes(f_type, f_params);
   }
 
-  ast_t* arg = ast_child(ast_args);
-
+  // Loop over the list of arguments, casting them to each param type if needed.
+  ast_t* ast_arg = ast_child(ast_args);
   for(int i = 0; i < count; i++)
   {
-    ffi_args[i] = gen_expr(c, arg);
-
+    // If this function has an indirect return, then the first argument value
+    // will be an alloca that the callee will write the return value into.
+    // In this case we will advance the i index without going to the next
+    // AST argument sibling, because the AST argument was not used here yet.
     if(has_indirect_return && (i == 0))
     {
       ffi_args[i] = make_ffi_indirect_alloca(c, LLVMGetElementType(f_params[i]));
+      ffi_args_are_indirect[i] = false; // (it's an indirect return, not an indirect arg)
       continue;
     }
 
-    if(!vararg)
-      ffi_args[i] = cast_ffi_value(c, ffi_decl, ffi_args[i], f_params[i], false);
+    // Generate the code to produce the argument value, based on the AST.
+    ffi_args[i] = gen_expr(c, ast_arg);
 
-    if(ffi_args[i] == NULL)
+    // If we have a declared parameter type for this argument index, then we'll
+    // possibly do some casting to cast it to the right type. Note that we may
+    // not have a declared parameter here if the function is marked varargs.
+    if(i < f_params_count)
     {
-      ponyint_pool_free_size(buf_size, ffi_args);
-      return NULL;
+      bool is_indirect = false;
+      ffi_args[i] = cast_ffi_arg(c, ffi_decl, ffi_args[i], f_params[i], &is_indirect);
+      ffi_args_are_indirect[i] = is_indirect;
+    } else {
+      ffi_args_are_indirect[i] = false;
+      pony_assert(vararg);
     }
 
-    arg = ast_sibling(arg);
+    // If we fail to produce any of the arguments, free the lists and abort.
+    if(ffi_args[i] == NULL)
+    {
+      if(ffi_args != NULL)
+        ponyint_pool_free_size(count * sizeof(LLVMValueRef), ffi_args);
+      if(ffi_args_are_indirect != NULL)
+        ponyint_pool_free_size(count * sizeof(bool), ffi_args_are_indirect);
+      if(f_params != NULL)
+        ponyint_pool_free_size(count * sizeof(LLVMTypeRef), f_params);
+      return false;
+    }
+
+    // Move to the next argument in the AST argument list.
+    ast_arg = ast_sibling(ast_arg);
   }
 
-  if(!vararg)
-    ponyint_pool_free_size(buf_size, f_params);
+  if(f_params != NULL)
+    ponyint_pool_free_size(count * sizeof(LLVMTypeRef), f_params);
 
-  return ffi_args;
+  // We don't free the other lists - they are now the caller's responsibility.
+  return true;
 }
 
 static LLVMValueRef ffi_decl_process_return_value(compile_t* c,
@@ -653,19 +841,29 @@ LLVMValueRef ffi_decl_gen_call(compile_t* c, ffi_decl_t* ffi_decl)
 {
   // Generate the list of argument values to pass to the FFI function.
   int ffi_args_count;
-  LLVMValueRef* ffi_args = ffi_decl_alloc_and_fill_args_list(c, ffi_decl,
-    &ffi_args_count);
+  LLVMValueRef* ffi_args = NULL;
+  bool* ffi_args_are_indirect = NULL;
+  if(!ffi_decl_alloc_and_fill_args_list(
+    c, ffi_decl, &ffi_args_count, &ffi_args, &ffi_args_are_indirect)
+  )
+    return NULL;
 
   // Set the debug info location to point to this call site AST.
   codegen_debugloc(c, ffi_decl->call);
 
   // Generate the call site itself.
   LLVMValueRef result;
-  if(ffi_decl_can_error(ffi_decl))
+  if(ffi_decl_can_error(ffi_decl) && c->frame->invoke_target != NULL)
   {
     // If the FFI declaration is marked as able to raise an exception,
-    // generate an invoke instead of a call, which will unwind to the current
-    // invoke target in the case that an exception is raised.
+    // and we have a local try block ready to catch it (the "invoke target"),
+    // then we use an invoke instruction instead of a call instruction,
+    // which will unwind to the current invoke target in the case that an
+    // exception is raised.
+    // Note that if there is no local invoke target in our function scope,
+    // then we must be in a partial function and we can just let the exception
+    // continue unwinding further up the stack until it gets caught.
+    // So in that case we'd use a normal call instruction rather than invoke.
     pony_assert(c->frame->invoke_target != NULL);
     LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
     LLVMBasicBlockRef then_block =
@@ -681,11 +879,38 @@ LLVMValueRef ffi_decl_gen_call(compile_t* c, ffi_decl_t* ffi_decl)
       LLVMBuildCall_P(c->builder, ffi_decl->func, ffi_args, ffi_args_count, "");
   }
 
-  // If this function has an indirect return value, we load from the pointer
-  // that we passed as the first argument - we expect the callee to have
-  // stored the return value at that location.
-  // We discard the actual call result value, which was void.
+  // If this function has any indirect arguments we need to mark them with
+  // special LLVM attributes to enable them to be handled correctly.
+  for(int i = 0; i < ffi_args_count; i++)
+  {
+    if(!ffi_args_are_indirect[i])
+      continue;
+
+    LLVM_DECLARE_ATTRIBUTEREF(noundef_attr, noundef, 0);
+    unsigned int byval_attr_id =
+      LLVMGetEnumAttributeKindForName("byval", sizeof("byval") - 1);
+    LLVMAttributeRef byval_attr = LLVMCreateTypeAttribute(c->context,
+      byval_attr_id, LLVMGetElementType(LLVMTypeOf(ffi_args[i])));
+
+    LLVMAddCallSiteAttribute(result, i + 1, noundef_attr);
+    LLVMAddCallSiteAttribute(result, i + 1, byval_attr);
+    // (note the 1-based indexing for the argument numbers)
+  }
+
+  // If it has an indirect return, we have some special actions here as well.
   if(ffi_decl_has_indirect_return(c, ffi_decl)) {
+    unsigned int sret_attr_id =
+      LLVMGetEnumAttributeKindForName("sret", sizeof("sret") - 1);
+    LLVMAttributeRef sret_attr = LLVMCreateTypeAttribute(c->context,
+      sret_attr_id, LLVMGetElementType(LLVMTypeOf(ffi_args[0])));
+    LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, 8);
+    LLVMAddCallSiteAttribute(result, 1, sret_attr); // (note the 1-based index)
+    LLVMAddCallSiteAttribute(result, 1, align_attr); // (note the 1-based index)
+
+    // We need to load the indirect return value from the sret pointer that
+    // we passed as the first argument - we expect the callee to have stored
+    // the return value at that location (that's how indirect return works).
+    // We discard the actual call result value, which was void.
     pony_assert(LLVMTypeOf(result) == c->void_type);
     result = LLVMBuildLoad_P(c->builder, ffi_args[0], "ffi_indirect_return");
   }
@@ -693,6 +918,8 @@ LLVMValueRef ffi_decl_gen_call(compile_t* c, ffi_decl_t* ffi_decl)
   // We're now done with the arguments list (if any) that was allocated earlier.
   if (ffi_args != NULL)
     ponyint_pool_free_size(ffi_args_count * sizeof(LLVMValueRef), ffi_args);
+  if (ffi_args_are_indirect != NULL)
+    ponyint_pool_free_size(ffi_args_count * sizeof(bool), ffi_args_are_indirect);
 
   // Reset the debug info location to avoid later code having the wrong info.
   codegen_debugloc(c, NULL);
@@ -707,12 +934,14 @@ LLVMValueRef ffi_decl_gen_call(compile_t* c, ffi_decl_t* ffi_decl)
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   // Get or generate the FFI declaration info structure, based on the call site.
-  ffi_decl_t ffi_decl = { .decl = NULL, .func = NULL, .call = ast };
+  ffi_decl_t ffi_decl = {
+    .func = NULL,
+    .decl = (ast_t*)ast_data(ast), // declarations are mandatory - already known
+    .call = ast
+  };
   if (!ffi_decl_get_or_gen(c, &ffi_decl))
     return NULL;
   pony_assert(ffi_decl.func != NULL);
-  pony_assert(ffi_decl.decl != NULL);
-  pony_assert(ffi_decl.call = ast);
 
   // Generate the call site and return the result value.
   return ffi_decl_gen_call(c, &ffi_decl);
