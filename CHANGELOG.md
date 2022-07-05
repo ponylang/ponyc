@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Auto-recover constructor expressions ([PR #4124](https://github.com/ponylang/ponyc/pull/4124))
 
 ### Changed
 
