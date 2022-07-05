@@ -738,6 +738,115 @@ TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+TEST_F(RecoverTest, LetIso_CtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a_iso: A iso = A\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, VarIso_CtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_iso: A iso = A\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, LetTrn_CtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_trn: A trn = A\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, LetVal_RefCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_val: A val = A\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, LetVal_BoxCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new box create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_val: A val = A\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, LetIso_ArgsCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create(s: String box) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String val = \"\"\n"
+    "    let a_iso: A iso = A(s)\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, LetTrn_ArgsCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create(s: String box) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String val = \"\"\n"
+    "    let a_trn: A trn = A(s)\n";
+
+  TEST_COMPILE(src);
+}
+TEST_F(RecoverTest, LetVal_ArgsCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create(s: String box) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String val = \"\"\n"
+    "    let a_val: A val = A(s)\n";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(RecoverTest, CantAutoRecover_CtorArgWithNonSendableArg)
 {
   const char* src =

@@ -950,6 +950,9 @@ bool cap_safetomove(token_id into, token_id cap, direction direction)
       break;
 
     case TK_TRN:
+    // when recovering to val, anything which has no
+    // writable aliases elsewhere is fine
+    case TK_VAL:
       switch(cap)
       {
         case TK_ISO:
