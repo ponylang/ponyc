@@ -196,10 +196,10 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 
 static ast_t* method_receiver_type(ast_t* method);
 
-bool check_auto_recover_newref(ast_t* param_type, ast_t* ast)
+bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast)
 {
   // we're not going to try auto-recovering to a complex type
-  if (ast_id(param_type) != TK_NOMINAL)
+  if (ast_id(dest_type) != TK_NOMINAL)
     return false;
 
   while (ast != NULL && ast_id(ast) != TK_CALL)
@@ -230,7 +230,7 @@ bool check_auto_recover_newref(ast_t* param_type, ast_t* ast)
       return false;
 
     ast_t* arg_type_aliased = alias(arg_type);
-    bool ok = safe_to_autorecover(param_type, arg_type_aliased, WRITE);
+    bool ok = safe_to_autorecover(dest_type, arg_type_aliased, WRITE);
     ast_free_unattached(arg_type_aliased);
 
     if (!ok)

@@ -8,7 +8,7 @@
 PONY_EXTERN_C_BEGIN
 
 bool method_check_type_params(pass_opt_t* opt, ast_t** astp);
-bool check_auto_recover_newref(ast_t* param_type, ast_t* ast);
+bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast);
 
 bool expr_call(pass_opt_t* opt, ast_t** astp);
 
