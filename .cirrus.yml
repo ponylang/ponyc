@@ -291,42 +291,42 @@ task:
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
       environment:
-        CACHE_BUSTER: 20210707
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "nightly: x86-64-unknown-linux-gnu"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
       environment:
-        CACHE_BUSTER: 20210224
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
       environment:
-        CACHE_BUSTER: 20210714
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
       environment:
-        CACHE_BUSTER: 20210224
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
       environment:
-        CACHE_BUSTER: 20220426
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu22.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
       environment:
-        CACHE_BUSTER: 20220611
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -340,7 +340,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
+      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -490,42 +490,42 @@ task:
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
       environment:
-        CACHE_BUSTER: 20210707
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "release: x86-64-unknown-linux-gnu"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
       environment:
-        CACHE_BUSTER: 20200423
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "release: x86-64-unknown-linux-ubuntu18.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
       environment:
-        CACHE_BUSTER: 20210714
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "release: x86-64-unknown-linux-ubuntu20.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
       environment:
-        CACHE_BUSTER: 20200830
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
       environment:
-        CACHE_BUSTER: 20220426
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu22.04
     - name: "release: x86-64-unknown-linux-musl"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
       environment:
-        CACHE_BUSTER: 20200421
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -539,7 +539,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${CACHE_BUSTER}"
+      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
