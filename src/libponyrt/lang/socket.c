@@ -473,7 +473,7 @@ static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
 
 static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 {
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
     p->ai_protocol);
 #elif defined(PLATFORM_IS_WINDOWS)
@@ -767,7 +767,7 @@ PONY_API int pony_os_accept(asio_event_t* ev)
   // Queue an IOCP accept and return an INVALID_SOCKET.
   SOCKET ns = INVALID_SOCKET;
   iocp_accept(ev);
-#elif defined(PLATFORM_IS_LINUX)
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int ns = accept4(ev->fd, NULL, NULL, SOCK_NONBLOCK);
 
   if(ns == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))
@@ -1084,7 +1084,8 @@ PONY_API void pony_os_keepalive(int fd, int secs)
   if(on == 0)
     return;
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) \
+  || defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int probes = secs / 2;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
 

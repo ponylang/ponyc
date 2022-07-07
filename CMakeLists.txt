@@ -145,6 +145,10 @@ if(NOT PONY_CROSS_LIBPONYRT)
         armcodegen
         armdesc
         arminfo
+        webassemblyasmparser
+        webassemblycodegen
+        webassemblydesc
+        webassemblyinfo
     )
 
     llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})

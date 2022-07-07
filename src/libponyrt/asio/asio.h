@@ -11,6 +11,8 @@
 #  define ASIO_USE_KQUEUE
 #elif defined(PLATFORM_IS_WINDOWS)
 #  define ASIO_USE_IOCP
+#elif defined(PLATFORM_IS_EMSCRIPTEN)
+#  define ASIO_USE_EMSCRIPTEN
 #else
 #  error PLATFORM NOT SUPPORTED!
 #endif
