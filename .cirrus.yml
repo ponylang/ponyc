@@ -367,7 +367,7 @@ task:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y bash cmake gmake libunwind git py38-pip
+    - pkg install -y bash cmake gmake libunwind git py39-pip
     - pip install --upgrade cloudsmith-cli
 
   libs_cache:
@@ -566,7 +566,7 @@ task:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y bash cmake gmake libunwind git py38-pip
+    - pkg install -y bash cmake gmake libunwind git py39-pip
     - pip install --upgrade cloudsmith-cli
 
   libs_cache:
