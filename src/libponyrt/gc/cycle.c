@@ -55,7 +55,7 @@ DECLARE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t);
 DEFINE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t, viewref_hash,
   viewref_cmp, viewref_free);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static size_t viewrefmap_total_mem_size(viewrefmap_t* map)
 {
   return ponyint_viewrefmap_mem_size(map)
@@ -98,7 +98,7 @@ static bool view_cmp(view_t* a, view_t* b)
   return a->actor == b->actor;
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static void track_mem_view_free(view_t* view);
 #endif
 
@@ -108,7 +108,7 @@ static void view_free(view_t* view)
 
   if(view->view_rc == 0)
   {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     track_mem_view_free(view);
 #endif
 
@@ -138,13 +138,13 @@ static bool perceived_cmp(perceived_t* a, perceived_t* b)
   return a->token == b->token;
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static void track_mem_perceived_free(perceived_t* per);
 #endif
 
 static void perceived_free(perceived_t* per)
 {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   track_mem_perceived_free(per);
 #endif
   ponyint_viewmap_destroy(&per->map);
@@ -177,7 +177,7 @@ typedef struct detector_t
   size_t created;
   size_t destroyed;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   size_t mem_used;
   size_t mem_allocated;
 #endif
@@ -185,7 +185,7 @@ typedef struct detector_t
 
 static pony_actor_t* cycle_detector;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static void track_mem_view_free(view_t* view)
 {
   detector_t* d = (detector_t*)cycle_detector;
@@ -222,7 +222,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view->actor = actor;
     view->view_rc = 1;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     d->mem_used += sizeof(view_t);
     d->mem_allocated += POOL_ALLOC_SIZE(view_t);
     size_t mem_size_before = ponyint_viewmap_mem_size(&d->views);
@@ -232,7 +232,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     // new one without another search
     ponyint_viewmap_putindex(&d->views, view, index);
     d->created++;
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_after = ponyint_viewmap_mem_size(&d->views);
     size_t alloc_size_after = ponyint_viewmap_alloc_size(&d->views);
     d->mem_used += (mem_size_after - mem_size_before);
@@ -278,7 +278,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
         ref = (viewref_t*)POOL_ALLOC(viewref_t);
         ref->view = find;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
         d->mem_used += sizeof(viewref_t);
         d->mem_allocated += POOL_ALLOC_SIZE(viewref_t);
         size_t mem_size_before = ponyint_viewrefmap_mem_size(&view->map);
@@ -289,7 +289,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
         ponyint_viewrefmap_putindex(&view->map, ref, index);
         find->view_rc++;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
         size_t mem_size_after = ponyint_viewrefmap_mem_size(&view->map);
         size_t alloc_size_after = ponyint_viewrefmap_alloc_size(&view->map);
         d->mem_used += (mem_size_after - mem_size_before);
@@ -303,7 +303,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
 
       if(ref != NULL)
       {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
         d->mem_used -= sizeof(viewref_t);
         d->mem_allocated -= POOL_ALLOC_SIZE(viewref_t);
 #endif
@@ -313,7 +313,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
     }
   }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   d->mem_used -= ponyint_deltamap_total_mem_size(map);
   d->mem_allocated -= ponyint_deltamap_total_alloc_size(map);
 #endif
@@ -465,7 +465,7 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
 
     view->perceived = per;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     detector_t* d = (detector_t*)cycle_detector;
     size_t mem_size_before = ponyint_viewmap_mem_size(&per->map);
     size_t alloc_size_before = ponyint_viewmap_alloc_size(&per->map);
@@ -473,7 +473,7 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
 
     ponyint_viewmap_put(&per->map, view);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_after = ponyint_viewmap_mem_size(&per->map);
     size_t alloc_size_after = ponyint_viewmap_alloc_size(&per->map);
     d->mem_used += (mem_size_after - mem_size_before);
@@ -540,7 +540,7 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
   per->token = d->next_token++;
   per->ack = 0;
   ponyint_viewmap_init(&per->map, count);
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   d->mem_used += sizeof(perceived_t);
   d->mem_allocated += POOL_ALLOC_SIZE(perceived_t);
   d->mem_used += ponyint_viewmap_mem_size(&per->map);
@@ -552,7 +552,7 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
 
   ponyint_perceivedmap_put(&d->perceived, per);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   size_t mem_size_after = ponyint_perceivedmap_mem_size(&d->perceived);
   size_t alloc_size_after = ponyint_perceivedmap_alloc_size(&d->perceived);
   d->mem_used += (mem_size_after - mem_size_before);
@@ -744,7 +744,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
     if (map != NULL)
     {
       // free deltamap
-      #ifdef USE_MEMTRACK
+      #ifdef USE_RUNTIMESTATS
         d->mem_used -= ponyint_deltamap_total_mem_size(map);
         d->mem_allocated -= ponyint_deltamap_total_alloc_size(map);
       #endif
@@ -784,7 +784,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
   // add to the deferred set
   if(!view->deferred)
   {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_before = ponyint_viewmap_mem_size(&d->deferred);
     size_t alloc_size_before = ponyint_viewmap_alloc_size(&d->deferred);
 #endif
@@ -792,7 +792,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
     ponyint_viewmap_put(&d->deferred, view);
     view->deferred = true;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_after = ponyint_viewmap_mem_size(&d->deferred);
     size_t alloc_size_after = ponyint_viewmap_alloc_size(&d->deferred);
     d->mem_used += (mem_size_after - mem_size_before);
@@ -912,13 +912,15 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
     i--;
   }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   d->mem_used -= ponyint_viewmap_mem_size(&d->deferred);
   d->mem_allocated -= ponyint_viewmap_alloc_size(&d->deferred);
   d->mem_used -= ponyint_viewmap_mem_size(&d->views);
   d->mem_allocated -= ponyint_viewmap_alloc_size(&d->views);
   d->mem_used -= ponyint_perceivedmap_mem_size(&d->perceived);
   d->mem_allocated -= ponyint_perceivedmap_alloc_size(&d->perceived);
+  // pony_assert(d->mem_used == 0);
+  // pony_assert(d->mem_allocated == 0);
 #endif
   ponyint_viewmap_destroy(&d->deferred);
   ponyint_viewmap_destroy(&d->views);
@@ -1032,9 +1034,9 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
     case ACTORMSG_BLOCK:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(block_msg_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(block_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(block_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(block_msg_t);
 #endif
 
       block_msg_t* m = (block_msg_t*)msg;
@@ -1148,9 +1150,9 @@ void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
 
-#ifdef USE_MEMTRACK_MESSAGES
-  ctx->mem_used_messages += sizeof(block_msg_t);
-  ctx->mem_used_messages -= POOL_ALLOC_SIZE(block_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.mem_used_inflight_messages += sizeof(block_msg_t);
+  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(block_msg_t);
 #endif
 
   m->actor = actor;
@@ -1188,7 +1190,7 @@ bool ponyint_is_cycle(pony_actor_t* actor)
   return actor == cycle_detector;
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_cycle_mem_size()
 {
   detector_t* d = (detector_t*)cycle_detector;

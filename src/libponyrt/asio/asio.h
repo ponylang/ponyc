@@ -140,7 +140,7 @@ void ponyint_iocp_resume_stdin();
 
 #endif
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 /** Get the static memory used by the asio subsystem.
  */
 size_t ponyint_asio_static_mem_size();

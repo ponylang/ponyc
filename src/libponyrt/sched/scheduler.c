@@ -59,7 +59,7 @@ void sched_mut_init()
 static PONY_ATOMIC(bool) scheduler_count_changing;
 #endif
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 // holds only size of pthread_cond variables and scheduler_t array
 static size_t mem_allocated;
 static size_t mem_used;
@@ -83,9 +83,9 @@ size_t ponyint_sched_total_mem_size(pony_ctx_t* ctx)
   return
       // memory used for each actor struct
       // + memory used for actormaps for gc acquire/release messages
-      ctx->mem_used_actors
+      ctx->schedulerstats.mem_used_actors
       // memory used for mutemap
-    + ctx->mem_used;
+    + ctx->schedulerstats.mem_used;
 }
 
 size_t ponyint_sched_total_alloc_size(pony_ctx_t* ctx)
@@ -93,9 +93,9 @@ size_t ponyint_sched_total_alloc_size(pony_ctx_t* ctx)
   return
       // memory allocated for each actor struct
       // + memory allocated for actormaps for gc acquire/release messages
-      ctx->mem_allocated_actors
+      ctx->schedulerstats.mem_allocated_actors
       // memory allocated for mutemap
-    + ctx->mem_allocated;
+    + ctx->schedulerstats.mem_allocated;
 }
 #endif
 
@@ -156,10 +156,10 @@ static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
-#ifdef USE_MEMTRACK_MESSAGES
-  this_scheduler->ctx.num_messages--;
-  this_scheduler->ctx.mem_used_messages += sizeof(pony_msgi_t);
-  this_scheduler->ctx.mem_used_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  this_scheduler->ctx.schedulerstats.num_inflight_messages--;
+  this_scheduler->ctx.schedulerstats.mem_used_inflight_messages += sizeof(pony_msgi_t);
+  this_scheduler->ctx.schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
   m->i = arg;
@@ -299,6 +299,11 @@ static void handle_sched_unblock(scheduler_t* sched)
 
 static bool read_msg(scheduler_t* sched)
 {
+#ifdef USE_RUNTIMESTATS
+    uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
+    sched->ctx.schedulerstats.misc_cpu += used_cpu;
+#endif
+
   pony_msgi_t* m;
 
   bool run_queue_changed = false;
@@ -309,10 +314,10 @@ static bool read_msg(scheduler_t* sched)
 #endif
     )) != NULL)
   {
-#ifdef USE_MEMTRACK_MESSAGES
-    sched->ctx.num_messages--;
-    sched->ctx.mem_used_messages -= sizeof(pony_msgi_t);
-    sched->ctx.mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+    sched->ctx.schedulerstats.num_inflight_messages--;
+    sched->ctx.schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgi_t);
+    sched->ctx.schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
     switch(m->msg.id)
@@ -381,6 +386,11 @@ static bool read_msg(scheduler_t* sched)
       default: {}
     }
   }
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(&sched->ctx);
+    sched->ctx.schedulerstats.msg_cpu += used_cpu;
+#endif
 
   return run_queue_changed;
 }
@@ -890,11 +900,25 @@ static pony_actor_t* steal(scheduler_t* sched)
   return actor;
 }
 
+#ifdef USE_RUNTIMESTATS
+uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx)
+{
+  uint64_t last_tsc = ctx->last_tsc;
+  uint64_t current_tsc = ponyint_cpu_tick();
+  ctx->last_tsc = current_tsc;
+  return current_tsc - last_tsc;
+}
+#endif
+
 /**
  * Run a scheduler thread until termination.
  */
 static void run(scheduler_t* sched)
 {
+#ifdef USE_RUNTIMESTATS
+  sched->ctx.last_tsc = ponyint_cpu_tick();
+#endif
+
   // sleep thread until we're ready to start processing
   SYSTEMATIC_TESTING_WAIT_START(sched->tid, sched->sleep_object);
 
@@ -960,6 +984,11 @@ static void run(scheduler_t* sched)
 
       if(actor == NULL)
       {
+#ifdef USE_RUNTIMESTATS
+        uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
+        sched->ctx.schedulerstats.misc_cpu += used_cpu;
+#endif
+
         // Termination.
         pony_assert(pop(sched) == NULL);
         SYSTEMATIC_TESTING_STOP_THREAD();
@@ -982,6 +1011,7 @@ static void run(scheduler_t* sched)
 
     // Run the current actor and get the next actor.
     bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+    sched->ctx.current = NULL;
     SYSTEMATIC_TESTING_YIELD();
     pony_actor_t* next = pop_global(sched);
 
@@ -1066,7 +1096,7 @@ static void ponyint_sched_shutdown()
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
     // destroy pthread condition object
     pthread_cond_destroy(scheduler[i].sleep_object);
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     mem_used -= sizeof(pthread_cond_t);
     mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
 #endif
@@ -1077,7 +1107,7 @@ static void ponyint_sched_shutdown()
   }
 
   ponyint_pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   mem_used -= (scheduler_count * sizeof(scheduler_t));
   mem_allocated -= (ponyint_pool_used_size(scheduler_count
     * sizeof(scheduler_t)));
@@ -1127,7 +1157,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
     memory_order_relaxed);
   scheduler = (scheduler_t*)ponyint_pool_alloc_size(
     scheduler_count * sizeof(scheduler_t));
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   mem_used += (scheduler_count * sizeof(scheduler_t));
   mem_allocated += (ponyint_pool_used_size(scheduler_count
     * sizeof(scheduler_t)));
@@ -1148,7 +1178,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
     scheduler[i].sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
     // create pthread condition object
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     mem_used += sizeof(pthread_cond_t);
     mem_allocated += POOL_ALLOC_SIZE(pthread_cond_t);
 #endif
@@ -1157,7 +1187,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
     if(ret != 0)
     {
       // if it failed, set `sleep_object` to `NULL` for error
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
       mem_used -= sizeof(pthread_cond_t);
       mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
 #endif
@@ -1241,6 +1271,22 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
     // Put on the shared mpmcq.
     ponyint_mpmcq_push(&inject, actor);
   }
+}
+
+PONY_API schedulerstats_t* pony_scheduler_stats()
+{
+#ifdef USE_RUNTIMESTATS
+  pony_ctx_t* ctx = pony_ctx();
+  return &ctx->schedulerstats;
+#else
+  return NULL;
+#endif
+}
+
+PONY_API int32_t pony_scheduler_index()
+{
+  pony_ctx_t* ctx = pony_ctx();
+  return ctx->scheduler->index;
 }
 
 PONY_API uint32_t pony_schedulers()
@@ -1421,20 +1467,20 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   if(mref == NULL)
   {
     mref = ponyint_muteref_alloc(recv);
-#ifdef USE_MEMTRACK
-    ctx->mem_used += sizeof(muteref_t);
-    ctx->mem_allocated += POOL_ALLOC_SIZE(muteref_t);
+#ifdef USE_RUNTIMESTATS
+    ctx->schedulerstats.mem_used += sizeof(muteref_t);
+    ctx->schedulerstats.mem_allocated += POOL_ALLOC_SIZE(muteref_t);
     int64_t old_mmap_mem_size = ponyint_mutemap_mem_size(&sched->mute_mapping);
     int64_t old_mmap_alloc_size =
       ponyint_mutemap_alloc_size(&sched->mute_mapping);
 #endif
     ponyint_mutemap_putindex(&sched->mute_mapping, mref, index);
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     int64_t new_mmap_mem_size = ponyint_mutemap_mem_size(&sched->mute_mapping);
     int64_t new_mmap_alloc_size =
       ponyint_mutemap_alloc_size(&sched->mute_mapping);
-    ctx->mem_used += (new_mmap_mem_size - old_mmap_mem_size);
-    ctx->mem_allocated += (new_mmap_alloc_size - old_mmap_alloc_size);
+    ctx->schedulerstats.mem_used += (new_mmap_mem_size - old_mmap_mem_size);
+    ctx->schedulerstats.mem_allocated += (new_mmap_alloc_size - old_mmap_alloc_size);
 #endif
   }
 
@@ -1444,25 +1490,25 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
   {
     // This is safe because an actor can only ever be in a single scheduler's
     // mutemap
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     int64_t old_mset_mem_size = ponyint_muteset_mem_size(&mref->value);
     int64_t old_mset_alloc_size = ponyint_muteset_alloc_size(&mref->value);
 #endif
     ponyint_muteset_putindex(&mref->value, sender, index2);
     sender->muted++;
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     int64_t new_mset_mem_size = ponyint_muteset_mem_size(&mref->value);
     int64_t new_mset_alloc_size = ponyint_muteset_alloc_size(&mref->value);
-    ctx->mem_used += (new_mset_mem_size - old_mset_mem_size);
-    ctx->mem_allocated += (new_mset_alloc_size - old_mset_alloc_size);
-    pony_assert(ctx->mem_used >= 0);
-    pony_assert(ctx->mem_allocated >= 0);
+    ctx->schedulerstats.mem_used += (new_mset_mem_size - old_mset_mem_size);
+    ctx->schedulerstats.mem_allocated += (new_mset_alloc_size - old_mset_alloc_size);
+    pony_assert(ctx->schedulerstats.mem_used >= 0);
+    pony_assert(ctx->schedulerstats.mem_allocated >= 0);
 #endif
   }
-#ifdef USE_MEMTRACK
-  pony_assert(ctx->mem_used ==
+#ifdef USE_RUNTIMESTATS
+  pony_assert(ctx->schedulerstats.mem_used ==
     (int64_t)ponyint_mutemap_total_mem_size(&sched->mute_mapping));
-  pony_assert(ctx->mem_allocated ==
+  pony_assert(ctx->schedulerstats.mem_allocated ==
     (int64_t)ponyint_mutemap_total_alloc_size(&sched->mute_mapping));
 #endif
 }
@@ -1491,13 +1537,13 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     pony_actor_t* muted = NULL;
     actorstack_t* needs_unmuting = NULL;
 
-#ifdef USE_MEMTRACK
-    ctx->mem_used -= sizeof(muteref_t);
-    ctx->mem_allocated -= POOL_ALLOC_SIZE(muteref_t);
-    ctx->mem_used -= ponyint_muteset_mem_size(&mref->value);
-    ctx->mem_allocated -= ponyint_muteset_alloc_size(&mref->value);
-    pony_assert(ctx->mem_used >= 0);
-    pony_assert(ctx->mem_allocated >= 0);
+#ifdef USE_RUNTIMESTATS
+    ctx->schedulerstats.mem_used -= sizeof(muteref_t);
+    ctx->schedulerstats.mem_allocated -= POOL_ALLOC_SIZE(muteref_t);
+    ctx->schedulerstats.mem_used -= ponyint_muteset_mem_size(&mref->value);
+    ctx->schedulerstats.mem_allocated -= ponyint_muteset_alloc_size(&mref->value);
+    pony_assert(ctx->schedulerstats.mem_used >= 0);
+    pony_assert(ctx->schedulerstats.mem_allocated >= 0);
 #endif
 
     // Find and collect any actors that need to be unmuted
@@ -1535,10 +1581,10 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     }
   }
 
-#ifdef USE_MEMTRACK
-  pony_assert(ctx->mem_used ==
+#ifdef USE_RUNTIMESTATS
+  pony_assert(ctx->schedulerstats.mem_used ==
     (int64_t)ponyint_mutemap_total_mem_size(&sched->mute_mapping));
-  pony_assert(ctx->mem_allocated ==
+  pony_assert(ctx->schedulerstats.mem_allocated ==
     (int64_t)ponyint_mutemap_total_alloc_size(&sched->mute_mapping));
 #endif
 

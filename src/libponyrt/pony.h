@@ -456,7 +456,7 @@ PONY_API void pony_register_thread();
  */
 PONY_API void pony_unregister_thread();
 
-PONY_API int32_t pony_scheduler_index(pony_ctx_t* ctx);
+PONY_API int32_t pony_scheduler_index();
 
 /** Signals that the pony runtime may terminate.
  *

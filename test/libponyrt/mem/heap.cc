@@ -3,18 +3,32 @@
 #include <mem/heap.h>
 #include <mem/pool.h>
 #include <mem/pagemap.h>
+#include <actor/actor.h>
 
 #include <gtest/gtest.h>
 
 TEST(Heap, Init)
 {
+#ifdef USE_RUNTIMESTATS
+  pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc_size(1024);
+  memset(actor, 0, 1024);
+#else
   pony_actor_t* actor = (pony_actor_t*)0xDEADBEEFDEADBEEF;
+#endif
 
   heap_t heap;
   ponyint_heap_init(&heap);
 
   void* p = ponyint_heap_alloc(actor, &heap, 127, TRACK_NO_FINALISERS);
   ASSERT_EQ((size_t)128, heap.used);
+
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)0, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(128 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
 
   chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
   ASSERT_EQ(actor, ponyint_heap_owner(chunk));
@@ -26,31 +40,112 @@ TEST(Heap, Init)
   ASSERT_NE(p, p2);
   ASSERT_EQ((size_t)256, heap.used);
 
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)0, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
+
   heap.next_gc = 0;
-  ponyint_heap_startgc(&heap);
+  ponyint_heap_startgc(&heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
   ponyint_heap_mark(chunk, p);
-  ponyint_heap_endgc(&heap);
+
+  ponyint_heap_endgc(&heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
   ASSERT_EQ((size_t)128, heap.used);
+
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(128 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
 
   void* p3 = ponyint_heap_alloc(actor, &heap, 107, TRACK_NO_FINALISERS);
   ASSERT_EQ(p2, p3);
 
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)3, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
+
   ponyint_heap_used(&heap, 1024);
   ASSERT_EQ((size_t)1280, heap.used);
 
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)3, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
+
   heap.next_gc = 0;
-  ponyint_heap_startgc(&heap);
+  ponyint_heap_startgc(&heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
   ponyint_heap_mark_shallow(chunk, p3);
-  ponyint_heap_endgc(&heap);
+  ponyint_heap_endgc(&heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
   ASSERT_EQ((size_t)128, heap.used);
+
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)3, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(128 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
 
   void* p4 = ponyint_heap_alloc(actor, &heap, 67, TRACK_NO_FINALISERS);
   ASSERT_EQ(p, p4);
+
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)4, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+#endif
 
   size_t large_size = (1 << 22) - 7;
   void* p5 = ponyint_heap_alloc(actor, &heap, large_size, TRACK_NO_FINALISERS);
   chunk_t* chunk5 = (chunk_t*)ponyint_pagemap_get(p5);
   ASSERT_EQ(actor, ponyint_heap_owner(chunk5));
+
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)5, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)3, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)2, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(256 + 48 + 4194304 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(64 + 1024 + 4194304 + 64), actor->actorstats.heap_mem_allocated);
+#endif
 
   size_t adjust_size = ponyint_pool_adjust_size(large_size);
   ASSERT_NE(chunk5, (chunk_t*)NULL);
@@ -73,10 +168,34 @@ TEST(Heap, Init)
   ASSERT_EQ(256 + adjust_size, heap.used);
 
   heap.next_gc = 0;
-  ponyint_heap_startgc(&heap);
+  ponyint_heap_startgc(&heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
   ponyint_heap_mark_shallow(chunk5, p5);
-  ponyint_heap_endgc(&heap);
+  ponyint_heap_endgc(&heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
   ASSERT_EQ(adjust_size, heap.used);
 
+#ifdef USE_RUNTIMESTATS
+  ASSERT_EQ((size_t)5, actor->actorstats.heap_alloc_counter);
+  ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
+  ASSERT_EQ((size_t)4, actor->actorstats.heap_free_counter);
+  ASSERT_EQ((size_t)(4194304 + 48), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(4194304 + 64), actor->actorstats.heap_mem_allocated);
+#endif
+
   ponyint_heap_destroy(&heap);
+
+#ifdef USE_RUNTIMESTATS
+  ponyint_pool_free_size(1024, actor);
+#endif
 }

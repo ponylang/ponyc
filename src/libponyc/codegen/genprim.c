@@ -1292,18 +1292,34 @@ static void platform_debug(compile_t* c, reach_type_t* t, token_id cap)
   codegen_finishfun(c);
 }
 
-static void platform_memtrack(compile_t* c, reach_type_t* t, token_id cap)
+static void platform_runtimestats(compile_t* c, reach_type_t* t, token_id cap)
 {
-  FIND_METHOD("memtrack", cap);
+  FIND_METHOD("runtimestats", cap);
   start_function(c, t, m, c->i1, &c_t->use_type, 1);
 
-#ifdef USE_MEMTRACK
-  bool memtrack_enabled = true;
+#if defined(USE_RUNTIMESTATS) || defined(USE_RUNTIMESTATS_MESSAGES)
+  bool runtimestats_enabled = true;
 #else
-  bool memtrack_enabled = false;
+  bool runtimestats_enabled = false;
 #endif
 
-  LLVMValueRef result = LLVMConstInt(c->i1, memtrack_enabled, false);
+  LLVMValueRef result = LLVMConstInt(c->i1, runtimestats_enabled, false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void platform_runtimestatsmessages(compile_t* c, reach_type_t* t, token_id cap)
+{
+  FIND_METHOD("runtimestatsmessages", cap);
+  start_function(c, t, m, c->i1, &c_t->use_type, 1);
+
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  bool runtimestatsmessages_enabled = true;
+#else
+  bool runtimestatsmessages_enabled = false;
+#endif
+
+  LLVMValueRef result = LLVMConstInt(c->i1, runtimestatsmessages_enabled, false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
@@ -1325,7 +1341,8 @@ void genprim_platform_methods(compile_t* c, reach_type_t* t)
   BOX_FUNCTION(platform_littleendian, t);
   BOX_FUNCTION(platform_native128, t);
   BOX_FUNCTION(platform_debug, t);
-  BOX_FUNCTION(platform_memtrack, t);
+  BOX_FUNCTION(platform_runtimestats, t);
+  BOX_FUNCTION(platform_runtimestatsmessages, t);
 }
 
 typedef struct num_conv_t

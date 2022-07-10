@@ -28,6 +28,27 @@ PONY_EXTERN_C_BEGIN
 #define ACTORMSG_CONF (UINT32_MAX - 2)
 #define ACTORMSG_ACK (UINT32_MAX - 1)
 
+typedef struct actorstats_t
+{
+  size_t heap_mem_allocated;
+  size_t heap_mem_used; // actual mem used without "fake used" to trigger GC
+  size_t heap_num_allocated;
+  size_t heap_realloc_counter;
+  size_t heap_alloc_counter;
+  size_t heap_free_counter;
+  size_t heap_gc_counter;
+  size_t system_cpu;
+  size_t app_cpu;
+  size_t gc_cpu;
+  size_t messages_sent_counter;
+  size_t system_messages_processed_counter;
+  size_t app_messages_processed_counter;
+  // actormap size is hashmap mem + (entry mem * num entries)
+  // + size of each objectmap in each entry
+  size_t foreign_actormap_objectmap_mem_used;
+  size_t foreign_actormap_objectmap_mem_allocated;
+} actorstats_t;
+
 typedef struct pony_actor_t
 {
   pony_type_t* type;
@@ -40,6 +61,9 @@ typedef struct pony_actor_t
   size_t muted; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
+#ifdef USE_RUNTIMESTATS
+  actorstats_t actorstats; // 60/120 bytes
+#endif
   gc_t gc; // 48/88 bytes
 } pony_actor_t;
 
@@ -49,18 +73,27 @@ typedef struct pony_actor_t
  * 52/104 bytes: heap
  * 4/8 bytes: muted counter
  * 4/8 bytes: internal flags (after alignment)
+ * 60/120 bytes: actorstats (if enabled)
  * 48/88 bytes: gc
  * 24/56 bytes: padding to 64 bytes, ignored
  */
 #if INTPTR_MAX == INT64_MAX
-#ifdef USE_MEMTRACK
-#  define PONY_ACTOR_PAD_SIZE 320
+#ifdef USE_RUNTIMESTATS
+#  ifdef USE_RUNTIMESTATS_MESSAGES
+#    define PONY_ACTOR_PAD_SIZE 384
+#  else
+#    define PONY_ACTOR_PAD_SIZE 368
+#  endif
 #else
 #  define PONY_ACTOR_PAD_SIZE 264
 #endif
 #elif INTPTR_MAX == INT32_MAX
-#ifdef USE_MEMTRACK
-#  define PONY_ACTOR_PAD_SIZE 196
+#ifdef USE_RUNTIMESTATS
+#  ifdef USE_RUNTIMESTATS_MESSAGES
+#    define PONY_ACTOR_PAD_SIZE 228
+#  else
+#    define PONY_ACTOR_PAD_SIZE 220
+#  endif
 #else
 #  define PONY_ACTOR_PAD_SIZE 168
 #endif
@@ -108,11 +141,13 @@ PONY_API void pony_apply_backpressure();
 
 PONY_API void pony_release_backpressure();
 
+PONY_API actorstats_t* pony_actor_stats();
+
 void ponyint_unmute_actor(pony_actor_t* actor);
 
 PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_actor_mem_size(pony_actor_t* actor);
 
 size_t ponyint_actor_alloc_size(pony_actor_t* actor);

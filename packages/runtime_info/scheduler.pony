@@ -2,6 +2,7 @@ use @pony_schedulers[U32]()
 use @pony_active_schedulers[U32]()
 use @pony_min_schedulers[U32]()
 use @pony_scheduler_yield[Bool]()
+use @pony_scheduler_index[I32]()
 
 primitive Scheduler
   """
@@ -48,3 +49,9 @@ primitive Scheduler
     processes to have access.
     """
     @pony_scheduler_yield()
+
+  fun scheduler_index(auth: SchedulerInfoAuth): I32 =>
+    """
+    Returns the index of the current scheduler thread
+    """
+    @pony_scheduler_index()

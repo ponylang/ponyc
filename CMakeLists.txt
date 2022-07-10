@@ -74,9 +74,9 @@ if(PONY_USE_DTRACE)
     add_compile_options(-DUSE_DYNAMIC_TRACE)
 endif()
 
-if(PONY_USE_MEMTRACK)
-    set(PONY_OUTPUT_SUFFIX "-memtrack")
-    add_compile_options(-DUSE_MEMTRACK)
+if(PONY_USE_RUNTIMESTATS)
+    set(PONY_OUTPUT_SUFFIX "-runtimestats")
+    add_compile_options(-DUSE_RUNTIMESTATS)
 endif()
 
 if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
@@ -89,9 +89,9 @@ if(PONY_USE_SYSTEMATIC_TESTING)
     add_compile_options(-DUSE_SYSTEMATIC_TESTING)
 endif()
 
-if(PONY_USE_MEMTRACK_MESSAGES)
-    set(PONY_OUTPUT_SUFFIX "-memtrack_messages")
-    add_compile_options(-DUSE_MEMTRACK -DUSE_MEMTRACK_MESSAGES)
+if(PONY_USE_RUNTIMESTATS_MESSAGES)
+    set(PONY_OUTPUT_SUFFIX "-runtimestats_messages")
+    add_compile_options(-DUSE_RUNTIMESTATS -DUSE_RUNTIMESTATS_MESSAGES)
 endif()
 
 # LibPonyC tests assume that our outputs are two directories above the root directory.
