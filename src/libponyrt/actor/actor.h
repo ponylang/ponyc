@@ -40,7 +40,7 @@ typedef struct pony_actor_t
   size_t muted; // 4/8 bytes
   uint32_t msgs_since_gc; // 4 bytes
   // internal flags are only ever accessed from a single scheduler thread
-  uint8_t internal_flags; // 4/8 bytes (after alignment)
+  uint8_t internal_flags; // 4 bytes (after alignment)
   gc_t gc; // 48/88 bytes
 } pony_actor_t;
 
@@ -49,7 +49,8 @@ typedef struct pony_actor_t
  * 56 bytes: initial header, not including the type descriptor
  * 52/104 bytes: heap
  * 4/8 bytes: muted counter
- * 4/8 bytes: internal flags (after alignment)
+ * 4 bytes: msgs_since_gc counter
+ * 4 bytes: internal flags (after alignment)
  * 48/88 bytes: gc
  * 24/56 bytes: padding to 64 bytes, ignored
  */
