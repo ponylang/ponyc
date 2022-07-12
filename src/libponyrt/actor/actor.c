@@ -241,6 +241,52 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
+static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(!ponyint_heap_startgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor))
+#else
+  ))
+#endif
+    return;
+
+#ifdef USE_RUNTIMESTATS
+    uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.misc_cpu += used_cpu;
+#endif
+
+  DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
+
+  ponyint_gc_mark(ctx);
+
+  if(actor->type->trace != NULL)
+    actor->type->trace(ctx, actor);
+
+  ponyint_mark_done(ctx);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
+    actor->actorstats.gc_mark_cpu += used_cpu;
+#endif
+
+  ponyint_heap_endgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
+  DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
+    actor->actorstats.gc_sweep_cpu += used_cpu;
+#endif
+}
+
 static void send_unblock(pony_actor_t* actor)
 {
   // Send unblock before continuing.
@@ -460,52 +506,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return true;
     }
   }
-}
-
-static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  if(!ponyint_heap_startgc(&actor->heap
-#ifdef USE_RUNTIMESTATS
-  , actor))
-#else
-  ))
-#endif
-    return;
-
-#ifdef USE_RUNTIMESTATS
-    uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.misc_cpu += used_cpu;
-#endif
-
-  DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
-
-  ponyint_gc_mark(ctx);
-
-  if(actor->type->trace != NULL)
-    actor->type->trace(ctx, actor);
-
-  ponyint_mark_done(ctx);
-
-#ifdef USE_RUNTIMESTATS
-    used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
-    actor->actorstats.gc_mark_cpu += used_cpu;
-#endif
-
-  ponyint_heap_endgc(&actor->heap
-#ifdef USE_RUNTIMESTATS
-  , actor);
-#else
-  );
-#endif
-
-  DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
-
-#ifdef USE_RUNTIMESTATS
-    used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
-    actor->actorstats.gc_sweep_cpu += used_cpu;
-#endif
 }
 
 // return true if mute occurs
