@@ -17,7 +17,7 @@ ponyc packages/stdlib --docs-public --pass expr
 sed -i 's/site_name:\ stdlib/site_name:\ Pony Standard Library/' stdlib-docs/mkdocs.yml
 
 echo "Uploading docs using mkdocs..."
-git config --global --add safe.directory /__w/ponyc/ponyc
+git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 git remote add gh-token "https://${STDLIB_TOKEN}@github.com/ponylang/stdlib.ponylang.io"
 git fetch gh-token
 git reset gh-token/main
