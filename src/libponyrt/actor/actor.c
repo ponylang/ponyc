@@ -250,17 +250,22 @@ static void send_unblock(pony_actor_t* actor)
 
 static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  // We're blocked, send block message.
   pony_assert(ctx->current == actor);
+
+  // Try and run GC because we're blocked and sending a block message
+  // to the CD. This will try and free any memory the actor has in its
+  // heap that wouldn't get freed otherwise until the actor is
+  // destroyed or happens to receive more work via application messages
+  // that eventually trigger a GC which may not happen for a long time
+  // (or ever). Do this BEFORE sending the message or else we might be
+  // GCing while the CD destroys us.
+  pony_triggergc(ctx);
+  try_gc(ctx, actor);
+
+  // We're blocked, send block message.
   set_internal_flag(actor, FLAG_BLOCKED_SENT);
   set_internal_flag(actor, FLAG_CD_CONTACTED);
   ponyint_cycle_block(actor, &actor->gc);
-
-  // Trigger garbage collection. GC will get run next time `try_gc` is called 
-  // which should happen once all messages get processed in the messageq
-  // at the time `pony_actor_run` was called if not earlier
-  // when an app message is processed
-  pony_triggergc(ctx);
 }
 
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -644,20 +649,12 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     )
     {
       // The cycle detector (CD) doesn't know we exist so it won't try
-      // and reach out to us even though we're blocked, so send block message //// and set flag that the CD knows we exist now so that when we block
+      // and reach out to us even though we're blocked, so send block message
+      // and set flag that the CD knows we exist now so that when we block
       // in the future we will wait for the CD to reach out and ask
       // if we're blocked or not.
       // But, only if gc.rc > 0 because if gc.rc == 0 we are a zombie.
       send_block(ctx, actor);
-
-      // Try and run GC because we're blocked and sending a block message
-      // to the CD and we're past the normal point at which `try_gc` is
-      // called as part of this function. This will try and free any
-      // memory the actor has in its heap that wouldn't get freed otherwise
-      // until the actor is destroyed or happens to receive more work via
-      // application messages that eventually trigger a GC which may not
-      // happen for a long time (or ever).
-      try_gc(ctx, actor);
     }
 
   }
