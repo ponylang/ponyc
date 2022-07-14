@@ -198,9 +198,8 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
     // 2. the sender isn't overloaded or under pressure
     // AND
     // 3. we are sending to another actor (as compared to sending to self)
-    if(ctx->current != to && triggers_muting(to) &&
-      !has_sync_flag_any(ctx->current, SYNC_FLAG_OVERLOADED |
-        SYNC_FLAG_UNDER_PRESSURE))
+    if(ctx->current != to && !has_sync_flag_any(ctx->current,
+      SYNC_FLAG_OVERLOADED | SYNC_FLAG_UNDER_PRESSURE) && triggers_muting(to))
     {
       ctx->should_mute_actor = true;
 
