@@ -167,7 +167,7 @@ namespace ponyint_atomics
 #    define bigatomic_store_explicit(PTR, VAL, MO) \
       ponyint_atomics::big_store(PTR, VAL)
 
-#    define bigatomic_compare_exchange_weak_explicit(PTR, EXP, DES, SUCC, FAIL) \
+#    define bigatomic_compare_exchange_strong_explicit(PTR, EXP, DES, SUCC, FAIL) \
       ponyint_atomics::big_cas(PTR, EXP, DES)
 
 #    pragma warning(pop)
@@ -184,10 +184,10 @@ namespace ponyint_atomics
         __atomic_store_n(&(PTR)->raw, (VAL).raw, MO); \
       })
 
-#    define bigatomic_compare_exchange_weak_explicit(PTR, EXP, DES, SUCC, FAIL) \
+#    define bigatomic_compare_exchange_strong_explicit(PTR, EXP, DES, SUCC, FAIL) \
       ({ \
         _Static_assert(sizeof(*(PTR)) == (2 * sizeof(void*)), ""); \
-        __atomic_compare_exchange_n(&(PTR)->raw, &(EXP)->raw, (DES).raw, true, \
+        __atomic_compare_exchange_n(&(PTR)->raw, &(EXP)->raw, (DES).raw, false, \
           SUCC, FAIL); \
       })
 #  endif

@@ -260,7 +260,7 @@ static void track_init()
 
   track.init = true;
   track.thread_id = atomic_fetch_add_explicit(&track_global_thread_id, 1,
-    memory_order_relaxed);
+    memory_order_seq_cst);
   track_global_info[track.thread_id] = &track;
 
   // Force the symbol to be linked.
@@ -720,7 +720,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     ANNOTATE_HAPPENS_BEFORE(&global->central);
 #endif
   }
-  while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
+  while(!bigatomic_compare_exchange_strong_explicit(&global->central, &cmp,
     xchg, memory_order_acq_rel, memory_order_acquire));
 }
 
@@ -747,7 +747,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
   }
-  while(!bigatomic_compare_exchange_weak_explicit(&global->central, &cmp,
+  while(!bigatomic_compare_exchange_strong_explicit(&global->central, &cmp,
     xchg, memory_order_acq_rel, memory_order_acquire));
 
   // We need to synchronise twice on global->central to make sure we see every
