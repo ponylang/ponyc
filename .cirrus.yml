@@ -277,6 +277,37 @@ task:
   test_stdlib_cross_script:
     - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
 
+task:
+  only_if: $CIRRUS_PR != ''
+
+  container:
+    image: ponylang/ponyc-ci-cross-riscv64:20220715
+    cpu: 8
+    memory: 6
+
+  environment:
+    IMAGE: ponylang/ponyc-ci-cross-riscv64:20220715
+
+  name: "riscv64 Linux glibc"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+    populate_script: make libs build_flags=-j8
+  upload_caches:
+    - libs
+
+  configure_script:
+    - make configure
+  build_script:
+    - make build
+  test_script:
+    - make test-ci
+  libponyrt_cross_script:
+    - make cross-libponyrt CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
+  test_stdlib_cross_script:
+    - make test-cross-ci PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_linker=riscv64-linux-gnu-gcc-10 cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c --link-ldcmd=bfd' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+
 #
 # Nightly build tasks
 #
