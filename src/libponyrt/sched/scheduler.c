@@ -1204,6 +1204,8 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   }
   else
     print_stats = false;
+#else
+  (void)stats_interval;
 #endif
 
   use_yield = !noyield;
