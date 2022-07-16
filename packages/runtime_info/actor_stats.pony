@@ -80,11 +80,19 @@ primitive ActorStats
     else 0
     end
 
-  fun gc_cpu(auth: ActorStatsAuth): USize =>
+  fun gc_mark_cpu(auth: ActorStatsAuth): USize =>
     """
-    Returns the amount of cpu the current actor has used garbage collect its heap
+    Returns the amount of cpu the current actor has used for mark phase to garbage collect its heap
     """
-    ifdef runtimestats then @pony_actor_stats().gc_cpu
+    ifdef runtimestats then @pony_actor_stats().gc_mark_cpu
+    else 0
+    end
+
+  fun gc_sweep_cpu(auth: ActorStatsAuth): USize =>
+    """
+    Returns the amount of cpu the current actor has used for sweep phase to garbage collect its heap
+    """
+    ifdef runtimestats then @pony_actor_stats().gc_sweep_cpu
     else 0
     end
 

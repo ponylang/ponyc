@@ -427,6 +427,12 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
   ponyint_mark_done(ctx);
 
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
+    actor->actorstats.gc_mark_cpu += used_cpu;
+#endif
+
   ponyint_heap_endgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
   , actor);
@@ -438,8 +444,8 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 
 #ifdef USE_RUNTIMESTATS
     used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_cpu += used_cpu;
-    actor->actorstats.gc_cpu += used_cpu;
+    ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
+    actor->actorstats.gc_sweep_cpu += used_cpu;
 #endif
 }
 

@@ -51,11 +51,19 @@ primitive SchedulerStats
     else 0
     end
 
-  fun actor_gc_cpu(auth: SchedulerStatsAuth): USize =>
+  fun actor_gc_mark_cpu(auth: SchedulerStatsAuth): USize =>
     """
-    Returns the amount of cpu the current scheduler has used garbage collect actor heaps
+    Returns the amount of cpu the current scheduler has used for mark phase to garbage collect actor heaps
     """
-    ifdef runtimestats then @pony_scheduler_stats().actor_gc_cpu
+    ifdef runtimestats then @pony_scheduler_stats().actor_gc_mark_cpu
+    else 0
+    end
+
+  fun actor_gc_sweep_cpu(auth: SchedulerStatsAuth): USize =>
+    """
+    Returns the amount of cpu the current scheduler has used for sweep phase to garbage collect actor heaps
+    """
+    ifdef runtimestats then @pony_scheduler_stats().actor_gc_sweep_cpu
     else 0
     end
 

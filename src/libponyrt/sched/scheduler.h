@@ -44,7 +44,8 @@ typedef struct schedulerstats_t
   size_t created_actors_counter;
   size_t destroyed_actors_counter;
   size_t actor_app_cpu;
-  size_t actor_gc_cpu;
+  size_t actor_gc_mark_cpu;
+  size_t actor_gc_sweep_cpu;
   size_t actor_system_cpu;
   size_t msg_cpu;
   size_t misc_cpu;

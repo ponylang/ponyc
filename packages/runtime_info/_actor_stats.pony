@@ -52,9 +52,14 @@ struct _ActorStats
     Amount of cpu used to process app messages
     """
 
-  var gc_cpu: USize = -1
+  var gc_mark_cpu: USize = -1
     """
-    Amount of cpu used to garbate collect actor heap
+    Amount of cpu used for mark phase to garbage collect actor heap
+    """
+
+  var gc_sweep_cpu: USize = -1
+    """
+    Amount of cpu used for sweep phase to garbage collect actor heap
     """
 
   var messages_sent_counter: USize = -1
