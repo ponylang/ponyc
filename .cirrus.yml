@@ -281,12 +281,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-riscv64:20220715
+    image: ponylang/ponyc-ci-cross-riscv64:20220716
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-riscv64:20220715
+    IMAGE: ponylang/ponyc-ci-cross-riscv64:20220716
 
   name: "riscv64 Linux glibc"
 
