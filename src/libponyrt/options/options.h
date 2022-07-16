@@ -48,6 +48,11 @@
   "                   print scheduler stats every X seconds. Defaults to -1 (never).\n" \
   "  --ponyversion    Print the version of the compiler and exit.\n" \
   "  --ponyhelp       Print the runtime usage options and exit.\n" \
+  "  --ponysystematictestingseed\n" \
+  "                   Use a specific seed value for systematic testing.\n" \
+  "  --ponysystematictestingverbosity\n" \
+  "                   Control verbosity of systematic testing output.\n" \
+  "                   0 is least verbose; greater is more details.\n" \
   "\n" \
   "NOTE: These can be programmatically overridden. See the docstring in the\n" \
   "      `RuntimeOptions` struct in the `builtin` package.\n"

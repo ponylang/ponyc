@@ -23,7 +23,7 @@ size_t ponyint_systematic_testing_static_mem_size();
 size_t ponyint_systematic_testing_static_alloc_size();
 #endif
 
-void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads);
+void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads, uint32_t verbosity);
 void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal);
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal);
 void ponyint_systematic_testing_yield();
@@ -34,10 +34,10 @@ void ponyint_systematic_testing_suspend(pthread_mutex_t* mut);
 #else
 void ponyint_systematic_testing_suspend();
 #endif
+uint32_t ponyint_systematic_testing_verbose_level();
 
-// TODO systematic testing: maybe make output conditional based on a `verbosity` argument that is CLI driven?
-#define SYSTEMATIC_TESTING_PRINTF(f_, ...) fprintf(stderr, (f_), ##__VA_ARGS__)
-#define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS) ponyint_systematic_testing_init(RANDOM_SEED, MAX_THREADS)
+#define SYSTEMATIC_TESTING_PRINTF(level, f_, ...) if((uint32_t)level <= ponyint_systematic_testing_verbose_level()) fprintf(stderr, (f_), ##__VA_ARGS__)
+#define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS, VERBOSITY) ponyint_systematic_testing_init(RANDOM_SEED, MAX_THREADS, VERBOSITY)
 #define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT) ponyint_systematic_testing_start(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
 #define SYSTEMATIC_TESTING_WAIT_START(THREAD, SIGNAL) ponyint_systematic_testing_wait_start(THREAD, SIGNAL)
 #define SYSTEMATIC_TESTING_YIELD() ponyint_systematic_testing_yield()
@@ -53,8 +53,8 @@ PONY_EXTERN_C_END
 
 #else
 
-#define SYSTEMATIC_TESTING_PRINTF(f_, ...)
-#define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS)
+#define SYSTEMATIC_TESTING_PRINTF(level, f_, ...)
+#define SYSTEMATIC_TESTING_INIT(RANDOM_SEED, MAX_THREADS, VERBOSITY)
 #define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT)
 #define SYSTEMATIC_TESTING_WAIT_START(THREAD, SIGNAL)
 #define SYSTEMATIC_TESTING_YIELD()

@@ -35,10 +35,11 @@ typedef struct options_t
   bool pinasio;
   uint32_t stats_interval;
   bool version;
+  bool ponyhelp;
 #if defined(USE_SYSTEMATIC_TESTING)
   uint64_t systematic_testing_seed;
+  uint32_t systematic_testing_verbosity;
 #endif
-  bool ponyhelp;
 } options_t;
 
 typedef enum running_kind_t
@@ -72,6 +73,7 @@ enum
   OPT_VERSION,
 #if defined(USE_SYSTEMATIC_TESTING)
   OPT_SYSTEMATIC_TESTING_SEED,
+  OPT_SYSTEMATIC_TESTING_VERBOSITY,
 #endif
   OPT_PONYHELP
 };
@@ -93,6 +95,7 @@ static opt_arg_t args[] =
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 #if defined(USE_SYSTEMATIC_TESTING)
   {"ponysystematictestingseed", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_SEED},
+  {"ponysystematictestingverbosity", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_VERBOSITY},
 #endif
   {"ponyhelp", 0, OPT_ARG_NONE, OPT_PONYHELP},
 
@@ -185,6 +188,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)
       case OPT_SYSTEMATIC_TESTING_SEED: if(parse_uint64(&opt->systematic_testing_seed, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
+      case OPT_SYSTEMATIC_TESTING_VERBOSITY: if(parse_uint(&opt->systematic_testing_verbosity, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
 #endif
       case OPT_PONYHELP: opt->ponyhelp = true; break;
 
@@ -295,7 +299,7 @@ PONY_API int pony_init(int argc, char** argv)
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
     opt.pinasio, opt.min_threads, opt.thread_suspend_threshold, opt.stats_interval
 #if defined(USE_SYSTEMATIC_TESTING)
-    , opt.systematic_testing_seed);
+    , opt.systematic_testing_seed, opt.systematic_testing_verbosity);
 #else
     );
 #endif

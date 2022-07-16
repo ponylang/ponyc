@@ -1,6 +1,7 @@
 #define PONY_WANT_ATOMIC_DEFS
 
 #include "mpmcq.h"
+#include "systematic_testing.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 
@@ -77,12 +78,16 @@ void ponyint_mpmcq_push(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = node_alloc(data);
 
+  SYSTEMATIC_TESTING_YIELD();
+
   // Without that fence, the store to node->next in node_alloc could be
   // reordered after the exchange on the head and after the store to prev->next
   // done by the next push, which would result in the pop incorrectly seeing
   // the queue as empty.
   // Also synchronise with the pop on prev->next.
   atomic_thread_fence(memory_order_release);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   mpmcq_node_t* prev = atomic_exchange_explicit(&q->head, node,
     memory_order_relaxed);
@@ -93,15 +98,25 @@ void ponyint_mpmcq_push(mpmcq_t* q, void* data)
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
   atomic_thread_fence(memory_order_release);
 #endif
+
+  SYSTEMATIC_TESTING_YIELD();
+
   atomic_store_explicit(&prev->next, node, memory_order_relaxed);
+
+  SYSTEMATIC_TESTING_YIELD();
 }
 
 void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = node_alloc(data);
 
+  SYSTEMATIC_TESTING_YIELD();
+
   // If we have a single producer, the swap of the head need not be atomic RMW.
   mpmcq_node_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
+
+  SYSTEMATIC_TESTING_YIELD();
+
   atomic_store_explicit(&q->head, node, memory_order_relaxed);
 
   // If we have a single producer, the fence can be replaced with a store
@@ -109,7 +124,12 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif
+
+  SYSTEMATIC_TESTING_YIELD();
+
   atomic_store_explicit(&prev->next, node, memory_order_release);
+
+  SYSTEMATIC_TESTING_YIELD();
 }
 
 void* ponyint_mpmcq_pop(mpmcq_t* q)
@@ -128,9 +148,14 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   do
   {
     tail = cmp.object;
+
+    SYSTEMATIC_TESTING_YIELD();
+
     // Get the next node rather than the tail. The tail is either a stub or has
     // already been consumed.
     next = atomic_load_explicit(&tail->next, memory_order_relaxed);
+
+    SYSTEMATIC_TESTING_YIELD();
 
     if(next == NULL)
       return NULL;
@@ -152,10 +177,15 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   ANNOTATE_HAPPENS_BEFORE(&next->data);
   atomic_thread_fence(memory_order_release);
 #else
+  SYSTEMATIC_TESTING_YIELD();
   atomic_thread_fence(memory_order_acq_rel);
 #endif
 
+  SYSTEMATIC_TESTING_YIELD();
+
   void* data = atomic_load_explicit(&next->data, memory_order_acquire);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   // Since we will be freeing the old tail, we need to be sure no other
   // consumer is still reading the old tail. To do this, we set the data
@@ -166,8 +196,16 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // freeing it.
   atomic_store_explicit(&next->data, NULL, memory_order_release);
 
+  SYSTEMATIC_TESTING_YIELD();
+
   while(atomic_load_explicit(&tail->data, memory_order_acquire) != NULL)
+#if defined(USE_SYSTEMATIC_TESTING)
+    SYSTEMATIC_TESTING_YIELD();
+#else
     ponyint_cpu_relax();
+#endif
+
+  SYSTEMATIC_TESTING_YIELD();
 
   // Synchronise on tail->data to make sure we see every previous write to the
   // old tail before freeing it. This is a standalone fence to avoid
@@ -176,6 +214,8 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_AFTER(&tail->data);
 #endif
+
+  SYSTEMATIC_TESTING_YIELD();
 
   node_free(tail);
 
