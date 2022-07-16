@@ -2,7 +2,7 @@ config ?= release
 arch ?= native
 tune ?= generic
 build_flags ?= -j2
-llvm_archs ?= X86;ARM;AArch64;WebAssembly
+llvm_archs ?= X86;ARM;AArch64;WebAssembly;RISCV
 llvm_config ?= Release
 llc_arch ?= x86-64
 pic_flag ?=
@@ -186,7 +186,7 @@ test: all test-core test-stdlib-release test-examples
 
 test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-validate-grammar
 
-test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)'
+test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: test-stdlib-debug test-stdlib-release
 
 test-check-version: all

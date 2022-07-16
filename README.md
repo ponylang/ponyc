@@ -18,7 +18,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 ### CPUs
 
 * Full support for 64-bit platforms
-  * x86 and ARM CPUs only
+  * x86, ARM and RISC-V CPUs only
 * Partial support for 32-bit platforms
   * The `arm` and `armhf` architectures are tested via CI (Continuous
     Integration testing)

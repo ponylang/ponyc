@@ -133,23 +133,62 @@ if(NOT PONY_CROSS_LIBPONYRT)
         demangle
         objcarcopts
         orcjit
-        x86asmparser
-        x86codegen
-        x86desc
-        x86info
-        aarch64asmparser
-        aarch64codegen
-        aarch64desc
-        aarch64info
-        armasmparser
-        armcodegen
-        armdesc
-        arminfo
-        webassemblyasmparser
-        webassemblycodegen
-        webassemblydesc
-        webassemblyinfo
     )
+
+    list (FIND LLVM_TARGETS_TO_BUILD "AArch64" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            aarch64asmparser
+            aarch64codegen
+            aarch64desc
+            aarch64info
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "ARM" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            armasmparser
+            armcodegen
+            armdesc
+            arminfo
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "WebAssembly" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            webassemblyasmparser
+            webassemblycodegen
+            webassemblydesc
+            webassemblyinfo
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "X86" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            x86asmparser
+            x86codegen
+            x86desc
+            x86info
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "RISCV" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            riscvasmparser
+            riscvcodegen
+            riscvdesc
+            riscvinfo
+        )
+    endif()
 
     llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
     # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
