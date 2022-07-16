@@ -23,3 +23,7 @@ We've added checks to see if the constructor expressions can be implicitly auto-
 
 This only applies to cases where the type of the parameter (or the `let` binding) is a simple type, i.e. not a union, intersection or tuple type.
 
+## Support for RISC-V
+
+Pony now supports compiling for RISC-V linux glibc systems. 64 bit `rv64gc`/`lp64d` is tested via CI. In theory 32 bit `rv32gc`/`ilp32d` might work but is untested currently.
+
