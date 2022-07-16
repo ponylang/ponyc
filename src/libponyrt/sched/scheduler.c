@@ -14,6 +14,10 @@
 #include <string.h>
 #include "mutemap.h"
 
+#ifdef USE_RUNTIMESTATS
+#include <stdio.h>
+#endif
+
 #define PONY_SCHED_BLOCK_THRESHOLD 1000000
 
 static DECLARE_THREAD_FN(run_thread);
@@ -63,6 +67,47 @@ static PONY_ATOMIC(bool) scheduler_count_changing;
 // holds only size of pthread_cond variables and scheduler_t array
 static size_t mem_allocated;
 static size_t mem_used;
+static bool print_stats;
+static size_t print_stats_interval;
+
+void print_scheduler_stats(scheduler_t* sched)
+{
+  printf("Scheduler stats for index: %d, "
+        "total memory allocated: %ld, "
+        "total memory used: %ld, "
+        "created actors counter: %lu, "
+        "destroyed actors counter: %lu, "
+        "actors app cpu: %lu, "
+        "actors gc marking cpu: %lu, "
+        "actors gc sweeping cpu: %lu, "
+        "actors system cpu: %lu, "
+        "scheduler msgs cpu: %lu, "
+        "scheduler misc cpu: %lu, "
+        "memory used inflight messages: %ld, "
+        "memory allocated inflight messages: %ld, "
+        "number of inflight messages: %ld\n",
+        sched->index,
+        sched->ctx.schedulerstats.mem_used + sched->ctx.schedulerstats.mem_used_actors,
+        sched->ctx.schedulerstats.mem_allocated + sched->ctx.schedulerstats.mem_allocated_actors,
+        sched->ctx.schedulerstats.created_actors_counter,
+        sched->ctx.schedulerstats.destroyed_actors_counter,
+        sched->ctx.schedulerstats.actor_app_cpu,
+        sched->ctx.schedulerstats.actor_gc_mark_cpu,
+        sched->ctx.schedulerstats.actor_gc_sweep_cpu,
+        sched->ctx.schedulerstats.actor_system_cpu,
+        sched->ctx.schedulerstats.msg_cpu,
+        sched->ctx.schedulerstats.misc_cpu,
+#ifdef USE_RUNTIMESTATS_MESSAGES
+        sched->ctx.schedulerstats.mem_used_inflight_messages,
+        sched->ctx.schedulerstats.mem_allocated_inflight_messages,
+        sched->ctx.schedulerstats.num_inflight_messages
+#else
+        0,
+        0,
+        0
+#endif
+        );
+}
 
 /** Get the static memory used by the scheduler subsystem.
  */
@@ -916,6 +961,7 @@ uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx)
 static void run(scheduler_t* sched)
 {
 #ifdef USE_RUNTIMESTATS
+  uint64_t last_stats_print_tsc = ponyint_cpu_tick();
   sched->ctx.last_tsc = ponyint_cpu_tick();
 #endif
 
@@ -935,6 +981,21 @@ static void run(scheduler_t* sched)
 
   while(true)
   {
+#ifdef USE_RUNTIMESTATS
+    if(print_stats)
+    {
+      // convert to cycles for use with ponyint_cpu_tick()
+      // 1 second = 2000000000 cycles (approx.)
+      // based on same scale as ponyint_cpu_core_pause() uses
+      uint64_t new_tsc = ponyint_cpu_tick();
+      if((new_tsc - last_stats_print_tsc) > print_stats_interval)
+      {
+        last_stats_print_tsc = new_tsc;
+        print_scheduler_stats(sched);
+      }
+    }
+#endif
+
     // if we're scheduler 0
     if(sched->index == 0)
     {
@@ -987,6 +1048,7 @@ static void run(scheduler_t* sched)
 #ifdef USE_RUNTIMESTATS
         uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
         sched->ctx.schedulerstats.misc_cpu += used_cpu;
+        print_scheduler_stats(sched);
 #endif
 
         // Termination.
@@ -1121,7 +1183,8 @@ static void ponyint_sched_shutdown()
 }
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
-  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold
+  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold,
+  uint32_t stats_interval
 #if defined(USE_SYSTEMATIC_TESTING)
   , uint64_t systematic_testing_seed)
 #else
@@ -1129,6 +1192,19 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 #endif
 {
   pony_register_thread();
+
+#ifdef USE_RUNTIMESTATS
+  if(stats_interval != UINT32_MAX)
+  {
+    // convert to cycles for use with ponyint_cpu_tick()
+    // 1 second = 2000000000 cycles (approx.)
+    // based on same scale as ponyint_cpu_core_pause() uses
+    print_stats_interval = stats_interval * 2000000;
+    print_stats = true;
+  }
+  else
+    print_stats = false;
+#endif
 
   use_yield = !noyield;
 

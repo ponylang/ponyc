@@ -11,6 +11,10 @@
 #include <string.h>
 #include <dtrace.h>
 
+#ifdef USE_RUNTIMESTATS
+#include <stdio.h>
+#endif
+
 #ifdef USE_VALGRIND
 #include <valgrind/helgrind.h>
 #endif
@@ -40,6 +44,43 @@ enum
   SYNC_FLAG_UNDER_PRESSURE = 1 << 2,
   SYNC_FLAG_MUTED = 1 << 3,
 };
+
+#ifdef USE_RUNTIMESTATS
+void print_actor_stats(pony_actor_t* actor)
+{
+  printf("Actor stats for actor: %zu, "
+        "heap memory allocated: %ld, "
+        "heap memory used: %ld, "
+        "heap num allocated: %ld, "
+        "heap realloc counter: %ld, "
+        "heap alloc counter: %ld, "
+        "heap free counter: %ld, "
+        "heap gc counter: %ld, "
+        "system cpu: %ld, "
+        "app cpu: %ld, "
+        "garbage collection marking cpu: %ld, "
+        "garbage collection sweeping cpu: %ld, "
+        "messages sent counter: %ld, "
+        "system messages processed counter: %ld, "
+        "app messages processed counter: %ld\n",
+        (uintptr_t)actor,
+        actor->actorstats.heap_mem_allocated,
+        actor->actorstats.heap_mem_used,
+        actor->actorstats.heap_num_allocated,
+        actor->actorstats.heap_realloc_counter,
+        actor->actorstats.heap_alloc_counter,
+        actor->actorstats.heap_free_counter,
+        actor->actorstats.heap_gc_counter,
+        actor->actorstats.system_cpu,
+        actor->actorstats.app_cpu,
+        actor->actorstats.gc_mark_cpu,
+        actor->actorstats.gc_sweep_cpu,
+        actor->actorstats.messages_sent_counter,
+        actor->actorstats.system_messages_processed_counter,
+        actor->actorstats.app_messages_processed_counter
+        );
+}
+#endif
 
 // The sync flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.
@@ -757,6 +798,7 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   ctx->schedulerstats.mem_used_actors -= actor->type->size;
   ctx->schedulerstats.mem_allocated_actors -= ponyint_pool_used_size(actor->type->size);
   ctx->schedulerstats.destroyed_actors_counter++;
+  print_actor_stats(actor);
 #endif
 
   // Free variable sized actors correctly.
