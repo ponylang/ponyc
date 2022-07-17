@@ -1,3 +1,19 @@
+environment:
+  X8664_UBUNTU1804_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714"
+  X8664_UBUNTU2004_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830"
+  X8664_UBUNTU2204_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426"
+  X8664_MUSL_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611"
+  AARCH64_UBUNTU_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428"
+  X8664_WINDOWS_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430"
+  X8664_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-cross-arm:20210430"
+  X8664_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-cross-armhf:20210430"
+  X8664_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-cross-riscv64:20220716"
+  X8664_ROCKY_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707"
+  X8664_UNKNOWN_BUILDER_IMAGE_NAME: "dipinhora/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423"
+  X8664_FREEBSD13_IMAGE_NAME: "freebsd-13-0-release-amd64"
+  X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME: "monterey-xcode-13.2"
+  ARM64_MACOS_MONTEREY_XCODE1331_IMAGE_NAME: "ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1"
+
 #
 # Pull Request Tasks
 #
@@ -10,14 +26,14 @@ task:
   matrix:
   - name: "x86-64 Linux glibc"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
   - name: "x86-64 Linux musl"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
 
   container:
     cpu: 8
@@ -36,13 +52,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug
+    - make test-ci config=debug usedbg=true
   release_configure_script:
     - make configure arch=x86-64 config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release
+    - make test-ci config=release usedbg=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -50,12 +66,12 @@ task:
   timeout_in: 120m
 
   arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+    image: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+    IMAGE: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "aarch64 Linux glibc"
 
@@ -71,13 +87,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug
+    - make test-ci config=debug usedbg=true
   release_configure_script:
     - make configure arch=armv8-a config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release
+    - make test-ci config=release usedbg=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -85,7 +101,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: freebsd-13-0-release-amd64
+    image: "${X8664_FREEBSD13_IMAGE_NAME}"
     cpu: 8
     memory: 24
 
@@ -98,7 +114,7 @@ task:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y bash cmake gmake libunwind git
+    - pkg install -y bash cmake gmake libunwind git gdb
 
   libs_cache:
     folder: build/libs
@@ -112,13 +128,13 @@ task:
   debug_build_script:
     - gmake build config=debug
   debug_test_script:
-    - gmake test-ci config=debug
+    - gmake test-ci config=debug usedbg=true
   release_configure_script:
     - gmake configure arch=x86-64 config=release
   release_build_script:
     - gmake build config=release
   release_test_script:
-    - gmake test-ci config=release
+    - gmake test-ci config=release usedbg=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -126,7 +142,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: monterey-xcode-13.2
+    image: "${X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
 
   name: "x86-64 Apple Darwin"
 
@@ -142,13 +158,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug
+    - make test-ci config=debug usedbg=true
   release_configure_script:
     - make configure arch=x86-64 config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release
+    - make test-ci config=release usedbg=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -156,7 +172,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: "${ARM64_MACOS_MONTEREY_XCODE1331_IMAGE_NAME}"
 
   name: "arm64 Apple Darwin"
 
@@ -172,13 +188,13 @@ task:
   debug_build_script:
     - make build arch=armv8 config=debug
   debug_test_script:
-    - make test-ci config=debug
+    - make test-ci config=debug usedbg=true
   release_configure_script:
     - make configure arch=armv8 config=release
   release_build_script:
     - make build arch=armv8 config=release
   release_test_script:
-    - make test-ci config=release
+    - make test-ci config=release usedbg=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -207,24 +223,24 @@ task:
   debug_build_script:
     - ps: .\make.ps1 -Command build -Config Debug
   debug_test_script:
-    - ps: .\make.ps1 -Command test -Config Debug
+    - ps: .\make.ps1 -Command test -Config Debug -Usedbg yes
   release_config_script:
     - ps: .\make.ps1 -Command configure -Config Release
   release_build_script:
     - ps: .\make.ps1 -Command build -Config Release
   release_test_script:
-    - ps: .\make.ps1 -Command test -Config Release
+    - ps: .\make.ps1 -Command test -Config Release -Usedbg yes
 
 task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-arm:20210430
+    image: "${X8664_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-arm:20210430
+    IMAGE: "${X8664_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "arm Linux glibc"
 
@@ -240,7 +256,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci
+    - make test-ci usedbg=true
   libponyrt_cross_script:
     - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
   test_stdlib_cross_script:
@@ -250,12 +266,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-armhf:20210430
+    image: "${X8664_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-armhf:20210430
+    IMAGE: "${X8664_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "armhf Linux glibc"
 
@@ -271,7 +287,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci
+    - make test-ci usedbg=true
   libponyrt_cross_script:
     - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
   test_stdlib_cross_script:
@@ -281,12 +297,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-riscv64:20220716
+    image: "${X8664_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-riscv64:20220716
+    IMAGE: "${X8664_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "riscv64 Linux glibc"
 
@@ -302,7 +318,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci
+    - make test-ci usedbg=true
   libponyrt_cross_script:
     - make cross-libponyrt CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
   test_stdlib_cross_script:
@@ -320,44 +336,44 @@ task:
   matrix:
     - name: "nightly: x86-64-unknown-linux-rocky8"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+        image: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+        IMAGE: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "nightly: x86-64-unknown-linux-gnu"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+        image: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+        IMAGE: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
+        image: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
+        IMAGE: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+        image: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+        IMAGE: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+        image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+        IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu22.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+        image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+        IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -385,7 +401,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: freebsd-13-0-release-amd64
+    image: "${X8664_FREEBSD13_IMAGE_NAME}"
     cpu: 8
     memory: 24
 
@@ -398,7 +414,7 @@ task:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y bash cmake gmake libunwind git py39-pip
+    - pkg install -y bash cmake gmake libunwind git py39-pip gdb
     - pip install --upgrade cloudsmith-cli
 
   libs_cache:
@@ -417,7 +433,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: monterey-xcode-13.2
+    image: "${X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
 
   name: "nightly: x86-64-apple-darwin"
 
@@ -447,7 +463,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: "${ARM64_MACOS_MONTEREY_XCODE1331_IMAGE_NAME}"
 
   name: "nightly: arm64-apple-darwin"
 
@@ -519,44 +535,44 @@ task:
   matrix:
     - name: "release: x86-64-unknown-linux-rocky8"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+        image: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20210707
+        IMAGE: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "release: x86-64-unknown-linux-gnu"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+        image: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+        IMAGE: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "release: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
+        image: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20210714
+        IMAGE: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "release: x86-64-unknown-linux-ubuntu20.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+        image: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20200830
+        IMAGE: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+        image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+        IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu22.04
     - name: "release: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+        image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20210420
+        IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -584,7 +600,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: freebsd-13-0-release-amd64
+    image: "${X8664_FREEBSD13_IMAGE_NAME}"
     cpu: 8
     memory: 24
 
@@ -597,7 +613,7 @@ task:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
-    - pkg install -y bash cmake gmake libunwind git py39-pip
+    - pkg install -y bash cmake gmake libunwind git py39-pip gdb
     - pip install --upgrade cloudsmith-cli
 
   libs_cache:
@@ -616,7 +632,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: monterey-xcode-13.2
+    image: "${X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
 
   name: "release: x86-64-apple-darwin"
 
@@ -646,7 +662,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: "${ARM64_MACOS_MONTEREY_XCODE1331_IMAGE_NAME}"
 
   name: "release: arm64-apple-darwin"
 
@@ -715,57 +731,57 @@ task:
   matrix:
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-release
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220426
+      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-release
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220611
+      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
@@ -787,7 +803,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug
+    - make ${TARGET} config=debug usedbg=true
 
 task:
   only_if: $CIRRUS_CRON == "stress"
@@ -795,28 +811,28 @@ task:
   timeout_in: 120m
 
   arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+    image: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 4
 
   matrix:
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+        IMAGE: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
         TARGET: test-stress-release
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [debug]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+        IMAGE: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
         TARGET: test-stress-debug
       depends_on:
         - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+        IMAGE: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
         TARGET: test-stress-with-cd-release
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]"
       environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220428
+        IMAGE: "${AARCH64_UBUNTU_BUILDER_IMAGE_NAME}"
         TARGET: test-stress-with-cd-debug
       depends_on:
         - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
@@ -833,7 +849,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug
+    - make ${TARGET} config=debug usedbg=true
 
 task:
   only_if: $CIRRUS_CRON == "stress"
@@ -841,7 +857,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: "${ARM64_MACOS_MONTEREY_XCODE1331_IMAGE_NAME}"
 
   matrix:
     - name: "Stress Test: arm64 macos monterey [release]"
@@ -873,4 +889,4 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug
+    - make ${TARGET} config=debug usedbg=true

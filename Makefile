@@ -154,6 +154,14 @@ ifdef use
   endif
 endif
 
+ifeq ($(usedbg),true)
+  ifeq ($(shell uname -s),Darwin)
+    dbgcmd := lldb --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
+  else
+    dbgcmd := gdb --quiet --batch --return-child-result --eval-command="set confirm off" --eval-command="set pagination off" --eval-command="handle SIGINT nostop pass" --eval-command="handle SIGUSR2 nostop pass" --eval-command=run  --eval-command="info args" --eval-command="info locals" --eval-command="info registers" --eval-command="thread apply all bt full" --eval-command=quit --args
+  endif
+endif
+
 .DEFAULT_GOAL := build
 .PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean
 
@@ -187,6 +195,7 @@ test: all test-core test-stdlib-release test-examples
 test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-validate-grammar
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-ci: dbgcmd=
 test-cross-ci: test-stdlib-debug test-stdlib-release
 
 test-check-version: all
@@ -195,10 +204,10 @@ test-check-version: all
 test-core: all test-libponyrt test-libponyc test-full-programs-release test-full-programs-debug
 
 test-libponyrt: all
-	$(SILENT)cd '$(outDir)' && ./libponyrt.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(dbgcmd) ./libponyrt.tests --gtest_shuffle
 
 test-libponyc: all
-	$(SILENT)cd '$(outDir)' && ./libponyc.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(dbgcmd) ./libponyc.tests --gtest_shuffle
 
 ifeq ($(shell uname -s),FreeBSD)
   num_cores := `sysctl -n hw.ncpu`
@@ -217,10 +226,20 @@ test-full-programs-debug: all
 	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential
+ifeq ($(shell uname -s),FreeBSD)
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(dbgcmd) ./stdlib-release --sequential --exclude="signals/INT"
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential --only="signals/INT"
+else
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(dbgcmd) ./stdlib-release --sequential
+endif
 
 test-stdlib-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) ./stdlib-debug --sequential
+ifeq ($(shell uname -s),FreeBSD)
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(dbgcmd) ./stdlib-debug --sequential --exclude="signals/INT"
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) ./stdlib-debug --sequential --only="signals/INT"
+else
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(dbgcmd) ./stdlib-debug --sequential
+endif
 
 test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}
@@ -229,16 +248,16 @@ test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
 test-stress-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(dbgcmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
 test-stress-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(dbgcmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
 test-stress-with-cd-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(dbgcmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 
 test-stress-with-cd-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../examples/message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(dbgcmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true

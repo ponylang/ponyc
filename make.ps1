@@ -25,7 +25,11 @@
 
     [Parameter(HelpMessage="Whether or not to turn on LTO")]
     [string]
-    $Lto = "no"
+    $Lto = "no",
+
+    [Parameter(HelpMessage="Whether or not to run tests in gdb debugger")]
+    [string]
+    $Usedbg = "no"
 )
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
@@ -231,17 +235,39 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --version
 
+        if ($Usedbg -eq "yes")
+        {
+            $dbgcmd = 'C:\msys64\mingw64\bin\gdb.exe'
+            $debuggerargs = @('--quiet', '--batch', '--return-child-result', '--eval-command="set confirm off"', '--eval-command="set pagination off"', '--eval-command="handle SIGINT nostop pass"', '--eval-command="handle SIGUSR2 nostop pass"', '--eval-command=run', '--eval-command="info args"', '--eval-command="info locals"', '--eval-command="info registers"', '--eval-command="thread apply all bt full"', '--eval-command=quit', '--args')
+        }
+
         # libponyrt.tests
         $numTestSuitesRun += 1;
-        Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
-        & $outDir\libponyrt.tests.exe --gtest_shuffle
+        if ($Usedbg -eq "yes")
+        {
+            Write-Output "$dbgcmd $debuggerargs $outDir\libponyrt.tests.exe --gtest_shuffle"
+            & $dbgcmd $debuggerargs $outDir\libponyrt.tests.exe --gtest_shuffle
+        }
+        else
+        {
+            Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
+            & $outDir\libponyrt.tests.exe --gtest_shuffle
+        }
         $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
 
         # libponyc.tests
         $numTestSuitesRun += 1;
-        Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
-        & $outDir\libponyc.tests.exe --gtest_shuffle
+        if ($Usedbg -eq "yes")
+        {
+            Write-Output "$dbgcmd $debuggerargs $outDir\libponyc.tests.exe --gtest_shuffle"
+            & $dbgcmd $debuggerargs $outDir\libponyc.tests.exe --gtest_shuffle
+        }
+        else
+        {
+            Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
+            & $outDir\libponyc.tests.exe --gtest_shuffle
+        }
         $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
@@ -268,8 +294,16 @@ switch ($Command.ToLower())
         & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
         if ($LastExitCode -eq 0)
         {
-            Write-Output "$outDir\stdlib-debug.exe"
-            & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+            if ($Usedbg -eq "yes")
+            {
+                Write-Output '$dbgcmd $debuggerargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"'
+                & $dbgcmd $debuggerargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+            }
+            else
+            {
+                Write-Output "$outDir\stdlib-debug.exe"
+                & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+            }
             $err = $LastExitCode
             if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
         }
@@ -284,8 +318,16 @@ switch ($Command.ToLower())
         & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
         if ($LastExitCode -eq 0)
         {
-            Write-Output "$outDir\stdlib-release.exe"
-            & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+            if ($Usedbg -eq "yes")
+            {
+                Write-Output '$dbgcmd $debuggerargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"'
+                & $dbgcmd $debuggerargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+            }
+            else
+            {
+                Write-Output "$outDir\stdlib-release.exe"
+                & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+            }
             $err = $LastExitCode
             if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
         }
