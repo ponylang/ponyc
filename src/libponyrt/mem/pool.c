@@ -24,6 +24,8 @@
 #define POOL_ALIGN_INDEX (POOL_ALIGN_BITS - POOL_MIN_BITS)
 #define POOL_ALIGN_MASK (POOL_ALIGN - 1)
 
+#define BLOCK_USED 1
+
 /// When we mmap, pull at least this many bytes.
 #ifdef PLATFORM_IS_ILP32
 #  define POOL_MMAP (16 * 1024 * 1024) // 16 MB
@@ -79,7 +81,6 @@ typedef struct pool_block_t
   };
   size_t size;
   PONY_ATOMIC(bool) acquired;
-  bool used;
 
 #if defined(_MSC_VER)
   pool_block_t() { }
@@ -427,6 +428,27 @@ bool ponyint_pool_mem_pressure()
     return false;
 }
 
+static void set_block_used(pool_block_t* block)
+{
+  block->size = (block->size | BLOCK_USED);
+}
+
+static bool block_is_used(pool_block_t* block)
+{
+  return (block->size & BLOCK_USED) == BLOCK_USED;
+}
+
+static void set_block_size(pool_block_t* block, size_t new_size)
+{
+  // make sure to retain `used` marker
+  block->size = (new_size | (block->size & BLOCK_USED));
+}
+
+static size_t block_size(pool_block_t* block)
+{
+  return block->size & ~BLOCK_USED;
+}
+
 static void pool_block_remove(pool_block_t* block)
 {
   pool_block_t* prev = block->prev;
@@ -448,7 +470,7 @@ static void pool_block_insert(pool_block_t* block)
 
   while(next != NULL)
   {
-    if(block->size <= next->size)
+    if(block_size(block) <= block_size(next))
       break;
 
     prev = next;
@@ -486,7 +508,7 @@ static void pool_block_push(pool_block_t* block)
     // Find an insertion position. The list is sorted and stays sorted after an
     // insertion.
     pool_block_t* prev = &pool_block_global;
-    while((pos != NULL) && (block->size > pos->size))
+    while((pos != NULL) && (block_size(block) > block_size(pos)))
     {
       prev = pos;
       pos = atomic_load_explicit(&pos->global, memory_order_acquire);
@@ -562,7 +584,7 @@ static pool_block_t* pool_block_pull( size_t size)
     pool_block_t* prev = &pool_block_global;
 
     // Find a big enough block. The list is sorted.
-    while((block != NULL) && (size > block->size))
+    while((block != NULL) && (size > block_size(block)))
     {
       prev = block;
       block = atomic_load_explicit(&block->global, memory_order_acquire);
@@ -629,7 +651,7 @@ static pool_block_t* pool_block_pull( size_t size)
   ANNOTATE_HAPPENS_AFTER(&in_pool_block_global);
 #endif
 
-  pony_assert(size <= block->size);
+  pony_assert(size <= block_size(block));
 
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(&block->global);
@@ -647,23 +669,23 @@ static void* pool_block_get(size_t size)
 
     while(block != NULL)
     {
-      if(block->size > size)
+      if(block_size(block) > size)
       {
         // Use size bytes from the end of the block. This allows us to keep the
         // block info inside the block instead of using another data structure.
-        size_t rem = block->size - size;
-        block->size = rem;
+        size_t rem = block_size(block) - size;
+        set_block_size(block, rem);
         pool_block_header.total_size -= size;
 
-        if(should_track_mem_allocated && (!block->used))
+        if(should_track_mem_allocated && !block_is_used(block))
           track_mem_allocated(size);
 
-        if((block->prev != NULL) && (block->prev->size > block->size))
+        if((block->prev != NULL) && (block_size(block->prev) > block_size(block)))
         {
           // If we are now smaller than the previous block, move us forward in
           // the list.
           if(block->next == NULL)
-            pool_block_header.largest_size = block->prev->size;
+            pool_block_header.largest_size = block_size(block->prev);
 
           pool_block_remove(block);
           pool_block_insert(block);
@@ -672,15 +694,15 @@ static void* pool_block_get(size_t size)
         }
 
         return (char*)block + rem;
-      } else if(block->size == size) {
+      } else if(block_size(block) == size) {
         if(block->next == NULL)
         {
           pool_block_header.largest_size =
-            (block->prev == NULL) ? 0 : block->prev->size;
+            (block->prev == NULL) ? 0 : block_size(block->prev);
         }
 
         // count memory being given to the app
-        if(should_track_mem_allocated && (!block->used))
+        if(should_track_mem_allocated && !block_is_used(block))
           track_mem_allocated(size);
 
         // Remove the block from the list.
@@ -704,14 +726,14 @@ static void* pool_block_get(size_t size)
     return NULL;
 
   // count memory being given to the app
-  if(should_track_mem_allocated && (!block->used))
+  if(should_track_mem_allocated && !block_is_used(block))
     track_mem_allocated(size);
 
-  if(size == block->size)
+  if(size == block_size(block))
     return block;
 
-  size_t rem = block->size - size;
-  block->size = rem;
+  size_t rem = block_size(block) - size;
+  set_block_size(block, rem);
   pool_block_insert(block);
   pool_block_header.total_size += rem;
 
@@ -739,10 +761,10 @@ static void* pool_alloc_pages(size_t size)
   pool_block_t* block = (pool_block_t*)ponyint_virt_alloc(POOL_MMAP);
   size_t rem = POOL_MMAP - size;
 
+  pony_assert((rem & BLOCK_USED) == 0);
   block->size = rem;
   block->next = NULL;
   block->prev = NULL;
-  block->used = false;
   pool_block_insert(block);
   pool_block_header.total_size += rem;
   if(pool_block_header.largest_size < rem)
@@ -758,11 +780,12 @@ static void pool_free_pages(void* p, size_t size)
     // TODO: ???
   }
 
+  pony_assert((size & BLOCK_USED) == 0);
   pool_block_t* block = (pool_block_t*)p;
   block->prev = NULL;
   block->next = NULL;
   block->size = size;
-  block->used = true;
+  set_block_used(block);
 
   pool_block_insert(block);
   pool_block_header.total_size += size;
