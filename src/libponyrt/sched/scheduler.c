@@ -102,9 +102,9 @@ void print_scheduler_stats(scheduler_t* sched)
         sched->ctx.schedulerstats.mem_allocated_inflight_messages,
         sched->ctx.schedulerstats.num_inflight_messages
 #else
-        0,
-        0,
-        0
+        (int64_t)0,
+        (int64_t)0,
+        (int64_t)0
 #endif
         );
 }
