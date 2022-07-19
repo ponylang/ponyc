@@ -73,12 +73,12 @@ task:
   upload_caches:
     - libs
 
-  debug_configure_script:
-    - make configure arch=armv8-a config=debug
-  debug_build_script:
-    - make build config=debug
-  debug_test_script:
-    - make test-ci config=debug
+#  debug_configure_script:
+#    - make configure arch=armv8-a config=debug
+#  debug_build_script:
+#    - make build config=debug
+#  debug_test_script:
+#    - make test-ci config=debug
   release_configure_script:
     - make configure arch=armv8-a config=release
   release_build_script:
