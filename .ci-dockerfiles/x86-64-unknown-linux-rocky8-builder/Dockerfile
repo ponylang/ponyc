@@ -14,7 +14,7 @@ RUN yum install -y \
     make \
     python3-pip \
     zlib-devel \
-    gdb \
+    lldb \
   && pip3 install cloudsmith-cli
 
 # install a newer cmake

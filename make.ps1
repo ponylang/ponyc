@@ -237,8 +237,8 @@ switch ($Command.ToLower())
 
         if ($Usedbg -eq "yes")
         {
-            $dbgcmd = 'C:\msys64\mingw64\bin\gdb.exe'
-            $debuggerargs = @('--quiet', '--batch', '--return-child-result', '--eval-command="set confirm off"', '--eval-command="set pagination off"', '--eval-command="handle SIGINT nostop pass"', '--eval-command="handle SIGUSR2 nostop pass"', '--eval-command=run', '--eval-command="info args"', '--eval-command="info locals"', '--eval-command="info registers"', '--eval-command="thread apply all bt full"', '--eval-command=quit', '--args')
+            $dbgcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+            $debuggerargs = @('--batch', '--one-line', '"breakpoint set --name main"', '--one-line', 'run', '--one-line', '"process handle SIGINT --pass true --stop false"', '--one-line', '"process handle SIGUSR2 --pass true --stop false"', '--one-line', '"thread continue"', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
         }
 
         # libponyrt.tests

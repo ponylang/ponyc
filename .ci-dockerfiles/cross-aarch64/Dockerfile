@@ -20,7 +20,7 @@ RUN curl -L --output gcc-linearo.tar.xz "https://releases.linaro.org/components/
  && chmod +x /usr/bin/qemu-aarch64-static \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-  gdb \
+  lldb \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean

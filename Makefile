@@ -155,11 +155,7 @@ ifdef use
 endif
 
 ifeq ($(usedbg),true)
-  ifeq ($(shell uname -s),Darwin)
-    dbgcmd := lldb --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
-  else
-    dbgcmd := gdb --quiet --batch --return-child-result --eval-command="set confirm off" --eval-command="set pagination off" --eval-command="handle SIGINT nostop pass" --eval-command="handle SIGUSR2 nostop pass" --eval-command=run  --eval-command="info args" --eval-command="info locals" --eval-command="info registers" --eval-command="thread apply all bt full" --eval-command=quit --args
-  endif
+  dbgcmd := lldb --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
 endif
 
 .DEFAULT_GOAL := build
@@ -226,20 +222,10 @@ test-full-programs-debug: all
 	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
-ifeq ($(shell uname -s),FreeBSD)
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(dbgcmd) ./stdlib-release --sequential --exclude="signals/INT"
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) ./stdlib-release --sequential --only="signals/INT"
-else
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(dbgcmd) ./stdlib-release --sequential
-endif
 
 test-stdlib-debug: all
-ifeq ($(shell uname -s),FreeBSD)
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(dbgcmd) ./stdlib-debug --sequential --exclude="signals/INT"
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) ./stdlib-debug --sequential --only="signals/INT"
-else
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(dbgcmd) ./stdlib-debug --sequential
-endif
 
 test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}

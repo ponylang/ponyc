@@ -12,7 +12,7 @@ RUN apt-get update \
   python3-setuptools \
   xz-utils \
   zlib1g-dev \
-  gdb \
+  lldb \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \
