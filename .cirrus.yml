@@ -1,17 +1,17 @@
 environment:
-  X8664_UBUNTU1804_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20220720"
-  X8664_UBUNTU2004_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720"
-  X8664_UBUNTU2204_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720"
-  X8664_MUSL_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720"
+  X86_64_UBUNTU1804_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20220720"
+  X86_64_UBUNTU2004_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720"
+  X86_64_UBUNTU2204_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720"
+  X86_64_MUSL_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720"
   AARCH64_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720"
-  X8664_WINDOWS_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430"
-  X8664_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-cross-arm:20220720"
-  X8664_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-cross-armhf:20220720"
-  X8664_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-cross-riscv64:20220720"
-  X8664_ROCKY_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220720"
-  X8664_UNKNOWN_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20220720"
-  X8664_FREEBSD13_IMAGE_NAME: "freebsd-13-0-release-amd64"
-  X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME: "monterey-xcode-13.2"
+  X86_64_WINDOWS_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430"
+  X86_64_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-cross-arm:20220720"
+  X86_64_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-cross-armhf:20220720"
+  X86_64_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-cross-riscv64:20220720"
+  X86_64_ROCKY_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220720"
+  X86_64_UNKNOWN_BUILDER_IMAGE_NAME: "ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20220720"
+  X86_64_FREEBSD13_IMAGE_NAME: "freebsd-13-0-release-amd64"
+  X86_64_MACOS_MONTEREY_XCODE132_IMAGE_NAME: "monterey-xcode-13.2"
   ARM64_MACOS_MONTEREY_XCODE1331_IMAGE_NAME: "ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1"
 
 #
@@ -26,14 +26,14 @@ task:
   matrix:
   - name: "x86-64 Linux glibc"
     container:
-      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
   - name: "x86-64 Linux musl"
     container:
-      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
 
   container:
     cpu: 8
@@ -101,7 +101,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: "${X8664_FREEBSD13_IMAGE_NAME}"
+    image: "${X86_64_FREEBSD13_IMAGE_NAME}"
     cpu: 8
     memory: 24
 
@@ -142,7 +142,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: "${X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
+    image: "${X86_64_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
 
   name: "x86-64 Apple Darwin"
 
@@ -235,12 +235,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: "${X8664_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME}"
+    image: "${X86_64_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: "${X8664_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME}"
+    IMAGE: "${X86_64_CROSS_ARM_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "arm Linux glibc"
 
@@ -266,12 +266,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: "${X8664_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME}"
+    image: "${X86_64_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: "${X8664_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME}"
+    IMAGE: "${X86_64_CROSS_ARMHF_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "armhf Linux glibc"
 
@@ -297,12 +297,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: "${X8664_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME}"
+    image: "${X86_64_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME}"
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: "${X8664_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME}"
+    IMAGE: "${X86_64_CROSS_RISCV_UBUNTU_BUILDER_IMAGE_NAME}"
 
   name: "riscv64 Linux glibc"
 
@@ -336,44 +336,44 @@ task:
   matrix:
     - name: "nightly: x86-64-unknown-linux-rocky8"
       container:
-        image: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_ROCKY_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_ROCKY_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "nightly: x86-64-unknown-linux-gnu"
       container:
-        image: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UNKNOWN_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UNKNOWN_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UBUNTU1804_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UBUNTU1804_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
       container:
-        image: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UBUNTU2004_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UBUNTU2004_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
       container:
-        image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu22.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
-        image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -401,7 +401,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: "${X8664_FREEBSD13_IMAGE_NAME}"
+    image: "${X86_64_FREEBSD13_IMAGE_NAME}"
     cpu: 8
     memory: 24
 
@@ -433,7 +433,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: "${X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
+    image: "${X86_64_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
 
   name: "nightly: x86-64-apple-darwin"
 
@@ -535,44 +535,44 @@ task:
   matrix:
     - name: "release: x86-64-unknown-linux-rocky8"
       container:
-        image: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_ROCKY_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_ROCKY_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_ROCKY_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "release: x86-64-unknown-linux-gnu"
       container:
-        image: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UNKNOWN_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UNKNOWN_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UNKNOWN_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "release: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UBUNTU1804_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UBUNTU1804_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UBUNTU1804_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "release: x86-64-unknown-linux-ubuntu20.04"
       container:
-        image: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UBUNTU2004_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UBUNTU2004_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UBUNTU2004_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
       container:
-        image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu22.04
     - name: "release: x86-64-unknown-linux-musl"
       container:
-        image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+        image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
       environment:
-        IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+        IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -600,7 +600,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: "${X8664_FREEBSD13_IMAGE_NAME}"
+    image: "${X86_64_FREEBSD13_IMAGE_NAME}"
     cpu: 8
     memory: 24
 
@@ -632,7 +632,7 @@ task:
   timeout_in: 120m
 
   osx_instance:
-    image: "${X8664_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
+    image: "${X86_64_MACOS_MONTEREY_XCODE132_IMAGE_NAME}"
 
   name: "release: x86-64-apple-darwin"
 
@@ -731,57 +731,57 @@ task:
   matrix:
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
     container:
-      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [debug]"
     container:
-      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
-      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-release
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
-      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
     container:
-      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-release
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]"
     container:
-      image: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_UBUNTU2204_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_UBUNTU2204_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
     container:
-      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-release
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
     container:
-      image: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      image: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
     environment:
-      IMAGE: "${X8664_MUSL_BUILDER_IMAGE_NAME}"
+      IMAGE: "${X86_64_MUSL_BUILDER_IMAGE_NAME}"
       TARGET: test-stress-with-cd-debug
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
