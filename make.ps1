@@ -247,13 +247,14 @@ switch ($Command.ToLower())
         {
             Write-Output "$dbgcmd $debuggerargs $outDir\libponyrt.tests.exe --gtest_shuffle"
             & $dbgcmd $debuggerargs $outDir\libponyrt.tests.exe --gtest_shuffle
+            $err = $LastExitCode
         }
         else
         {
             Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
             & $outDir\libponyrt.tests.exe --gtest_shuffle
+            $err = $LastExitCode
         }
-        $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
 
         # libponyc.tests
@@ -262,13 +263,14 @@ switch ($Command.ToLower())
         {
             Write-Output "$dbgcmd $debuggerargs $outDir\libponyc.tests.exe --gtest_shuffle"
             & $dbgcmd $debuggerargs $outDir\libponyc.tests.exe --gtest_shuffle
+            $err = $LastExitCode
         }
         else
         {
             Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
             & $outDir\libponyc.tests.exe --gtest_shuffle
+            $err = $LastExitCode
         }
-        $err = $LastExitCode
         if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
         # libponyc.run.tests
@@ -298,13 +300,14 @@ switch ($Command.ToLower())
             {
                 Write-Output '$dbgcmd $debuggerargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"'
                 & $dbgcmd $debuggerargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                $err = $LastExitCode
             }
             else
             {
                 Write-Output "$outDir\stdlib-debug.exe"
                 & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                $err = $LastExitCode
             }
-            $err = $LastExitCode
             if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
         }
         else
@@ -322,13 +325,14 @@ switch ($Command.ToLower())
             {
                 Write-Output '$dbgcmd $debuggerargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"'
                 & $dbgcmd $debuggerargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                $err = $LastExitCode
             }
             else
             {
                 Write-Output "$outDir\stdlib-release.exe"
                 & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                $err = $LastExitCode
             }
-            $err = $LastExitCode
             if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
         }
         else
