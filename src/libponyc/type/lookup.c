@@ -57,14 +57,14 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
   pony_assert(ast_id(type) == TK_NOMINAL);
-  pony_assert(opt != NULL);
   typecheck_t* t = &opt->check;
 
   ast_t* def = (ast_t*)ast_data(type);
   AST_GET_CHILDREN(def, type_id, typeparams);
   const char* type_name = ast_name(type_id);
 
-  if(is_name_private(type_name) && (from != NULL) && !allow_private)
+  if(is_name_private(type_name) && (from != NULL) && (opt != NULL)
+    && !allow_private)
   {
     if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
     {
@@ -94,31 +94,34 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
       case TK_FUN:
       {
         // Typecheck default args immediately.
-        AST_GET_CHILDREN(find, cap, id, typeparams, params);
-        ast_t* param = ast_child(params);
-
-        while(param != NULL)
+        if(opt != NULL)
         {
-          AST_GET_CHILDREN(param, name, type, def_arg);
+          AST_GET_CHILDREN(find, cap, id, typeparams, params);
+          ast_t* param = ast_child(params);
 
-          if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+          while(param != NULL)
           {
-            ast_t* child = ast_child(def_arg);
+            AST_GET_CHILDREN(param, name, type, def_arg);
 
-            if(ast_id(child) == TK_CALL)
-              ast_settype(child, ast_from(child, TK_INFERTYPE));
+            if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+            {
+              ast_t* child = ast_child(def_arg);
 
-            if(ast_visit_scope(&param, pass_pre_expr, pass_expr, opt,
-              PASS_EXPR) != AST_OK)
-              return NULL;
+              if(ast_id(child) == TK_CALL)
+                ast_settype(child, ast_from(child, TK_INFERTYPE));
 
-            def_arg = ast_childidx(param, 2);
+              if(ast_visit_scope(&param, pass_pre_expr, pass_expr, opt,
+                PASS_EXPR) != AST_OK)
+                return NULL;
 
-            if(!coerce_literals(&def_arg, type, opt))
-              return NULL;
+              def_arg = ast_childidx(param, 2);
+
+              if(!coerce_literals(&def_arg, type, opt))
+                return NULL;
+            }
+
+            param = ast_sibling(param);
           }
-
-          param = ast_sibling(param);
         }
         break;
       }
@@ -137,7 +140,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
     return NULL;
   }
 
-  if(is_name_private(name) && (from != NULL) && !allow_private)
+  if(is_name_private(name) && (from != NULL) && (opt != NULL) && !allow_private)
   {
     switch(ast_id(find))
     {

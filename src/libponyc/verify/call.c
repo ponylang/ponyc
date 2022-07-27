@@ -28,8 +28,8 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
     ast_id(call_error) == TK_NONE || ast_id(call_error) == TK_DONTCARE);
 
   // Look up the original method definition for this method call.
-  deferred_reification_t* method_def = lookup_try(opt, receiver, ast_type(receiver),
-    ast_name(method), true); // allow private types
+  deferred_reification_t* method_def = lookup(opt, receiver, ast_type(receiver),
+    ast_name(method));
   ast_t* method_ast = method_def->ast;
   deferred_reify_free(method_def);
 
