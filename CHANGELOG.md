@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix for crash when methods with default private type params in remote packages are called  ([PR #4167](https://github.com/ponylang/ponyc/pull/4167))
 
 ### Added
 
