@@ -21,8 +21,7 @@ use "files"
 actor Main
   new create(env: Env) =>
     // create a notifier
-    let client = ProcessClient(env)
-    let notifier: ProcessNotify iso = consume client
+    let client: ProcessClient iso = ProcessClient(env)
     // define the binary to run
     let path = FilePath(FileAuth(env.root), "/bin/cat")
     // define the arguments; first arg is always the binary name
@@ -32,7 +31,7 @@ actor Main
     // create a ProcessMonitor and spawn the child process
     let sp_auth = StartProcessAuth(env.root)
     let bp_auth = ApplyReleaseBackpressureAuth(env.root)
-    let pm: ProcessMonitor = ProcessMonitor(sp_auth, bp_auth, consume notifier,
+    let pm: ProcessMonitor = ProcessMonitor(sp_auth, bp_auth, consume client,
     path, args, vars)
     // write to STDIN of the child process
     pm.write("one, two, three")
