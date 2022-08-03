@@ -198,7 +198,7 @@ task:
     fingerprint_script:
       - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022" -BuildLLDB yes
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
     - libs
 
@@ -492,7 +492,7 @@ task:
     fingerprint_script:
       - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022" -BuildLLDB yes
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
     - libs
 
@@ -691,7 +691,7 @@ task:
     fingerprint_script:
       - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022" -BuildLLDB yes
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
     - libs
 
