@@ -129,7 +129,7 @@ actor Main
 
 ## Fix compiler crash related to using private types as default arguments
 
-The compiler crash described in #4130 happened with code that attempted to call a method in a different package when this remote method used a package-private type as a default parameter.
+The compiler crash described in [#4130](https://github.com/ponylang/ponyc/issues/4130) happened with code that attempted to call a method in a different package when this remote method used a package-private type as a default parameter.
 
 ```pony
 // In the "lib" package
