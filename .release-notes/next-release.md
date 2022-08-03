@@ -132,7 +132,7 @@ actor Main
 The compiler crash described in #4130 happened with code that attempted to call a method in a different package when this remote method used a package-private type as a default parameter.
 
 ```pony
-// In the "lib" pacakge
+// In the "lib" package
 
 primitive _Private
 
