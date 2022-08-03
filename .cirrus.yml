@@ -186,7 +186,7 @@ task:
   timeout_in: 120m
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
     cpu: 8
     memory: 24
@@ -477,7 +477,7 @@ task:
   timeout_in: 120m
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
     cpu: 8
     memory: 24
@@ -676,7 +676,7 @@ task:
   timeout_in: 120m
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
     cpu: 8
     memory: 24
