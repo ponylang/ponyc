@@ -11,11 +11,11 @@ RUN C:\vs_BuildTools.exe --quiet --wait --norestart --nocache --add Microsoft.Vi
 RUN choco install cmake -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System'
 RUN choco install python --version=3.10.0 -y --no-progress
 RUN C:\Python310\python.exe -m pip install --upgrade cloudsmith-cli
-RUN C:\msys2.exe -y -oC:\ \
-  Remove-Item msys2.exe \
-  function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args } \
-  msys ' ' \
-  msys 'pacman --noconfirm -Syuu' \
-  msys 'pacman --noconfirm -Syuu' \
-  msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb' \
+RUN C:\msys2.exe -y -oC:\; `
+  Remove-Item msys2.exe; `
+  function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; `
+  msys ' '; `
+  msys 'pacman --noconfirm -Syuu'; `
+  msys 'pacman --noconfirm -Syuu'; `
+  msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; `
   msys 'pacman --noconfirm -Scc'
