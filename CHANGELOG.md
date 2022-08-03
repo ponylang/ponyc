@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Auto-recover constructor expressions ([PR #4124](https://github.com/ponylang/ponyc/pull/4124))
 - Support for RISC-V ([PR #3435](https://github.com/ponylang/ponyc/pull/3435))
+- Enhance runtime stats tracking ([PR #4144](https://github.com/ponylang/ponyc/pull/4144))
 
 ### Changed
 
