@@ -144,7 +144,6 @@ Building on Windows requires the following:
   - If using Visual Studio, install the `Desktop Development with C++` workload.
   - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `Visual Studio C++ core features` individual component.
   - Install the latest `Windows 10 SDK (10.x.x.x) for Desktop` component.
-- If you want to build LLDB along with LLVM, Python 3 needs to be in your PATH.
 
 In a PowerShell prompt, run:
 
@@ -157,8 +156,6 @@ In a PowerShell prompt, run:
 Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release"`
 
 Note that you only need to run `.\make.ps1 libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
-
-If you want to build LLDB along with LLBM, use `.\make.ps1 libs -BuildLLDB yes` for the first step.
 
 ---
 
