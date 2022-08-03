@@ -9,8 +9,8 @@ ADD https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/ms
 
 RUN C:\vs_BuildTools.exe --quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended
 RUN choco install cmake -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System'
-RUN choco install python3 -y --no-progress
-RUN C:\Python39\python.exe -m pip install --upgrade cloudsmith-cli
+RUN choco install python --version=3.10.0 -y --no-progress
+RUN C:\Python310\python.exe -m pip install --upgrade cloudsmith-cli
 RUN C:\msys2.exe -y -oC:\ \
   Remove-Item msys2.exe \
   function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args } \
