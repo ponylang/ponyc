@@ -13,7 +13,7 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk);
 
 void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 /** Get the memory used by the pagemap.
  */
 size_t ponyint_pagemap_mem_size();

@@ -66,7 +66,7 @@ size_t ponyint_pool_adjust_size(size_t size);
 #define POOL_SIZE(INDEX) \
   ((size_t)1 << (POOL_MIN_BITS + INDEX))
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 #define POOL_ALLOC_SIZE(TYPE) \
   POOL_SIZE(POOL_INDEX(sizeof(TYPE)))
 #endif

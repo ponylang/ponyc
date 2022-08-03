@@ -21,7 +21,7 @@ muteref_t* ponyint_muteref_alloc(pony_actor_t* key);
 
 void ponyint_muteref_free(muteref_t* mref);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_mutemap_total_mem_size(mutemap_t* map);
 
 size_t ponyint_mutemap_total_alloc_size(mutemap_t* map);

@@ -31,7 +31,7 @@ void systematic_testing_mut_init()
 }
 #endif
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 // holds only size of systematic_testing_thread_t array
 static size_t mem_allocated;
 static size_t mem_used;
@@ -78,7 +78,7 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
     mem_needed);
   memset(threads_to_track, 0, mem_needed);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   mem_used += (mem_needed);
   mem_allocated += (ponyint_pool_used_size(mem_needed));
 #endif
@@ -159,7 +159,7 @@ void ponyint_systematic_testing_yield()
   {
     size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
     ponyint_pool_free_size(mem_needed, threads_to_track);
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     mem_used -= (mem_needed);
     mem_allocated -= (ponyint_pool_used_size(mem_needed));
 #endif

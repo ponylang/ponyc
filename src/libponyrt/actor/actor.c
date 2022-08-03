@@ -11,6 +11,10 @@
 #include <string.h>
 #include <dtrace.h>
 
+#ifdef USE_RUNTIMESTATS
+#include <stdio.h>
+#endif
+
 #ifdef USE_VALGRIND
 #include <valgrind/helgrind.h>
 #endif
@@ -40,6 +44,43 @@ enum
   SYNC_FLAG_UNDER_PRESSURE = 1 << 2,
   SYNC_FLAG_MUTED = 1 << 3,
 };
+
+#ifdef USE_RUNTIMESTATS
+void print_actor_stats(pony_actor_t* actor)
+{
+  printf("Actor stats for actor: %zu, "
+        "heap memory allocated: %ld, "
+        "heap memory used: %ld, "
+        "heap num allocated: %ld, "
+        "heap realloc counter: %ld, "
+        "heap alloc counter: %ld, "
+        "heap free counter: %ld, "
+        "heap gc counter: %ld, "
+        "system cpu: %ld, "
+        "app cpu: %ld, "
+        "garbage collection marking cpu: %ld, "
+        "garbage collection sweeping cpu: %ld, "
+        "messages sent counter: %ld, "
+        "system messages processed counter: %ld, "
+        "app messages processed counter: %ld\n",
+        (uintptr_t)actor,
+        actor->actorstats.heap_mem_allocated,
+        actor->actorstats.heap_mem_used,
+        actor->actorstats.heap_num_allocated,
+        actor->actorstats.heap_realloc_counter,
+        actor->actorstats.heap_alloc_counter,
+        actor->actorstats.heap_free_counter,
+        actor->actorstats.heap_gc_counter,
+        actor->actorstats.system_cpu,
+        actor->actorstats.app_cpu,
+        actor->actorstats.gc_mark_cpu,
+        actor->actorstats.gc_sweep_cpu,
+        actor->actorstats.messages_sent_counter,
+        actor->actorstats.system_messages_processed_counter,
+        actor->actorstats.app_messages_processed_counter
+        );
+}
+#endif
 
 // The sync flags of a given actor cannot be mutated from more than one actor at
 // once, so these operations need not be atomic RMW.
@@ -210,26 +251,26 @@ static void send_unblock(pony_actor_t* actor)
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* msg)
 {
-#ifdef USE_MEMTRACK_MESSAGES
-  ctx->num_messages--;
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.num_inflight_messages--;
 #endif
 
   switch(msg->id)
   {
     case ACTORMSG_ACQUIRE:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msgp_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgp_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
       pony_msgp_t* m = (pony_msgp_t*)msg;
 
-#ifdef USE_MEMTRACK
-      ctx->mem_used_actors -= (sizeof(actorref_t)
+#ifdef USE_RUNTIMESTATS
+      ctx->schedulerstats.mem_used_actors -= (sizeof(actorref_t)
         + ponyint_objectmap_total_mem_size(&((actorref_t*)m->p)->map));
-      ctx->mem_allocated_actors -= (POOL_ALLOC_SIZE(actorref_t)
+      ctx->schedulerstats.mem_allocated_actors -= (POOL_ALLOC_SIZE(actorref_t)
         + ponyint_objectmap_total_alloc_size(&((actorref_t*)m->p)->map));
 #endif
 
@@ -245,18 +286,18 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_RELEASE:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msgp_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgp_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
       pony_msgp_t* m = (pony_msgp_t*)msg;
 
-#ifdef USE_MEMTRACK
-      ctx->mem_used_actors -= (sizeof(actorref_t)
+#ifdef USE_RUNTIMESTATS
+      ctx->schedulerstats.mem_used_actors -= (sizeof(actorref_t)
         + ponyint_objectmap_total_mem_size(&((actorref_t*)m->p)->map));
-      ctx->mem_allocated_actors -= (POOL_ALLOC_SIZE(actorref_t)
+      ctx->schedulerstats.mem_allocated_actors -= (POOL_ALLOC_SIZE(actorref_t)
         + ponyint_objectmap_total_alloc_size(&((actorref_t*)m->p)->map));
 #endif
 
@@ -272,9 +313,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_ACK:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msgi_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgi_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
@@ -285,9 +326,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_CONF:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msgi_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgi_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
@@ -303,9 +344,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_ISBLOCKED:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msg_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msg_t);
 #endif
 
       // this actor should not already be marked as pendingdestroy
@@ -335,7 +376,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_BLOCK:
     {
-      // memtrack messages tracked in cycle detector
+      // runtimestats messages tracked in cycle detector
 
       pony_assert(ponyint_is_cycle(actor));
       DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
@@ -345,9 +386,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_UNBLOCK:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msgp_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgp_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
@@ -358,9 +399,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_DESTROYED:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msgp_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgp_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
@@ -371,9 +412,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     case ACTORMSG_CHECKBLOCKED:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(pony_msg_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(pony_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msg_t);
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
@@ -384,9 +425,9 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
     default:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= POOL_SIZE(msg->index);
-      ctx->mem_allocated_messages -= POOL_SIZE(msg->index);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= POOL_SIZE(msg->index);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_SIZE(msg->index);
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
@@ -405,8 +446,18 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 
 static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(!ponyint_heap_startgc(&actor->heap))
+  if(!ponyint_heap_startgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor))
+#else
+  ))
+#endif
     return;
+
+#ifdef USE_RUNTIMESTATS
+    uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.misc_cpu += used_cpu;
+#endif
 
   DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
 
@@ -416,9 +467,27 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->type->trace(ctx, actor);
 
   ponyint_mark_done(ctx);
-  ponyint_heap_endgc(&actor->heap);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
+    actor->actorstats.gc_mark_cpu += used_cpu;
+#endif
+
+  ponyint_heap_endgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
 
   DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
+    actor->actorstats.gc_sweep_cpu += used_cpu;
+#endif
 }
 
 // return true if mute occurs
@@ -483,8 +552,25 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 #endif
     )) != NULL)
   {
-    if(handle_message(ctx, actor, msg))
+#ifdef USE_RUNTIMESTATS
+    uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.misc_cpu += used_cpu;
+#endif
+
+    bool app_msg = handle_message(ctx, actor, msg);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+#endif
+
+    if(app_msg)
     {
+#ifdef USE_RUNTIMESTATS
+      ctx->schedulerstats.actor_app_cpu += used_cpu;
+      actor->actorstats.app_cpu += used_cpu;
+      actor->actorstats.app_messages_processed_counter++;
+#endif
+
       // If we handle an application message, try to gc.
       app++;
       try_gc(ctx, actor);
@@ -497,6 +583,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // or if we're polling where we want to stop after one app message
       if(app == batch || polling)
         return batch_limit_reached(actor, polling);
+    }
+    else
+    {
+#ifdef USE_RUNTIMESTATS
+      ctx->schedulerstats.actor_system_cpu += used_cpu;
+      actor->actorstats.system_cpu += used_cpu;
+      actor->actorstats.system_messages_processed_counter++;
+#endif
     }
 
     // Stop handling a batch if we reach the head we found when we were
@@ -699,10 +793,12 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   ponyint_gc_destroy(&actor->gc);
   ponyint_heap_destroy(&actor->heap);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   pony_ctx_t* ctx = pony_ctx();
-  ctx->mem_used_actors -= actor->type->size;
-  ctx->mem_allocated_actors -= ponyint_pool_used_size(actor->type->size);
+  ctx->schedulerstats.mem_used_actors -= actor->type->size;
+  ctx->schedulerstats.mem_allocated_actors -= ponyint_pool_used_size(actor->type->size);
+  ctx->schedulerstats.destroyed_actors_counter++;
+  print_actor_stats(actor);
 #endif
 
   // Free variable sized actors correctly.
@@ -782,9 +878,10 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   memset(actor, 0, type->size);
   actor->type = type;
 
-#ifdef USE_MEMTRACK
-  ctx->mem_used_actors += type->size;
-  ctx->mem_allocated_actors += ponyint_pool_used_size(type->size);
+#ifdef USE_RUNTIMESTATS
+  ctx->schedulerstats.mem_used_actors += type->size;
+  ctx->schedulerstats.mem_allocated_actors += ponyint_pool_used_size(type->size);
+  ctx->schedulerstats.created_actors_counter++;
 #endif
 
   ponyint_messageq_init(&actor->q);
@@ -827,11 +924,15 @@ PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor)
 
 PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
 {
-#ifdef USE_MEMTRACK_MESSAGES
+#ifdef USE_RUNTIMESTATS
   pony_ctx_t* ctx = pony_ctx();
-  ctx->mem_used_messages += POOL_SIZE(index);
-  ctx->mem_allocated_messages += POOL_SIZE(index);
-  ctx->num_messages++;
+  if(ctx->current)
+    ctx->current->actorstats.messages_sent_counter++;
+#endif
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.mem_used_inflight_messages += POOL_SIZE(index);
+  ctx->schedulerstats.mem_allocated_inflight_messages += POOL_SIZE(index);
+  ctx->schedulerstats.num_inflight_messages++;
 #endif
 
   pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
@@ -945,9 +1046,9 @@ PONY_API void pony_chain(pony_msg_t* prev, pony_msg_t* next)
 
 PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
-#ifdef USE_MEMTRACK_MESSAGES
-  ctx->mem_used_messages += sizeof(pony_msg_t);
-  ctx->mem_used_messages -= POOL_ALLOC_SIZE(pony_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.mem_used_inflight_messages += sizeof(pony_msg_t);
+  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(pony_msg_t);
 #endif
 
   pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
@@ -957,9 +1058,9 @@ PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   void* p)
 {
-#ifdef USE_MEMTRACK_MESSAGES
-  ctx->mem_used_messages += sizeof(pony_msgp_t);
-  ctx->mem_used_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.mem_used_inflight_messages += sizeof(pony_msgp_t);
+  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
 #endif
 
   pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(
@@ -972,9 +1073,9 @@ PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
 PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   intptr_t i)
 {
-#ifdef USE_MEMTRACK_MESSAGES
-  ctx->mem_used_messages += sizeof(pony_msgi_t);
-  ctx->mem_used_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.mem_used_inflight_messages += sizeof(pony_msgi_t);
+  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
@@ -1081,7 +1182,17 @@ PONY_API void pony_release_backpressure()
     ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
 }
 
-#ifdef USE_MEMTRACK
+PONY_API actorstats_t* pony_actor_stats()
+{
+#ifdef USE_RUNTIMESTATS
+  pony_ctx_t* ctx = pony_ctx();
+  return &ctx->current->actorstats;
+#else
+  return NULL;
+#endif
+}
+
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_actor_mem_size(pony_actor_t* actor)
 {
   return actor->type->size;
@@ -1103,9 +1214,9 @@ size_t ponyint_actor_total_mem_size(pony_actor_t* actor)
       // cycle detector memory used (or 0 if not cycle detector)
     + ( ponyint_is_cycle(actor) ? ponyint_cycle_mem_size() : 0)
       // actor heap memory used
-    + ponyint_heap_mem_size(&actor->heap)
+    + ponyint_heap_mem_size(actor)
       // actor gc total memory used
-    + ponyint_gc_total_mem_size(&actor->gc)
+    + ponyint_gc_total_mem_size(actor, &actor->gc)
       // size of stub message when message_q is initialized
     + sizeof(pony_msg_t);
 }
@@ -1122,9 +1233,9 @@ size_t ponyint_actor_total_alloc_size(pony_actor_t* actor)
       // cycle detector memory allocated (or 0 if not cycle detector)
     + ( ponyint_is_cycle(actor) ? ponyint_cycle_alloc_size() : 0)
       // actor heap memory allocated
-    + ponyint_heap_alloc_size(&actor->heap)
+    + ponyint_heap_alloc_size(actor)
       // actor gc total memory allocated
-    + ponyint_gc_total_alloc_size(&actor->gc)
+    + ponyint_gc_total_alloc_size(actor, &actor->gc)
       // allocation of stub message when message_q is initialized
     + POOL_ALLOC_SIZE(pony_msg_t);
 }
