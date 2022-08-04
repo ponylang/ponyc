@@ -36,13 +36,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug usedbg=true
+    - make test-ci config=debug uselldb=true
   release_configure_script:
     - make configure arch=x86-64 config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release usedbg=true
+    - make test-ci config=release uselldb=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -71,13 +71,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug usedbg=true
+    - make test-ci config=debug uselldb=true
   release_configure_script:
     - make configure arch=armv8-a config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release usedbg=true
+    - make test-ci config=release uselldb=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -112,13 +112,13 @@ task:
   debug_build_script:
     - gmake build config=debug
   debug_test_script:
-    - gmake test-ci config=debug usedbg=true
+    - gmake test-ci config=debug uselldb=true
   release_configure_script:
     - gmake configure arch=x86-64 config=release
   release_build_script:
     - gmake build config=release
   release_test_script:
-    - gmake test-ci config=release usedbg=true
+    - gmake test-ci config=release uselldb=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -142,13 +142,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug usedbg=true
+    - make test-ci config=debug uselldb=true
   release_configure_script:
     - make configure arch=x86-64 config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release usedbg=true
+    - make test-ci config=release uselldb=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -172,13 +172,13 @@ task:
   debug_build_script:
     - make build arch=armv8 config=debug
   debug_test_script:
-    - make test-ci config=debug usedbg=true
+    - make test-ci config=debug uselldb=true
   release_configure_script:
     - make configure arch=armv8 config=release
   release_build_script:
     - make build arch=armv8 config=release
   release_test_script:
-    - make test-ci config=release usedbg=true
+    - make test-ci config=release uselldb=true
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -207,13 +207,13 @@ task:
   debug_build_script:
     - ps: .\make.ps1 -Command build -Config Debug
   debug_test_script:
-    - ps: .\make.ps1 -Command test -Config Debug -Usedbg yes
+    - ps: .\make.ps1 -Command test -Config Debug -Uselldb yes
   release_config_script:
     - ps: .\make.ps1 -Command configure -Config Release
   release_build_script:
     - ps: .\make.ps1 -Command build -Config Release
   release_test_script:
-    - ps: .\make.ps1 -Command test -Config Release -Usedbg yes
+    - ps: .\make.ps1 -Command test -Config Release -Uselldb yes
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -240,7 +240,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci usedbg=true
+    - make test-ci uselldb=true
   libponyrt_cross_script:
     - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
   test_stdlib_cross_script:
@@ -271,7 +271,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci usedbg=true
+    - make test-ci uselldb=true
   libponyrt_cross_script:
     - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
   test_stdlib_cross_script:
@@ -302,7 +302,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci usedbg=true
+    - make test-ci uselldb=true
   libponyrt_cross_script:
     - make cross-libponyrt CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
   test_stdlib_cross_script:
@@ -787,7 +787,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug usedbg=true
+    - make ${TARGET} config=debug uselldb=true
 
 task:
   only_if: $CIRRUS_CRON == "stress"
@@ -833,7 +833,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug usedbg=true
+    - make ${TARGET} config=debug uselldb=true
 
 task:
   only_if: $CIRRUS_CRON == "stress"
@@ -873,4 +873,4 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug usedbg=true
+    - make ${TARGET} config=debug uselldb=true
