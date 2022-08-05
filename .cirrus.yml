@@ -186,7 +186,7 @@ task:
   timeout_in: 120m
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
     cpu: 8
     memory: 24
@@ -196,24 +196,24 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
     - libs
 
   debug_config_script:
-    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 16 2019"
+    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 17 2022"
   debug_build_script:
-    - ps: .\make.ps1 -Command build -Config Debug -Generator "Visual Studio 16 2019"
+    - ps: .\make.ps1 -Command build -Config Debug
   debug_test_script:
-    - ps: .\make.ps1 -Command test -Config Debug -Generator "Visual Studio 16 2019"
+    - ps: .\make.ps1 -Command test -Config Debug
   release_config_script:
-    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019"
+    - ps: .\make.ps1 -Command configure -Config Release
   release_build_script:
-    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019"
+    - ps: .\make.ps1 -Command build -Config Release
   release_test_script:
-    - ps: .\make.ps1 -Command test -Config Release -Generator "Visual Studio 16 2019"
+    - ps: .\make.ps1 -Command test -Config Release
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -477,7 +477,7 @@ task:
   timeout_in: 120m
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
     cpu: 8
     memory: 24
@@ -490,16 +490,16 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
     - libs
 
   config_script:
-    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version nightly
+    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 17 2022" -Prefix "build\install\release" -Version nightly
   build_script:
-    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version nightly
+    - ps: .\make.ps1 -Command build -Config Release -Prefix "build\install\release" -Version nightly
   install_script:
     - ps: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
   package_script:
@@ -676,7 +676,7 @@ task:
   timeout_in: 120m
 
   windows_container:
-    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20210430
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
     cpu: 8
     memory: 24
@@ -689,16 +689,16 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20210430"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
-      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 16 2019"
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
     - libs
 
   config_script:
-    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+    - ps: .\make.ps1 -Command configure -Config Release -Generator "Visual Studio 17 2022" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
   build_script:
-    - ps: .\make.ps1 -Command build -Config Release -Generator "Visual Studio 16 2019" -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+    - ps: .\make.ps1 -Command build -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
   install_script:
     - ps: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
   package_script:
