@@ -552,13 +552,15 @@ class Array[A] is Seq[A]
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
     """
-    dst.reserve(dst_idx + len)
-    _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
+    if _alloc > 0 then
+      dst.reserve(dst_idx + len)
+      _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
 
-    if dst._size < (dst_idx + len) then
-      dst._size = dst_idx + len
+      if dst._size < (dst_idx + len) then
+        dst._size = dst_idx + len
+      end
     end
-
+  
   fun ref remove(i: USize, n: USize) =>
     """
     Remove n elements from the array, beginning at index i.
