@@ -149,3 +149,14 @@ actor Main
 ```
 
 It was decided that this code is valid Pony code, and this PR fixes the crash so that code like the above compiles.
+
+## ## Fix "incorrect" atomics usage
+
+When reviewing other code, we noticed that an old PR that was porting code from one atomics system to another changed the semantics of some atomics. The changes would have no impact on X86, but could have an impact on CPUs with weaker memory models like Arm.
+
+The changes would be tricky to easily evaluate if the changes (all weaken the semantics) are ok. Given that we do not have the time to evaluate the changes fully at the moment, we are switched to having stronger semantics.
+
+This change might fix incorrect atomics usage and memory issues on Arm and RISC-V. It will definitely cause some amount of slowdown on those platforms.
+
+If anyone wants to do a thorough review of various atomics and prove that we can
+weaken any safely, we will happily accept PRs that contain proof of the safety.
