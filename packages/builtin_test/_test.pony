@@ -30,6 +30,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
+    test(_TestArrayCopyTo)
     test(_TestArrayInsert)
     test(_TestArraySlice)
     test(_TestArraySwapElements)
@@ -1763,6 +1764,21 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
   fun apply(h: TestHelper) =>
     let arr = Array[U8].from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, arr.size())
+
+class \nodoc\ iso _TestArrayCopyTo is UnitTest
+  """
+  Test that .copy_to() on an empty Array does not change the target
+
+  Verifies we don't get a segfault
+  https://github.com/ponylang/ponyc/issues/4172
+  """
+  fun name(): String => "builtin/Array.copy_to"
+
+  fun apply(h: TestHelper) =>
+    let a: Array[U8] = []
+    let b: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    a.copy_to(b, 0, 0, 10) // attempt to copy 10 elements from the empty array
+    h.assert_array_eq[U8](b, [0; 1; 2; 3; 4; 5; 6])
 
 class \nodoc\ iso _TestMath128 is UnitTest
   """
