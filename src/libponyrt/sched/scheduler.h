@@ -32,6 +32,31 @@ typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
 
 typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* actor);
 
+typedef struct schedulerstats_t
+{
+  // includes memory for mutemap stuff only
+  int64_t mem_used;
+  int64_t mem_allocated;
+  // includes memory for actor structs (`pony_actor_t`)
+  // and memory for acquire/release message contents (i.e. `actormap`s)
+  int64_t mem_used_actors;
+  int64_t mem_allocated_actors;
+  size_t created_actors_counter;
+  size_t destroyed_actors_counter;
+  size_t actor_app_cpu;
+  size_t actor_gc_mark_cpu;
+  size_t actor_gc_sweep_cpu;
+  size_t actor_system_cpu;
+  size_t msg_cpu;
+  size_t misc_cpu;
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  // includes memory for messages only
+  int64_t mem_used_inflight_messages;
+  int64_t mem_allocated_inflight_messages;
+  int64_t num_inflight_messages;
+#endif
+} schedulerstats_t;
+
 typedef struct pony_ctx_t
 {
   scheduler_t* scheduler;
@@ -43,20 +68,9 @@ typedef struct pony_ctx_t
   // Temporary storage for acquire/release of actors/objects for GC;
   // empty when GC not running
   actormap_t acquire;
-#ifdef USE_MEMTRACK
-  // includes memory for mutemap stuff only
-  int64_t mem_used;
-  int64_t mem_allocated;
-  // includes memory for actor structs (`pony_actor_t`)
-  // and memory for acquire/release message contents (i.e. `actormap`s)
-  int64_t mem_used_actors;
-  int64_t mem_allocated_actors;
-#endif
-#ifdef USE_MEMTRACK_MESSAGES
-  // includes memory for messages only
-  int64_t mem_used_messages;
-  int64_t mem_allocated_messages;
-  int64_t num_messages;
+#ifdef USE_RUNTIMESTATS
+  uint64_t last_tsc;
+  schedulerstats_t schedulerstats;
 #endif
 
   void* serialise_buffer;
@@ -94,7 +108,8 @@ struct scheduler_t
 };
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
-  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold
+  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold,
+  uint32_t stats_interval
 #if defined(USE_SYSTEMATIC_TESTING)
   , uint64_t systematic_testing_seed);
 #else
@@ -115,6 +130,10 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
 PONY_API uint32_t pony_active_schedulers();
 
+PONY_API int32_t pony_scheduler_index();
+
+PONY_API schedulerstats_t* pony_scheduler_stats();
+
 /** Mark asio as being noisy
  */
 void ponyint_sched_noisy_asio(int32_t from);
@@ -134,7 +153,9 @@ void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
 // special actors on the inject queue.
 pony_ctx_t* ponyint_sched_get_inject_context();
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
+uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx);
+
 /** Get the static memory used by the scheduler subsystem.
  */
 size_t ponyint_sched_static_mem_size();

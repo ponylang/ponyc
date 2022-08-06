@@ -85,7 +85,7 @@ void ponyint_objectmap_sweep(objectmap_t* map)
     ponyint_objectmap_optimize(map);
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_objectmap_total_mem_size(objectmap_t* map)
 {
   return ponyint_objectmap_mem_size(map)

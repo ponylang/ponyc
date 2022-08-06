@@ -113,5 +113,27 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass
     return true;
   }
 
+  if(!strcmp(attribute, OS_RUNTIMESTATS_NAME))
+  {
+#if defined(USE_RUNTIMESTATS) || defined(USE_RUNTIMESTATS_MESSAGES)
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_RUNTIMESTATSMESSAGES_NAME))
+  {
+#ifdef USE_RUNTIMESTATS_MESSAGES
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+
+    return true;
+  }
+
   return false;
 }

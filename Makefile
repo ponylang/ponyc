@@ -137,10 +137,10 @@ define USE_CHECK
     PONY_USES += -DPONY_USE_SCHEDULER_SCALING_PTHREADS=true
   else ifeq ($1,systematic_testing)
     PONY_USES += -DPONY_USE_SYSTEMATIC_TESTING=true
-  else ifeq ($1,memtrack)
-    PONY_USES += -DPONY_USE_MEMTRACK=true
-  else ifeq ($1,memtrack_messages)
-    PONY_USES += -DPONY_USE_MEMTRACK_MESSAGES=true
+  else ifeq ($1,runtimestats)
+    PONY_USES += -DPONY_USE_RUNTIMESTATS=true
+  else ifeq ($1,runtimestats_messages)
+    PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
   else
     $$(error ERROR: Unknown use option specified: $1)
   endif

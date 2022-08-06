@@ -22,7 +22,7 @@ struct asio_base_t
 static asio_base_t running_base;
 static uint32_t asio_cpu;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 // holds only size of pthread_cond_t condition variable when using pthreads
 static size_t mem_allocated;
 static size_t mem_used;
@@ -95,7 +95,7 @@ void ponyint_asio_init(uint32_t cpu)
       running_base.sleep_object = NULL;
     }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     mem_used += sizeof(pthread_cond_t);
     mem_allocated += POOL_ALLOC_SIZE(pthread_cond_t);
 #endif
@@ -143,7 +143,7 @@ bool ponyint_asio_stop()
 #if defined(USE_SYSTEMATIC_TESTING)
     POOL_FREE(pthread_cond_t, running_base.sleep_object);
     running_base.sleep_object = NULL;
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     mem_used -= sizeof(pthread_cond_t);
     mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
 #endif

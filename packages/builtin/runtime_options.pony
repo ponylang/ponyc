@@ -104,6 +104,12 @@ struct RuntimeOptions
     Requires `--ponypin` to be set to have any effect.
     """
 
+  var ponyprintstatsinterval: U32 = -1
+    """
+    Print actor stats before an actor is destroyed and print scheduler stats
+    every X seconds. Defaults to -1 (never).
+    """
+
   var ponyversion: Bool = false
     """
     Print the version of the compiler and exit.
