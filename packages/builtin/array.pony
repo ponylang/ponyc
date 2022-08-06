@@ -560,7 +560,7 @@ class Array[A] is Seq[A]
         dst._size = dst_idx + len
       end
     end
- 
+
   fun ref remove(i: USize, n: USize) =>
     """
     Remove n elements from the array, beginning at index i.
