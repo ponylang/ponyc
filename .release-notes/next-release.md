@@ -150,7 +150,7 @@ actor Main
 
 It was decided that this code is valid Pony code, and this PR fixes the crash so that code like the above compiles.
 
-## ## Fix "incorrect" atomics usage
+## Fix "incorrect" atomics usage
 
 When reviewing other code, we noticed that an old PR that was porting code from one atomics system to another changed the semantics of some atomics. The changes would have no impact on X86, but could have an impact on CPUs with weaker memory models like Arm.
 
