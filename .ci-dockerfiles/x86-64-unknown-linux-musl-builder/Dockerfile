@@ -17,7 +17,7 @@ RUN apk update \
   bash \
   curl \
   py3-pip \
-  lldb \
+  gdb \
 && pip install cloudsmith-cli
 
 # add user pony in order to not run tests as root

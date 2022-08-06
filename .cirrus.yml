@@ -13,11 +13,13 @@ task:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
+      DEBUGGER: lldb
   - name: "x86-64 Linux musl"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      DEBUGGER: gdb
 
   container:
     cpu: 8
@@ -36,13 +38,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug uselldb=true
+    - make test-ci config=debug usedebugger='${DEBUGGER}'
   release_configure_script:
     - make configure arch=x86-64 config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release uselldb=true
+    - make test-ci config=release usedebugger='${DEBUGGER}'
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -71,13 +73,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug uselldb=true
+    - make test-ci config=debug usedebugger=lldb
   release_configure_script:
     - make configure arch=armv8-a config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release uselldb=true
+    - make test-ci config=release usedebugger=lldb
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -112,13 +114,13 @@ task:
   debug_build_script:
     - gmake build config=debug
   debug_test_script:
-    - gmake test-ci config=debug uselldb=true
+    - gmake test-ci config=debug usedebugger=lldb
   release_configure_script:
     - gmake configure arch=x86-64 config=release
   release_build_script:
     - gmake build config=release
   release_test_script:
-    - gmake test-ci config=release uselldb=true
+    - gmake test-ci config=release usedebugger=lldb
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -142,13 +144,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug uselldb=true
+    - make test-ci config=debug usedebugger=lldb
   release_configure_script:
     - make configure arch=x86-64 config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release uselldb=true
+    - make test-ci config=release usedebugger=lldb
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -172,13 +174,13 @@ task:
   debug_build_script:
     - make build arch=armv8 config=debug
   debug_test_script:
-    - make test-ci config=debug uselldb=true
+    - make test-ci config=debug usedebugger=lldb
   release_configure_script:
     - make configure arch=armv8 config=release
   release_build_script:
     - make build arch=armv8 config=release
   release_test_script:
-    - make test-ci config=release uselldb=true
+    - make test-ci config=release usedebugger=lldb
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -240,7 +242,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci uselldb=true
+    - make test-ci usedebugger=lldb
   libponyrt_cross_script:
     - make cross-libponyrt CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
   test_stdlib_cross_script:
@@ -271,7 +273,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci uselldb=true
+    - make test-ci usedebugger=lldb
   libponyrt_cross_script:
     - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
   test_stdlib_cross_script:
@@ -302,7 +304,7 @@ task:
   build_script:
     - make build
   test_script:
-    - make test-ci uselldb=true
+    - make test-ci usedebugger=lldb
   libponyrt_cross_script:
     - make cross-libponyrt CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
   test_stdlib_cross_script:
@@ -355,9 +357,9 @@ task:
         TRIPLE_OS: linux-ubuntu22.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+        image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+        IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -554,9 +556,9 @@ task:
         TRIPLE_OS: linux-ubuntu22.04
     - name: "release: x86-64-unknown-linux-musl"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+        image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+        IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -719,26 +721,30 @@ task:
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
       TARGET: test-stress-release
+      DEBUGGER: lldb
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [debug]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
       TARGET: test-stress-debug
+      DEBUGGER: lldb
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
       TARGET: test-stress-release
+      DEBUGGER: gdb
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
       TARGET: test-stress-debug
+      DEBUGGER: gdb
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
@@ -747,26 +753,30 @@ task:
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
       TARGET: test-stress-with-cd-release
+      DEBUGGER: lldb
   - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
     environment:
       IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
       TARGET: test-stress-with-cd-debug
+      DEBUGGER: lldb
     depends_on:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
       TARGET: test-stress-with-cd-release
+      DEBUGGER: gdb
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
     environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220720
+      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
       TARGET: test-stress-with-cd-debug
+      DEBUGGER: gdb
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
 
@@ -787,7 +797,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug uselldb=true
+    - make ${TARGET} config=debug usedebugger='${DEBUGGER}'
 
 task:
   only_if: $CIRRUS_CRON == "stress"
@@ -833,7 +843,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug uselldb=true
+    - make ${TARGET} config=debug usedebugger=lldb
 
 task:
   only_if: $CIRRUS_CRON == "stress"
@@ -873,4 +883,4 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug uselldb=true
+    - make ${TARGET} config=debug usedebugger=lldb
