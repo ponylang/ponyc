@@ -1770,7 +1770,7 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
 
   fun apply(h: TestHelper) =>
     let a: Array[U8] = []
-    let b: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    let dest1: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
     a.copy_to(b, 0, 0, 10) // attempt to copy 10 elements from the empty array
     h.assert_array_eq[U8](b, [0; 1; 2; 3; 4; 5; 6])
 
