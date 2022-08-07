@@ -552,7 +552,7 @@ class Array[A] is Seq[A]
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
     """
-    if _alloc > 0 then
+    if _size > 0 then
       dst.reserve(dst_idx + len)
       _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
 
