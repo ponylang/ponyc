@@ -16,9 +16,9 @@ task:
       DEBUGGER: lldb
   - name: "x86-64 Linux musl"
     container:
-      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
     environment:
-      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       DEBUGGER: gdb
 
   container:
@@ -357,9 +357,9 @@ task:
         TRIPLE_OS: linux-ubuntu22.04
     - name: "nightly: x86-64-unknown-linux-musl"
       container:
-        image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       environment:
-        IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -556,9 +556,9 @@ task:
         TRIPLE_OS: linux-ubuntu22.04
     - name: "release: x86-64-unknown-linux-musl"
       container:
-        image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       environment:
-        IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-musl
 
@@ -733,16 +733,16 @@ task:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
-      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
     environment:
-      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       TARGET: test-stress-release
       DEBUGGER: gdb
   - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
     container:
-      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
     environment:
-      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       TARGET: test-stress-debug
       DEBUGGER: gdb
     depends_on:
@@ -765,16 +765,16 @@ task:
       - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
     container:
-      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
     environment:
-      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       TARGET: test-stress-with-cd-release
       DEBUGGER: gdb
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
     container:
-      image: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
     environment:
-      IMAGE: dipinhora/ponyc-ci-x86-64-unknown-linux-musl-builder:20220806
+      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
       TARGET: test-stress-with-cd-debug
       DEBUGGER: gdb
     depends_on:
