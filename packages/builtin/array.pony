@@ -552,13 +552,15 @@ class Array[A] is Seq[A]
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
     """
-    let count = len.min(_size - src_idx)
-    if count > 0 then
-      dst.reserve(dst_idx + count)
-      _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), count)
+    if src_idx < _size then
+      let count = len.min(_size - src_idx)
+      if count > 0 then
+        dst.reserve(dst_idx + count)
+        _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), count)
 
-      if dst._size < (dst_idx + count) then
-        dst._size = dst_idx + count
+        if dst._size < (dst_idx + count) then
+          dst._size = dst_idx + count
+        end
       end
     end
 
