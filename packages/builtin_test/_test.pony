@@ -1766,7 +1766,8 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
     h.assert_eq[USize](0, arr.size())
 
 class \nodoc\ iso _TestArrayCopyTo is UnitTest
-  fun name(): String => "builtin/Array.copy_to_with_uninitialized_source"
+  fun name(): String => 
+      "builtin/Array.copy_to"
 
   fun apply(h: TestHelper) =>
     // Test that a using an uninitialized array as a source leaves the destination unchanged
