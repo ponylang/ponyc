@@ -1772,7 +1772,7 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
     // Test that a using an uninitialized array as a source leaves the destination unchanged
     let src1: Array[U8] = []
     let dest1: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
-    a.copy_to(b, 0, 0, 10) // attempt to copy 10 elements from the empty array
+    src1.copy_to(dest1, 0, 0, 10)
     h.assert_array_eq[U8](b, [0; 1; 2; 3; 4; 5; 6])
 
 class \nodoc\ iso _TestMath128 is UnitTest
