@@ -1766,7 +1766,8 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
     h.assert_eq[USize](0, arr.size())
 
 class \nodoc\ iso _TestArrayCopyTo is UnitTest
-  fun name(): String => "builtin/Array.copy_to_with_uninitialized_source"
+  fun name(): String => 
+      "builtin/Array.copy_to"
 
   fun apply(h: TestHelper) =>
     // Test that a using an uninitialized array as a source leaves the destination unchanged
@@ -1774,6 +1775,7 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
     let dest1: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
     src1.copy_to(dest1, 0, 0, 10)
     h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest1)
+
     // Test that copying from an empty source array leaves 
     // the destination unchanged
     // create an initialized array and then remove it's only element
