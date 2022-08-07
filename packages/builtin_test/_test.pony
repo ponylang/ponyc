@@ -1766,12 +1766,6 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
     h.assert_eq[USize](0, arr.size())
 
 class \nodoc\ iso _TestArrayCopyTo is UnitTest
-  """
-  Test that .copy_to() on an empty Array does not change the target
-
-  Verifies we don't get a segfault
-  https://github.com/ponylang/ponyc/issues/4172
-  """
   fun name(): String => "builtin/Array.copy_to_with_uninitialized_source"
 
   fun apply(h: TestHelper) =>
