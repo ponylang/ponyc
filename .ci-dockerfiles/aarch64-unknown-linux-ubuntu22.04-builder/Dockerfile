@@ -17,6 +17,7 @@ RUN apt-get update \
   zlib1g-dev \
   curl \
   python3-pip \
+  lldb \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \
