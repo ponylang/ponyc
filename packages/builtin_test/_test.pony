@@ -1772,7 +1772,7 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
   Verifies we don't get a segfault
   https://github.com/ponylang/ponyc/issues/4172
   """
-  fun name(): String => "builtin/Array.copy_to"
+  fun name(): String => "builtin/Array.copy_to_with_uninitialized_source"
 
   fun apply(h: TestHelper) =>
     let a: Array[U8] = []
