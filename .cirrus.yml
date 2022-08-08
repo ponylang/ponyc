@@ -322,9 +322,9 @@ task:
   matrix:
     - name: "nightly: x86-64-unknown-linux-rocky8"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220720
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220807
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220720
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220807
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "nightly: x86-64-unknown-linux-gnu"
@@ -521,9 +521,9 @@ task:
   matrix:
     - name: "release: x86-64-unknown-linux-rocky8"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220720
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220807
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220720
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-rocky8-builder:20220807
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-rocky8
     - name: "release: x86-64-unknown-linux-gnu"
