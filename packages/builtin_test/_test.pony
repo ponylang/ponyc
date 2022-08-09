@@ -1778,8 +1778,6 @@ class \nodoc\ iso _TestArrayCopyTo is UnitTest
 
     // Test that copying from an empty source array leaves 
     // the destination unchanged
-    // create an initialized array and then remove it's only element
-    // leaving it empty
     let src2: Array[U8] = [1]
     try src2.pop()? end
     h.assert_eq[USize](0, src2.size())
