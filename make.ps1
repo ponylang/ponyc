@@ -25,7 +25,11 @@
 
     [Parameter(HelpMessage="Whether or not to turn on LTO")]
     [string]
-    $Lto = "no"
+    $Lto = "no",
+
+    [Parameter(HelpMessage="Whether or not to run tests in gdb debugger")]
+    [string]
+    $Uselldb = "no"
 )
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
@@ -231,18 +235,56 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --version
 
+        if ($Uselldb -eq "yes")
+        {
+            $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+            $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+        }
+
         # libponyrt.tests
         $numTestSuitesRun += 1;
-        Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
-        & $outDir\libponyrt.tests.exe --gtest_shuffle
-        $err = $LastExitCode
+        try
+        {
+            if ($Uselldb -eq "yes")
+            {
+                Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
+                & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
+                $err = $LastExitCode
+            }
+            else
+            {
+                Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
+                & $outDir\libponyrt.tests.exe --gtest_shuffle
+                $err = $LastExitCode
+            }
+        }
+        catch
+        {
+            $err = -1
+        }
         if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
 
         # libponyc.tests
         $numTestSuitesRun += 1;
-        Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
-        & $outDir\libponyc.tests.exe --gtest_shuffle
-        $err = $LastExitCode
+        try
+        {
+            if ($Uselldb -eq "yes")
+            {
+                Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
+                & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
+                $err = $LastExitCode
+            }
+            else
+            {
+                Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
+                & $outDir\libponyc.tests.exe --gtest_shuffle
+                $err = $LastExitCode
+            }
+        }
+        catch
+        {
+            $err = -1
+        }
         if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
         # libponyc.run.tests
@@ -268,9 +310,25 @@ switch ($Command.ToLower())
         & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
         if ($LastExitCode -eq 0)
         {
-            Write-Output "$outDir\stdlib-debug.exe"
-            & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
-            $err = $LastExitCode
+            try
+            {
+                if ($Uselldb -eq "yes")
+                {
+                    Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
+                    & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                    $err = $LastExitCode
+                }
+                else
+                {
+                    Write-Output "$outDir\stdlib-debug.exe"
+                    & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                    $err = $LastExitCode
+                }
+            }
+            catch
+            {
+                $err = -1
+            }
             if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
         }
         else
@@ -284,9 +342,25 @@ switch ($Command.ToLower())
         & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
         if ($LastExitCode -eq 0)
         {
-            Write-Output "$outDir\stdlib-release.exe"
-            & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
-            $err = $LastExitCode
+            try
+            {
+                if ($Uselldb -eq "yes")
+                {
+                    Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/Broadcast`""
+                    & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                    $err = $LastExitCode
+                }
+                else
+                {
+                    Write-Output "$outDir\stdlib-release.exe"
+                    & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                    $err = $LastExitCode
+                }
+            }
+            catch
+            {
+                $err = -1
+            }
             if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
         }
         else

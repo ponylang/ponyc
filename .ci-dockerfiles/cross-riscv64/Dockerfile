@@ -8,6 +8,7 @@ RUN apt-get update \
   qemu-user \
   gcc-10-riscv64-linux-gnu \
   g++-10-riscv64-linux-gnu \
+  lldb \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \

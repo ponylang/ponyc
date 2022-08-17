@@ -241,11 +241,78 @@ static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 }
 #endif
 
+static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  if(!ponyint_heap_startgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor))
+#else
+  ))
+#endif
+    return;
+
+#ifdef USE_RUNTIMESTATS
+    uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.misc_cpu += used_cpu;
+#endif
+
+  DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
+
+  ponyint_gc_mark(ctx);
+
+  if(actor->type->trace != NULL)
+    actor->type->trace(ctx, actor);
+
+  ponyint_mark_done(ctx);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
+    actor->actorstats.gc_mark_cpu += used_cpu;
+#endif
+
+  ponyint_heap_endgc(&actor->heap
+#ifdef USE_RUNTIMESTATS
+  , actor);
+#else
+  );
+#endif
+
+  DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
+
+#ifdef USE_RUNTIMESTATS
+    used_cpu = ponyint_sched_cpu_used(ctx);
+    ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
+    actor->actorstats.gc_sweep_cpu += used_cpu;
+#endif
+}
+
 static void send_unblock(pony_actor_t* actor)
 {
   // Send unblock before continuing.
   unset_internal_flag(actor, FLAG_BLOCKED | FLAG_BLOCKED_SENT);
   ponyint_cycle_unblock(actor);
+}
+
+static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  pony_assert(ctx->current == actor);
+
+  // Try and run GC because we're blocked and sending a block message
+  // to the CD. This will try and free any memory the actor has in its
+  // heap that wouldn't get freed otherwise until the actor is
+  // destroyed or happens to receive more work via application messages
+  // that eventually trigger a GC which may not happen for a long time
+  // (or ever). Do this BEFORE sending the message or else we might be
+  // GCing while the CD destroys us.
+  pony_triggergc(ctx);
+  try_gc(ctx, actor);
+
+
+  // We're blocked, send block message.
+  set_internal_flag(actor, FLAG_BLOCKED_SENT);
+  set_internal_flag(actor, FLAG_CD_CONTACTED);
+  ponyint_cycle_block(actor, &actor->gc);
 }
 
 static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -366,9 +433,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         //
         // Sending multiple "i'm blocked" messages to the cycle detector
         // will result in actor potentially being freed more than once.
-        set_internal_flag(actor, FLAG_BLOCKED_SENT);
-        pony_assert(ctx->current == actor);
-        ponyint_cycle_block(actor, &actor->gc);
+        send_block(ctx, actor);
       }
 
       return false;
@@ -442,52 +507,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return true;
     }
   }
-}
-
-static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  if(!ponyint_heap_startgc(&actor->heap
-#ifdef USE_RUNTIMESTATS
-  , actor))
-#else
-  ))
-#endif
-    return;
-
-#ifdef USE_RUNTIMESTATS
-    uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.misc_cpu += used_cpu;
-#endif
-
-  DTRACE1(GC_START, (uintptr_t)ctx->scheduler);
-
-  ponyint_gc_mark(ctx);
-
-  if(actor->type->trace != NULL)
-    actor->type->trace(ctx, actor);
-
-  ponyint_mark_done(ctx);
-
-#ifdef USE_RUNTIMESTATS
-    used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
-    actor->actorstats.gc_mark_cpu += used_cpu;
-#endif
-
-  ponyint_heap_endgc(&actor->heap
-#ifdef USE_RUNTIMESTATS
-  , actor);
-#else
-  );
-#endif
-
-  DTRACE1(GC_END, (uintptr_t)ctx->scheduler);
-
-#ifdef USE_RUNTIMESTATS
-    used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
-    actor->actorstats.gc_sweep_cpu += used_cpu;
-#endif
 }
 
 // return true if mute occurs
@@ -631,13 +650,12 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     )
     {
       // The cycle detector (CD) doesn't know we exist so it won't try
-      // and reach out to us even though we're blocked, so send block message //// and set flag that the CD knows we exist now so that when we block
+      // and reach out to us even though we're blocked, so send block message
+      // and set flag that the CD knows we exist now so that when we block
       // in the future we will wait for the CD to reach out and ask
       // if we're blocked or not.
       // But, only if gc.rc > 0 because if gc.rc == 0 we are a zombie.
-      set_internal_flag(actor, FLAG_BLOCKED_SENT);
-      set_internal_flag(actor, FLAG_CD_CONTACTED);
-      ponyint_cycle_block(actor, &actor->gc);
+      send_block(ctx, actor);
     }
 
   }
@@ -748,8 +766,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // unblocked (which would create a race condition) and we've also
         // ensured that the cycle detector will not send this actor any more
         // messages (which would also create a race condition).
-        set_internal_flag(actor, FLAG_BLOCKED_SENT);
-        ponyint_cycle_block(actor, &actor->gc);
+        send_block(ctx, actor);
 
         // mark the queue as empty or else destroy will hang
         bool empty = ponyint_messageq_markempty(&actor->q);
