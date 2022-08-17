@@ -330,14 +330,14 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   if(diff < 10000000)
     return;
 
-#ifdef PLATFORM_IS_WINDOWS
-  DWORD ts = 0;
-#else
-  struct timespec ts = {0, 0};
-#endif
-
   if(yield)
   {
+#ifdef PLATFORM_IS_WINDOWS
+    DWORD ts = 0;
+#else
+    struct timespec ts = {0, 0};
+#endif
+
     // A billion cycles is roughly half a second, depending on clock speed.
     if(diff > 10000000000)
     {
@@ -372,14 +372,14 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
       ts.tv_nsec = 100000;
 #endif
     }
-  }
 
 #ifdef PLATFORM_IS_WINDOWS
-  SleepEx(ts, true);
+    SleepEx(ts, true);
 #else
-  DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
-  nanosleep(&ts, NULL);
+    DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
+    nanosleep(&ts, NULL);
 #endif
+  }
 }
 
 void ponyint_cpu_relax()
