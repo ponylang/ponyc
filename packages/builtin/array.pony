@@ -552,7 +552,7 @@ class Array[A] is Seq[A]
     """
     Copy len elements from this(src_idx) to dst(dst_idx).
     """
-    if (src_idx < _size) and (dst_idx < dst._size) then
+    if (src_idx < _size) and (dst_idx <= dst._size) then
       let count = len.min(_size - src_idx)
       if count > 0 then
         dst.reserve(dst_idx + count)
