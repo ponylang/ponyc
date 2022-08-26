@@ -6,6 +6,17 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+
+## [0.51.2] - 2022-08-26
+
+### Fixed
+
 - Fix for crash when methods with default private type params in remote packages are called  ([PR #4167](https://github.com/ponylang/ponyc/pull/4167))
 - Fix incorrect atomics usage ([PR #4159](https://github.com/ponylang/ponyc/pull/4159))
 
@@ -14,9 +25,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Auto-recover constructor expressions ([PR #4124](https://github.com/ponylang/ponyc/pull/4124))
 - Support for RISC-V ([PR #3435](https://github.com/ponylang/ponyc/pull/3435))
 - Enhance runtime stats tracking ([PR #4144](https://github.com/ponylang/ponyc/pull/4144))
-
-### Changed
-
 
 ## [0.51.1] - 2022-06-29
 
