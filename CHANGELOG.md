@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.51.2] - 2022-08-26
 
 ### Fixed
 
@@ -14,9 +14,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Auto-recover constructor expressions ([PR #4124](https://github.com/ponylang/ponyc/pull/4124))
 - Support for RISC-V ([PR #3435](https://github.com/ponylang/ponyc/pull/3435))
 - Enhance runtime stats tracking ([PR #4144](https://github.com/ponylang/ponyc/pull/4144))
-
-### Changed
-
 
 ## [0.51.1] - 2022-06-29
 
