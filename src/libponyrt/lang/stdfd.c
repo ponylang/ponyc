@@ -515,10 +515,8 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
 
 PONY_API void pony_os_std_print(FILE* fp, char* buffer, size_t len)
 {
-  if(len == 0)
-    fprintf(fp, "\n");
-  else
-    fprintf(fp, "%*.*s\n", (int)len, (int)len, buffer);
+  fwrite(buffer, len, 1, fp);
+  fprintf(fp, "\n");
 }
 
 PONY_API void pony_os_std_write(FILE* fp, char* buffer, size_t len)
