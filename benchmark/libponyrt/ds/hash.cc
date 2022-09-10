@@ -46,7 +46,7 @@ struct hash_elem_t
 
 void HashMapBench::SetUp(const ::benchmark::State& st)
 {
-  if (st.thread_index == 0) {
+  if (st.thread_index() == 0) {
     // range(0) == initial size of hashmap
     testmap_init(&_map, static_cast<size_t>(st.range(0)));
     // range(1) == # of items to insert
@@ -57,7 +57,7 @@ void HashMapBench::SetUp(const ::benchmark::State& st)
 
 void HashMapBench::TearDown(const ::benchmark::State& st)
 {
-  if (st.thread_index == 0) {
+  if (st.thread_index() == 0) {
     testmap_destroy(&_map);
   }
 }
