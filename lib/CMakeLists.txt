@@ -40,10 +40,7 @@ ExternalProject_Add(gbenchmark
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
-set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.11.0.tar.gz)
-if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz)
-endif()
+set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.12.1.tar.gz)
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
