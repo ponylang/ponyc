@@ -87,7 +87,7 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: freebsd-13-0-release-amd64
+    image: freebsd-13-1-release-amd64
     cpu: 8
     memory: 24
 
@@ -102,7 +102,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.1 20210710"
     populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
@@ -385,11 +385,11 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: freebsd-13-0-release-amd64
+    image: freebsd-13-1-release-amd64
     cpu: 8
     memory: 24
 
-  name: "nightly: x86-64-unknown-freebsd-13.0"
+  name: "nightly: x86-64-unknown-freebsd-13.1"
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
@@ -402,13 +402,13 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.1 20210710"
     populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
 
   nightly_script:
-    - bash .ci-scripts/x86-64-unknown-freebsd-13.0-nightly.bash
+    - bash .ci-scripts/x86-64-unknown-freebsd-13.1-nightly.bash
 
 task:
   only_if: $CIRRUS_CRON == "nightly"
@@ -585,11 +585,11 @@ task:
   timeout_in: 120m
 
   freebsd_instance:
-    image: freebsd-13-0-release-amd64
+    image: freebsd-13-1-release-amd64
     cpu: 8
     memory: 24
 
-  name: "release: x86-64-unknown-freebsd-13.0"
+  name: "release: x86-64-unknown-freebsd-13.1"
 
   environment:
     CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
@@ -602,13 +602,13 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.1 20210710"
     populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
 
   release_script:
-    - bash .ci-scripts/x86-64-unknown-freebsd-13.0-release.bash
+    - bash .ci-scripts/x86-64-unknown-freebsd-13.1-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
