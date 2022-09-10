@@ -30,10 +30,7 @@ endif()
 
 # Libraries
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.6.tar.gz)
-if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.3.tar.gz)
-endif()
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.6.2.tar.gz)
 
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
