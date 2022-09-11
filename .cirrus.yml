@@ -102,7 +102,9 @@ task:
     - pkg install -y bash cmake gmake libunwind git python39 py39-pip
     - python --version
     - python3 --version
-    - python3 -m pip install -U pip
+    - python39 --version
+
+    - python3 -m pip39 install -U pip39
     - pip install cloudsmith
 
   libs_cache:
