@@ -98,8 +98,9 @@ task:
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - pkg install -y bash cmake gmake libunwind git
     - python3 -m pip install cloudsmith-cli
+    - pkg install -y bash cmake gmake libunwind git
+    - python3 --version
 
   libs_cache:
     folder: build/libs
