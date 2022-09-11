@@ -98,10 +98,7 @@ task:
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - python3 -m ensurepip --upgrade
-    - python3 -m pip install cloudsmith-cli
     - pkg install -y bash cmake gmake libunwind git
-    - python3 --version
 
   libs_cache:
     folder: build/libs
@@ -399,10 +396,9 @@ task:
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y bash cmake gmake libunwind git py39-pip
-    - pip install --upgrade cloudsmith-cli
+    - python3 -m ensurepip --upgrade
+    - python3 -m pip install cloudsmith-cli
+    - pkg install -y bash cmake gmake libunwind git
 
   libs_cache:
     folder: build/libs
@@ -598,10 +594,9 @@ task:
 
   install_script:
     - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
-    - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
-    - pkg update
-    - pkg install -y bash cmake gmake libunwind git py39-pip
-    - pip install --upgrade cloudsmith-cli
+    - python3 -m ensurepip --upgrade
+    - python3 -m pip install cloudsmith-cli
+    - pkg install -y bash cmake gmake libunwind git
 
   libs_cache:
     folder: build/libs
