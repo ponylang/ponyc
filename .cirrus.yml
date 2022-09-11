@@ -96,6 +96,13 @@ task:
   os_configuration_script:
     - sysctl net.inet.tcp.keepinit=1000
 
+  install_script:
+    - echo "FETCH_RETRY = 6" >> /usr/local/etc/pkg.conf
+    - python3 -m ensurepip --upgrade
+    - python3 -m pip install cloudsmith-cli
+    - pkg install -y bash cmake gmake libunwind git
+    - python3 --version
+
   libs_cache:
     folder: build/libs
     fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.0 20210710"
