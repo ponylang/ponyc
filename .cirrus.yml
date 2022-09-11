@@ -101,7 +101,7 @@ task:
     - echo "IGNORE_OSVERSION = yes" >> /usr/local/etc/pkg.conf
     - pkg update
     - pkg upgrade -y
-    - pkg install -y bash cmake gmake libunwind git py39-pip
+    - pkg install -y bash cmake gmake libunwind git py310-pip
     - pip install --upgrade cloudsmith-cli
 
   libs_cache:
