@@ -309,7 +309,7 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
 
       for(; child != NULL; child = ast_sibling(child))
       {
-        deferred_reification_t* find = lookup_try(NULL, NULL, child, n->name,
+        deferred_reification_t* find = lookup_try(opt, NULL, child, n->name,
           false);
 
         if(find == NULL)
@@ -349,7 +349,7 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   if(!internal)
   {
     ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
-    deferred_reification_t* fun = lookup(NULL, NULL, r_ast, n->name);
+    deferred_reification_t* fun = lookup(opt, NULL, r_ast, n->name);
     pony_assert(fun != NULL);
 
     // The typeargs and thistype are in the scope of r_ast but we're going to
@@ -659,7 +659,7 @@ static void add_fields(reach_t* r, reach_type_t* t, pass_opt_t* opt)
       case TK_FLET:
       case TK_EMBED:
       {
-        deferred_reification_t* member_lookup = lookup(NULL, NULL, t->ast,
+        deferred_reification_t* member_lookup = lookup(opt, NULL, t->ast,
           ast_name(ast_child(member)));
         pony_assert(member_lookup != NULL);
 
