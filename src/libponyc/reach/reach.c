@@ -564,7 +564,7 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
   const char* special, pass_opt_t* opt)
 {
   special = stringtab(special);
-  deferred_reification_t* find = lookup_try(NULL, NULL, type, special, false);
+  deferred_reification_t* find = lookup_try(opt, NULL, type, special, false);
 
   if(find != NULL)
   {
