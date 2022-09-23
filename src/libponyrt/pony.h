@@ -407,7 +407,7 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
  *
  * Call this first. It will strip out command line arguments that you should
  * ignore and will return the remaining argc. Then create an actor and send it
- * a message, so that some initial work exists. Use pony_become() if you need
+ * a message, so that some initial work exists. Use ponyint_become() if you need
  * to send messages that require allocation and tracing.
  *
  * Then call pony_start().
@@ -484,7 +484,7 @@ PONY_API int pony_get_exitcode();
  * things: first, it will possibly gc, and second it will possibly handle a
  * pending application message.
  *
- * A thread must pony_become an actor before it can pony_poll.
+ * A thread must ponyint_become an actor before it can pony_poll.
  */
 PONY_API void pony_poll(pony_ctx_t* ctx);
 

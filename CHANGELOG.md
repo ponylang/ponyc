@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix bug in `StdStream.print` ([PR #4180](https://github.com/ponylang/ponyc/pull/4180))
+- Fix identity comparison check with desugared creations ([PR #4182](https://github.com/ponylang/ponyc/pull/4182))
 
 ### Added
 
