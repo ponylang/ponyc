@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.51.3] - 2022-10-02
 
 ### Fixed
 
 - Fix bug in `StdStream.print` ([PR #4180](https://github.com/ponylang/ponyc/pull/4180))
 - Fix identity comparison check with desugared creations ([PR #4182](https://github.com/ponylang/ponyc/pull/4182))
-
-### Added
-
-
-### Changed
-
 
 ## [0.51.2] - 2022-08-26
 
