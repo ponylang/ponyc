@@ -386,10 +386,15 @@ primitive _PosixCommunicationPipeCreator
       // capturing by another thread.
       _set_fd(near_fd, _FDCLOEXEC())?
       _set_fd(far_fd, _FDCLOEXEC())?
+      _set_fl(near_fd, _ONONBLOCK())?
     end
 
     (near_fd, far_fd)
 
   fun _set_fd(fd: U32, flags: I32) ? =>
     let result = @fcntl(fd, _FSETFD(), flags)
+    if result < 0 then error end
+
+  fun _set_fl(fd: U32, flags: I32) ? =>
+    let result = @fcntl(fd, _FSETFL(), flags)
     if result < 0 then error end

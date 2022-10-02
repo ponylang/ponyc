@@ -71,9 +71,6 @@ primitive _EXOSERR
   fun apply(): I32 => 71
 
 // For handling errors between @fork and @execve
-primitive _StepSuccess
-  fun apply(): U8 => 0
-
 primitive _StepChdir
   fun apply(): U8 => 1
 
@@ -195,6 +192,7 @@ class _ProcessPosix is _Process
     // the child after fork() is called.
     let argp = _make_argv(args)
     let envp = _make_argv(vars)
+
     // Fork the child process, handling errors and the child fork case.
     pid = @fork()
     match pid
@@ -253,12 +251,6 @@ class _ProcessPosix is _Process
       @_exit(_EXOSERR())
     end
 
-    step = _StepSuccess()
-    @write(result_fd, addressof step, USize(1))
-    // TODO: do we want to close? this is new Sean addition
-    // I think this is correct
-    @close(result_fd)
-
   fun tag _dup2(oldfd: U32, newfd: U32) =>
     """
     Creates a copy of the file descriptor oldfd using the file
@@ -273,6 +265,12 @@ class _ProcessPosix is _Process
         @_exit(I32(-1))
       end
     end
+
+  // TODO: rework how this is done
+  fun ref close() =>
+    _stdin.close()
+    _stdout.close()
+    _stderr.close()
 
   fun kill() =>
     """
@@ -445,6 +443,12 @@ class _ProcessWindows is _Process
     end
     environ.push(0)
     environ
+
+  // TODO: rework how this is done
+  fun ref close() =>
+    _stdin.close()
+    _stdout.close()
+    _stderr.close()
 
   fun kill() =>
     if h_process != 0 then

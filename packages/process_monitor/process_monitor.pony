@@ -51,21 +51,25 @@ primitive ProcessMonitorCreator
       // This is a blocking operation that is guaranteed to return immediately.
       // The result value has already been written to the pipe.
       let len = @read(comm_fds._1, start_result.cpointer(0), 1)
-      if len <=0 then // read error
-        // TODO: unexpected. something else here
-        error
-      end
 
-      let result: U8 = try start_result.read_u8(0)? else -1 end
-      match result
-      | _StepSuccess() =>
+      match len
+      | -1 =>
+        if (@pony_os_errno() != _EAGAIN()) then
+          error
+        end
         return _PosixProcessMonitor(consume child, consume notifier)
-      | _StepChdir() =>
-        error
-      | _StepExecve() =>
+      | 0  =>
         error
       else
-        error
+        let result: U8 = try start_result.read_u8(0)? else -1 end
+        match result
+        | _StepChdir() =>
+          error
+        | _StepExecve() =>
+          error
+        else
+          error
+        end
       end
     elseif windows then
       // TODO: handle shutting things down if any fail
@@ -118,8 +122,8 @@ actor _PosixProcessMonitor is (ProcessMonitor & AsioEventNotify)
     None
 
   be dispose() =>
-    // TODO: implementation
-    None
+    _process.kill()
+    _process.close()
 
   be done_writing() =>
     // TODO: implementation
@@ -170,13 +174,12 @@ actor _WindowsProcessMonitor is ProcessMonitor
     """
     Windows IO polling timer has fired
     """
-
     // TODO: implementation
     None
 
   be dispose() =>
-    // TODO: implementation
-    None
+    _process.kill()
+    _process.close()
 
   be done_writing() =>
     // TODO: implementation
