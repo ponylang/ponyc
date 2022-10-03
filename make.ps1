@@ -148,23 +148,36 @@ switch ($Command.ToLower())
             New-Item -ItemType "directory" -Path $libsBuildDir | Out-Null
         }
 
+        # Configure and build LLVM
         $libsSrcDir = Join-Path -Path $srcDir -ChildPath "lib"
-        Write-Output "Configuring libraries..."
+        Write-Output "Configuring LLVM..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            Write-Output "cmake.exe -B `"$libsBuildDir\llvm`" -S `"$libsSrcDir\llvm`" -G `"$Generator`" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$libsDir`" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=`"X86;ARM;AArch64;WebAssembly;RISCV`""
+            & cmake.exe -B "$libsBuildDir\llvm" -S "$libsSrcDir\llvm" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            Write-Output "cmake.exe -B `"$libsBuildDir\llvm`" -S `"$libsSrcDir\llvm`" -G `"$Generator`" -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$libsDir`" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=`"X86;ARM;AArch64;WebAssembly;RISCV`""
+            & cmake.exe -B "$libsBuildDir\llvm" -S "$libsSrcDir\llvm" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }
 
-        # Write-Output "Building libraries..."
-        Write-Output "cmake.exe --build `"$libsBuildDir`" --target install --config Release"
-        & cmake.exe --build "$libsBuildDir" --target install --config Release
+        Write-Output "cmake.exe --build `"$libsBuildDir\llvm`" --target install --config Release"
+        & cmake.exe --build "$libsBuildDir\llvm" --target install --config Release
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Error: exit code $err" }
+
+        # Configure and build other libs
+        Write-Output "cmake.exe -B `"$libsBuildDir\other`" -S `"$libsSrcDir`" -G `"$Generator`" -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$libsDir`" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=`"X86;ARM;AArch64;WebAssembly;RISCV`""
+        & cmake.exe -B "$libsBuildDir\other" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Error: exit code $err" }
+
+        Write-Output "cmake.exe --build `"$libsBuildDir\other`" --target install --config Release"
+        & cmake.exe --build "$libsBuildDir\other" --target install --config Release
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
         break
