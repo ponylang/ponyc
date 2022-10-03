@@ -29,15 +29,29 @@ else
   ponydir ?= $(prefix)/lib/pony/$(tag)
 endif
 
+srcDir := $(shell dirname '$(subst /Volumes/Macintosh HD/,/,$(realpath $(lastword $(MAKEFILE_LIST))))')
+buildDir := $(srcDir)/build/build_$(config)
+outDir := $(srcDir)/build/$(config)
+
+libsSrcDir := $(srcDir)/lib
+libsBuildDir := $(srcDir)/build/build_libs
+libsOutDir := $(srcDir)/build/libs
+
 # Use clang by default; because CC defaults to 'cc'
 # you must explicitly set CC=gcc to use gcc
 ifndef CC
-  ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
+  ifneq (${MAKECMDGOALS}, libs)
+    CC = $(libsOutDir)/bin/clang
+    CXX = $(libsOutDir)/bin/clang++
+  else ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
     CC = clang
     CXX = clang++
   endif
 else ifeq ($(CC), cc)
-  ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
+  ifneq (${MAKECMDGOALS}, libs)
+    CC = $(libsOutDir)/bin/clang
+    CXX = $(libsOutDir)/bin/clang++
+  else ifneq (,$(shell clang --version 2>&1 | grep 'clang version'))
     CC = clang
     CXX = clang++
   endif
@@ -73,14 +87,6 @@ ifeq ($(shell uname -s),FreeBSD)
     export LIBRARY_PATH = /usr/local/lib:$LIBRARY_PATH
   endif
 endif
-
-srcDir := $(shell dirname '$(subst /Volumes/Macintosh HD/,/,$(realpath $(lastword $(MAKEFILE_LIST))))')
-buildDir := $(srcDir)/build/build_$(config)
-outDir := $(srcDir)/build/$(config)
-
-libsSrcDir := $(srcDir)/lib
-libsBuildDir := $(srcDir)/build/build_libs
-libsOutDir := $(srcDir)/build/libs
 
 ifndef verbose
   SILENT = @
@@ -167,8 +173,10 @@ endif
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
-	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)' -S '$(libsSrcDir)' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" $(CMAKE_FLAGS)
-	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(libsBuildDir)' --target install --config $(llvm_config) -- $(build_flags)
+	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)/llvm' -S '$(libsSrcDir)/llvm' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" -DLLVM_ENABLE_PROJECTS="clang;lldb" $(CMAKE_FLAGS)
+	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(libsBuildDir)/llvm' --target install --config $(llvm_config) -- $(build_flags)
+	$(SILENT)cd '$(libsBuildDir)' && env CC="$(libsOutDir)/bin/clang" CXX="$(libsOutDir)/bin/clang++" cmake -B '$(libsBuildDir)/other' -S '$(libsSrcDir)' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" $(CMAKE_FLAGS)
+	$(SILENT)cd '$(libsBuildDir)' && env CC="$(libsOutDir)/bin/clang" CXX="$(libsOutDir)/bin/clang++" cmake --build '$(libsBuildDir)/other' --target install --config $(llvm_config) -- $(build_flags)
 
 cleanlibs:
 	$(SILENT)rm -rf '$(libsBuildDir)'
