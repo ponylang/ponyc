@@ -28,7 +28,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -63,7 +63,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -102,7 +102,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.1 20210710"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5 lib/llvm/CMakeLists.txt` freebsd-13.1 20210710"
     populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
@@ -132,7 +132,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5 lib/llvm/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
@@ -169,7 +169,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + (Get-FileHash -Path lib\llbm\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
@@ -203,7 +203,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -234,7 +234,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -265,7 +265,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -330,7 +330,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
+      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -361,7 +361,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.1 20210710"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` freebsd-13.1 20210710"
     populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
@@ -386,7 +386,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5 lib/llvm/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
@@ -418,7 +418,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash (Get-FileHash -Path lib\llbm\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
@@ -485,7 +485,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
+      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -517,7 +517,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` freebsd-13.1 20210710"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5 lib/llvm/CMakeLists.txt` freebsd-13.1 20210710"
     populate_script: gmake libs build_flags=-j8
   upload_caches:
     - libs
@@ -543,7 +543,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5 lib/llvm/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
@@ -576,7 +576,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + (Get-FileHash -Path lib\llbm\CMakeLists.txt).Hash + "Windows 20220803"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
@@ -672,7 +672,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -718,7 +718,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
+    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` `md5sum lib/llvm/CMakeLists.txt` ${IMAGE}"
     populate_script: make libs build_flags=-j8
   upload_caches:
     - libs
@@ -758,7 +758,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` `md5 lib/llvm/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
