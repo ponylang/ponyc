@@ -16,14 +16,14 @@ class HeapBench: public ::benchmark::Fixture
 
 void HeapBench::SetUp(const ::benchmark::State& st)
 {
-  if (st.thread_index == 0) {
+  if (st.thread_index() == 0) {
     ponyint_heap_init(&_heap);
   }
 }
 
 void HeapBench::TearDown(const ::benchmark::State& st)
 {
-  if (st.thread_index == 0) {
+  if (st.thread_index() == 0) {
     ponyint_heap_destroy(&_heap);
   }
 }
