@@ -290,7 +290,7 @@ switch ($Command.ToLower())
         # libponyc.run.tests
         $cpuPhysicalCount, $cpuLogicalCount = ($cpuInfo = Get-CimInstance -ClassName Win32_Processor).NumberOfCores, $cpuInfo.NumberOfLogicalProcessors
 
-        foreach ($runConfig in ('release'))
+        foreach ($runConfig in ('debug'))
         {
             $numTestSuitesRun += 1;
 
