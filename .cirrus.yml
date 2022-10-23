@@ -188,7 +188,7 @@ task:
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
-    cpu: 8
+    cpu: 16
     memory: 24
 
   name: "x86-64 Windows MSVC"
@@ -196,7 +196,7 @@ task:
   libs_cache:
     folder: build/libs
     fingerprint_script:
-      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803 1"
     populate_script:
       - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
   upload_caches:
