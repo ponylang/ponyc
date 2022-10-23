@@ -290,11 +290,11 @@ switch ($Command.ToLower())
         # libponyc.run.tests
         $cpuPhysicalCount, $cpuLogicalCount = ($cpuInfo = Get-CimInstance -ClassName Win32_Processor).NumberOfCores, $cpuInfo.NumberOfLogicalProcessors
 
-        foreach ($runConfig in ('debug'))
+        foreach ($runConfig in ('release', 'debug'))
         {
             $numTestSuitesRun += 1;
 
-            $runOutDir = "$outDir/runner-tests/$runConfig"
+            $runOutDir = "$outDir\runner-tests\$runConfig"
             $debugFlag = if ($runConfig -eq 'debug') { '--debug' } else { '' }
 
             if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
