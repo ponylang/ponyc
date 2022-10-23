@@ -62,9 +62,9 @@ primitive ANSI
 
   fun erase(): String =>
     """
-    Erases everything to the left of the cursor on the line the cursor is on.
+    Erases everything to the right of the cursor on the line the cursor is on.
     """
-    "\x1B[1K"
+    "\x1B[0K"
 
   fun reset(): String =>
     """
