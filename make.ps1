@@ -294,7 +294,7 @@ switch ($Command.ToLower())
         {
             $numTestSuitesRun += 1;
 
-            $runOutDir = "$outDir/runner-tests/$runConfig"
+            $runOutDir = "$outDir\runner-tests\$runConfig"
             $debugFlag = if ($runConfig -eq 'debug') { '--debug' } else { '' }
 
             if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
