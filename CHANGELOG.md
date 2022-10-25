@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix broken readline package ([PR #4199](https://github.com/ponylang/ponyc/pull/4199))
 
 ### Added
 
