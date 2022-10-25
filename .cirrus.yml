@@ -472,6 +472,7 @@ task:
 
 task:
   only_if: $CIRRUS_CRON == "nightly"
+  use_compute_credits: true
 
   timeout_in: 120m
 
@@ -512,6 +513,7 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+  use_compute_credits: true
 
   timeout_in: 120m
 
@@ -579,6 +581,7 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+  use_compute_credits: true
 
   timeout_in: 120m
 
@@ -610,6 +613,7 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+  use_compute_credits: true
 
   timeout_in: 120m
 
@@ -640,6 +644,7 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+  use_compute_credits: true
 
   timeout_in: 120m
 
@@ -670,6 +675,7 @@ task:
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
+  use_compute_credits: true
 
   timeout_in: 120m
 
