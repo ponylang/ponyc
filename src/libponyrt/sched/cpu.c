@@ -365,8 +365,10 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
     else
     {
 #ifdef PLATFORM_IS_WINDOWS
-      // Otherwise, pause for 1 ms (minimum on windows)
-      ts = 1;
+      // Windows minimum for pause is 1 millisecond which is a long time
+      // compared to what we want. Instead, let's not yield. But to go a little
+      // too fast then 10x too slow for waking up.
+      ts = 0;
 #else
       // Otherwise, pause for 100 microseconds
       ts.tv_nsec = 100000;
