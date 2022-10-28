@@ -48,25 +48,15 @@ actor _Coordinator is _TesterNotify
 
     _env.out.print(_Colors.info(start_message, true))
 
-    if _num_to_run > 0 then
-      if _options.sequential then
-        _run_test()
-      else
-        let timer = Timer(_CoordinatorTimerNotify(this), 0,
-          options.interval_ms * 1_000_000)
-        _timers(consume timer)
-      end
+    for i in Range(0, _options.max_parallel) do
+      _run_test()
     end
+
 
   be _run_test() =>
     try
-      let num_left = _tests_to_run.size()
-      let num_started = _num_to_run - num_left
-      let num_in_flight = num_started - _success.size()
-      if (num_left > 0) and (num_in_flight < _options.max_parallel) then
-        let definition = _tests_to_run.shift()?
-        _Tester(_env, _timers, _options, definition, this)
-      end
+      let definition = _tests_to_run.shift()?
+      _Tester(_env, _timers, _options, definition, this)
     end
 
   be print(tester_name: String, str: String) =>
@@ -176,19 +166,7 @@ actor _Coordinator is _TesterNotify
 
       _timers.dispose()
       true
-    elseif _options.sequential then
+    else
       _run_test()
       false
-    else
-      false
     end
-
-class iso _CoordinatorTimerNotify is TimerNotify
-  let _coordinator: _Coordinator tag
-
-  new iso create(coordinator: _Coordinator tag) =>
-    _coordinator = coordinator
-
-  fun ref apply(t: Timer, count: U64): Bool =>
-    _coordinator._run_test()
-    true

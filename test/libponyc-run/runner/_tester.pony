@@ -180,7 +180,7 @@ actor _Tester
       let spa = StartProcessAuth(_env.root)
       let bpa = ApplyReleaseBackpressureAuth(_env.root)
       _test_process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
-        FilePath(FileAuth(_env.root), test_fname), [ test_fname ], vars,
+        FilePath(FileAuth(_env.root), test_fname), [ test_fname; "--ponymaxthreads=1" ], vars,
         FilePath(FileAuth(_env.root), _definition.path))
         .>done_writing()
     end
