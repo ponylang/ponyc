@@ -25,7 +25,7 @@ add_library(libponyc STATIC
     codegen/gencall.c
     codegen/gencontrol.c
     codegen/gendesc.c
-    codegen/genexe.c
+    codegen/genexe.cc
     codegen/genexpr.c
     codegen/genfun.c
     codegen/genheader.c
@@ -101,6 +101,23 @@ add_library(libponyc STATIC
 target_compile_definitions(libponyc PRIVATE
     PONY_ALWAYS_ASSERT
 )
+target_link_libraries(libponyc PRIVATE
+    lldDriver
+    lldMachO
+    lldReaderWriter
+    lldCore
+    lldCommon
+    lldWasm
+    lldYAML
+)
+
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(libponyc PRIVATE lldMachO)
+elseif(MSVC)
+    target_link_libraries(libponyc PRIVATE lldCOFF)
+else()
+    target_link_libraries(libponyc PRIVATE lldELF)
+endif()
 
 target_include_directories(libponyc
     PUBLIC ../common
@@ -167,6 +184,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
         COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
+        COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
