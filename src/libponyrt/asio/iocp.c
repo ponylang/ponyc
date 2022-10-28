@@ -131,7 +131,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
 #endif
 
-  while(!atomic_load_explicit(&b->stop, memory_order_relaxed))
+  while(!atomic_load_explicit(&b->stop, memory_order_acquire))
   {
     switch(WaitForMultipleObjectsEx(handleCount, handles, FALSE, -1, TRUE))
     {
