@@ -54,7 +54,7 @@ task:
   arm_container:
     image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
     cpu: 8
-    memory: 6
+    memory: 8
 
   environment:
     IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
