@@ -8,18 +8,14 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestTCPConnectionFailed)
+    test(_TestTCPConnectionToClosedServerFailed)
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
     test(_TestTCPMute)
     test(_TestTCPProxy)
+    test(_TestTCPThrottle)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
-
-    // Tests below exclude windows and are listed alphabetically
-    ifdef not windows then
-      test(_TestTCPConnectionToClosedServerFailed)
-      test(_TestTCPThrottle)
-    end
 
     // Tests below exclude osx and are listed alphabetically
     ifdef not osx then
