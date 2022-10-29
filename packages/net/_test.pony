@@ -7,18 +7,13 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
-
-    // these tests have been flakey in CI and we haven't found a cause, so
-    // turn off for now on Windows until we can find something to fix them
-    ifdef not windows then
-      test(_TestTCPConnectionFailed)
-      test(_TestTCPExpect)
-      test(_TestTCPExpectOverBufferSize)
-      test(_TestTCPMute)
-      test(_TestTCPProxy)
-      test(_TestTCPUnmute)
-      test(_TestTCPWritev)
-    end
+    test(_TestTCPConnectionFailed)
+    test(_TestTCPExpect)
+    test(_TestTCPExpectOverBufferSize)
+    test(_TestTCPMute)
+    test(_TestTCPProxy)
+    test(_TestTCPUnmute)
+    test(_TestTCPWritev)
 
     // Tests below exclude windows and are listed alphabetically
     ifdef not windows then
