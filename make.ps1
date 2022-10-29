@@ -288,9 +288,6 @@ switch ($Command.ToLower())
         if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
         # libponyc.run.testsr
-        $cpuPhysicalCount, $cpuLogicalCount = ($cpuInfo = Get-CimInstance -ClassName Win32_Processor).NumberOfCores, $cpuInfo.NumberOfLogicalProcessors
-        $runnerParallelism = if ($cpuPhysicalCount > 1) { $cpuPhysicalCount - 1} else { 1 }
-
         foreach ($runConfig in ('debug', 'release'))
         {
             $numTestSuitesRun += 1;
@@ -299,8 +296,8 @@ switch ($Command.ToLower())
             $debugFlag = if ($runConfig -eq 'debug') { '--debug' } else { '' }
 
             if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-            Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=$runnerParallelism --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-            & $buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=$runnerParallelism --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+            Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
+            & $buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
             $err = $LastExitCode
             if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
         }
