@@ -930,8 +930,8 @@ task:
     - libs
 
   configure_script:
-    - ps: .\make.ps1 -Command configure -Config ${CONFIG} -Generator "Visual Studio 17 2022"
+    - ps: .\make.ps1 -Command configure -Config $env:CONFIG -Generator "Visual Studio 17 2022"
   build_script:
-    - ps: .\make.ps1 -Command build -Config ${CONFIG}
+    - ps: .\make.ps1 -Command build -Config $env:CONFIG
   stress_test_script:
-    - ps: .\make.ps1 ${TARGET} -Config ${CONFIG} -Uselldb yes
+    - ps: .\make.ps1 $env:TARGET -Config $env:CONFIG -Uselldb yes
