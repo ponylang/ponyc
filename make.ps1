@@ -405,14 +405,14 @@ switch ($Command.ToLower())
         {
             if ($Uselldb -eq "yes")
             {
-                $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
+                & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
                 & WriteOutput "ubench built"
                 & $lldbcmd $lldbargs $outDir\ubench --pingers 320 --initial-pings 5 --report-count=80 --report-interval 300 --ponynoscale
                 $err = $LastExitCode
             }
             else
             {
-                $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
+                & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
                 & WriteOutput "ubench built"
                 & $outDir\ubench --pingers 320 --initial-pings 5 --report-count=80 --report-interval 300 --ponynoscale
                 $err = $LastExitCode
