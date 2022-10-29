@@ -399,6 +399,32 @@ switch ($Command.ToLower())
         }
         break
     }
+    "stress-test-release"
+    {
+        try
+        {
+            if ($Uselldb -eq "yes")
+            {
+                $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
+                & WriteOutput "ubench built"
+                & $lldbcmd $lldbargs $outDir\ubench --pingers 320 --initial-pings 5 --report-count=80 --report-interval 300 --ponynoscale
+                $err = $LastExitCode
+            }
+            else
+            {
+                $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
+                & WriteOutput "ubench built"
+                & $outDir\ubench --pingers 320 --initial-pings 5 --report-count=80 --report-interval 300 --ponynoscale
+                $err = $LastExitCode
+            }
+        }
+        catch
+        {
+            $err = -1
+        }
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
     "install"
     {
         Write-Output "cmake.exe --build `"$buildDir`" --config $Config --target install"
