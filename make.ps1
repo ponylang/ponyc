@@ -312,9 +312,6 @@ switch ($Command.ToLower())
             {
                 if ($Uselldb -eq "yes")
                 {
-                    $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-                    $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
                     Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
                     & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
                     $err = $LastExitCode
@@ -408,6 +405,9 @@ switch ($Command.ToLower())
         {
             if ($Uselldb -eq "yes")
             {
+                $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+                $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
                 WriteOutput "creating..."
                 & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
                 & WriteOutput "ubench built"
