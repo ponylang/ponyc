@@ -59,12 +59,6 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if(is_typecheck_error(arg_type))
       return false;
 
-    if(ast_id(arg_type) == TK_TUPLETYPE)
-    {
-      ast_error(opt->check.errors, arg, "cannot pass tuples as FFI arguments");
-      return false;
-    }
-
     ast_t* a_type = alias(arg_type);
     errorframe_t info = NULL;
 
@@ -115,26 +109,6 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   // Check return types
   ast_t* call_ret_type = ast_child(call_ret_typeargs);
   ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
-
-  const char* f_name = ast_name(decl_name) + 1;
-  bool intrinsic = !strncmp(f_name, "llvm.", 5) ||
-    !strncmp(f_name, "internal.", 9);
-
-  if(!intrinsic && (ast_id(decl_ret_type) == TK_TUPLETYPE))
-  {
-    ast_error(opt->check.errors, decl_ret_type, "an FFI function cannot return "
-      "a tuple");
-    return false;
-  }
-
-  // The return type at the call site might be different from declaration
-  if(!intrinsic &&
-    (call_ret_type != NULL) && (ast_id(call_ret_type) == TK_TUPLETYPE))
-  {
-    ast_error(opt->check.errors, call_ret_type, "an FFI function cannot return "
-      "a tuple");
-    return false;
-  }
 
   // Return types at the call site completely override any types
   // found at the declaration
