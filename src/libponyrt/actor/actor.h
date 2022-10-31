@@ -4,6 +4,7 @@
 #include "messageq.h"
 #include "../gc/gc.h"
 #include "../mem/heap.h"
+#include "../sched/mutemap.h"
 #include "../pony.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -60,6 +61,7 @@ typedef struct pony_actor_t
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
   size_t muted; // 4/8 bytes
+  muteset_t* muters; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
 #ifdef USE_RUNTIMESTATS
@@ -73,6 +75,7 @@ typedef struct pony_actor_t
  * 56 bytes: initial header, not including the type descriptor
  * 52/104 bytes: heap
  * 4/8 bytes: muted counter
+ * 4/8 bytes: muters set pointer
  * 4/8 bytes: internal flags (after alignment)
  * 64/128 bytes: actorstats (if enabled)
  * 48/88 bytes: gc
@@ -80,15 +83,15 @@ typedef struct pony_actor_t
  */
 #if INTPTR_MAX == INT64_MAX
 #ifdef USE_RUNTIMESTATS
-#  define PONY_ACTOR_PAD_SIZE 392
+#  define PONY_ACTOR_PAD_SIZE 400
 #else
-#  define PONY_ACTOR_PAD_SIZE 264
+#  define PONY_ACTOR_PAD_SIZE 272
 #endif
 #elif INTPTR_MAX == INT32_MAX
 #ifdef USE_RUNTIMESTATS
-#  define PONY_ACTOR_PAD_SIZE 232
+#  define PONY_ACTOR_PAD_SIZE 236
 #else
-#  define PONY_ACTOR_PAD_SIZE 168
+#  define PONY_ACTOR_PAD_SIZE 172
 #endif
 #endif
 
@@ -129,6 +132,8 @@ void ponyint_actor_setsystem(pony_actor_t* actor);
 void ponyint_actor_setnoblock(bool state);
 
 bool ponyint_actor_getnoblock();
+
+void ponyint_actor_setmsgstilmute(uint32_t msgs_til_mute);
 
 PONY_API void pony_apply_backpressure();
 

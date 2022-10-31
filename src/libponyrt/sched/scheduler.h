@@ -72,6 +72,9 @@ typedef struct pony_ctx_t
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;
 #endif
+  // Used as part of actor runs to keep track of whether the actor should
+  // be muted or not
+  bool should_mute_actor;
 
   void* serialise_buffer;
   size_t serialise_size;

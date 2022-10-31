@@ -36,6 +36,12 @@
   "  --ponygcfactor   After GC, an actor will next be GC'd at a heap memory\n" \
   "                   usage N times its current value. This is a floating\n" \
   "                   point value. Defaults to 2.0.\n" \
+  "  --ponymsgstilmute\n" \
+  "                   Number of messages sent to muted/overloaded/under\n" \
+  "                   pressure actors before a muted sending actor gets\n" \
+  "                   unscheduled so it cannot continue to overwhelm\n" \
+  "                   muted/overloaded/under pressure actors.\n" \
+  "                   Defaults to 1.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
   "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n" \
