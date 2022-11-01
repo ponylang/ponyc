@@ -415,9 +415,10 @@ switch ($Command.ToLower())
         else
         {
             Write-Output "creating..."
-            & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/message-ubench
+            & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples/hello-world
             Write-Output "ubench built"
-            & $outDir\ubench.exe --pingers=320 --initial-pings=5 --report-count=80 --report-interval=300 --ponynoscale
+            & $outDir\ubench.exe
+            #--pingers=320 --initial-pings=5 --report-count=80 --report-interval=300 --ponynoscale
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
