@@ -415,7 +415,7 @@ switch ($Command.ToLower())
         else
         {
             Write-Output "creating..."
-            & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples\helloworld
+            & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples\message-ubench
             Write-Output "ubench built"
             & $outDir\ubench.exe
             #--pingers=320 --initial-pings=5 --report-count=80 --report-interval=300 --ponynoscale
