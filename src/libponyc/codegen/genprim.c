@@ -156,12 +156,15 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, deref_attr);
   LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeReturnIndex, align_attr);
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[4];
   args[0] = codegen_ctx(c);
   args[1] = LLVMGetParam(c_m->func, 0);
 
   LLVMValueRef len = LLVMGetParam(c_m->func, 1);
   args[2] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef copy = LLVMGetParam(c_m->func, 2);
+  args[3] = LLVMBuildMul(c->builder, copy, l_size, "");
 
   LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 4, "");
   result = LLVMBuildBitCast(c->builder, result, c_t->use_type, "");
