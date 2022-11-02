@@ -934,4 +934,4 @@ task:
   build_script:
     - ps: .\make.ps1 -Command build -Config $env:CONFIG
   stress_test_script:
-    - ps: .\make.ps1 -Command $env:TARGET -Config $env:CONFIG -Uselldb yes
+    - ps: .\make.ps1 -Command $env:TARGET -Config $env:CONFIG
