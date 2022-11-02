@@ -178,7 +178,7 @@ class Array[A] is Seq[A]
     """
     if _alloc < len then
       _alloc = len.next_pow2().max(len).max(8)
-      _ptr = _ptr._realloc(_alloc)
+      _ptr = _ptr._realloc(_alloc, _size)
     end
 
   fun _element_size(): USize =>

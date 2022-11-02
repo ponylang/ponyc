@@ -379,11 +379,12 @@ static void init_runtime(compile_t* c)
     deref_alloc_large_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
-  // i8* pony_realloc(i8*, i8*, intptr)
+  // i8* pony_realloc(i8*, i8*, intptr, intptr)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;
   params[2] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  params[3] = c->intptr;
+  type = LLVMFunctionType(c->void_ptr, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);

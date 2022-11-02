@@ -138,10 +138,11 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
 {
   FIND_METHOD("_realloc", TK_NONE);
 
-  LLVMTypeRef params[2];
+  LLVMTypeRef params[3];
   params[0] = c_t->use_type;
   params[1] = c->intptr;
-  start_function(c, t, m, c_t->use_type, params, 2);
+  params[2] = c->intptr;
+  start_function(c, t, m, c_t->use_type, params, 3);
 
   // Set up a constant integer for the allocation size.
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
@@ -162,7 +163,7 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   LLVMValueRef len = LLVMGetParam(c_m->func, 1);
   args[2] = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 3, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 4, "");
   result = LLVMBuildBitCast(c->builder, result, c_t->use_type, "");
 
   LLVMBuildRet(c->builder, result);

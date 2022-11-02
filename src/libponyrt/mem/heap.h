@@ -61,7 +61,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
   );
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
-  size_t size);
+  size_t size, size_t copy);
 
 /**
  * Adds to the used memory figure kept by the heap. This allows objects

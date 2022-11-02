@@ -1129,12 +1129,12 @@ PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
     TRACK_NO_FINALISERS);
 }
 
-PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
+PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size, size_t copy)
 {
   pony_assert(ctx->current != NULL);
   DTRACE2(HEAP_ALLOC, (uintptr_t)ctx->scheduler, size);
 
-  return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size);
+  return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size, copy);
 }
 
 PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)

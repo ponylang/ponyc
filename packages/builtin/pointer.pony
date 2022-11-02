@@ -16,7 +16,7 @@ struct Pointer[A]
     """
     compile_intrinsic
 
-  fun ref _realloc(len: USize): Pointer[A] =>
+  fun ref _realloc(len: USize, copy: USize): Pointer[A] =>
     """
     Keep the contents, but reserve space for len instances of A.
     """
