@@ -1061,6 +1061,13 @@ bool target_is_linux(char* t)
   return triple.isOSLinux();
 }
 
+bool target_is_musl(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isMusl();
+}
+
 bool target_is_bsd(char* t)
 {
   Triple triple = Triple(t);

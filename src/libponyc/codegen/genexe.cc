@@ -26,15 +26,15 @@
 
 class CaptureOStream : public llvm::raw_ostream {
 public:
-  std::string Data;
+  std::string data;
 
-  CaptureOStream() : raw_ostream(/*unbuffered=*/true), Data() {}
+  CaptureOStream() : raw_ostream(/*unbuffered=*/true), data() {}
 
-  void write_impl(const char *Ptr, size_t Size) override {
-    Data.append(Ptr, Size);
+  void write_impl(const char *ptr, size_t size) override {
+    data.append(ptr, size);
   }
 
-  uint64_t current_pos() const override { return Data.size(); }
+  uint64_t current_pos() const override { return data.size(); }
 };
 
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
@@ -273,7 +273,123 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
-static bool link_exe(compile_t* c, ast_t* program,
+static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  // Collect the arguments and linker flavor we will pass to the linker.
+  std::vector<const char *> args;
+  const char* link_flavor = "unknown";
+
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
+  if (target_is_linux(c->opt->triple) || target_is_bsd(c->opt->triple)) {
+    link_flavor = "elf";
+
+    args.push_back("ld.lld");
+
+    if (target_is_musl(c->opt->triple)) {
+      args.push_back("-z");
+      args.push_back("now");
+    }
+    if (target_is_linux(c->opt->triple)) {
+      args.push_back("-z");
+      args.push_back("relro");
+    }
+    args.push_back("--hash-style=both");
+    args.push_back("--eh-frame-hdr");
+
+    if (target_is_x86(c->opt->triple)) {
+      args.push_back("-m");
+      args.push_back("elf_x86_64");
+    } else if (target_is_arm(c->opt->triple)) {
+      args.push_back("-m");
+      args.push_back("aarch64linux");
+    } else {
+      errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
+        c->opt->triple);
+      return false;
+    }
+
+    args.push_back("/usr/lib/x86_64-linux-gnu/crt1.o");            // TODO: args.push_back(find_in_lib_paths(c, "crt1.o"));
+    args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");            // TODO: args.push_back(find_in_lib_paths(c, "crti.o"));
+    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/11/crtbegin.o"); // TODO: args.push_back(find_in_lib_paths(c, "crtbegin.o"));
+    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/11/crtend.o");   // TODO: args.push_back(find_in_lib_paths(c, "crtend.o"));
+    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");            // TODO: args.push_back(find_in_lib_paths(c, "crtn.o"));
+
+    args.push_back(
+      target_is_x86(c->opt->triple)
+        ? "-plugin-opt=mcpu=aarch64"
+        : "-plugin-opt=mcpu=x86-64"
+    );
+    args.push_back(
+      c->opt->release
+        ? "-plugin-opt=O3"
+        : "-plugin-opt=O0"
+    );
+    args.push_back("-plugin-opt=thinlto");
+
+    args.push_back("-lgcc");
+    if (!target_is_dragonfly(c->opt->triple)) args.push_back("-lgcc_s");
+
+    args.push_back("-lc");
+    args.push_back("-ldl");
+    args.push_back("-lpthread");
+    args.push_back("-lm");
+    if (!target_is_bsd(c->opt->triple))
+      args.push_back("-latomic");
+    if (target_is_bsd(c->opt->triple) || target_is_musl(c->opt->triple))
+      args.push_back("-lexecinfo");
+
+    // TODO: link additional FFI libraries
+
+    args.push_back(file_o);
+    args.push_back("-o");
+    args.push_back(file_exe);
+
+  // TODO: MacOS, Windows, etc
+  } else {
+    errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
+      c->opt->triple);
+    return false;
+  }
+
+  // Create an output stream that captures the stdout/stderr info to a string.
+  CaptureOStream output;
+
+  // Invoke the linker.
+  bool link_result = false;
+  if (0 == strcmp(link_flavor, "elf")) {
+    link_result = lld::elf::link(args, output, output, false, false);
+  } else if (0 == strcmp(link_flavor, "mach_o")) {
+    link_result = lld::macho::link(args, output, output, false, false);
+  } else if (0 == strcmp(link_flavor, "mingw")) {
+    link_result = lld::mingw::link(args, output, output, false, false);
+  } else if (0 == strcmp(link_flavor, "coff")) {
+    link_result = lld::coff::link(args, output, output, false, false);
+  } else if (0 == strcmp(link_flavor, "wasm")) {
+    link_result = lld::wasm::link(args, output, output, false, false);
+  } else {
+    errorf(errors, NULL, "Unsupported lld flavor: %s", link_flavor);
+    return false;
+  }
+
+  // Show an informative error if linking failed, showing both the args passed
+  // as well as the output that we captured from the linker attempt.
+  if (!link_result) {
+    output << "\nLinking was attempted with these linker args:\n";
+    for (auto it = args.begin(); it != args.end(); ++it) {
+      output << *it << "\n";
+    }
+    errorf(errors, NULL, "Failed to link with embedded lld: %s",
+      output.data.data());
+  }
+
+  return link_result;
+}
+
+static bool legacy_link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
