@@ -48,9 +48,11 @@ typedef struct docgen_t
   FILE* type_file;
   const char* base_dir;
   const char* sub_dir;
+  const char* assets_dir;
   char* doc_source_dir;
   size_t base_dir_buf_len;
   size_t sub_dir_buf_len;
+  size_t assets_dir_buf_len;
   errors_t* errors;
   doc_sources_t* included_sources; // As a linked list, being the first element or NULL
 } docgen_t;
@@ -259,7 +261,7 @@ static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
 // The returned file handle must be fclosed() with no longer needed.
 // If the specified file cannot be opened an error will be generated and NULL
 // returned.
-static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
+static FILE* doc_open_file(docgen_t* docgen, const char* dir,
   const char* filename, const char* extn)
 {
   pony_assert(docgen != NULL);
@@ -269,7 +271,6 @@ static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
   // Build the type file name in a buffer.
   // Full file name is:
   //   directory/filenameextn
-  const char* dir = in_sub_dir ? docgen->sub_dir : docgen->base_dir;
   size_t buf_len;
   char* buffer = doc_cat(dir, filename, extn, "", "", &buf_len);
 
@@ -486,7 +487,7 @@ static void add_source_code_link(docgen_t* docgen, ast_t* elem)
   if (doc_source != NULL) {
       fprintf(
         docgen->type_file,
-        "\n<span class=\"source-link\">[[Source]](%s#L%zd)</span>\n",
+        "\n<span class=\"source-link\">[[Source]](%s#L-0-%zd)</span>\n",
         doc_source->doc_path, ast_line(elem)
       );
   } else {
@@ -836,11 +837,17 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   FILE* file = fopen(path, "w");
 
   if (file != NULL) {
-
+    // tell the mkdocs theme to hide the right sidebar
+    // so we have all the space we need for long lines
+    fprintf(file, "---\n");
+    fprintf(file, "hide:\n");
+    fprintf(file, "  - toc\n");
+    fprintf(file, "---\n");
     // Escape markdown to tell this is Pony code
     // Using multiple '```````'  so hopefully the markdown parser
     // will consider the whole text as a code block.
-    fprintf(file, "```````pony-full-source\n");
+    // add line nums as well
+    fprintf(file, "```````pony linenums=\"1\"\n");
     fprintf(file, "%s", source->m);
     fprintf(file, "\n```````");
     fclose(file);
@@ -956,7 +963,7 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
   size_t tqfn_len;
   char* tqfn = write_tqfn(ast, NULL, &tqfn_len);
 
-  docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
+  docgen->type_file = doc_open_file(docgen, docgen->sub_dir, tqfn, ".md");
 
   if(docgen->type_file == NULL)
     return;
@@ -1094,7 +1101,7 @@ static void doc_package_home(docgen_t* docgen,
   fprintf(docgen->index_file, "- package %s:\n",
     package_qualified_name(package));
 
-  docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
+  docgen->type_file = doc_open_file(docgen, docgen->sub_dir, tqfn, ".md");
 
   if(docgen->type_file == NULL)
     return;
@@ -1243,7 +1250,10 @@ static void doc_rm_star(const char* path)
   PONY_DIR* dir = pony_opendir(path, &err);
 
   if(dir == NULL)
+  {
+    printf("Couldn't open %s", path);
     return;
+  }
 
   PONY_DIRINFO* result;
 
@@ -1297,6 +1307,12 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   docgen->sub_dir = doc_cat(docgen->base_dir, "docs/", "", "", "",
     &docgen->sub_dir_buf_len);
 
+  docgen->assets_dir = doc_cat(docgen->sub_dir, PONYLANG_MKDOCS_ASSETS_DIR, "", "", "",
+    &docgen->assets_dir_buf_len);
+
+  docgen->doc_source_dir = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
+  path_cat(docgen->base_dir, "docs/src", docgen->doc_source_dir);
+
   if(opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, "Writing docs to %s\n", docgen->base_dir);
 
@@ -1304,9 +1320,17 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
   pony_mkdir(docgen->base_dir);
   doc_rm_star(docgen->base_dir);
 
+  // Create and clear out source directory
+  pony_mkdir(docgen->doc_source_dir);
+  doc_rm_star(docgen->doc_source_dir);
+
   // Create and clear out sub directory
   pony_mkdir(docgen->sub_dir);
   doc_rm_star(docgen->sub_dir);
+
+  // Create extra css directory (within sub_dir)
+  pony_mkdir(docgen->assets_dir);
+  doc_rm_star(docgen->assets_dir);
 }
 
 void generate_docs(ast_t* program, pass_opt_t* options)
@@ -1325,14 +1349,10 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   doc_setup_dirs(&docgen, program, options);
 
   // Open the index and home files
-  docgen.index_file = doc_open_file(&docgen, false, "mkdocs", ".yml");
-  docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
+  docgen.index_file = doc_open_file(&docgen, docgen.base_dir, "mkdocs", ".yml");
+  docgen.home_file = doc_open_file(&docgen, docgen.sub_dir, "index", ".md");
   docgen.type_file = NULL;
   docgen.included_sources = NULL;
-
-  docgen.doc_source_dir = (char*) ponyint_pool_alloc_size(FILENAME_MAX);
-  path_cat(docgen.base_dir, "docs/src", docgen.doc_source_dir);
-  pony_mkdir(docgen.doc_source_dir);
 
   // Write documentation files
   if(docgen.index_file != NULL && docgen.home_file != NULL)
@@ -1343,20 +1363,42 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     fprintf(docgen.home_file, "Packages\n\n");
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
-    fprintf(docgen.index_file, "theme: ponylang\n");
+    fprintf(docgen.index_file, "theme:\n");
+    fprintf(docgen.index_file, "  name: material\n");
+    fprintf(docgen.index_file, "  logo: %s%s\n", PONYLANG_MKDOCS_ASSETS_DIR, PONYLANG_MKDOCS_LOGO_FILE);
+    fprintf(docgen.index_file, "  favicon: %s%s\n", PONYLANG_MKDOCS_ASSETS_DIR, PONYLANG_MKDOCS_LOGO_FILE);
+    fprintf(docgen.index_file, "  palette:\n");
+    fprintf(docgen.index_file, "    scheme: ponylang\n");
+    fprintf(docgen.index_file, "    primary: brown\n");
+    fprintf(docgen.index_file, "    accent: amber\n");
+    fprintf(docgen.index_file, "  features:\n");
+    fprintf(docgen.index_file, "    - navigation.top\n");
+
+    fprintf(docgen.index_file, "extra_css:\n");
+    fprintf(docgen.index_file, "  - %s%s\n", PONYLANG_MKDOCS_ASSETS_DIR, PONYLANG_MKDOCS_CSS_FILE);
+
     fprintf(docgen.index_file, "markdown_extensions:\n");
-    fprintf(docgen.index_file, "- markdown.extensions.toc:\n");
-    fprintf(docgen.index_file, "    permalink: true\n");
+    fprintf(docgen.index_file, "  - pymdownx.highlight:\n");
+    fprintf(docgen.index_file, "      anchor_linenums: true\n");
+    fprintf(docgen.index_file, "      line_anchors: \"L\"\n");
+    fprintf(docgen.index_file, "      use_pygments: true\n");
+    fprintf(docgen.index_file, "  - pymdownx.superfences\n");
+    fprintf(docgen.index_file, "  - toc:\n");
+    fprintf(docgen.index_file, "      permalink: true\n");
+    fprintf(docgen.index_file, "      toc_depth: 3\n");
+
     fprintf(docgen.index_file, "nav:\n");
     fprintf(docgen.index_file, "- %s: index.md\n", name);
 
     doc_packages(&docgen, &docgen_opt, program);
   }
 
-  if (docgen.included_sources != NULL) {
+  if(docgen.included_sources != NULL)
+  {
     fprintf(docgen.index_file, "- source:\n");
     doc_sources_t* current_source = docgen.included_sources;
-    while (current_source != NULL) {
+    while(current_source != NULL)
+    {
       fprintf(docgen.index_file, "  - %s : \"%s\" \n" , current_source->filename, current_source->doc_path);
       ponyint_pool_free_size(current_source->filename_alloc_size, (void*) current_source->filename);
       ponyint_pool_free_size(current_source->doc_path_alloc_size, (void*) current_source->doc_path);
@@ -1365,6 +1407,30 @@ void generate_docs(ast_t* program, pass_opt_t* options)
       current_source = current_source->next;
       ponyint_pool_free_size(sizeof(doc_sources_t), (void*) current_source_ptr_copy);
     }
+  }
+
+  // write extra css file for the theme
+  FILE* css_file = doc_open_file(&docgen, docgen.assets_dir, PONYLANG_MKDOCS_CSS_FILE, "");
+  if(css_file != NULL)
+  {
+    fprintf(css_file, PONYLANG_MKDOCS_CSS);
+    fclose(css_file);
+  }
+  else
+  {
+    printf("Unable to open file %s%s", docgen.assets_dir, PONYLANG_MKDOCS_CSS_FILE);
+  }
+
+  // write logo png
+  FILE* logo_file = doc_open_file(&docgen, docgen.assets_dir, PONYLANG_MKDOCS_LOGO_FILE, "");
+  if(logo_file != NULL)
+  {
+    fwrite(PONYLANG_LOGO, sizeof(unsigned char), PONYLANG_LOGO_LEN, logo_file);
+    fclose(logo_file);
+  }
+  else
+  {
+    printf("Unable to open file %s%s", docgen.assets_dir, PONYLANG_MKDOCS_LOGO_FILE);
   }
 
   // Tidy up
@@ -1379,4 +1445,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
 
   if(docgen.sub_dir != NULL)
     ponyint_pool_free_size(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
+
+  if(docgen.assets_dir != NULL)
+    ponyint_pool_free_size(docgen.assets_dir_buf_len, (void*)docgen.assets_dir);
 }
