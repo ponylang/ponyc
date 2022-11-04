@@ -930,4 +930,4 @@ task:
   build_script:
     - ps: .\make.ps1 -Command build -Config Debug
   stress_test_script:
-    - ps: .\make.ps1 -Command $env:TARGET
+    - ps: .\make.ps1 -Command $env:TARGET -Config Debug
