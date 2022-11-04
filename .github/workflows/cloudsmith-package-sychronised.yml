@@ -209,6 +209,19 @@ jobs:
           GIT_USER_EMAIL: "ponylang.main@gmail.com"
           CUSTOM_VERSION: ${{ github.event.client_payload.data.version }}
 
+  test-building-stdlib-documentation:
+    needs:
+      - update-stdlib-builder-image-on-nightly
+
+    name: Build and Push standard library documentation
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/ponyc-ci-stdlib-builder:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: "bash .ci-scripts/build-stdlib-documentation.bash"
+
   send-macos-nightly-release-event:
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
