@@ -904,15 +904,15 @@ task:
         TARGET: stress-test-release
     - name: "Stress Test: x86-64 Windows [debug]"
       environment:
-        TARGET: test-stress-debug
+        TARGET: stress-test-debug
       depends_on:
         - "Stress Test: x86-64 Windows [release]"
     - name: "Stress Test: x86-64 Windows [cd] [release]"
       environment:
-        TARGET: test-stress-with-cd-release
+        TARGET: stress-test-with-cd-release
     - name: "Stress Test: x86-64 Windows [cd] [debug]"
       environment:
-        TARGET: test-stress-with-cd-debug
+        TARGET: stress-test-with-cd-debug
       depends_on:
         - "Stress Test: x86-64 Windows [cd] [release]"
 
