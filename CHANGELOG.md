@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Avoid fairly easy to trigger overflow in Windows Time.nanos code ([PR #4227](https://github.com/ponylang/ponyc/pull/4227))
 
 ### Added
 
