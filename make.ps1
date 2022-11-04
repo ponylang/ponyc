@@ -407,7 +407,7 @@ switch ($Command.ToLower())
             $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
             & $outDir\ponyc.exe --bin-name=ubench --output=$outDir examples\message-ubench
-            & $lldbcmd $lldbargs $outDir\ubench.exe --pingers=320 --initial-pings=5 --report-count=80 --report-interval=300 --ponynoscale
+            & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 80 --report-interval 300 --ponynoscale
             $err = $LastExitCode
         }
         else
