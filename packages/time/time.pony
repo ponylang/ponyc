@@ -94,8 +94,7 @@ primitive Time
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000) + (ts._2 / 1000000)).u64()
     elseif windows then
-      (let qpc, let qpf) = _query_performance_counter()
-      (qpc * 1000) / qpf
+      _subseconds_from_query_performance_counter(1000)
     else
       compile_error "unsupported platform"
     end
@@ -110,8 +109,7 @@ primitive Time
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000) + (ts._2 / 1000)).u64()
     elseif windows then
-      (let qpc, let qpf) = _query_performance_counter()
-      (qpc * 1000000) / qpf
+      _subseconds_from_query_performance_counter(1000000)
     else
       compile_error "unsupported platform"
     end
@@ -126,8 +124,7 @@ primitive Time
       var ts = _clock_gettime(_ClockMonotonic)
       ((ts._1 * 1000000000) + ts._2).u64()
     elseif windows then
-      (let qpc, let qpf) = _query_performance_counter()
-      (qpc * 1000000000) / qpf
+      _subseconds_from_query_performance_counter(1000000000)
     else
       compile_error "unsupported platform"
     end
@@ -182,6 +179,15 @@ primitive Time
     else
       compile_error "no clock_gettime"
     end
+
+  fun _subseconds_from_query_performance_counter(subseconds: U64): U64 =>
+      (let qpc, let qpf) = _query_performance_counter()
+      if qpf <= subseconds then
+        qpc * (subseconds / qpf)
+      else
+        (qpc * subseconds) / qpf
+      end
+
 
   fun _query_performance_counter(): (U64 /* qpc */, U64 /* qpf */) =>
     """
