@@ -926,8 +926,8 @@ task:
     - libs
 
   configure_script:
-    - ps: .\make.ps1 -Command configure -Config $env:CONFIG -Generator "Visual Studio 17 2022"
+    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 17 2022"
   build_script:
     - ps: .\make.ps1 -Command build -Config Debug
   stress_test_script:
-    - ps: .\make.ps1 -Command $env:TARGET -Config Debug
+    - ps: .\make.ps1 -Command $env:TARGET
