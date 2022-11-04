@@ -137,7 +137,7 @@ static bool is_package_for_testing(const char* name)
 // When false the allow_public parameter causes ASTs with public names to be
 // ignored. allow_private does the same for private names.
 static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
-  bool allow_public, bool allow_private)
+  bool allow_public, bool allow_private, bool sort)
 {
   pony_assert(list != NULL);
   pony_assert(ast != NULL);
@@ -163,7 +163,7 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
   if(has_private_name)  // Ignore leading underscore for ordering
     name++;
 
-  doc_list_add(list, ast, name, false);
+  doc_list_add(list, ast, name, sort);
 }
 
 // Utilities
@@ -1026,23 +1026,23 @@ static void doc_entity(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
       case TK_FVAR:
       case TK_FLET:
       case TK_EMBED:
-        doc_list_add_named(&pub_fields, p, 0, true, false);
+        doc_list_add_named(&pub_fields, p, 0, true, false, false);
         break;
 
       case TK_NEW:
-        doc_list_add_named(&news, p, 1, true, docgen_opt->include_private);
+        doc_list_add_named(&news, p, 1, true, docgen_opt->include_private, false);
         break;
 
       case TK_BE:
-        doc_list_add_named(&pub_bes, p, 1, true, false);
+        doc_list_add_named(&pub_bes, p, 1, true, false, false);
         doc_list_add_named(&priv_bes, p, 1,
-          false, docgen_opt->include_private);
+          false, docgen_opt->include_private, false);
         break;
 
       case TK_FUN:
-        doc_list_add_named(&pub_funs, p, 1, true, false);
+        doc_list_add_named(&pub_funs, p, 1, true, false, false);
         doc_list_add_named(&priv_funs, p, 1,
-          false, docgen_opt->include_private);
+          false, docgen_opt->include_private, false);
         break;
 
       default:
@@ -1162,7 +1162,7 @@ static void doc_package(docgen_t* docgen, docgen_opt_t* docgen_opt, ast_t* ast)
             ast_id(t) == TK_STRUCT || ast_id(t) == TK_CLASS ||
             ast_id(t) == TK_ACTOR);
           // We have a type
-          doc_list_add_named(&types, t, 0, true, docgen_opt->include_private);
+          doc_list_add_named(&types, t, 0, true, docgen_opt->include_private, true);
         }
       }
     }
