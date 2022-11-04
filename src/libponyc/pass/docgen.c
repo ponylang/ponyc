@@ -1425,7 +1425,8 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   FILE* logo_file = doc_open_file(&docgen, docgen.assets_dir, PONYLANG_MKDOCS_LOGO_FILE, "");
   if(logo_file != NULL)
   {
-    fwrite(PONYLANG_LOGO, sizeof(unsigned char), PONYLANG_LOGO_LEN, logo_file);
+    const unsigned char logo[PONYLANG_LOGO_LEN] = PONYLANG_LOGO;
+    fwrite(logo, sizeof(unsigned char), PONYLANG_LOGO_LEN, logo_file);
     fclose(logo_file);
   }
   else
