@@ -213,7 +213,7 @@ jobs:
     needs:
       - update-stdlib-builder-image-on-nightly
 
-    name: Build and Push standard library documentation
+    name: Test building standard library documentation
     runs-on: ubuntu-latest
     container:
       image: ponylang/ponyc-ci-stdlib-builder:latest
