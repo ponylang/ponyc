@@ -901,24 +901,20 @@ task:
   matrix:
     - name: "Stress Test: x86-64 Windows [release]"
       environment:
-        CONFIG: Release
         TARGET: stress-test-release
-    # - name: "Stress Test: x86-64 Windows [debug]"
-    #   environment:
-    #     CONFIG: Debug
-    #     TARGET: test-stress-debug
-    #   depends_on:
-    #     - "Stress Test: x86-64 Windows [release]"
-    # - name: "Stress Test: x86-64 Windows [cd] [release]"
-    #   environment:
-    #     CONFIG: Release
-    #     TARGET: test-stress-with-cd-release
-    # - name: "Stress Test: x86-64 Windows [cd] [debug]"
-    #   environment:
-    #     CONFIG: Debug
-    #     TARGET: test-stress-with-cd-debug
-    #   depends_on:
-    #     - "Stress Test: x86-64 Windows [cd] [release]"
+    - name: "Stress Test: x86-64 Windows [debug]"
+      environment:
+        TARGET: test-stress-debug
+      depends_on:
+        - "Stress Test: x86-64 Windows [release]"
+    - name: "Stress Test: x86-64 Windows [cd] [release]"
+      environment:
+        TARGET: test-stress-with-cd-release
+    - name: "Stress Test: x86-64 Windows [cd] [debug]"
+      environment:
+        TARGET: test-stress-with-cd-debug
+      depends_on:
+        - "Stress Test: x86-64 Windows [cd] [release]"
 
   libs_cache:
     folder: build/libs
@@ -932,6 +928,6 @@ task:
   configure_script:
     - ps: .\make.ps1 -Command configure -Config $env:CONFIG -Generator "Visual Studio 17 2022"
   build_script:
-    - ps: .\make.ps1 -Command build -Config $env:CONFIG
+    - ps: .\make.ps1 -Command build -Config Debug
   stress_test_script:
-    - ps: .\make.ps1 -Command $env:TARGET -Config $env:CONFIG -Uselldb yes
+    - ps: .\make.ps1 -Command $env:TARGET -Config Debug
