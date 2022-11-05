@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Avoid fairly easy to trigger overflow in Windows Time.nanos code ([PR #4227](https://github.com/ponylang/ponyc/pull/4227))
+- Fix incorrect interaction between String/Array reserve and Pointer realloc ([PR #4223](https://github.com/ponylang/ponyc/pull/4223))
 
 ### Added
 
