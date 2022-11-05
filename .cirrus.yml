@@ -23,7 +23,7 @@ task:
 
   container:
     cpu: 8
-    memory: 4
+    memory: 8
 
   libs_cache:
     folder: build/libs
