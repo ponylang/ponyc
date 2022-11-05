@@ -273,7 +273,7 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
  * space, otherwise it allocates and copies. The old memory must have been
  * allocated via pony_alloc(), pony_alloc_small(), or pony_alloc_large().
  */
-PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size);
+PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size, size_t copy);
 
 /** Allocate memory with a finaliser.
  *

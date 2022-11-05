@@ -300,7 +300,7 @@ actor Main
       else
         _alloc = min_alloc.min(max)
       end
-      _ptr = _ptr._realloc(_alloc)
+      _ptr = _ptr._realloc(_alloc, _size)
     end
 
   fun ref compact() =>

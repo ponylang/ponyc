@@ -569,7 +569,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 }
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
-  size_t size)
+  size_t size, size_t copy)
 {
   if(p == NULL)
     return ponyint_heap_alloc(actor, heap, size, TRACK_NO_FINALISERS);
@@ -598,9 +598,13 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
     oldsize = chunk->size - ((uintptr_t)p - (uintptr_t)chunk->m);
   }
 
+  pony_assert(copy <= size);
   // Determine how much memory to copy.
-  if(oldsize > size)
-    oldsize = size;
+  if(copy > size)
+    copy = size;
+
+  if(oldsize > copy)
+    oldsize = copy;
 
   // Get new memory and copy from the old memory.
   void* q = ponyint_heap_alloc(actor, heap, size, TRACK_NO_FINALISERS);
