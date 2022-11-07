@@ -256,13 +256,8 @@ static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
   return buffer;
 }
 
-// Open a file with the specified info.
-// The given filename extension should include a dot if one is needed.
-// The returned file handle must be fclosed() with no longer needed.
-// If the specified file cannot be opened an error will be generated and NULL
-// returned.
-static FILE* doc_open_file(docgen_t* docgen, const char* dir,
-  const char* filename, const char* extn)
+static FILE* doc_open_file_(docgen_t* docgen, const char* dir,
+  const char* filename, const char* extn, bool binary)
 {
   pony_assert(docgen != NULL);
   pony_assert(filename != NULL);
@@ -275,7 +270,8 @@ static FILE* doc_open_file(docgen_t* docgen, const char* dir,
   char* buffer = doc_cat(dir, filename, extn, "", "", &buf_len);
 
   // Now we have the file name open the file
-  FILE* file = fopen(buffer, "w");
+  const char* mode = binary ? "wb" : "w";
+  FILE* file = fopen(buffer, mode);
 
   if(file == NULL)
     errorf(docgen->errors, NULL,
@@ -283,6 +279,19 @@ static FILE* doc_open_file(docgen_t* docgen, const char* dir,
 
   ponyint_pool_free_size(buf_len, buffer);
   return file;
+}
+
+// Open a file with the specified info.
+// The given filename extension should include a dot if one is needed.
+// The returned file handle must be fclosed() with no longer needed.
+// If the specified file cannot be opened an error will be generated and NULL
+// returned.
+static FILE* doc_open_file(docgen_t* docgen, const char* dir, const char* filename, const char* extn) {
+  return doc_open_file_(docgen, dir, filename, extn, false);
+}
+
+static FILE* doc_open_binary_file(docgen_t* docgen, const char* dir, const char* filename, const char* extn) {
+  return doc_open_file_(docgen, dir, filename, extn, true);
 }
 
 // Functions to handle types
@@ -865,10 +874,10 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
 
     return result;
   } else {
+    errorf(docgen->errors, NULL, "Could not write source-file to %s", path);
     ponyint_pool_free_size(filename_alloc_size, (void*) filename);
     ponyint_pool_free_size(doc_path_alloc_size, (void*) doc_path);
     ponyint_pool_free_size(file_path_alloc_size, (void*) path);
-    errorf(docgen->errors, NULL, "Could not write documentation to file %s", filename);
     return NULL;
   }
 }
@@ -1422,7 +1431,7 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   }
 
   // write logo png
-  FILE* logo_file = doc_open_file(&docgen, docgen.assets_dir, PONYLANG_MKDOCS_LOGO_FILE, "");
+  FILE* logo_file = doc_open_binary_file(&docgen, docgen.assets_dir, PONYLANG_MKDOCS_LOGO_FILE, "");
   if(logo_file != NULL)
   {
     const unsigned char logo[PONYLANG_LOGO_LEN] = PONYLANG_LOGO;
