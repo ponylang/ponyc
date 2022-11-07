@@ -16,3 +16,12 @@ This could lead to very surprising results if `reserve` had been called by `unde
 
 In order to make documentation on a class, actor, primitive or struct easier to find, they are now sorted alphabetically inside their package.
 
+## Adapt docgen to only depend the mkdocs material theme
+
+We used to have our own mkdocs theme for ponylang documentation, it was based off of the mkdocs-material theme. This change puts the adaptationswe need into the mkdocs.yml file itself, so we don't depend on our own theme anymore, but only on the upstream mkdocs-material.
+
+This is a **Breaking Change** in so far that users that want to generate documentation with ponyc now have to install the python package `mkdocs-material` instead of `mkdocs-ponylang` to generate their documentation in HTML form with mkdocs. The [library documentation github action](https://github.com/ponylang/library-documentation-action) will have the correct dependencies installed, so no changes should be needed when using it.
+
+## Fix broken docgen on Windows
+
+Generating documentation has been broken on windows: `ponyc` was not able to write the documentation files, due to path handling issues on windows. This is now fixed and docgen is working again on windows.
