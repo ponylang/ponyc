@@ -12,3 +12,7 @@ This could lead to very surprising results if `reserve` had been called by `unde
 
 `realloc` has been updated to take to parameters, now, the amount of memory to alloc and the number of bytes to copy from old memory to new.
 
+## Sort package types in documentation
+
+In order to make documentation on a class, actor, primitive or struct easier to find, they are now sorted alphabetically inside their package.
+
