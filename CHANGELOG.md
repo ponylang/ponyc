@@ -15,7 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Sort package types in documentation ([PR #4228](https://github.com/ponylang/ponyc/pull/4228))
-- Adapt docgen to use the mkdocs material theme ([PR #4226](https://github.com/ponylang/ponyc/pull/4226)
+- Adapt documentation generation to use the mkdocs material theme ([PR #4226](https://github.com/ponylang/ponyc/pull/4226)
 
 ## [0.51.4] - 2022-10-29
 
