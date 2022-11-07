@@ -24,4 +24,4 @@ This is a **Breaking Change** in so far that users that want to generate documen
 
 ## Fix broken documentation generation on Windows
 
-Generating documentation has been broken on windows: `ponyc` was not able to write the documentation files, due to path handling issues on windows. This is now fixed and documentation generation is working again on windows.
+Generating documentation has been broken on Windows: `ponyc` was not able to write the documentation files, due to path handling issues on Windows. This is now fixed and documentation generation is working again on Windows.
