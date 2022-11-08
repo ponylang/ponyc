@@ -887,8 +887,7 @@ task:
     - make ${TARGET} config=debug usedebugger=lldb
 
 task:
-  #only_if: $CIRRUS_CRON == "stress"
-  only_if: $CIRRUS_PR != ''
+  only_if: $CIRRUS_CRON == "stress"
 
   timeout_in: 120m
 
