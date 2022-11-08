@@ -1006,7 +1006,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
     if(from == program)
     {
       // construct the qualified name from the basename of the full path
-      const char* basepath = strrchr(full_path, '/');
+      const char* basepath = strrchr(full_path, PATH_SLASH);
       if(basepath == NULL)
       {
         basepath = full_path;
