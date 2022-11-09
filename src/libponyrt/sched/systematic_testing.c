@@ -19,6 +19,7 @@ static systematic_testing_thread_t* threads_to_track = NULL;
 static uint32_t total_threads = 0;
 static uint32_t stopped_threads = 0;
 static PONY_ATOMIC(uint32_t) waiting_to_start_count;
+static uint32_t verbose_level = 0;
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
 static pthread_mutex_t systematic_testing_mut;
@@ -51,9 +52,12 @@ size_t ponyint_systematic_testing_static_alloc_size()
 }
 #endif
 
-void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
+void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads,
+  uint32_t verbosity)
 {
-  #if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  verbose_level = verbosity;
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
   pthread_once(&systematic_testing_mut_once, systematic_testing_mut_init);
 #endif
 
@@ -62,8 +66,8 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   if(0 == random_seed)
     random_seed = ponyint_cpu_tick();
 
-  SYSTEMATIC_TESTING_PRINTF("Systematic testing using seed: %lu...\n", random_seed);
-  SYSTEMATIC_TESTING_PRINTF("(rerun with `<app> --ponysystematictestingseed %lu` to reproduce)\n", random_seed);
+  SYSTEMATIC_TESTING_PRINTF(0, "Systematic testing using seed: %lu...\n", random_seed);
+  SYSTEMATIC_TESTING_PRINTF(0, "(rerun with `<app> --ponysystematictestingseed %lu` to reproduce)\n", random_seed);
 
   // TODO systematic testing: maybe replace with better RNG?
   // probably best to replace this with a RNG that has the exact same behavior
@@ -88,7 +92,7 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal)
 {
-  SYSTEMATIC_TESTING_PRINTF("thread %lu: waiting to start...\n", thread);
+  SYSTEMATIC_TESTING_PRINTF(10, "thread %lu: waiting to start...\n", thread);
 
   atomic_fetch_add_explicit(&waiting_to_start_count, 1, memory_order_relaxed);
 
@@ -99,7 +103,7 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
   while(0 == pthread_equal(active_thread->tid, thread))
 #endif
   {
-    SYSTEMATIC_TESTING_PRINTF("thread %lu: still waiting for it's turn... active thread: %lu\n", thread, active_thread->tid);
+    SYSTEMATIC_TESTING_PRINTF(10, "thread %lu: still waiting for it's turn... active thread: %lu\n", thread, active_thread->tid);
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     ponyint_thread_suspend(signal, &systematic_testing_mut);
 #else
@@ -107,7 +111,7 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
 #endif
   }
 
-  SYSTEMATIC_TESTING_PRINTF("thread %lu: started...\n", thread);
+  SYSTEMATIC_TESTING_PRINTF(10, "thread %lu: started...\n", thread);
 }
 
 void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal)
@@ -128,11 +132,11 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
 
   while(total_threads != atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed))
   {
-    SYSTEMATIC_TESTING_PRINTF("Waiting for all threads to be ready before starting execution..\n");
+    SYSTEMATIC_TESTING_PRINTF(1, "Waiting for all threads to be ready before starting execution..\n");
     ponyint_cpu_core_pause(1, 10000002, true);
   }
 
-  SYSTEMATIC_TESTING_PRINTF("Starting systematic testing with thread %lu...\n", active_thread->tid);
+  SYSTEMATIC_TESTING_PRINTF(10, "Starting systematic testing with thread %lu...\n", active_thread->tid);
 
   ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
 }
@@ -173,7 +177,7 @@ void ponyint_systematic_testing_yield()
     pthread_mutex_unlock(&systematic_testing_mut);
 #endif
 
-    SYSTEMATIC_TESTING_PRINTF("Systematic testing successfully finished!\n");
+    SYSTEMATIC_TESTING_PRINTF(1, "Systematic testing successfully finished!\n");
 
     return;
   }
@@ -191,7 +195,7 @@ void ponyint_systematic_testing_yield()
   {
     active_thread = next_thread;
 
-    SYSTEMATIC_TESTING_PRINTF("thread %lu: yielding to thread: %lu.. next_index: %u\n", current_thread->tid, active_thread->tid, next_index);
+    SYSTEMATIC_TESTING_PRINTF(10, "thread %lu: yielding to thread: %lu.. next_index: %u\n", current_thread->tid, active_thread->tid, next_index);
 
     ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
 
@@ -241,7 +245,12 @@ void ponyint_systematic_testing_stop_thread()
 {
   active_thread->stopped = true;
   stopped_threads++;
-  SYSTEMATIC_TESTING_PRINTF("thread %lu: stopped...\n", active_thread->tid);
+  SYSTEMATIC_TESTING_PRINTF(10, "thread %lu: stopped...\n", active_thread->tid);
 
   ponyint_systematic_testing_yield();
+}
+
+uint32_t ponyint_systematic_testing_verbose_level()
+{
+  return verbose_level;
 }

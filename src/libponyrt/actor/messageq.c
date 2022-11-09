@@ -2,6 +2,7 @@
 
 #include "messageq.h"
 #include "../mem/pool.h"
+#include "../sched/systematic_testing.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <dtrace.h>
@@ -32,12 +33,16 @@ static bool messageq_push(messageq_t* q, pony_msg_t* first, pony_msg_t* last)
 {
   atomic_store_explicit(&last->next, NULL, memory_order_relaxed);
 
+  SYSTEMATIC_TESTING_YIELD();
+
   // Without that fence, the store to last->next above could be reordered after
   // the exchange on the head and after the store to prev->next done by the
   // next push, which would result in the pop incorrectly seeing the queue as
   // empty.
   // Also synchronise with the pop on prev->next.
   atomic_thread_fence(memory_order_release);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   pony_msg_t* prev = atomic_exchange_explicit(&q->head, last,
     memory_order_relaxed);
@@ -51,7 +56,12 @@ static bool messageq_push(messageq_t* q, pony_msg_t* first, pony_msg_t* last)
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
   atomic_thread_fence(memory_order_release);
 #endif
+
+  SYSTEMATIC_TESTING_YIELD();
+
   atomic_store_explicit(&prev->next, first, memory_order_relaxed);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   return was_empty;
 }
@@ -61,8 +71,13 @@ static bool messageq_push_single(messageq_t* q,
 {
   atomic_store_explicit(&last->next, NULL, memory_order_relaxed);
 
+  SYSTEMATIC_TESTING_YIELD();
+
   // If we have a single producer, the swap of the head need not be atomic RMW.
   pony_msg_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
+
+  SYSTEMATIC_TESTING_YIELD();
+
   atomic_store_explicit(&q->head, last, memory_order_relaxed);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
@@ -73,7 +88,12 @@ static bool messageq_push_single(messageq_t* q,
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif
+
+  SYSTEMATIC_TESTING_YIELD();
+
   atomic_store_explicit(&prev->next, first, memory_order_release);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   return was_empty;
 }
@@ -240,13 +260,24 @@ pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
   )
 {
   pony_msg_t* tail = q->tail;
+
+  SYSTEMATIC_TESTING_YIELD();
+
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_acquire);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   if(next != NULL)
   {
     DTRACE3(ACTOR_MSG_POP, sched->index, (uint32_t) next->id, (uintptr_t) actor);
     q->tail = next;
+
+    SYSTEMATIC_TESTING_YIELD();
+
     atomic_thread_fence(memory_order_acquire);
+
+    SYSTEMATIC_TESTING_YIELD();
+
 #ifdef USE_VALGRIND
     ANNOTATE_HAPPENS_AFTER(&tail->next);
     ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(tail);
@@ -264,12 +295,20 @@ pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
   )
 {
   pony_msg_t* tail = q->tail;
+
+  SYSTEMATIC_TESTING_YIELD();
+
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
+
+  SYSTEMATIC_TESTING_YIELD();
 
   if(next != NULL)
   {
     DTRACE2(THREAD_MSG_POP, (uint32_t) next->id, (uintptr_t) thr);
     q->tail = next;
+
+    SYSTEMATIC_TESTING_YIELD();
+
     atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND
     ANNOTATE_HAPPENS_AFTER(&tail->next);
@@ -284,6 +323,9 @@ pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
 bool ponyint_messageq_markempty(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
+
+  SYSTEMATIC_TESTING_YIELD();
+
   pony_msg_t* head = atomic_load_explicit(&q->head, memory_order_acquire);
 
   if(((uintptr_t)head & 1) != 0)
@@ -297,6 +339,9 @@ bool ponyint_messageq_markempty(messageq_t* q)
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&q->head);
 #endif
+
+  SYSTEMATIC_TESTING_YIELD();
+
   return atomic_compare_exchange_strong_explicit(&q->head, &tail, head,
     memory_order_acq_rel, memory_order_acquire);
 }

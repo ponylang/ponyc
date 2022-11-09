@@ -369,18 +369,21 @@ static bool read_msg(scheduler_t* sched)
     {
       case SCHED_SUSPEND:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_SUSPEND...\n", sched->tid);
         maybe_start_cnf_ack_cycle(sched);
         break;
       }
 
       case SCHED_BLOCK:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_BLOCK...\n", sched->tid);
         handle_sched_block(sched);
         break;
       }
 
       case SCHED_UNBLOCK:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_UNBLOCK...\n", sched->tid);
         handle_sched_unblock(sched);
         break;
       }
@@ -388,12 +391,14 @@ static bool read_msg(scheduler_t* sched)
       case SCHED_CNF:
       {
         // Echo the token back as ACK(token).
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_CNF...\n", sched->tid);
         send_msg(sched->index, 0, SCHED_ACK, m->i);
         break;
       }
 
       case SCHED_ACK:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_ACK...\n", sched->tid);
         // If it's the current token, increment the ack count.
         if(m->i == sched->ack_token)
           sched->ack_count++;
@@ -402,12 +407,14 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_TERMINATE:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_TERMINATE...\n", sched->tid);
         sched->terminate = true;
         break;
       }
 
       case SCHED_UNMUTE_ACTOR:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_UNMUTE_ACTOR...\n", sched->tid);
         if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i))
           run_queue_changed = true;
 
@@ -416,6 +423,7 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_NOISY_ASIO:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_NOISY_ASIO...\n", sched->tid);
         // mark asio as being noisy
         sched->asio_noisy = true;
         break;
@@ -423,6 +431,7 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_UNNOISY_ASIO:
       {
+        SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: handled SCHED_UNNOISY_ASIO...\n", sched->tid);
         // mark asio as not being noisy
         sched->asio_noisy = false;
         break;
@@ -626,6 +635,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
         // popping succeeded (actor != NULL) as some other scheduler might have
         // stolen the newly scheduled actor from us already. Schedulers, what a
         // bunch of thieving bastards!
+        SYSTEMATIC_TESTING_YIELD();
         actor = pop_global(sched);
         if(actor != NULL)
           break;
@@ -811,6 +821,7 @@ static pony_actor_t* steal(scheduler_t* sched)
       // popping succeeded (actor != NULL) as some other scheduler might have
       // stolen the newly scheduled actor from us already. Schedulers, what a
       // bunch of thieving bastards!
+      SYSTEMATIC_TESTING_YIELD();
       actor = pop_global(sched);
       if(actor != NULL)
         break;
@@ -925,6 +936,8 @@ static pony_actor_t* steal(scheduler_t* sched)
       {
         last_cd_tsc = current_tsc;
 
+        SYSTEMATIC_TESTING_YIELD();
+
         // cycle detector should now be on the queue
         actor = pop_global(sched);
         if(actor != NULL)
@@ -1010,9 +1023,14 @@ static void run(scheduler_t* sched)
           {
             last_cd_tsc = current_tsc;
 
+            SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: Cycle Detector scheduled...\n", sched->tid);
+
             // cycle detector should now be on the queue
             if(actor == NULL)
+            {
+              SYSTEMATIC_TESTING_YIELD();
               actor = pop_global(sched);
+            }
           }
         }
       }
@@ -1035,13 +1053,16 @@ static void run(scheduler_t* sched)
     // to pop from our queue to check for a recently unmuted actor
     if(read_msg(sched) && actor == NULL)
     {
+      SYSTEMATIC_TESTING_YIELD();
       actor = pop_global(sched);
     }
 
     if(actor == NULL)
     {
       // We had an empty queue and no rescheduled actor.
+      SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: empty queue... trying to steal...\n", sched->tid);
       actor = steal(sched);
+      SYSTEMATIC_TESTING_YIELD();
 
       if(actor == NULL)
       {
@@ -1072,6 +1093,7 @@ static void run(scheduler_t* sched)
       ponyint_sched_maybe_wakeup(sched->index);
 
     // Run the current actor and get the next actor.
+    SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: running actor %lu...\n", sched->tid, (uintptr_t)actor);
     bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
     sched->ctx.current = NULL;
     SYSTEMATIC_TESTING_YIELD();
@@ -1079,6 +1101,7 @@ static void run(scheduler_t* sched)
 
     if(reschedule)
     {
+      SYSTEMATIC_TESTING_PRINTF(5, "thread %lu: rescheduling actor %lu...\n", sched->tid, (uintptr_t)actor);
       if(next != NULL)
       {
         // If we have a next actor, we go on the back of the queue. Otherwise,
@@ -1186,7 +1209,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold,
   uint32_t stats_interval
 #if defined(USE_SYSTEMATIC_TESTING)
-  , uint64_t systematic_testing_seed)
+  , uint64_t systematic_testing_seed, uint32_t systematic_testing_verbosity)
 #else
   )
 #endif
@@ -1285,7 +1308,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   }
 
   // initialize systematic testing
-  SYSTEMATIC_TESTING_INIT(systematic_testing_seed, scheduler_count);
+  SYSTEMATIC_TESTING_INIT(systematic_testing_seed, scheduler_count, systematic_testing_verbosity);
 
   ponyint_mpmcq_init(&inject);
   ponyint_asio_init(asio_cpu);
@@ -1535,6 +1558,7 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
 
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv)
 {
+  SYSTEMATIC_TESTING_PRINTF(8, "thread %lu: sender %lu added to mutemap of receiver %lu...\n", ctx->scheduler->tid, (uintptr_t)sender, (uintptr_t)recv);
   pony_assert(sender != recv);
   scheduler_t* sched = ctx->scheduler;
   size_t index = HASHMAP_UNKNOWN;
@@ -1593,6 +1617,7 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
 {
+  SYSTEMATIC_TESTING_PRINTF(8, "thread %lu: globally unmuting actor %lu...\n", pony_ctx()->scheduler->tid, (uintptr_t)actor);
   send_msg_all_active(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
 }
 
