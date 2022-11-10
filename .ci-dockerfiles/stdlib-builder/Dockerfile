@@ -13,5 +13,6 @@ RUN apk update \
   python3 \
   python3-dev \
   py3-pip \
+  tar \
   && pip3 install --upgrade pip \
   && pip3 install mkdocs mkdocs-material
