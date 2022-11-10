@@ -2,15 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.52.0] - 2022-11-10
 
 ### Fixed
 
 - Avoid fairly easy to trigger overflow in Windows Time.nanos code ([PR #4227](https://github.com/ponylang/ponyc/pull/4227))
 - Fix incorrect interaction between String/Array reserve and Pointer realloc ([PR #4223](https://github.com/ponylang/ponyc/pull/4223))
 - Fix broken documentation generation on Windows ([PR #4226](https://github.com/ponylang/ponyc/pull/4226))
-
-### Added
 
 ### Changed
 
