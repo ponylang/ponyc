@@ -215,6 +215,9 @@ jobs:
       - update-stdlib-builder-image-on-release
 
     name: Build and Push standard library documentation
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     container:
       image: ponylang/ponyc-ci-stdlib-builder:release
