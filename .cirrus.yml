@@ -545,7 +545,7 @@ task:
         IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
-    - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
+    - name: "release: x86-64-unknown-linux-ubuntu22.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
       environment:
