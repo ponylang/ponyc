@@ -885,3 +885,48 @@ task:
     - make build config=debug
   stress_test_script:
     - make ${TARGET} config=debug usedebugger=lldb
+
+task:
+  only_if: $CIRRUS_CRON == "stress"
+
+  timeout_in: 120m
+
+  windows_container:
+    image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
+    os_version: 2019
+    cpu: 8
+    memory: 24
+
+  matrix:
+    - name: "Stress Test: x86-64 Windows [release]"
+      environment:
+        TARGET: stress-test-release
+    - name: "Stress Test: x86-64 Windows [debug]"
+      environment:
+        TARGET: stress-test-debug
+      depends_on:
+        - "Stress Test: x86-64 Windows [release]"
+    - name: "Stress Test: x86-64 Windows [cd] [release]"
+      environment:
+        TARGET: stress-test-with-cd-release
+    - name: "Stress Test: x86-64 Windows [cd] [debug]"
+      environment:
+        TARGET: stress-test-with-cd-debug
+      depends_on:
+        - "Stress Test: x86-64 Windows [cd] [release]"
+
+  libs_cache:
+    folder: build/libs
+    fingerprint_script:
+      - ps: (Get-FileHash -Path make.ps1).Hash + (Get-FileHash -Path CMakeLists.txt).Hash + (Get-FileHash -Path lib\CMakeLists.txt).Hash + "Windows 20220803"
+    populate_script:
+      - ps: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
+  upload_caches:
+    - libs
+
+  configure_script:
+    - ps: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 17 2022"
+  build_script:
+    - ps: .\make.ps1 -Command build -Config Debug
+  stress_test_script:
+    - ps: .\make.ps1 -Command $env:TARGET -Config Debug
