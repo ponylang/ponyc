@@ -20,7 +20,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     container:
-      image: ponylang/ponyc-ci-stdlib-builder:release
+      image: ponylang/ponyc-ci-stdlib-builder:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
