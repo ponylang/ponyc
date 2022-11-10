@@ -3,17 +3,35 @@ name: Manually generate documentation
 on:
   workflow_dispatch
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "update-standard-library-documentation"
+  cancel-in-progress: true
+
 jobs:
   generate-documentation:
     name: Generate documentation for release
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     container:
       image: ponylang/ponyc-ci-stdlib-builder:release
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: "bash .ci-scripts/build-stdlib-documentation.bash"
+      - name: Setup Pages
+        uses: actions/configure-pages@v2
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
         with:
-          token: ${{ secrets.STDLIB_TOKEN }}
-      - name: Build and push
-        run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
-        env:
-          STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
+          path: 'stdlib-docs/site/'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
