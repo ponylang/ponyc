@@ -5,6 +5,11 @@ on:
     types:
       - cloudsmith-package-synchronised
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build-latest-gnu-docker-image:
     if: |
@@ -214,13 +219,19 @@ jobs:
     container:
       image: ponylang/ponyc-ci-stdlib-builder:release
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: "bash .ci-scripts/build-stdlib-documentation.bash"
+      - name: Setup Pages
+        uses: actions/configure-pages@v2
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
         with:
-          token: ${{ secrets.STDLIB_TOKEN }}
-      - name: Build and push
-        run: "bash .ci-scripts/build-and-push-stdlib-documentation.bash $STDLIB_TOKEN"
-        env:
-          STDLIB_TOKEN: ${{ secrets.STDLIB_TOKEN }}
+          path: 'stdlib-docs/site/'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
 
   trigger-release-announcement:
     needs:
