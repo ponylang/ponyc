@@ -846,11 +846,16 @@ static doc_sources_t* copy_source_to_doc_src(docgen_t* docgen, source_t* source,
   FILE* file = fopen(path, "w");
 
   if (file != NULL) {
+    // start front matter
+    fprintf(file, "---\n");
     // tell the mkdocs theme to hide the right sidebar
     // so we have all the space we need for long lines
-    fprintf(file, "---\n");
     fprintf(file, "hide:\n");
     fprintf(file, "  - toc\n");
+    // tell the mkdocs theme not index source files for search
+    fprintf(file, "search:\n");
+    fprintf(file, "  exclude: true\n");
+    // end front matter
     fprintf(file, "---\n");
     // Escape markdown to tell this is Pony code
     // Using multiple '```````'  so hopefully the markdown parser
