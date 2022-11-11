@@ -222,6 +222,10 @@ jobs:
     container:
       image: ponylang/ponyc-ci-stdlib-builder:release
     steps:
+      - name: Install insiders theme
+        run: pip install git+https://${MATERIAL_INSIDERS_ACCESS}@github.com/squidfunk/mkdocs-material-insiders.git
+        env:
+          MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build
@@ -267,6 +271,10 @@ jobs:
     container:
       image: ponylang/ponyc-ci-stdlib-builder:latest
     steps:
+      - name: Install insiders theme
+        run: pip install git+https://${MATERIAL_INSIDERS_ACCESS}@github.com/squidfunk/mkdocs-material-insiders.git
+        env:
+          MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
       - uses: actions/checkout@v2
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
