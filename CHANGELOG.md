@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Update docgen to generate source files that are ignored ([PR #4239](https://github.com/ponylang/ponyc/pull/4239))
 
 ### Changed
 
