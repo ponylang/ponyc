@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  packages: read
 
 jobs:
   build-latest-gnu-docker-image:
@@ -175,11 +176,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
 
@@ -191,11 +193,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
       - name: Alert on failure
@@ -221,6 +224,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:release
+      credentials:
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -266,6 +272,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
+      credentials:
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - name: Build
