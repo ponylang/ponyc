@@ -1,7 +1,7 @@
 ARG FROM_TAG=release-alpine
 FROM ponylang/ponyc:${FROM_TAG}
 
-ARG MATERIAL_INSIDERS_ACCESS="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"
+ARG MATERIAL_INSIDERS_ACCESS=fail
 
 RUN apk update \
   && apk upgrade \
