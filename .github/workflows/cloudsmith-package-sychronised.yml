@@ -310,7 +310,7 @@ jobs:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: ponyc-macos-nightly-released
-          client-payload: '{}'
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
@@ -340,7 +340,7 @@ jobs:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: ponyc-musl-nightly-released
-          client-payload: '{}'
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
@@ -369,7 +369,7 @@ jobs:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: ponyc-windows-nightly-released
-          client-payload: '{}'
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
@@ -400,4 +400,4 @@ jobs:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: ponyc-musl-released
-          client-payload: '{}'
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
