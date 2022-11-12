@@ -22,7 +22,7 @@ jobs:
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
       credentials:
-        username: ${{ github.repository_owner }}
+        username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
