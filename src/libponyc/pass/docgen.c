@@ -1375,6 +1375,11 @@ void generate_docs(ast_t* program, pass_opt_t* options)
     const char* name = package_filename(package);
 
     fprintf(docgen.home_file, "Packages\n\n");
+    // tell the mkdocs theme not index the home file for search
+    fprintf(docgen.home_file, "---\n");
+    fprintf(docgen.home_file, "search:\n");
+    fprintf(docgen.home_file, "  exclude: true\n");
+    fprintf(docgen.home_file, "---\n");
 
     fprintf(docgen.index_file, "site_name: %s\n", name);
     fprintf(docgen.index_file, "theme:\n");
