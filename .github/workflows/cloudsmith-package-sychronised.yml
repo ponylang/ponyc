@@ -228,9 +228,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:release
-      credentials:
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -276,9 +273,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
-      credentials:
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - name: Build
