@@ -1,0 +1,25 @@
+name: Manually rebuild stdlib-builder
+
+on:
+  workflow_dispatch
+
+concurrency:
+  group: "rebuild-stdlib-builder"
+  cancel-in-progress: true
+
+jobs:
+  rebuild-stdlib-builder:
+    name: Update stdlib-builder Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker login
+        run: "docker login ghcr.io -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        env:
+          DOCKER_PASSWORD: ${{ github.actor }}
+          DOCKER_USERNAME: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build and push
+        run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
+        env:
+          MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
