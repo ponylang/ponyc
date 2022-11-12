@@ -21,7 +21,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
+      image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:release
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
