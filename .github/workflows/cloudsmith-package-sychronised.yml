@@ -331,6 +331,7 @@ jobs:
     strategy:
       matrix:
         repo:
+          - ponylang/library-documentation-action-v2
           - ponylang/shared-docker
     steps:
       - name: Send
@@ -390,6 +391,7 @@ jobs:
       matrix:
         repo:
           - ponylang/library-documentation-action
+          - ponylang/library-documentation-action-v2
           - ponylang/shared-docker
     steps:
       - name: Send
