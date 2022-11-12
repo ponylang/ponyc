@@ -7,6 +7,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  packages: read
 
 concurrency:
   group: "update-standard-library-documentation"
