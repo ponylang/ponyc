@@ -60,11 +60,19 @@ primitive ANSI
     """
     "\x1B[H\x1B[2J"
 
-  fun erase(): String =>
+  fun erase(direction: _EraseDirection = EraseRight): String =>
     """
-    Erases everything to the right of the cursor on the line the cursor is on.
+    Erases content. The direction to erase is dictated by the `direction`
+    parameter. Use `EraseLeft` to erase everything from the cursor to the
+    beginning of the line. Use `EraseLine` to erase the entire line. Use
+    `EraseRight` to erase everything from the cursor to the end of the line.
+    The default direction is `EraseRight`.
     """
-    "\x1B[0K"
+    match direction
+    | EraseRight => "\x1B[0K"
+    | EraseLeft => "\x1B[1K"
+    | EraseLine => "\x1B[2K"
+    end
 
   fun reset(): String =>
     """
@@ -287,3 +295,9 @@ primitive ANSI
     Bright grey background.
     """
     "\x1B[47m"
+
+primitive EraseLeft
+primitive EraseLine
+primitive EraseRight
+
+type _EraseDirection is (EraseLeft | EraseLine | EraseRight)
