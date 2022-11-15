@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Don't include "home file" in documentation search ([PR #4243](https://github.com/ponylang/ponyc/pull/4243))
 
 ### Changed
 
