@@ -158,8 +158,8 @@ static void send_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
-  if(!obj->immutable)
-    recurse(ctx, p, t->trace);
+  //if(!obj->immutable)
+  recurse(ctx, p, t->trace);
 }
 
 static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -187,8 +187,8 @@ static void recv_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
-  if(!obj->immutable)
-    recurse(ctx, p, t->trace);
+  //if(!obj->immutable)
+  recurse(ctx, p, t->trace);
 }
 
 static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
@@ -227,8 +227,8 @@ static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
-  if(!obj->immutable)
-    recurse(ctx, p, t->trace);
+  //if(!obj->immutable)
+  recurse(ctx, p, t->trace);
 }
 
 static void release_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -254,8 +254,8 @@ static void release_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
-  if(!obj->immutable)
-    recurse(ctx, p, t->trace);
+  //if(!obj->immutable)
+  recurse(ctx, p, t->trace);
 }
 
 static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -370,8 +370,8 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
-  if(!obj->immutable)
-    recurse(ctx, p, t->trace);
+  //if(!obj->immutable)
+  recurse(ctx, p, t->trace);
 }
 
 static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -464,8 +464,8 @@ static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   if(mutability == PONY_TRACE_IMMUTABLE)
     obj->immutable = true;
 
-  if(!obj->immutable)
-    recurse(ctx, p, t->trace);
+  //if(!obj->immutable)
+  recurse(ctx, p, t->trace);
 }
 
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,

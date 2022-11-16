@@ -70,7 +70,7 @@ PONY_API void pony_recv_done(pony_ctx_t* ctx)
 
 void ponyint_mark_done(pony_ctx_t* ctx)
 {
-  ponyint_gc_markimmutable(ctx, ponyint_actor_gc(ctx->current));
+  //ponyint_gc_markimmutable(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_handlestack(ctx);
   ponyint_gc_sendacquire(ctx);
   ponyint_gc_sweep(ctx, ponyint_actor_gc(ctx->current));
