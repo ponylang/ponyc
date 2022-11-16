@@ -82,15 +82,15 @@ typedef struct pony_actor_t
  */
 #if INTPTR_MAX == INT64_MAX
 #ifdef USE_RUNTIMESTATS
-#  define PONY_ACTOR_PAD_SIZE 384
+#  define PONY_ACTOR_PAD_SIZE 392
 #else
-#  define PONY_ACTOR_PAD_SIZE 260
+#  define PONY_ACTOR_PAD_SIZE 264
 #endif
 #elif INTPTR_MAX == INT32_MAX
 #ifdef USE_RUNTIMESTATS
-#  define PONY_ACTOR_PAD_SIZE 224
+#  define PONY_ACTOR_PAD_SIZE 232
 #else
-#  define PONY_ACTOR_PAD_SIZE 164
+#  define PONY_ACTOR_PAD_SIZE 168
 #endif
 #endif
 
