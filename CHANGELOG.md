@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Don't include "home file" in documentation search ([PR #4243](https://github.com/ponylang/ponyc/pull/4243))
+- Add support for erase left and erase line in term.ANSI ([PR #4246](https://github.com/ponylang/ponyc/pull/4246))
 
 ### Changed
 
