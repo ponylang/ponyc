@@ -97,15 +97,12 @@ static bool has_sync_flag(pony_actor_t* actor, uint8_t flag)
 
 static void set_sync_flag(pony_actor_t* actor, uint8_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->sync_flags, memory_order_acquire);
-  atomic_store_explicit(&actor->sync_flags, flags | flag, memory_order_release);
+  atomic_fetch_or_explicit(&actor->sync_flags, flag, memory_order_acq_rel);
 }
 
 static void unset_sync_flag(pony_actor_t* actor, uint8_t flag)
 {
-  uint8_t flags = atomic_load_explicit(&actor->sync_flags, memory_order_acquire);
-  atomic_store_explicit(&actor->sync_flags, flags & (uint8_t)~flag,
-    memory_order_release);
+  atomic_fetch_and_explicit(&actor->sync_flags, (uint8_t)~flag, memory_order_acq_rel);
 }
 
 // The internal flags of a given actor are only ever read or written by a

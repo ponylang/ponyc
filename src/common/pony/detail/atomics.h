@@ -242,6 +242,18 @@ namespace ponyint_atomics
         __atomic_fetch_sub(PTR, VAL, MO); \
       })
 
+#    define atomic_fetch_and_explicit(PTR, VAL, MO) \
+      ({ \
+        _Static_assert(sizeof(PTR) <= sizeof(void*), ""); \
+        __atomic_fetch_and(PTR, VAL, MO); \
+      })
+
+#    define atomic_fetch_or_explicit(PTR, VAL, MO) \
+      ({ \
+        _Static_assert(sizeof(PTR) <= sizeof(void*), ""); \
+        __atomic_fetch_or(PTR, VAL, MO); \
+      })
+
 #    define atomic_thread_fence(MO) \
       __atomic_thread_fence(MO)
 
