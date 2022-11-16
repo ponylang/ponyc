@@ -27,7 +27,7 @@
     [string]
     $Lto = "no",
 
-    [Parameter(HelpMessage="Whether or not to run tests in gdb debugger")]
+    [Parameter(HelpMessage="Whether or not to run tests in LLDB debugger")]
     [string]
     $Uselldb = "no"
 )
@@ -287,7 +287,7 @@ switch ($Command.ToLower())
         }
         if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
 
-        # libponyc.run.testsr
+        # libponyc.run.tests
         foreach ($runConfig in ('debug', 'release'))
         {
             $numTestSuitesRun += 1;
@@ -295,9 +295,15 @@ switch ($Command.ToLower())
             $runOutDir = "$outDir\runner-tests\$runConfig"
             $debugFlag = if ($runConfig -eq 'debug') { '--debug=true' } else { '--debug=false' }
 
+            $debuggercmd = ''
+            if ($Uselldb -eq "yes")
+            {
+                $debuggercmd = "$lldbcmd $lldbargs"
+            }
+
             if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
             Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-            & $buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+            & $buildDir\test\libponyc-run\runner\runner.exe --debugger="$debuggercmd" --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
             $err = $LastExitCode
             if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
         }

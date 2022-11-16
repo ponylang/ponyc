@@ -9,6 +9,7 @@ class val _Options
   let test_lib: String
   let timeout_s: U64
   let debug: Bool
+  let debugger: String
   let verbose: Bool
   let max_parallel: USize
   let only: Set[String] val
@@ -23,6 +24,7 @@ class val _Options
     test_lib = command.option(_CliOptions._str_test_lib()).string()
     timeout_s = command.option(_CliOptions._str_timeout_s()).u64()
     debug = command.option(_CliOptions._str_debug()).bool()
+    debugger = command.option(_CliOptions._str_debugger()).string()
     verbose = command.option(_CliOptions._str_verbose()).bool()
     max_parallel = USize.from[U64](
       command.option(_CliOptions._str_max_parallel()).u64())
@@ -49,6 +51,7 @@ primitive _CliOptions
   fun _str_test_lib(): String => "test_lib"
   fun _str_timeout_s(): String => "timeout_s"
   fun _str_debug(): String => "debug"
+  fun _str_debugger(): String => "debugger"
   fun _str_verbose(): String => "verbose"
   fun _str_max_parallel(): String => "max_parallel"
   fun _str_only(): String => "only"
@@ -72,6 +75,8 @@ primitive _CliOptions
             where short' = 't', default' = 60)
           OptionSpec.bool(_str_debug(), "Whether to compile in debug mode"
             where short' = 'd', default' = false)
+          OptionSpec.string(_str_debugger(), "Debugger to use when running"
+            where short' = 'g', default' = "")
           OptionSpec.bool(_str_verbose(), "Whether to print more progress info"
             where short' = 'v', default' = false)
           OptionSpec.u64(_str_max_parallel(),
