@@ -288,6 +288,7 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   // Mark the object.
   obj->mark = gc->mark;
 
+  // TODO SEAN
   if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
   {
     // If we received the object as not immutable (it's not marked as immutable
@@ -438,7 +439,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     acquire_object(ctx, actor, p, obj->immutable);
   }
 
-  if(mutability == PONY_TRACE_MUTABLE)
+  //if(mutability == PONY_TRACE_MUTABLE)
     recurse(ctx, p, t->trace);
 }
 
