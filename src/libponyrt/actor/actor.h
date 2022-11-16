@@ -56,6 +56,8 @@ typedef struct pony_actor_t
   messageq_t q;
   // sync flags are access from multiple scheduler threads concurrently
   PONY_ATOMIC(uint8_t) sync_flags;
+  // accessed from the cycle detector and the actor
+  PONY_ATOMIC(uint8_t) cycle_detector_critical;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes
@@ -80,15 +82,15 @@ typedef struct pony_actor_t
  */
 #if INTPTR_MAX == INT64_MAX
 #ifdef USE_RUNTIMESTATS
-#  define PONY_ACTOR_PAD_SIZE 392
+#  define PONY_ACTOR_PAD_SIZE 384
 #else
-#  define PONY_ACTOR_PAD_SIZE 264
+#  define PONY_ACTOR_PAD_SIZE 260
 #endif
 #elif INTPTR_MAX == INT32_MAX
 #ifdef USE_RUNTIMESTATS
-#  define PONY_ACTOR_PAD_SIZE 232
+#  define PONY_ACTOR_PAD_SIZE 224
 #else
-#  define PONY_ACTOR_PAD_SIZE 168
+#  define PONY_ACTOR_PAD_SIZE 164
 #endif
 #endif
 
@@ -149,6 +151,10 @@ size_t ponyint_actor_total_mem_size(pony_actor_t* actor);
 
 size_t ponyint_actor_total_alloc_size(pony_actor_t* actor);
 #endif
+
+bool ponyint_acquire_cycle_detector_critical(pony_actor_t* actor);
+
+void ponyint_release_cycle_detector_critical(pony_actor_t* actor);
 
 PONY_EXTERN_C_END
 

@@ -516,10 +516,14 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    // only send if actor is not pending destroy to ensure
-    // no race conditions when an actor might have an `rc == 0`
-    if(!ponyint_actor_pendingdestroy(view->actor))
-      pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
+    if (ponyint_acquire_cycle_detector_critical(view->actor))
+    {
+      // only send if actor is not pending destroy
+      if(!ponyint_actor_pendingdestroy(view->actor))
+        pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
+
+      ponyint_release_cycle_detector_critical(view->actor);
+    }
   }
 }
 
@@ -671,10 +675,13 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     // if it is not already blocked
     if(!view->blocked)
     {
-      // only send if actor is not pending destroy to ensure
-      // no race conditions when an actor might have an `rc == 0`
-      if(!ponyint_actor_pendingdestroy(view->actor))
-        pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+      if (ponyint_acquire_cycle_detector_critical(view->actor))
+      {
+        if(!ponyint_actor_pendingdestroy(view->actor))
+          pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+
+        ponyint_release_cycle_detector_critical(view->actor);
+      }
     }
 
     // Stop if we've hit the max limit for # of actors to check
