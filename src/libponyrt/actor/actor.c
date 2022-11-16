@@ -656,21 +656,17 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // - there's no references to this actor
       //
 
-      // TODO STA
-      // grab "critical section here" if not noblock
-
       if (actor_noblock)
       {
-      // check if the actors queue is empty or not
+        // When 'actor_noblock` is true, the cycle detector isn't running.
+        // this means actors won't be garbage collected unless we take special
+        // action. Therefore if `noblock` is on, we should garbage collect the
+        // actor
+
         if(ponyint_messageq_isempty(&actor->q))
         {
           // The actors queue is empty which means this actor is a zombie
           // and can be reaped.
-          //
-          // When 'actor_noblock` is true, the cycle detector isn't running.
-          // this means actors won't be garbage collected unless we take special
-          // action. Therefore if `noblock` is on, we should garbage collect the
-          // actor
 
           // mark the queue as empty or else destroy will hang
           bool empty = ponyint_messageq_markempty(&actor->q);
@@ -704,27 +700,19 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         {
           if(ponyint_messageq_isempty(&actor->q))
           {
+            pony_assert(!has_internal_flag(actor, FLAG_BLOCKED_SENT));
+
             // At this point the actors queue is empty and the cycle detector
             // will not send it any more messages because we "own" the barrier
             // for sending cycle detector messages to this actor.
             ponyint_actor_setpendingdestroy(actor);
 
-            // Based on how the cycle detector protocol works, FLAG_BLOCKED_SENT
-            // shouldn't be set at this time. We have previously contact the
-            // cycle detector and sent a blocked message then we should have
-            // unblocked before having gotten here.
-            // Dipin is 99% sure this invariant applies. Sean is less certain.
-            // It's possible this might be a source of bug. If it is, then the
-            // solution is probably to make this an if that encloses the remaining
-            // logic in this block.
-            pony_assert(!has_internal_flag(actor, FLAG_BLOCKED_SENT));
-
             // Tell cycle detector that this actor is a zombie and will not get
             // any more messages/work and can be reaped.
             // Mark the actor as FLAG_BLOCKED_SENT and send a BLOCKED message
             // to speed up reaping otherwise waiting for the cycle detector
-            // to get around to asking if we're blocked could result in unnecessary
-            // memory growth.
+            // to get around to asking if we're blocked could result in
+            // unnecessary memory growth.
             //
             // We're blocked, send block message telling the cycle detector
             // to reap this actor (because its `rc == 0`).
@@ -747,8 +735,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
             // make sure the scheduler will not reschedule this actor
             return !empty;
-          }
-          else {
+          } else {
             // "give up" critical section ownership
             ponyint_release_cycle_detector_critical(actor);
           }
