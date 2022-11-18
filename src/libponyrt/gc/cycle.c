@@ -518,7 +518,8 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
   {
     if (ponyint_acquire_cycle_detector_critical(view->actor))
     {
-      pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
+      if(!ponyint_actor_pendingdestroy(view->actor))
+        pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
 
       ponyint_release_cycle_detector_critical(view->actor);
     }
@@ -675,7 +676,8 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     {
       if (ponyint_acquire_cycle_detector_critical(view->actor))
       {
-        pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+        if(!ponyint_actor_pendingdestroy(view->actor))
+          pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
 
         ponyint_release_cycle_detector_critical(view->actor);
       }

@@ -35,6 +35,7 @@ enum
   FLAG_SYSTEM = 1 << 2,
   FLAG_UNSCHEDULED = 1 << 3,
   FLAG_CD_CONTACTED = 1 << 4,
+  FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
 };
 
 enum
@@ -562,6 +563,16 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   pony_msg_t* msg;
   size_t app = 0;
 
+
+  // check to see at the start of a run, and most importantly, the first time
+  // we run if our GC is over 0. If it is 0 the first time we run, then the
+  // actor starts as an orphan with no references to it. There is no way that
+  // the cycle detector will find out about an orphan actor unless it either
+  // contacts the cycle detector itself (which we don't do) or the orphan
+  // contacts another and needs to participate in the cycle detection protocol.
+  if (!actor_noblock && actor->gc.rc > 0)
+    set_internal_flag(actor, FLAG_RC_OVER_ZERO_SEEN);
+
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
 
@@ -577,6 +588,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 #endif
 
     bool app_msg = handle_message(ctx, actor, msg);
+
+    if (!actor_noblock && actor->gc.rc > 0)
+      set_internal_flag(actor, FLAG_RC_OVER_ZERO_SEEN);
 
 #ifdef USE_RUNTIMESTATS
     used_cpu = ponyint_sched_cpu_used(ctx);
@@ -656,13 +670,17 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // - there's no references to this actor
       //
 
-      if (actor_noblock)
+      if (actor_noblock || !has_internal_flag(actor, FLAG_RC_OVER_ZERO_SEEN))
       {
         // When 'actor_noblock` is true, the cycle detector isn't running.
         // this means actors won't be garbage collected unless we take special
         // action. Therefore if `noblock` is on, we should garbage collect the
         // actor
-
+        //
+        // When the cycle detector is running, it is still safe to locally
+        // delete if our RC has never been above 0 because the cycle detector
+        // can't possibly know about the actor's existence so, if it's message
+        // queue is empty, doing a local delete is safe.
         if(ponyint_messageq_isempty(&actor->q))
         {
           // The actors queue is empty which means this actor is a zombie
@@ -700,8 +718,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         {
           if(ponyint_messageq_isempty(&actor->q))
           {
-            pony_assert(!has_internal_flag(actor, FLAG_BLOCKED_SENT));
-
             // At this point the actors queue is empty and the cycle detector
             // will not send it any more messages because we "own" the barrier
             // for sending cycle detector messages to this actor.
