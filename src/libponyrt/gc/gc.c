@@ -439,7 +439,8 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     acquire_object(ctx, actor, p, obj->immutable);
   }
 
-  //if(mutability == PONY_TRACE_MUTABLE)
+  // TODO SEAN
+  if(mutability == PONY_TRACE_MUTABLE)
     recurse(ctx, p, t->trace);
 }
 
