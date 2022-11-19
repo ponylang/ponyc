@@ -932,10 +932,11 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
       default:
         iocp_destroy(iocp);
         pony_error();
+        return 0;
     }
   }
 
-  return 0;
+  return wsacnt;
 }
 #else
 PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)
@@ -976,10 +977,11 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
       default:
         iocp_destroy(iocp);
         pony_error();
+        return 0;
     }
   }
 
-  return 0;
+  return sent;
 #else
   ssize_t sent = send(ev->fd, buf, len, 0);
 
