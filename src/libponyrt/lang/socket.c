@@ -383,7 +383,7 @@ static size_t iocp_send(asio_event_t* ev, const char* data, size_t len)
 
   if(WSASend(s, &buf, 1, &sent, 0, &iocp->ov, NULL) != 0)
   {
-    switch GetLastError()
+    switch (GetLastError())
     {
       case WSA_IO_PENDING:
         return len;
@@ -948,7 +948,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
 
   if(WSASend(s, wsa, wsacnt, &sent, 0, &iocp->ov, NULL) != 0)
   {
-    switch GetLastError()
+    switch (GetLastError())
     {
       case WSA_IO_PENDING:
         return wsacnt;
