@@ -392,6 +392,7 @@ static size_t iocp_send(asio_event_t* ev, const char* data, size_t len)
       default:
         iocp_destroy(iocp);
         pony_error();
+        return 0;
     }
   }
 }
@@ -957,6 +958,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
       default:
         iocp_destroy(iocp);
         pony_error();
+        return 0;
     }
   }
 }
