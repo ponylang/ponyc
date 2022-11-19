@@ -371,7 +371,7 @@ static bool iocp_accept(asio_event_t* ev)
   return true;
 }
 
-static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
+static size_t iocp_send(asio_event_t* ev, const char* data, size_t len)
 {
   SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
@@ -383,14 +383,17 @@ static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
 
   if(WSASend(s, &buf, 1, &sent, 0, &iocp->ov, NULL) != 0)
   {
-    if(GetLastError() != WSA_IO_PENDING)
+    switch GetLastError()
     {
-      iocp_destroy(iocp);
-      return false;
+      case WSA_IO_PENDING:
+        return len;
+      case WSAEWOULDBLOCK :
+        return 0;
+      default:
+        iocp_destroy(iocp);
+        pony_error();
     }
   }
-
-  return true;
 }
 
 static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
@@ -945,14 +948,17 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
 
   if(WSASend(s, wsa, wsacnt, &sent, 0, &iocp->ov, NULL) != 0)
   {
-    if(GetLastError() != WSA_IO_PENDING)
+    switch GetLastError()
     {
-      iocp_destroy(iocp);
-      pony_error();
+      case WSA_IO_PENDING:
+        return wsacnt;
+      case WSAEWOULDBLOCK :
+        return 0;
+      default:
+        iocp_destroy(iocp);
+        pony_error();
     }
   }
-
-  return 0;
 }
 #else
 PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)

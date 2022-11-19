@@ -472,18 +472,16 @@ actor TCPConnection is AsioEventNotify
           end
 
           // Write as much data as possible.
-          var len =
+          // Returns how many we sent or 0 if we are experiencing backpressure
+          let len =
             @pony_os_writev(_event,
               _pending_writev_windows.cpointer(_pending_sent),
-              num_to_send) ?
+              num_to_send)?
 
-          _pending_sent = _pending_sent + num_to_send.usize()
-
-          if _pending_sent > 32 then
-            // If more than 32 asynchronous writes are scheduled, apply
-            // backpressure. The choice of 32 is rather arbitrary an
-            // probably needs tuning
+          if len == 0 then
             _apply_backpressure()
+          else
+            _pending_sent = _pending_sent + len
           end
         end
       else
@@ -699,16 +697,15 @@ actor TCPConnection is AsioEventNotify
           _pending_writev_windows .> push((data.size(), data.cpointer()))
           _pending_writev_total = _pending_writev_total + data.size()
 
-          @pony_os_writev(_event,
-            _pending_writev_windows.cpointer(_pending_sent), I32(1)) ?
+          // Write as much data as possible
+          // Returns how many we sent or 0 if we are experiencing backpressure
+          let len = @pony_os_writev(_event,
+            _pending_writev_windows.cpointer(_pending_sent), I32(1))?
 
-          _pending_sent = _pending_sent + 1
-
-          if _pending_sent > 32 then
-            // If more than 32 asynchronous writes are scheduled, apply
-            // backpressure. The choice of 32 is rather arbitrary an
-            // probably needs tuning
+          if len == 0 then
             _apply_backpressure()
+          else
+            _pending_sent = _pending_sent + len
           end
         end
       else
