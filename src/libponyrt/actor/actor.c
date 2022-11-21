@@ -570,6 +570,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   // the cycle detector will find out about an orphan actor unless it either
   // contacts the cycle detector itself (which we don't do) or the orphan
   // contacts another and needs to participate in the cycle detection protocol.
+  // if an actors rc never goes above 0, it will be able to safely delete itself
+  // even in the presence of the cycle detector.
   if (!actor_noblock && actor->gc.rc > 0)
     set_internal_flag(actor, FLAG_RC_OVER_ZERO_SEEN);
 
@@ -589,6 +591,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
     bool app_msg = handle_message(ctx, actor, msg);
 
+    // if an actors rc never goes above 0, it will be able to safely delete
+    // itself even in the presence of the cycle detector. This is one of two
+    // checks to see if that invariant is in place for a given actor.
     if (!actor_noblock && actor->gc.rc > 0)
       set_internal_flag(actor, FLAG_RC_OVER_ZERO_SEEN);
 
@@ -712,8 +717,6 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // Similarly, if the actor can't obtain the atomic here, then we do not
         // attempt any "I can be destroyed" operations as the cycle detector is
         // in the process of sending us a message.
-        //
-
         if (ponyint_acquire_cycle_detector_critical(actor))
         {
           if(ponyint_messageq_isempty(&actor->q))
