@@ -425,6 +425,7 @@ static pony_type_t program_pony =
   sizeof(program_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   program_serialise_trace,

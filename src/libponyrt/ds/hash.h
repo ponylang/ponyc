@@ -251,6 +251,7 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
     sizeof(name_t), \
     0, \
     0, \
+    0, \
     NULL, \
     NULL, \
     name##_serialise_trace, \

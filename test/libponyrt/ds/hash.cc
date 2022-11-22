@@ -72,6 +72,7 @@ static pony_type_t hash_elem_pony =
   sizeof(hash_elem_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   hash_elem_serialise_trace,
