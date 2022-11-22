@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Improve TCP backpressure handling on Windows ([PR #4252](https://github.com/ponylang/ponyc/pull/4252))
 
 ## [0.52.1] - 2022-11-14
 
