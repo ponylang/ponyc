@@ -322,7 +322,6 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc--;
   }
 
-  // TODO STA
   if(mutability == PONY_TRACE_MUTABLE || might_reference_actor(t))
     recurse(ctx, p, t->trace);
 }
@@ -362,7 +361,7 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
     // Increase apparent used memory further if the object is immutable, to
     // account for memory that is reachable but not traced by this actor.
-    if(mutability == PONY_TRACE_IMMUTABLE || might_reference_actor(t))
+    if(mutability == PONY_TRACE_IMMUTABLE && !might_reference_actor(t))
       ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
   }
 
@@ -410,7 +409,7 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 
   // Increase apparent used memory further if the object is immutable, to
   // account for memory that is reachable but not traced by this actor.
-  if(mutability == PONY_TRACE_IMMUTABLE || might_reference_actor(t))
+  if(mutability == PONY_TRACE_IMMUTABLE && !might_reference_actor(t))
     ponyint_heap_used(ponyint_actor_heap(ctx->current), GC_IMMUT_HEAP_EQUIV);
 
   // Implicitly mark the owner.
