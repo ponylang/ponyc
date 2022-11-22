@@ -140,7 +140,7 @@ static int check_call_send(ast_t* ast, bool in_final)
     // Mark the call as can send.
     ast_setsend(ast);
   } else if((r & FINAL_MAY_SEND) != 0) {
-    // Mark the call as can send.
+    // Mark the call as might send.
     ast_setmightsend(ast);
   }
 
