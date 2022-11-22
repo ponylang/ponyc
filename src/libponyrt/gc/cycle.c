@@ -23,7 +23,7 @@
 // Pony program needs the cycle detector. If an application contains no cycles
 // amongst it's actors or is able via it's down shutdown mechanism to break
 // those cycles then the cycle detector isn't need and is extra overhead. Such
-// programs such use the "ponynoblock" runtime option to turn off the cycle
+// programs use the "ponynoblock" runtime option to turn off the cycle
 // detector.
 //
 // Some applications do need a cycle detector in order to garbage collect
