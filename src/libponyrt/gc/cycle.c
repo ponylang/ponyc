@@ -21,7 +21,7 @@
 //
 // The cycle detector exists to reap actors and cycles of actors. Not every
 // Pony program needs the cycle detector. If an application contains no cycles
-// amongst it's actors or is able via it's down shutdown mechanism to break
+// amongst it's actors or is able via its shutdown mechanism to break
 // those cycles then the cycle detector isn't need and is extra overhead. Such
 // programs use the "ponynoblock" runtime option to turn off the cycle
 // detector.
