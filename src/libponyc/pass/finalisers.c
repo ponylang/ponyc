@@ -9,8 +9,9 @@
 enum
 {
   FINAL_NO_SEND = 0,
-  FINAL_CAN_SEND = (1 << 0),
-  FINAL_RECURSE = (1 << 1)
+  FINAL_MAY_SEND = (1 << 0),
+  FINAL_CAN_SEND = (1 << 1),
+  FINAL_RECURSE = (1 << 2)
 };
 
 static int check_body_send(ast_t* ast, bool in_final);
@@ -115,7 +116,7 @@ static int check_call_send(ast_t* ast, bool in_final)
   // If we don't know the final type, we can't be certain of what all
   // implementations of the method do. Leave it as might send.
   if(!is_known(type))
-    return FINAL_CAN_SEND;
+    return FINAL_MAY_SEND;
 
   ast_t* def = receiver_def(type);
   pony_assert(def != NULL);
@@ -138,6 +139,9 @@ static int check_call_send(ast_t* ast, bool in_final)
   } else if((r & FINAL_CAN_SEND) != 0) {
     // Mark the call as can send.
     ast_setsend(ast);
+  } else if((r & FINAL_MAY_SEND) != 0) {
+    // Mark the call as might send.
+    ast_setmightsend(ast);
   }
 
   return r;
@@ -204,7 +208,7 @@ static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
   int r = check_body_send(body, true);
 
-  if((r & FINAL_CAN_SEND) != 0)
+  if((r & FINAL_CAN_SEND) != 0 || (r & FINAL_MAY_SEND) != 0)
   {
     ast_error(opt->check.errors, ast,
       "_final cannot create actors or send messages");
