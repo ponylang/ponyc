@@ -206,7 +206,13 @@ actor _Tester
           try
             let debugger_split =
               recover val
-                _options.debugger.split(" ")
+                var debugger = _options.debugger
+                if (debugger(0)? == '\'') and
+                  (debugger(debugger.size() - 1)? == '\'')
+                then
+                  debugger = debugger.trim(1, debugger.size() - 1)
+                end
+                debugger.split(" ")
               end
             let debugger_fname = debugger_split(0)?
 
@@ -222,7 +228,7 @@ actor _Tester
                     and (cur_arg(cur_arg.size() - 1)? == '"')
                   then
                     let quoted: String val = cur_arg.clone()
-                    debugger_args.push(quoted.trim(1, quoted.size() - 1))
+                    debugger_args.push(quoted)
                   else
                     debugger_args.push(cur_arg.clone())
                   end

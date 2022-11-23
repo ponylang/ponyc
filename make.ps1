@@ -29,7 +29,11 @@
 
     [Parameter(HelpMessage="Whether or not to run tests in LLDB debugger")]
     [string]
-    $Uselldb = "no"
+    $Uselldb = "no",
+
+    [Parameter(HelpMessage="Tests to run")]
+    [string]
+    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
 )
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
@@ -242,156 +246,178 @@ switch ($Command.ToLower())
         }
 
         # libponyrt.tests
-        $numTestSuitesRun += 1;
-        try
-        {
-            if ($Uselldb -eq "yes")
-            {
-                Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
-                & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
-                $err = $LastExitCode
-            }
-            else
-            {
-                Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
-                & $outDir\libponyrt.tests.exe --gtest_shuffle
-                $err = $LastExitCode
-            }
-        }
-        catch
-        {
-            $err = -1
-        }
-        if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
-
-        # libponyc.tests
-        $numTestSuitesRun += 1;
-        try
-        {
-            if ($Uselldb -eq "yes")
-            {
-                Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
-                & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
-                $err = $LastExitCode
-            }
-            else
-            {
-                Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
-                & $outDir\libponyc.tests.exe --gtest_shuffle
-                $err = $LastExitCode
-            }
-        }
-        catch
-        {
-            $err = -1
-        }
-        if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
-
-        # libponyc.run.tests
-        foreach ($runConfig in ('debug', 'release'))
+        if ($TestsToRun -match 'libponyrt.tests')
         {
             $numTestSuitesRun += 1;
-
-            $runOutDir = "$outDir\runner-tests\$runConfig"
-            $debugFlag = if ($runConfig -eq 'debug') { '--debug=true' } else { '--debug=false' }
-
-            $debuggercmd = ''
-            if ($Uselldb -eq "yes")
+            try
             {
-                $debuggercmd = "$lldbcmd $lldbargs"
+                if ($Uselldb -eq "yes")
+                {
+                    Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
+                    & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+                else
+                {
+                    Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
+                    & $outDir\libponyrt.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
             }
+            catch
+            {
+                $err = -1
+            }
+            if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
+        }
 
-            if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-            Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-            & $buildDir\test\libponyc-run\runner\runner.exe --debugger="$debuggercmd" --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
-            $err = $LastExitCode
-            if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
+        # libponyc.tests
+        if ($TestsToRun -match 'libponyc.tests')
+        {
+            $numTestSuitesRun += 1;
+            try
+            {
+                if ($Uselldb -eq "yes")
+                {
+                    Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
+                    & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+                else
+                {
+                    Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
+                    & $outDir\libponyc.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+            }
+            catch
+            {
+                $err = -1
+            }
+            if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
+        }
+
+        # libponyc.run.tests
+        if ($TestsToRun -match 'libponyc.run.tests')
+        {
+            foreach ($runConfig in ('debug', 'release'))
+            {
+                if (-not ($TestsToRun -match "libponyc.run.tests.$runConfig"))
+                {
+                    continue
+                }
+                $numTestSuitesRun += 1;
+
+                $runOutDir = "$outDir\runner-tests\$runConfig"
+                $debugFlag = if ($runConfig -eq 'debug') { 'true' } else { 'false' }
+
+                $debuggercmd = ''
+                if ($Uselldb -eq "yes")
+                {
+                    $debuggercmd = "'$lldbcmd $lldbargs'"
+                }
+
+                if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
+                Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
+                & $buildDir\test\libponyc-run\runner\runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+                $err = $LastExitCode
+                if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
+            }
         }
 
         # stdlib-debug
-        $numTestSuitesRun += 1;
-        Write-Output "$outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib"
-        & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
-        if ($LastExitCode -eq 0)
+        if ($TestsToRun -match 'stdlib-debug')
         {
-            try
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib"
+            & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
+            if ($LastExitCode -eq 0)
             {
-                if ($Uselldb -eq "yes")
+                try
                 {
-                    Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
-                    & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
-                    $err = $LastExitCode
+                    if ($Uselldb -eq "yes")
+                    {
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
+                        & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
+                    else
+                    {
+                        Write-Output "$outDir\stdlib-debug.exe"
+                        & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
                 }
-                else
+                catch
                 {
-                    Write-Output "$outDir\stdlib-debug.exe"
-                    & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
-                    $err = $LastExitCode
+                    $err = -1
                 }
+                if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
             }
-            catch
+            else
             {
-                $err = -1
+                $failedTestSuites += 'compile stdlib-debug'
             }
-            if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
-        }
-        else
-        {
-            $failedTestSuites += 'compile stdlib-debug'
         }
 
         # stdlib-release
-        $numTestSuitesRun += 1;
-        Write-Output "$outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib"
-        & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
-        if ($LastExitCode -eq 0)
+        if ($TestsToRun -match 'stdlib-release')
         {
-            try
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib"
+            & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
+            if ($LastExitCode -eq 0)
             {
-                if ($Uselldb -eq "yes")
+                try
                 {
-                    Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/Broadcast`""
-                    & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
-                    $err = $LastExitCode
+                    if ($Uselldb -eq "yes")
+                    {
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/Broadcast`""
+                        & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
+                    else
+                    {
+                        Write-Output "$outDir\stdlib-release.exe"
+                        & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
                 }
-                else
+                catch
                 {
-                    Write-Output "$outDir\stdlib-release.exe"
-                    & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
-                    $err = $LastExitCode
+                    $err = -1
                 }
+                if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
             }
-            catch
+            else
             {
-                $err = -1
+                $failedTestSuites += 'compile stdlib-release'
             }
-            if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
-        }
-        else
-        {
-            $failedTestSuites += 'compile stdlib-release'
         }
 
         # grammar
-        $numTestSuitesRun += 1
-        Get-Content -Path "$srcDir\pony.g" -Encoding ASCII | Out-File -Encoding UTF8 "$outDir\pony.g.orig"
-        & $outDir\ponyc.exe --antlr | Out-File -Encoding UTF8 "$outDir\pony.g.test"
-        if ($LastExitCode -eq 0)
+        if ($TestsToRun -match 'grammar')
         {
-            $origHash = (Get-FileHash -Path "$outDir\pony.g.orig").Hash
-            $testHash = (Get-FileHash -Path "$outDir\pony.g.test").Hash
-
-            Write-Output "grammar original hash:  $origHash"
-            Write-Output "grammar generated hash: $testHash"
-
-            if ($origHash -ne $testHash)
+            $numTestSuitesRun += 1
+            Get-Content -Path "$srcDir\pony.g" -Encoding ASCII | Out-File -Encoding UTF8 "$outDir\pony.g.orig"
+            & $outDir\ponyc.exe --antlr | Out-File -Encoding UTF8 "$outDir\pony.g.test"
+            if ($LastExitCode -eq 0)
             {
-                $failedTestSuites += 'generated grammar file differs from baseline'
+                $origHash = (Get-FileHash -Path "$outDir\pony.g.orig").Hash
+                $testHash = (Get-FileHash -Path "$outDir\pony.g.test").Hash
+
+                Write-Output "grammar original hash:  $origHash"
+                Write-Output "grammar generated hash: $testHash"
+
+                if ($origHash -ne $testHash)
+                {
+                    $failedTestSuites += 'generated grammar file differs from baseline'
+                }
             }
-        }
-        else
-        {
-            $failedTestSuites += 'generate grammar'
+            else
+            {
+                $failedTestSuites += 'generate grammar'
+            }
         }
 
         #
