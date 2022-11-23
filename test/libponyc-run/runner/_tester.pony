@@ -228,7 +228,11 @@ actor _Tester
                     and (cur_arg(cur_arg.size() - 1)? == '"')
                   then
                     let quoted: String val = cur_arg.clone()
-                    debugger_args.push(quoted)
+                    ifdef windows then
+                      debugger_args.push(quoted)
+                    else
+                      debugger_args.push(quoted.trim(1, quoted.size() - 1))
+                    end
                   else
                     debugger_args.push(cur_arg.clone())
                   end
