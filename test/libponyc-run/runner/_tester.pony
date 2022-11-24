@@ -206,14 +206,8 @@ actor _Tester
           try
             let debugger_split =
               recover val
-                var debugger = _options.debugger
-                if ((debugger(0)? == '\'') and
-                  (debugger(debugger.size() - 1)? == '\'')) or
-                  ((debugger(0)? == '"') and
-                  (debugger(debugger.size() - 1)? == '"'))
-                then
-                  debugger = debugger.trim(1, debugger.size() - 1)
-                end
+                var debugger: String iso = _options.debugger.clone()
+                debugger.replace("%20", " ")
                 debugger.split(" ")
               end
             let debugger_fname = debugger_split(0)?
