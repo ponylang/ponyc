@@ -314,7 +314,9 @@ switch ($Command.ToLower())
                 $debuggercmd = ''
                 if ($Uselldb -eq "yes")
                 {
-                    $debuggercmd = "$lldbcmd $lldbargs" -replace ' ', '%20'
+                    $debuggercmd = "$lldbcmd $lldbargs"
+                    $debuggercmd = $debuggercmd -replace ' ', '%20'
+                    $debuggercmd = $debuggercmd -replace '"', '%22'
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }

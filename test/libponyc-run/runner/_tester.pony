@@ -208,6 +208,7 @@ actor _Tester
               recover val
                 var debugger: String iso = _options.debugger.clone()
                 debugger.replace("%20", " ")
+                debugger.replace("%22", "\"")
                 debugger.split(" ")
               end
             let debugger_fname = debugger_split(0)?
