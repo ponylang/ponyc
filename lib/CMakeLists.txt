@@ -30,7 +30,7 @@ endif()
 
 # Libraries
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.7.0.tar.gz)
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.7.1.tar.gz)
 
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
