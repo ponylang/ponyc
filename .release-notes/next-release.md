@@ -53,3 +53,9 @@ Over time, we have made a number of changes to the cycle detector to improve it'
 
 We've identified and fixed what we believe are all the existing race conditions in the current design.
 
+## Update supported FreeBSD to 13.1
+
+Prebuilt FreeBSD ponyc binaries are now built for FreeBSD 13.1. All CI is also done using FreeBSD 13.1. We will make a "best effort" attempt to not break FreeBSD 13.0, but the only supported version of FreeBSD going forward is 13.1.
+
+Previously built ponyc versions targeting FreeBSD 13.0 will continue to be available.
+
