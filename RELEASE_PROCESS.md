@@ -46,7 +46,7 @@ Package names will be:
 
 * ponyc-arm64-apple-darwin.tar.gz
 * ponyc-x86-64-apple-darwin.tar.gz
-* ponyc-x86-64-unknown-freebsd-13.0.tar.gz
+* ponyc-x86-64-unknown-freebsd-13.1.tar.gz
 * ponyc-x86-64-pc-windows-msvc.zip
 * ponyc-x86-64-unknown-linux-gnu.tar.gz
 * ponyc-x86-64-unknown-linux-musl.tar.gz
