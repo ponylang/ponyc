@@ -173,7 +173,7 @@ endif
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
-	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)/llvm' -S '$(libsSrcDir)/llvm' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" $(CMAKE_FLAGS)
+	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)/llvm' -S '$(libsSrcDir)/llvm' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" -DLLVM_ENABLE_PROJECTS="clang" $(CMAKE_FLAGS)
 	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(libsBuildDir)/llvm' --target install --config $(llvm_config) -- $(build_flags)
 	$(SILENT)cd '$(libsBuildDir)' && env CC="$(libsOutDir)/bin/clang" CXX="$(libsOutDir)/bin/clang++" cmake -B '$(libsBuildDir)/other' -S '$(libsSrcDir)' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" $(CMAKE_FLAGS)
 	$(SILENT)cd '$(libsBuildDir)' && env CC="$(libsOutDir)/bin/clang" CXX="$(libsOutDir)/bin/clang++" cmake --build '$(libsBuildDir)/other' --target install --config $(llvm_config) -- $(build_flags)
