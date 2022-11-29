@@ -19,8 +19,8 @@ RUN apt-get update \
  && pip3 install cloudsmith-cli
 
 # install a newer cmake
-RUN curl --output cmake-3.15.3-Linux-x86_64.sh https://cmake.org/files/v3.15/cmake-3.15.3-Linux-x86_64.sh \
- && sh cmake-3.15.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
+RUN curl --output cmake-3.16.9-Linux-x86_64.sh https://cmake.org/files/v3.16/cmake-3.16.9-Linux-x86_64.sh \
+ && sh cmake-3.16.9-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
 # click is failing for uploads without this.
 ENV LC_ALL C.UTF-8
