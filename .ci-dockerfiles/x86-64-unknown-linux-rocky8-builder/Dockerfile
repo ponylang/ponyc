@@ -18,8 +18,8 @@ RUN yum install -y \
   && pip3 install cloudsmith-cli
 
 # install a newer cmake
-RUN curl --output cmake-3.15.3-Linux-x86_64.sh https://cmake.org/files/v3.15/cmake-3.15.3-Linux-x86_64.sh \
- && sh cmake-3.15.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
+RUN curl --output cmake-3.16.9-Linux-x86_64.sh https://cmake.org/files/v3.16/cmake-3.16.9-Linux-x86_64.sh \
+ && sh cmake-3.16.9-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
 # this broken, incorrect libstdc++.a breaks building libponyc-standalone.a
 # so, let's delete it!
