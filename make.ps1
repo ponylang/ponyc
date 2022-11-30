@@ -293,7 +293,7 @@ switch ($Command.ToLower())
             $numTestSuitesRun += 1;
 
             $runOutDir = "$outDir\runner-tests\$runConfig"
-            $debugFlag = if ($runConfig -eq 'debug') { '--debug' } else { '' }
+            $debugFlag = if ($runConfig -eq 'debug') { '--debug=true' } else { '--debug=false' }
 
             if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
             Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"

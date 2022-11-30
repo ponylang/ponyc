@@ -906,3 +906,17 @@ TEST_F(RecoverTest, CantAutoRecover_CtorParamToComplexTypeWithNonSendableArg)
 
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
+
+TEST_F(RecoverTest, RecoverThisCreate)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    A.create().f()\n"
+
+    "class A\n"
+    "  fun f() =>\n"
+    "  let a = create() // issue #4259 compiler crash\n";
+
+  TEST_COMPILE(src);
+}
