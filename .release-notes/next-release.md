@@ -65,3 +65,7 @@ In July of 2021, we added prebuilt binaries for Rocky 8. We did this at the requ
 
 The current issue involves libatomic not being found during linking. If you would like to assist, hop into the [CI stream](https://ponylang.zulipchat.com/#narrow/stream/190359-ci) on the ponylang Zulip.
 
+## Fix compiler crash when calling (this.)create()
+
+Fixed a crash when calling `.create()` (with an implicit `this`).
+
