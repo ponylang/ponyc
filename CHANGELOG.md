@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix multiple races within actor/cycle detector interactions ([PR #4251](https://github.com/ponylang/ponyc/pull/4251))
+- Fix crash when calling `(this.)create()` ([PR #4263](https://github.com/ponylang/ponyc/pull/4263))
 
 ### Added
 
