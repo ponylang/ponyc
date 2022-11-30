@@ -123,9 +123,6 @@ set(LLVM_ENABLE_LIBXML2 OFF CACHE BOOL "ponyc specific override of LLVM cache en
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.14 -DUSE_SCHEDULER_SCALING_PTHREADS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
-elseif(NOT MSVC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE")
 endif()
 
 add_subdirectory(src/llvm)
