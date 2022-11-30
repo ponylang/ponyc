@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Improve TCP backpressure handling on Windows ([PR #4252](https://github.com/ponylang/ponyc/pull/4252))
 - Update supported FreeBSD to 13.1 ([PR #4185](https://github.com/ponylang/ponyc/pull/4185))
+- Drop Rocky 8 support ([PR #4262](https://github.com/ponylang/ponyc/pull/4262))
 
 ## [0.52.1] - 2022-11-14
 
