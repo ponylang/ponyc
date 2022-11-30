@@ -4,4 +4,4 @@ actor Main
 
 class A
   fun f() =>
-  let a = create() // issue #4259 compiler crash
+    let a = create() // issue #4259 compiler crash
