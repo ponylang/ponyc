@@ -218,11 +218,6 @@ bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast)
   if (child != NULL && ast_id(child) == TK_NEWREF)
     newref = child;
 
-  ast_t* receiver_type = method_receiver_type(newref);
-  token_id rcap = ast_id(cap_fetch(receiver_type));
-  if (!(rcap == TK_REF || rcap == TK_BOX))
-    return false;
-
   ast_t* arg = ast_child(positional);
   while (arg != NULL)
   {
