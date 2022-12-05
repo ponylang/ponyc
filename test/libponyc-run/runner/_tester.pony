@@ -269,10 +269,10 @@ actor _Tester
             extra_env + "\""
           try
             if debugger_args(debugger_args.size() - 1)? == "--" then
-              debugger_args(debugger_args.size() - 1)? = extra_env
+              debugger_args(debugger_args.size() - 1)? = env_arg
               debugger_args.push("--")
             else
-              debugger_args.push(extra_env)
+              debugger_args.push(env_arg)
             end
           end
         end
