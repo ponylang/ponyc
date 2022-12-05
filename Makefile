@@ -82,13 +82,13 @@ libsSrcDir := $(srcDir)/lib
 libsBuildDir := $(srcDir)/build/build_libs
 libsOutDir := $(srcDir)/build/libs
 
-ifndef verbose
-  SILENT = @
-  CMAKE_VERBOSE_FLAGS :=
-else
-  SILENT =
-  CMAKE_VERBOSE_FLAGS := -DCMAKE_VERBOSE_MAKEFILE=ON
-endif
+# ifndef verbose
+#   SILENT = @
+#   CMAKE_VERBOSE_FLAGS :=
+# else
+SILENT =
+CMAKE_VERBOSE_FLAGS := -DCMAKE_VERBOSE_MAKEFILE=ON
+# endif
 
 CMAKE_FLAGS := $(CMAKE_FLAGS) $(CMAKE_VERBOSE_FLAGS)
 
