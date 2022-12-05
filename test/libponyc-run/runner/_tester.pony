@@ -265,16 +265,14 @@ actor _Tester
 
       ifdef osx then
         if extra_env.size() > 0 then
-          let env_arg: String val =
-            recover
-              "--one-line \"process launch --environment " + extra_env + "\""
-            end
           try
             if debugger_args(debugger_args.size() - 1)? == "--" then
-              debugger_args(debugger_args.size() - 1)? = env_arg
+              debugger_args(debugger_args.size() - 1)? = "--one-line"
+              debugger_args.push("process launch --environment " + extra_env)
               debugger_args.push("--")
             else
-              debugger_args.push(env_arg)
+              debugger_args.push("--one-line")
+              debugger_args.push("process launch --environment " + extra_env)
             end
           end
         end
