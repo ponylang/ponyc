@@ -274,6 +274,7 @@ actor _Tester
             else
               debugger_args.push(extra_env)
             end
+          end
         end
       end
 
