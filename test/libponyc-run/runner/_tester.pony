@@ -134,6 +134,8 @@ actor _Tester
       _err_buf.clear()
 
       // set up environment variables
+      var dyld_library_path = ""
+
       let vars: Array[String val] val =
         recover val
           ifdef osx then
@@ -144,14 +146,16 @@ actor _Tester
               if v.contains("DYLD_LIBRARY_PATH") then
                 found_dyld_library_path = true
                 if not v.contains(_options.test_lib) then
-                  vars'.push(v + ":" + _options.test_lib)
+                  dyld_library_path = v + ":" + _options.test_lib
+                  vars'.push(dyld_library_path)
                   pushed = true
                 end
               end
               if not pushed then vars'.push(v) end
             end
             if not found_dyld_library_path then
-              vars'.push("DYLD_LIBRARY_PATH=" + _options.test_lib)
+              dyld_library_path = "DYLD_LIBRARY_PATH=" + _options.test_lib
+              vars'.push(dyld_library_path)
             end
             vars'
           else
@@ -173,7 +177,7 @@ actor _Tester
       // set up args
       try
         (let executable_file_path: FilePath, let args: Array[String] val) =
-          _get_debugger_and_args(test_fname)?
+          _get_debugger_and_args(test_fname, dyld_library_path)?
 
         if _options.verbose then
           let arg_join = String
@@ -193,10 +197,13 @@ actor _Tester
           executable_file_path, args, vars,
           FilePath(FileAuth(_env.root), _definition.path))
           .>done_writing()
+      else
+        _notify.print(_definition.name,
+          _Colors.err(_definition.name + ": unable to find debugger"))
       end
     end
 
-  fun ref _get_debugger_and_args(test_fname: String)
+  fun ref _get_debugger_and_args(test_fname: String, extra_env: String)
     : (FilePath, Array[String] val) ?
   =>
     recover
@@ -255,6 +262,12 @@ actor _Tester
             error
           end
         end
+
+      ifdef osx then
+        if extra_env.size() > 0 then
+          debugger_args.push("process launch --environment " + extra_env)
+        end
+      end
 
       match debugger_file_path
       | let dfp: FilePath =>
