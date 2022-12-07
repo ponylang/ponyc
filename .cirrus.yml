@@ -125,36 +125,6 @@ task:
 
   timeout_in: 120m
 
-  osx_instance:
-    image: monterey-xcode-13.2
-
-  name: "x86-64 Apple Darwin"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` macos monterey-xcode-13.2 20210710"
-    populate_script: make libs build_flags=-j12
-  upload_caches:
-    - libs
-
-  debug_configure_script:
-    - make configure arch=x86-64 config=debug
-  debug_build_script:
-    - make build config=debug
-  debug_test_script:
-    - make test-ci config=debug usedebugger=lldb
-  release_configure_script:
-    - make configure arch=x86-64 config=release
-  release_build_script:
-    - make build config=release
-  release_test_script:
-    - make test-ci config=release usedebugger=lldb
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  timeout_in: 120m
-
   macos_instance:
     image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
 
@@ -408,36 +378,6 @@ task:
 
   timeout_in: 120m
 
-  osx_instance:
-    image: monterey-xcode-13.2
-
-  name: "nightly: x86-64-apple-darwin"
-
-  environment:
-    TRIPLE_VENDOR: apple
-    TRIPLE_OS: darwin
-    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` macos monterey-xcode-13.2 20210710"
-    populate_script: make libs build_flags=-j12
-  upload_caches:
-    - libs
-
-  install_script:
-    - brew install python
-    - pip3 install --upgrade cloudsmith-cli
-
-  nightly_script:
-    - export TZ=utc
-    - bash .ci-scripts/x86-64-nightly.bash
-
-task:
-  only_if: $CIRRUS_CRON == "nightly"
-
-  timeout_in: 120m
-
   macos_instance:
     image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
 
@@ -595,37 +535,6 @@ task:
 
   release_script:
     - bash .ci-scripts/x86-64-unknown-freebsd-13.1-release.bash
-
-task:
-  only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
-  use_compute_credits: true
-
-  timeout_in: 120m
-
-  osx_instance:
-    image: monterey-xcode-13.2
-
-  name: "release: x86-64-apple-darwin"
-
-  environment:
-    TRIPLE_VENDOR: apple
-    TRIPLE_OS: darwin
-    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` macos monterey-xcode-13.2 20210710"
-    populate_script: make libs build_flags=-j12
-  upload_caches:
-    - libs
-
-  install_script:
-    - brew install python
-    - pip3 install --upgrade cloudsmith-cli
-
-  release_script:
-    - export TZ=utc
-    - bash .ci-scripts/x86-64-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
