@@ -23,6 +23,9 @@ actor Main
       t.do_it()
     end
 
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+     rto.ponynoblock = true
+
 actor Test
   be do_it() =>
     _BoomActor.dispatch(Payload)
