@@ -19,7 +19,7 @@ actor Main
   new create(env: Env) =>
     let t = Test
 
-    for i in Range(0, 1_000_000) do
+    for i in Range(0, 500_000) do
       t.do_it()
     end
 
