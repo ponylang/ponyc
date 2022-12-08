@@ -695,7 +695,7 @@ task:
   upload_script:
     - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
 
-# Nightly stress tests using message-ubench
+# Nightly stress tests using string-message-passewr
 task:
   only_if: $CIRRUS_CRON == "stress"
 
