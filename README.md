@@ -12,7 +12,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 * FreeBSD
 * Linux
-* macOS
+* macOS (Apple Silicon only)
 * Windows 10
 
 ### CPUs
