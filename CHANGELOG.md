@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove macOS on Intel as a supported platform ([PR #4270](https://github.com/ponylang/ponyc/pull/4270))
 
 ## [0.52.2] - 2022-12-01
 
