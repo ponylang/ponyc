@@ -2,3 +2,15 @@
 
 We have moved macOS on Intel from being a fully supported platform to a best effort platform. We are no longer providing prebuilt ponyc binaries for macOS on Intel. We also no longer do any CI testing using macOS on Intel. We are not planning on intentionally breaking macOS on Intel but supporting it is no longer a priority.
 
+## Fix segfault caused by unsafe garbage collection optimization
+
+Prior to this change, there was an unsafe optimization in the Pony runtime. The optimization is detailed in the ORCA paper on the garbage collection protocol and is usually safe, but sadly not always.
+
+The optimization cuts down on the amount of tracing that is done when an object is sent from one actor to another. It is based on the observation that for the sake of reference counting, we don't need to count every object in a graph that is sent from actor A to actor B so long as the root of the graph being sent is immutable. This optimization provides a large performance boost over tracing all objects sent from one actor to another. It also will from time to time, introduce a segfault that takes down the runtime.
+
+[Issue #1118](https://github.com/ponylang/ponyc/issues/1118) is the most obvious instance of the bug caused by the optimization. The core of the problem is that when an actor's reference count hits 0, it should be able to be reaped. However, if a reference to an actor is sent to another actor inside an immutable object, the actor will not be traced on send and might get reaped while references to it exist. Once that happens, a segfault is guaranteed.
+
+We have fixed the safety problem by tracing every object sent between actors. In not very rigorous testing using a modified version of [message-ubench](https://github.com/ponylang/ponyc/tree/main/examples/message-ubench), we saw a 1/3 drop in performance compared to running with the safety problem/optimization enabled. It should be noted that the 1/3 drop in performance is probably the high-end in terms of performance hit and many Pony programs will see little to no performance change.
+
+Our plan moving forward is to start adding smarts to the compiler in an incremental fashion so that we can turn the "problematic optimization" back on when it isn't problematic. We will never recover "all lost performance" because there are times when the optimization is unsafe and no amount of compiler smarts will allow us to turn the optimization on in those situations. We can however, over time, turn the optimization back on for more and more types. We expect this process to take a while and welcome community involvement in the project.
+
