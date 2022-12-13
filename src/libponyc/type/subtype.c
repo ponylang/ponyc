@@ -83,7 +83,7 @@ static void pop_assume()
   }
 }
 
-static bool check_assume(ast_t* sub, ast_t* super, bool coinductive, pass_opt_t* opt)
+static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
 {
   bool ret = false;
   // Returns true if we have already assumed sub is a subtype of super.
@@ -91,10 +91,7 @@ static bool check_assume(ast_t* sub, ast_t* super, bool coinductive, pass_opt_t*
   {
     ast_t* assumption = ast_child(subtype_assume);
     ast_t* new_assume = NULL;
-    if (coinductive)
-    {
-      new_assume = push_assume(sub, super, opt);
-    }
+    new_assume = push_assume(sub, super, opt);
 
     while(assumption != NULL && assumption != new_assume)
     {
@@ -110,11 +107,8 @@ static bool check_assume(ast_t* sub, ast_t* super, bool coinductive, pass_opt_t*
       assumption = ast_sibling(assumption);
     }
     pony_assert(ret || (assumption == NULL));
-    if (new_assume)
-    {
-      pony_assert(ast_child(subtype_assume) == new_assume);
-      pop_assume();
-    }
+    pony_assert(ast_child(subtype_assume) == new_assume);
+    pop_assume();
   }
 
   return ret;
@@ -1137,19 +1131,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
 {
   // N k <: N' k'
   ast_t* super_def = (ast_t*)ast_data(super);
-  token_id super_id = ast_id(super_def);
-  bool is_coinductive =
-      super_id == TK_INTERFACE ||
-      // traits may need coinductivity when matching f-bounded parameters.
-      // e.g. U8 <= UnsignedInteger[T]
-      // (U8 is UnsignedInteger[U8])
-      // --> UnsignedInteger[U8] <= UnsignedInteger[T]
-      // --> U8 == T
-      // --> U8 <= T
-      // --> U8 <= UnsignedInteger[T] if T: UnsignedInteger[T]
-      super_id == TK_TRAIT;
-
-  if(check_assume(sub, super, is_coinductive, opt))
+  if(check_assume(sub, super, opt))
     return true;
   // Add an assumption: sub <: super
   push_assume(sub, super, opt);
