@@ -263,6 +263,26 @@ TEST_F(SubTypeTest, IsSubTypePrimitiveTrait)
   pass_opt_init(&opt);
 }
 
+TEST_F(SubTypeTest, IsSubFBoundedTraitAndConcrete)
+{
+  const char* src =
+    "trait T1[T: T1[T]]\n"
+    "primitive P1\n"
+    "class X[A: (T1[A] & P1), B: T1[A]]\n"
+    "  fun f(p1: P1, a: A, t1a: T1[A], b: B) => None";
+
+  TEST_COMPILE(src);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
+  ASSERT_TRUE(is_subtype(type_of("p1"), type_of("t1a"), NULL, &opt));
+  //ASSERT_TRUE(is_subtype(type_of("A"), type_of("B"), NULL, &opt));
+  // assuming the compiler doesn't try to be too smart
+  //ASSERT_FALSE(is_subtype(type_of("B"), type_of("A"), NULL, &opt));
+
+  //ASSERT_FALSE(is_subtype(type_of("C"), type_of("A"), NULL, &opt));
+}
 
 TEST_F(SubTypeTest, IsSubTypeUnion)
 {
