@@ -1136,10 +1136,20 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
   // N k <: N' k'
-
   ast_t* super_def = (ast_t*)ast_data(super);
-  bool coinductive = ast_id(super_def) == TK_INTERFACE;
-  if(check_assume(sub, super, coinductive, opt))
+  token_id super_id = ast_id(super_def);
+  bool is_coinductive =
+      super_id == TK_INTERFACE ||
+      // traits may need coinductivity when matching f-bounded parameters.
+      // e.g. U8 <= UnsignedInteger[T]
+      // (U8 is UnsignedInteger[U8])
+      // --> UnsignedInteger[U8] <= UnsignedInteger[T]
+      // --> U8 == T
+      // --> U8 <= T
+      // --> U8 <= UnsignedInteger[T] if T: UnsignedInteger[T]
+      super_id == TK_TRAIT;
+
+  if(check_assume(sub, super, is_coinductive, opt))
     return true;
   // Add an assumption: sub <: super
   push_assume(sub, super, opt);
