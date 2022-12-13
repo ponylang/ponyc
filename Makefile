@@ -238,16 +238,16 @@ test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
 test-stress-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
 test-stress-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
 test-stress-with-cd-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 
 test-stress-with-cd-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true
