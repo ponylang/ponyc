@@ -404,7 +404,7 @@ switch ($Command.ToLower())
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
-        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir rt-stress\string-message-ubench
+        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
         $err = $LastExitCode
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
@@ -415,7 +415,7 @@ switch ($Command.ToLower())
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
-        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir rt-stress\string-message-ubench
+        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
         $err = $LastExitCode
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
@@ -426,7 +426,7 @@ switch ($Command.ToLower())
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
-        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir rt-stress\string-message-ubench
+        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
         $err = $LastExitCode
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
@@ -437,7 +437,7 @@ switch ($Command.ToLower())
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
-        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir rt-stress\string-message-ubench
+        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
         $err = $LastExitCode
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
