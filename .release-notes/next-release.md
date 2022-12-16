@@ -14,3 +14,13 @@ We have fixed the safety problem by tracing every object sent between actors. In
 
 Our plan moving forward is to start adding smarts to the compiler in an incremental fashion so that we can turn the "problematic optimization" back on when it isn't problematic. We will never recover "all lost performance" because there are times when the optimization is unsafe and no amount of compiler smarts will allow us to turn the optimization on in those situations. We can however, over time, turn the optimization back on for more and more types. We expect this process to take a while and welcome community involvement in the project.
 
+## Fix "Don't include 'home file' in documentation search"
+
+[PR #4243](https://github.com/ponylang/ponyc/pull/4243) incorrectly implemented the "don't include 'home file' in documentation search". It has been fixed.
+
+The original release notes are now accurate (before it wasn't working!):
+
+We've updated the documentation generation to not include the "home file" that lists the packages in the search index. The "exclude from search engine" functionality is only available in the `mkdocs-material-insiders` theme.
+
+The home file is extra noise in the index that provides no value. For anyone using the insiders theme, this will be an improvement in the search experience.
+
