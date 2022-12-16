@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix segfault caused by unsafe garbage collection optimization ([PR #4256](https://github.com/ponylang/ponyc/pull/4256))
+- Fix incorrectly implemented PR #4243 ([PR #4276](https://github.com/ponylang/ponyc/pull/4276))
 
 ### Added
 
