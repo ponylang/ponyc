@@ -2,15 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.52.3] - 2022-12-16
 
 ### Fixed
 
 - Fix segfault caused by unsafe garbage collection optimization ([PR #4256](https://github.com/ponylang/ponyc/pull/4256))
 - Fix incorrectly implemented PR #4243 ([PR #4276](https://github.com/ponylang/ponyc/pull/4276))
-
-### Added
-
 
 ### Changed
 
