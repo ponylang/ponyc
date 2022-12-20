@@ -263,28 +263,20 @@ TEST_F(SubTypeTest, IsSubTypePrimitiveTrait)
   pass_opt_init(&opt);
 }
 
-TEST_F(SubTypeTest, IsSubFBoundedTraitAndConcrete)
+TEST_F(SubTypeTest, FBoundedTraitDecided)
 {
   const char* src =
     "trait T1[T: T1[T]]\n"
     "primitive P1 is T1[P1]\n"
     "class X[A: (T1[A] & P1), B: T1[A]]\n"
-    "  fun f(p1: P1, a: A, t1a: T1[A], b: B) => \n"
-    "     iftype A <: P1 then None else None end\n"
-    " ";
+    "  fun baam1[T: (Unsigned & UnsignedInteger[T] & U8)](t: T): U32 =>\n"
+    "      t.u32()\n"
+    "  fun baam2[T: (U8 & Unsigned & UnsignedInteger[T])](t: T): U32 =>\n"
+    "      t.u32()";
 
+  // This is just a regression. Without proper checks for infinite regressions
+  // this results in an infinite loop in typechecking
   TEST_COMPILE(src);
-
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-
-  // if the subtyping implementation were much smarter, we could actually prove:
-  // P1 == (A: (T1[A] & P1))
-  // but it's not currently.
-  //
-  // Mostly, this is just a regression for catching an infinite loop
-  // when trying to check T1[A] vs P1
-  ASSERT_TRUE(is_subtype(type_of("a"), type_of("p1"), NULL, &opt));
 }
 
 TEST_F(SubTypeTest, IsSubTypeUnion)
