@@ -385,7 +385,7 @@ static void bnf_print_children(bnf_t* bnf, const char* separator,
 
 
 // Build a list of token references with the given node
-static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
+static void bnf_token_set(bnf_t* bnf, token_id const* tokens, bool clean)
 {
   pony_assert(bnf != NULL);
 
@@ -429,7 +429,7 @@ static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
 
 
 // Build a list of rule references with the given node
-static void bnf_rule_set(bnf_t* bnf, const char** rules)
+static void bnf_rule_set(bnf_t* bnf, const char* const* rules)
 {
   pony_assert(bnf != NULL);
 
@@ -788,7 +788,7 @@ static void bnf_mark_used_rules(bnf_t* tree)
 
 #define TOKEN(desc, ...) \
   { \
-    static token_id tokens[] = { __VA_ARGS__, TK_NONE }; \
+    static token_id const tokens[] = { __VA_ARGS__, TK_NONE }; \
     bnf_t* p = bnf_add(bnf_create(BNF_OR), parent); \
     p->optional = optional; \
     optional = false; \
@@ -801,7 +801,7 @@ static void bnf_mark_used_rules(bnf_t* tree)
 
 #define RULE(desc, ...) \
   { \
-    static const char* rules[] = { FOREACH(STRINGIFY, __VA_ARGS__) NULL }; \
+    static const char* const rules[] = { FOREACH(STRINGIFY, __VA_ARGS__) NULL }; \
     bnf_t* p = bnf_add(bnf_create(BNF_OR), parent); \
     p->optional = optional; \
     optional = false; \
@@ -837,7 +837,7 @@ static void bnf_mark_used_rules(bnf_t* tree)
 
 #define SEQ(desc, ...)  \
   { \
-    static const char* tokens[] = { FOREACH(STRINGIFY, __VA_ARGS__) NULL }; \
+    static const char* const tokens[] = { FOREACH(STRINGIFY, __VA_ARGS__) NULL }; \
     bnf_t* p = bnf_add(bnf_create(BNF_REPEAT), parent); \
     p = bnf_add(bnf_create(BNF_OR), p); \
     bnf_rule_set(p, tokens); \
