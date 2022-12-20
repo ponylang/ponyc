@@ -652,6 +652,75 @@ class \nodoc\ iso _TestRange is UnitTest
     _assert_infinite[F64](h, 0, 10, p_inf)
     _assert_infinite[F64](h, 100, 10, n_inf)
 
+    // Begin cases from RFC
+    _assert_empty[USize](h, 0, 10, -1)
+    _assert_empty[USize](h, 0, 10, -1)
+    _assert_empty[F64](h, 0, 10, n_inf)
+    _assert_empty[F64](h, 0, 10, p_inf)
+    _assert_empty[F64](h, 0, -10, n_inf)
+    _assert_empty[USize](h, 10, 0, 1)
+    _assert_empty[F64](h, 10, 0, p_inf)
+    _assert_empty[F64](h, 10, 0, n_inf)
+    _assert_empty[USize](h, 10, 10, 1)
+    _assert_empty[USize](h, 10, 10, -1)
+    _assert_empty[USize](h, 10, 10, 0)
+    _assert_empty[F64](h, 10, 10, p_inf)
+    _assert_empty[F64](h, 10, 10, n_inf)
+    _assert_empty[USize](h, -10, -10, 1)
+    _assert_empty[USize](h, -10, -10, -1)
+    _assert_empty[USize](h, -10, -10, 0)
+    _assert_empty[F64](h, -10, -10, p_inf)
+    _assert_empty[F64](h, -10, -10, n_inf)
+    _assert_empty[F64](h, 0, p_inf, 0)
+    _assert_empty[F64](h, 0, p_inf, -10)
+    _assert_empty[F64](h, 0, p_inf, n_inf)
+    _assert_empty[F64](h, 0, n_inf, 0)
+    _assert_empty[F64](h, 0, n_inf, 10)
+    _assert_empty[F64](h, 0, n_inf, p_inf)
+    _assert_empty[F64](h, 0, p_inf, p_inf)
+    _assert_empty[F64](h, 0, n_inf, n_inf)
+    _assert_empty[F64](h, p_inf, 0, 0)
+    _assert_empty[F64](h, p_inf, 0, 10)
+    _assert_empty[F64](h, p_inf, 0, p_inf)
+    _assert_empty[F64](h, p_inf, 0, -10)
+    _assert_empty[F64](h, p_inf, 0, n_inf)
+    _assert_empty[F64](h, p_inf, n_inf, 10)
+    _assert_empty[F64](h, p_inf, n_inf, p_inf)
+    _assert_empty[F64](h, n_inf, 0, 0)
+    _assert_empty[F64](h, n_inf, 0, -10)
+    _assert_empty[F64](h, n_inf, 0, n_inf)
+    _assert_empty[F64](h, n_inf, 0, 10)
+    _assert_empty[F64](h, n_inf, 0, p_inf)
+    _assert_empty[F64](h, n_inf, p_inf, -10)
+    _assert_empty[F64](h, n_inf, p_inf, n_inf)
+    _assert_empty[F64](h, p_inf, p_inf, 0)
+    _assert_empty[F64](h, p_inf, p_inf, 1)
+    _assert_empty[F64](h, p_inf, p_inf, -1)
+    _assert_empty[F64](h, p_inf, p_inf, p_inf)
+    _assert_empty[F64](h, p_inf, p_inf, n_inf)
+    _assert_empty[F64](h, n_inf, n_inf, 0)
+    _assert_empty[F64](h, n_inf, n_inf, 1)
+    _assert_empty[F64](h, n_inf, n_inf, -1)
+    _assert_empty[F64](h, n_inf, n_inf, p_inf)
+    _assert_empty[F64](h, n_inf, n_inf, n_inf)
+    _assert_empty[F64](h, 0, 10, nan)
+    _assert_empty[F64](h, 0, p_inf, nan)
+    _assert_empty[F64](h, 0, n_inf, nan)
+    _assert_empty[F64](h, 0, nan, p_inf)
+    _assert_empty[F64](h, 0, nan, n_inf)
+    _assert_empty[F64](h, 10, 10, nan)
+    _assert_empty[F64](h, -10, -10, nan)
+    _assert_empty[F64](h, p_inf, 0, nan)
+    _assert_empty[F64](h, n_inf, 0, nan)
+    _assert_empty[F64](h, nan, 0, p_inf)
+    _assert_empty[F64](h, nan, 0, n_inf)
+    _assert_empty[F64](h, p_inf, p_inf, nan)
+    _assert_empty[F64](h, n_inf, n_inf, nan)
+    _assert_empty[F64](h, nan, nan, 0)
+    _assert_empty[F64](h, nan, nan, 1)
+    _assert_empty[F64](h, nan, nan, p_inf)
+    _assert_empty[F64](h, nan, nan, n_inf)
+
   fun _assert_infinite[N: (Real[N] val & Number)](
     h: TestHelper,
     min: N,
@@ -674,6 +743,25 @@ class \nodoc\ iso _TestRange is UnitTest
       h.fail(range_str + ".next(): subsequent call should not fail")
     end
 
+  fun _assert_empty[N: (Real[N] val & Number)](
+    h: TestHelper,
+    min: N,
+    max: N,
+    step: N = 1
+  ) =>
+    let range: Range[N] = Range[N](min, max, step)
+    let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
+
+    h.assert_true(range.is_empty(), range_str + " should be empty")
+    try
+      range.next()?
+      h.fail(range_str + ".next(): first call should error")
+    end
+    try
+      range.next()?
+      h.fail(range_str + ".next(): subsequent call should error")
+    end
+
   fun _assert_range[N: (Real[N] val & Number)](
     h: TestHelper,
     min: N,
@@ -687,7 +775,6 @@ class \nodoc\ iso _TestRange is UnitTest
     h.assert_false(range.is_infinite(), range_str + " is infinite")
     let collector = Array[N].create(0) .> concat(range)
     h.assert_array_eq[N](expected, collector, range_str + " should produce expected elements")
-
 
   fun _count_range[N: (Real[N] val & Number)](range: Range[N]): USize =>
     var count: USize = 0

@@ -231,6 +231,9 @@ test-stdlib-release: all
 test-stdlib-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(debuggercmd) ./stdlib-debug --sequential
 
+test-stdlib-debug-collections: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(debuggercmd) ./stdlib-debug --sequential --only="collections/Range"
+
 test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}
 

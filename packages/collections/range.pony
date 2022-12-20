@@ -70,27 +70,32 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   let _inc: A
   let _forward: Bool
   let _infinite: Bool
+  let _empty: Bool
   var _idx: A
 
   new create(min: A, max: A, inc: A = 1) =>
     _min = min
     _max = max
     _inc = inc
-    _idx = min
     _forward = (_min < _max) and (_inc > 0)
-    let is_float_infinite =
+    (let min_finite, let max_finite, let inc_finite) =
       iftype A <: FloatingPoint[A] then
-        _min.nan() or _min.infinite()
-          or _max.nan() or _max.infinite()
-          or _inc.nan() or _inc.infinite()
+        (_min.finite(), _max.finite(), _inc.finite())
       else
-        false
+        (true, true, true)
       end
-    _infinite =
-      is_float_infinite
-        or ((_inc == 0) and (min != max))    // no progress
-        or ((_min < _max) and (_inc < 0)) // progress into other directions
-        or ((_min > _max) and (_inc > 0))
+    let progress = ((_min < _max) and (_inc > 0))
+                    or ((_min > _max) and (_inc < 0)) // false if any is NaN!
+    if progress and min_finite and inc_finite then
+      _empty = false
+      _infinite = not max_finite // ok to use not max_finite for max_infinite
+                                 // since progress excludes _max == nan
+      _idx = _min
+    else
+      _empty = true
+      _infinite = false
+      _idx = _max // has_next() will return false without code modification
+    end
 
   fun has_next(): Bool =>
     if _infinite then
@@ -114,3 +119,6 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
 
   fun is_infinite(): Bool =>
     _infinite
+
+  fun is_empty(): Bool =>
+    _empty
