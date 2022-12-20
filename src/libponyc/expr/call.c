@@ -281,7 +281,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     errorframe_t info = NULL;
     ast_t* wp_type = consume_type(p_type, TK_NONE, false);
-    if(check_auto_recover_newref(wp_type, arg))
+    if((wp_type != NULL) && check_auto_recover_newref(wp_type, arg))
     {
       token_id arg_cap = ast_id(cap_fetch(wp_type));
       ast_t* recovered_arg_type = recover_type(arg_type, arg_cap);
