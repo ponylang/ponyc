@@ -655,6 +655,8 @@ class \nodoc\ iso _TestRange is UnitTest
 
     // Begin empty range cases from RFC
     _assert_range[USize](h, 0, 10, -1, [0])
+    _assert_empty[ISize](h, 0, 10, -1)
+    _assert_empty[F64](h, 0, 10, -1)
     _assert_empty[F64](h, 0, 10, n_inf)
     _assert_empty[F64](h, 0, 10, p_inf)
     _assert_empty[F64](h, 0, -10, n_inf)
