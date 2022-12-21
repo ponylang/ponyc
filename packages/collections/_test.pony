@@ -615,10 +615,10 @@ class \nodoc\ iso _TestRange is UnitTest
     _assert_range[USize](h, 0, 0, 2, [])
 
     _assert_range[USize](h, 0, 1, 1, [0])
-    _assert_infinite[I8](h, 0, 1, -1)
-    _assert_infinite[I8](h, 0, 1, 0)
-    _assert_infinite[I8](h, 1, 0, 0)
-    _assert_infinite[I8](h, 1, 0, 1)
+    _assert_empty[I8](h, 0, 1, -1)
+    _assert_empty[I8](h, 0, 1, 0)
+    _assert_empty[I8](h, 1, 0, 0)
+    _assert_empty[I8](h, 1, 0, 1)
     _assert_range[I8](h, -1, 1, 1, [-1; 0])
 
     _assert_range[USize](h, 0, 1, 2, [0])
@@ -632,29 +632,29 @@ class \nodoc\ iso _TestRange is UnitTest
     _assert_range[F32](h, 0.0, F32.epsilon(), F32.epsilon(), [0.0])
 
     _assert_range[F64](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
-    _assert_infinite[F64](h, -0.1, 0.2, -0.1)
+    _assert_empty[F64](h, -0.1, 0.2, -0.1)
 
     _assert_range[F64](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
-    _assert_infinite[F64](h, 0.2, -0.1, 0.1)
-    _assert_infinite[F64](h, 0.2, -0.1, 0.0)
+    _assert_empty[F64](h, 0.2, -0.1, 0.1)
+    _assert_empty[F64](h, 0.2, -0.1, 0.0)
 
     let p_inf = F64.max_value() + F64.max_value()
     let n_inf = -p_inf
     let nan = F64(0) / F64(0)
 
-    _assert_infinite[F64](h, nan, 0, 1)
-    _assert_infinite[F64](h, 0, nan, 1)
-    _assert_infinite[F64](h, 0, 100, nan)
+    _assert_empty[F64](h, nan, 0, 1)
+    _assert_empty[F64](h, 0, nan, 1)
+    _assert_empty[F64](h, 0, 100, nan)
 
-    _assert_infinite[F64](h, p_inf, 10, -1)
-    _assert_infinite[F64](h, n_inf, p_inf, 1)
-    _assert_infinite[F64](h, 10, p_inf, 0)
-    _assert_infinite[F64](h, 0, 10, p_inf)
-    _assert_infinite[F64](h, 100, 10, n_inf)
+    _assert_empty[F64](h, p_inf, 10, -1)
+    _assert_empty[F64](h, n_inf, p_inf, 1)
+    _assert_empty[F64](h, p_inf, n_inf, -1)
+    _assert_empty[F64](h, 10, p_inf, 0)
+    _assert_empty[F64](h, 0, 10, p_inf)
+    _assert_empty[F64](h, 100, 10, n_inf)
 
-    // Begin cases from RFC
-    _assert_empty[USize](h, 0, 10, -1)
-    _assert_empty[USize](h, 0, 10, -1)
+    // Begin empty range cases from RFC
+    _assert_range[USize](h, 0, 10, -1, [0])
     _assert_empty[F64](h, 0, 10, n_inf)
     _assert_empty[F64](h, 0, 10, p_inf)
     _assert_empty[F64](h, 0, -10, n_inf)
@@ -721,6 +721,10 @@ class \nodoc\ iso _TestRange is UnitTest
     _assert_empty[F64](h, nan, nan, p_inf)
     _assert_empty[F64](h, nan, nan, n_inf)
 
+    // Begin infinite range cases from RFC
+    _assert_infinite[F64](h, 0, p_inf, 10)
+    _assert_infinite[F64](h, 0, n_inf, -10)
+
   fun _assert_infinite[N: (Real[N] val & Number)](
     h: TestHelper,
     min: N,
@@ -730,7 +734,8 @@ class \nodoc\ iso _TestRange is UnitTest
     let range: Range[N] = Range[N](min, max, step)
     let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
 
-    h.assert_true(range.is_infinite(), range_str + " should be infinite")    
+    h.assert_true(range.is_infinite(), range_str + " should be infinite")
+    h.assert_false(range.is_empty(), range_str + " infinite range should not be empty")
     try
       let nextval = range.next()?
       h.assert_eq[N](nextval, min)
@@ -753,6 +758,7 @@ class \nodoc\ iso _TestRange is UnitTest
     let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
 
     h.assert_true(range.is_empty(), range_str + " should be empty")
+    h.assert_false(range.is_infinite(), range_str + " empty range should not be infinite")
     try
       range.next()?
       h.fail(range_str + ".next(): first call should error")
