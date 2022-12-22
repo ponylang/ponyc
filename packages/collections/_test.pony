@@ -609,68 +609,74 @@ class \nodoc\ iso _TestRange is UnitTest
   fun name(): String => "collections/Range"
 
   fun apply(h: TestHelper) =>
-    _assert_range[USize](h, 0, 0, 1, [])
-    _assert_range[USize](h, 0, 0, 0, [])
-    _assert_range[USize](h, 0, 0, -1, [])
-    _assert_range[USize](h, 0, 0, 2, [])
-
-    _assert_range[USize](h, 0, 1, 1, [0])
-    _assert_empty[I8](h, 0, 1, -1)
-    _assert_empty[I8](h, 0, 1, 0)
-    _assert_empty[I8](h, 1, 0, 0)
-    _assert_empty[I8](h, 1, 0, 1)
-    _assert_range[I8](h, -1, 1, 1, [-1; 0])
-
-    _assert_range[USize](h, 0, 1, 2, [0])
-    _assert_range[USize](h, 0, 10, 1, [0; 1; 2; 3; 4; 5; 6; 7; 8; 9])
-    _assert_range[USize](h, 0, 10, 2, [0; 2; 4; 6; 8])
-    _assert_range[I8](h, 2, -2, -1, [2; 1; 0; -1])
-    _assert_range[I8](h, -10, -7, 1, [-10; -9; -8])
-
-    _assert_range[F32](h, 0.0, 0.0, 1.0, [])
-    _assert_range[F32](h, 0.0, 0.0, F32.epsilon(), [])
-    _assert_range[F32](h, 0.0, F32.epsilon(), F32.epsilon(), [0.0])
-
-    _assert_range[F64](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
-    _assert_empty[F64](h, -0.1, 0.2, -0.1)
-
-    _assert_range[F64](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
-    _assert_empty[F64](h, 0.2, -0.1, 0.1)
-    _assert_empty[F64](h, 0.2, -0.1, 0.0)
-
+    // Create testing constants
     let p_inf = F64.max_value() + F64.max_value()
     let n_inf = -p_inf
     let nan = F64(0) / F64(0)
 
+    // Test finite ranges
+    _assert_range[I8](h, -1, 1, 1, [-1; 0])
+    _assert_range[I8](h, 2, -2, -1, [2; 1; 0; -1])
+    _assert_range[I8](h, -10, -7, 1, [-10; -9; -8])
+    _assert_range[ISize](h, -1, 1, 1, [-1; 0])
+    _assert_range[ISize](h, 2, -2, -1, [2; 1; 0; -1])
+    _assert_range[ISize](h, -10, -7, 1, [-10; -9; -8])
+    _assert_range[USize](h, 0, 10, -1, [0])
+    _assert_range[USize](h, 0, 1, 1, [0])
+    _assert_range[USize](h, 0, 1, 2, [0])
+    _assert_range[USize](h, 0, 10, 1, [0; 1; 2; 3; 4; 5; 6; 7; 8; 9])
+    _assert_range[USize](h, 0, 10, 2, [0; 2; 4; 6; 8])
+    _assert_range[F32](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
+    _assert_range[F32](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
+    _assert_range[F32](h, 0.0, F32.epsilon(), F32.epsilon(), [0.0])
+    _assert_range[F64](h, -0.1, 0.2, 0.1, [-0.1; 0.0; 0.1])
+    _assert_range[F64](h, 0.1, -0.2, -0.1, [0.1; 0.0; -0.1])
+    _assert_range[F64](h, 0.0, F64.epsilon(), F64.epsilon(), [0.0])
+
+    // Test empty ranges
+    _assert_empty[I8](h, 0, 1, -1)
+    _assert_empty[I8](h, 0, 1, 0)
+    _assert_empty[I8](h, 1, 0, 0)
+    _assert_empty[I8](h, 1, 0, 1)
+    _assert_empty[ISize](h, 0, 1, -1)
+    _assert_empty[ISize](h, 0, 1, 0)
+    _assert_empty[ISize](h, 1, 0, 0)
+    _assert_empty[ISize](h, 1, 0, 1)
+    _assert_empty[ISize](h, 0, 10, -1)
+    _assert_empty[USize](h, 10, 0, 1)
+    _assert_empty[USize](h, 10, 10, 1)
+    _assert_empty[USize](h, 10, 10, -1)
+    _assert_empty[USize](h, 10, 10, 0)
+    _assert_empty[USize](h, -10, -10, 1)
+    _assert_empty[USize](h, -10, -10, -1)
+    _assert_empty[USize](h, -10, -10, 0)
+    _assert_empty[USize](h, 0, 0, 1)
+    _assert_empty[USize](h, 0, 0, -1)
+    _assert_empty[USize](h, 0, 0, 2)
+    _assert_empty[F32](h, 0.0, 0.0, 1.0)
+    _assert_empty[F32](h, 0.0, 0.0, F32.epsilon())
+    _assert_empty[F64](h, 0.0, 0.0, 1.0)
+    _assert_empty[F64](h, 0.0, 0.0, F64.epsilon())
+    _assert_empty[F64](h, -0.1, 0.2, -0.1)
+    _assert_empty[F64](h, 0.2, -0.1, 0.0)
+    _assert_empty[F64](h, 0.2, -0.1, 0.1)
     _assert_empty[F64](h, nan, 0, 1)
     _assert_empty[F64](h, 0, nan, 1)
     _assert_empty[F64](h, 0, 100, nan)
-
     _assert_empty[F64](h, p_inf, 10, -1)
     _assert_empty[F64](h, n_inf, p_inf, 1)
     _assert_empty[F64](h, p_inf, n_inf, -1)
     _assert_empty[F64](h, 10, p_inf, 0)
     _assert_empty[F64](h, 0, 10, p_inf)
     _assert_empty[F64](h, 100, 10, n_inf)
-
-    // Begin empty range cases from RFC
-    _assert_range[USize](h, 0, 10, -1, [0])
-    _assert_empty[ISize](h, 0, 10, -1)
     _assert_empty[F64](h, 0, 10, -1)
     _assert_empty[F64](h, 0, 10, n_inf)
     _assert_empty[F64](h, 0, 10, p_inf)
     _assert_empty[F64](h, 0, -10, n_inf)
-    _assert_empty[USize](h, 10, 0, 1)
     _assert_empty[F64](h, 10, 0, p_inf)
     _assert_empty[F64](h, 10, 0, n_inf)
-    _assert_empty[USize](h, 10, 10, 1)
-    _assert_empty[USize](h, 10, 10, -1)
-    _assert_empty[USize](h, 10, 10, 0)
     _assert_empty[F64](h, 10, 10, p_inf)
     _assert_empty[F64](h, 10, 10, n_inf)
-    _assert_empty[USize](h, -10, -10, 1)
-    _assert_empty[USize](h, -10, -10, -1)
-    _assert_empty[USize](h, -10, -10, 0)
     _assert_empty[F64](h, -10, -10, p_inf)
     _assert_empty[F64](h, -10, -10, n_inf)
     _assert_empty[F64](h, 0, p_inf, 0)
@@ -723,7 +729,7 @@ class \nodoc\ iso _TestRange is UnitTest
     _assert_empty[F64](h, nan, nan, p_inf)
     _assert_empty[F64](h, nan, nan, n_inf)
 
-    // Begin infinite range cases from RFC
+    // Test infinite ranges
     _assert_infinite[F64](h, 0, p_inf, 10)
     _assert_infinite[F64](h, 0, n_inf, -10)
 
@@ -737,15 +743,18 @@ class \nodoc\ iso _TestRange is UnitTest
     let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
 
     h.assert_true(range.is_infinite(), range_str + " should be infinite")
+    h.assert_true(range.has_next(), range_str + " infinite range should always have a next value")
     h.assert_false(range.is_empty(), range_str + " infinite range should not be empty")
     try
       let nextval = range.next()?
+      h.assert_true(range.has_next(), range_str + " infinite range should always have a next value")
       h.assert_eq[N](nextval, min)
     else
       h.fail(range_str + ".next(): first call should not fail but should produce " + min.string())
     end
     try
       range.next()?
+      h.assert_true(range.has_next(), range_str + " infinite range should always have a next value")
     else
       h.fail(range_str + ".next(): subsequent call should not fail")
     end
@@ -760,6 +769,7 @@ class \nodoc\ iso _TestRange is UnitTest
     let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
 
     h.assert_true(range.is_empty(), range_str + " should be empty")
+    h.assert_false(range.has_next(), range_str + " empty range should not have a next value")
     h.assert_false(range.is_infinite(), range_str + " empty range should not be infinite")
     try
       range.next()?
@@ -777,19 +787,14 @@ class \nodoc\ iso _TestRange is UnitTest
     step: N = 1,
     expected: Array[N] val
   ) =>
+
     let range: Range[N] = Range[N](min, max, step)
     let range_str = "Range(" + min.string() + ", " + max.string() + ", " + step.string() + ")"
 
-    h.assert_false(range.is_infinite(), range_str + " is infinite")
+    h.assert_false(range.is_infinite(), range_str + " should not be infinite")
+    h.assert_false(range.is_empty(), range_str + " should not be empty")
     let collector = Array[N].create(0) .> concat(range)
     h.assert_array_eq[N](expected, collector, range_str + " should produce expected elements")
-
-  fun _count_range[N: (Real[N] val & Number)](range: Range[N]): USize =>
-    var count: USize = 0
-    for _ in range do
-      count = count + 1
-    end
-    count
 
 class \nodoc\ iso _TestHeap is UnitTest
   fun name(): String => "collections/BinaryHeap"
