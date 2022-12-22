@@ -263,22 +263,6 @@ TEST_F(SubTypeTest, IsSubTypePrimitiveTrait)
   pass_opt_init(&opt);
 }
 
-TEST_F(SubTypeTest, FBoundedTraitDecided)
-{
-  const char* src =
-    "trait T1[T: T1[T]]\n"
-    "  fun u32(): U32 => 0\n"
-    "class X\n"
-    "  fun baam1[T: (Unsigned & T1[T] & U8)](t: T): U32 =>\n"
-    "      t.u32()\n"
-    "  fun baam2[T: (U8 & Unsigned & T1[T])](t: T): U32 =>\n"
-    "      t.u32()";
-
-  // This is just a regression. Without proper checks for infinite regressions
-  // this results in an infinite loop in typechecking
-  TEST_COMPILE(src);
-}
-
 TEST_F(SubTypeTest, IsSubTypeUnion)
 {
   const char* src =
