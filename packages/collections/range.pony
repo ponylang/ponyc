@@ -41,6 +41,8 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   empty_range3.is_empty() == true
   ```
 
+  Note that when using unsigned integers, a negative literal wraps around so while `Range[ISize](0, 10, -1)` is empty as above, `Range[USize](0, 10, -1)` produces a single value of `min` or `[0]` here.
+
   When using `Range` with floating point types (`F32` and `F64`) `inc` steps < 1.0 are possible. If any arguments contains NaN, the `Range` is considered empty. It is also empty if the lower bound `min` or the step `inc` are +Inf or -Inf. However, if only the upper bound `max` is +Inf or -Inf and the step parameter `inc` has the same sign, then the `Range` is considered infinite and will iterate indefinitely.
 
   ```pony
