@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix an assert in `call.c` when checking an invalid argument for autorecover ([PR #4278](https://github.com/ponylang/ponyc/pull/4278))
+- Fix an issue with infinite loops while typechecking some expressions ([PR #4274](https://github.com/ponylang/ponyc/pull/4274))
 
 ### Added
 
