@@ -4,9 +4,9 @@ primitive Foo[T: (Unsigned & UnsignedInteger[T])]
       None
     end
   // more cases
-  fun baam1[T: (Unsigned & UnsignedInteger[T] & U8)](t: T): U32 =>
+  fun baam1[S: (Unsigned & UnsignedInteger[S] & U8)](t: S): U32 =>
     t.u32()
-  fun baam2[T: (U8 & Unsigned & UnsignedInteger[T])](t: T): U32 =>
+  fun baam2[S: (U8 & Unsigned & UnsignedInteger[S])](t: S): U32 =>
     t.u32()
 
 actor Main
