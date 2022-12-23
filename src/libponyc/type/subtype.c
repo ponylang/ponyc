@@ -60,39 +60,15 @@ static bool exact_nominal(ast_t* a, ast_t* b, pass_opt_t* opt)
   return (a_def == b_def) && is_eq_typeargs(a, b, NULL, opt);
 }
 
-static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
+static ast_t* push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
 {
-  // Returns true if we have already assumed sub is a subtype of super.
-  if(subtype_assume != NULL)
-  {
-    ast_t* assumption = ast_child(subtype_assume);
-
-    while(assumption != NULL)
-    {
-      AST_GET_CHILDREN(assumption, assume_sub, assume_super);
-
-      if(exact_nominal(sub, assume_sub, opt) &&
-        exact_nominal(super, assume_super, opt))
-        return true;
-
-      assumption = ast_sibling(assumption);
-    }
-  }
-
-  return false;
-}
-
-static bool push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
-{
-  if(check_assume(sub, super, opt))
-    return true;
-
+  (void)opt;
   if(subtype_assume == NULL)
     subtype_assume = ast_from(sub, TK_NONE);
 
   BUILD(assume, sub, NODE(TK_NONE, TREE(ast_dup(sub)) TREE(ast_dup(super))));
   ast_add(subtype_assume, assume);
-  return false;
+  return assume;
 }
 
 static void pop_assume()
@@ -105,6 +81,37 @@ static void pop_assume()
     ast_free_unattached(subtype_assume);
     subtype_assume = NULL;
   }
+}
+
+static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
+{
+  bool ret = false;
+  // Returns true if we have already assumed sub is a subtype of super.
+  if(subtype_assume != NULL)
+  {
+    ast_t* assumption = ast_child(subtype_assume);
+    ast_t* new_assume = NULL;
+    new_assume = push_assume(sub, super, opt);
+
+    while(assumption != NULL && assumption != new_assume)
+    {
+      AST_GET_CHILDREN(assumption, assume_sub, assume_super);
+
+      if(exact_nominal(sub, assume_sub, opt) &&
+        exact_nominal(super, assume_super, opt))
+      {
+        ret = true;
+        break;
+      }
+
+      assumption = ast_sibling(assumption);
+    }
+    pony_assert(ret || (assumption == NULL));
+    pony_assert(ast_child(subtype_assume) == new_assume);
+    pop_assume();
+  }
+
+  return ret;
 }
 
 static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
@@ -1122,12 +1129,13 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super,
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
-  // Add an assumption: sub <: super
-  if(push_assume(sub, super, opt))
-    return true;
-
   // N k <: N' k'
   ast_t* super_def = (ast_t*)ast_data(super);
+  if(check_assume(sub, super, opt))
+    return true;
+  // Add an assumption: sub <: super
+  push_assume(sub, super, opt);
+
   bool ret = false;
 
   switch(ast_id(super_def))
