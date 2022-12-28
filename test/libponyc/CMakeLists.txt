@@ -9,6 +9,7 @@ add_executable(libponyc.tests
     bare.cc
     buildflagset.cc
     cap.cc
+    cap_safety.cc
     chain.cc
     codegen.cc
     codegen_ffi.cc
