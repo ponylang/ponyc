@@ -489,6 +489,7 @@ TEST_F(RecoverTest, CanAccess_LocalField)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, CanAccess_DeepLocalFields)
 {
   const char* src =
@@ -505,6 +506,7 @@ TEST_F(RecoverTest, CanAccess_DeepLocalFields)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, CantWrite_This_NonSendable)
 {
   const char* src =
@@ -520,7 +522,6 @@ TEST_F(RecoverTest, CantWrite_This_NonSendable)
             "object inside of a recover expression",
     "left side must be something that can be assigned to");
 }
-
 
 TEST_F(RecoverTest, CanDoPartialApplication_TagWithLowerToTag)
 {
@@ -669,6 +670,7 @@ TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
 }
+
 TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
 {
   const char* src =
@@ -685,6 +687,7 @@ TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, CantWriteBox_TrnAutoRecovery)
 {
   const char* src =
@@ -703,6 +706,7 @@ TEST_F(RecoverTest, CantWriteBox_TrnAutoRecovery)
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
 }
+
 TEST_F(RecoverTest, CantWriteTrnAlias_TrnAutoRecovery)
 {
   const char* src =
@@ -721,6 +725,7 @@ TEST_F(RecoverTest, CantWriteTrnAlias_TrnAutoRecovery)
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
 }
+
 TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
 {
   const char* src =
@@ -738,6 +743,7 @@ TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetIso_CtorAutoRecovery)
 {
   const char* src =
@@ -751,6 +757,7 @@ TEST_F(RecoverTest, LetIso_CtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, VarIso_CtorAutoRecovery)
 {
   const char* src =
@@ -764,6 +771,7 @@ TEST_F(RecoverTest, VarIso_CtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetTrn_CtorAutoRecovery)
 {
   const char* src =
@@ -777,6 +785,7 @@ TEST_F(RecoverTest, LetTrn_CtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetVal_RefCtorAutoRecovery)
 {
   const char* src =
@@ -790,6 +799,7 @@ TEST_F(RecoverTest, LetVal_RefCtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetVal_BoxCtorAutoRecovery)
 {
   const char* src =
@@ -803,6 +813,7 @@ TEST_F(RecoverTest, LetVal_BoxCtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetIso_ArgsCtorAutoRecovery)
 {
   const char* src =
@@ -817,6 +828,7 @@ TEST_F(RecoverTest, LetIso_ArgsCtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetTrn_ArgsCtorAutoRecovery)
 {
   const char* src =
@@ -831,6 +843,7 @@ TEST_F(RecoverTest, LetTrn_ArgsCtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, LetVal_ArgsCtorAutoRecovery)
 {
   const char* src =
@@ -845,7 +858,6 @@ TEST_F(RecoverTest, LetVal_ArgsCtorAutoRecovery)
 
   TEST_COMPILE(src);
 }
-
 
 TEST_F(RecoverTest, CantAutoRecover_CtorArgWithNonSendableArg)
 {
@@ -867,6 +879,7 @@ TEST_F(RecoverTest, CantAutoRecover_CtorArgWithNonSendableArg)
 
   TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
+
 TEST_F(RecoverTest, CantAutoRecover_CtorAssignmentWithNonSendableArg)
 {
   const char* src =
@@ -887,6 +900,7 @@ TEST_F(RecoverTest, CantAutoRecover_CtorAssignmentWithNonSendableArg)
 
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
+
 TEST_F(RecoverTest, CantAutoRecover_CtorParamToComplexTypeWithNonSendableArg)
 {
   const char* src =
