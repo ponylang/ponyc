@@ -3,9 +3,6 @@
 
 #define TEST_COMPILE(src) DO(test_compile(src, "expr"))
 #define TEST_ERROR(src) DO(test_error(src, "expr"))
-#define TEST_ERRORS_1(src, err1) \
-  { const char* errs[] = {err1, NULL}; \
-    DO(test_expected_errors(src, "expr", errs)); }
 
 //
 // A list of test cases for fundamental cap safety requirements.
@@ -59,7 +56,7 @@ TEST_F(CapSafetyTest, NoCallRefOnVal)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let x: X val = recover X end\n"
-    "    x.mutate()\n";
+    "    x.mutateme()\n";
   TEST_ERROR(src);
 }
 TEST_F(CapSafetyTest, NoCallRefOnBox)
