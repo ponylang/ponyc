@@ -443,6 +443,15 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  bool ok_mutable = safe_to_mutate(left);
+  if(!ok_mutable)
+  {
+    ast_error(opt->check.errors, ast,
+      "left side is immutable");
+    ast_free_unattached(wl_type);
+    return false;
+  }
+
   bool ok_safe = safe_to_move(left, r_type, WRITE);
 
   if(!ok_safe)

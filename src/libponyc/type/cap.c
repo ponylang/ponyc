@@ -999,6 +999,31 @@ bool cap_sendable(token_id cap)
   return false;
 }
 
+bool cap_mutable(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    case TK_CAP_SEND:
+    case TK_CAP_SHARE:
+    case TK_CAP_READ:
+    case TK_CAP_ALIAS:
+    case TK_CAP_ANY:
+      return false;
+
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+      return true;
+
+    default:
+      pony_assert(0);
+      return false;
+  }
+}
+
 bool cap_immutable_or_opaque(token_id cap)
 {
   switch(cap)
