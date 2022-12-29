@@ -21,8 +21,10 @@ TEST_F(CapSafetyTest, NoWriteToVal)
     "  new create(env: Env) =>\n"
     "    let x: X val = recover X end\n"
     "    x.y = Y\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, NoWriteToBox)
 {
   const char* src =
@@ -33,8 +35,10 @@ TEST_F(CapSafetyTest, NoWriteToBox)
     "  new create(env: Env) =>\n"
     "    let x: X box = X\n"
     "    x.y = Y\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, WriteToRef)
 {
   const char* src =
@@ -45,8 +49,10 @@ TEST_F(CapSafetyTest, WriteToRef)
     "  new create(env: Env) =>\n"
     "    let x: X ref = X\n"
     "    x.y = Y\n";
+
   TEST_COMPILE(src);
 }
+
 TEST_F(CapSafetyTest, NoCallRefOnVal)
 {
   const char* src =
@@ -57,8 +63,10 @@ TEST_F(CapSafetyTest, NoCallRefOnVal)
     "  new create(env: Env) =>\n"
     "    let x: X val = recover X end\n"
     "    x.mutateme()\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, NoCallRefOnBox)
 {
   const char* src =
@@ -69,8 +77,10 @@ TEST_F(CapSafetyTest, NoCallRefOnBox)
     "  new create(env: Env) =>\n"
     "    let x: X box = X\n"
     "    x.mutateme()\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, CallRefOnRef)
 {
   const char* src =
@@ -81,8 +91,10 @@ TEST_F(CapSafetyTest, CallRefOnRef)
     "  new create(env: Env) =>\n"
     "    let x: X ref = X\n"
     "    x.mutateme()\n";
+
   TEST_COMPILE(src);
 }
+
 TEST_F(CapSafetyTest, CallValOnVal)
 {
   const char* src =
@@ -93,8 +105,10 @@ TEST_F(CapSafetyTest, CallValOnVal)
     "  new create(env: Env) =>\n"
     "    let x: X val = recover X end\n"
     "    x.shareme()\n";
+
   TEST_COMPILE(src);
 }
+
 TEST_F(CapSafetyTest, NoCallValOnBox)
 {
   const char* src =
@@ -105,8 +119,10 @@ TEST_F(CapSafetyTest, NoCallValOnBox)
     "  new create(env: Env) =>\n"
     "    let x: X box = X\n"
     "    x.shareme()\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, NoCallValOnRef)
 {
   const char* src =
@@ -117,8 +133,10 @@ TEST_F(CapSafetyTest, NoCallValOnRef)
     "  new create(env: Env) =>\n"
     "    let x: X ref = X\n"
     "    x.shareme()\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, NoWriteRefToIso)
 {
   const char* src =
@@ -130,8 +148,10 @@ TEST_F(CapSafetyTest, NoWriteRefToIso)
     "    let x: X iso = recover X end\n"
     "    let y: Y ref = Y\n"
     "    x.y = y\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, NoWriteBoxToIso)
 {
   const char* src =
@@ -143,8 +163,10 @@ TEST_F(CapSafetyTest, NoWriteBoxToIso)
     "    let x: X iso = recover X end\n"
     "    let y: Y box = Y\n"
     "    x.y = y\n";
+
   TEST_ERROR(src);
 }
+
 TEST_F(CapSafetyTest, WriteValToIso)
 {
   const char* src =
@@ -156,5 +178,6 @@ TEST_F(CapSafetyTest, WriteValToIso)
     "    let x: X iso = recover X end\n"
     "    let y: Y val = Y\n"
     "    x.y = y\n";
+
   TEST_COMPILE(src);
 }
