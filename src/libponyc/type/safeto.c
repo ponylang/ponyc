@@ -192,3 +192,59 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type, direction direction)
   pony_assert(0);
   return false;
 }
+
+bool safe_to_mutate(ast_t* ast)
+{
+  switch (ast_id(ast))
+  {
+    case TK_VAR:
+    case TK_LET:
+    case TK_VARREF:
+    case TK_DONTCARE:
+    case TK_DONTCAREREF:
+      return true;
+
+    case TK_TUPLEELEMREF:
+      return true; // this isn't actually allowed, but it will be caught later.
+
+    case TK_FVARREF:
+    case TK_FLETREF:
+    case TK_EMBEDREF:
+    {
+      // If the ast is x.f, we need the type of x, which will be a nominal
+      // type or an arrow type, since we were able to lookup a field on it.
+      AST_GET_CHILDREN(ast, left, right);
+      ast_t* l_type = ast_type(left);
+
+      token_id l_cap = cap_single(l_type);
+      return cap_mutable(l_cap);
+    }
+
+    case TK_TUPLE:
+    {
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(!safe_to_mutate(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+      return true;
+    }
+
+    case TK_SEQ:
+    {
+      // Occurs when there is a tuple on the left. Each child of the tuple will
+      // be a sequence, but only sequences with a single writeable child are
+      // valid. Other types won't appear here.
+      return safe_to_mutate(ast_child(ast));
+    }
+
+    default: {}
+  }
+
+  pony_assert(0);
+  return false;
+}

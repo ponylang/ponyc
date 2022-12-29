@@ -8,6 +8,7 @@
 PONY_EXTERN_C_BEGIN
 
 bool safe_to_move(ast_t* ast, ast_t* type, direction direction);
+bool safe_to_mutate(ast_t* ast);
 
 bool safe_to_autorecover(ast_t* receiver, ast_t* type, direction direction);
 
