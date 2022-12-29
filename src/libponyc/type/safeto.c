@@ -247,6 +247,4 @@ bool safe_to_mutate(ast_t* ast)
 
   pony_assert(0);
   return false;
-
-
 }
