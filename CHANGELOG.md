@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.52.5] - 2022-12-30
 
 ### Fixed
 
 - Fix compiler crash introduced in #4283 ([PR #4288](https://github.com/ponylang/ponyc/pull/4288))
-
-### Added
-
-
-### Changed
-
 
 ## [0.52.4] - 2022-12-29
 
