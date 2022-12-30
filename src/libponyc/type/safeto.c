@@ -216,6 +216,10 @@ bool safe_to_mutate(ast_t* ast)
       AST_GET_CHILDREN(ast, left, right);
       ast_t* l_type = ast_type(left);
 
+      // Any viewpoint adapted type will not be safe to write to.
+      if(ast_id(l_type) != TK_NOMINAL)
+        return false;
+
       token_id l_cap = cap_single(l_type);
       return cap_mutable(l_cap);
     }
