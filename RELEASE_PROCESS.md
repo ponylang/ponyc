@@ -4,7 +4,7 @@ This document is aimed at members of the Pony team who might be cutting a releas
 
 ## Prerequisites
 
-* You must have commit access to the ponyup repository.
+* You must have commit access to the ponyc repository.
 * It would be helpful to have read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
 ### Validate external services are functional
