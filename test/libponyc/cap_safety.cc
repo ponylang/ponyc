@@ -181,3 +181,16 @@ TEST_F(CapSafetyTest, WriteValToIso)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(CapSafetyTest, NoWriteArrow)
+{
+  const char* src =
+    "actor Main"
+    "  var f: U64 = 1"
+    "  new create(env: Env) =>"
+    "    _start()"
+    "  fun _start() =>"
+    "    f = 2";
+
+  TEST_ERROR(src);
+}
