@@ -1,6 +1,0 @@
-## Fix compiler crash when attempting to mutate a val field
-
-In Pony 0.52.4 we fixed an unsoundness bug that had been introduced over the summer. While fixing that bug, an error case was missed and as a result, a compiler crash was created where an error message should have been generated.
-
-We've fixed the crash and it now displays a "left side is immutable" error message.
-
