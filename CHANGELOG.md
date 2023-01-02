@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Implement empty ranges RFC ([PR #4280](https://github.com/ponylang/ponyc/pull/4280))
 
 ## [0.52.5] - 2022-12-30
 
