@@ -30,67 +30,70 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   end
   ```
 
-  If the `step` is not moving `min` towards `max` or if it is `0`,
-  the Range is considered infinite and iterating over it
-  will never terminate:
+  If `inc` is nonzero, but cannot produce progress towards `max` because of its sign, the `Range` is considered empty and will not produce any iterations. The `Range` is also empty if either `min` equals `max`, independent of the value of `inc`, or if `inc` is zero.
 
   ```pony
-  let infinite_range1 = Range(0, 1, 0)
-  infinite_range1.is_infinite() == true
-
-  let infinite_range2 = Range[I8](0, 10, -1)
-  for _ in infinite_range2 do
-    env.out.print("will this ever end?")
-    env.err.print("no, never!")
-  end
+  let empty_range1 = Range(0, 10, -1)
+  let empty_range2 = Range(0, 10, 0)
+  let empty_range3 = Range(10, 10)
+  empty_range1.is_empty() == true
+  empty_range2.is_empty() == true
+  empty_range3.is_empty() == true
   ```
 
-  When using `Range` with  floating point types (`F32` and `F64`)
-  `inc` steps < 1.0 are possible. If any of the arguments contains
-  `NaN`, `+Inf` or `-Inf` the range is considered infinite as operations on
-  any of them won't move `min` towards `max`.
-  The actual values produced by such a `Range` are determined by what IEEE 754
-  defines as the result of `min` + `inc`:
+  Note that when using unsigned integers, a negative literal wraps around so while `Range[ISize](0, 10, -1)` is empty as above, `Range[USize](0, 10, -1)` produces a single value of `min` or `[0]` here.
+
+  When using `Range` with floating point types (`F32` and `F64`) `inc` steps < 1.0 are possible. If any arguments contains NaN, the `Range` is considered empty. It is also empty if the lower bound `min` or the step `inc` are +Inf or -Inf. However, if only the upper bound `max` is +Inf or -Inf and the step parameter `inc` has the same sign, then the `Range` is considered infinite and will iterate indefinitely.
 
   ```pony
-  for and_a_half in Range[F64](0.5, 100) do
-    handle_half(and_a_half)
-  end
-
-  // this Range will produce 0 at first, then infinitely NaN
+  let p_inf: F64 = F64.max_value() + F64.max_value()
+  let n_inf: F64 = -p_inf
   let nan: F64 = F64(0) / F64(0)
-  for what_am_i in Range[F64](0, 1000, nan) do
-    wild_guess(what_am_i)
+
+  let infinite_range1 = Range[F64](0, p_inf, 1)
+  let infinite_range2 = Range[F64](0, n_inf, -1_000_000)
+  infinite_range1.is_infinite() == true
+  infinite_range2.is_infinite() == true
+
+  for i in Range[F64](0.5, 100, nan) do
+    // will not be executed as `inc` is nan
+  end
+  for i in Range[F64](0.5, 100, p_inf) do
+    // will not be executed as `inc` is +Inf
   end
   ```
-
   """
   let _min: A
   let _max: A
   let _inc: A
   let _forward: Bool
   let _infinite: Bool
+  let _empty: Bool
   var _idx: A
 
   new create(min: A, max: A, inc: A = 1) =>
     _min = min
     _max = max
     _inc = inc
-    _idx = min
     _forward = (_min < _max) and (_inc > 0)
-    let is_float_infinite =
+    (let min_finite, let max_finite, let inc_finite) =
       iftype A <: FloatingPoint[A] then
-        _min.nan() or _min.infinite()
-          or _max.nan() or _max.infinite()
-          or _inc.nan() or _inc.infinite()
+        (_min.finite(), _max.finite(), _inc.finite())
       else
-        false
+        (true, true, true)
       end
-    _infinite =
-      is_float_infinite
-        or ((_inc == 0) and (min != max))    // no progress
-        or ((_min < _max) and (_inc < 0)) // progress into other directions
-        or ((_min > _max) and (_inc > 0))
+    let progress = ((_min < _max) and (_inc > 0))
+                    or ((_min > _max) and (_inc < 0)) // false if any is NaN!
+    if progress and min_finite and inc_finite then
+      _empty = false
+      _infinite = not max_finite // ok to use not max_finite for max_infinite
+                                 // since progress excludes _max == nan
+      _idx = _min
+    else
+      _empty = true
+      _infinite = false
+      _idx = _max // has_next() will return false without code modification
+    end
 
   fun has_next(): Bool =>
     if _infinite then
@@ -114,3 +117,6 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
 
   fun is_infinite(): Bool =>
     _infinite
+
+  fun is_empty(): Bool =>
+    _empty
