@@ -48,7 +48,6 @@ typedef int SOCKET;
 #ifdef PLATFORM_IS_LINUX
 #include <asm-generic/socket.h>
 #include <linux/atm.h>
-#include <linux/dn.h>
 #include <linux/rds.h>
 #if defined(__GLIBC__)
 #include <netatalk/at.h>
@@ -1361,7 +1360,7 @@ PONY_API void pony_os_multicast_leave(int fd, const char* group, const char* to)
  *     https://msdn.microsoft.com/en-us/library/windows/desktop/ms738544(v=vs.85).aspx
  *     https://msdn.microsoft.com/en-us/library/windows/desktop/ms740476(v=vs.85).aspx
  * Harvested by (except Windows):
- *   egrep -s '\b(_AX25|DCCP|DSO|ICMP|IPSEC|IPT|IPX|IP[A-Z0-6]*|LOCAL|MCAST[A-Z0-6]*|MRT|NDRV|NETLINK|NETROM|RDS|ROSE|SCO|SCTP|SO|SOL|TCP[A-Z0-6]*|TIPC|UDP[A-Z0-6]*)' /usr/include/asm-generic/socket.h /usr/include/linux/atm.h /usr/include/linux/dccp.h /usr/include/linux/dn.h /usr/include/linux/icmp.h /usr/include/linux/in.h /usr/include/linux/in6.h /usr/include/linux/netfilter_ipv4.h /usr/include/linux/netlink.h /usr/include/linux/rds.h /usr/include/linux/tcp.h /usr/include/linux/tipc.h /usr/include/linux/udp.h /usr/include/linux/vm_sockets.h /usr/include/net/ndrv.h /usr/include/netatalk/at.h /usr/include/netax25/ax25.h /usr/include/netfilter_ipv4/ip_tables.h /usr/include/netfilter_ipv6/ip6_tables.h /usr/include/netgraph/bluetooth/include/ng_btsocket.h /usr/include/netinet/in.h /usr/include/netinet/ip_mroute.h /usr/include/netinet/sctp.h /usr/include/netinet/tcp.h /usr/include/netinet/udp.h /usr/include/netipx/ipx.h /usr/include/netrom/netrom.h /usr/include/netrose/rose.h /usr/include/sys/socket.h /usr/include/sys/un.h | egrep -v 'bad-macros-filtered-here|SO_CIRANGE' | egrep '#.*define' | awk '{print $2}' | sort -u
+ *   egrep -s '\b(_AX25|DCCP|DSO|ICMP|IPSEC|IPT|IPX|IP[A-Z0-6]*|LOCAL|MCAST[A-Z0-6]*|MRT|NDRV|NETLINK|NETROM|RDS|ROSE|SCO|SCTP|SO|SOL|TCP[A-Z0-6]*|TIPC|UDP[A-Z0-6]*)' /usr/include/asm-generic/socket.h /usr/include/linux/atm.h /usr/include/linux/dccp.h /usr/include/linux/icmp.h /usr/include/linux/in.h /usr/include/linux/in6.h /usr/include/linux/netfilter_ipv4.h /usr/include/linux/netlink.h /usr/include/linux/rds.h /usr/include/linux/tcp.h /usr/include/linux/tipc.h /usr/include/linux/udp.h /usr/include/linux/vm_sockets.h /usr/include/net/ndrv.h /usr/include/netatalk/at.h /usr/include/netax25/ax25.h /usr/include/netfilter_ipv4/ip_tables.h /usr/include/netfilter_ipv6/ip6_tables.h /usr/include/netgraph/bluetooth/include/ng_btsocket.h /usr/include/netinet/in.h /usr/include/netinet/ip_mroute.h /usr/include/netinet/sctp.h /usr/include/netinet/tcp.h /usr/include/netinet/udp.h /usr/include/netipx/ipx.h /usr/include/netrom/netrom.h /usr/include/netrose/rose.h /usr/include/sys/socket.h /usr/include/sys/un.h | egrep -v 'bad-macros-filtered-here|SO_CIRANGE' | egrep '#.*define' | awk '{print $2}' | sort -u
  *
  * These constants are _not_ stable between Pony releases.
  * Values returned by this function may be held by long-lived variables
