@@ -717,6 +717,8 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
           {
             if(contains_boxable(child))
               return false;
+
+            child = ast_sibling(child);
           }
         }
       }
