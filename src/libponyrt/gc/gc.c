@@ -322,6 +322,9 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc--;
   }
 
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
+
   if(mutability == PONY_TRACE_MUTABLE || might_reference_actor(t))
     recurse(ctx, p, t->trace);
 }
@@ -442,6 +445,9 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     obj->rc += GC_INC_MORE;
     acquire_object(ctx, actor, p, obj->immutable);
   }
+
+  if(mutability == PONY_TRACE_OPAQUE)
+    return;
 
   if(mutability == PONY_TRACE_MUTABLE || might_reference_actor(t))
     recurse(ctx, p, t->trace);
