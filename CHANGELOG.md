@@ -2,16 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.53.0] - 2023-01-04
 
 ### Fixed
 
 - Fix infinite loop in compiler ([PR #4293](https://github.com/ponylang/ponyc/pull/4293))
 - Fix compiler segfault caused by infinite recursion ([PR #4292](https://github.com/ponylang/ponyc/pull/4292))
 - Fix runtime segfault ([PR #4294](https://github.com/ponylang/ponyc/pull/4294))
-
-### Added
-
 
 ### Changed
 
