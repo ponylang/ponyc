@@ -641,7 +641,7 @@ static bool contains_boxable(ast_t* type)
       ast_t* child = ast_child(type);
       while(child != NULL)
       {
-        if(contains_boxable(type))
+        if(contains_boxable(child))
           return true;
 
         child = ast_sibling(child);
