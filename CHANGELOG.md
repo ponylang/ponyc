@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix infinite loop in compiler ([PR #4293](https://github.com/ponylang/ponyc/pull/4293))
 
 ### Added
 
