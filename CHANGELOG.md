@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix infinite loop in compiler ([PR #4293](https://github.com/ponylang/ponyc/pull/4293))
 - Fix compiler segfault caused by infinite recursion ([PR #4292](https://github.com/ponylang/ponyc/pull/4292))
+- Fix runtime segfault ([PR #4294](https://github.com/ponylang/ponyc/pull/4294))
 
 ### Added
 
