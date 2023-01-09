@@ -484,8 +484,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, ast,
         "not safe to write right side to left side");
-      ast_error_continue(opt->check.errors, wl_type, "right side type: %s",
-        ast_print_type(wl_type));
+      ast_error_continue(opt->check.errors, r_type, "right side type: %s",
+        ast_print_type(r_type));
       ast_error_continue(opt->check.errors, ast_child(left), "left side type: %s",
         ast_print_type(ast_type(ast_child(left))));
       ast_free_unattached(wl_type);
