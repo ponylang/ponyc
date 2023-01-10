@@ -1302,6 +1302,13 @@ TEST_F(BadPonyTest, NotSafeToWrite)
         "let foo: Foo ref = Foo\n"
         "x.foo = foo";
 
-  TEST_ERRORS_1(src,
-    "not safe to write right side to left side")
+  {
+      const char* errs[] =
+        {"not safe to write right side to left side", NULL};
+      const char* frame1[] = {
+        "right side type: Foo ref^", 
+        "left side type: X iso", NULL};
+      const char** frames[] = {frame1, NULL};
+      DO(test_expected_error_frames(src, "verify", errs, frames));
+  }
 }
