@@ -1309,6 +1309,6 @@ TEST_F(BadPonyTest, NotSafeToWrite)
         "right side type: Foo ref^", 
         "left side type: X iso", NULL};
       const char** frames[] = {frame1, NULL};
-      DO(test_expected_error_frames(src, "verify", errs, frames));
+      DO(test_expected_error_frames(src, "badpony", errs, frames));
   }
 }
