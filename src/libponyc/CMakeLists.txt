@@ -152,7 +152,7 @@ else()
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
-        COMMAND ${CMAKE_AR} -M < standalone.mri
+        COMMAND ar -M < standalone.mri
         DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
