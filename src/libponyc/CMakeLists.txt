@@ -121,9 +121,22 @@ endif (NOT MSVC)
 # build a standalone version of libponyc.a with all needed dependencies linked statically
 if (MSVC)
     # TODO
-    #file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/build_libs/llvm/src/llvm/Release/lib/*.lib")
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    # TODO
+    # on macos we dont have no static libc++
+    # so when we want to use this lib
+    # we need to additionally link libc++ and libz (for llvm)
+    file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/build_libs/llvm/src/llvm//lib/libLLVM*.a")
+    add_custom_target(libponyc-standalone ALL
+        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a ${LLVM_OBJS}
+        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+    )
+    # copy the generated file after it is built
+    add_custom_command(TARGET libponyc-standalone POST_BUILD
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug/
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release/
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo/
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel/
+    )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
     # TODO
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
@@ -139,7 +152,7 @@ else()
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
-        COMMAND ar -M < standalone.mri
+        COMMAND ${CMAKE_AR} -M < standalone.mri
         DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
