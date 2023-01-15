@@ -5,7 +5,7 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND noninteractive
 ENV DEBCONF_NONINTERACTIVE_SEEN true
 
-RUN apt-get -o Acquire::Max-FutureTime=86400 update \
+RUN apt-get update \
  && apt-get install -y --no-install-recommends \
   apt-transport-https \
   build-essential \
