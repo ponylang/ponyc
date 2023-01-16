@@ -189,12 +189,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-arm:20220720
+    image: ponylang/ponyc-ci-cross-arm:20230115
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-arm:20220720
+    IMAGE: ponylang/ponyc-ci-cross-arm:20230115
 
   name: "arm Linux glibc"
 
@@ -220,12 +220,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-armhf:20220720
+    image: ponylang/ponyc-ci-cross-armhf:20230115
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-armhf:20220720
+    IMAGE: ponylang/ponyc-ci-cross-armhf:20230115
 
   name: "armhf Linux glibc"
 
@@ -251,12 +251,12 @@ task:
   only_if: $CIRRUS_PR != ''
 
   container:
-    image: ponylang/ponyc-ci-cross-riscv64:20220720
+    image: ponylang/ponyc-ci-cross-riscv64:20230115
     cpu: 8
     memory: 6
 
   environment:
-    IMAGE: ponylang/ponyc-ci-cross-riscv64:20220720
+    IMAGE: ponylang/ponyc-ci-cross-riscv64:20230115
 
   name: "riscv64 Linux glibc"
 
@@ -290,23 +290,23 @@ task:
   matrix:
     - name: "nightly: x86-64-unknown-linux-gnu"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20220720
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20230115
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20220720
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20230115
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20221129
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20221129
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "nightly: x86-64-unknown-linux-ubuntu22.04"
@@ -452,23 +452,23 @@ task:
   matrix:
     - name: "release: x86-64-unknown-linux-gnu"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20220720
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20230115
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20220720
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20230115
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-gnu
     - name: "release: x86-64-unknown-linux-ubuntu18.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20221129
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20221129
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu18.04
     - name: "release: x86-64-unknown-linux-ubuntu20.04"
       container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720
+        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
       environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20220720
+        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
         TRIPLE_VENDOR: unknown
         TRIPLE_OS: linux-ubuntu20.04
     - name: "release: x86-64-unknown-linux-ubuntu22.04"

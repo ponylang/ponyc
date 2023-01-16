@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 project(libponyrt.benchmarks VERSION ${PONYC_PROJECT_VERSION} LANGUAGES CXX)
 
