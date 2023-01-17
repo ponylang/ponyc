@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Create libponyc-standalone on MacOS ([PR #4303](https://github.com/ponylang/ponyc/pull/4303))
 
 ### Changed
 
