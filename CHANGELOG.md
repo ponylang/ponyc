@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update DTrace probes ([PR #4302](https://github.com/ponylang/ponyc/pull/4302))
 
 ## [0.53.0] - 2023-01-04
 
