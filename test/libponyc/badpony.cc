@@ -1287,3 +1287,28 @@ TEST_F(BadPonyTest, CantAssignErrorExpression)
   TEST_ERRORS_1(src,
     "right side must be something that can be assigned")
 }
+
+TEST_F(BadPonyTest, NotSafeToWrite)
+{
+  // From issue #4290
+  const char* src =
+    "class Foo\n"
+    "class X\n"
+      "var foo: Foo ref = Foo\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = X\n"
+        "let foo: Foo ref = Foo\n"
+        "x.foo = foo";
+
+  {
+      const char* errs[] =
+        {"not safe to write right side to left side", NULL};
+      const char* frame1[] = {
+        "right side type: Foo ref^", 
+        "left side type: X iso", NULL};
+      const char** frames[] = {frame1, NULL};
+      DO(test_expected_error_frames(src, "badpony", errs, frames));
+  }
+}
