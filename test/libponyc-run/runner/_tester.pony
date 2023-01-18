@@ -106,6 +106,10 @@ actor _Tester
       if _options.debug then
         args.push("--debug")
       end
+      if _options.verbose then
+        // like this we can see the linker command being used
+        args.push("--verbose=3")
+      end
       if _options.test_lib.size() > 0 then
         args.push("--path=" + _options.test_lib)
       end
