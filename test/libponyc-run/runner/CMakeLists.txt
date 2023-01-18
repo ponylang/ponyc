@@ -10,6 +10,7 @@ add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
     main.pony
     _build_process_notify.pony
     _cli_options.pony
+    _colors.pony
     _coordinator.pony
     _find_executable.pony
     _test_definitions.pony
