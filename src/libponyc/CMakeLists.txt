@@ -104,10 +104,10 @@ target_include_directories(libponyc
     PRIVATE ../../lib/blake2
 )
 
- if (MSVC)
-     file(GLOB_RECURSE CFILES "${PROJECT_SOURCE_DIR}/*.c")
-     set_source_files_properties(${CFILES} PROPERTIES LANGUAGE CXX)
- endif (MSVC)
+if (MSVC)
+    file(GLOB_RECURSE CFILES "${PROJECT_SOURCE_DIR}/*.c")
+    set_source_files_properties(${CFILES} PROPERTIES LANGUAGE CXX)
+endif (MSVC)
 
 if (NOT MSVC)
     add_custom_command(TARGET libponyc POST_BUILD
