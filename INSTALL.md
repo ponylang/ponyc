@@ -29,12 +29,12 @@ where `PLATFORM` is from the table below
 
 Distribution | PLATFORM String
 --- | ---
-Alpine | musl
-Linux Mint 19.3 | ubuntu18.04
-Rocky 8 | rocky8
-Ubuntu 18.04 | ubuntu18.04
-Ubuntu 20.04 | ubuntu20.04
-Ubuntu 22.04 | ubuntu22.04
+Alpine | x86_64-linux-musl
+Linux Mint 19.3 | x86_64-linux-ubuntu18.04
+Rocky 8 | x86_64-linux-rocky8
+Ubuntu 18.04 | x86_64-linux-ubuntu18.04
+Ubuntu 20.04 | x86_64-linux-ubuntu20.04
+Ubuntu 22.04 | x86_64-linux-ubuntu22.04
 
 N.B. If you platform isn't listed, skip to the next section and ponyup will install, as appropriate a Glibc or musl libc build of ponyc.
 
