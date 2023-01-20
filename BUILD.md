@@ -72,6 +72,7 @@ Raspbian 32-bit | cmake
 Raspbian 64-bit | cmake, clang
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Ubuntu | clang, cmake, make
+Void | clang, cmake, make, libatomic libatomic-devel
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
