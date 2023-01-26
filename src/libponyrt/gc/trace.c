@@ -13,7 +13,7 @@ PONY_API void pony_gc_send(pony_ctx_t* ctx)
   ctx->trace_object = ponyint_gc_sendobject;
   ctx->trace_actor = ponyint_gc_sendactor;
 
-  DTRACE1(GC_SEND_START, (uintptr_t)ctx->scheduler);
+  DTRACE2(GC_SEND_START, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_gc_recv(pony_ctx_t* ctx)
@@ -23,7 +23,7 @@ PONY_API void pony_gc_recv(pony_ctx_t* ctx)
   ctx->trace_object = ponyint_gc_recvobject;
   ctx->trace_actor = ponyint_gc_recvactor;
 
-  DTRACE1(GC_RECV_START, (uintptr_t)ctx->scheduler);
+  DTRACE2(GC_RECV_START, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 void ponyint_gc_mark(pony_ctx_t* ctx)
@@ -56,7 +56,7 @@ PONY_API void pony_send_done(pony_ctx_t* ctx)
   ponyint_gc_sendacquire(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 
-  DTRACE1(GC_SEND_END, (uintptr_t)ctx->scheduler);
+  DTRACE2(GC_SEND_END, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_recv_done(pony_ctx_t* ctx)
@@ -65,7 +65,7 @@ PONY_API void pony_recv_done(pony_ctx_t* ctx)
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 
-  DTRACE1(GC_RECV_END, (uintptr_t)ctx->scheduler);
+  DTRACE2(GC_RECV_END, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 void ponyint_mark_done(pony_ctx_t* ctx)

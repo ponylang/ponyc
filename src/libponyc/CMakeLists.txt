@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 project(libponyc VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
@@ -120,10 +120,37 @@ endif (NOT MSVC)
 
 # build a standalone version of libponyc.a with all needed dependencies linked statically
 if (MSVC)
-    # TODO
-    #file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/build_libs/llvm/src/llvm/Release/lib/*.lib")
+    # this will not include LLVM-C.lib as it contains lots of duplicated definitions
+    file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/LLVM[!-]*.lib")
+
+    set(libponyc_standalone_file "${CMAKE_STATIC_LIBRARY_PREFIX}ponyc-standalone${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(libponyc_standalone_path "${CMAKE_BINARY_DIR}/${libponyc_standalone_file}")
+    add_custom_target(libponyc-standalone ALL
+        # CMAKE_AR finds the appropriate version of lib.exe acdording to desired target and host architecture 
+        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /MACHINE:x64 /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
+        DEPENDS libponyc)
+    add_custom_command(TARGET libponyc-standalone POST_BUILD
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/${libponyc_standalone_file}
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/${libponyc_standalone_file}
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO}/${libponyc_standalone_file}
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL}/${libponyc_standalone_file}
+    )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    # TODO
+    # on macos we dont have no static libc++
+    # so when we want to use this lib
+    # we need to additionally link libc++ and libz (for llvm)
+    file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/build_libs/llvm/src/llvm//lib/libLLVM*.a")
+    add_custom_target(libponyc-standalone ALL
+        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a ${LLVM_OBJS}
+        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+    )
+    # copy the generated file after it is built
+    add_custom_command(TARGET libponyc-standalone POST_BUILD
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug/
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release/
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo/
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel/
+    )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
     # TODO
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")

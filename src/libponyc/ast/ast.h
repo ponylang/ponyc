@@ -12,9 +12,7 @@
 
 #include <platform.h>
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 typedef struct ast_t ast_t;
 
@@ -222,8 +220,5 @@ pony_type_t* ast_nominal_pkg_id_signature_pony_type();
 
 pony_type_t* ast_pony_type();
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-}
-#endif
-
+PONY_EXTERN_C_END
 #endif

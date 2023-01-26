@@ -550,7 +550,6 @@ void ponyint_hashmap_clearindex(hashmap_t* map, size_t index)
 void ponyint_hashmap_optimize(hashmap_t* map, cmp_fn cmp)
 {
   size_t count = 0;
-  size_t num_iters = 0;
   size_t i = HASHMAP_BEGIN;
   void* elem;
 
@@ -563,7 +562,6 @@ void ponyint_hashmap_optimize(hashmap_t* map, cmp_fn cmp)
     {
       count += optimize_item(map, cmp, i);
     }
-    num_iters++;
   } while(count > 0);
 }
 

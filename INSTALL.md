@@ -19,7 +19,23 @@ ponyup update ponyc release
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
 
-### Select your Linux platform
+If you are running on a support Linux platform, ponyup should correctly select it so long as you have `cc` and `lsb_release` installed. If for some reason, the installation script can't identify your distribution, you can manually select your platform.
+
+If we aren't creating packages for your distribution and you would like us to, please stop by the [release stream](https://ponylang.zulipchat.com/#narrow/stream/190364-release) in the [ponylang Zulip](https://ponylang.zulipchat.com) to discuss adding support. Please note, we are almost assuredly going to ask you to help support your distribution.
+
+At the moment, we support all supported LTS Ubuntu versions and any distributions built on top of Ubuntu (like Linux Mint and Pop!_OS).
+
+### Supported Glibc distributions
+
+Currently, we have packages for the following Glibc based distributions:
+
+- Linux Mint 19, 20, 21
+- Pop!_OS 18.04, 20.04, 22.04
+- Ubuntu 18.04, 20.04, 22.04
+
+### Manually selecting your Linux platform
+
+To manually set your platform if ponyup is unable to identify it:
 
 ```bash
 ponyup default PLATFORM
@@ -29,14 +45,16 @@ where `PLATFORM` is from the table below
 
 Distribution | PLATFORM String
 --- | ---
-Alpine | musl
-Linux Mint 19.3 | ubuntu18.04
-Rocky 8 | rocky8
-Ubuntu 18.04 | ubuntu18.04
-Ubuntu 20.04 | ubuntu20.04
-Ubuntu 22.04 | ubuntu22.04
-
-N.B. If you platform isn't listed, skip to the next section and ponyup will install, as appropriate a Glibc or musl libc build of ponyc.
+Alpine | x86_64-linux-musl
+Linux Mint 19.x | x86_64-linux-ubuntu18.04
+Linux Mint 20.x | x86_64-linux-ubuntu20.04
+Linux Mint 21.x | x86_64-linux-ubuntu22.04
+Pop!_OS 18.04 | x86_64-linux-ubuntu18.04
+Pop!_OS 20.04 | x86_64-linux-ubuntu20.04
+Pop!_OS 22.04 | x86_64-linux-ubuntu22.04
+Ubuntu 18.04 | x86_64-linux-ubuntu18.04
+Ubuntu 20.04 | x86_64-linux-ubuntu20.04
+Ubuntu 22.04 | x86_64-linux-ubuntu22.04
 
 ### Install the latest release
 
@@ -47,15 +65,7 @@ ponyup update ponyc release
 
 ### Additional requirements
 
-All ponyc Linux installations need to have a C compiler such as clang installed. Compilers other than clang might work, but clang is the officially supported C compiler. The following distributions have additional requirements:
-
-Distribution | Requires
---- | ---
-Alpine | libexecinfo
-CentOS | libatomic
-Fedora | libatomic
-Rocky | libatomic
-Void | libatomic libatomic-devel
+All ponyc Linux installations need to have a C compiler such as clang installed. Compilers other than clang might work, but clang is the officially supported C compiler.
 
 ### Troubleshooting Glibc compatibility
 
@@ -65,7 +75,7 @@ Most Linux distributions are based on Glibc and all software for them must use t
 ponyc: /lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.29' not found (required by ponyc)
 ```
 
-If you get that error, it means that the Glibc we compiled ponyc with isn't compatible with your distribution. If your distribution is a long term support release, please [open an issue](https://github.com/ponylang/ponyc/issues) and we'll work towards adding prebuilt images for your distribution. Otherwise, you'll have to [build ponyc from source](BUILD.md).
+If you get that error, it means that the Glibc we compiled ponyc with isn't compatible with your distribution. You've installed a ponyc build that isn't compatible with the C ABI on your distribution. You'll probably need to [build ponyc from source](BUILD.md). If you believe that you've installed a correct package for your distribution, please stop by the [beginner help stream](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help) on the [ponylang Zulip](https://ponylang.zulipchat.com) to discuss what you are seeing.
 
 ## macOS
 

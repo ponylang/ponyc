@@ -6,12 +6,17 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Remove ambiguity from "not safe to write" compiler error message ([PR #4299](https://github.com/ponylang/ponyc/pull/4299))
 
 ### Added
 
+- Create libponyc-standalone on MacOS ([PR #4303](https://github.com/ponylang/ponyc/pull/4303))
+- Build ponyc-standalone.lib for windows ([PR #4307](https://github.com/ponylang/ponyc/pull/4307))
 
 ### Changed
 
+- Update DTrace probes ([PR #4302](https://github.com/ponylang/ponyc/pull/4302))
+- Stop building the "x86-64-unknown-linux-gnu" ponyc package ([PR #4312](https://github.com/ponylang/ponyc/pull/4312))
 
 ## [0.53.0] - 2023-01-04
 
