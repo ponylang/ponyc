@@ -142,13 +142,13 @@ task:
   debug_build_script:
     - make build arch=armv8 config=debug
   debug_test_script:
-    - make test-ci config=debug usedebugger=lldb
+    - make test-ci config=debug usedebugger=/opt/homebrew/opt/llvm/bin/lldb
   release_configure_script:
     - make configure arch=armv8 config=release
   release_build_script:
     - make build arch=armv8 config=release
   release_test_script:
-    - make test-ci config=release usedebugger=lldb
+    - make test-ci config=release usedebugger=/opt/homebrew/opt/llvm/bin/lldb
 
 task:
   only_if: $CIRRUS_PR != ''
