@@ -135,10 +135,6 @@ void pass_opt_done(pass_opt_t* options)
       options->check.stats.stack_alloc
       );
   }
-  if(options->all_args != NULL)
-  {
-    free((void*)options->all_args);
-  }
 }
 
 
