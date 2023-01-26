@@ -69,3 +69,18 @@ Previously we built a "generic gnu" ponyc package and made it available via Clou
 
 We've stoped building the "generic gnu" aka "x86-64-unknown-linux-gnu" packages of ponyc as they had limited utility and a couple of different ways of creating a very bad user experience. Please see our [Linux installation instructions](https://github.com/ponylang/ponyc/blob/main/INSTALL.md#linux) for a list of Linux distributions we currently create ponyc packages for.
 
+## Enable building of libponyc-standalone on Windows
+
+We now ship a "standalone" version of libponyc for Windows. libponyc-standalone allows applications to use Pony compiler functionality as a library. The standalone version contains "all dependencies" needed in a single library. This library doesn't contain C or C++ runtime libs, as those get linked into every Pony program during compilation on Windows.
+
+An example pony program linking against it on Windows would need to look like this:
+
+```pony
+use "lib:ponyc-standalone" if posix or osx or windows
+use "lib:c++" if osx
+
+actor Main
+  new create(env: Env) =>
+    None
+```
+
