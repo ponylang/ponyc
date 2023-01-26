@@ -9,9 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 typedef struct token_t token_t;
 
@@ -393,8 +391,5 @@ void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-}
-#endif
-
+PONY_EXTERN_C_END
 #endif
