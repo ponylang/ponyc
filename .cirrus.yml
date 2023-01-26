@@ -138,6 +138,8 @@ task:
     - libs
 
   debug_configure_script:
+    - brew update --force --quiet
+    - brew install llvm
     - make configure arch=armv8 config=debug
   debug_build_script:
     - make build arch=armv8 config=debug
