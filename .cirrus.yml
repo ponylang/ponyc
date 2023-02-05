@@ -138,15 +138,15 @@ task:
     - libs
 
   debug_configure_script:
-    - make configure arch=armv8 config=debug
+    - make configure config=debug
   debug_build_script:
-    - make build arch=armv8 config=debug
+    - make build config=debug
   debug_test_script:
     - make test-ci config=debug usedebugger=lldb
   release_configure_script:
-    - make configure arch=armv8 config=release
+    - make configure config=release
   release_build_script:
-    - make build arch=armv8 config=release
+    - make build config=release
   release_test_script:
     - make test-ci config=release usedebugger=lldb
 
