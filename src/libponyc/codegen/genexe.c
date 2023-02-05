@@ -294,6 +294,10 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
+  fprintf(stderr, "!!! arch !!! ld: %.*s, actual: %s\n",
+      (int)arch_len, c->opt->triple, c->opt->triple);
+
+
   snprintf(ld_cmd, ld_len,
 #if defined(PLATFORM_IS_ARM)
     "%s -execute -arch %.*s "
