@@ -22,6 +22,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 

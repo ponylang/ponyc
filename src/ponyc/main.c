@@ -143,6 +143,7 @@ int main(int argc, char* argv[])
 
   ponyc_shutdown(&opt);
   pass_opt_done(&opt);
+  free((void*)opt.all_args);
 
   return ok ? 0 : -1;
 }
