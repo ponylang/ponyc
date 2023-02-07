@@ -139,7 +139,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     # on macos we dont have no static libc++
     # so when we want to use this lib
     # we need to additionally link libc++ and libz (for llvm)
-    file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/build_libs/llvm/src/llvm//lib/libLLVM*.a")
+    file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/libLLVM*.a")
     add_custom_target(libponyc-standalone ALL
         COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a ${LLVM_OBJS}
         DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
