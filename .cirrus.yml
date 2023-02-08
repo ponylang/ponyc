@@ -137,9 +137,10 @@ task:
   upload_caches:
     - libs
 
-  debug_configure_script:
+  install_script:
     - brew update --force --quiet
     - brew install llvm
+  debug_configure_script:
     - make configure arch=armv8 config=debug
   debug_build_script:
     - make build arch=armv8 config=debug
