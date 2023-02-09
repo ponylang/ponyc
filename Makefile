@@ -154,10 +154,10 @@ ifdef use
   endif
 endif
 
-ifeq ($(strip $(usedebugger)),lldb)
-  debuggercmd := lldb --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
-else ifeq ($(strip $(usedebugger)),gdb)
-  debuggercmd := gdb --quiet --batch --return-child-result --eval-command="set confirm off" --eval-command="set pagination off" --eval-command="handle SIGINT nostop pass" --eval-command="handle SIGUSR2 nostop pass" --eval-command=run  --eval-command="info args" --eval-command="info locals" --eval-command="info registers" --eval-command="thread apply all bt full" --eval-command=quit --args
+ifneq ($(findstring lldb,$(usedebugger)),)
+  debuggercmd := $(usedebugger) --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
+else ifneq ($(findstring gdb,$(usedebugger)),)
+  debuggercmd := $(usedebugger) --quiet --batch --return-child-result --eval-command="set confirm off" --eval-command="set pagination off" --eval-command="handle SIGINT nostop pass" --eval-command="handle SIGUSR2 nostop pass" --eval-command=run  --eval-command="info args" --eval-command="info locals" --eval-command="info registers" --eval-command="thread apply all bt full" --eval-command=quit --args
 else ifneq ($(strip $(usedebugger)),)
   $(error Unknown debugger: '$(usedebugger)')
 endif
@@ -219,11 +219,11 @@ endif
 
 test-full-programs-release: all
 	@mkdir -p $(outDir)/runner-tests/release
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-full-programs-debug: all
 	@mkdir -p $(outDir)/runner-tests/debug
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --timeout_s=60 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential
