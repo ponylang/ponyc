@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Update DTrace probes ([PR #4302](https://github.com/ponylang/ponyc/pull/4302))
 - Stop building the "x86-64-unknown-linux-gnu" ponyc package ([PR #4312](https://github.com/ponylang/ponyc/pull/4312))
+- Remove json package from the standard library ([PR #4323])(https://github.com/ponylang/ponyc/pull/4323)
 
 ## [0.53.0] - 2023-01-04
 
