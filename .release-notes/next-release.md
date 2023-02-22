@@ -103,3 +103,7 @@ The existing package could be improved and it is best improved outside of the st
 
 The library version of the `json` library is now available at [https://github.com/ponylang/json](https://github.com/ponylang/json).
 
+## Fix waiting on Windows to properly admit I/O events
+
+Previously, on Windows, we were calling `WaitForSingleObject` rather than `WaitForSingleObjectEx` when putting scheduler threads to sleep. This could have caused Windows I/O events to be missed.
+
