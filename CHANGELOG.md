@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Remove ambiguity from "not safe to write" compiler error message ([PR #4299](https://github.com/ponylang/ponyc/pull/4299))
+- Fix waiting on Windows to be sure I/O events can still come in. ([PR #4325](https://github.com/ponylang/ponyc/pull/4325))
 
 ### Added
 
