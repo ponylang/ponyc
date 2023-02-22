@@ -61,10 +61,13 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
-    if(is_fp(l_value))
-      return const_f(l_value, r_value);
-
-    return const_i(l_value, r_value);
+    if(is_fp(l_value)) {
+      if (const_f)
+        return const_f(l_value, r_value);
+    } else {
+      if (const_i)
+        return const_i(l_value, r_value);
+    }
   }
 
   if(is_fp(l_value))
@@ -119,13 +122,16 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
-    if(is_fp(l_value))
-      return const_f(l_value, r_value);
-
-    if(sign)
-      return const_si(l_value, r_value);
-
-    return const_ui(l_value, r_value);
+    if(is_fp(l_value)) {
+      if (const_f)
+        return const_f(l_value, r_value);
+    } else if(sign) {
+      if (const_si)
+        return const_si(l_value, r_value);
+    } else {
+      if (const_ui)
+        return const_ui(l_value, r_value);
+    }
   }
 
   if(is_fp(l_value))
@@ -329,7 +335,8 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
   reach_type_t* t = reach_type(c->reach, l_type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef result = LLVMBuildLoad_P(c->builder, l_value, "");
+  LLVMValueRef result = LLVMBuildLoad2(c->builder,
+    LLVMGetAllocatedType(l_value), l_value, "");
   result = gen_assign_cast(c, c_t->use_type, result, l_type);
 
   // Cast the rvalue appropriately.
@@ -351,7 +358,7 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   pony_assert(t != NULL);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef result = LLVMBuildLoad_P(c->builder, l_value, "");
+  LLVMValueRef result = LLVMBuildLoad2(c->builder, c_t->mem_type, l_value, "");
 
   // Cast the rvalue appropriately.
   r_value = gen_assign_cast(c, c_t->mem_type, r_value, r_type);
@@ -598,57 +605,57 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
-      LLVMBuildFAdd, LLVMBuildAdd);
+    return make_binop(c, left, right, NULL, LLVMConstAdd, LLVMBuildFAdd,
+      LLVMBuildAdd);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
-    make_unsafe_fadd, sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
+  return make_binop(c, left, right, NULL, LLVMConstAdd, make_unsafe_fadd,
+    sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
 }
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
-      LLVMBuildFSub, LLVMBuildSub);
+    return make_binop(c, left, right, NULL, LLVMConstSub, LLVMBuildFSub,
+      LLVMBuildSub);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
-    make_unsafe_fsub, sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
+  return make_binop(c, left, right, NULL, LLVMConstSub, make_unsafe_fsub,
+    sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
 }
 
 LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
-      LLVMBuildFMul, LLVMBuildMul);
+    return make_binop(c, left, right, NULL, LLVMConstMul, LLVMBuildFMul,
+      LLVMBuildMul);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
-    make_unsafe_fmul, sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
+  return make_binop(c, left, right, NULL, LLVMConstMul, make_unsafe_fmul,
+    sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
 }
 
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divrem(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
-    LLVMConstSDiv, safe ? LLVMBuildFDiv : make_unsafe_fdiv,
-    LLVMBuildUDiv, LLVMBuildSDiv, safe);
+  return make_divrem(c, left, right, NULL, NULL, NULL,
+    safe ? LLVMBuildFDiv : make_unsafe_fdiv, LLVMBuildUDiv, LLVMBuildSDiv,
+    safe);
 }
 
 LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divrem(c, left, right, LLVMConstFRem, LLVMConstURem,
-    LLVMConstSRem, safe ? LLVMBuildFRem : make_unsafe_frem,
-    LLVMBuildURem, LLVMBuildSRem, safe);
+  return make_divrem(c, left, right, NULL, NULL, NULL,
+    safe ? LLVMBuildFRem : make_unsafe_frem, LLVMBuildURem, LLVMBuildSRem,
+    safe);
 }
 
 LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)

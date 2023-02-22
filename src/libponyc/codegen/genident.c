@@ -157,7 +157,8 @@ static LLVMValueRef tuple_element_is_box_unboxed_element(compile_t* c,
       LLVMPositionBuilderAtEnd(c->builder, bothnum_block);
       LLVMValueRef r_ptr = LLVMBuildBitCast(c->builder, r_field,
         LLVMPointerType(c_t_left->mem_type, 0), "");
-      LLVMValueRef r_value = LLVMBuildLoad_P(c->builder, r_ptr, "");
+      LLVMValueRef r_value = LLVMBuildLoad2(c->builder, c_t_left->mem_type,
+        r_ptr, "");
       r_value = gen_assign_cast(c, c_t_left->use_type, r_value, l_field_type);
       LLVMValueRef same_identity = gen_is_value(c, l_field_type, l_field_type,
         l_field, r_value);
@@ -206,7 +207,8 @@ static LLVMValueRef tuple_element_is_box_unboxed_element(compile_t* c,
     {
       LLVMValueRef l_object = LLVMBuildBitCast(c->builder, l_field,
         c->object_ptr, "");
-      LLVMValueRef r_object = LLVMBuildLoad_P(c->builder, r_field, "");
+      LLVMValueRef r_object = LLVMBuildLoad2(c->builder, c->object_ptr, r_field,
+        "");
       LLVMValueRef same_identity = LLVMBuildICmp(c->builder, LLVMIntEQ,
         l_object, r_object, "");
       LLVMBuildBr(c->builder, post_block);
@@ -256,7 +258,8 @@ static LLVMValueRef tuple_is_box_element(compile_t* c, ast_t* l_field_type,
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
 
   LLVMPositionBuilderAtEnd(c->builder, null_block);
-  LLVMValueRef r_field = LLVMBuildLoad_P(c->builder, r_field_ptr, "");
+  LLVMValueRef r_field = LLVMBuildLoad2(c->builder, c->object_ptr, r_field_ptr,
+    "");
   LLVMValueRef field_test;
 
   switch(field_kind)
@@ -481,19 +484,18 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     if(l_typeid == NULL)
       l_typeid = gendesc_typeid(c, l_desc);
 
-    LLVMValueRef num_sizes = LLVMBuildBitCast(c->builder, c->numeric_sizes,
-      c->void_ptr, "");
     args[0] = LLVMBuildZExt(c->builder, l_typeid, c->intptr, "");
-    LLVMValueRef size = LLVMBuildInBoundsGEP_P(c->builder, num_sizes, args, 1,
-      "");
+    LLVMValueRef size = LLVMBuildInBoundsGEP2(c->builder, c->void_ptr,
+      c->numeric_sizes, args, 1, "");
     size = LLVMBuildBitCast(c->builder, size, LLVMPointerType(c->i32, 0), "");
-    size = LLVMBuildLoad_P(c->builder, size, "");
+    size = LLVMBuildLoad2(c->builder, c->i32, size, "");
     LLVMSetAlignment(size, 4);
     LLVMValueRef one = LLVMConstInt(c->i32, 1, false);
-    args[0] = LLVMBuildInBoundsGEP_P(c->builder, l_value,
-      &one, 1, "");
+    args[0] = LLVMBuildInBoundsGEP2(c->builder, c->void_ptr, l_value, &one, 1,
+      "");
     args[0] = LLVMBuildBitCast(c->builder, args[0], c->void_ptr, "");
-    args[1] = LLVMBuildInBoundsGEP_P(c->builder, r_value, &one, 1, "");
+    args[1] = LLVMBuildInBoundsGEP2(c->builder, c->void_ptr, r_value, &one, 1,
+      "");
     args[1] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
     args[2] = LLVMBuildZExt(c->builder, size, c->intptr, "");
     is_num = gencall_runtime(c, "memcmp", args, 3, "");
@@ -534,7 +536,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     args[0] = l_value;
     args[1] = r_value;
     args[2] = r_desc;
-    is_tuple = codegen_call(c, func, args, 3, true);
+    is_tuple = codegen_call(c, type, func, args, 3, true);
     LLVMBuildBr(c->builder, post_block);
   }
 

@@ -350,8 +350,9 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
 
   // Read the message ID.
   LLVMValueRef msg = LLVMGetParam(c_t->dispatch_fn, 2);
-  LLVMValueRef id_ptr = LLVMBuildStructGEP_P(c->builder, msg, 1, "");
-  LLVMValueRef id = LLVMBuildLoad_P(c->builder, id_ptr, "id");
+  LLVMValueRef id_ptr = LLVMBuildStructGEP2(c->builder, c->msg_type, msg, 1, "");
+  LLVMTypeRef id_type = LLVMStructGetTypeAtIndex(c->msg_type, 1);
+  LLVMValueRef id = LLVMBuildLoad2(c->builder, id_type, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we
   // will add cases to this switch statement based on message ID.
@@ -659,6 +660,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
   int extra = 0;
 
+  LLVMTypeRef structure = c_t->structure;
   switch(t->underlying)
   {
     case TK_CLASS:
@@ -671,7 +673,8 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
     case TK_TUPLETYPE:
       // Skip over the box's descriptor now. It avoids multi-level GEPs later.
-      object = LLVMBuildStructGEP_P(c->builder, object, 1, "");
+      object = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 1, "");
+      structure = c_t->primitive;
       break;
 
     default: {}
@@ -681,13 +684,13 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   {
     reach_field_t* f = &t->fields[i];
     compile_type_t* f_c_t = (compile_type_t*)f->type->c_type;
-    LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, object, i + extra,
-      "");
+    LLVMValueRef field = LLVMBuildStructGEP2(c->builder, structure, object,
+      i + extra, "");
 
     if(!f->embed)
     {
       // Call the trace function indirectly depending on rcaps.
-      field = LLVMBuildLoad_P(c->builder, field, "");
+      field = LLVMBuildLoad2(c->builder, f_c_t->mem_type, field, "");
       ast_t* field_type = f->ast;
       field = gen_assign_cast(c, f_c_t->use_type, field, field_type);
       gentrace(c, ctx, field, field, field_type, field_type);
@@ -697,11 +700,12 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
       if(trace_fn != NULL)
       {
+        LLVMTypeRef trace_fn_type = LLVMGlobalGetValueType(trace_fn);
         LLVMValueRef args[2];
         args[0] = ctx;
         args[1] = LLVMBuildBitCast(c->builder, field, c->object_ptr, "");
 
-        LLVMBuildCall_P(c->builder, trace_fn, args, 2, "");
+        LLVMBuildCall2(c->builder, trace_fn_type, trace_fn, args, 2, "");
       }
     }
   }

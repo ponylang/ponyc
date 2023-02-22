@@ -589,7 +589,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
   gen_then_clauses(c, ast, false);
 
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(codegen_fun(c)));
+  LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
   LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
   codegen_debugloc(c, ast);

@@ -994,29 +994,6 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
     LLVMSetMetadataStr(fun, "pony.abi", md);
   }
 
-  LLVMValueRef arg = LLVMGetFirstParam(fun);
-  uint32_t i = 1;
-
-  while(arg != NULL)
-  {
-    LLVMTypeRef type = LLVMTypeOf(arg);
-
-    if(LLVMGetTypeKind(type) == LLVMPointerTypeKind)
-    {
-      LLVMTypeRef elem = LLVMGetElementType(type);
-
-      if(LLVMGetTypeKind(elem) == LLVMStructTypeKind)
-      {
-        size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
-        LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
-        LLVMAddAttributeAtIndex(fun, i, deref_attr);
-      }
-    }
-
-    arg = LLVMGetNextParam(arg);
-    i++;
-  }
-
   return fun;
 }
 
@@ -1086,7 +1063,7 @@ void codegen_local_lifetime_start(compile_t* c, const char* name)
 
     if(p != NULL && !p->alive)
     {
-      gencall_lifetime_start(c, p->alloca);
+      gencall_lifetime_start(c, p->alloca, LLVMGetAllocatedType(p->alloca));
       p->alive = true;
       return;
     }
@@ -1112,7 +1089,7 @@ void codegen_local_lifetime_end(compile_t* c, const char* name)
 
     if(p != NULL && p->alive)
     {
-      gencall_lifetime_end(c, p->alloca);
+      gencall_lifetime_end(c, p->alloca, LLVMGetAllocatedType(p->alloca));
       p->alive = false;
       return;
     }
@@ -1135,7 +1112,7 @@ void codegen_scope_lifetime_end(compile_t* c)
     while ((p = compile_locals_next(&frame->locals, &i)) != NULL)
     {
       if(p->alive)
-        gencall_lifetime_end(c, p->alloca);
+        gencall_lifetime_end(c, p->alloca, LLVMGetAllocatedType(p->alloca));
     }
     c->frame->early_termination = true;
   }
@@ -1284,10 +1261,11 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name)
   return LLVMAppendBasicBlockInContext(c->context, c->frame->fun, name);
 }
 
-LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  size_t count, bool setcc)
+LLVMValueRef codegen_call(compile_t* c, LLVMTypeRef fun_type, LLVMValueRef fun,
+  LLVMValueRef* args, size_t count, bool setcc)
 {
-  LLVMValueRef result = LLVMBuildCall_P(c->builder, fun, args, (int)count, "");
+  LLVMValueRef result = LLVMBuildCall2(c->builder, fun_type, fun, args,
+    (int)count, "");
 
   if(setcc)
     LLVMSetInstructionCallConv(result, c->callconv);
@@ -1309,7 +1287,7 @@ LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len)
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i32, 0, false);
   args[1] = LLVMConstInt(c->i32, 0, false);
-  return LLVMConstInBoundsGEP_P(g_str, args, 2);
+  return LLVMConstInBoundsGEP2(str_ty, g_str, args, 2);
 }
 
 const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,

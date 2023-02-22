@@ -204,13 +204,8 @@ TEST_F(CodegenTest, DescTable)
     if(table_element->isNullValue())
       continue;
 
-    auto elt_bitcast = llvm::dyn_cast_or_null<llvm::ConstantExpr>(
-      table_element);
-    ASSERT_NE(elt_bitcast, nullptr);
-    ASSERT_EQ(elt_bitcast->getOpcode(), llvm::Instruction::BitCast);
-
     auto desc_ptr = llvm::dyn_cast_or_null<llvm::GlobalVariable>(
-      elt_bitcast->getOperand(0));
+      table_element);
     ASSERT_NE(desc_ptr, nullptr);
     ASSERT_TRUE(desc_ptr->hasInitializer());
 
