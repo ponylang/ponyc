@@ -24,7 +24,12 @@ static void locking_callback(int mode, int type, const char* file, int line)
   if(mode & 1)
   {
 #if defined(PLATFORM_IS_WINDOWS)
-    WaitForSingleObject(locks[type], INFINITE);
+    // Wait for the lock, but stay in an "alertable" state so that APCs can run.
+    // Things like socket I/O depend on being able to run APCs on the thread.
+    // If we wake due to an APC (instead of the lock), wait some more.
+    while (
+      WaitForSingleObjectEx(locks[type], INFINITE, true) == WAIT_IO_COMPLETION
+    );
 #else
     pthread_mutex_lock(&locks[type]);
 #endif

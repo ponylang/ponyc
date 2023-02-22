@@ -217,7 +217,10 @@ bool ponyint_thread_create(pony_thread_id_t* thread, thread_fn start,
 bool ponyint_thread_join(pony_thread_id_t thread)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  WaitForSingleObject(thread, INFINITE);
+  // Wait for the thread, but stay in an "alertable" state so that APCs can run.
+  // Things like socket I/O depend on being able to run APCs on our thread.
+  // If we wake due to an APC (instead of the thread), wait some more.
+  while (WaitForSingleObjectEx(thread, INFINITE, true) == WAIT_IO_COMPLETION);
   CloseHandle(thread);
 #else
   if(pthread_join(thread, NULL))
@@ -250,7 +253,11 @@ void ponyint_thread_suspend(pony_signal_event_t signal)
 #endif
 {
 #ifdef PLATFORM_IS_WINDOWS
-  WaitForSingleObject(signal, INFINITE);
+  // Wait for the signal, but stay in an "alertable" state so that APCs can run.
+  // Things like socket I/O depend on being able to run APCs on the thread.
+  // If we wake due to an APC (instead of the signal), wait some more.
+  while (WaitForSingleObjectEx(signal, INFINITE, true) == WAIT_IO_COMPLETION);
+
 #elif defined(USE_SCHEDULER_SCALING_PTHREADS)
   int ret;
 
