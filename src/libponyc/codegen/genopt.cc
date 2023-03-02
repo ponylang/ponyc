@@ -10,15 +10,15 @@
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/DebugInfo.h>
 
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Analysis/CallGraph.h>
-#include <llvm/Analysis/Lint.h>
-#include <llvm/Analysis/TargetLibraryInfo.h>
-#include <llvm/Analysis/TargetTransformInfo.h>
+#include <llvm/IR/PassManager.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Passes/OptimizationLevel.h>
+#include <llvm/Passes/PassBuilder.h>
 
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/Analysis/Lint.h>
 #include <llvm/Transforms/IPO.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/IPO/StripSymbols.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
@@ -31,8 +31,6 @@
 
 using namespace llvm;
 using namespace llvm::legacy;
-
-static __pony_thread_local compile_t* the_compiler;
 
 static void print_transform(compile_t* c, Instruction* i, const char* s)
 {
@@ -77,20 +75,20 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
   }
 }
 
-class HeapToStack : public FunctionPass
+// Pass to move Pony heap allocations to the stack.
+class HeapToStack : public PassInfoMixin<HeapToStack>
 {
 public:
-  static char ID;
   compile_t* c;
 
-  HeapToStack() : FunctionPass(ID)
+  HeapToStack(compile_t* compiler) : PassInfoMixin<HeapToStack>()
   {
-    c = the_compiler;
+    c = compiler;
   }
 
-  bool runOnFunction(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
-    DominatorTree& dt = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+    DominatorTree& dt = am.getResult<DominatorTreeAnalysis>(f);
     BasicBlock& entry = f.getEntryBlock();
     IRBuilder<> builder(&entry, entry.begin());
 
@@ -107,7 +105,7 @@ public:
       }
     }
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
@@ -456,34 +454,21 @@ public:
   }
 };
 
-char HeapToStack::ID = 0;
-
-static RegisterPass<HeapToStack>
-  H2S("heap2stack", "Move heap allocations to the stack");
-
-static void addHeapToStackPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2) {
-    pm.add(new DominatorTreeWrapperPass());
-    pm.add(new HeapToStack());
-  }
-}
-
-class DispatchPonyCtx : public FunctionPass
+// Pass to replace pony_ctx calls in a dispatch function by the context passed
+// to the function.
+class DispatchPonyCtx : public PassInfoMixin<DispatchPonyCtx>
 {
 public:
-  static char ID;
 
-  DispatchPonyCtx() : FunctionPass(ID)
+  DispatchPonyCtx() : PassInfoMixin<DispatchPonyCtx>()
   {}
 
-  bool runOnFunction(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
     // Check if we're in a Dispatch function.
     StringRef name = f.getName();
     if(name.size() < 10 || name.rfind("_Dispatch") != name.size() - 9)
-      return false;
+      return PreservedAnalyses::all();
 
     pony_assert(f.arg_size() > 0);
 
@@ -502,7 +487,7 @@ public:
       }
     }
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnInstruction(Instruction* inst, Value* ctx)
@@ -528,38 +513,27 @@ public:
   }
 };
 
-char DispatchPonyCtx::ID = 1;
-
-static RegisterPass<DispatchPonyCtx>
-  DPC("dispatchponyctx", "Replace pony_ctx calls in a dispatch function by the\
-                          context passed to the function");
-
-static void addDispatchPonyCtxPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2)
-    pm.add(new DispatchPonyCtx());
-}
-
-class MergeRealloc : public FunctionPass
+// A pass to merge successive reallocations of the same variable.
+class MergeRealloc : public PassInfoMixin<MergeRealloc>
 {
 public:
-  static char ID;
   compile_t* c;
   Function* alloc_fn;
   Function* alloc_small_fn;
   Function* alloc_large_fn;
 
-  MergeRealloc() : FunctionPass(ID)
+  MergeRealloc(compile_t* compiler) : PassInfoMixin<MergeRealloc>()
   {
-    c = the_compiler;
+    c = compiler;
     alloc_fn = NULL;
     alloc_small_fn = NULL;
     alloc_large_fn = NULL;
   }
 
-  bool doInitialization(Module& m)
+  void doInitialization(Module& m)
   {
+    if (alloc_fn != NULL) return;
+
     alloc_fn = m.getFunction("pony_alloc");
     alloc_small_fn = m.getFunction("pony_alloc_small");
     alloc_large_fn = m.getFunction("pony_alloc_large");
@@ -576,11 +550,13 @@ public:
       alloc_large_fn = declareAllocFunction(m, "pony_alloc_large",
         unwrap(c->intptr), HEAP_MAX << 1, false);
 
-    return false;
+    return;
   }
 
-  bool runOnFunction(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
+    doInitialization(*f.getParent());
+
     BasicBlock& entry = f.getEntryBlock();
     IRBuilder<> builder(&entry, entry.begin());
 
@@ -609,7 +585,7 @@ public:
     for(auto elt : removed)
       elt->eraseFromParent();
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
@@ -889,19 +865,8 @@ public:
   }
 };
 
-char MergeRealloc::ID = 2;
-
-static RegisterPass<MergeRealloc>
-  MR("mergerealloc", "Merge successive reallocations of the same variable");
-
-static void addMergeReallocPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2)
-    pm.add(new MergeRealloc());
-}
-
-class MergeMessageSend : public FunctionPass
+// A pass to group message sends in the same BasicBlock.
+class MergeMessageSend : public PassInfoMixin<MergeMessageSend>
 {
 public:
   struct MsgFnGroup
@@ -916,22 +881,23 @@ public:
     MsgTrace
   };
 
-  static char ID;
   compile_t* c;
   Function* send_next_fn;
   Function* msg_chain_fn;
   Function* sendv_single_fn;
 
-  MergeMessageSend() : FunctionPass(ID)
+  MergeMessageSend(compile_t* compiler) : PassInfoMixin<MergeMessageSend>()
   {
-    c = the_compiler;
+    c = compiler;
     send_next_fn = nullptr;
     msg_chain_fn = nullptr;
     sendv_single_fn = nullptr;
   }
 
-  bool doInitialization(Module& m)
+  void doInitialization(Module& m)
   {
+    if (send_next_fn != NULL) return;
+
     send_next_fn = m.getFunction("pony_send_next");
     msg_chain_fn = m.getFunction("pony_chain");
     sendv_single_fn = m.getFunction("pony_sendv_single");
@@ -942,24 +908,20 @@ public:
     if(msg_chain_fn == NULL)
       msg_chain_fn = declareMsgChainFn(m);
 
-    return false;
+    return;
   }
 
-  bool doInitialization(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
-    (void)f;
-    return false;
-  }
+    doInitialization(*f.getParent());
 
-  bool runOnFunction(Function& f)
-  {
     bool changed = false;
     for (auto block = f.begin(), end = f.end(); block != end; ++block)
     {
       changed = changed || runOnBasicBlock(*block);
     }
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnBasicBlock(BasicBlock& b)
@@ -1319,75 +1281,46 @@ public:
   }
 };
 
-char MergeMessageSend::ID = 3;
-
-static RegisterPass<MergeMessageSend>
-  MMS("mergemessagesend", "Group message sends in the same BasicBlock");
-
-static void addMergeMessageSendPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2)
-    pm.add(new MergeMessageSend());
-}
-
 static void optimise(compile_t* c, bool pony_specific)
 {
-  the_compiler = c;
+  // Most of this is the standard ceremony for running standard LLVM passes.
+  // See <https://llvm.org/docs/NewPassManager.html> for details.
 
-  Module* m = unwrap(c->module);
-  TargetMachine* machine = reinterpret_cast<TargetMachine*>(c->machine);
+  PassBuilder PB;
+  LoopAnalysisManager LAM;
+  FunctionAnalysisManager FAM;
+  CGSCCAnalysisManager CGAM;
+  ModuleAnalysisManager MAM;
 
-  llvm::legacy::PassManager lpm;
-  llvm::legacy::PassManager mpm;
-  llvm::legacy::FunctionPassManager fpm(m);
-
-  TargetLibraryInfoImpl tl = TargetLibraryInfoImpl(
-    Triple(m->getTargetTriple()));
-
-  lpm.add(createTargetTransformInfoWrapperPass(
-    machine->getTargetIRAnalysis()));
-
-  mpm.add(new TargetLibraryInfoWrapperPass(tl));
-  mpm.add(createTargetTransformInfoWrapperPass(
-    machine->getTargetIRAnalysis()));
-
-  fpm.add(createTargetTransformInfoWrapperPass(
-    machine->getTargetIRAnalysis()));
-
-  PassManagerBuilder pmb;
-
-  if(c->opt->release)
-  {
-    if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-      fprintf(stderr, "Optimising\n");
-
-    pmb.OptLevel = 3;
-    pmb.Inliner = createFunctionInliningPass(275);
-    pmb.MergeFunctions = true;
-  } else {
-    pmb.OptLevel = 0;
-  }
-
-  pmb.LoopVectorize = true;
-  pmb.SLPVectorize = true;
-  pmb.RerollLoops = true;
-
+  // Wire in the Pony-specific passes if requested.
   if(pony_specific)
   {
-    pmb.addExtension(PassManagerBuilder::EP_Peephole,
-      addMergeReallocPass);
-    pmb.addExtension(PassManagerBuilder::EP_Peephole,
-      addHeapToStackPass);
-    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-      addDispatchPonyCtxPass);
-    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-      addMergeMessageSendPass);
+    PB.registerPeepholeEPCallback(
+      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+        if(level.getSpeedupLevel() >= 2) {
+          fpm.addPass(MergeRealloc(c));
+          fpm.addPass(HeapToStack(c));
+        }
+      }
+    );
+    PB.registerScalarOptimizerLateEPCallback(
+      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+        if(level.getSpeedupLevel() >= 2) {
+          fpm.addPass(DispatchPonyCtx());
+          fpm.addPass(MergeMessageSend(c));
+        }
+      }
+    );
   }
 
-  pmb.populateFunctionPassManager(fpm);
-  pmb.populateModulePassManager(mpm);
-  pmb.populateLTOPassManager(lpm);
+  // Add a linting pass at the start, if requested.
+  if (c->opt->lint_llvm) {
+    PB.registerOptimizerEarlyEPCallback(
+      [&](ModulePassManager &mpm, OptimizationLevel level) {
+        mpm.addPass(StripSymbolsPass());
+      }
+    );
+  }
 
   // There is a problem with optimised debug info in certain cases. This is
   // due to unknown bugs in the way ponyc is generating debug info. When they
@@ -1396,21 +1329,33 @@ static void optimise(compile_t* c, bool pony_specific)
   if(c->opt->release)
     c->opt->strip_debug = true;
 
-  if(c->opt->strip_debug)
-    lpm.add(createStripSymbolsPass(true));
+  // Add a debug-info-stripping pass at the end, if requested.
+  if(c->opt->strip_debug) {
+    PB.registerOptimizerLastEPCallback(
+      [&](ModulePassManager &mpm, OptimizationLevel level) {
+        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
+      }
+    );
+  }
 
-  if (c->opt->lint_llvm)
-    fpm.add(createLintLegacyPassPass());
+  // Enable the default alias analysis pipeline.
+  FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
 
-  fpm.doInitialization();
+  // Wire in all of the analysis managers.
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-  for(Module::iterator f = m->begin(), end = m->end(); f != end; ++f)
-    fpm.run(*f);
+  // Create the top-level module pass manager using the default LLVM pipeline.
+  // Choose the appropriate optimization level based on if we're in a release.
+  ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+    c->opt->release ? OptimizationLevel::O3 : OptimizationLevel::O0
+  );
 
-  fpm.doFinalization();
-  mpm.run(*m);
-
-  lpm.run(*m);
+  // Run the passes.
+  MPM.run(*unwrap(c->module), MAM);
 }
 
 bool genopt(compile_t* c, bool pony_specific)
