@@ -1299,7 +1299,7 @@ static void optimise(compile_t* c, bool pony_specific)
       [&](FunctionPassManager &fpm, OptimizationLevel level) {
         if(level.getSpeedupLevel() >= 2) {
           fpm.addPass(MergeRealloc(c));
-          fpm.addPass(HeapToStack(c));
+          // fpm.addPass(HeapToStack(c));
         }
       }
     );
