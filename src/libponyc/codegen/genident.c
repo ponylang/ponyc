@@ -485,9 +485,8 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
       l_typeid = gendesc_typeid(c, l_desc);
 
     args[0] = LLVMBuildZExt(c->builder, l_typeid, c->intptr, "");
-    LLVMValueRef size = LLVMBuildInBoundsGEP2(c->builder, c->void_ptr,
+    LLVMValueRef size = LLVMBuildInBoundsGEP2(c->builder, c->i32,
       c->numeric_sizes, args, 1, "");
-    size = LLVMBuildBitCast(c->builder, size, LLVMPointerType(c->i32, 0), "");
     size = LLVMBuildLoad2(c->builder, c->i32, size, "");
     LLVMSetAlignment(size, 4);
     LLVMValueRef one = LLVMConstInt(c->i32, 1, false);
