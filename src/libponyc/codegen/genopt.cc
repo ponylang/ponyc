@@ -1283,79 +1283,79 @@ public:
 
 static void optimise(compile_t* c, bool pony_specific)
 {
-  // // Most of this is the standard ceremony for running standard LLVM passes.
-  // // See <https://llvm.org/docs/NewPassManager.html> for details.
+  // Most of this is the standard ceremony for running standard LLVM passes.
+  // See <https://llvm.org/docs/NewPassManager.html> for details.
 
-  // PassBuilder PB;
-  // LoopAnalysisManager LAM;
-  // FunctionAnalysisManager FAM;
-  // CGSCCAnalysisManager CGAM;
-  // ModuleAnalysisManager MAM;
+  PassBuilder PB;
+  LoopAnalysisManager LAM;
+  FunctionAnalysisManager FAM;
+  CGSCCAnalysisManager CGAM;
+  ModuleAnalysisManager MAM;
 
-  // // Wire in the Pony-specific passes if requested.
-  // if(pony_specific)
-  // {
-  //   PB.registerPeepholeEPCallback(
-  //     [&](FunctionPassManager &fpm, OptimizationLevel level) {
-  //       if(level.getSpeedupLevel() >= 2) {
-  //         fpm.addPass(MergeRealloc(c));
-  //         // fpm.addPass(HeapToStack(c));
-  //       }
-  //     }
-  //   );
-  //   PB.registerScalarOptimizerLateEPCallback(
-  //     [&](FunctionPassManager &fpm, OptimizationLevel level) {
-  //       if(level.getSpeedupLevel() >= 2) {
-  //         fpm.addPass(DispatchPonyCtx());
-  //         fpm.addPass(MergeMessageSend(c));
-  //       }
-  //     }
-  //   );
-  // }
+  // Wire in the Pony-specific passes if requested.
+  if(pony_specific)
+  {
+    PB.registerPeepholeEPCallback(
+      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+        if(level.getSpeedupLevel() >= 2) {
+          fpm.addPass(MergeRealloc(c));
+          // fpm.addPass(HeapToStack(c));
+        }
+      }
+    );
+    PB.registerScalarOptimizerLateEPCallback(
+      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+        if(level.getSpeedupLevel() >= 2) {
+          fpm.addPass(DispatchPonyCtx());
+          fpm.addPass(MergeMessageSend(c));
+        }
+      }
+    );
+  }
 
-  // // Add a linting pass at the start, if requested.
-  // if (c->opt->lint_llvm) {
-  //   PB.registerOptimizerEarlyEPCallback(
-  //     [&](ModulePassManager &mpm, OptimizationLevel level) {
-  //       mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
-  //     }
-  //   );
-  // }
+  // Add a linting pass at the start, if requested.
+  if (c->opt->lint_llvm) {
+    PB.registerOptimizerEarlyEPCallback(
+      [&](ModulePassManager &mpm, OptimizationLevel level) {
+        mpm.addPass(StripSymbolsPass());
+      }
+    );
+  }
 
-  // // There is a problem with optimised debug info in certain cases. This is
-  // // due to unknown bugs in the way ponyc is generating debug info. When they
-  // // are found and fixed, an optimised build should not always strip debug
-  // // info.
-  // if(c->opt->release)
-  //   c->opt->strip_debug = true;
+  // There is a problem with optimised debug info in certain cases. This is
+  // due to unknown bugs in the way ponyc is generating debug info. When they
+  // are found and fixed, an optimised build should not always strip debug
+  // info.
+  if(c->opt->release)
+    c->opt->strip_debug = true;
 
-  // // Add a debug-info-stripping pass at the end, if requested.
-  // if(c->opt->strip_debug) {
-  //   PB.registerOptimizerLastEPCallback(
-  //     [&](ModulePassManager &mpm, OptimizationLevel level) {
-  //       mpm.addPass(StripSymbolsPass());
-  //     }
-  //   );
-  // }
+  // Add a debug-info-stripping pass at the end, if requested.
+  if(c->opt->strip_debug) {
+    PB.registerOptimizerLastEPCallback(
+      [&](ModulePassManager &mpm, OptimizationLevel level) {
+        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
+      }
+    );
+  }
 
-  // // Enable the default alias analysis pipeline.
-  // FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
+  // Enable the default alias analysis pipeline.
+  FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
 
-  // // Wire in all of the analysis managers.
-  // PB.registerModuleAnalyses(MAM);
-  // PB.registerCGSCCAnalyses(CGAM);
-  // PB.registerFunctionAnalyses(FAM);
-  // PB.registerLoopAnalyses(LAM);
-  // PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+  // Wire in all of the analysis managers.
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-  // // Create the top-level module pass manager using the default LLVM pipeline.
-  // // Choose the appropriate optimization level based on if we're in a release.
-  // ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
-  //   c->opt->release ? OptimizationLevel::O3 : OptimizationLevel::O1
-  // );
+  // Create the top-level module pass manager using the default LLVM pipeline.
+  // Choose the appropriate optimization level based on if we're in a release.
+  ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+    c->opt->release ? OptimizationLevel::O3 : OptimizationLevel::O1
+  );
 
-  // // Run the passes.
-  // MPM.run(*unwrap(c->module), MAM);
+  // Run the passes.
+  MPM.run(*unwrap(c->module), MAM);
 }
 
 bool genopt(compile_t* c, bool pony_specific)
