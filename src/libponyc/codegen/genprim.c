@@ -873,7 +873,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
 
     // The phi node is the index. Get the element and serialise it.
     LLVMPositionBuilderAtEnd(c->builder, body_elem_block);
-    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP2(c->builder, c_t_e->use_type,
+    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP2(c->builder, c_t_e->mem_type,
       ptr, &phi, 1, "");
 
     ptr_offset_addr = LLVMBuildLoad2(c->builder, c->void_ptr, offset_var, "");
@@ -965,8 +965,8 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
 
     // The phi node is the index. Get the element and deserialise it.
     LLVMPositionBuilderAtEnd(c->builder, body_block);
-    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP2(c->builder,
-      LLVMArrayType(c_t_e->use_type, 0), ptr, &phi, 1, "");
+    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP2(c->builder, c_t_e->mem_type,
+      ptr, &phi, 1, "");
     gendeserialise_element(c, t_elem, false, ctx, elem_ptr);
 
     // Add one to the phi node and branch back to the cond block.
