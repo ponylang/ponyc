@@ -673,15 +673,17 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   LLVMValueRef fun = codegen_addfun(c, funname, ftype, true);
   if(t->underlying != TK_PRIMITIVE)
   {
-    size_t size = (size_t)LLVMABISizeOfType(c->target_data, c_t->structure);
-
     LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
-    LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
     LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
 
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, noalias_attr);
-    LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, align_attr);
+
+    size_t size = (size_t)LLVMABISizeOfType(c->target_data, c_t->structure);
+    if (size > 0) {
+      LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
+      LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
+    }
   }
   codegen_startfun(c, fun, NULL, NULL, NULL, false);
 
