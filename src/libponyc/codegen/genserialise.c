@@ -9,7 +9,7 @@
 #include "../../libponyrt/mem/heap.h"
 
 static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
-  LLVMValueRef object, LLVMValueRef offset)
+  LLVMValueRef object, LLVMValueRef offset, bool is_bare_tuple)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   LLVMTypeRef structure = c_t->structure;
@@ -52,8 +52,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
     case TK_TUPLETYPE:
     {
-      // Get the tuple primitive type.
-      if(LLVMTypeOf(object) == c_t->structure_ptr)
+      if(!is_bare_tuple)
       {
         genserialise_typeid(c, t, offset);
         object = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 1, "");
@@ -165,7 +164,7 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
   {
     // Embedded field or tuple, serialise in place. Don't load from ptr, as
     // it is already a pointer to the object.
-    serialise(c, t, ctx, ptr, offset);
+    serialise(c, t, ctx, ptr, offset, true);
   } else if(c_t->primitive != NULL) {
     // Machine word, write the bits to the buffer.
     LLVMValueRef value = LLVMBuildLoad2(c->builder, c_t->mem_type, ptr, "");
@@ -225,14 +224,14 @@ static void make_serialise(compile_t* c, reach_type_t* t)
   LLVMValueRef offset_addr = LLVMBuildInBoundsGEP2(c->builder, c->i8, addr,
     &offset, 1, "");
 
-  serialise(c, t, ctx, object, offset_addr);
+  serialise(c, t, ctx, object, offset_addr, false);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 }
 
 static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
-  LLVMValueRef object)
+  LLVMValueRef object, bool is_bare_tuple)
 {
   // The contents have already been copied.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -259,8 +258,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
     case TK_TUPLETYPE:
     {
-      // Get the tuple primitive type.
-      if(LLVMTypeOf(object) == c_t->structure_ptr)
+      if(!is_bare_tuple)
       {
         gendeserialise_typeid(c, c_t, object);
         object = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 1, "");
@@ -311,7 +309,7 @@ void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
   if(embed || (t->underlying == TK_TUPLETYPE))
   {
     // Embedded field or tuple, deserialise in place.
-    deserialise(c, t, ctx, ptr);
+    deserialise(c, t, ctx, ptr, true);
   } else if(c_t->primitive != NULL) {
     // Machine word, already copied.
   } else if(t->bare_method != NULL){
@@ -370,7 +368,7 @@ static void make_deserialise(compile_t* c, reach_type_t* t)
 
   // At this point, the serialised contents have been copied to the allocated
   // object.
-  deserialise(c, t, ctx, object);
+  deserialise(c, t, ctx, object, false);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
