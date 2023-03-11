@@ -1308,7 +1308,7 @@ static void optimise(compile_t* c, bool pony_specific)
     PB.registerPeepholeEPCallback(
       [&](FunctionPassManager &fpm, OptimizationLevel level) {
         if(level.getSpeedupLevel() >= 2) {
-          // fpm.addPass(HeapToStack(c));
+          fpm.addPass(HeapToStack(c));
         }
       }
     );
