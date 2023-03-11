@@ -1326,7 +1326,7 @@ static void optimise(compile_t* c, bool pony_specific)
   if (c->opt->lint_llvm) {
     PB.registerOptimizerEarlyEPCallback(
       [&](ModulePassManager &mpm, OptimizationLevel level) {
-        mpm.addPass(StripSymbolsPass());
+        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
       }
     );
   }
@@ -1342,7 +1342,7 @@ static void optimise(compile_t* c, bool pony_specific)
   if(c->opt->strip_debug) {
     PB.registerOptimizerLastEPCallback(
       [&](ModulePassManager &mpm, OptimizationLevel level) {
-        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
+        mpm.addPass(StripSymbolsPass());
       }
     );
   }
