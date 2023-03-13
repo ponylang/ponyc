@@ -94,8 +94,8 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     size_t buf_size = 2 * sizeof(void *);
     LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetParamTypes(f_type, params);
-    args[0] = LLVMBuildBitCast(c->builder, object, params[0], "");
-    args[1] = LLVMBuildBitCast(c->builder, f_offset, params[1], "");
+    args[0] = object;
+    args[1] = f_offset;
     codegen_call(c, LLVMGlobalGetValueType(c_t->custom_serialise_fn),
       c_t->custom_serialise_fn, args, 2, true);
 
@@ -121,7 +121,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
 
   LLVMBasicBlockRef current_block = LLVMGetInsertBlock(c->builder);
 
-  LLVMValueRef obj = LLVMBuildLoad2(c->builder, c->void_ptr, ptr, "");
+  LLVMValueRef obj = LLVMBuildLoad2(c->builder, c->ptr, ptr, "");
 
   LLVMBasicBlockRef post_block = codegen_block(c, "bare_post");
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -150,9 +150,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
 
   LLVMMoveBasicBlockAfter(post_block, current_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
-    LLVMPointerType(c->intptr, 0), "");
-  LLVMBuildStore(c->builder, phi, loc);
+  LLVMBuildStore(c->builder, phi, offset);
 }
 
 void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
@@ -168,9 +166,7 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
   } else if(c_t->primitive != NULL) {
     // Machine word, write the bits to the buffer.
     LLVMValueRef value = LLVMBuildLoad2(c->builder, c_t->mem_type, ptr, "");
-    LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
-      LLVMPointerType(c_t->mem_type, 0), "");
-    LLVMBuildStore(c->builder, value, loc);
+    LLVMBuildStore(c->builder, value, offset);
   } else if(t->bare_method != NULL) {
     // Bare object, either write the type id directly if it is a concrete object
     // or compute the type id based on the object value and write it if it isn't.
@@ -192,13 +188,11 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
     // Lookup the pointer and get the offset, write that.
     LLVMValueRef args[2];
     args[0] = ctx;
-    args[1] = LLVMBuildLoad2(c->builder, c->void_ptr, ptr, "");
+    args[1] = LLVMBuildLoad2(c->builder, c->ptr, ptr, "");
     LLVMValueRef object_offset = gencall_runtime(c, "pony_serialise_offset",
       args, 2, "");
 
-    LLVMValueRef loc = LLVMBuildBitCast(c->builder, offset,
-      LLVMPointerType(c->intptr, 0), "");
-    LLVMBuildStore(c->builder, object_offset, loc);
+    LLVMBuildStore(c->builder, object_offset, offset);
   }
 }
 
@@ -210,7 +204,7 @@ static void make_serialise(compile_t* c, reach_type_t* t)
 
   // Generate the serialise function.
   c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->serialise_type, true);
+    c->serialise_fn, true);
 
   codegen_startfun(c, c_t->serialise_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
@@ -295,7 +289,7 @@ static void deserialise_bare_interface(compile_t* c, LLVMValueRef ptr)
   args[1] = LLVMBuildLoad2(c->builder, c->intptr, ptr, "");
 
   LLVMValueRef desc = LLVMBuildInBoundsGEP2(c->builder,
-    LLVMArrayType(c->descriptor_ptr, 0), c->desc_table, args, 2, "");
+    LLVMArrayType(c->ptr, 0), c->desc_table, args, 2, "");
   desc = LLVMBuildLoad2(c->builder, c->descriptor_type, desc, "");
   LLVMValueRef func = gendesc_instance(c, desc);
   LLVMBuildStore(c->builder, func, ptr);
@@ -319,9 +313,8 @@ void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
     {
       case TK_PRIMITIVE:
       {
-        LLVMValueRef value = LLVMConstBitCast(
-          ((compile_method_t*)t->bare_method->c_method)->func, c->object_ptr);
-        LLVMBuildStore(c->builder, value, ptr);
+        LLVMBuildStore(c->builder,
+          ((compile_method_t*)t->bare_method->c_method)->func, ptr);
         break;
       }
 
@@ -337,14 +330,11 @@ void gendeserialise_element(compile_t* c, reach_type_t* t, bool embed,
     // Lookup the pointer and write that.
     LLVMValueRef args[3];
     args[0] = ctx;
-    args[1] = (c_t->desc != NULL) ?
-      LLVMBuildBitCast(c->builder, c_t->desc, c->descriptor_ptr, "") :
-      LLVMConstNull(c->descriptor_ptr);
+    args[1] = (c_t->desc != NULL) ? c_t->desc : LLVMConstNull(c->ptr);
     args[2] = LLVMBuildLoad2(c->builder, c->intptr, ptr, "");
     LLVMValueRef object = gencall_runtime(c, "pony_deserialise_offset",
       args, 3, "");
 
-    object = LLVMBuildBitCast(c->builder, object, c_t->mem_type, "");
     LLVMBuildStore(c->builder, object, ptr);
   }
 }
@@ -354,17 +344,14 @@ static void make_deserialise(compile_t* c, reach_type_t* t)
   // Generate the deserialise function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
-    c->trace_type, true);
+    c->trace_fn, true);
 
   codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, NULL, false);
   LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->deserialise_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(c_t->deserialise_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(c_t->deserialise_fn, 1);
-
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, c_t->structure_ptr,
-    "");
+  LLVMValueRef object = LLVMGetParam(c_t->deserialise_fn, 1);
 
   // At this point, the serialised contents have been copied to the allocated
   // object.

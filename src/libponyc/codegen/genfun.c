@@ -142,7 +142,7 @@ static void make_signature(compile_t* c, reach_type_t* t,
   {
     mparams[0] = c->i32;
     mparams[1] = c->i32;
-    mparams[2] = c->void_ptr;
+    mparams[2] = c->ptr;
 
     c_m->msg_type = LLVMStructTypeInContext(c->context, mparams, (int)count + 2,
       false);
@@ -319,7 +319,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     if(t->bare_method == m)
     {
       pony_assert(c_t->instance == NULL);
-      c_t->instance = LLVMConstBitCast(c_m->func, c->void_ptr);
+      c_t->instance = c_m->func;
     }
   }
 }
@@ -349,7 +349,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 
   size_t args_buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(args_buf_size);
-  args[0] = LLVMBuildBitCast(c->builder, this_ptr, c_t->use_type, "");
+  args[0] = this_ptr;
 
   for(int i = 1; i < (int)count; i++)
   {

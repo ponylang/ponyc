@@ -839,10 +839,10 @@ public:
 //     Type* size_type, size_t min_size, bool can_be_null)
 //   {
 //     Type* params[2];
-//     params[0] = unwrap(c->void_ptr);
+//     params[0] = unwrap(c->ptr);
 //     params[1] = size_type;
 
-//     FunctionType* fn_type = FunctionType::get(unwrap(c->void_ptr),
+//     FunctionType* fn_type = FunctionType::get(unwrap(c->ptr),
 //       ArrayRef<Type*>(params, 2), false);
 //     Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
 //       &m);
@@ -1266,7 +1266,7 @@ public:
   Function* declareTraceNextFn(Module& m)
   {
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
-      {unwrap(c->void_ptr)}, false);
+      {unwrap(c->ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
 
@@ -1277,7 +1277,7 @@ public:
   Function* declareMsgChainFn(Module& m)
   {
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
-      {unwrap(c->msg_ptr), unwrap(c->msg_ptr)}, false);
+      {unwrap(c->ptr), unwrap(c->ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_chain", &m);
 

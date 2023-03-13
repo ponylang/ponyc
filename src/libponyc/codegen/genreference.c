@@ -357,8 +357,7 @@ static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
     stringtab("__digestof"), NULL);
   pony_assert(digest_fn != NULL);
   LLVMValueRef func = gendesc_vtable(c, desc, digest_fn->vtable_index);
-  LLVMTypeRef fn_type = LLVMFunctionType(c->intptr, &c->object_ptr, 1, false);
-  func = LLVMBuildBitCast(c->builder, func, LLVMPointerType(fn_type, 0), "");
+  LLVMTypeRef fn_type = LLVMFunctionType(c->intptr, &c->ptr, 1, false);
   LLVMValueRef box_digest = codegen_call(c, fn_type, func, &value, 1, true);
 
   if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)

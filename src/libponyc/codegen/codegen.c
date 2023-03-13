@@ -184,12 +184,11 @@ static void init_runtime(compile_t* c)
   c->f64 = LLVMDoubleTypeInContext(c->context);
   c->intptr = LLVMIntPtrTypeInContext(c->context, c->target_data);
 
-  // i8*
-  c->void_ptr = LLVMPointerType(c->i8, 0);
+  // In LLVM IR, all pointers have the same type (there is no element type).
+  c->ptr = LLVMPointerType(c->i8, 0);
 
   // forward declare object
   c->object_type = LLVMStructCreateNamed(c->context, "__object");
-  c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
   c->actor_pad = LLVMArrayType(c->i8, PONY_ACTOR_PAD_SIZE);
@@ -198,69 +197,61 @@ static void init_runtime(compile_t* c)
   params[0] = c->i32; // size
   params[1] = c->i32; // id
   c->msg_type = LLVMStructCreateNamed(c->context, "__message");
-  c->msg_ptr = LLVMPointerType(c->msg_type, 0);
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
   // trace
   // void (*)(i8*, __object*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  c->trace_type = LLVMFunctionType(c->void_type, params, 2, false);
-  c->trace_fn = LLVMPointerType(c->trace_type, 0);
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  c->trace_fn = LLVMFunctionType(c->void_type, params, 2, false);
 
   // serialise
   // void (*)(i8*, __object*, i8*, intptr, i32)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  params[2] = c->void_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
   params[3] = c->intptr;
   params[4] = c->i32;
-  c->serialise_type = LLVMFunctionType(c->void_type, params, 5, false);
-  c->serialise_fn = LLVMPointerType(c->serialise_type, 0);
+  c->serialise_fn = LLVMFunctionType(c->void_type, params, 5, false);
 
   // serialise_space
   // i64 (__object*)
-  params[0] = c->object_ptr;
-  c->custom_serialise_space_fn = LLVMPointerType(
-    LLVMFunctionType(c->i64, params, 1, false), 0);
+  params[0] = c->ptr;
+  c->custom_serialise_space_fn = LLVMFunctionType(c->i64, params, 1, false);
 
   // custom_deserialise
   // void (*)(__object*, void*)
-  params[0] = c->object_ptr;
-  params[1] = c->void_ptr;
-  c->custom_deserialise_fn = LLVMPointerType(
-  LLVMFunctionType(c->void_type, params, 2, false), 0);
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  c->custom_deserialise_fn = LLVMFunctionType(c->void_type, params, 2, false);
 
   // dispatch
   // void (*)(i8*, __object*, $message*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  params[2] = c->msg_ptr;
-  c->dispatch_type = LLVMFunctionType(c->void_type, params, 3, false);
-  c->dispatch_fn = LLVMPointerType(c->dispatch_type, 0);
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
+  c->dispatch_fn = LLVMFunctionType(c->void_type, params, 3, false);
 
   // void (*)(__object*)
-  params[0] = c->object_ptr;
-  c->final_fn = LLVMPointerType(
-    LLVMFunctionType(c->void_type, params, 1, false), 0);
+  params[0] = c->ptr;
+  c->final_fn = LLVMFunctionType(c->void_type, params, 1, false);
 
   // descriptor, opaque version
   // We need this in order to build our own structure.
   const char* desc_name = genname_descriptor(NULL);
   c->descriptor_type = LLVMStructCreateNamed(c->context, desc_name);
-  c->descriptor_ptr = LLVMPointerType(c->descriptor_type, 0);
 
   // field descriptor
   // Also needed to build a descriptor structure.
   params[0] = c->i32;
-  params[1] = c->descriptor_ptr;
+  params[1] = c->ptr;
   c->field_descriptor = LLVMStructTypeInContext(c->context, params, 2, false);
 
   // descriptor, filled in
   gendesc_basetype(c, c->descriptor_type);
 
   // define object
-  params[0] = c->descriptor_ptr;
+  params[0] = c->ptr;
   LLVMStructSetBody(c->object_type, params, 1, false);
 
   unsigned int align_value = target_is_ilp32(c->opt->triple) ? 4 : 8;
@@ -282,17 +273,17 @@ static void init_runtime(compile_t* c)
     HEAP_MAX << 1);
 
   // i8* pony_ctx()
-  type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
+  type = LLVMFunctionType(c->ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readnone_attr);
 
   // __object* pony_create(i8*, __Desc*, i1)
-  params[0] = c->void_ptr;
-  params[1] = c->descriptor_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   params[2] = c->i1;
-  type = LLVMFunctionType(c->object_ptr, params, 3, false);
+  type = LLVMFunctionType(c->ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_create", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -303,8 +294,8 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // void ponyint_destroy(i8*, __object*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -312,10 +303,10 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // void pony_sendv(i8*, __object*, $message*, $message*, i1)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  params[2] = c->msg_ptr;
-  params[3] = c->msg_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
+  params[3] = c->ptr;
   params[4] = c->i1;
   type = LLVMFunctionType(c->void_type, params, 5, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
@@ -325,10 +316,10 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // void pony_sendv_single(i8*, __object*, $message*, $message*, i1)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  params[2] = c->msg_ptr;
-  params[3] = c->msg_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
+  params[3] = c->ptr;
   params[4] = c->i1;
   type = LLVMFunctionType(c->void_type, params, 5, false);
   value = LLVMAddFunction(c->module, "pony_sendv_single", type);
@@ -338,9 +329,9 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // i8* pony_alloc(i8*, intptr)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -352,9 +343,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_small(i8*, i32)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -366,9 +357,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_large(i8*, intptr)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -380,11 +371,11 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_realloc(i8*, i8*, intptr, intptr)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   params[2] = c->intptr;
   params[3] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 4, false);
+  type = LLVMFunctionType(c->ptr, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -396,9 +387,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_final(i8*, intptr)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -409,9 +400,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_small_final(i8*, i32)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small_final", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -422,9 +413,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // i8* pony_alloc_large_final(i8*, intptr)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large_final", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -437,7 +428,7 @@ static void init_runtime(compile_t* c)
   // $message* pony_alloc_msg(i32, i32)
   params[0] = c->i32;
   params[1] = c->i32;
-  type = LLVMFunctionType(c->msg_ptr, params, 2, false);
+  type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_msg", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -447,8 +438,8 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
   // void pony_trace(i8*, i8*)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_trace", type);
 
@@ -458,9 +449,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, 2, readnone_attr);
 
   // void pony_traceknown(i8*, __object*, __Desc*, i32)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
-  params[2] = c->descriptor_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
   params[3] = c->i32;
   type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceknown", type);
@@ -471,8 +462,8 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
   // void pony_traceunknown(i8*, __object*, i32)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   params[2] = c->i32;
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
@@ -483,7 +474,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
   // void pony_gc_send(i8*)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_send", type);
 
@@ -492,7 +483,7 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // void pony_gc_recv(i8*)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_recv", type);
 
@@ -501,22 +492,22 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // void pony_send_done(i8*)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_send_done", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
 
   // void pony_recv_done(i8*)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
 
   // void pony_serialise_reserve(i8*, i8*, intptr)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   params[2] = c->intptr;
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
@@ -527,8 +518,8 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, 2, readnone_attr);
 
   // intptr pony_serialise_offset(i8*, i8*)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   type = LLVMFunctionType(c->intptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
 
@@ -538,20 +529,20 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
   // i8* pony_deserialise_offset(i8*, __desc*, intptr)
-  params[0] = c->void_ptr;
-  params[1] = c->descriptor_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   params[2] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  type = LLVMFunctionType(c->ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
   // i8* pony_deserialise_block(i8*, intptr, intptr)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   params[1] = c->intptr;
   params[2] = c->intptr;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  type = LLVMFunctionType(c->ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
@@ -559,7 +550,7 @@ static void init_runtime(compile_t* c)
 
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
-  params[1] = LLVMPointerType(c->void_ptr, 0);
+  params[1] = c->ptr;
   type = LLVMFunctionType(c->i32, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_init", type);
 
@@ -568,8 +559,8 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // void ponyint_become(i8*, __object*)
-  params[0] = c->void_ptr;
-  params[1] = c->object_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "ponyint_become", type);
 
@@ -579,8 +570,8 @@ static void init_runtime(compile_t* c)
 
   // i1 pony_start(i1, i32*, i8*)
   params[0] = c->i1;
-  params[1] = LLVMPointerType(c->i32, 0);
-  params[2] = LLVMPointerType(c->i8, 0);
+  params[1] = c->ptr;
+  params[2] = c->ptr;
   type = LLVMFunctionType(c->i1, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 
@@ -606,8 +597,8 @@ static void init_runtime(compile_t* c)
   c->personality = LLVMAddFunction(c->module, "ponyint_personality_v0", type);
 
   // i32 memcmp(i8*, i8*, intptr)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
+  params[0] = c->ptr;
+  params[1] = c->ptr;
   params[2] = c->intptr;
   type = LLVMFunctionType(c->i32, params, 3, false);
   value = LLVMAddFunction(c->module, "memcmp", type);
@@ -618,7 +609,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
   // i32 puts(i8*)
-  params[0] = c->void_ptr;
+  params[0] = c->ptr;
   type = LLVMFunctionType(c->i32, params, 1, false);
   value = LLVMAddFunction(c->module, "puts", type);
 }

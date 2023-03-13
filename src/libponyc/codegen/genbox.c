@@ -48,10 +48,8 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
     return object;
 
   // Extract the primitive type from element 1 and return it.
-  LLVMValueRef this_ptr = LLVMBuildBitCast(c->builder, object,
-    c_t->structure_ptr, "");
   LLVMValueRef value_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
-    this_ptr, 1, "");
+    object, 1, "");
   LLVMValueRef value = LLVMBuildLoad2(c->builder, c_t->mem_type, value_ptr, "");
 
   return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);

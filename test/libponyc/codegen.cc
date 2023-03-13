@@ -199,7 +199,7 @@ TEST_F(CodegenTest, DescTable)
     // Check that for each element of the table, `desc_table[i]->id == i`.
 
     auto table_element = desc_table->getOperand(i);
-    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->descriptor_ptr));
+    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->ptr));
 
     if(table_element->isNullValue())
       continue;

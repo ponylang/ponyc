@@ -669,7 +669,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // The landing pad is marked as a cleanup, since exceptions are typeless and
   // valueless. The first landing pad is always the destination.
   LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->void_ptr;
+  lp_elements[0] = c->ptr;
   lp_elements[1] = c->i32;
   LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
     false);
@@ -677,7 +677,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
     c->personality, 1, "");
 
-  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
+  LLVMAddClause(landing, LLVMConstNull(c->ptr));
 
   LLVMValueRef else_value = gen_expr(c, else_clause);
 
@@ -786,7 +786,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   // The landing pad is marked as a cleanup, since exceptions are typeless and
   // valueless. The first landing pad is always the destination.
   LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->void_ptr;
+  lp_elements[0] = c->ptr;
   lp_elements[1] = c->i32;
   LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
     false);
@@ -794,7 +794,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
     c->personality, 1, "");
 
-  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
+  LLVMAddClause(landing, LLVMConstNull(c->ptr));
 
   gen_expr(c, dispose_clause);
   gen_error(c, ast_parent(ast));

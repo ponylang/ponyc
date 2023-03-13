@@ -138,10 +138,8 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
 
     // Load the object, load its descriptor, and continue from there.
     LLVMPositionBuilderAtEnd(c->builder, null_block);
-    LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
-    LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr,
-      ptr_type, "");
-    LLVMValueRef object = LLVMBuildLoad2(c->builder, c->object_ptr, object_ptr,
+    LLVMValueRef object_ptr = field_ptr;
+    LLVMValueRef object = LLVMBuildLoad2(c->builder, c->ptr, object_ptr,
       "");
     LLVMValueRef object_desc = gendesc_fetch(c, object);
     object_ptr = gendesc_ptr_to_fields(c, object, object_desc);
@@ -283,10 +281,8 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
 
   // Load the object, load its descriptor, and continue from there.
   LLVMPositionBuilderAtEnd(c->builder, null_block);
-  LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
-  LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr, ptr_type,
-    "");
-  LLVMValueRef object = LLVMBuildLoad2(c->builder, c->object_ptr, object_ptr, "");
+  LLVMValueRef object_ptr = field_ptr;
+  LLVMValueRef object = LLVMBuildLoad2(c->builder, c->ptr, object_ptr, "");
   LLVMValueRef object_desc = gendesc_fetch(c, object);
 
   if(!dynamic_match_object(c, object, object_desc, pattern, next_block))
@@ -361,8 +357,6 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   // load from ptr with a type based on the static type of the pattern.
   reach_type_t* t = reach_type(c->reach, param_type);
   LLVMTypeRef use_type = ((compile_type_t*)t->c_type)->use_type;
-  LLVMTypeRef ptr_type = LLVMPointerType(use_type, 0);
-  ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad2(c->builder, use_type, ptr, "");
 
   return check_value(c, pattern, param_type, value, next_block);
@@ -399,8 +393,6 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   // We can load from ptr with a type based on the static type of the pattern.
   reach_type_t* t = reach_type(c->reach, pattern_type);
   LLVMTypeRef use_type = ((compile_type_t*)t->c_type)->use_type;
-  LLVMTypeRef ptr_type = LLVMPointerType(use_type, 0);
-  ptr = LLVMBuildBitCast(c->builder, ptr, ptr_type, "");
   LLVMValueRef value = LLVMBuildLoad2(c->builder, use_type, ptr, "");
 
   LLVMValueRef r = gen_assign_value(c, pattern, value, pattern_type);
@@ -613,7 +605,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   if(!is_subtype_ignore_cap(type, param_type, NULL, c->opt))
   {
     // Switch to dynamic value checking.
-    pony_assert(LLVMTypeOf(value) == c->object_ptr);
+    pony_assert(LLVMTypeOf(value) == c->ptr);
     LLVMValueRef desc = gendesc_fetch(c, value);
     return dynamic_value_object(c, value, desc, pattern, next_block);
   }
@@ -643,7 +635,7 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(!is_sub)
   {
     // Switch to dynamic capture.
-    pony_assert(LLVMTypeOf(value) == c->object_ptr);
+    pony_assert(LLVMTypeOf(value) == c->ptr);
     LLVMValueRef desc = gendesc_fetch(c, value);
     return dynamic_capture_object(c, value, desc, pattern, next_block);
   }

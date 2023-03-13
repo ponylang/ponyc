@@ -279,8 +279,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
   compile_method_t* c_m = (compile_method_t*)m->c_method;
 
   if(t->bare_method == m)
-    return LLVMBuildBitCast(c->builder, l_value,
-      LLVMPointerType(c_m->func_type, 0), "");
+    return l_value;
 
   switch(t->underlying)
   {
@@ -295,8 +294,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
       LLVMValueRef func = gendesc_vtable(c, gendesc_fetch(c, l_value),
         m->vtable_index);
 
-      return LLVMBuildBitCast(c->builder, func,
-        LLVMPointerType(c_m->func_type, 0), "");
+      return func;
     }
 
     case TK_PRIMITIVE:
@@ -603,7 +601,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   // Send the message.
   msg_args[0] = ctx;
-  msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
+  msg_args[1] = args[0];
   msg_args[2] = msg;
   msg_args[3] = msg;
   msg_args[4] = LLVMConstInt(c->i1, 1, false);
@@ -875,17 +873,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
     LLVMGetParamTypes(func_type, params + (bare ? 1 : 0));
 
-    // For non-bare functions, ensure that we cast the receiver arg type
-    // to match the param type of the function.
-    if(!bare)
-    {
-      LLVMTypeRef func_receiver_type = params[0];
-      LLVMTypeRef call_receiver_type = LLVMTypeOf(args[0]);
-
-      if (func_receiver_type != call_receiver_type)
-        args[0] = LLVMBuildBitCast(c->builder, args[0], func_receiver_type, "");
-    }
-
     // We also need to cast the rest of the arguments, using the same casting
     // semantics as assignment.
     arg = ast_child(positional);
@@ -1146,7 +1133,7 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
       if(LLVMGetTypeKind(arg_type) == LLVMIntegerTypeKind)
         return LLVMBuildIntToPtr(c->builder, arg, param, "");
       else
-        return LLVMBuildBitCast(c->builder, arg, param, "");
+        return arg;
 
     case LLVMIntegerTypeKind:
       if(LLVMGetTypeKind(arg_type) == LLVMPointerTypeKind)
@@ -1344,11 +1331,10 @@ LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
-  args[1] = LLVMConstBitCast(c_t->desc, c->descriptor_ptr);
+  args[1] = c_t->desc;
   args[2] = LLVMConstInt(c->i1, no_inc_rc ? 1 : 0, false);
 
-  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 3, "");
-  return LLVMBuildBitCast(c->builder, result, c_t->use_type, "");
+  return gencall_runtime(c, "pony_create", args, 3, "");
 }
 
 LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t, ast_t* call)
@@ -1403,7 +1389,6 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
       result = gencall_runtime(c, "pony_alloc_large_final", args, 2, "");
   }
 
-  result = LLVMBuildBitCast(c->builder, result, c_t->structure_ptr, "");
   set_descriptor(c, t, result);
 
   return result;
@@ -1452,24 +1437,24 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 
 void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
 {
-  LLVMValueRef func = LLVMLifetimeStart(c->module, c->void_ptr);
+  LLVMValueRef func = LLVMLifetimeStart(c->module, c->ptr);
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = ptr;
   LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
 }
 
 void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
 {
-  LLVMValueRef func = LLVMLifetimeEnd(c->module, c->void_ptr);
+  LLVMValueRef func = LLVMLifetimeEnd(c->module, c->ptr);
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = ptr;
   LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
 }
