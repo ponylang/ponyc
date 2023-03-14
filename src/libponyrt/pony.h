@@ -136,7 +136,6 @@ typedef const struct _pony_type_t
   uint32_t size;
   uint32_t field_count;
   uint32_t field_offset;
-  bool might_reference_actor;
   void* instance;
   pony_trace_fn trace;
   pony_trace_fn serialise_trace;
@@ -147,6 +146,7 @@ typedef const struct _pony_type_t
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
+  bool might_reference_actor;
   uintptr_t** traits;
   void* fields;
   void* vtable;
