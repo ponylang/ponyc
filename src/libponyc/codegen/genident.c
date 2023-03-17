@@ -476,7 +476,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     if(l_typeid == NULL)
       l_typeid = gendesc_typeid(c, l_desc);
 
-    // There's an overly clever trick going on here that looks like a mistake
+    // There's a "clever" trick going on here that looks like a mistake
     // unless you know the trick. Here we do a GEP into an LLVM array[i32]
     // as if it were an array[i8] using the type descriptor id as the index.
     //
@@ -487,8 +487,8 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     // And we're using that as the index into an array[i32] that contains the
     // size of every numeric type. So conceptually we want to transform
     // a GEP argument from the domain {0, 4, 8, ... N*4} to {0, 1, 2, ... N}.
-    // We could use a bit shift to do this, but instead we do the overly clever
-    // thing and pretend the array[i32] is an array[i8]... Sigh.
+    // We could use a bit shift to do this, but instead we do the "clever"
+    // thing and pretend the array[i32] is an array[i8].
     args[0] = LLVMBuildZExt(c->builder, l_typeid, c->intptr, "");
     LLVMValueRef size = LLVMBuildInBoundsGEP2(c->builder, c->i8,
       c->numeric_sizes, args, 1, "");
