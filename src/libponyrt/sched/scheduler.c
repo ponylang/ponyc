@@ -599,7 +599,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
   // and scheduler 0 processes the SCHED_SUSPEND message before we
   // decrement active_scheduler_count, it could think that
   // active_scheduler_count > block_count and not start the CNF/ACK
-  // process for termination and potentiall hang the runtime instead
+  // process for termination and potentially hang the runtime instead
   // of allowing it to reach quiescence.
   if(sched->index != 0)
     send_msg(sched->index, 0, SCHED_SUSPEND, 0);
