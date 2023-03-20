@@ -1132,9 +1132,7 @@ static DECLARE_THREAD_FN(run_thread)
 
 static void ponyint_sched_shutdown()
 {
-  uint32_t start;
-
-  start = 0;
+  uint32_t start = 0;
 
   for(uint32_t i = start; i < scheduler_count; i++)
     ponyint_thread_join(scheduler[i].tid);
