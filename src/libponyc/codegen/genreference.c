@@ -75,7 +75,11 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   if(ast_id(def) == TK_ACTOR)
     index++;
 
-  return LLVMBuildStructGEP_P(c->builder, l_value, index, "");
+  reach_type_t* l_t = reach_type(c->reach, l_type);
+  pony_assert(l_t != NULL);
+  compile_type_t* l_c_t = (compile_type_t*)l_t->c_type;
+
+  return LLVMBuildStructGEP2(c->builder, l_c_t->structure, l_value, index, "");
 }
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
@@ -110,7 +114,7 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  field = LLVMBuildLoad_P(c->builder, field, "");
+  field = LLVMBuildLoad2(c->builder, c_t->mem_type, field, "");
 
   return gen_assign_cast(c, c_t->use_type, field, t->ast_cap);
 }
@@ -293,7 +297,8 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
-  LLVMValueRef value = LLVMBuildLoad_P(c->builder, local_ptr, "");
+  LLVMValueRef value = LLVMBuildLoad2(c->builder,
+    LLVMGetAllocatedType(local_ptr), local_ptr, "");
   return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }
 
@@ -352,9 +357,8 @@ static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
     stringtab("__digestof"), NULL);
   pony_assert(digest_fn != NULL);
   LLVMValueRef func = gendesc_vtable(c, desc, digest_fn->vtable_index);
-  LLVMTypeRef fn_type = LLVMFunctionType(c->intptr, &c->object_ptr, 1, false);
-  func = LLVMBuildBitCast(c->builder, func, LLVMPointerType(fn_type, 0), "");
-  LLVMValueRef box_digest = codegen_call(c, func, &value, 1, true);
+  LLVMTypeRef fn_type = LLVMFunctionType(c->intptr, &c->ptr, 1, false);
+  LLVMValueRef box_digest = codegen_call(c, fn_type, func, &value, 1, true);
 
   if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)
   {

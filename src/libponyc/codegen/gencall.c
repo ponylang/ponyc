@@ -85,8 +85,8 @@ static void ffi_decl_free(ffi_decl_t* d)
 DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
   ffi_decl_free);
 
-static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
-  LLVMValueRef* args, int count, const char* ret, bool setcc)
+static LLVMValueRef invoke_fun(compile_t* c, LLVMTypeRef fun_type,
+  LLVMValueRef fun, LLVMValueRef* args, int count, const char* ret, bool setcc)
 {
   if(fun == NULL)
     return NULL;
@@ -97,7 +97,7 @@ static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMMoveBasicBlockAfter(then_block, this_block);
   LLVMBasicBlockRef else_block = c->frame->invoke_target;
 
-  LLVMValueRef invoke = LLVMBuildInvoke_P(c->builder, fun, args, count,
+  LLVMValueRef invoke = LLVMBuildInvoke2(c->builder, fun_type, fun, args, count,
     then_block, else_block, ret);
 
   if(setcc)
@@ -279,8 +279,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
   compile_method_t* c_m = (compile_method_t*)m->c_method;
 
   if(t->bare_method == m)
-    return LLVMBuildBitCast(c->builder, l_value,
-      LLVMPointerType(c_m->func_type, 0), "");
+    return l_value;
 
   switch(t->underlying)
   {
@@ -295,8 +294,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
       LLVMValueRef func = gendesc_vtable(c, gendesc_fetch(c, l_value),
         m->vtable_index);
 
-      return LLVMBuildBitCast(c->builder, func,
-        LLVMPointerType(c_m->func_type, 0), "");
+      return func;
     }
 
     case TK_PRIMITIVE:
@@ -345,7 +343,8 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
 
   compile_type_t* c_t = (compile_type_t*) t->c_type;
 
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP_P(c->builder, value, 0, "");
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
+    value, 0, "");
   LLVMBuildStore(c->builder, c_t->desc, desc_ptr);
 }
 
@@ -533,7 +532,6 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   // Allocate the message, setting its size and ID.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   size_t msg_size = (size_t)LLVMABISizeOfType(c->target_data, c_m->msg_type);
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
 
   size_t params_buf_size = (m->param_count + 3) * sizeof(LLVMTypeRef);
   LLVMTypeRef* param_types =
@@ -564,11 +562,11 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", msg_args, 2, "");
   LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
   LLVMSetMetadataStr(msg, "pony.msgsend", md);
-  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   for(unsigned int i = 0; i < m->param_count; i++)
   {
-    LLVMValueRef arg_ptr = LLVMBuildStructGEP_P(c->builder, msg_ptr, i + 3, "");
+    LLVMValueRef arg_ptr = LLVMBuildStructGEP2(c->builder, c_m->msg_type, msg,
+      i + 3, "");
     LLVMBuildStore(c->builder, cast_args[i+1], arg_ptr);
   }
 
@@ -603,7 +601,7 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   // Send the message.
   msg_args[0] = ctx;
-  msg_args[1] = LLVMBuildBitCast(c->builder, args[0], c->object_ptr, "");
+  msg_args[1] = args[0];
   msg_args[2] = msg;
   msg_args[3] = msg;
   msg_args[4] = LLVMConstInt(c->i1, 1, false);
@@ -825,6 +823,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   // Static or virtual dispatch.
   LLVMValueRef func = dispatch_function(c, t, m, args[0]);
+  LLVMTypeRef func_type = ((compile_method_t*)m->c_method)->func_type;
 
   bool is_message = false;
 
@@ -871,20 +870,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         break;
     }
   } else {
-    LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-    LLVMGetParamTypes(f_type, params + (bare ? 1 : 0));
-
-    // For non-bare functions, ensure that we cast the receiver arg type
-    // to match the param type of the function.
-    if(!bare)
-    {
-      LLVMTypeRef func_receiver_type = params[0];
-      LLVMTypeRef call_receiver_type = LLVMTypeOf(args[0]);
-
-      if (func_receiver_type != call_receiver_type)
-        args[0] = LLVMBuildBitCast(c->builder, args[0], func_receiver_type, "");
-    }
+    LLVMGetParamTypes(func_type, params + (bare ? 1 : 0));
 
     // We also need to cast the rest of the arguments, using the same casting
     // semantics as assignment.
@@ -914,9 +901,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       codegen_debugloc(c, ast);
 
       if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
-        r = invoke_fun(c, func, args + arg_offset, i, "", !bare);
+        r = invoke_fun(c, func_type, func, args + arg_offset, i, "", !bare);
       else
-        r = codegen_call(c, func, args + arg_offset, i, !bare);
+        r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
 
       if(is_new_call)
       {
@@ -1003,12 +990,13 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
     return NULL;
 
   // Call the function. We know it isn't partial.
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
   LLVMValueRef args[2];
   args[0] = l_value;
   args[1] = r_value;
 
   codegen_debugloc(c, pattern);
-  LLVMValueRef result = codegen_call(c, func, args, 2, true);
+  LLVMValueRef result = codegen_call(c, func_type, func, args, 2, true);
   codegen_debugloc(c, NULL);
 
   return result;
@@ -1145,7 +1133,7 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
       if(LLVMGetTypeKind(arg_type) == LLVMIntegerTypeKind)
         return LLVMBuildIntToPtr(c->builder, arg, param, "");
       else
-        return LLVMBuildBitCast(c->builder, arg, param, "");
+        return arg;
 
     case LLVMIntegerTypeKind:
       if(LLVMGetTypeKind(arg_type) == LLVMPointerTypeKind)
@@ -1241,7 +1229,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   size_t buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* f_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+  LLVMTypeRef f_type = LLVMGlobalGetValueType(func);
   LLVMTypeRef* f_params = NULL;
   bool vararg = (LLVMIsFunctionVarArg(f_type) != 0);
 
@@ -1289,9 +1277,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   codegen_debugloc(c, ast);
 
   if(err && (c->frame->invoke_target != NULL))
-    result = invoke_fun(c, func, f_args, count, "", false);
+    result = invoke_fun(c, f_type, func, f_args, count, "", false);
   else
-    result = LLVMBuildCall_P(c->builder, func, f_args, count, "");
+    result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
 
   codegen_debugloc(c, NULL);
   ponyint_pool_free_size(buf_size, f_args);
@@ -1324,10 +1312,11 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret)
 {
   LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
 
   pony_assert(func != NULL);
 
-  return LLVMBuildCall_P(c->builder, func, args, count, ret);
+  return LLVMBuildCall2(c->builder, func_type, func, args, count, ret);
 }
 
 LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
@@ -1342,11 +1331,10 @@ LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
-  args[1] = LLVMConstBitCast(c_t->desc, c->descriptor_ptr);
+  args[1] = c_t->desc;
   args[2] = LLVMConstInt(c->i1, no_inc_rc ? 1 : 0, false);
 
-  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 3, "");
-  return LLVMBuildBitCast(c->builder, result, c_t->use_type, "");
+  return gencall_runtime(c, "pony_create", args, 3, "");
 }
 
 LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t, ast_t* call)
@@ -1401,7 +1389,6 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
       result = gencall_runtime(c, "pony_alloc_large_final", args, 2, "");
   }
 
-  result = LLVMBuildBitCast(c->builder, result, c_t->structure_ptr, "");
   set_descriptor(c, t, result);
 
   return result;
@@ -1410,11 +1397,12 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
 void gencall_error(compile_t* c)
 {
   LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_error");
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
 
   if(c->frame->invoke_target != NULL)
-    invoke_fun(c, func, NULL, 0, "", false);
+    invoke_fun(c, func_type, func, NULL, 0, "", false);
   else
-    LLVMBuildCall_P(c->builder, func, NULL, 0, "");
+    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
 
   LLVMBuildUnreachable(c->builder);
 }
@@ -1423,48 +1411,50 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef n)
 {
   LLVMValueRef func = LLVMMemcpy(c->module, target_is_ilp32(c->opt->triple));
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
 
   LLVMValueRef args[4];
   args[0] = dst;
   args[1] = src;
   args[2] = n;
   args[3] = LLVMConstInt(c->i1, 0, false);
-  LLVMBuildCall_P(c->builder, func, args, 4, "");
+  LLVMBuildCall2(c->builder, func_type, func, args, 4, "");
 }
 
 void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef n)
 {
   LLVMValueRef func = LLVMMemmove(c->module, target_is_ilp32(c->opt->triple));
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
 
   LLVMValueRef args[5];
   args[0] = dst;
   args[1] = src;
   args[2] = n;
   args[3] = LLVMConstInt(c->i1, 0, false);
-  LLVMBuildCall_P(c->builder, func, args, 4, "");
+  LLVMBuildCall2(c->builder, func_type, func, args, 4, "");
 }
 
-void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
+void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
 {
-  LLVMValueRef func = LLVMLifetimeStart(c->module, c->void_ptr);
-  LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
+  LLVMValueRef func = LLVMLifetimeStart(c->module, c->ptr);
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  LLVMBuildCall_P(c->builder, func, args, 2, "");
+  args[1] = ptr;
+  LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
 }
 
-void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
+void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
 {
-  LLVMValueRef func = LLVMLifetimeEnd(c->module, c->void_ptr);
-  LLVMTypeRef type = LLVMGetElementType(LLVMTypeOf(ptr));
+  LLVMValueRef func = LLVMLifetimeEnd(c->module, c->ptr);
+  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
 
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-  LLVMBuildCall_P(c->builder, func, args, 2, "");
+  args[1] = ptr;
+  LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
 }

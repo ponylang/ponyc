@@ -25,8 +25,7 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   // Create the main actor and become it.
   LLVMValueRef args[3];
   args[0] = ctx;
-  args[1] = LLVMConstBitCast(((compile_type_t*)t->c_type)->desc,
-    c->descriptor_ptr);
+  args[1] = ((compile_type_t*)t->c_type)->desc;
   args[2] = LLVMConstInt(c->i1, 0, false);
   LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 3, "");
 
@@ -49,14 +48,12 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
   else
     boolean = c->i8;
 
-  LLVMTypeRef desc_ptr_ptr = LLVMPointerType(c->descriptor_ptr, 0);
-
   uint32_t desc_table_size = reach_max_type_id(c->reach);
 
   LLVMTypeRef f_params[4];
   f_params[0] = boolean;
   f_params[1] = boolean;
-  f_params[2] = desc_ptr_ptr;
+  f_params[2] = c->ptr;
   f_params[3] = c->intptr;
 
   LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 4,
@@ -75,31 +72,29 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
 
   LLVMPositionBuilderAtEnd(c->builder, this_block);
 
-  LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, lfi_object, 0, "");
-  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
-
-  field = LLVMBuildStructGEP_P(c->builder, lfi_object, 1,
+  LLVMValueRef field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 0,
     "");
   LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
 
-  field = LLVMBuildStructGEP_P(c->builder, lfi_object, 2,
-    "");
-  LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, c->desc_table,
-    desc_ptr_ptr, ""), field);
+  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 1, "");
+  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
 
-  field = LLVMBuildStructGEP_P(c->builder, lfi_object, 3, "");
+  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 2, "");
+  LLVMBuildStore(c->builder, c->desc_table, field);
+
+  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 3, "");
   LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
     field);
 
-  return LLVMBuildBitCast(c->builder, lfi_object, c->void_ptr, "");
+  return lfi_object;
 }
 
 LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 {
   LLVMTypeRef params[3];
   params[0] = c->i32;
-  params[1] = LLVMPointerType(LLVMPointerType(c->i8, 0), 0);
-  params[2] = LLVMPointerType(LLVMPointerType(c->i8, 0), 0);
+  params[1] = c->ptr;
+  params[2] = c->ptr;
 
   LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 3, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
@@ -133,24 +128,26 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   LLVMValueRef env_args[4];
   env_args[0] = gencall_alloc(c, t_env, NULL);
   env_args[1] = args[0];
-  env_args[2] = LLVMBuildBitCast(c->builder, args[1], c->void_ptr, "");
-  env_args[3] = LLVMBuildBitCast(c->builder, args[2], c->void_ptr, "");
-  codegen_call(c, ((compile_method_t*)m->c_method)->func, env_args, 4, true);
+  env_args[2] = args[1];
+  env_args[3] = args[2];
+  codegen_call(c,
+    LLVMGlobalGetValueType(((compile_method_t*)m->c_method)->func),
+    ((compile_method_t*)m->c_method)->func, env_args, 4, true);
   LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
   if(c->primitives_init != NULL)
-    LLVMBuildCall_P(c->builder, c->primitives_init, NULL, 0, "");
+    LLVMBuildCall2(c->builder, LLVMGlobalGetValueType(c->primitives_init),
+      c->primitives_init, NULL, 0, "");
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
   f_params[0] = c->i32;
   f_params[1] = c->i32;
-  f_params[2] = c->void_ptr;
+  f_params[2] = c->ptr;
   f_params[3] = LLVMTypeOf(env);
   LLVMTypeRef msg_type = LLVMStructTypeInContext(c->context, f_params, 4,
     false);
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
   uint32_t index = reach_vtable_index(t_main, c->str_create);
@@ -158,10 +155,11 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[0] = LLVMConstInt(c->i32, ponyint_pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
-  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
+  LLVMValueRef msg_ptr = msg;
 
   // Set the message contents.
-  LLVMValueRef env_ptr = LLVMBuildStructGEP_P(c->builder, msg_ptr, 3, "");
+  LLVMValueRef env_ptr = LLVMBuildStructGEP2(c->builder, msg_type, msg_ptr, 3,
+    "");
   LLVMBuildStore(c->builder, env, env_ptr);
 
   // Trace the message.
@@ -169,9 +167,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   gencall_runtime(c, "pony_gc_send", args, 1, "");
 
   args[0] = ctx;
-  args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = LLVMBuildBitCast(c->builder, ((compile_type_t*)t_env->c_type)->desc,
-    c->descriptor_ptr, "");
+  args[1] = env;
+  args[2] = ((compile_type_t*)t_env->c_type)->desc;
   args[3] = LLVMConstInt(c->i32, PONY_TRACE_IMMUTABLE, false);
   gencall_runtime(c, "pony_traceknown", args, 4, "");
 
@@ -188,7 +185,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   // Start the runtime.
   args[0] = LLVMConstInt(c->i1, 0, false);
-  args[1] = LLVMConstNull(LLVMPointerType(c->i32, 0));
+  args[1] = LLVMConstNull(c->ptr);
   args[2] = make_lang_features_init(c);
   LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 3, "");
 
@@ -209,14 +206,15 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   if(c->primitives_final != NULL)
   {
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
-    LLVMBuildCall_P(c->builder, c->primitives_final, NULL, 0, "");
+    LLVMBuildCall2(c->builder, LLVMGlobalGetValueType(c->primitives_final),
+      c->primitives_final, NULL, 0, "");
     args[0] = ctx;
     args[1] = final_actor;
     gencall_runtime(c, "ponyint_destroy", args, 2, "");
   }
 
   args[0] = ctx;
-  args[1] = LLVMConstNull(c->object_ptr);
+  args[1] = LLVMConstNull(c->ptr);
   gencall_runtime(c, "ponyint_become", args, 2, "");
 
   LLVMValueRef rc = gencall_runtime(c, "pony_get_exitcode", NULL, 0, "");
