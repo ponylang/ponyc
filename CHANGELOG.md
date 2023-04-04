@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- LLVM 15 ([PR #4327](https://github.com/ponylang/ponyc/pull/4327))
 
 ## [0.54.0] - 2023-02-27
 
