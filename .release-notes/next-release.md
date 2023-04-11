@@ -13,3 +13,7 @@ Unfortunately this pass was too simplistic and lacked the kind of sophisticated 
 
 If anyone wishes to do the work of attempting to re-architect this pass in a way that accounts for maintaining isolation of related but distinct pointers, they are welcome to pick up [the code from the most recent commit that had this pass](https://github.com/ponylang/ponyc/blob/b62fbea4c115ba24860bea75a39648bfc3dccbdb/src/libponyc/codegen/genopt.cc#L544) and port it for compatibility with latest Pony and LLVM, then carry forward the new plan.
 
+## Fix bug in HeapToStack optimization pass
+
+Our "HeapToStack" optimization pass that takes Pony heap allocations and converts them to stack allocations where possible contained a bug where it was incorrectly marking some function calls. This could possibly lead to other  optimization passes to make incorrect assumptions about the code which in turn, could lead to incorrect programs being generated.
+
