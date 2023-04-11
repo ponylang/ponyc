@@ -235,6 +235,28 @@ public:
         case Instruction::Call:
         case Instruction::Invoke:
         {
+          // Record any calls that are tail calls so they can be marked as
+          // "tail false" if we do a HeapToStack change. Accessing `alloca`
+          // memory from a call that is marked as "tail" is unsafe and can
+          // result in incorrect optimizations down the road.
+          //
+          // See: https://github.com/ponylang/ponyc/issues/4340
+          //
+          // Technically we don't need to do this for every call, just calls
+          // that touch alloca'd memory. However, without doing some alias
+          // analysis at this point, our next best bet is to simply mark
+          // every call as "not tail" if we do any HeapToStack change. It's
+          // "the safest" thing to do.
+          //
+          // N.B. the contents of the `tail` list will only be set to
+          // "tail false" if we return `true` from this `canStackAlloc`
+          // function.
+          auto ci = dyn_cast<CallInst>(inst);
+          if (ci && ci->isTailCall())
+          {
+            tail.push_back(ci);
+          }
+
           auto call_base = dyn_cast<CallBase>(inst);
           if (!call_base)
           {
@@ -274,12 +296,6 @@ public:
                 print_transform(c, alloc, "captured allocation");
                 print_transform(c, inst, "captured here (call arg)");
                 return false;
-              }
-
-              auto ci = dyn_cast<CallInst>(inst);
-              if (ci && ci->isTailCall())
-              {
-                tail.push_back(ci);
               }
             }
           }
