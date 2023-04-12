@@ -2,14 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.54.1] - 2023-04-12
 
 ### Fixed
 
 - Fix bug in HeapToStack optimization pass ([PR #4341](https://github.com/ponylang/ponyc/pull/4341))
-
-### Added
-
 
 ### Changed
 
