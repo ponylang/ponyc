@@ -14,17 +14,17 @@
 #define DESC_SIZE 1
 #define DESC_FIELD_COUNT 2
 #define DESC_FIELD_OFFSET 3
-#define DESC_MIGHT_REFERENCE_ACTOR 4
-#define DESC_INSTANCE 5
-#define DESC_TRACE 6
-#define DESC_SERIALISE_TRACE 7
-#define DESC_SERIALISE 8
-#define DESC_DESERIALISE 9
-#define DESC_CUSTOM_SERIALISE_SPACE 10
-#define DESC_CUSTOM_DESERIALISE 11
-#define DESC_DISPATCH 12
-#define DESC_FINALISE 13
-#define DESC_EVENT_NOTIFY 14
+#define DESC_INSTANCE 4
+#define DESC_TRACE 5
+#define DESC_SERIALISE_TRACE 6
+#define DESC_SERIALISE 7
+#define DESC_DESERIALISE 8
+#define DESC_CUSTOM_SERIALISE_SPACE 9
+#define DESC_CUSTOM_DESERIALISE 10
+#define DESC_DISPATCH 11
+#define DESC_FINALISE 12
+#define DESC_EVENT_NOTIFY 13
+#define DESC_MIGHT_REFERENCE_ACTOR 14
 #define DESC_TRAITS 15
 #define DESC_FIELDS 16
 #define DESC_VTABLE 17
@@ -332,7 +332,6 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_SIZE] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
-  params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
   params[DESC_INSTANCE] = c->ptr;
   params[DESC_TRACE] = c->ptr;
   params[DESC_SERIALISE_TRACE] = c->ptr;
@@ -343,6 +342,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_DISPATCH] = c->ptr;
   params[DESC_FINALISE] = c->ptr;
   params[DESC_EVENT_NOTIFY] = c->i32;
+  params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
   params[DESC_VTABLE] = LLVMArrayType(c->ptr, 0);
@@ -379,7 +379,6 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_SIZE] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
-  params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
   params[DESC_INSTANCE] = c->ptr;
   params[DESC_TRACE] = c->ptr;
   params[DESC_SERIALISE_TRACE] = c->ptr;
@@ -390,6 +389,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_DISPATCH] = c->ptr;
   params[DESC_FINALISE] = c->ptr;
   params[DESC_EVENT_NOTIFY] = c->i32;
+  params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
   params[DESC_VTABLE] = LLVMArrayType(c->ptr, vtable_size);
@@ -416,7 +416,6 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
-  args[DESC_MIGHT_REFERENCE_ACTOR] = make_might_reference_actor(c, t);
   args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
   args[DESC_TRACE] = make_desc_ptr(c, c_t->trace_fn);
   args[DESC_SERIALISE_TRACE] = make_desc_ptr(c, c_t->serialise_trace_fn);
@@ -428,6 +427,7 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_DISPATCH] = make_desc_ptr(c, c_t->dispatch_fn);
   args[DESC_FINALISE] = make_desc_ptr(c, c_t->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);
+  args[DESC_MIGHT_REFERENCE_ACTOR] = make_might_reference_actor(c, t);
   args[DESC_TRAITS] = make_trait_bitmap(c, t);
   args[DESC_FIELDS] = make_field_list(c, t);
   args[DESC_VTABLE] = make_vtable(c, t);
