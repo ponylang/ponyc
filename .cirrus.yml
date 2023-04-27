@@ -126,13 +126,13 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
 
   name: "arm64 Apple Darwin"
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
@@ -375,7 +375,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
 
   name: "nightly: arm64-apple-darwin"
 
@@ -386,7 +386,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
@@ -532,7 +532,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
 
   name: "release: arm64-apple-darwin"
 
@@ -543,7 +543,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
@@ -736,7 +736,7 @@ task:
   timeout_in: 120m
 
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1
+    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
 
   matrix:
     - name: "Stress Test: arm64 macos monterey [release]"
@@ -758,7 +758,7 @@ task:
 
   libs_cache:
     folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-monterey-xcode:13.3.1 20220511"
+    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
     populate_script: make libs build_flags=-j12
   upload_caches:
     - libs
