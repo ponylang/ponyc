@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change supported MacOS version from Monterey to Ventura ([PR #4349](https://github.com/ponylang/ponyc/pull/4349))
 
 ## [0.54.1] - 2023-04-12
 
