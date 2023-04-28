@@ -569,7 +569,7 @@ static bool build_with_dispose(pass_opt_t* opt, ast_t* dispose_clause, ast_t* id
 
     // Don't cares aren't allowed
     if(is_name_dontcare(ast_name(id))) {
-      ast_error(opt->check.errors, id, "_ isn't allowed for with blocks variables");
+      ast_error(opt->check.errors, id, "_ isn't allowed for a variable in a with block");
       return false;
     }
 
