@@ -556,7 +556,7 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
 }
 
 
-static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
+static bool build_with_dispose(pass_opt_t* opt, ast_t* dispose_clause, ast_t* idseq)
 {
   pony_assert(dispose_clause != NULL);
   pony_assert(idseq != NULL);
@@ -567,9 +567,11 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
     ast_t* id = ast_child(idseq);
     pony_assert(id != NULL);
 
-    // Don't call dispose() on don't cares
-    if(is_name_dontcare(ast_name(id)))
-      return;
+    // Don't cares aren't allowed
+    if(is_name_dontcare(ast_name(id))) {
+      ast_error(opt->check.errors, id, "_ isn't allowed for a variable in a with block");
+      return false;
+    }
 
     BUILD(dispose, idseq,
       NODE(TK_CALL,
@@ -579,8 +581,9 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
         NONE));
 
     ast_add(dispose_clause, dispose);
-    return;
+    return true;
   }
+
 
   // We have a list of variables
   pony_assert(ast_id(idseq) == TK_TUPLE);
@@ -589,8 +592,10 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
   {
     pony_assert(ast_id(p) == TK_SEQ);
     ast_t* let = ast_child(p);
-    build_with_dispose(dispose_clause, let);
+    return build_with_dispose(opt, dispose_clause, let);
   }
+
+  return true;
 }
 
 
@@ -630,7 +635,8 @@ static ast_result_t sugar_with(pass_opt_t* opt, ast_t** astp)
 
     ast_add(replace, assign);
     ast_add(dbody, local);
-    build_with_dispose(dexit, idseq);
+    if (!build_with_dispose(opt, dexit, idseq))
+      return AST_ERROR;
     ast_add(dexit, local);
   }
 
