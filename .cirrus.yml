@@ -291,13 +291,6 @@ task:
   timeout_in: 120m
 
   matrix:
-    - name: "nightly: x86-64-unknown-linux-ubuntu18.04"
-      container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
-      environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
-        TRIPLE_VENDOR: unknown
-        TRIPLE_OS: linux-ubuntu18.04
     - name: "nightly: x86-64-unknown-linux-ubuntu20.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
@@ -446,13 +439,6 @@ task:
   timeout_in: 120m
 
   matrix:
-    - name: "release: x86-64-unknown-linux-ubuntu18.04"
-      container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
-      environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu18.04-builder:20230115
-        TRIPLE_VENDOR: unknown
-        TRIPLE_OS: linux-ubuntu18.04
     - name: "release: x86-64-unknown-linux-ubuntu20.04"
       container:
         image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
