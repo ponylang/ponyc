@@ -12,14 +12,15 @@ RUN apt-get update \
   python3-setuptools \
   xz-utils \
   zlib1g-dev \
+  lldb \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \
  && pip3 install cloudsmith-cli
 
 # install a newer cmake
-RUN curl --output cmake-3.15.3-Linux-x86_64.sh https://cmake.org/files/v3.15/cmake-3.15.3-Linux-x86_64.sh \
- && sh cmake-3.15.3-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir
+RUN curl --output cmake-3.25.1-linux-x86_64.sh https://cmake.org/files/v3.25/cmake-3.25.1-linux-x86_64.sh \
+ && sh cmake-3.25.1-linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
 # click is failing for uploads without this.
 ENV LC_ALL C.UTF-8

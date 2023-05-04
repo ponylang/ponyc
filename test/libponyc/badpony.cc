@@ -1059,11 +1059,13 @@ TEST_F(BadPonyTest, IsComparingCreateSugar)
   const char* src =
     "primitive P\n"
     "class C\n"
+    "actor A\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
     // invalid
     "    C is C\n"
+    "    A is A\n"
     "    C is P\n"
     "    P is C\n"
     "    P is (P, C, P)\n"
@@ -1082,8 +1084,88 @@ TEST_F(BadPonyTest, IsComparingCreateSugar)
     "    P isnt (C; P)";
   {
     const char* err = "identity comparison with a new object will always be false";
-    const char* errs[] = {err, err, err, err, err, err, err, err, err, err, err, err, NULL};
-    DO(test_expected_errors(src, "refer", errs));
+    const char* errs[] = {err, err, err, err, err, err, err, err, err, err, err, err, err, NULL};
+    DO(test_expected_errors(src, "verify", errs));
+  }
+}
+
+TEST_F(BadPonyTest, IsComparingCreate)
+{
+  // From issue #4162, this is just the desugared
+  // version of the previous test.
+  const char* src =
+    "primitive P\n"
+    "class C\n"
+    "actor A\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    // invalid
+    "    C.create() is C.create()\n"
+    "    A.create() is A.create()\n"
+    "    C.create() is P.create()\n"
+    "    P.create() is C.create()\n"
+    "    P.create() is (P.create(), C.create(), P.create())\n"
+    "    P.create() is (P.create(); C.create())\n"
+    "    P.create() is (P.create(), ((C.create()), P.create()))\n"
+    "    C.create() isnt C.create()\n"
+    "    C.create() isnt P.create()\n"
+    "    P.create() isnt C.create()\n"
+    "    P.create() isnt (P.create(), C.create(), P.create())\n"
+    "    P.create() isnt (P.create(); C.create())\n"
+    "    P.create() isnt (P.create(), ((C.create()), P.create()))\n"
+    // valid
+    "    P.create() is P.create()\n"
+    "    P.create() is (C.create(); P.create())\n"
+    "    P.create() isnt P.create()\n"
+    "    P.create() isnt (C.create(); P.create())";
+  {
+    const char* err = "identity comparison with a new object will always be false";
+    const char* errs[] = {err, err, err, err, err, err, err, err, err, err, err, err, err, NULL};
+    DO(test_expected_errors(src, "verify", errs));
+  }
+}
+
+TEST_F(BadPonyTest, IsComparingNamedConstructor)
+{
+  // From issue #4162, this is about testing named
+  // constructors, and not just the default one.
+  const char* src =
+    "primitive P\n"
+    "\n"
+    "class C\n"
+    "  new create() => None\n"
+    "  new testing() => None\n"
+    "\n"
+    "actor A\n"
+    "  new create() => None\n"
+    "  new testing() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    // invalid
+    "    C.create() is C.testing()\n"
+    "    A.create() is A.testing()\n"
+    "    C.create() is P.create()\n"
+    "    P.create() is C.testing()\n"
+    "    P.create() is (P.create(), C.testing(), P.create())\n"
+    "    P.create() is (P.create(); C.testing())\n"
+    "    P.create() is (P.create(), ((C.testing()), P.create()))\n"
+    "    C.create() isnt C.testing()\n"
+    "    C.create() isnt P.create()\n"
+    "    P.create() isnt C.testing()\n"
+    "    P.create() isnt (P.create(), C.testing(), P.create())\n"
+    "    P.create() isnt (P.create(); C.testing())\n"
+    "    P.create() isnt (P.create(), ((C.testing()), P.create()))\n"
+    // valid
+    "    P.create() is P.create()\n"
+    "    P.create() is (C.testing(); P.create())\n"
+    "    P.create() isnt P.create()\n"
+    "    P.create() isnt (C.testing(); P.create())";
+  {
+    const char* err = "identity comparison with a new object will always be false";
+    const char* errs[] = {err, err, err, err, err, err, err, err, err, err, err, err, err, NULL};
+    DO(test_expected_errors(src, "verify", errs));
   }
 }
 
@@ -1204,4 +1286,29 @@ TEST_F(BadPonyTest, CantAssignErrorExpression)
 
   TEST_ERRORS_1(src,
     "right side must be something that can be assigned")
+}
+
+TEST_F(BadPonyTest, NotSafeToWrite)
+{
+  // From issue #4290
+  const char* src =
+    "class Foo\n"
+    "class X\n"
+      "var foo: Foo ref = Foo\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = X\n"
+        "let foo: Foo ref = Foo\n"
+        "x.foo = foo";
+
+  {
+      const char* errs[] =
+        {"not safe to write right side to left side", NULL};
+      const char* frame1[] = {
+        "right side type: Foo ref^", 
+        "left side type: X iso", NULL};
+      const char** frames[] = {frame1, NULL};
+      DO(test_expected_error_frames(src, "badpony", errs, frames));
+  }
 }

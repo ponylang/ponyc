@@ -3,6 +3,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
+#include "call.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
 #include "../ast/lexer.h"
@@ -373,7 +374,15 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
     default: {}
   }
+
   ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
+  if(check_auto_recover_newref(fl_type, right))
+  {
+    token_id left_cap = ast_id(cap_fetch(wl_type));
+    ast_t* recovered_left_type = recover_type(r_type, left_cap);
+    if (recovered_left_type)
+      r_type = recovered_left_type;
+  }
 
   // Assignment is based on the alias of the right hand side.
   errorframe_t info = NULL;
@@ -434,6 +443,15 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  bool ok_mutable = safe_to_mutate(left);
+  if(!ok_mutable)
+  {
+    ast_error(opt->check.errors, ast,
+      "left side is immutable");
+    ast_free_unattached(wl_type);
+    return false;
+  }
+
   bool ok_safe = safe_to_move(left, r_type, WRITE);
 
   if(!ok_safe)
@@ -466,6 +484,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
       "not safe to write right side to left side");
     ast_error_continue(opt->check.errors, wl_type, "right side type: %s",
       ast_print_type(wl_type));
+    if(ast_child(left) != NULL)
+    {
+      ast_error_continue(opt->check.errors, ast_child(left), "left side type: %s",
+      ast_print_type(ast_type(ast_child(left))));
+    }
     ast_free_unattached(wl_type);
     return false;
   }

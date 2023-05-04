@@ -23,7 +23,7 @@ void* ponyint_virt_alloc(size_t bytes)
   if(p == NULL)
     ok = false;
 #elif defined(PLATFORM_IS_POSIX_BASED)
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 #elif defined(PLATFORM_IS_MACOSX)

@@ -263,7 +263,6 @@ TEST_F(SubTypeTest, IsSubTypePrimitiveTrait)
   pass_opt_init(&opt);
 }
 
-
 TEST_F(SubTypeTest, IsSubTypeUnion)
 {
   const char* src =

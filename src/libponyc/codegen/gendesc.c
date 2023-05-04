@@ -24,18 +24,19 @@
 #define DESC_DISPATCH 11
 #define DESC_FINALISE 12
 #define DESC_EVENT_NOTIFY 13
-#define DESC_TRAITS 14
-#define DESC_FIELDS 15
-#define DESC_VTABLE 16
+#define DESC_MIGHT_REFERENCE_ACTOR 14
+#define DESC_TRAITS 15
+#define DESC_FIELDS 16
+#define DESC_VTABLE 17
 
-#define DESC_LENGTH 17
+#define DESC_LENGTH 18
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
 {
   // Create a new unboxing function that forwards to the real function.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(c_m->func));
+  LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
   int count = LLVMCountParamTypes(f_type);
 
   // Leave space for a receiver if it's a constructor vtable entry.
@@ -66,9 +67,10 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   // Extract the primitive type from element 1 and call the real function.
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
-  LLVMValueRef primitive_ptr = LLVMBuildStructGEP_P(c->builder, this_ptr, 1,
-    "");
-  LLVMValueRef primitive = LLVMBuildLoad_P(c->builder, primitive_ptr, "");
+  LLVMValueRef primitive_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
+    this_ptr, 1, "");
+  LLVMValueRef primitive = LLVMBuildLoad2(c->builder, c_t->use_type,
+    primitive_ptr, "");
 
   primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
 
@@ -88,21 +90,19 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
       args[i] = LLVMGetParam(unbox_fun, i + 1);
   }
 
-  LLVMValueRef result = codegen_call(c, c_m->func, args, count, m->cap != TK_AT);
+  LLVMValueRef result = codegen_call(c, LLVMGlobalGetValueType(c_m->func),
+    c_m->func, args, count, m->cap != TK_AT);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
   ponyint_pool_free_size(buf_size, params);
   ponyint_pool_free_size(buf_size, args);
-  return LLVMConstBitCast(unbox_fun, c->void_ptr);
+  return unbox_fun;
 }
 
-static LLVMValueRef make_desc_ptr(LLVMValueRef func, LLVMTypeRef type)
+static LLVMValueRef make_desc_ptr(compile_t* c, LLVMValueRef func)
 {
-  if(func == NULL)
-    return LLVMConstNull(type);
-
-  return LLVMConstBitCast(func, type);
+  return func == NULL ? LLVMConstNull(c->ptr) : func;
 }
 
 static LLVMValueRef* trait_bitmap32(compile_t* c, reach_type_t* t)
@@ -170,7 +170,7 @@ static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
   LLVMTypeRef map_type = LLVMArrayType(c->intptr, c->trait_bitmap_size);
 
   if(t->bare_method != NULL)
-    return LLVMConstNull(LLVMPointerType(map_type, 0));
+    return LLVMConstNull(c->ptr);
 
   LLVMValueRef* bitmap;
   if(target_is_ilp32(c->opt->triple))
@@ -220,6 +220,13 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
     LLVMOffsetOfElement(c->target_data, c_t->structure, index), false);
 }
 
+static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)
+{
+  (void)t;
+
+  return LLVMConstInt(c->i1, 1, false);
+}
+
 static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 {
   // The list is an array of field descriptors.
@@ -234,7 +241,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 
   // If we aren't a tuple, return a null pointer to a list.
   if(count == 0)
-    return LLVMConstNull(LLVMPointerType(field_type, 0));
+    return LLVMConstNull(c->ptr);
 
   // Create a constant array of field descriptors.
   size_t buf_size = count * sizeof(LLVMValueRef);
@@ -251,10 +258,10 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
     if(f_c_t->desc != NULL)
     {
       // We are a concrete type.
-      fdesc[1] = LLVMConstBitCast(f_c_t->desc, c->descriptor_ptr);
+      fdesc[1] = f_c_t->desc;
     } else {
       // We aren't a concrete type.
-      fdesc[1] = LLVMConstNull(c->descriptor_ptr);
+      fdesc[1] = LLVMConstNull(c->ptr);
     }
 
     list[i] = LLVMConstStructInContext(c->context, fdesc, 2, false);
@@ -277,7 +284,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
 {
   if(t->vtable_size == 0)
-    return LLVMConstArray(c->void_ptr, NULL, 0);
+    return LLVMConstArray(c->ptr, NULL, 0);
 
   size_t buf_size = t->vtable_size * sizeof(LLVMValueRef);
   LLVMValueRef* vtable = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
@@ -302,17 +309,17 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       if((c_t->primitive != NULL) && !m->internal)
         vtable[index] = make_unbox_function(c, t, m);
       else
-        vtable[index] = make_desc_ptr(c_m->func, c->void_ptr);
+        vtable[index] = make_desc_ptr(c, c_m->func);
     }
   }
 
   for(uint32_t i = 0; i < t->vtable_size; i++)
   {
     if(vtable[i] == NULL)
-      vtable[i] = LLVMConstNull(c->void_ptr);
+      vtable[i] = LLVMConstNull(c->ptr);
   }
 
-  LLVMValueRef r = LLVMConstArray(c->void_ptr, vtable, t->vtable_size);
+  LLVMValueRef r = LLVMConstArray(c->ptr, vtable, t->vtable_size);
   ponyint_pool_free_size(buf_size, vtable);
   return r;
 }
@@ -325,21 +332,20 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_SIZE] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
-  params[DESC_INSTANCE] = c->object_ptr;
-  params[DESC_TRACE] = c->trace_fn;
-  params[DESC_SERIALISE_TRACE] = c->trace_fn;
-  params[DESC_SERIALISE] = c->serialise_fn;
-  params[DESC_DESERIALISE] = c->trace_fn;
-  params[DESC_CUSTOM_SERIALISE_SPACE] = c->custom_serialise_space_fn;
-  params[DESC_CUSTOM_DESERIALISE] = c->custom_deserialise_fn;
-  params[DESC_DISPATCH] = c->dispatch_fn;
-  params[DESC_FINALISE] = c->final_fn;
+  params[DESC_INSTANCE] = c->ptr;
+  params[DESC_TRACE] = c->ptr;
+  params[DESC_SERIALISE_TRACE] = c->ptr;
+  params[DESC_SERIALISE] = c->ptr;
+  params[DESC_DESERIALISE] = c->ptr;
+  params[DESC_CUSTOM_SERIALISE_SPACE] = c->ptr;
+  params[DESC_CUSTOM_DESERIALISE] = c->ptr;
+  params[DESC_DISPATCH] = c->ptr;
+  params[DESC_FINALISE] = c->ptr;
   params[DESC_EVENT_NOTIFY] = c->i32;
-  params[DESC_TRAITS] = LLVMPointerType(
-    LLVMArrayType(c->intptr, 0), 0);
-  params[DESC_FIELDS] = LLVMPointerType(
-    LLVMArrayType(c->field_descriptor, 0), 0);
-  params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, 0);
+  params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
+  params[DESC_TRAITS] = c->ptr;
+  params[DESC_FIELDS] = c->ptr;
+  params[DESC_VTABLE] = LLVMArrayType(c->ptr, 0);
 
   LLVMStructSetBody(desc_type, params, DESC_LENGTH, false);
 }
@@ -360,12 +366,9 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   }
 
   const char* desc_name = genname_descriptor(t->name);
-  uint32_t fields = 0;
   uint32_t vtable_size = t->vtable_size;
 
-  if(t->underlying == TK_TUPLETYPE)
-    fields = t->field_count;
-  else
+  if(t->underlying != TK_TUPLETYPE)
     vtable_size = t->vtable_size;
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -376,21 +379,20 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_SIZE] = c->i32;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
-  params[DESC_INSTANCE] = c->object_ptr;
-  params[DESC_TRACE] = c->trace_fn;
-  params[DESC_SERIALISE_TRACE] = c->trace_fn;
-  params[DESC_SERIALISE] = c->serialise_fn;
-  params[DESC_DESERIALISE] = c->trace_fn;
-  params[DESC_CUSTOM_SERIALISE_SPACE] = c->custom_serialise_space_fn;
-  params[DESC_CUSTOM_DESERIALISE] = c->custom_deserialise_fn;
-  params[DESC_DISPATCH] = c->dispatch_fn;
-  params[DESC_FINALISE] = c->final_fn;
+  params[DESC_INSTANCE] = c->ptr;
+  params[DESC_TRACE] = c->ptr;
+  params[DESC_SERIALISE_TRACE] = c->ptr;
+  params[DESC_SERIALISE] = c->ptr;
+  params[DESC_DESERIALISE] = c->ptr;
+  params[DESC_CUSTOM_SERIALISE_SPACE] = c->ptr;
+  params[DESC_CUSTOM_DESERIALISE] = c->ptr;
+  params[DESC_DISPATCH] = c->ptr;
+  params[DESC_FINALISE] = c->ptr;
   params[DESC_EVENT_NOTIFY] = c->i32;
-  params[DESC_TRAITS] = LLVMPointerType(
-    LLVMArrayType(c->intptr, c->trait_bitmap_size), 0);
-  params[DESC_FIELDS] = LLVMPointerType(
-    LLVMArrayType(c->field_descriptor, fields), 0);
-  params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, vtable_size);
+  params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
+  params[DESC_TRAITS] = c->ptr;
+  params[DESC_FIELDS] = c->ptr;
+  params[DESC_VTABLE] = LLVMArrayType(c->ptr, vtable_size);
 
   LLVMStructSetBody(c_t->desc_type, params, DESC_LENGTH, false);
 
@@ -414,19 +416,18 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
-  args[DESC_INSTANCE] = make_desc_ptr(c_t->instance, c->object_ptr);
-  args[DESC_TRACE] = make_desc_ptr(c_t->trace_fn, c->trace_fn);
-  args[DESC_SERIALISE_TRACE] = make_desc_ptr(c_t->serialise_trace_fn,
-    c->trace_fn);
-  args[DESC_SERIALISE] = make_desc_ptr(c_t->serialise_fn, c->serialise_fn);
-  args[DESC_DESERIALISE] = make_desc_ptr(c_t->deserialise_fn, c->trace_fn);
+  args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
+  args[DESC_TRACE] = make_desc_ptr(c, c_t->trace_fn);
+  args[DESC_SERIALISE_TRACE] = make_desc_ptr(c, c_t->serialise_trace_fn);
+  args[DESC_SERIALISE] = make_desc_ptr(c, c_t->serialise_fn);
+  args[DESC_DESERIALISE] = make_desc_ptr(c, c_t->deserialise_fn);
   args[DESC_CUSTOM_SERIALISE_SPACE] =
-    make_desc_ptr(c_t->custom_serialise_space_fn, c->custom_serialise_space_fn);
-  args[DESC_CUSTOM_DESERIALISE] =
-    make_desc_ptr(c_t->custom_deserialise_fn, c->custom_deserialise_fn);
-  args[DESC_DISPATCH] = make_desc_ptr(c_t->dispatch_fn, c->dispatch_fn);
-  args[DESC_FINALISE] = make_desc_ptr(c_t->final_fn, c->final_fn);
+    make_desc_ptr(c, c_t->custom_serialise_space_fn);
+  args[DESC_CUSTOM_DESERIALISE] = make_desc_ptr(c, c_t->custom_deserialise_fn);
+  args[DESC_DISPATCH] = make_desc_ptr(c, c_t->dispatch_fn);
+  args[DESC_FINALISE] = make_desc_ptr(c, c_t->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32, event_notify_index, false);
+  args[DESC_MIGHT_REFERENCE_ACTOR] = make_might_reference_actor(c, t);
   args[DESC_TRAITS] = make_trait_bitmap(c, t);
   args[DESC_FIELDS] = make_field_list(c, t);
   args[DESC_VTABLE] = make_vtable(c, t);
@@ -443,7 +444,7 @@ void gendesc_table(compile_t* c)
   size_t size = len * sizeof(LLVMValueRef);
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(size);
 
-  LLVMValueRef null = LLVMConstNull(c->descriptor_ptr);
+  LLVMValueRef null = LLVMConstNull(c->ptr);
   for(size_t i = 0; i < len; i++)
     args[i] = null;
 
@@ -459,16 +460,16 @@ void gendesc_table(compile_t* c)
     LLVMValueRef desc;
 
     if(c_t->desc != NULL)
-      desc = LLVMBuildBitCast(c->builder, c_t->desc, c->descriptor_ptr, "");
+      desc = c_t->desc;
     else
-      desc = LLVMConstNull(c->descriptor_ptr);
+      desc = LLVMConstNull(c->ptr);
 
     args[t->type_id] = desc;
   }
 
-  LLVMTypeRef type = LLVMArrayType(c->descriptor_ptr, len);
+  LLVMTypeRef type = LLVMArrayType(c->ptr, len);
   LLVMValueRef table = LLVMAddGlobal(c->module, type, "__DescTable");
-  LLVMValueRef value = LLVMConstArray(c->descriptor_ptr, args, len);
+  LLVMValueRef value = LLVMConstArray(c->ptr, args, len);
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
   LLVMSetLinkage(table, LLVMPrivateLinkage);
@@ -479,15 +480,18 @@ void gendesc_table(compile_t* c)
 
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
 {
-  LLVMValueRef ptr = LLVMBuildStructGEP_P(c->builder, desc, index, "");
-  LLVMValueRef field = LLVMBuildLoad_P(c->builder, ptr, "");
+  LLVMTypeRef field_type = LLVMStructGetTypeAtIndex(c->descriptor_type, index);
+  LLVMValueRef ptr = LLVMBuildStructGEP2(c->builder, c->descriptor_type, desc,
+    index, "");
+  LLVMValueRef field = LLVMBuildLoad2(c->builder, field_type, ptr, "");
   return field;
 }
 
 LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
 {
-  LLVMValueRef ptr = LLVMBuildStructGEP_P(c->builder, object, 0, "");
-  LLVMValueRef desc = LLVMBuildLoad_P(c->builder, ptr, "");
+  LLVMValueRef ptr = LLVMBuildStructGEP2(c->builder, c->object_type, object,
+    0, "");
+  LLVMValueRef desc = LLVMBuildLoad2(c->builder, c->ptr, ptr, "");
   return desc;
 }
 
@@ -513,15 +517,16 @@ LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef desc)
 
 LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef desc, size_t colour)
 {
-  LLVMValueRef vtable = LLVMBuildStructGEP_P(c->builder, desc, DESC_VTABLE, "");
+  LLVMValueRef vtable = LLVMBuildStructGEP2(c->builder, c->descriptor_type,
+    desc, DESC_VTABLE, "VTABLE");
 
   LLVMValueRef gep[2];
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = LLVMConstInt(c->i32, colour, false);
 
-  LLVMValueRef func_ptr = LLVMBuildInBoundsGEP_P(c->builder, vtable, gep, 2,
-    "");
-  LLVMValueRef fun = LLVMBuildLoad_P(c->builder, func_ptr, "");
+  LLVMValueRef func_ptr = LLVMBuildInBoundsGEP2(c->builder,
+    LLVMArrayType(c->ptr, 0), vtable, gep, 2, "");
+  LLVMValueRef fun = LLVMBuildLoad2(c->builder, c->ptr, func_ptr, "");
   return fun;
 }
 
@@ -532,8 +537,7 @@ LLVMValueRef gendesc_ptr_to_fields(compile_t* c, LLVMValueRef object,
   LLVMValueRef offset = desc_field(c, desc, DESC_FIELD_OFFSET);
   offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
 
-  LLVMValueRef base = LLVMBuildBitCast(c->builder, object, c->void_ptr, "");
-  return LLVMBuildInBoundsGEP_P(c->builder, base, &offset, 1, "");
+  return LLVMBuildInBoundsGEP2(c->builder, c->i8, object, &offset, 1, "");
 }
 
 LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef desc)
@@ -549,9 +553,10 @@ LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
   gep[0] = LLVMConstInt(c->i32, 0, false);
   gep[1] = LLVMConstInt(c->i32, index, false);
 
-  LLVMValueRef field_desc = LLVMBuildInBoundsGEP_P(c->builder, fields, gep, 2,
-    "");
-  LLVMValueRef field_info = LLVMBuildLoad_P(c->builder, field_desc, "");
+  LLVMValueRef field_desc = LLVMBuildInBoundsGEP2(c->builder,
+    LLVMArrayType(c->field_descriptor, 0), fields, gep, 2, "");
+  LLVMValueRef field_info = LLVMBuildLoad2(c->builder, c->field_descriptor,
+    field_desc, "");
   return field_info;
 }
 
@@ -560,18 +565,16 @@ LLVMValueRef gendesc_fieldptr(compile_t* c, LLVMValueRef ptr,
 {
   LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_info, 0, "");
   offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
-  return LLVMBuildInBoundsGEP_P(c->builder, ptr, &offset, 1, "");
+  return LLVMBuildInBoundsGEP2(c->builder, c->i8, ptr, &offset, 1, "");
 }
 
 LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef field_info)
 {
   LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
-  LLVMValueRef object_ptr = LLVMBuildBitCast(c->builder, field_ptr,
-    LLVMPointerType(c->object_ptr, 0), "");
   // gendesc_fieldload is called from trace functions, no need for TBAA metadata
   // here.
-  return LLVMBuildLoad_P(c->builder, object_ptr, "");
+  return LLVMBuildLoad2(c->builder, c->ptr, field_ptr, "");
 }
 
 LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info)
@@ -633,8 +636,9 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
   args[0] = LLVMConstInt(c->intptr, 0, false);
   args[1] = shift;
 
-  LLVMValueRef index = LLVMBuildInBoundsGEP_P(c->builder, bitmap, args, 2, "");
-  index = LLVMBuildLoad_P(c->builder, index, "");
+  LLVMValueRef index = LLVMBuildInBoundsGEP2(c->builder,
+    LLVMArrayType(c->intptr, 0), bitmap, args, 2, "");
+  index = LLVMBuildLoad2(c->builder, c->intptr, index, "");
 
   LLVMValueRef has_trait = LLVMBuildAnd(c->builder, index, mask, "");
   has_trait = LLVMBuildICmp(c->builder, LLVMIntNE, has_trait,
@@ -651,7 +655,5 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
     return GEN_NOVALUE;
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
-  LLVMValueRef dptr = LLVMBuildBitCast(c->builder, c_t->desc, c->descriptor_ptr,
-    "");
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, dptr, "");
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, c_t->desc, "");
 }

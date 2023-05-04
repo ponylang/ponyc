@@ -146,6 +146,7 @@ typedef const struct _pony_type_t
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
+  bool might_reference_actor;
   uintptr_t** traits;
   void* fields;
   void* vtable;
@@ -273,7 +274,7 @@ PONY_API ATTRIBUTE_MALLOC void* pony_alloc_large(pony_ctx_t* ctx, size_t size);
  * space, otherwise it allocates and copies. The old memory must have been
  * allocated via pony_alloc(), pony_alloc_small(), or pony_alloc_large().
  */
-PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size);
+PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size, size_t copy);
 
 /** Allocate memory with a finaliser.
  *
@@ -407,7 +408,7 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
  *
  * Call this first. It will strip out command line arguments that you should
  * ignore and will return the remaining argc. Then create an actor and send it
- * a message, so that some initial work exists. Use pony_become() if you need
+ * a message, so that some initial work exists. Use ponyint_become() if you need
  * to send messages that require allocation and tracing.
  *
  * Then call pony_start().
@@ -456,7 +457,7 @@ PONY_API void pony_register_thread();
  */
 PONY_API void pony_unregister_thread();
 
-PONY_API int32_t pony_scheduler_index(pony_ctx_t* ctx);
+PONY_API int32_t pony_scheduler_index();
 
 /** Signals that the pony runtime may terminate.
  *
@@ -484,7 +485,7 @@ PONY_API int pony_get_exitcode();
  * things: first, it will possibly gc, and second it will possibly handle a
  * pending application message.
  *
- * A thread must pony_become an actor before it can pony_poll.
+ * A thread must ponyint_become an actor before it can pony_poll.
  */
 PONY_API void pony_poll(pony_ctx_t* ctx);
 

@@ -7,7 +7,7 @@ First of all, you need a compiler with decent C11 support. We officially support
 - MSVC >= 2017
 - GCC >= 4.7
 
-You also need [CMake](https://cmake.org/download/) version 3.15 or higher.
+You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM.
 
 ## Clone this repository
 
@@ -72,6 +72,7 @@ Raspbian 32-bit | cmake
 Raspbian 64-bit | cmake, clang
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Ubuntu | clang, cmake, make
+Void | clang, cmake, make, libatomic libatomic-devel
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
@@ -140,6 +141,7 @@ Note that you only need to run `make libs` once the first time you build (or if 
 Building on Windows requires the following:
 
 - [CMake](https://cmake.org/download/) version 3.15.0 or higher needs to be in your PATH.
+- [Python 3](https://www.python.org/downloads/)
 - Visual Studio 2019 or 2017 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019 or 2017 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
   - If using Visual Studio, install the `Desktop Development with C++` workload.
   - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `Visual Studio C++ core features` individual component.
@@ -201,6 +203,19 @@ ponyc --runtimebc
 ```
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
+
+### systematic testing
+
+Systematic testing allows for running of Pony programs in a deterministic manner. It accomplishes this by coordinating the interleaving of the multiple runtime scheduler threads in a deterministic and reproducible manner instead of allowing them all to run in parallel like happens normally. This ability to reproduce a particular runtime behavior is invaluable for debugging runtime issues.
+
+Systematic testing is enabled by setting `use=scheduler_scaling_pthreads,systematic_testing` in the build command line like:
+
+```bash
+make configure use=scheduler_scaling_pthreads,systematic_testing
+make build
+```
+
+More information about systematic testing can be found in [SYSTEMATIC_TESTING.md](SYSTEMATIC_TESTING.md).
 
 ## Compiler Development
 

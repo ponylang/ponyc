@@ -489,6 +489,7 @@ TEST_F(RecoverTest, CanAccess_LocalField)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, CanAccess_DeepLocalFields)
 {
   const char* src =
@@ -505,6 +506,7 @@ TEST_F(RecoverTest, CanAccess_DeepLocalFields)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, CantWrite_This_NonSendable)
 {
   const char* src =
@@ -520,7 +522,6 @@ TEST_F(RecoverTest, CantWrite_This_NonSendable)
             "object inside of a recover expression",
     "left side must be something that can be assigned to");
 }
-
 
 TEST_F(RecoverTest, CanDoPartialApplication_TagWithLowerToTag)
 {
@@ -669,6 +670,7 @@ TEST_F(RecoverTest, CantReturnTrn_TrnAutoRecovery)
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
 }
+
 TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
 {
   const char* src =
@@ -685,6 +687,7 @@ TEST_F(RecoverTest, CanReturnBox_TrnAutoRecovery)
 
   TEST_COMPILE(src);
 }
+
 TEST_F(RecoverTest, CantWriteBox_TrnAutoRecovery)
 {
   const char* src =
@@ -703,6 +706,7 @@ TEST_F(RecoverTest, CantWriteBox_TrnAutoRecovery)
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
 }
+
 TEST_F(RecoverTest, CantWriteTrnAlias_TrnAutoRecovery)
 {
   const char* src =
@@ -721,6 +725,7 @@ TEST_F(RecoverTest, CantWriteTrnAlias_TrnAutoRecovery)
   TEST_ERRORS_1(src,
     "receiver type is not a subtype of target type")
 }
+
 TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
 {
   const char* src =
@@ -737,4 +742,181 @@ TEST_F(RecoverTest, CanWriteTrn_TrnAutoRecovery)
     "    dest.store(consume a_trn)\n";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetIso_CtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a_iso: A iso = A\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, VarIso_CtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_iso: A iso = A\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetTrn_CtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_trn: A trn = A\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetVal_RefCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_val: A val = A\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetVal_BoxCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new box create() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    var a_val: A val = A\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetIso_ArgsCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create(s: String box) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String val = \"\"\n"
+    "    let a_iso: A iso = A(s)\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetTrn_ArgsCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create(s: String box) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String val = \"\"\n"
+    "    let a_trn: A trn = A(s)\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, LetVal_ArgsCtorAutoRecovery)
+{
+  const char* src =
+    "class A\n"
+    "  new ref create(s: String box) =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String val = \"\"\n"
+    "    let a_val: A val = A(s)\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(RecoverTest, CantAutoRecover_CtorArgWithNonSendableArg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String ref = String\n"
+    "    Bar.take_foo(Foo.from_str(s))\n"
+
+    "class Foo\n"
+    "  new from_u8(v: U8) =>\n"
+    "    None\n"
+    "  new from_str(s: String ref) =>\n"
+    "    None\n"
+
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(RecoverTest, CantAutoRecover_CtorAssignmentWithNonSendableArg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let s: String ref = String\n"
+    "    let bar: Foo iso = Foo.from_str(s)\n"
+
+    "class Foo\n"
+    "  new from_u8(v: U8) =>\n"
+    "    None\n"
+    "  new from_str(s: String ref) =>\n"
+    "    None\n"
+
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+TEST_F(RecoverTest, CantAutoRecover_CtorParamToComplexTypeWithNonSendableArg)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let bar: (Foo iso | String ref) = Foo.from_u8(123)\n"
+
+    "class Foo\n"
+    "  new from_u8(v: U8) =>\n"
+    "    None\n"
+    "  new from_str(s: String ref) =>\n"
+    "    None\n"
+
+    "primitive Bar\n"
+    "  fun take_foo(foo: Foo iso) =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }

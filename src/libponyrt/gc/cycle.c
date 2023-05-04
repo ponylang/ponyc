@@ -16,6 +16,130 @@
 
 #define CD_MAX_CHECK_BLOCKED 1000
 
+//
+// About the Pony cycle detector
+//
+// The cycle detector exists to reap actors and cycles of actors. Not every
+// Pony program needs the cycle detector. If an application contains no cycles
+// amongst it's actors or is able via its shutdown mechanism to break
+// those cycles then the cycle detector isn't need and is extra overhead. Such
+// programs use the "ponynoblock" runtime option to turn off the cycle
+// detector.
+//
+// Some applications do need a cycle detector in order to garbage collect
+// actors. The job of the cycle detector is find groups of actors (cycles) where
+// no more work is possible because all of the actors in the cycle are blocked.
+// When the cycle detector finds a blocked cycle, it deletes the members of
+// cycle.
+//
+// The cycle detector is a special actor that is implemented here in cycle.c in
+// c rather than being implemented in Pony. Like other actors, it is run by
+// the various schedulers. Unlike other actors, it does not participate in the
+// scheduler's backpressure system as the cycle detector is marked as a "system
+// actor". All system actors are not part of the backpressure system.
+//
+// The cycle detector has evolved over the years and is much more complicated
+// now than it was in early versions of Pony. "In the beginning", every actor
+// would send a message upon its creation to the cycle detector. This allowed
+// the detector to track all the actors ahd use a protocol that still mostly
+// exists to query actor's about there view of the world and put together a
+// "omniscient" view of actor relations and find cycles of blocked actors.
+//
+// Early cycle detector designs had a few problems.
+//
+// 1. Every actor was communicating with the cycle detector which made a the
+//    cycle detector a bottleneck in many applications.
+// 2. The cycle detector was run like other actors which meant that it often
+//    couldn't keep up with particularly "CD busy applications". When the cycle
+//    detector can't keep up, memory pressure grows from it's queue.
+// 3. The cycle detector was scheduled like every other actor and would steal
+//    cycles from "real work actors". In some applications a non-trivial amount
+//    of CPU time was spent on cycle detection.
+// 4. It was easy to overload the cycle detector by creating large numbers of
+//    actors in a short period of time.
+//
+// Despite these problems, the early cycle detector designs were relatively
+// easy to understand and didn't contain possible race conditions.
+//
+// Over time, as we have evolved the cycle detector to be less likely to suffer
+// from memory pressure or to be overly grabby with CPU time, it has gotten more
+// and more complicated. It would be rather easy now when modifying the cycle
+// detector to introduce dangerous race conditions that could result in crashing
+// Pony programs.
+//
+// Changes that have been made to the cycle detector over time:
+//
+// The cycle detector is no longer run like a regular actor. Instead, it will
+// only ever be run by scheduler 0. And it will only every be run every X amount
+// of units (which is configurable using the `cdinternal` option). This
+// scheduling change greatly dropped the performance impact of the cycle
+// detector on "average" Pony programs.
+//
+// Early versions of the cycle detector looked at every actor that it knew about
+// looking for cycles each time it ran. This could result in large amounts of
+// CPU usage and severely impact performance. Performance was most impacted as
+// the number of actors grew and as the number of CPUs shrank. Single threaded
+// Pony programs with a lot of actors could spend a very large amount of time
+// looking for cycles.
+//
+// Every actor informed the cycle detector of its existence via message passing
+// when the actor was created. This could cause a lot of additional message
+// activity.
+//
+// Every actor informed the cycle detector of its existence even if it was
+// never blocked. This resulted in a lot of extra work as the purpose of the
+// cycle detector is to find cycles of blocked actors. Despite this, all actors
+// were informing the cycle detector of their existence.
+//
+// The relationship between individual actors and the cycle detector is now as
+// follows.
+//
+// Actors only inform the cycle detector of their existence if they are blocked.
+//
+// We've introduced a concept of "orphaned" actor that at the time of their
+// creation have a reference count of 0. Orphaned actors whose rc never gets
+// above 0 can delete themselves locally like they would if `ponynoblock` was
+// in use.
+//
+// Any actor that has had a reference count above 0 but currently has a
+// reference count of 0 and is blocked can inform the cycle detector that it is
+// blocked (and is isolated) so that the cycle detector can speed up reaping it.
+//
+// The three above changes can, for many applications, have a huge impact on
+// performance and memory usage. However, these gains come at a cost.
+//
+// Early versions of the cycle detector were trivially race condition free. Now,
+// it is non-trivial to keep cycle detector/actor interactions race free.
+//
+// Where there was once only one way for the cycle detector to become aware of
+// an actor, there are now two. An actor might inform the cycle detector of
+// itself when it blocks. A different actor that knows about an actor, might
+// also have shared its view of the world with the cycle detector such that
+// the cycle detector knows about the actor without it ever having contacted the
+// cycle detector. This can result in the cycle detector having multiple
+// protcol messages in flight that could be leading the deletion of an actor.
+// Care must be taken in the cycle detector to not contact actors that are
+// "pending deletion" as it could lead to a double-free.
+//
+// There are critical sections of "deletion" code that are non-atomic in both
+// the actor and the cycle detector where for any actor, only the actor or
+// cycle detector can be executing. If both sides were to be executing critical
+// sections at the same time, a double free could result. We have an atomic
+// in place on a per actor basis that is used to prevent both sides from
+// executing their critical sections at the same time. If either can not
+// acquire the critical section atomic, it means the other side is in their
+// section and an invariant needed for safe deletion is about to be broken.
+//
+// If all of this sounds complicated, it is. Tread carefully. The three people
+// who know the cycle detector best all approved performance improvements
+// around the time of Pony 0.38.0 that introduced race conditions.
+//
+// We feel the additional complexity is worth it because the performance gains
+// have been so large. However, we are looking at doing away with the cycle
+// detector entirely and coming up with a decentralized approach to detecting
+// actor cycles and reaping them. Until that time, we have the current cycle
+// detector that has evolved to this state over time.
+
 typedef struct block_msg_t
 {
   pony_msg_t msg;
@@ -55,7 +179,7 @@ DECLARE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t);
 DEFINE_HASHMAP(ponyint_viewrefmap, viewrefmap_t, viewref_t, viewref_hash,
   viewref_cmp, viewref_free);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static size_t viewrefmap_total_mem_size(viewrefmap_t* map)
 {
   return ponyint_viewrefmap_mem_size(map)
@@ -98,7 +222,7 @@ static bool view_cmp(view_t* a, view_t* b)
   return a->actor == b->actor;
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static void track_mem_view_free(view_t* view);
 #endif
 
@@ -108,7 +232,7 @@ static void view_free(view_t* view)
 
   if(view->view_rc == 0)
   {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     track_mem_view_free(view);
 #endif
 
@@ -138,13 +262,13 @@ static bool perceived_cmp(perceived_t* a, perceived_t* b)
   return a->token == b->token;
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static void track_mem_perceived_free(perceived_t* per);
 #endif
 
 static void perceived_free(perceived_t* per)
 {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   track_mem_perceived_free(per);
 #endif
   ponyint_viewmap_destroy(&per->map);
@@ -177,7 +301,7 @@ typedef struct detector_t
   size_t created;
   size_t destroyed;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   size_t mem_used;
   size_t mem_allocated;
 #endif
@@ -185,7 +309,7 @@ typedef struct detector_t
 
 static pony_actor_t* cycle_detector;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 static void track_mem_view_free(view_t* view)
 {
   detector_t* d = (detector_t*)cycle_detector;
@@ -222,7 +346,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view->actor = actor;
     view->view_rc = 1;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     d->mem_used += sizeof(view_t);
     d->mem_allocated += POOL_ALLOC_SIZE(view_t);
     size_t mem_size_before = ponyint_viewmap_mem_size(&d->views);
@@ -232,7 +356,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     // new one without another search
     ponyint_viewmap_putindex(&d->views, view, index);
     d->created++;
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_after = ponyint_viewmap_mem_size(&d->views);
     size_t alloc_size_after = ponyint_viewmap_alloc_size(&d->views);
     d->mem_used += (mem_size_after - mem_size_before);
@@ -278,7 +402,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
         ref = (viewref_t*)POOL_ALLOC(viewref_t);
         ref->view = find;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
         d->mem_used += sizeof(viewref_t);
         d->mem_allocated += POOL_ALLOC_SIZE(viewref_t);
         size_t mem_size_before = ponyint_viewrefmap_mem_size(&view->map);
@@ -289,7 +413,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
         ponyint_viewrefmap_putindex(&view->map, ref, index);
         find->view_rc++;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
         size_t mem_size_after = ponyint_viewrefmap_mem_size(&view->map);
         size_t alloc_size_after = ponyint_viewrefmap_alloc_size(&view->map);
         d->mem_used += (mem_size_after - mem_size_before);
@@ -303,7 +427,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
 
       if(ref != NULL)
       {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
         d->mem_used -= sizeof(viewref_t);
         d->mem_allocated -= POOL_ALLOC_SIZE(viewref_t);
 #endif
@@ -313,7 +437,7 @@ static void apply_delta(detector_t* d, view_t* view, deltamap_t* map)
     }
   }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   d->mem_used -= ponyint_deltamap_total_mem_size(map);
   d->mem_allocated -= ponyint_deltamap_total_alloc_size(map);
 #endif
@@ -465,7 +589,7 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
 
     view->perceived = per;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     detector_t* d = (detector_t*)cycle_detector;
     size_t mem_size_before = ponyint_viewmap_mem_size(&per->map);
     size_t alloc_size_before = ponyint_viewmap_alloc_size(&per->map);
@@ -473,7 +597,7 @@ static bool collect_view(perceived_t* per, view_t* view, size_t rc, int* count)
 
     ponyint_viewmap_put(&per->map, view);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_after = ponyint_viewmap_mem_size(&per->map);
     size_t alloc_size_after = ponyint_viewmap_alloc_size(&per->map);
     d->mem_used += (mem_size_after - mem_size_before);
@@ -516,10 +640,23 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    // only send if actor is not pending destroy to ensure
-    // no race conditions when an actor might have an `rc == 0`
-    if(!ponyint_actor_pendingdestroy(view->actor))
-      pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
+    // The actor itself is also allowed to initiate a deletion of itself if
+    // it is blocked and has a reference count of 0. Because deletion is
+    // not an atomic operation, and the message queue remaining empty is an
+    // invariant that can't be violated if the cycle detector is sending
+    // a message to an actor, that actor isn't eligible to initiate getting
+    // reaped in a short-circuit fashion. Only the actor or the cycle
+    // detector can be in the "cycle detector critical" section for the actor.
+    if (ponyint_acquire_cycle_detector_critical(view->actor))
+    {
+      // To avoid a race condition, we have to make sure that the actor isn't
+      // pending destroy before sending a message. Failure to do so could
+      // eventually result in a double free.
+      if(!ponyint_actor_pendingdestroy(view->actor))
+        pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
+
+      ponyint_release_cycle_detector_critical(view->actor);
+    }
   }
 }
 
@@ -540,7 +677,7 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
   per->token = d->next_token++;
   per->ack = 0;
   ponyint_viewmap_init(&per->map, count);
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   d->mem_used += sizeof(perceived_t);
   d->mem_allocated += POOL_ALLOC_SIZE(perceived_t);
   d->mem_used += ponyint_viewmap_mem_size(&per->map);
@@ -552,7 +689,7 @@ static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
 
   ponyint_perceivedmap_put(&d->perceived, per);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   size_t mem_size_after = ponyint_perceivedmap_mem_size(&d->perceived);
   size_t alloc_size_after = ponyint_perceivedmap_alloc_size(&d->perceived);
   d->mem_used += (mem_size_after - mem_size_before);
@@ -671,10 +808,23 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     // if it is not already blocked
     if(!view->blocked)
     {
-      // only send if actor is not pending destroy to ensure
-      // no race conditions when an actor might have an `rc == 0`
-      if(!ponyint_actor_pendingdestroy(view->actor))
-        pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+      // The actor itself is also allowed to initiate a deletion of itself if
+      // it is blocked and has a reference count of 0. Because deletion is
+      // not an atomic operation, and the message queue remaining empty is an
+      // invariant that can't be violated if the cycle detector is sending
+      // a message to an actor, that actor isn't eligible to initiate getting
+      // reaped in a short-circuit fashion. Only the actor or the cycle
+      // detector can be in the "cycle detector critical" section for the actor.
+      if (ponyint_acquire_cycle_detector_critical(view->actor))
+      {
+        // To avoid a race condition, we have to make sure that the actor isn't
+        // pending destroy before sending a message. Failure to do so could
+        // eventually result in a double free.
+        if(!ponyint_actor_pendingdestroy(view->actor))
+          pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+
+        ponyint_release_cycle_detector_critical(view->actor);
+      }
     }
 
     // Stop if we've hit the max limit for # of actors to check
@@ -744,7 +894,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
     if (map != NULL)
     {
       // free deltamap
-      #ifdef USE_MEMTRACK
+      #ifdef USE_RUNTIMESTATS
         d->mem_used -= ponyint_deltamap_total_mem_size(map);
         d->mem_allocated -= ponyint_deltamap_total_alloc_size(map);
       #endif
@@ -784,7 +934,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
   // add to the deferred set
   if(!view->deferred)
   {
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_before = ponyint_viewmap_mem_size(&d->deferred);
     size_t alloc_size_before = ponyint_viewmap_alloc_size(&d->deferred);
 #endif
@@ -792,7 +942,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
     ponyint_viewmap_put(&d->deferred, view);
     view->deferred = true;
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
     size_t mem_size_after = ponyint_viewmap_mem_size(&d->deferred);
     size_t alloc_size_after = ponyint_viewmap_alloc_size(&d->deferred);
     d->mem_used += (mem_size_after - mem_size_before);
@@ -912,13 +1062,15 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
     i--;
   }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   d->mem_used -= ponyint_viewmap_mem_size(&d->deferred);
   d->mem_allocated -= ponyint_viewmap_alloc_size(&d->deferred);
   d->mem_used -= ponyint_viewmap_mem_size(&d->views);
   d->mem_allocated -= ponyint_viewmap_alloc_size(&d->views);
   d->mem_used -= ponyint_perceivedmap_mem_size(&d->perceived);
   d->mem_allocated -= ponyint_perceivedmap_alloc_size(&d->perceived);
+  // pony_assert(d->mem_used == 0);
+  // pony_assert(d->mem_allocated == 0);
 #endif
   ponyint_viewmap_destroy(&d->deferred);
   ponyint_viewmap_destroy(&d->views);
@@ -1032,9 +1184,9 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
     case ACTORMSG_BLOCK:
     {
-#ifdef USE_MEMTRACK_MESSAGES
-      ctx->mem_used_messages -= sizeof(block_msg_t);
-      ctx->mem_allocated_messages -= POOL_ALLOC_SIZE(block_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(block_msg_t);
+      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(block_msg_t);
 #endif
 
       block_msg_t* m = (block_msg_t*)msg;
@@ -1082,6 +1234,7 @@ static pony_type_t cycle_type =
   NULL,
   cycle_dispatch,
   NULL,
+  0,
   0,
   NULL,
   NULL,
@@ -1148,9 +1301,9 @@ void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
 
-#ifdef USE_MEMTRACK_MESSAGES
-  ctx->mem_used_messages += sizeof(block_msg_t);
-  ctx->mem_used_messages -= POOL_ALLOC_SIZE(block_msg_t);
+#ifdef USE_RUNTIMESTATS_MESSAGES
+  ctx->schedulerstats.mem_used_inflight_messages += sizeof(block_msg_t);
+  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(block_msg_t);
 #endif
 
   m->actor = actor;
@@ -1188,7 +1341,7 @@ bool ponyint_is_cycle(pony_actor_t* actor)
   return actor == cycle_detector;
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_cycle_mem_size()
 {
   detector_t* d = (detector_t*)cycle_detector;

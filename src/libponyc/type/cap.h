@@ -96,6 +96,8 @@ bool cap_sendable(token_id cap);
 
 bool cap_immutable_or_opaque(token_id cap);
 
+bool cap_mutable(token_id cap);
+
 /**
  * For a temporary capability (iso/trn), returns
  * the capability with no isolation constraints

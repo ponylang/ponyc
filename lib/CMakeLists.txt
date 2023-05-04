@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 file(STRINGS "../VERSION" PONYC_PROJECT_VERSION)
 project(ponyclibs VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
@@ -30,20 +30,13 @@ endif()
 
 # Libraries
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.6.tar.gz)
-if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.5.3.tar.gz)
-endif()
-
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.7.1.tar.gz)
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
-set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.11.0.tar.gz)
-if(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.10.0.tar.gz)
-endif()
+set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.12.1.tar.gz)
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
@@ -61,8 +54,8 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "1f9140064dfbfb0bbda8e51306ea51080b2f7aac")
-set(PATCHES_DESIRED_HASH "a16f299fbfced16a2bbc628746db341f2a5af9ae8cc9c9ef4b1e9ca26de3c292")
+set(LLVM_DESIRED_HASH "8dfdcc7b7bf66834a761bd8de445840ef68e4d1a")
+set(PATCHES_DESIRED_HASH "3e16c097794cb669a8f6a0bd7600b440205ac5c29a6135750c2e83263eb16a95")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -137,17 +130,18 @@ endif()
 
 message("Building targets: ${LLVM_TARGETS_TO_BUILD}")
 
-set(LLVM_ENABLE_BINDINGS OFF)
-set(LLVM_ENABLE_OCAMLDOC OFF)
-set(LLVM_ENABLE_PIC OFF)
-set(LLVM_ENABLE_TERMINFO OFF)
-set(LLVM_ENABLE_WARNINGS OFF)
-set(LLVM_ENABLE_Z3_SOLVER OFF)
-set(LLVM_INCLUDE_BENCHMARKS OFF)
-set(LLVM_INCLUDE_TESTS OFF)
-set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF)
-set(LLVM_ENABLE_ZLIB OFF)
-set(LLVM_ENABLE_ZLIB:STRING OFF)
+set(LLVM_ENABLE_BINDINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_OCAMLDOC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_PIC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_ZLIB OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_ZSTD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_LIBXML2 OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.14 -DUSE_SCHEDULER_SCALING_PTHREADS")

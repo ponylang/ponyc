@@ -6,12 +6,156 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+- Change supported MacOS version from Monterey to Ventura ([PR #4349](https://github.com/ponylang/ponyc/pull/4349))
+- Fix a possible resource leak with `with` blocks ([PR #4347](https://github.com/ponylang/ponyc/pull/4347))
+
+## [0.54.1] - 2023-04-12
+
+### Fixed
+
+- Fix bug in HeapToStack optimization pass ([PR #4341](https://github.com/ponylang/ponyc/pull/4341))
+
+### Changed
+
+- LLVM 15 ([PR #4327](https://github.com/ponylang/ponyc/pull/4327))
+
+## [0.54.0] - 2023-02-27
+
+### Fixed
+
+- Remove ambiguity from "not safe to write" compiler error message ([PR #4299](https://github.com/ponylang/ponyc/pull/4299))
+- Fix waiting on Windows to be sure I/O events can still come in. ([PR #4325](https://github.com/ponylang/ponyc/pull/4325))
+
+### Added
+
+- Create libponyc-standalone on MacOS ([PR #4303](https://github.com/ponylang/ponyc/pull/4303))
+- Build ponyc-standalone.lib for windows ([PR #4307](https://github.com/ponylang/ponyc/pull/4307))
+
+### Changed
+
+- Update DTrace probes ([PR #4302](https://github.com/ponylang/ponyc/pull/4302))
+- Stop building the "x86-64-unknown-linux-gnu" ponyc package ([PR #4312](https://github.com/ponylang/ponyc/pull/4312))
+- Remove json package from the standard library ([PR #4323])(https://github.com/ponylang/ponyc/pull/4323)
+
+## [0.53.0] - 2023-01-04
+
+### Fixed
+
+- Fix infinite loop in compiler ([PR #4293](https://github.com/ponylang/ponyc/pull/4293))
+- Fix compiler segfault caused by infinite recursion ([PR #4292](https://github.com/ponylang/ponyc/pull/4292))
+- Fix runtime segfault ([PR #4294](https://github.com/ponylang/ponyc/pull/4294))
+
+### Changed
+
+- Implement empty ranges RFC ([PR #4280](https://github.com/ponylang/ponyc/pull/4280))
+
+## [0.52.5] - 2022-12-30
+
+### Fixed
+
+- Fix compiler crash introduced in #4283 ([PR #4288](https://github.com/ponylang/ponyc/pull/4288))
+
+## [0.52.4] - 2022-12-29
+
+### Fixed
+
+- Fix an assert in `call.c` when checking an invalid argument for autorecover ([PR #4278](https://github.com/ponylang/ponyc/pull/4278))
+- Fix an issue with infinite loops while typechecking some expressions ([PR #4274](https://github.com/ponylang/ponyc/pull/4274))
+- Fix soundness bug introduced in Pony 0.51.2 ([PR #4283](https://github.com/ponylang/ponyc/pull/4283))
+
+## [0.52.3] - 2022-12-16
+
+### Fixed
+
+- Fix segfault caused by unsafe garbage collection optimization ([PR #4256](https://github.com/ponylang/ponyc/pull/4256))
+- Fix incorrectly implemented PR #4243 ([PR #4276](https://github.com/ponylang/ponyc/pull/4276))
+
+### Changed
+
+- Remove macOS on Intel as a supported platform ([PR #4270](https://github.com/ponylang/ponyc/pull/4270))
+
+## [0.52.2] - 2022-12-01
+
+### Fixed
+
+- Fix multiple races within actor/cycle detector interactions ([PR #4251](https://github.com/ponylang/ponyc/pull/4251))
+- Fix crash when calling `(this.)create()` ([PR #4263](https://github.com/ponylang/ponyc/pull/4263))
+
+### Added
+
+- Don't include "home file" in documentation search ([PR #4243](https://github.com/ponylang/ponyc/pull/4243))
+- Add support for erase left and erase line in term.ANSI ([PR #4246](https://github.com/ponylang/ponyc/pull/4246))
+
+### Changed
+
+- Improve TCP backpressure handling on Windows ([PR #4252](https://github.com/ponylang/ponyc/pull/4252))
+- Update supported FreeBSD to 13.1 ([PR #4185](https://github.com/ponylang/ponyc/pull/4185))
+- Drop Rocky 8 support ([PR #4262](https://github.com/ponylang/ponyc/pull/4262))
+
+## [0.52.1] - 2022-11-14
+
+### Added
+
+- Update docgen to generate source files that are ignored ([PR #4239](https://github.com/ponylang/ponyc/pull/4239))
+
+## [0.52.0] - 2022-11-10
+
+### Fixed
+
+- Avoid fairly easy to trigger overflow in Windows Time.nanos code ([PR #4227](https://github.com/ponylang/ponyc/pull/4227))
+- Fix incorrect interaction between String/Array reserve and Pointer realloc ([PR #4223](https://github.com/ponylang/ponyc/pull/4223))
+- Fix broken documentation generation on Windows ([PR #4226](https://github.com/ponylang/ponyc/pull/4226))
+
+### Changed
+
+- Sort package types in documentation ([PR #4228](https://github.com/ponylang/ponyc/pull/4228))
+- Adapt documentation generation to use the mkdocs material theme ([PR #4226](https://github.com/ponylang/ponyc/pull/4226)
+
+## [0.51.4] - 2022-10-29
+
+### Fixed
+
+- Fix broken readline package ([PR #4199](https://github.com/ponylang/ponyc/pull/4199))
+
+## [0.51.3] - 2022-10-02
+
+### Fixed
+
+- Fix bug in `StdStream.print` ([PR #4180](https://github.com/ponylang/ponyc/pull/4180))
+- Fix identity comparison check with desugared creations ([PR #4182](https://github.com/ponylang/ponyc/pull/4182))
+
+## [0.51.2] - 2022-08-26
+
+### Fixed
+
+- Fix for crash when methods with default private type params in remote packages are called  ([PR #4167](https://github.com/ponylang/ponyc/pull/4167))
+- Fix incorrect atomics usage ([PR #4159](https://github.com/ponylang/ponyc/pull/4159))
+
+### Added
+
+- Auto-recover constructor expressions ([PR #4124](https://github.com/ponylang/ponyc/pull/4124))
+- Support for RISC-V ([PR #3435](https://github.com/ponylang/ponyc/pull/3435))
+- Enhance runtime stats tracking ([PR #4144](https://github.com/ponylang/ponyc/pull/4144))
+
+## [0.51.1] - 2022-06-29
+
+### Fixed
+
 - Fix String.f32 and String.f64 errors with non null terminated strings ([PR #4132](https://github.com/ponylang/ponyc/pull/4132))
 - Fix for infinite Ranges ([PR #4127](https://github.com/ponylang/ponyc/pull/4127))
+- Ensure reachability of types returned by FFI calls ([PR #4149](https://github.com/ponylang/ponyc/pull/4149))
+- Support void* (Pointer[None]) parameters in bare lambdas and functions ([PR #4152](https://github.com/ponylang/ponyc/pull/4152))
 
 ### Added
 
 - Avoid clearing chunks at start of GC ([PR #4143](https://github.com/ponylang/ponyc/pull/4143))
+- Systematic testing for the runtime ([PR #4140](https://github.com/ponylang/ponyc/pull/4140))
 
 ### Changed
 

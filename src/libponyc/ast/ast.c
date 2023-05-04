@@ -2023,6 +2023,7 @@ static pony_type_t ast_signature_pony =
   NULL,
   NULL,
   0,
+  0,
   NULL,
   NULL,
   NULL
@@ -2100,6 +2101,7 @@ static pony_type_t ast_nominal_pkg_id_signature_pony =
   NULL,
   NULL,
   NULL,
+  0,
   0,
   NULL,
   NULL,
@@ -2362,6 +2364,7 @@ static pony_type_t ast_pony =
   NULL,
   NULL,
   NULL,
+  0,
   0,
   NULL,
   NULL,

@@ -32,14 +32,14 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   uint32_t mark);
 
 deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
   uint32_t mark, deltamap_t* delta, bool actor_noblock, size_t* mem_used_freed,
   size_t* mem_allocated_freed);
 #else
   uint32_t mark, deltamap_t* delta, bool actor_noblock);
 #endif
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_actormap_partial_mem_size(actormap_t* map);
 
 size_t ponyint_actormap_partial_alloc_size(actormap_t* map);

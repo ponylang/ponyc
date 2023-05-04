@@ -6,8 +6,10 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
+#include "../sched/systematic_testing.h"
 #include "ponyassert.h"
 #include <sys/event.h>
+#include <sys/time.h>
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -179,9 +181,24 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   struct kevent fired[MAX_EVENTS];
 
+#if defined(USE_SYSTEMATIC_TESTING)
+  // sleep thread until we're ready to start processing
+  SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
+#endif
+
   while(b->kq != -1)
   {
-    int count = kevent(b->kq, NULL, 0, fired, MAX_EVENTS, NULL);
+    struct timespec* timeout = NULL;
+#if defined(USE_SYSTEMATIC_TESTING)
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 10000000;
+    timeout = &ts;
+#endif
+
+    int count = kevent(b->kq, NULL, 0, fired, MAX_EVENTS, timeout);
+
+    SYSTEMATIC_TESTING_YIELD();
 
     for(int i = 0; i < count; i++)
     {
@@ -257,6 +274,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
+
+  SYSTEMATIC_TESTING_STOP_THREAD();
+
   pony_unregister_thread();
   return NULL;
 }

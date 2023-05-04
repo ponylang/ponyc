@@ -144,6 +144,7 @@ static __pony_thread_local struct _pony_type_t string_pony =
   NULL,
   NULL,
   0,
+  0,
   NULL,
   NULL,
   NULL
@@ -228,6 +229,7 @@ static pony_type_t strlist_pony =
   NULL,
   NULL,
   NULL,
+  0,
   0,
   NULL,
   NULL,

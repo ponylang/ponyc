@@ -18,6 +18,9 @@
   #include <mach/thread_policy.h>
 #elif defined(PLATFORM_IS_WINDOWS)
   #include <processtopologyapi.h>
+#elif defined(PLATFORM_IS_EMSCRIPTEN)
+  #include <emscripten.h>
+  #include <emscripten/threading.h>
 #endif
 
 #include "cpu.h"
@@ -168,6 +171,8 @@ void ponyint_cpu_init()
   hw_cpu_count = property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
   hw_cpu_count = property("hw.physicalcpu");
+#elif defined(PLATFORM_IS_EMSCRIPTEN)
+  hw_cpu_count = emscripten_num_logical_cores();
 #elif defined(PLATFORM_IS_WINDOWS)
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION info = NULL;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
@@ -325,14 +330,14 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   if(diff < 10000000)
     return;
 
-#ifdef PLATFORM_IS_WINDOWS
-  DWORD ts = 0;
-#else
-  struct timespec ts = {0, 0};
-#endif
-
   if(yield)
   {
+#ifdef PLATFORM_IS_WINDOWS
+    DWORD ts = 0;
+#else
+    struct timespec ts = {0, 0};
+#endif
+
     // A billion cycles is roughly half a second, depending on clock speed.
     if(diff > 10000000000)
     {
@@ -360,21 +365,23 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
     else
     {
 #ifdef PLATFORM_IS_WINDOWS
-      // Otherwise, pause for 1 ms (minimum on windows)
-      ts = 1;
+      // Windows minimum for pause is 1 millisecond which is a long time
+      // compared to what we want. Instead, let's not yield. But to go a little
+      // too fast then 10x too slow for waking up.
+      ts = 0;
 #else
       // Otherwise, pause for 100 microseconds
       ts.tv_nsec = 100000;
 #endif
     }
-  }
 
 #ifdef PLATFORM_IS_WINDOWS
-  SleepEx(ts, true);
+    SleepEx(ts, true);
 #else
-  DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
-  nanosleep(&ts, NULL);
+    DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
+    nanosleep(&ts, NULL);
 #endif
+  }
 }
 
 void ponyint_cpu_relax()
@@ -434,6 +441,12 @@ uint64_t ponyint_cpu_tick()
 # elif defined(PLATFORM_IS_WINDOWS)
   return __rdtsc();
 # endif
+#elif defined PLATFORM_IS_EMSCRIPTEN
+  return (uint64_t)(emscripten_get_now() * 1e6);
+#elif defined PLATFORM_IS_RISCV
+  uint64_t cycles;
+  asm("rdcycle %0" : "=r"(cycles));
+  return cycles;
 #endif
 }
 

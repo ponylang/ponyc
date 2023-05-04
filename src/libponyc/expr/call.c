@@ -1,4 +1,5 @@
 #include "call.h"
+#include "ffi.h"
 #include "postfix.h"
 #include "control.h"
 #include "literal.h"
@@ -194,8 +195,51 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
   return true;
 }
 
+static ast_t* method_receiver_type(ast_t* method);
+
+bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast)
+{
+  // we're not going to try auto-recovering to a complex type
+  if (ast_id(dest_type) != TK_NOMINAL)
+    return false;
+
+  while (ast != NULL && ast_id(ast) != TK_CALL)
+    ast = ast_child(ast);
+
+  if (ast == NULL)
+    return false;
+
+  AST_GET_CHILDREN(ast, newref, positional, named);
+  if (ast_id(newref) != TK_NEWREF)
+    return false;
+
+  // sometimes for assignments there's a nested newref
+  ast_t* child = ast_child(newref);
+  if (child != NULL && ast_id(child) == TK_NEWREF)
+    newref = child;
+
+  ast_t* arg = ast_child(positional);
+  while (arg != NULL)
+  {
+    ast_t* arg_type = ast_type(arg);
+    if (is_typecheck_error(arg_type))
+      return false;
+
+    ast_t* arg_type_aliased = alias(arg_type);
+    bool ok = safe_to_autorecover(dest_type, arg_type_aliased, WRITE);
+    ast_free_unattached(arg_type_aliased);
+
+    if (!ok)
+      return false;
+
+    arg = ast_sibling(arg);
+  }
+
+  return true;
+}
+
 static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
-  bool partial)
+  bool partial, bool is_bare)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -235,8 +279,15 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       return false;
     }
 
-    ast_t* wp_type = consume_type(p_type, TK_NONE, false);
     errorframe_t info = NULL;
+    ast_t* wp_type = consume_type(p_type, TK_NONE, false);
+    if((wp_type != NULL) && check_auto_recover_newref(wp_type, arg))
+    {
+      token_id arg_cap = ast_id(cap_fetch(wp_type));
+      ast_t* recovered_arg_type = recover_type(arg_type, arg_cap);
+      if (recovered_arg_type)
+        arg_type = recovered_arg_type;
+    }
 
     if(wp_type == NULL)
     {
@@ -249,7 +300,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
       return false;
     }
-    else if(!is_subtype(arg_type, wp_type, &info, opt))
+    else if(!is_subtype(arg_type, wp_type, &info, opt) && (!is_bare || (!void_star_param(wp_type, arg_type))))
     {
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
@@ -569,6 +620,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
+  bool bare = (ast_id(cap) == TK_AT);
 
   if(!extend_positional_args(opt, params, positional))
     return false;
@@ -576,14 +628,14 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   if(!apply_named_args(opt, params, positional, namedargs))
     return false;
 
-  if(!check_arg_types(opt, params, positional, partial))
+  if(!check_arg_types(opt, params, positional, partial, bare))
     return false;
 
   switch(ast_id(lhs))
   {
     case TK_FUNREF:
     case TK_FUNAPP:
-      if(ast_id(ast_child(type)) != TK_AT)
+      if(!bare)
       {
         if(!check_receiver_cap(opt, ast, NULL))
           return false;

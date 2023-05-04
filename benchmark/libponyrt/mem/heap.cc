@@ -16,14 +16,14 @@ class HeapBench: public ::benchmark::Fixture
 
 void HeapBench::SetUp(const ::benchmark::State& st)
 {
-  if (st.thread_index == 0) {
+  if (st.thread_index() == 0) {
     ponyint_heap_init(&_heap);
   }
 }
 
 void HeapBench::TearDown(const ::benchmark::State& st)
 {
-  if (st.thread_index == 0) {
+  if (st.thread_index() == 0) {
     ponyint_heap_destroy(&_heap);
   }
 }
@@ -35,9 +35,9 @@ BENCHMARK_DEFINE_F(HeapBench, HeapAlloc$)(benchmark::State& st) {
   while (st.KeepRunning()) {
     if(alloc_size > HEAP_MAX)
     {
-      ponyint_heap_alloc_large(actor, &_heap, alloc_size);
+      ponyint_heap_alloc_large(actor, &_heap, alloc_size, TRACK_NO_FINALISERS);
     } else {
-      ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size));
+      ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size), TRACK_NO_FINALISERS);
     }
     st.PauseTiming();
     ponyint_heap_destroy(&_heap);
@@ -58,10 +58,10 @@ BENCHMARK_DEFINE_F(HeapBench, HeapAlloc$_)(benchmark::State& st) {
     if(alloc_size > HEAP_MAX)
     {
       for(int i = 0; i < num_allocs; i++)
-        ponyint_heap_alloc_large(actor, &_heap, alloc_size);
+        ponyint_heap_alloc_large(actor, &_heap, alloc_size, TRACK_NO_FINALISERS);
     } else {
       for(int i = 0; i < num_allocs; i++)
-        ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size));
+        ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size), TRACK_NO_FINALISERS);
     }
     st.PauseTiming();
     ponyint_heap_destroy(&_heap);
@@ -82,9 +82,9 @@ BENCHMARK_DEFINE_F(HeapBench, HeapDestroy$)(benchmark::State& st) {
     st.PauseTiming();
     ponyint_heap_init(&_heap);
     if(alloc_size > HEAP_MAX)
-      ponyint_heap_alloc_large(actor, &_heap, alloc_size);
+      ponyint_heap_alloc_large(actor, &_heap, alloc_size, TRACK_NO_FINALISERS);
     else
-      ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size));
+      ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size), TRACK_NO_FINALISERS);
     st.ResumeTiming();
     ponyint_heap_destroy(&_heap);
   }
@@ -105,10 +105,10 @@ BENCHMARK_DEFINE_F(HeapBench, HeapDestroyMultiple$)(benchmark::State& st) {
     ponyint_heap_init(&_heap);
     if(alloc_size > HEAP_MAX)
       for(int i = 0; i < num_allocs; i++)
-        ponyint_heap_alloc_large(actor, &_heap, alloc_size);
+        ponyint_heap_alloc_large(actor, &_heap, alloc_size, TRACK_NO_FINALISERS);
     else
       for(int i = 0; i < num_allocs; i++)
-        ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size));
+        ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size), TRACK_NO_FINALISERS);
     st.ResumeTiming();
     ponyint_heap_destroy(&_heap);
   }
@@ -126,9 +126,9 @@ BENCHMARK_DEFINE_F(HeapBench, HeapInitAllocDestroy)(benchmark::State& st) {
   while (st.KeepRunning()) {
     ponyint_heap_init(&_heap);
     if(alloc_size > HEAP_MAX)
-      ponyint_heap_alloc_large(actor, &_heap, alloc_size);
+      ponyint_heap_alloc_large(actor, &_heap, alloc_size, TRACK_NO_FINALISERS);
     else
-      ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size));
+      ponyint_heap_alloc_small(actor, &_heap, ponyint_heap_index(alloc_size), TRACK_NO_FINALISERS);
     ponyint_heap_destroy(&_heap);
   }
   st.SetItemsProcessed((int64_t)st.iterations());

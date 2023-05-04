@@ -145,7 +145,7 @@ static void unix_stat(pony_stat_t* p, struct stat* st)
   p->modified_time = st->st_mtime;
   p->change_time = st->st_ctime;
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   p->access_time_nsec = st->st_atim.tv_nsec;
   p->modified_time_nsec = st->st_mtim.tv_nsec;
   p->change_time_nsec = st->st_ctim.tv_nsec;

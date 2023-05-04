@@ -26,7 +26,8 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
   LLVMValueRef this_ptr = gencall_allocstruct(c, t);
 
   // Store the primitive in element 1.
-  LLVMValueRef value_ptr = LLVMBuildStructGEP_P(c->builder, this_ptr, 1, "");
+  LLVMValueRef value_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
+    this_ptr, 1, "");
   LLVMBuildStore(c->builder, value, value_ptr);
 
   return this_ptr;
@@ -47,10 +48,9 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
     return object;
 
   // Extract the primitive type from element 1 and return it.
-  LLVMValueRef this_ptr = LLVMBuildBitCast(c->builder, object,
-    c_t->structure_ptr, "");
-  LLVMValueRef value_ptr = LLVMBuildStructGEP_P(c->builder, this_ptr, 1, "");
-  LLVMValueRef value = LLVMBuildLoad_P(c->builder, value_ptr, "");
+  LLVMValueRef value_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
+    object, 1, "");
+  LLVMValueRef value = LLVMBuildLoad2(c->builder, c_t->mem_type, value_ptr, "");
 
   return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
 }

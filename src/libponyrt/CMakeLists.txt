@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 project(libponyrt VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
@@ -6,6 +6,7 @@ set(_c_src
     actor/actor.c
     actor/messageq.c
     asio/asio.c
+    asio/emscripten.c
     asio/epoll.c
     asio/event.c
     asio/iocp.c
@@ -46,6 +47,7 @@ set(_c_src
     sched/mutemap.c
     sched/scheduler.c
     sched/start.c
+    sched/systematic_testing.c
 )
 
 set(_ll_except_src "${CMAKE_CURRENT_SOURCE_DIR}/lang/except_try_catch.ll")
@@ -135,7 +137,7 @@ if(PONY_RUNTIME_BITCODE)
         #message("${libponyrt_SOURCE_DIR}/${_src_file} -> ${libponyrt_BINARY_DIR}/${_src_file}.bc")
         get_filename_component(_src_dir ${_src_file} DIRECTORY)
         add_custom_command(
-            COMMAND mkdir -p "${libponyrt_BINARY_DIR}/${_src_dir}" && ${CMAKE_C_COMPILER} $<IF:$<BOOL:${CMAKE_C_COMPILER_TARGET}>,--target=${CMAKE_C_COMPILER_TARGET},> -DBUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}" -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -DLLVM_BUILD_MODE=${PONY_LLVM_BUILD_MODE} -DLLVM_VERSION="${LLVM_VERSION}" -DPONY_COMPILER="${CMAKE_C_COMPILER}" -DPONY_ARCH="${CMAKE_SYSTEM_PROCESSOR}" -DPONY_BUILD_CONFIG="release" -DPONY_USE_BIGINT -DPONY_VERSION="${PONYC_VERSION}" -DPONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${CMAKE_C_COMPILER_ARCHITECTURE_ID}" -fexceptions -Werror -Wconversion -Wno-sign-conversion -Wno-atomic-alignment -Wextra -Wall ${_c_flags} -I. -I../common -emit-llvm -o "${libponyrt_BINARY_DIR}/${_src_file}.bc" -c ${_src_file}
+            COMMAND mkdir -p "${libponyrt_BINARY_DIR}/${_src_dir}" && ${CMAKE_C_COMPILER} $<IF:$<BOOL:${CMAKE_C_COMPILER_TARGET}>,--target=${CMAKE_C_COMPILER_TARGET},> -DBUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}" -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -DLLVM_BUILD_MODE=${PONY_LLVM_BUILD_MODE} -DLLVM_VERSION="${LLVM_VERSION}" -DPONY_COMPILER="${CMAKE_C_COMPILER}" -DPONY_ARCH="${CMAKE_SYSTEM_PROCESSOR}" -DPONY_BUILD_CONFIG="release" -DPONY_USE_BIGINT -DPONY_VERSION="${PONYC_VERSION}" -DPONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${CMAKE_C_COMPILER_ARCHITECTURE_ID}" -pthread -fexceptions -Werror -Wconversion -Wno-sign-conversion -Wno-atomic-alignment -Wextra -Wall ${_c_flags} -I. -I../common -emit-llvm -o "${libponyrt_BINARY_DIR}/${_src_file}.bc" -c ${_src_file}
             WORKING_DIRECTORY ${libponyrt_SOURCE_DIR}
             DEPENDS "${libponyrt_SOURCE_DIR}/${_src_file}"
             OUTPUT "${libponyrt_BINARY_DIR}/${_src_file}.bc"
@@ -149,7 +151,7 @@ if(PONY_RUNTIME_BITCODE)
     list(APPEND _ll_bc_all ${_ll_except_src})
 
     add_custom_target(libponyrt_bc ALL
-        llvm-link -o "${libponyrt_BINARY_DIR}/libponyrt.bc" ${_ll_bc_all}
+        ${libponyrt_SOURCE_DIR}/../../build/libs/bin/llvm-link -o "${libponyrt_BINARY_DIR}/libponyrt.bc" ${_ll_bc_all}
         DEPENDS ${_ll_bc_all}
     )
 

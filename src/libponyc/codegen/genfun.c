@@ -142,7 +142,7 @@ static void make_signature(compile_t* c, reach_type_t* t,
   {
     mparams[0] = c->i32;
     mparams[1] = c->i32;
-    mparams[2] = c->void_ptr;
+    mparams[2] = c->ptr;
 
     c_m->msg_type = LLVMStructTypeInContext(c->context, mparams, (int)count + 2,
       false);
@@ -319,7 +319,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     if(t->bare_method == m)
     {
       pony_assert(c_t->instance == NULL);
-      c_t->instance = LLVMConstBitCast(c_m->func, c->void_ptr);
+      c_t->instance = c_m->func;
     }
   }
 }
@@ -339,8 +339,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
   LLVMPositionBuilderAtEnd(c->builder, block);
   LLVMValueRef ctx = LLVMGetParam(c_t->dispatch_fn, 0);
   LLVMValueRef this_ptr = LLVMGetParam(c_t->dispatch_fn, 1);
-  LLVMValueRef msg = LLVMBuildBitCast(c->builder,
-    LLVMGetParam(c_t->dispatch_fn, 2), msg_type, "");
+  LLVMValueRef msg = LLVMGetParam(c_t->dispatch_fn, 2);
 
   size_t count = LLVMCountParamTypes(fun_type);
   size_t params_buf_size = count * sizeof(LLVMTypeRef);
@@ -350,12 +349,14 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 
   size_t args_buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(args_buf_size);
-  args[0] = LLVMBuildBitCast(c->builder, this_ptr, c_t->use_type, "");
+  args[0] = this_ptr;
 
   for(int i = 1; i < (int)count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, msg, i + 2, "");
-    args[i] = LLVMBuildLoad_P(c->builder, field, "");
+    LLVMValueRef field = LLVMBuildStructGEP2(c->builder, msg_type, msg, i + 2,
+      "");
+    LLVMTypeRef field_type = LLVMStructGetTypeAtIndex(msg_type, i + 2);
+    args[i] = LLVMBuildLoad2(c->builder, field_type, field, "");
     args[i] = gen_assign_cast(c, param_types[i], args[i],
       params[i - 1].type->ast_cap);
   }
@@ -383,7 +384,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
   }
 
   // Call the handler.
-  codegen_call(c, handler, args, count, true);
+  codegen_call(c, LLVMGlobalGetValueType(handler), handler, args, count, true);
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
   ponyint_pool_free_size(args_buf_size, args);
@@ -393,6 +394,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 static void call_embed_finalisers(compile_t* c, reach_type_t* t,
   ast_t* call_location, LLVMValueRef obj)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
   uint32_t base = 0;
   if(t->underlying != TK_STRUCT)
     base++;
@@ -410,10 +412,12 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
     if(final_fn == NULL)
       continue;
 
-    LLVMValueRef field_ref = LLVMBuildStructGEP_P(c->builder, obj, base + i,
-      "");
+    LLVMTypeRef final_fn_type = LLVMGlobalGetValueType(final_fn);
+
+    LLVMValueRef field_ref = LLVMBuildStructGEP2(c->builder, c_t->structure,
+      obj, base + i, "");
     codegen_debugloc(c, call_location);
-    LLVMBuildCall_P(c->builder, final_fn, &field_ref, 1, "");
+    LLVMBuildCall2(c->builder, final_fn_type, final_fn, &field_ref, 1, "");
     codegen_debugloc(c, NULL);
   }
 }
@@ -452,7 +456,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
       codegen_debugloc(c, ast_childlast(body));
       LLVMBuildRetVoid(c->builder);
     } else {
-      LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(c_m->func));
+      LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
       LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
       ast_t* body_type = deferred_reify(m->fun, ast_type(body), c->opt);
@@ -518,9 +522,8 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   ponyint_pool_free_size(buf_size, param_vals);
 
   // Add the dispatch case.
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
   add_dispatch_case(c, t, m->params, m->vtable_index, c_m->func_handler,
-    c_m->func_type, msg_type_ptr);
+    c_m->func_type, c_m->msg_type);
 
   return true;
 }
@@ -598,9 +601,8 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   ponyint_pool_free_size(buf_size, param_vals);
 
   // Add the dispatch case.
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(c_m->msg_type, 0);
   add_dispatch_case(c, t, m->params, m->vtable_index, c_m->func_handler,
-    c_m->func_type, msg_type_ptr);
+    c_m->func_type, c_m->msg_type);
 
   return true;
 }
@@ -671,16 +673,17 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   LLVMValueRef fun = codegen_addfun(c, funname, ftype, true);
   if(t->underlying != TK_PRIMITIVE)
   {
-    LLVMTypeRef elem = LLVMGetElementType(c_t->use_type);
-    size_t size = (size_t)LLVMABISizeOfType(c->target_data, elem);
-
     LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
-    LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
     LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, HEAP_MIN);
 
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, noalias_attr);
-    LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
     LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, align_attr);
+
+    size_t size = (size_t)LLVMABISizeOfType(c->target_data, c_t->structure);
+    if (size > 0) {
+      LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
+      LLVMAddAttributeAtIndex(fun, LLVMAttributeReturnIndex, deref_attr);
+    }
   }
   codegen_startfun(c, fun, NULL, NULL, NULL, false);
 
@@ -739,7 +742,8 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   }
 
   codegen_debugloc(c, m2->fun->ast);
-  LLVMValueRef ret = codegen_call(c, c_m2->func, args, count, m->cap != TK_AT);
+  LLVMValueRef ret = codegen_call(c, LLVMGlobalGetValueType(c_m2->func),
+    c_m2->func, args, count, m->cap != TK_AT);
   codegen_debugloc(c, NULL);
   ret = gen_assign_cast(c, ((compile_type_t*)m->result->c_type)->use_type, ret,
     m2->result->ast_cap);
@@ -793,6 +797,25 @@ static bool genfun_method(compile_t* c, reach_type_t* t,
   }
 
   return true;
+}
+
+static void genfun_param_deref_attr(compile_t* c, LLVMValueRef fun,
+  LLVMValueRef param, unsigned int param_index, compile_type_t* param_c_t)
+{
+  LLVMTypeRef param_type = LLVMTypeOf(param);
+
+  // If the parameter is a pointer to an object, tell LLVM the size of the
+  // object in bytes that are dereferenceable via that pointer, if we know.
+  if (LLVMGetTypeKind(param_type) == LLVMPointerTypeKind) {
+    LLVMTypeRef structure = param_c_t->structure;
+    if (structure != NULL) {
+      size_t size = (size_t)LLVMABISizeOfType(c->target_data, structure);
+      if (size > 0) {
+        LLVM_DECLARE_ATTRIBUTEREF(deref_attr, dereferenceable, size);
+        LLVMAddAttributeAtIndex(fun, param_index, deref_attr);
+      }
+    }
+  }
 }
 
 void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
@@ -852,6 +875,10 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
         }
       }
     }
+
+    genfun_param_deref_attr(c, fun, param, i + offset,
+      (compile_type_t*)(i > 0 ? m->params[i - 1].type->c_type : t->c_type));
+
     param = LLVMGetNextParam(param);
     ++i;
   }
@@ -986,7 +1013,8 @@ static void primitive_call(compile_t* c, const char* method)
 
     compile_type_t* c_t = (compile_type_t*)t->c_type;
     compile_method_t* c_m = (compile_method_t*)m->c_method;
-    LLVMValueRef value = codegen_call(c, c_m->func, &c_t->instance, 1, true);
+    LLVMValueRef value = codegen_call(c, LLVMGlobalGetValueType(c_m->func),
+      c_m->func, &c_t->instance, 1, true);
 
     if(c->str__final == method)
       LLVMSetInstructionCallConv(value, LLVMCCallConv);

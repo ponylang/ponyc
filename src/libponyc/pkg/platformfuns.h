@@ -24,6 +24,8 @@ PONY_EXTERN_C_BEGIN
 #define OS_DEBUG_NAME "debug"
 #define OS_BIGENDIAN_NAME "bigendian"
 #define OS_LITTLEENDIAN_NAME "littleendian"
+#define OS_RUNTIMESTATS_NAME "runtimestats"
+#define OS_RUNTIMESTATSMESSAGES_NAME "runtimestatsmessages"
 
 /** Report whether the named platform attribute is true
  * @param out_is true if the specified attribute is set, false otherwise

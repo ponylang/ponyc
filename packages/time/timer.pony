@@ -23,8 +23,10 @@ class Timer
   class Notify is TimerNotify
     let _env: Env
     var _counter: U32 = 0
+
     new iso create(env: Env) =>
       _env = env
+
     fun ref apply(timer: Timer, count: U64): Bool =>
       _env.out.print(_counter.string())
       _counter = _counter + 1

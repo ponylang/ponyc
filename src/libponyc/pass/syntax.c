@@ -199,6 +199,8 @@ static bool check_permission(pass_opt_t* opt, const permission_def_t* def,
   int element, ast_t* actual, const char* context, ast_t* report_at)
 {
   pony_assert(def != NULL);
+  pony_assert(def->permissions != NULL);
+  pony_assert(def->desc != NULL);
   pony_assert(actual != NULL);
   pony_assert(context != NULL);
 

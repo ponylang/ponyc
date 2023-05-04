@@ -351,7 +351,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       if(r_value == NULL)
         return NULL;
 
-      return LLVMBuildBitCast(c->builder, r_value, l_type, "");
+      return r_value;
 
     case LLVMStructTypeKind:
       if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)

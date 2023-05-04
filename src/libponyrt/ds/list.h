@@ -177,6 +177,7 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     NULL, \
     NULL, \
     0, \
+    0, \
     NULL, \
     NULL, \
     NULL, \

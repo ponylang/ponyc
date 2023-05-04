@@ -9,6 +9,7 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
+#include "../sched/systematic_testing.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <signal.h>
@@ -125,10 +126,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   // 2 => listen on queue wake event and stdin
   int handleCount = 1;
 
-  while(!atomic_load_explicit(&b->stop, memory_order_relaxed))
+#if defined(USE_SYSTEMATIC_TESTING)
+  // sleep thread until we're ready to start processing
+  SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
+#endif
+
+  while(!atomic_load_explicit(&b->stop, memory_order_acquire))
   {
     switch(WaitForMultipleObjectsEx(handleCount, handles, FALSE, -1, TRUE))
     {
+      SYSTEMATIC_TESTING_YIELD();
+
       case WAIT_OBJECT_0:
       {
         // Process all items on our queue.
@@ -246,6 +254,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   CloseHandle(b->wakeup);
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
+
+  SYSTEMATIC_TESTING_STOP_THREAD();
+
   pony_unregister_thread();
   return NULL;
 }

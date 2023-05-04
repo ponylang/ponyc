@@ -25,7 +25,15 @@
 
     [Parameter(HelpMessage="Whether or not to turn on LTO")]
     [string]
-    $Lto = "no"
+    $Lto = "no",
+
+    [Parameter(HelpMessage="Whether or not to run tests in LLDB debugger")]
+    [string]
+    $Uselldb = "no",
+
+    [Parameter(HelpMessage="Tests to run")]
+    [string]
+    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
 )
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
@@ -144,12 +152,12 @@ switch ($Command.ToLower())
         Write-Output "Configuring libraries..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_ENABLE_WARNINGS=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_OCAMLDOC=OFF -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_ENABLE_WARNINGS=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_OCAMLDOC=OFF -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -231,89 +239,187 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --version
 
+        if ($Uselldb -eq "yes")
+        {
+            $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+            $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+        }
+
         # libponyrt.tests
-        $numTestSuitesRun += 1;
-        Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
-        & $outDir\libponyrt.tests.exe --gtest_shuffle
-        $err = $LastExitCode
-        if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
-
-        # libponyc.tests
-        $numTestSuitesRun += 1;
-        Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
-        & $outDir\libponyc.tests.exe --gtest_shuffle
-        $err = $LastExitCode
-        if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
-
-        # libponyc.run.tests
-        $cpuPhysicalCount, $cpuLogicalCount = ($cpuInfo = Get-CimInstance -ClassName Win32_Processor).NumberOfCores, $cpuInfo.NumberOfLogicalProcessors
-
-        foreach ($runConfig in ('debug', 'release'))
+        if ($TestsToRun -match 'libponyrt.tests')
         {
             $numTestSuitesRun += 1;
+            try
+            {
+                if ($Uselldb -eq "yes")
+                {
+                    Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
+                    & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+                else
+                {
+                    Write-Output "$outDir\libponyrt.tests.exe --gtest_shuffle"
+                    & $outDir\libponyrt.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+            }
+            catch
+            {
+                $err = -1
+            }
+            if ($err -ne 0) { $failedTestSuites += 'libponyrt.tests' }
+        }
 
-            $runOutDir = "$outDir/runner-tests/$runConfig"
-            $debugFlag = if ($runConfig -eq 'debug') { '--debug' } else { '' }
+        # libponyc.tests
+        if ($TestsToRun -match 'libponyc.tests')
+        {
+            $numTestSuitesRun += 1;
+            try
+            {
+                if ($Uselldb -eq "yes")
+                {
+                    Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
+                    & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+                else
+                {
+                    Write-Output "$outDir\libponyc.tests.exe --gtest_shuffle"
+                    & $outDir\libponyc.tests.exe --gtest_shuffle
+                    $err = $LastExitCode
+                }
+            }
+            catch
+            {
+                $err = -1
+            }
+            if ($err -ne 0) { $failedTestSuites += 'libponyc.tests' }
+        }
 
-            if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-            Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=$cpuPhysicalCount --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-            & $buildDir\test\libponyc-run\runner\runner.exe --timeout_s=60 --max_parallel=$cpuPhysicalCount --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
-            $err = $LastExitCode
-            if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
+        # libponyc.run.tests
+        if ($TestsToRun -match 'libponyc.run.tests')
+        {
+            foreach ($runConfig in ('debug', 'release'))
+            {
+                if (-not ($TestsToRun -match "libponyc.run.tests.$runConfig"))
+                {
+                    continue
+                }
+                $numTestSuitesRun += 1;
+
+                $runOutDir = "$outDir\runner-tests\$runConfig"
+                $debugFlag = if ($runConfig -eq 'debug') { 'true' } else { 'false' }
+
+                $debuggercmd = ''
+                if ($Uselldb -eq "yes")
+                {
+                    $debuggercmd = "$lldbcmd $lldbargs"
+                    $debuggercmd = $debuggercmd -replace ' ', '%20'
+                    $debuggercmd = $debuggercmd -replace '"', '%22'
+                }
+
+                if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
+                Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
+                & $buildDir\test\libponyc-run\runner\runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+                $err = $LastExitCode
+                if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
+            }
         }
 
         # stdlib-debug
-        $numTestSuitesRun += 1;
-        Write-Output "$outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib"
-        & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
-        if ($LastExitCode -eq 0)
+        if ($TestsToRun -match 'stdlib-debug')
         {
-            Write-Output "$outDir\stdlib-debug.exe"
-            & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
-            $err = $LastExitCode
-            if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
-        }
-        else
-        {
-            $failedTestSuites += 'compile stdlib-debug'
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib"
+            & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    if ($Uselldb -eq "yes")
+                    {
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
+                        & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
+                    else
+                    {
+                        Write-Output "$outDir\stdlib-debug.exe"
+                        & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'stdlib-debug' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile stdlib-debug'
+            }
         }
 
         # stdlib-release
-        $numTestSuitesRun += 1;
-        Write-Output "$outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib"
-        & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
-        if ($LastExitCode -eq 0)
+        if ($TestsToRun -match 'stdlib-release')
         {
-            Write-Output "$outDir\stdlib-release.exe"
-            & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
-            $err = $LastExitCode
-            if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
-        }
-        else
-        {
-            $failedTestSuites += 'compile stdlib-release'
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib"
+            & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    if ($Uselldb -eq "yes")
+                    {
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/Broadcast`""
+                        & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
+                    else
+                    {
+                        Write-Output "$outDir\stdlib-release.exe"
+                        & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                        $err = $LastExitCode
+                    }
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'stdlib-release' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile stdlib-release'
+            }
         }
 
         # grammar
-        $numTestSuitesRun += 1
-        Get-Content -Path "$srcDir\pony.g" -Encoding ASCII | Out-File -Encoding UTF8 "$outDir\pony.g.orig"
-        & $outDir\ponyc.exe --antlr | Out-File -Encoding UTF8 "$outDir\pony.g.test"
-        if ($LastExitCode -eq 0)
+        if ($TestsToRun -match 'grammar')
         {
-            $origHash = (Get-FileHash -Path "$outDir\pony.g.orig").Hash
-            $testHash = (Get-FileHash -Path "$outDir\pony.g.test").Hash
-
-            Write-Output "grammar original hash:  $origHash"
-            Write-Output "grammar generated hash: $testHash"
-
-            if ($origHash -ne $testHash)
+            $numTestSuitesRun += 1
+            Get-Content -Path "$srcDir\pony.g" -Encoding ASCII | Out-File -Encoding UTF8 "$outDir\pony.g.orig"
+            & $outDir\ponyc.exe --antlr | Out-File -Encoding UTF8 "$outDir\pony.g.test"
+            if ($LastExitCode -eq 0)
             {
-                $failedTestSuites += 'generated grammar file differs from baseline'
+                $origHash = (Get-FileHash -Path "$outDir\pony.g.orig").Hash
+                $testHash = (Get-FileHash -Path "$outDir\pony.g.test").Hash
+
+                Write-Output "grammar original hash:  $origHash"
+                Write-Output "grammar generated hash: $testHash"
+
+                if ($origHash -ne $testHash)
+                {
+                    $failedTestSuites += 'generated grammar file differs from baseline'
+                }
             }
-        }
-        else
-        {
-            $failedTestSuites += 'generate grammar'
+            else
+            {
+                $failedTestSuites += 'generate grammar'
+            }
         }
 
         #
@@ -325,6 +431,50 @@ switch ($Command.ToLower())
             Write-Output "Test suites failed: ($failedTestSuitesList)"
             exit $numTestSuitesFailed
         }
+        break
+    }
+    "stress-test-release"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
+        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-with-cd-release"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
+        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-debug"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
+        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-with-cd-debug"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
+        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
     "install"

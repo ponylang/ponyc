@@ -571,6 +571,7 @@ static pony_type_t deferred_reification_pony =
   NULL,
   NULL,
   0,
+  0,
   NULL,
   NULL,
   NULL

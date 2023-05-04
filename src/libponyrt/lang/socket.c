@@ -48,7 +48,6 @@ typedef int SOCKET;
 #ifdef PLATFORM_IS_LINUX
 #include <asm-generic/socket.h>
 #include <linux/atm.h>
-#include <linux/dn.h>
 #include <linux/rds.h>
 #if defined(__GLIBC__)
 #include <netatalk/at.h>
@@ -371,28 +370,6 @@ static bool iocp_accept(asio_event_t* ev)
   return true;
 }
 
-static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
-{
-  SOCKET s = (SOCKET)ev->fd;
-  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
-  DWORD sent;
-
-  WSABUF buf;
-  buf.buf = (char*)data;
-  buf.len = (u_long)len;
-
-  if(WSASend(s, &buf, 1, &sent, 0, &iocp->ov, NULL) != 0)
-  {
-    if(GetLastError() != WSA_IO_PENDING)
-    {
-      iocp_destroy(iocp);
-      return false;
-    }
-  }
-
-  return true;
-}
-
 static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 {
   SOCKET s = (SOCKET)ev->fd;
@@ -473,7 +450,7 @@ static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
 
 static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 {
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
     p->ai_protocol);
 #elif defined(PLATFORM_IS_WINDOWS)
@@ -767,7 +744,7 @@ PONY_API int pony_os_accept(asio_event_t* ev)
   // Queue an IOCP accept and return an INVALID_SOCKET.
   SOCKET ns = INVALID_SOCKET;
   iocp_accept(ev);
-#elif defined(PLATFORM_IS_LINUX)
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int ns = accept4(ev->fd, NULL, NULL, SOCK_NONBLOCK);
 
   if(ns == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))
@@ -945,14 +922,20 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
 
   if(WSASend(s, wsa, wsacnt, &sent, 0, &iocp->ov, NULL) != 0)
   {
-    if(GetLastError() != WSA_IO_PENDING)
+    switch (GetLastError())
     {
-      iocp_destroy(iocp);
-      pony_error();
+      case WSA_IO_PENDING:
+        return wsacnt;
+      case WSAEWOULDBLOCK :
+        return 0;
+      default:
+        iocp_destroy(iocp);
+        pony_error();
+        return 0;
     }
   }
 
-  return 0;
+  return wsacnt;
 }
 #else
 PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)
@@ -974,10 +957,30 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int io
 PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if(!iocp_send(ev, buf, len))
-    pony_error();
+  SOCKET s = (SOCKET)ev->fd;
+  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
+  DWORD sent;
 
-  return 0;
+  WSABUF b;
+  b.buf = (char*)buf;
+  b.len = (u_long)len;
+
+  if(WSASend(s, &b, 1, &sent, 0, &iocp->ov, NULL) != 0)
+  {
+    switch (GetLastError())
+    {
+      case WSA_IO_PENDING:
+        return len;
+      case WSAEWOULDBLOCK :
+        return 0;
+      default:
+        iocp_destroy(iocp);
+        pony_error();
+        return 0;
+    }
+  }
+
+  return sent;
 #else
   ssize_t sent = send(ev->fd, buf, len, 0);
 
@@ -1084,7 +1087,8 @@ PONY_API void pony_os_keepalive(int fd, int secs)
   if(on == 0)
     return;
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD) \
+  || defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int probes = secs / 2;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
 
@@ -1356,7 +1360,7 @@ PONY_API void pony_os_multicast_leave(int fd, const char* group, const char* to)
  *     https://msdn.microsoft.com/en-us/library/windows/desktop/ms738544(v=vs.85).aspx
  *     https://msdn.microsoft.com/en-us/library/windows/desktop/ms740476(v=vs.85).aspx
  * Harvested by (except Windows):
- *   egrep -s '\b(_AX25|DCCP|DSO|ICMP|IPSEC|IPT|IPX|IP[A-Z0-6]*|LOCAL|MCAST[A-Z0-6]*|MRT|NDRV|NETLINK|NETROM|RDS|ROSE|SCO|SCTP|SO|SOL|TCP[A-Z0-6]*|TIPC|UDP[A-Z0-6]*)' /usr/include/asm-generic/socket.h /usr/include/linux/atm.h /usr/include/linux/dccp.h /usr/include/linux/dn.h /usr/include/linux/icmp.h /usr/include/linux/in.h /usr/include/linux/in6.h /usr/include/linux/netfilter_ipv4.h /usr/include/linux/netlink.h /usr/include/linux/rds.h /usr/include/linux/tcp.h /usr/include/linux/tipc.h /usr/include/linux/udp.h /usr/include/linux/vm_sockets.h /usr/include/net/ndrv.h /usr/include/netatalk/at.h /usr/include/netax25/ax25.h /usr/include/netfilter_ipv4/ip_tables.h /usr/include/netfilter_ipv6/ip6_tables.h /usr/include/netgraph/bluetooth/include/ng_btsocket.h /usr/include/netinet/in.h /usr/include/netinet/ip_mroute.h /usr/include/netinet/sctp.h /usr/include/netinet/tcp.h /usr/include/netinet/udp.h /usr/include/netipx/ipx.h /usr/include/netrom/netrom.h /usr/include/netrose/rose.h /usr/include/sys/socket.h /usr/include/sys/un.h | egrep -v 'bad-macros-filtered-here|SO_CIRANGE' | egrep '#.*define' | awk '{print $2}' | sort -u
+ *   egrep -s '\b(_AX25|DCCP|DSO|ICMP|IPSEC|IPT|IPX|IP[A-Z0-6]*|LOCAL|MCAST[A-Z0-6]*|MRT|NDRV|NETLINK|NETROM|RDS|ROSE|SCO|SCTP|SO|SOL|TCP[A-Z0-6]*|TIPC|UDP[A-Z0-6]*)' /usr/include/asm-generic/socket.h /usr/include/linux/atm.h /usr/include/linux/dccp.h /usr/include/linux/icmp.h /usr/include/linux/in.h /usr/include/linux/in6.h /usr/include/linux/netfilter_ipv4.h /usr/include/linux/netlink.h /usr/include/linux/rds.h /usr/include/linux/tcp.h /usr/include/linux/tipc.h /usr/include/linux/udp.h /usr/include/linux/vm_sockets.h /usr/include/net/ndrv.h /usr/include/netatalk/at.h /usr/include/netax25/ax25.h /usr/include/netfilter_ipv4/ip_tables.h /usr/include/netfilter_ipv6/ip6_tables.h /usr/include/netgraph/bluetooth/include/ng_btsocket.h /usr/include/netinet/in.h /usr/include/netinet/ip_mroute.h /usr/include/netinet/sctp.h /usr/include/netinet/tcp.h /usr/include/netinet/udp.h /usr/include/netipx/ipx.h /usr/include/netrom/netrom.h /usr/include/netrose/rose.h /usr/include/sys/socket.h /usr/include/sys/un.h | egrep -v 'bad-macros-filtered-here|SO_CIRANGE' | egrep '#.*define' | awk '{print $2}' | sort -u
  *
  * These constants are _not_ stable between Pony releases.
  * Values returned by this function may be held by long-lived variables

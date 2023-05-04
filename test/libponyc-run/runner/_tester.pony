@@ -73,7 +73,7 @@ actor _Tester
       end
 
     // build args for ponyc
-    let args = _get_build_args(ponyc_file_path.path)
+    let args = _get_build_args(ponyc_file_path)
 
     if _options.verbose then
       let args_join = String
@@ -84,8 +84,7 @@ actor _Tester
       _notify.print(_definition.name,
         _Colors.info(_definition.name + ": building in: " + _definition.path))
       _notify.print(_definition.name,
-        _Colors.info(_definition.name + ": building: " + _options.ponyc
-          + args_join))
+        _Colors.info(_definition.name + ": building:" + args_join))
     end
 
     // run ponyc to build the test program
@@ -99,10 +98,10 @@ actor _Tester
       FilePath(FileAuth(_env.root), _definition.path))
       .>done_writing()
 
-  fun _get_build_args(ponyc_path: String): Array[String] val =>
+  fun _get_build_args(ponyc_file_path: FilePath): Array[String] val =>
     recover val
       let args = Array[String]
-      args.push(ponyc_path)
+      args.push(ponyc_file_path.path)
       if _options.debug then
         args.push("--debug")
       end
@@ -131,15 +130,12 @@ actor _Tester
           fname'
         end
 
-      if _options.verbose then
-        _notify.print(_definition.name,
-          _Colors.info(_definition.name + ": testing: " + test_fname))
-      end
-
       _out_buf.clear()
       _err_buf.clear()
 
-      // run the test program
+      // set up environment variables
+      var dyld_library_path = ""
+
       let vars: Array[String val] val =
         recover val
           ifdef osx then
@@ -150,14 +146,16 @@ actor _Tester
               if v.contains("DYLD_LIBRARY_PATH") then
                 found_dyld_library_path = true
                 if not v.contains(_options.test_lib) then
-                  vars'.push(v + ":" + _options.test_lib)
+                  dyld_library_path = v + ":" + _options.test_lib
+                  vars'.push(dyld_library_path)
                   pushed = true
                 end
               end
               if not pushed then vars'.push(v) end
             end
             if not found_dyld_library_path then
-              vars'.push("DYLD_LIBRARY_PATH=" + _options.test_lib)
+              dyld_library_path = "DYLD_LIBRARY_PATH=" + _options.test_lib
+              vars'.push(dyld_library_path)
             end
             vars'
           else
@@ -176,13 +174,120 @@ actor _Tester
         end
       end
 
-      _stage = _Testing
-      let spa = StartProcessAuth(_env.root)
-      let bpa = ApplyReleaseBackpressureAuth(_env.root)
-      _test_process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
-        FilePath(FileAuth(_env.root), test_fname), [ test_fname ], vars,
-        FilePath(FileAuth(_env.root), _definition.path))
-        .>done_writing()
+      // set up args
+      try
+        (let executable_file_path: FilePath, let args: Array[String] val) =
+          _get_debugger_and_args(test_fname, dyld_library_path)?
+
+        if _options.verbose then
+          let arg_join = String
+          for arg in args.values() do
+            arg_join.append(" ")
+            arg_join.append(arg)
+          end
+
+          _notify.print(_definition.name,
+            _Colors.info(_definition.name + ": testing:" + arg_join))
+        end
+
+        _stage = _Testing
+        let spa = StartProcessAuth(_env.root)
+        let bpa = ApplyReleaseBackpressureAuth(_env.root)
+        _test_process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
+          executable_file_path, args, vars,
+          FilePath(FileAuth(_env.root), _definition.path))
+          .>done_writing()
+      else
+        _notify.print(_definition.name,
+          _Colors.err(_definition.name + ": unable to find debugger"))
+      end
+    end
+
+  fun ref _get_debugger_and_args(test_fname: String, extra_env: String)
+    : (FilePath, Array[String] val) ?
+  =>
+    recover
+      let debugger_args = Array[String]
+      let debugger_file_path =
+        if _options.debugger.size() > 0 then
+          try
+            let debugger_split =
+              recover val
+                var debugger: String iso = _options.debugger.clone()
+                debugger.replace("%20", " ")
+                debugger.replace("%22", "\"")
+                debugger.split(" ")
+              end
+            let debugger_fname = debugger_split(0)?
+
+            var in_quote = false
+            var cur_arg = String
+            for fragment in debugger_split.trim(1).values() do
+              if fragment.size() == 0 then continue end
+
+              if in_quote then
+                cur_arg.append(fragment)
+                if fragment(fragment.size() - 1)? == '"' then
+                  if (cur_arg(0)? == '"')
+                    and (cur_arg(cur_arg.size() - 1)? == '"')
+                  then
+                    let quoted: String val = cur_arg.clone()
+                    ifdef windows then
+                      debugger_args.push(quoted)
+                    else
+                      debugger_args.push(quoted.trim(1, quoted.size() - 1))
+                    end
+                  else
+                    debugger_args.push(cur_arg.clone())
+                  end
+                  cur_arg.clear()
+                  in_quote = false
+                else
+                  cur_arg.append(" ")
+                end
+              else
+                if fragment.contains("\"") then
+                  cur_arg.append(fragment)
+                  cur_arg.append(" ")
+                  in_quote = true
+                else
+                  debugger_args.push(fragment)
+                end
+              end
+            end
+
+            _FindExecutable(_env, debugger_fname)?
+          else
+            _shutdown_failed("unable to find debugger: " + _options.debugger)
+            error
+          end
+        end
+
+      ifdef osx then
+        if extra_env.size() > 0 then
+          try
+            if debugger_args(debugger_args.size() - 1)? == "--" then
+              debugger_args(debugger_args.size() - 1)? = "--one-line"
+              debugger_args.push("process launch --environment " + extra_env)
+              debugger_args.push("--")
+            else
+              debugger_args.push("--one-line")
+              debugger_args.push("process launch --environment " + extra_env)
+            end
+          end
+        end
+      end
+
+      match debugger_file_path
+      | let dfp: FilePath =>
+        let args = Array[String]
+        args.push(dfp.path)
+        args.append(debugger_args)
+        args.push(test_fname)
+        (dfp, args)
+      else
+        (FilePath(FileAuth(_env.root), test_fname), [ test_fname ])
+      end
     end
 
   be building_failed(msg: String) =>
@@ -192,12 +297,26 @@ actor _Tester
 
   be testing_exited(exit_code: I32) =>
     if _stage is _Testing then
-      if exit_code == _definition.expected_exit_code then
+      var exit_code' = exit_code
+      if _options.debugger.contains("lldb") then
+        try
+          let idx1 = _out_buf.find("exited with status = ")?
+          let num = String
+          var i = USize.from[ISize](idx1 + 21)
+          while _out_buf(i)? != ' ' do
+            num.push(_out_buf(i)?)
+            i = i + 1
+          end
+          exit_code' = num.i32()?
+        end
+      end
+
+      if exit_code' == _definition.expected_exit_code then
         _shutdown_succeeded()
       else
         _shutdown_failed("expected exit code "
           + _definition.expected_exit_code.string() + "; actual was "
-          + exit_code.string())
+          + exit_code'.string())
       end
     end
 

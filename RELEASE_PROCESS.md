@@ -4,7 +4,7 @@ This document is aimed at members of the Pony team who might be cutting a releas
 
 ## Prerequisites
 
-* You must have commit access to the ponyup repository.
+* You must have commit access to the ponyc repository.
 * It would be helpful to have read and write access to the ponylang [cloudsmith](https://cloudsmith.io/) account.
 
 ### Validate external services are functional
@@ -45,8 +45,7 @@ You can verify that the release artifacts were successfully built and uploaded b
 Package names will be:
 
 * ponyc-arm64-apple-darwin.tar.gz
-* ponyc-x86-64-apple-darwin.tar.gz
-* ponyc-x86-64-unknown-freebsd-13.0.tar.gz
+* ponyc-x86-64-unknown-freebsd-13.1.tar.gz
 * ponyc-x86-64-pc-windows-msvc.zip
 * ponyc-x86-64-unknown-linux-gnu.tar.gz
 * ponyc-x86-64-unknown-linux-musl.tar.gz

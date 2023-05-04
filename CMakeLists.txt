@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 file(STRINGS "VERSION" PONYC_PROJECT_VERSION)
 project(Pony VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
@@ -74,9 +74,9 @@ if(PONY_USE_DTRACE)
     add_compile_options(-DUSE_DYNAMIC_TRACE)
 endif()
 
-if(PONY_USE_MEMTRACK)
-    set(PONY_OUTPUT_SUFFIX "-memtrack")
-    add_compile_options(-DUSE_MEMTRACK)
+if(PONY_USE_RUNTIMESTATS)
+    set(PONY_OUTPUT_SUFFIX "-runtimestats")
+    add_compile_options(-DUSE_RUNTIMESTATS)
 endif()
 
 if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
@@ -84,9 +84,14 @@ if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
     add_compile_options(-DUSE_SCHEDULER_SCALING_PTHREADS)
 endif()
 
-if(PONY_USE_MEMTRACK_MESSAGES)
-    set(PONY_OUTPUT_SUFFIX "-memtrack_messages")
-    add_compile_options(-DUSE_MEMTRACK -DUSE_MEMTRACK_MESSAGES)
+if(PONY_USE_SYSTEMATIC_TESTING)
+    set(PONY_OUTPUT_SUFFIX "-systematic_testing")
+    add_compile_options(-DUSE_SYSTEMATIC_TESTING)
+endif()
+
+if(PONY_USE_RUNTIMESTATS_MESSAGES)
+    set(PONY_OUTPUT_SUFFIX "-runtimestats_messages")
+    add_compile_options(-DUSE_RUNTIMESTATS -DUSE_RUNTIMESTATS_MESSAGES)
 endif()
 
 # LibPonyC tests assume that our outputs are two directories above the root directory.
@@ -128,19 +133,62 @@ if(NOT PONY_CROSS_LIBPONYRT)
         demangle
         objcarcopts
         orcjit
-        x86asmparser
-        x86codegen
-        x86desc
-        x86info
-        aarch64asmparser
-        aarch64codegen
-        aarch64desc
-        aarch64info
-        armasmparser
-        armcodegen
-        armdesc
-        arminfo
     )
+
+    list (FIND LLVM_TARGETS_TO_BUILD "AArch64" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            aarch64asmparser
+            aarch64codegen
+            aarch64desc
+            aarch64info
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "ARM" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            armasmparser
+            armcodegen
+            armdesc
+            arminfo
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "WebAssembly" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            webassemblyasmparser
+            webassemblycodegen
+            webassemblydesc
+            webassemblyinfo
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "X86" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            x86asmparser
+            x86codegen
+            x86desc
+            x86info
+        )
+    endif()
+
+    list (FIND LLVM_TARGETS_TO_BUILD "RISCV" _index)
+    if (${_index} GREATER -1)
+        list(APPEND
+            LLVM_COMPONENTS
+            riscvasmparser
+            riscvcodegen
+            riscvdesc
+            riscvinfo
+        )
+    endif()
 
     llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
     # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")

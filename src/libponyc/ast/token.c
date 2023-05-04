@@ -414,6 +414,7 @@ static pony_type_t token_signature_pony =
   NULL,
   NULL,
   0,
+  0,
   NULL,
   NULL,
   NULL
@@ -466,6 +467,7 @@ static pony_type_t token_docstring_signature_pony =
   NULL,
   NULL,
   NULL,
+  0,
   0,
   NULL,
   NULL,
@@ -553,6 +555,7 @@ static pony_type_t token_pony =
   NULL,
   NULL,
   NULL,
+  0,
   0,
   NULL,
   NULL,

@@ -17,6 +17,7 @@ provider pony {
 
   /**
    * Fired when a message is being run by an actor
+   * @params scheduler is the active scheduler
    * @param actor the actor running the message
    * @param id the message id
    */
@@ -24,7 +25,7 @@ provider pony {
 
   /**
    * Fired when a message is being sent to an actor
-   * @param scheduler is the active scheduler's index
+   * @param scheduler_index is the active scheduler's index
    * @param id the message id
    * @param actor_from is the sending actor
    * @param actor_to is the receiving actor
@@ -33,7 +34,7 @@ provider pony {
 
   /**
    * Fired when a message is being run by an actor
-   * @param scheduler is the active scheduler's index
+   * @param scheduler_index is the active scheduler's index
    * @param id the message id
    * @param actor_to is the receiving actor
    */
@@ -42,15 +43,15 @@ provider pony {
   /**
    * Fired when a message is being sent to an thread
    * @param id the message id
-   * @param thread_from is the sending thread index
-   * @param thread_to is the receiving thread index
+   * @param thread_from is the sending thread
+   * @param thread_to is the receiving thread
    */
   probe thread__msg__push(uint32_t id, uintptr_t thread_from, uintptr_t thread_to);
 
   /**
    * Fired when a message is being run by an thread
    * @param id the message id
-   * @param thread_to is the receiving thread index
+   * @param thread is the receiving thread
    */
   probe thread__msg__pop(uint32_t id, uintptr_t thread);
 
@@ -112,33 +113,45 @@ provider pony {
 
   /**
    * Fired when the garbage collection function is ending
+   * @param scheduler is active scheduler
+   * @param actor is the actor that was garbage collecting
    */
-  probe gc__end(uintptr_t scheduler);
+  probe gc__end(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when the garbage collector finishes sending an object
+   * @param scheduler is active scheduler
+   * @param actor is the actor that is finished sending
    */
-  probe gc__send__end(uintptr_t scheduler);
+  probe gc__send__end(uintptr_t scheduler, uintptr_t actor);
 
   /**
-   * Fired when the garbage collector stats sending an object
+   * Fired when the garbage collector starts sending an object
+   * @param scheduler is active scheduler
+   * @param actor is the actor that is starting to send an object
    */
-  probe gc__send__start(uintptr_t scheduler);
+  probe gc__send__start(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when the garbage collector finishes receiving an object
+   * @param scheduler is active scheduler
+   * @params actor is the actor that finished receiving an object
    */
-  probe gc__recv__end(uintptr_t scheduler);
+  probe gc__recv__end(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when the garbage collector starts receiving an object
+   * @param scheduler is active scheduler
+   * @param actor is the actor that is receiving an object
    */
-  probe gc__recv__start(uintptr_t scheduler);
+  probe gc__recv__start(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when the garbage collection function has started
+   * @param scheduler is active scheduler
+   * @param actor is the actor that was garbage collecting
    */
-  probe gc__start(uintptr_t scheduler);
+  probe gc__start(uintptr_t scheduler, uintptr_t actor);
 
   /**
    * Fired when the garbage collection threshold is changed with a certain factor
@@ -148,9 +161,11 @@ provider pony {
 
   /**
    * Fired when memory is allocated on the heap
+   * @param scheduler is active scheduler
+   * @param actor is the actor that is allocating memory
    * @param size the size of the allocated memory
    */
-  probe heap__alloc(uintptr_t scheduler, unsigned long size);
+  probe heap__alloc(uintptr_t scheduler, uintptr_t actor, unsigned long size);
 
   /**
    * Fired when runtime initiates
@@ -169,7 +184,7 @@ provider pony {
 
   /**
    * Fired when a scheduler successfully steals a job
-   * @param scheduler is the scheduler that stole the job
+   * @param scheduler is active scheduler
    * @param victim is the victim that the scheduler stole from
    * @param actor is actor that was stolen from the victim
    */

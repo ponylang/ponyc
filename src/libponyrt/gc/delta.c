@@ -80,7 +80,7 @@ void ponyint_deltamap_free(deltamap_t* map)
   POOL_FREE(deltamap_t, map);
 }
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
 size_t ponyint_deltamap_total_mem_size(deltamap_t* map)
 {
   return ponyint_deltamap_mem_size(map)

@@ -25,11 +25,13 @@ typedef struct heap_t
 
   size_t used;
   size_t next_gc;
-#ifdef USE_MEMTRACK
-  size_t mem_allocated;
-  size_t mem_used; // actual mem used without "fake used" to trigger GC
-#endif
 } heap_t;
+
+enum
+{
+  TRACK_NO_FINALISERS = 0,
+  TRACK_ALL_FINALISERS = 0xFFFFFFFF,
+};
 
 uint32_t ponyint_heap_index(size_t size);
 
@@ -44,34 +46,22 @@ void ponyint_heap_destroy(heap_t* heap);
 void ponyint_heap_final(heap_t* heap);
 
 __pony_spec_malloc__(
-  void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+  void* ponyint_heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size,
+    uint32_t track_finalisers_mask)
   );
 
 __pony_spec_malloc__(
 void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
-  uint32_t sizeclass)
+  uint32_t sizeclass, uint32_t track_finalisers_mask)
   );
 
 __pony_spec_malloc__(
-void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
+void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
+  uint32_t track_finalisers_mask)
   );
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
-  size_t size);
-
-__pony_spec_malloc__(
-  void* ponyint_heap_alloc_final(pony_actor_t* actor, heap_t* heap, size_t size)
-  );
-
-__pony_spec_malloc__(
-void* ponyint_heap_alloc_small_final(pony_actor_t* actor, heap_t* heap,
-  uint32_t sizeclass)
-  );
-
-__pony_spec_malloc__(
-void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
-  size_t size)
-  );
+  size_t size, size_t copy);
 
 /**
  * Adds to the used memory figure kept by the heap. This allows objects
@@ -79,7 +69,12 @@ void* ponyint_heap_alloc_large_final(pony_actor_t* actor, heap_t* heap,
  */
 void ponyint_heap_used(heap_t* heap, size_t size);
 
-bool ponyint_heap_startgc(heap_t* heap);
+bool ponyint_heap_startgc(heap_t* heap
+#ifdef USE_RUNTIMESTATS
+  , pony_actor_t* actor);
+#else
+  );
+#endif
 
 /**
  * Mark an address in a chunk. Returns true if it was already marked, or false
@@ -98,24 +93,41 @@ void ponyint_heap_mark_shallow(chunk_t* chunk, void* p);
  */
 void ponyint_heap_free(chunk_t* chunk, void* p);
 
-void ponyint_heap_endgc(heap_t* heap);
+void ponyint_heap_endgc(heap_t* heap
+#ifdef USE_RUNTIMESTATS
+  , pony_actor_t* actor);
+#else
+  );
+#endif
 
 pony_actor_t* ponyint_heap_owner(chunk_t* chunk);
 
 size_t ponyint_heap_size(chunk_t* chunk);
 
-#ifdef USE_MEMTRACK
+#ifdef USE_RUNTIMESTATS
+/** Get the total number of allocations on the heap.
+ */
+size_t ponyint_heap_alloc_counter(pony_actor_t* actor);
+
+/** Get the total number of heap allocations freed.
+ */
+size_t ponyint_heap_free_counter(pony_actor_t* actor);
+
+/** Get the total number of GC iterations run.
+ */
+size_t ponyint_heap_gc_counter(pony_actor_t* actor);
+
 /** Get the memory used by the heap.
  */
-size_t ponyint_heap_mem_size(heap_t* heap);
+size_t ponyint_heap_mem_size(pony_actor_t* actor);
 
 /** Get the memory overhead used by the heap.
  */
-size_t ponyint_heap_overhead_size(heap_t* heap);
+size_t ponyint_heap_overhead_size(pony_actor_t* actor);
 
 /** Get the memory allocated by the heap.
  */
-size_t ponyint_heap_alloc_size(heap_t* heap);
+size_t ponyint_heap_alloc_size(pony_actor_t* actor);
 #endif
 
 PONY_EXTERN_C_END

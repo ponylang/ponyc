@@ -20,10 +20,10 @@ typedef struct asio_event_t
   int fd;               /* file descriptor */
   uint32_t flags;       /* event filter flags */
   bool noisy;           /* prevents termination? */
-  uint64_t nsec;        /* nanoseconds for timers */
-
   bool readable;        /* is fd readable? */
   bool writeable;       /* is fd writeable? */
+  uint64_t nsec;        /* nanoseconds for timers */
+
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE timer;         /* timer handle */
 #endif

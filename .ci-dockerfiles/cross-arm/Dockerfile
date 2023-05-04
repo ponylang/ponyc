@@ -1,4 +1,4 @@
-FROM ponylang/ponyc-ci-x86-64-unknown-linux-gnu-builder:20200423
+FROM ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
 
 ARG CROSS_TRIPLE=arm-unknown-linux-gnueabi
 ARG CROSS_CC=arm-linux-gnueabi-gcc
@@ -17,7 +17,13 @@ RUN curl -L --output gcc-linearo.tar.xz "http://releases.linaro.org/components/t
  && arm-linux-gnueabi-gcc --version \
  && rm gcc-linearo.tar.xz \
  && curl -L --output /usr/bin/qemu-arm-static https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-2/qemu-arm-static \
- && chmod +x /usr/bin/qemu-arm-static
+ && chmod +x /usr/bin/qemu-arm-static \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+  lldb \
+ && rm -rf /var/lib/apt/lists/* \
+ && apt-get -y autoremove --purge \
+ && apt-get -y clean
 
 RUN cmake --version
 
