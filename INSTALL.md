@@ -30,8 +30,8 @@ At the moment, we support all supported LTS Ubuntu versions and any distribution
 Currently, we have packages for the following Glibc based distributions:
 
 - Linux Mint 19, 20, 21
-- Pop!_OS 18.04, 20.04, 22.04
-- Ubuntu 18.04, 20.04, 22.04
+- Pop!_OS 20.04, 22.04
+- Ubuntu 20.04, 22.04
 
 ### Manually selecting your Linux platform
 
@@ -46,13 +46,10 @@ where `PLATFORM` is from the table below
 Distribution | PLATFORM String
 --- | ---
 Alpine | x86_64-linux-musl
-Linux Mint 19.x | x86_64-linux-ubuntu18.04
 Linux Mint 20.x | x86_64-linux-ubuntu20.04
 Linux Mint 21.x | x86_64-linux-ubuntu22.04
-Pop!_OS 18.04 | x86_64-linux-ubuntu18.04
 Pop!_OS 20.04 | x86_64-linux-ubuntu20.04
 Pop!_OS 22.04 | x86_64-linux-ubuntu22.04
-Ubuntu 18.04 | x86_64-linux-ubuntu18.04
 Ubuntu 20.04 | x86_64-linux-ubuntu20.04
 Ubuntu 22.04 | x86_64-linux-ubuntu22.04
 
