@@ -79,6 +79,7 @@ static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 
 static size_t heap_initialgc = 1 << 14;
 static double heap_nextgc_factor = 2.0;
+static double heap_nextgc_factor_aggressive = 1.5;
 
 #ifdef USE_RUNTIMESTATS
 /** Get the total number of allocations on the heap.
@@ -391,13 +392,18 @@ void ponyint_heap_setinitialgc(size_t size)
   heap_initialgc = (size_t)1 << size;
 }
 
-void ponyint_heap_setnextgcfactor(double factor)
+void ponyint_heap_setnextgcfactor(double factor, double aggressive_factor)
 {
   if(factor < 1.0)
     factor = 1.0;
 
   DTRACE1(GC_THRESHOLD, factor);
   heap_nextgc_factor = factor;
+
+  if(aggressive_factor < 1.0)
+    aggressive_factor = 1.0;
+
+  heap_nextgc_factor_aggressive = aggressive_factor;
 }
 
 void ponyint_heap_init(heap_t* heap)
@@ -795,7 +801,11 @@ void ponyint_heap_endgc(heap_t* heap
   actor->actorstats.heap_num_allocated = num_allocated;
   actor->actorstats.heap_gc_counter++;
 #endif
-  heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
+
+  if(ponyint_pool_mem_pressure())
+    heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor_aggressive);
+  else
+    heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 
   if(heap->next_gc < heap_initialgc)
     heap->next_gc = heap_initialgc;

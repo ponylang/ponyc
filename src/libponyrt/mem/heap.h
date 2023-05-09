@@ -37,7 +37,7 @@ uint32_t ponyint_heap_index(size_t size);
 
 void ponyint_heap_setinitialgc(size_t size);
 
-void ponyint_heap_setnextgcfactor(double factor);
+void ponyint_heap_setnextgcfactor(double factor, double aggr_factor);
 
 void ponyint_heap_init(heap_t* heap);
 

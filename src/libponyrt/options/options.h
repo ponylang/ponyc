@@ -24,6 +24,8 @@
   "  --ponynoscale    Don't scale down the scheduler threads.\n" \
   "                   See --ponymaxthreads on how to specify the number of threads\n" \
   "                   explicitly. Can't be used with --ponyminthreads.\n" \
+  "  --ponymaxmem     Maximum amount of dynamic memory allowed to be used\n" \
+  "                   (in MB).\n" \
   "  --ponysuspendthreshold\n" \
   "                   Amount of idle time before a scheduler thread suspends\n" \
   "                   itself to minimize resource consumption (max 1000 ms,\n" \
@@ -36,6 +38,15 @@
   "  --ponygcfactor   After GC, an actor will next be GC'd at a heap memory\n" \
   "                   usage N times its current value. This is a floating\n" \
   "                   point value. Defaults to 2.0.\n" \
+  "  --ponyaggressivegcthreshold\n" \
+  "                   Maximum amount of dynamic memory allowed to be used\n" \
+  "                   before aggressive GC factor is used (in MB). Disabled\n" \
+  "                   unless specified.\n" \
+  "  --ponyaggressivegcfactor\n" \
+  "                   After GC, an actor will next be GC'd at a heap memory\n" \
+  "                   usage N times its current value if we've hit the memory\n" \
+  "                   threshold for aggressive GC. This is a floating\n" \
+  "                   point value. Defaults to 1.5.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
   "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n" \
