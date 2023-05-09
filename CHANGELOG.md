@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Change supported MacOS version from Monterey to Ventura ([PR #4349](https://github.com/ponylang/ponyc/pull/4349))
 - Fix a possible resource leak with `with` blocks ([PR #4347](https://github.com/ponylang/ponyc/pull/4347))
+- Drop Ubuntu 18.04 support ([PR #4351](https://github.com/ponylang/ponyc/pull/4351))
 
 ## [0.54.1] - 2023-04-12
 
