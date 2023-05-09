@@ -16,3 +16,9 @@ We've addressed the issue by disallowing `_` as a variable name in `with` parame
 
 This is a breaking change, albeit one we don't expect to have any "real-world" impact.
 
+## Drop Ubuntu 18.04 support
+
+Ubuntu 18.04 has reached its end of life date. We've dropped it as a supported platform. That means, we no longer test against it when doing CI and we no longer create prebuilt binaries for installation via `ponyup` for Ubuntu 18.04.
+
+We will maintain best effort to keep Ubuntu 18.04 continuing to work for anyone who wants to use it and builds `ponyc` from source.
+
