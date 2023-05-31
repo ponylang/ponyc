@@ -15,7 +15,6 @@ RUN apt-get update \
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
  && ponyup update ponyc release \
- && ponyup update stable release \
  && ponyup update corral release \
  && ponyup update changelog-tool release
 
