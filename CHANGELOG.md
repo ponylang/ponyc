@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Stop putting `stable` in ponyc Docker images ([PR #4353](https://github.com/ponylang/ponyc/pull/4353))
 
 ## [0.55.0] - 2023-05-27
 
