@@ -681,21 +681,21 @@ task:
     memory: 4
 
   matrix:
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
+    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [release]"
       environment:
         IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
         TARGET: test-stress-release
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [debug]"
+    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [debug]"
       environment:
         IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
         TARGET: test-stress-debug
       depends_on:
-        - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [release]"
+        - "Stress Test: aarch64-unknown-linux-ubuntu22.04 [release]"
     - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
       environment:
         IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
         TARGET: test-stress-with-cd-release
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]"
+    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [cd] [debug]"
       environment:
         IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
         TARGET: test-stress-with-cd-debug
