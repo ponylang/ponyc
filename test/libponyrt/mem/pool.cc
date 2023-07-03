@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#ifdef POOL_USE_DEFAULT
+
 typedef char block_t[32];
 
 TEST(Pool, Fifo)
@@ -70,6 +72,8 @@ TEST(Pool, LargeAlloc)
   ASSERT_TRUE(p != NULL);
   ponyint_pool_free_size(1 << 20, p);
 }
+
+#endif
 
 TEST(Pool, Index)
 {
