@@ -94,6 +94,11 @@ if(PONY_USE_RUNTIMESTATS_MESSAGES)
     add_compile_options(-DUSE_RUNTIMESTATS -DUSE_RUNTIMESTATS_MESSAGES)
 endif()
 
+if(PONY_USE_POOL_MEMALIGN)
+    set(PONY_OUTPUT_SUFFIX "-pool_memalign")
+    add_compile_options(-DUSE_POOL_MEMALIGN)
+endif()
+
 # LibPonyC tests assume that our outputs are two directories above the root directory.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}")
