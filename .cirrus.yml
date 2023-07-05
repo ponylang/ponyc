@@ -73,13 +73,13 @@ task:
   debug_build_script:
     - make build config=debug
   debug_test_script:
-    - make test-ci config=debug usedebugger=lldb
+    - make test-ci config=debug
   release_configure_script:
     - make configure arch=armv8-a config=release
   release_build_script:
     - make build config=release
   release_test_script:
-    - make test-ci config=release usedebugger=lldb
+    - make test-ci config=release
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -714,7 +714,7 @@ task:
   build_script:
     - make build config=debug
   stress_test_script:
-    - make ${TARGET} config=debug usedebugger=lldb
+    - make ${TARGET} config=debug
 
 task:
   only_if: $CIRRUS_CRON == "stress"
