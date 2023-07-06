@@ -199,8 +199,6 @@ static bool names_typeparam(pass_opt_t* opt, ast_t** astp, ast_t* def)
       TREE(cap)
       TREE(ephemeral)));
 
-  ast = *astp;
-
   if(opt->check.frame->iftype_body != NULL)
     def = ast_get(ast, name, NULL);
 
