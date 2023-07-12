@@ -23,10 +23,7 @@ typedef struct chunk_t
   struct chunk_t* next;
 } chunk_t;
 
-enum
-{
-  CHUNK_NEEDS_TO_BE_CLEARED = 0xFFFFFFFF,
-};
+#define CHUNK_NEEDS_TO_BE_CLEARED_BIT (uintptr_t)0x1
 
 enum
 {
@@ -44,7 +41,7 @@ typedef void (*chunk_fn)(chunk_t* chunk, uint32_t mark);
   ((void*)((uintptr_t)p & SIZECLASS_MASK(sizeclass)))
 
 #define FIND_SLOT(ext, base) \
-  (1 << ((uintptr_t)((char*)(ext) - (char*)(base)) >> HEAP_MINBITS))
+  ((uint32_t)1 << ((uintptr_t)((char*)(ext) - (char*)(base)) >> HEAP_MINBITS))
 
 static const uint32_t sizeclass_empty[HEAP_SIZECLASSES] =
 {
@@ -128,25 +125,36 @@ size_t ponyint_heap_overhead_size(pony_actor_t* actor)
 
 #endif
 
+static bool get_chunk_needs_clearing(chunk_t* chunk)
+{
+  return (((uintptr_t)chunk->m & CHUNK_NEEDS_TO_BE_CLEARED_BIT) == CHUNK_NEEDS_TO_BE_CLEARED_BIT);
+}
+
+static void set_chunk_needs_clearing(chunk_t* chunk)
+{
+  chunk->m = (char*)((uintptr_t)chunk->m | CHUNK_NEEDS_TO_BE_CLEARED_BIT);
+}
+
+static void unset_chunk_needs_clearing(chunk_t* chunk)
+{
+  chunk->m = (char*)((uintptr_t)chunk->m & ~CHUNK_NEEDS_TO_BE_CLEARED_BIT);
+}
+
+static char* get_m(chunk_t* chunk)
+{
+  return (char*)((uintptr_t)chunk->m & ~CHUNK_NEEDS_TO_BE_CLEARED_BIT);
+}
+
 static void large_pagemap(char* m, size_t size, chunk_t* chunk)
 {
   ponyint_pagemap_set_bulk(m, chunk, size);
-}
-
-static void clear_chunk(chunk_t* chunk, uint32_t mark)
-{
-  chunk->slots = mark;
-  chunk->shallow = mark;
 }
 
 static void maybe_clear_chunk(chunk_t* chunk)
 {
   // handle delayed clearing of the chunk since we don't do it
   // before starting GC anymore as an optimization
-  // This is ignored in case of `sizeclass == 0` because
-  // the sizeclass_empty` value for it is also `0xFFFFFFFF`
-  // and it is still cleared befor starting GC
-  if(chunk->size != 0 && chunk->shallow == CHUNK_NEEDS_TO_BE_CLEARED)
+  if(get_chunk_needs_clearing(chunk))
   {
     if(chunk->size >= HEAP_SIZECLASSES)
     {
@@ -158,6 +166,7 @@ static void maybe_clear_chunk(chunk_t* chunk)
       chunk->slots = sizeclass_empty[chunk->size];
       chunk->shallow = sizeclass_empty[chunk->size];
     }
+    unset_chunk_needs_clearing(chunk);
   }
 }
 
@@ -190,7 +199,7 @@ static void final_small(chunk_t* chunk, uint32_t force_finalisers_mask)
   while(finalisers != 0)
   {
     bit = __pony_ctz(finalisers);
-    p = chunk->m + (bit << HEAP_MINBITS);
+    p = get_m(chunk) + (bit << HEAP_MINBITS);
 
     // run finaliser
     pony_assert((*(pony_type_t**)p)->final != NULL);
@@ -206,8 +215,8 @@ static void final_large(chunk_t* chunk, uint32_t mark)
   if(chunk->finalisers == 1)
   {
     // run finaliser
-    pony_assert((*(pony_type_t**)chunk->m)->final != NULL);
-    (*(pony_type_t**)chunk->m)->final(chunk->m);
+    pony_assert((*(pony_type_t**)get_m(chunk))->final != NULL);
+    (*(pony_type_t**)get_m(chunk))->final(get_m(chunk));
     chunk->finalisers = 0;
   }
   (void)mark;
@@ -220,8 +229,8 @@ static void destroy_small(chunk_t* chunk, uint32_t mark)
   // run any finalisers that need running
   final_small(chunk, FORCE_ALL_FINALISERS);
 
-  ponyint_pagemap_set(chunk->m, NULL);
-  POOL_FREE(block_t, chunk->m);
+  ponyint_pagemap_set(get_m(chunk), NULL);
+  POOL_FREE(block_t, get_m(chunk));
   POOL_FREE(chunk_t, chunk);
 }
 
@@ -233,10 +242,10 @@ static void destroy_large(chunk_t* chunk, uint32_t mark)
   // run any finalisers that need running
   final_large(chunk, mark);
 
-  large_pagemap(chunk->m, chunk->size, NULL);
+  large_pagemap(get_m(chunk), chunk->size, NULL);
 
-  if(chunk->m != NULL)
-    ponyint_pool_free_size(chunk->size, chunk->m);
+  if(get_m(chunk) != NULL)
+    ponyint_pool_free_size(chunk->size, get_m(chunk));
 
   POOL_FREE(chunk_t, chunk);
 }
@@ -264,11 +273,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
 
     chunk->slots &= chunk->shallow;
 
-    // set `chunk->shallow` to sentinel to avoid clearing
-    // for next GC cycle
-    // This is ignored in case of `sizeclass == 0` because
-    // the sizeclass_empty` value for it is also `0xFFFFFFFF`
-    chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
+    set_chunk_needs_clearing(chunk);
 
     if(chunk->slots == 0)
     {
@@ -337,9 +342,7 @@ static chunk_t* sweep_large(chunk_t* chunk, size_t* used)
 
     chunk->slots &= chunk->shallow;
 
-    // set `chunk->shallow` to sentinel to avoid clearing
-    // for next GC cycle
-    chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
+    set_chunk_needs_clearing(chunk);
 
     if(chunk->slots == 0)
     {
@@ -470,7 +473,7 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     uint32_t bit = __pony_ctz(slots);
     slots &= ~((uint32_t)1 << bit);
 
-    m = chunk->m + (bit << HEAP_MINBITS);
+    m = get_m(chunk) + (bit << HEAP_MINBITS);
     chunk->slots = slots;
 
     // note if a finaliser needs to run or not
@@ -500,19 +503,15 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
 
-    // set `chunk->shallow` to sentinel to avoid clearing
-    // for next GC cycle
-    // This is ignored in case of `sizeclass == 0` because
-    // the sizeclass_empty` value for it is also `0xFFFFFFFF`
-    n->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
+    set_chunk_needs_clearing(n);
 
-    ponyint_pagemap_set(n->m, n);
+    ponyint_pagemap_set(get_m(n), n);
 
     heap->small_free[sizeclass] = n;
     chunk = n;
 
     // Use the first slot.
-    m = chunk->m;
+    m = get_m(chunk);
   }
 
 #ifdef USE_RUNTIMESTATS
@@ -550,22 +549,18 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 #endif
   chunk->slots = 0;
 
-  // set `chunk->shallow` to sentinel to avoid clearing
-  // for next GC cycle
-  // This is ignored in case of `sizeclass == 0` because
-  // the sizeclass_empty` value for it is also `0xFFFFFFFF`
-  chunk->shallow = CHUNK_NEEDS_TO_BE_CLEARED;
+  set_chunk_needs_clearing(chunk);
 
   // note if a finaliser needs to run or not
   chunk->finalisers = (track_finalisers_mask & 1);
 
-  large_pagemap(chunk->m, size, chunk);
+  large_pagemap(get_m(chunk), size, chunk);
 
   chunk->next = heap->large;
   heap->large = chunk;
   heap->used += chunk->size;
 
-  return chunk->m;
+  return get_m(chunk);
 }
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
@@ -595,7 +590,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   } else {
     // Previous allocation was a ponyint_heap_alloc_large.
 
-    oldsize = chunk->size - ((uintptr_t)p - (uintptr_t)chunk->m);
+    oldsize = chunk->size - ((uintptr_t)p - (uintptr_t)get_m(chunk));
   }
 
   pony_assert(copy <= size);
@@ -627,13 +622,6 @@ bool ponyint_heap_startgc(heap_t* heap
   if(heap->used <= heap->next_gc)
     return false;
 
-  // only need to clear `sizeclass == 0` due to others
-  // being cleared as part of GC as an optimization
-  uint32_t mark = sizeclass_empty[0];
-  pony_assert(mark == 0xFFFFFFFF);
-  chunk_list(clear_chunk, heap->small_free[0], mark);
-  chunk_list(clear_chunk, heap->small_full[0], mark);
-
   // reset used to zero
   heap->used = 0;
 #ifdef USE_RUNTIMESTATS
@@ -656,7 +644,7 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p)
   {
     marked = chunk->slots == 0;
 
-    if(p == chunk->m)
+    if(p == get_m(chunk))
       chunk->slots = 0;
     else
       chunk->shallow = 0;
@@ -665,7 +653,7 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p)
     void* ext = EXTERNAL_PTR(p, chunk->size);
 
     // Shift to account for smallest allocation size.
-    uint32_t slot = FIND_SLOT(ext, chunk->m);
+    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
     // Check if it was already marked.
     marked = (chunk->slots & slot) == 0;
@@ -692,7 +680,7 @@ void ponyint_heap_mark_shallow(chunk_t* chunk, void* p)
     void* ext = EXTERNAL_PTR(p, chunk->size);
 
     // Shift to account for smallest allocation size.
-    uint32_t slot = FIND_SLOT(ext, chunk->m);
+    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
     // A clear bit is in-use, a set bit is available.
     chunk->shallow &= ~slot;
@@ -703,12 +691,12 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
   {
-    if(p == chunk->m)
+    if(p == get_m(chunk))
     {
       // run finaliser if needed
       final_large(chunk, 0);
 
-      ponyint_pool_free_size(chunk->size, chunk->m);
+      ponyint_pool_free_size(chunk->size, get_m(chunk));
       chunk->m = NULL;
       chunk->slots = 1;
     }
@@ -721,7 +709,7 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
   if(p == ext)
   {
     // Shift to account for smallest allocation size.
-    uint32_t slot = FIND_SLOT(ext, chunk->m);
+    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
     // check if there's a finaliser to run
     if((chunk->finalisers & slot) != 0)
