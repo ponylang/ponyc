@@ -16,12 +16,14 @@ PONY_EXTERN_C_BEGIN
 #define HEAP_MAX (1 << HEAP_MAXBITS)
 
 typedef struct chunk_t chunk_t;
+typedef struct small_chunk_t small_chunk_t;
+typedef struct large_chunk_t large_chunk_t;
 
 typedef struct heap_t
 {
-  chunk_t* small_free[HEAP_SIZECLASSES];
-  chunk_t* small_full[HEAP_SIZECLASSES];
-  chunk_t* large;
+  small_chunk_t* small_free[HEAP_SIZECLASSES];
+  small_chunk_t* small_full[HEAP_SIZECLASSES];
+  large_chunk_t* large;
 
   size_t used;
   size_t next_gc;
