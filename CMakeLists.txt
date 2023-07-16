@@ -95,7 +95,7 @@ if(PONY_USE_RUNTIMESTATS_MESSAGES)
 endif()
 
 if(PONY_USE_POOL_MEMALIGN)
-    set(PONY_OUTPUT_SUFFIX "-pool_memalign")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_memalign")
     add_compile_options(-DUSE_POOL_MEMALIGN)
 endif()
 
