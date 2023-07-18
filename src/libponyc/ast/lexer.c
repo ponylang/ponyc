@@ -607,7 +607,7 @@ static void normalise_string(lexer_t* lexer)
 
   // Trim trailing empty line
   size_t trim = 0;
-  for (ssize_t i = (lexer->buflen - 1); i>0; i--)
+  for (size_t i = (lexer->buflen - 1); i>0; i--)
   {
     char c = lexer->buffer[i];
     if (c == '\n')
