@@ -6,12 +6,6 @@
 
 #include <platform.h>
 
-#if defined(USE_POOL_MEMALIGN)
-#  define POOL_USE_MEMALIGN
-#else
-#  define POOL_USE_DEFAULT
-#endif
-
 PONY_EXTERN_C_BEGIN
 
 /* Because of the way free memory is reused as its own linked list container,

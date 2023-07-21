@@ -39,7 +39,6 @@ set(_c_src
     mem/heap.c
     mem/pagemap.c
     mem/pool.c
-    mem/pool_memalign.c
     options/options.c
     platform/ponyassert.c
     platform/threads.c
@@ -157,9 +156,9 @@ if(PONY_RUNTIME_BITCODE)
     )
 
     add_custom_command(TARGET libponyrt_bc POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../debug/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../release/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../relwithdebinfo/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../minsizerel/
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
     )
 endif()

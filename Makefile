@@ -76,7 +76,12 @@ endif
 
 srcDir := $(shell dirname '$(subst /Volumes/Macintosh HD/,/,$(realpath $(lastword $(MAKEFILE_LIST))))')
 buildDir := $(srcDir)/build/build_$(config)
-outDir := $(srcDir)/build/$(config)
+
+# get outDir from CMake install file or fall back to default if the file doesn't exist
+outDir := $(subst /libponyrt.tests,,$(shell grep -o -s '$(srcDir)\/build\/$(config).*\/libponyrt.tests' $(buildDir)/cmake_install.cmake))
+ifeq ($(outDir),)
+  outDir := $(srcDir)/build/$(config)
+endif
 
 libsSrcDir := $(srcDir)/lib
 libsBuildDir := $(srcDir)/build/build_libs
@@ -141,8 +146,6 @@ define USE_CHECK
     PONY_USES += -DPONY_USE_RUNTIMESTATS=true
   else ifeq ($1,runtimestats_messages)
     PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
-  else ifeq ($1,pool_memalign)
-    PONY_USES += -DPONY_USE_POOL_MEMALIGN=true
   else
     $$(error ERROR: Unknown use option specified: $1)
   endif
