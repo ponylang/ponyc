@@ -2,6 +2,7 @@
 
 #include "pagemap.h"
 #include "alloc.h"
+#include "ponyassert.h"
 #include "pool.h"
 #include <string.h>
 
@@ -60,8 +61,10 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
     POOL_INDEX((1 << L2_MASK) * sizeof(void*)) },
 #endif
 
-  { L1_SHIFT, (1 << L1_MASK) - 1, (1 << L1_MASK) * sizeof(void*),
-    POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
+  // The lowest level is sized to hold 2 `void*` entries (the `* 2` in the
+  // `size`/`size_index` fields), one for `chunk_t*` and one for `pony_actor_t*`.
+  { L1_SHIFT, (1 << L1_MASK) - 1, (1 << L1_MASK) * sizeof(void*) * 2,
+    POOL_INDEX((1 << L1_MASK) * sizeof(void*) * 2) }
 };
 
 static PONY_ATOMIC(void*) root;
@@ -85,31 +88,90 @@ size_t ponyint_pagemap_alloc_size()
 }
 #endif
 
-chunk_t* ponyint_pagemap_get(const void* addr)
+chunk_t* ponyint_pagemap_get_chunk(const void* addr)
 {
   PONY_ATOMIC(void*)* next_node = &root;
   void* node = atomic_load_explicit(next_node, memory_order_acquire);
+  uintptr_t ix = 0;
 
   for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
   {
     if(node == NULL)
       return NULL;
 
-    uintptr_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
-    next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-    node = atomic_load_explicit(next_node, memory_order_acquire);
+    ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    if (i == PAGEMAP_LEVELS - 1)
+    {
+      // at the lowest level we have to double the index since we store
+      // two pointers (`chunk_t*` and `pony_actor_t*`) instead of one
+      ix = ix * 2;
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+      pony_assert(ix <= (uintptr_t)level[i].size);
+      pony_assert(ix/2 <= (uintptr_t)level[i].mask);
+    }
+    else
+    {
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+      node = atomic_load_explicit(next_node, memory_order_acquire);
+      pony_assert(ix <= (uintptr_t)level[i].size);
+      pony_assert(ix <= (uintptr_t)level[i].mask);
+    }
   }
 
-  return (chunk_t*)node;
+  chunk_t* chunk = (chunk_t*)atomic_load_explicit(next_node, memory_order_acquire);
+  return chunk;
 }
 
-void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
+chunk_t* ponyint_pagemap_get(const void* addr, pony_actor_t** actor)
 {
   PONY_ATOMIC(void*)* next_node = &root;
+  void* node = atomic_load_explicit(next_node, memory_order_acquire);
+  uintptr_t ix = 0;
 
   for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
   {
-    void* node = atomic_load_explicit(next_node, memory_order_relaxed);
+    if(node == NULL)
+      return NULL;
+
+    ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    if (i == PAGEMAP_LEVELS - 1)
+    {
+      // at the lowest level we have to double the index since we store
+      // two pointers (`chunk_t*` and `pony_actor_t*`) instead of one
+      ix = ix * 2;
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+      pony_assert(ix <= (uintptr_t)level[i].size);
+      pony_assert(ix/2 <= (uintptr_t)level[i].mask);
+    }
+    else
+    {
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+      node = atomic_load_explicit(next_node, memory_order_acquire);
+      pony_assert(ix <= (uintptr_t)level[i].size);
+      pony_assert(ix <= (uintptr_t)level[i].mask);
+    }
+  }
+
+  chunk_t* chunk = (chunk_t*)atomic_load_explicit(next_node, memory_order_acquire);
+  ix++;
+  pony_assert(ix <= (uintptr_t)level[PAGEMAP_LEVELS - 1].size);
+  pony_assert(ix/2 <= (uintptr_t)level[PAGEMAP_LEVELS - 1].mask);
+  next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+  void* pagemap_actor = atomic_load_explicit(next_node, memory_order_acquire);
+  *actor = (pony_actor_t*)pagemap_actor;
+
+  return chunk;
+}
+
+void ponyint_pagemap_set(const void* addr, chunk_t* chunk, pony_actor_t* actor)
+{
+  PONY_ATOMIC(void*)* next_node = &root;
+  void* node = NULL;
+  uintptr_t ix = 0;
+
+  for(size_t i = 0; i < PAGEMAP_LEVELS; i++)
+  {
+    node = atomic_load_explicit(next_node, memory_order_relaxed);
 
     if(node == NULL)
     {
@@ -146,14 +208,28 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk)
 #endif
     }
 
-    uintptr_t ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    ix = ((uintptr_t)addr >> level[i].shift) & level[i].mask;
+    pony_assert(ix <= (uintptr_t)level[i].size);
+    pony_assert(ix <= (uintptr_t)level[i].mask);
+
+    // at the lowest level we have to double the index since we store
+    // two pointers (`chunk_t*` and `pony_actor_t*`) instead of one
+    if (i == PAGEMAP_LEVELS - 1)
+      ix = ix * 2;
     next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
   }
 
+  pony_assert(ix <= (uintptr_t)level[PAGEMAP_LEVELS - 1].size);
+  pony_assert(ix/2 <= (uintptr_t)level[PAGEMAP_LEVELS - 1].mask);
   atomic_store_explicit(next_node, chunk, memory_order_release);
+  ix++;
+  pony_assert(ix <= (uintptr_t)level[PAGEMAP_LEVELS - 1].size);
+  pony_assert(ix/2 <= (uintptr_t)level[PAGEMAP_LEVELS - 1].mask);
+  next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+  atomic_store_explicit(next_node, actor, memory_order_release);
 }
 
-void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
+void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, pony_actor_t* actor, size_t size)
 {
   PONY_ATOMIC(void*)* next_node = NULL;
   void* node = NULL;
@@ -205,6 +281,12 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
       }
 
       ix = (addr_ptr >> level[i].shift) & level[i].mask;
+      pony_assert(ix <= (uintptr_t)level[i].size);
+      pony_assert(ix <= (uintptr_t)level[i].mask);
+      // at the lowest level we have to double the index since we store
+      // two pointers (`chunk_t*` and `pony_actor_t*`) instead of one
+      if (i == PAGEMAP_LEVELS - 1)
+        ix = ix * 2;
       next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
     }
 
@@ -215,10 +297,17 @@ void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, size_t size)
       atomic_store_explicit(next_node, chunk, memory_order_release);
       addr_ptr += POOL_ALIGN;
       ix++;
+      pony_assert(ix <= (uintptr_t)level[PAGEMAP_LEVELS - 1].size);
+      pony_assert(ix/2 <= (uintptr_t)level[PAGEMAP_LEVELS - 1].mask);
       next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
-      // If ix is greater than mask we need to move to the next pagemap level
-      // segment.
+      atomic_store_explicit(next_node, actor, memory_order_release);
+      ix++;
+      next_node = &(((PONY_ATOMIC_RVALUE(void*)*)node)[ix]);
+      // If ix/2 is greater than mask we need to move to the next pagemap level
+      // segment. Note: we use `ix/2` instead of `ix` since `ix` has already been
+      // doubled to account for our storage of two pointers instead of one and
+      // `ix/2` represents the actual entry offset in the array.
     } while((addr_ptr < addr_end) &&
-        (ix <= (uintptr_t)level[PAGEMAP_LEVELS-1].mask));
+        (ix/2 <= (uintptr_t)level[PAGEMAP_LEVELS-1].mask));
   }
 }
