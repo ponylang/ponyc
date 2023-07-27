@@ -122,6 +122,19 @@ chunk_t* ponyint_pagemap_get_chunk(const void* addr)
   return chunk;
 }
 
+/* This function looks up the chunk_t* to returns it and also looks
+ * up the pony_actor_t* to return in the out paramter `actor`. This
+ * is done in order to avoid allocating a struct to return as a single
+ * return value while minimizing the need to traverse the pagemap multiple
+ * times in order to retrieve both the chunk_t* and the pony_actor_t*.
+ *
+ * NOTE: the multiple atomic instructions to retrieve the chunk_t* followed
+ * by the pony_actor_t* should be safe because the only time the pagemap
+ * is updated is when a chunk_t is first allocated by an actor or when the
+ * chunk_t is deallocated/freed by GC and in both scenarios the only actor
+ * with a reference to memory that would resolve to that pagemap entry is
+ * the owning actor of the chunk_t.
+ */
 chunk_t* ponyint_pagemap_get(const void* addr, pony_actor_t** actor)
 {
   PONY_ATOMIC(void*)* next_node = &root;
@@ -163,6 +176,16 @@ chunk_t* ponyint_pagemap_get(const void* addr, pony_actor_t** actor)
   return chunk;
 }
 
+/* This function sets the chunk_t* and the pony_actor_t* in the pagemap for
+ * a small chunk_t (exactly one pagemap entry).
+ *
+ * NOTE: the multiple atomic instructions to set the chunk_t* followed
+ * by the pony_actor_t* should be safe because the only time the pagemap
+ * is updated is when a chunk_t is first allocated by an actor or when the
+ * chunk_t is deallocated/freed by GC and in both scenarios the only actor
+ * with a reference to memory that would resolve to that pagemap entry is
+ * the owning actor of the chunk_t.
+ */
 void ponyint_pagemap_set(const void* addr, chunk_t* chunk, pony_actor_t* actor)
 {
   PONY_ATOMIC(void*)* next_node = &root;
@@ -229,6 +252,16 @@ void ponyint_pagemap_set(const void* addr, chunk_t* chunk, pony_actor_t* actor)
   atomic_store_explicit(next_node, actor, memory_order_release);
 }
 
+/* This function sets the chunk_t* and the pony_actor_t* in the pagemap for
+ * a large chunk_t's (more than one pagemap entry required).
+ *
+ * NOTE: the multiple atomic instructions to set the chunk_t* followed
+ * by the pony_actor_t* should be safe because the only time the pagemap
+ * is updated is when a chunk_t is first allocated by an actor or when the
+ * chunk_t is deallocated/freed by GC and in both scenarios the only actor
+ * with a reference to memory that would resolve to that pagemap entry is
+ * the owning actor of the chunk_t.
+ */
 void ponyint_pagemap_set_bulk(const void* addr, chunk_t* chunk, pony_actor_t* actor, size_t size)
 {
   PONY_ATOMIC(void*)* next_node = NULL;
