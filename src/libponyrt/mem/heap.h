@@ -102,6 +102,8 @@ void ponyint_heap_endgc(heap_t* heap
   );
 #endif
 
+pony_actor_t* ponyint_heap_owner(chunk_t* chunk);
+
 size_t ponyint_heap_size(chunk_t* chunk);
 
 #ifdef USE_RUNTIMESTATS
