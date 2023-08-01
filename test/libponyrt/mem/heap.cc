@@ -30,8 +30,9 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
 #endif
 
-  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p);
-  ASSERT_EQ(actor, ponyint_heap_owner(chunk));
+  pony_actor_t* pagemap_actor = NULL;
+  chunk_t* chunk = (chunk_t*)ponyint_pagemap_get(p, &pagemap_actor);
+  ASSERT_EQ(actor, pagemap_actor);
 
   size_t size = ponyint_heap_size(chunk);
   ASSERT_EQ(size, (size_t)128);
@@ -136,8 +137,8 @@ TEST(Heap, Init)
 
   size_t large_size = (1 << 22) - 7;
   void* p5 = ponyint_heap_alloc(actor, &heap, large_size, TRACK_NO_FINALISERS);
-  chunk_t* chunk5 = (chunk_t*)ponyint_pagemap_get(p5);
-  ASSERT_EQ(actor, ponyint_heap_owner(chunk5));
+  chunk_t* chunk5 = (chunk_t*)ponyint_pagemap_get(p5, &pagemap_actor);
+  ASSERT_EQ(actor, pagemap_actor);
 
 #ifdef USE_RUNTIMESTATS
   ASSERT_EQ((size_t)5, actor->actorstats.heap_alloc_counter);
@@ -156,12 +157,14 @@ TEST(Heap, Init)
 
   while(p5_curr < p5_end)
   {
-    p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_curr);
+    p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_curr, &pagemap_actor);
     p5_curr += POOL_ALIGN;
     ASSERT_EQ(chunk5, p5_chunk);
+    ASSERT_EQ(actor, pagemap_actor);
   }
-  p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_end);
+  p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_end, &pagemap_actor);
   ASSERT_NE(chunk5, p5_chunk);
+  ASSERT_NE(actor, pagemap_actor);
 
   size_t size5 = ponyint_heap_size(chunk5);
   ASSERT_EQ(adjust_size, size5);
