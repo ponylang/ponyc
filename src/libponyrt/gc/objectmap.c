@@ -71,7 +71,7 @@ void ponyint_objectmap_sweep(objectmap_t* map)
 
     if(obj->rc > 0)
     {
-      chunk_t* chunk = ponyint_pagemap_get_chunk(p);
+      chunk_t* chunk = ponyint_pagemap_get(p);
       ponyint_heap_mark_shallow(chunk, p);
     } else {
       ponyint_objectmap_clearindex(map, i);
