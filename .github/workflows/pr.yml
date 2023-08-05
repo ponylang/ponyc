@@ -80,7 +80,7 @@ jobs:
     name: x86-64 Linux glibc
     runs-on: ubuntu-latest
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
       options: --user pony
     steps:
       - name: Checkout
