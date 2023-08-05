@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-      options: --user pony:pony
+      options: --user pony
     steps:
       - name: Checkout
         uses: actions/checkout@v3
