@@ -82,11 +82,12 @@ jobs:
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: Git Fuckery
         run: git config --global --add safe.directory /__w/ponyc/ponyc
       - name: Libs
-        run: make libs build_flags=-j4
+        run: make libs build_flags=-j6
       - name: Debug Configure
         run: make configure arch=x86-64 config=debug
       - name: Debug Build
