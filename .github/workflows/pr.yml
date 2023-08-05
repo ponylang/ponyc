@@ -75,3 +75,25 @@ jobs:
       - uses: actions/checkout@v2
       - name: Verify CHANGELOG
         run: changelog-tool verify
+
+  x86_64-Linux-glibc:
+    name: x86-64 Linux glibc
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
+    steps:
+      - uses: actions/checkout@v2
+      - name: Libs
+        run: make libs build_flags=-j2
+      - name: Debug Configure
+        run: make configure arch=x86-64 config=debug
+      - name: Debug Build
+        run: make build config=debug
+      - name: Debug Test
+        run: make test-ci config=debug usedebugger='lldb'
+      - name: Release Configure
+        run: make configure arch=x86-64 config=release
+      - name: Release Build
+        run: make build config=release
+      - name: Release Test
+        run: make test-ci config=release usedebugger='lldb'
