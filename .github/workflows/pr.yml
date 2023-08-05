@@ -86,16 +86,16 @@ jobs:
       - name: Git Fuckery
         run: git config --global --add safe.directory /__w/ponyc/ponyc
       - name: Libs
-        run: make libs build_flags=-j2
+        run: make libs build_flags=-j4
       - name: Debug Configure
         run: make configure arch=x86-64 config=debug
       - name: Debug Build
         run: make build config=debug
       - name: Debug Test
-        run: make test-ci config=debug usedebugger='lldb'
+        run: make test-ci config=debug
       - name: Release Configure
         run: make configure arch=x86-64 config=release
       - name: Release Build
         run: make build config=release
       - name: Release Test
-        run: make test-ci config=release usedebugger='lldb'
+        run: make test-ci config=release
