@@ -83,6 +83,8 @@ jobs:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
     steps:
       - uses: actions/checkout@v2
+      - name: Git Fuckery
+        run: git config --global --add safe.directory /__w/ponyc/ponyc
       - name: Libs
         run: make libs build_flags=-j2
       - name: Debug Configure
