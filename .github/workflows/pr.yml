@@ -87,7 +87,7 @@ jobs:
       - name: Git Fuckery
         run: git config --global --add safe.directory /__w/ponyc/ponyc
       - name: Libs
-        run: make libs build_flags=-j6
+        run: make libs build_flags=-j8
       - name: Debug Configure
         run: make configure arch=x86-64 config=debug
       - name: Debug Build
