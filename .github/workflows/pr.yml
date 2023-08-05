@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
-      options: --user pony
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -94,10 +94,10 @@ jobs:
       - name: Debug Build
         run: make build config=debug
       - name: Debug Test
-        run: make test-ci config=debug
+        run: make test-ci config=debug usedebugger='lldb'
       - name: Release Configure
         run: make configure arch=x86-64 config=release
       - name: Release Build
         run: make build config=release
       - name: Release Test
-        run: make test-ci config=release
+        run: make test-ci config=release usedebugger='lldb'
