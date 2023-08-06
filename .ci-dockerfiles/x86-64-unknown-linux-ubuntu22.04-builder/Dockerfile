@@ -23,7 +23,10 @@ RUN apt-get update \
  && apt-get -y clean \
  && pip3 install cloudsmith-cli
 
+# needed for GitHub actions
+RUN git config --global --add safe.directory /__w/ponyc/ponyc
+
 # add user pony in order to not run tests as root
-RUN useradd -ms /bin/bash -d /home/pony -g root pony
+RUN useradd -u 1001 -ms /bin/bash -d /home/pony -g root pony
 USER pony
 WORKDIR /home/pony

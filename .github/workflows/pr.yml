@@ -82,7 +82,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
             name: x86-64 Linux glibc
 
     name: ${{ matrix.name }}
