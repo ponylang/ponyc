@@ -87,7 +87,17 @@ jobs:
         uses: actions/checkout@v3
       - name: Git Fuckery
         run: git config --global --add safe.directory /__w/ponyc/ponyc
-      - name: Libs
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v3
+        env:
+          cache-name: libs
+          image-name: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
+        with:
+          path: build/libs
+          key: $${{ env.cache-name }}-$${{ env.image-name }}-$${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j4
       - name: Debug Configure
         run: make configure arch=x86-64 config=debug
