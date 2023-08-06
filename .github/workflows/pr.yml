@@ -92,8 +92,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Git Fuckery
-        run: git config --global --add safe.directory /__w/ponyc/ponyc
       - name: Cache Libs
         id: cache-libs
         uses: actions/cache@v3
