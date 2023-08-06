@@ -77,10 +77,16 @@ jobs:
         run: changelog-tool verify
 
   x86_64-Linux-glibc:
-    name: x86-64 Linux glibc
     runs-on: ubuntu-latest
+
+    matrix:
+      include:
+        - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
+          name: x86-64 Linux glibc
+
+    name: ${{ matrix.name }}
     container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
+      image: ${{ matrix.image }}
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
@@ -92,10 +98,9 @@ jobs:
         uses: actions/cache@v3
         env:
           cache-name: libs
-          image-name: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
         with:
           path: build/libs
-          key: ${{ env.cache-name }}-${{ env.image-name }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: ${{ env.cache-name }}-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j4
