@@ -99,15 +99,15 @@ jobs:
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j4
-      - name: Debug Configure
+      - name: Configure Debug Runtime
         run: make configure arch=x86-64 config=debug
-      - name: Debug Build
+      - name: Build Debug Runtime
         run: make build config=debug
-      - name: Debug Test
+      - name: Test with Debug Runtime
         run: make test-ci config=debug usedebugger='lldb'
-      - name: Release Configure
+      - name: Configure Release Runtime
         run: make configure arch=x86-64 config=release
-      - name: Release Build
+      - name: Build Release Runtime
         run: make build config=release
-      - name: Release Test
+      - name: Test with Release Runtime
         run: make test-ci config=release usedebugger='lldb'
