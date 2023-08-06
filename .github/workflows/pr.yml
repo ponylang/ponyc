@@ -79,10 +79,11 @@ jobs:
   x86_64-Linux-glibc:
     runs-on: ubuntu-latest
 
-    matrix:
-      include:
-        - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
-          name: x86-64 Linux glibc
+    strategy:
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder-gh:20230805
+            name: x86-64 Linux glibc
 
     name: ${{ matrix.name }}
     container:
