@@ -75,3 +75,41 @@ jobs:
       - uses: actions/checkout@v2
       - name: Verify CHANGELOG
         run: changelog-tool verify
+
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64 Linux glibc
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Configure Debug Runtime
+        run: make configure arch=x86-64 config=debug
+      - name: Build Debug Runtime
+        run: make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger='lldb'
+      - name: Configure Release Runtime
+        run: make configure arch=x86-64 config=release
+      - name: Build Release Runtime
+        run: make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger='lldb'

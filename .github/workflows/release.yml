@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - \d+.\d+.\d+
+
+concurrency: release
+
+jobs:
+  # validation to assure that we should in fact continue with the release should
+  # be done here. the primary reason for this step is to verify that the release
+  # was started correctly by pushing a `release-X.Y.Z` tag rather than `X.Y.Z`.
+  pre-artefact-creation:
+    name: Tasks to run before artefact creation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v3
+        with:
+          ref: "main"
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - name: Validate CHANGELOG
+        uses: ponylang/release-bot-action@0.6.1
+        with:
+          entrypoint: pre-artefact-changelog-check
+
+  x86_64-linux:
+    needs:
+      - pre-artefact-creation
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64-unknown-linux-ubuntu22.04
+            triple-os: linux-ubuntu22.04
+            triple-vendor: unknown
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230807
+            name: x86-64-unknown-linux-ubuntu20.04
+            triple-os: linux-ubuntu20.04
+            triple-vendor: unknown
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Release
+        run: bash .ci-scripts/x86-64-release.bash
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          TRIPLE_VENDOR: ${{ matrix.triple-vendor }}
+          TRIPLE_OS: ${{ matrix.triple-os }}

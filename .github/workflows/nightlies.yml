@@ -1,0 +1,56 @@
+name: Nightlies
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64-unknown-linux-ubuntu22.04
+            triple-os: linux-ubuntu22.04
+            triple-vendor: unknown
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230807
+            name: x86-64-unknown-linux-ubuntu20.04
+            triple-os: linux-ubuntu20.04
+            triple-vendor: unknown
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Nightly
+        run: bash .ci-scripts/x86-64-nightly.bash
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          TRIPLE_VENDOR: ${{ matrix.triple-vendor }}
+          TRIPLE_OS: ${{ matrix.triple-os }}
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
