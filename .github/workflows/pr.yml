@@ -102,7 +102,7 @@ jobs:
           key: ${{ env.cache-name }}-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j4
+        run: make libs build_flags=-j8
       - name: Configure Debug Runtime
         run: make configure arch=x86-64 config=debug
       - name: Build Debug Runtime
