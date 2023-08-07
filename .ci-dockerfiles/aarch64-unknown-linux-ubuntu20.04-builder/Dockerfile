@@ -26,7 +26,10 @@ RUN apt-get update \
 RUN curl --output cmake-3.25.1-linux-x86_64.sh https://cmake.org/files/v3.25/cmake-3.25.1-linux-x86_64.sh \
  && sh cmake-3.25.1-linux-x86_64.sh --prefix=/usr/local --exclude-subdir
 
+# needed for GitHub actions
+RUN git config --global --add safe.directory /__w/ponyc/ponyc
+
 # add user pony in order to not run tests as root
-RUN useradd -ms /bin/bash -d /home/pony -g root pony
+RUN useradd -u 1001 -ms /bin/bash -d /home/pony -g root pony
 USER pony
 WORKDIR /home/pony
