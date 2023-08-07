@@ -5,7 +5,7 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  x86_64-Linux-glibc:
+  x86_64-linux:
     runs-on: ubuntu-latest
 
     strategy:

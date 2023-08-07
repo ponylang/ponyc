@@ -25,7 +25,7 @@ jobs:
         with:
           entrypoint: pre-artefact-changelog-check
 
-  x86_64-Linux-glibc:
+  x86_64-linux:
     needs:
       - pre-artefact-creation
 
