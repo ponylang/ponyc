@@ -552,22 +552,6 @@ task:
   timeout_in: 120m
 
   matrix:
-  - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-      TARGET: test-stress-release
-      DEBUGGER: lldb
-  - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [debug]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-      TARGET: test-stress-debug
-      DEBUGGER: lldb
-    depends_on:
-      - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [release]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
@@ -584,22 +568,6 @@ task:
       DEBUGGER: gdb
     depends_on:
       - "Stress Test: x86-64-unknown-linux-musl [release]"
-  - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-      TARGET: test-stress-with-cd-release
-      DEBUGGER: lldb
-  - name: "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20220720
-      TARGET: test-stress-with-cd-debug
-      DEBUGGER: lldb
-    depends_on:
-      - "Stress Test: x86-64-unknown-linux-ubuntu22.04 [cd] [release]"
   - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
     container:
       image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
