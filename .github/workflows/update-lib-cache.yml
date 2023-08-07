@@ -11,14 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
-            name: x86-64 Ubuntu 22.04
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230807
-            name: x86-64 Ubuntu 20.04
 
-    name: ${{ matrix.name }}
+    name: ${{ matrix.image }}
     container:
       image: ${{ matrix.image }}
       options: --user pony

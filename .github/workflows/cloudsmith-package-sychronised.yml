@@ -295,6 +295,7 @@ jobs:
     name: Send musl nightly release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/library-documentation-action-v2
@@ -325,6 +326,7 @@ jobs:
     name: Send windows nightly release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/corral
@@ -354,6 +356,7 @@ jobs:
     name: Send release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/library-documentation-action

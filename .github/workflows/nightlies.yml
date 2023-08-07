@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
