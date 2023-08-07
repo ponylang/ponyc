@@ -54,11 +54,9 @@ jobs:
       - name: Cache Libs
         id: cache-libs
         uses: actions/cache@v3
-        env:
-          cache-name: libs
         with:
           path: build/libs
-          key: ${{ env.cache-name }}-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
