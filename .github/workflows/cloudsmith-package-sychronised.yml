@@ -30,7 +30,7 @@ jobs:
         run: bash .dockerfiles/latest/x86-64-unknown-linux-gnu/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -58,7 +58,7 @@ jobs:
         run: bash .dockerfiles/latest/x86-64-unknown-linux-musl/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -86,7 +86,7 @@ jobs:
         run: .dockerfiles/latest/x86-64-pc-windows-msvc/build-and-push.ps1
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -207,7 +207,7 @@ jobs:
           MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -279,7 +279,7 @@ jobs:
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -310,7 +310,7 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -340,7 +340,7 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
