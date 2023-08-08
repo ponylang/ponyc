@@ -52,15 +52,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Cache Libs
-        id: cache-libs
-        uses: actions/cache@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Libs
-        if: steps.cache-libs.outputs.cache-hit != 'true'
+        if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Release
         run: bash .ci-scripts/x86-64-release.bash
         env:
