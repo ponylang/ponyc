@@ -10,9 +10,6 @@
 
 typedef struct chunk_t
 {
-  // immutable
-  pony_actor_t* actor;
-
   // used for pointer tagging
   // bit 0 (lowest bit) for keeping track of chunk type (1 = small; 0 = large)
   // bit 1 for keeping track of chunks to be cleared
@@ -238,9 +235,9 @@ static char* get_m(chunk_t* chunk)
   return (char*)((uintptr_t)chunk->m & CHUNK_M_BITMASK);
 }
 
-static void large_pagemap(char* m, size_t size, chunk_t* chunk)
+static void large_pagemap(char* m, size_t size, chunk_t* chunk, pony_actor_t* actor)
 {
-  ponyint_pagemap_set_bulk(m, chunk, size);
+  ponyint_pagemap_set_bulk(m, chunk, actor, size);
 }
 
 static void maybe_clear_chunk(chunk_t* chunk)
@@ -326,7 +323,7 @@ static void destroy_small(small_chunk_t* chunk, uint32_t mark)
   final_small(chunk, FORCE_ALL_FINALISERS);
 
   char* m = get_m((chunk_t*)chunk);
-  ponyint_pagemap_set(m, NULL);
+  ponyint_pagemap_set(m, NULL, NULL);
   POOL_FREE(block_t, m);
   POOL_FREE(small_chunk_t, chunk);
 }
@@ -340,7 +337,7 @@ static void destroy_large(large_chunk_t* chunk, uint32_t mark)
   final_large(chunk, mark);
 
   char* m = get_m((chunk_t*)chunk);
-  large_pagemap(m, chunk->size, NULL);
+  large_pagemap(m, chunk->size, NULL, NULL);
 
   if(m != NULL)
     ponyint_pool_free_size(chunk->size, m);
@@ -597,7 +594,6 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     }
   } else {
     small_chunk_t* n = (small_chunk_t*) POOL_ALLOC(small_chunk_t);
-    n->base.actor = actor;
     n->base.m = (char*) POOL_ALLOC(block_t);
     set_small_chunk_size(n, sizeclass);
 #ifdef USE_RUNTIMESTATS
@@ -617,7 +613,7 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
 
     set_chunk_needs_clearing((chunk_t*)n);
 
-    ponyint_pagemap_set(get_m((chunk_t*)n), (chunk_t*)n);
+    ponyint_pagemap_set(get_m((chunk_t*)n), (chunk_t*)n, actor);
 
     heap->small_free[sizeclass] = n;
     chunk = n;
@@ -648,7 +644,6 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
   size = ponyint_pool_adjust_size(size);
 
   large_chunk_t* chunk = (large_chunk_t*) POOL_ALLOC(large_chunk_t);
-  chunk->base.actor = actor;
   chunk->size = size;
   chunk->base.m = (char*) ponyint_pool_alloc_size(size);
 #ifdef USE_RUNTIMESTATS
@@ -666,7 +661,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
   // note if a finaliser needs to run or not
   set_large_chunk_finaliser(chunk, (track_finalisers_mask & 1));
 
-  large_pagemap(get_m((chunk_t*)chunk), size, (chunk_t*)chunk);
+  large_pagemap(get_m((chunk_t*)chunk), size, (chunk_t*)chunk, actor);
 
   chunk->next = heap->large;
   heap->large = chunk;
@@ -685,7 +680,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   actor->actorstats.heap_realloc_counter++;
 #endif
 
-  chunk_t* chunk = ponyint_pagemap_get(p);
+  chunk_t* chunk = ponyint_pagemap_get_chunk(p);
 
   // We can't realloc memory that wasn't pony_alloc'ed since we can't know how
   // much to copy from the previous location.
@@ -906,18 +901,6 @@ void ponyint_heap_endgc(heap_t* heap
 
   if(heap->next_gc < heap_initialgc)
     heap->next_gc = heap_initialgc;
-}
-
-pony_actor_t* ponyint_heap_owner(chunk_t* chunk)
-{
-  // FIX: false sharing
-  // reading from something that will never be written
-  // but is on a cache line that will often be written
-  // called during tracing
-  // actual chunk only needed for GC tracing
-  // all other tracing only needs the owner
-  // so the owner needs the chunk and everyone else just needs the owner
-  return chunk->actor;
 }
 
 size_t ponyint_heap_size(chunk_t* chunk)
