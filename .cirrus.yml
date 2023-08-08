@@ -7,44 +7,6 @@ task:
 
   timeout_in: 120m
 
-  matrix:
-  - name: "x86-64 Linux musl"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      DEBUGGER: gdb
-
-  container:
-    cpu: 8
-    memory: 8
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  debug_configure_script:
-    - make configure arch=x86-64 config=debug
-  debug_build_script:
-    - make build config=debug
-  debug_test_script:
-    - make test-ci config=debug usedebugger='${DEBUGGER}'
-  release_configure_script:
-    - make configure arch=x86-64 config=release
-  release_build_script:
-    - make build config=release
-  release_test_script:
-    - make test-ci config=release usedebugger='${DEBUGGER}'
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  timeout_in: 120m
-
   arm_container:
     image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
     cpu: 8
@@ -284,38 +246,6 @@ task:
 
   timeout_in: 120m
 
-  matrix:
-    - name: "nightly: x86-64-unknown-linux-musl"
-      container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-        TRIPLE_VENDOR: unknown
-        TRIPLE_OS: linux-musl
-
-  container:
-    cpu: 8
-    memory: 4
-
-  environment:
-    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  nightly_script:
-    - bash .ci-scripts/x86-64-nightly.bash
-
-task:
-  only_if: $CIRRUS_CRON == "nightly"
-
-  timeout_in: 120m
-
   freebsd_instance:
     image: freebsd-13-1-release-amd64
     cpu: 8
@@ -418,39 +348,6 @@ task:
 
   timeout_in: 120m
 
-  matrix:
-    - name: "release: x86-64-unknown-linux-musl"
-      container:
-        image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      environment:
-        IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-        TRIPLE_VENDOR: unknown
-        TRIPLE_OS: linux-musl
-
-  container:
-    cpu: 8
-    memory: 4
-
-  environment:
-    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${TRIPLE_VENDOR}-${TRIPLE_OS} ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  release_script:
-    - bash .ci-scripts/x86-64-release.bash
-
-task:
-  only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
-  use_compute_credits: true
-
-  timeout_in: 120m
-
   freebsd_instance:
     image: freebsd-13-1-release-amd64
     cpu: 8
@@ -546,64 +443,6 @@ task:
     - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
 
 # Nightly stress tests using string-message-passewr
-task:
-  only_if: $CIRRUS_CRON == "stress"
-
-  timeout_in: 120m
-
-  matrix:
-  - name: "Stress Test: x86-64-unknown-linux-musl [release]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      TARGET: test-stress-release
-      DEBUGGER: gdb
-  - name: "Stress Test: x86-64-unknown-linux-musl [debug]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      TARGET: test-stress-debug
-      DEBUGGER: gdb
-    depends_on:
-      - "Stress Test: x86-64-unknown-linux-musl [release]"
-  - name: "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      TARGET: test-stress-with-cd-release
-      DEBUGGER: gdb
-  - name: "Stress Test: x86-64-unknown-linux-musl [cd] [debug]"
-    container:
-      image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-    environment:
-      IMAGE: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20220807
-      TARGET: test-stress-with-cd-debug
-      DEBUGGER: gdb
-    depends_on:
-      - "Stress Test: x86-64-unknown-linux-musl [cd] [release]"
-
-  container:
-    cpu: 8
-    memory: 4
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script:
-      - echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  configure_script:
-    - make configure config=debug
-  build_script:
-    - make build config=debug
-  stress_test_script:
-    - make ${TARGET} config=debug usedebugger='${DEBUGGER}'
-
 task:
   only_if: $CIRRUS_CRON == "stress"
 

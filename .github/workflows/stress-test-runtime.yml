@@ -15,15 +15,35 @@ jobs:
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
             name: x86-64-unknown-linux-ubuntu22.04 [release]
             target: test-stress-release
+            debugger: lldb
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
             name: x86-64-unknown-linux-ubuntu22.04 [debug]
             target: test-stress-debug
+            debugger: lldb
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
             name: x86-64-unknown-linux-ubuntu22.04 [cd] [release]
             target: test-stress-cd-release
+            debugger: lldb
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
             name: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]
             target: test-stress-cd-debug
+            debugger: lldb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [release]
+            target: test-stress-release
+            debugger: gdb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [debug]
+            target: test-stress-debug
+            debugger: gdb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [cd] [release]
+            target: test-stress-cd-release
+            debugger: gdb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [cd] [debug]
+            target: test-stress-cd-debug
+            debugger: gdb
 
     name: ${{ matrix.name }}
     container:
@@ -47,7 +67,7 @@ jobs:
       - name: Build Debug Runtime
         run: make build config=debug
       - name: Run Stress Test
-        run: make ${{ matrix.target }} config=debug usedebugger='lldb'
+        run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb

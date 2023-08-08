@@ -85,6 +85,10 @@ jobs:
         include:
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
             name: x86-64 Linux glibc
+            debugger: lldb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64 Linux musl
+            debugger: gdb
 
     name: ${{ matrix.name }}
     container:
@@ -107,10 +111,10 @@ jobs:
       - name: Build Debug Runtime
         run: make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug usedebugger='lldb'
+        run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
       - name: Configure Release Runtime
         run: make configure arch=x86-64 config=release
       - name: Build Release Runtime
         run: make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release usedebugger='lldb'
+        run: make test-ci config=release usedebugger='${{ matrix.debugger }}'

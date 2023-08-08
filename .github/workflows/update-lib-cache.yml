@@ -16,6 +16,7 @@ jobs:
         include:
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230807
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
 
     name: ${{ matrix.image }}
     container:
