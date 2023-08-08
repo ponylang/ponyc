@@ -28,7 +28,7 @@ jobs:
     name: ${{ matrix.name }}
     container:
       image: ${{ matrix.image }}
-      options: --user pony
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
 
     steps:
       - name: Checkout
