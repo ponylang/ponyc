@@ -13,7 +13,7 @@ clang -fPIC -Wall -Wextra -g -c -o callbacks.o callbacks.c
 clang -shared -o libffi-callbacks.dylib callbacks.o
 ```
 
-### FreeBSD/Linux
+### Linux
 
 ```console
 clang -fPIC -Wall -Wextra -g -c -o callbacks.o callbacks.c
@@ -30,7 +30,7 @@ cl.exe /c /Fo"lib\ffi-callbacks.obj" callbacks.c
 lib.exe .\lib\ffi-callbacks.obj
 ```
 
-Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc` on MacOS/FreeBSD/Linux and `ponyc.exe --path .\lib` on Windows. You should see content building the necessary packages, which ends with:
+Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc` on Unix  and `ponyc.exe --path .\lib` on Windows. You should see content building the necessary packages, which ends with:
 
 ```console
 ...

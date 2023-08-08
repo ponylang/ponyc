@@ -10,7 +10,6 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 ### Operating Systems
 
-* FreeBSD
 * Linux
 * macOS (Apple Silicon only)
 * Windows 10
@@ -22,6 +21,13 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 * Partial support for 32-bit platforms
   * The `arm` and `armhf` architectures are tested via CI (Continuous
     Integration testing)
+
+## Best effort platforms
+
+Best effort platforms mean that there is support for the platform in the codebase but, we don't have any testing for the platform. We won't intentionally break a best-effort platform or remove support for it from the codebase, at the same time, we do make no effort to maintain it. When you go build a "best effort platform" from source, you might find it doesn't build. We welcome thoughtful pull requests to bring the platform up-to-date.
+
+* DragonFlyBSD (x86 only)
+* FreeBSD (x86 only)
 
 ## More Information
 
