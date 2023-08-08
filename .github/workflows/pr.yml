@@ -2,6 +2,10 @@ name: PR
 
 on: pull_request
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   superlinter:
     name: Lint bash, docker, markdown, and yaml
