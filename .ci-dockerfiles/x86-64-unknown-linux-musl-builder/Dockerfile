@@ -21,6 +21,6 @@ RUN apk update \
 && pip install cloudsmith-cli
 
 # add user pony in order to not run tests as root
-RUN adduser -D -s /bin/sh -h /home/pony -g root pony
+RUN adduser -D -u 1001 -s /bin/sh -h /home/pony -g root pony
 USER pony
 WORKDIR /home/pony
