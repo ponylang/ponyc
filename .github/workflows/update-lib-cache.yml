@@ -18,6 +18,7 @@ jobs:
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230807
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
           - image: ponylang/ponyc-ci-cross-riscv64:20230808
+          - image: ponylang/ponyc-ci-cross-arm:20230809
 
     name: ${{ matrix.image }}
     container:
