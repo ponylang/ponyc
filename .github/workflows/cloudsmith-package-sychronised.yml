@@ -20,7 +20,7 @@ jobs:
     name: Build latest GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3S
+      - uses: actions/checkout@v3
       - name: Docker login
         run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
         env:
