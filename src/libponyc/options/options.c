@@ -13,6 +13,7 @@
 #include "../libponyrt/mem/pool.h"
 #include <platform.h>
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
