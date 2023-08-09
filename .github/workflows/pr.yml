@@ -135,6 +135,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Install Dependencies
+        run: |
+          C:\msys2.exe -y -oC:\; Remove-Item msys2.exe; function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
