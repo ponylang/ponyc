@@ -38,7 +38,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-latest-musl-docker-image:
     if: |
@@ -66,7 +66,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-latest-windows-docker-image:
     if: |
@@ -94,7 +94,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-release-gnu-docker-image:
     if: |
@@ -215,7 +215,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-and-push-stdlib-documentation:
     needs:
@@ -287,7 +287,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   send-musl-nightly-release-event:
     needs: [build-latest-musl-docker-image]
@@ -318,7 +318,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   send-windows-nightly-release-event:
     needs: [build-latest-windows-docker-image]
@@ -348,7 +348,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   send-musl-release-event:
     needs: [build-release-musl-docker-image]
