@@ -137,6 +137,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Install Dependencies
         run: |
+          wget "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe" -outfile "C:\msys2.exe"
           C:\msys2.exe -y -oC:\; Remove-Item msys2.exe; function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
       - name: Restore Libs Cache
         id: restore-libs
