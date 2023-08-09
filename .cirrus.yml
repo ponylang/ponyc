@@ -144,37 +144,6 @@ task:
   release_test_script:
     - ps: .\make.ps1 -Command test -Config Release -Uselldb yes
 
-task:
-  only_if: $CIRRUS_PR != ''
-
-  container:
-    image: ponylang/ponyc-ci-cross-armhf:20230115
-    cpu: 8
-    memory: 6
-
-  environment:
-    IMAGE: ponylang/ponyc-ci-cross-armhf:20230115
-
-  name: "armhf Linux glibc"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  configure_script:
-    - make configure
-  build_script:
-    - make build
-  test_script:
-    - make test-ci usedebugger=lldb
-  libponyrt_cross_script:
-    - make cross-libponyrt CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-  test_stdlib_cross_script:
-    - make test-cross-ci PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
-
 #
 # Nightly build tasks
 #
