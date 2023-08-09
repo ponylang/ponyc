@@ -128,3 +128,52 @@ jobs:
         run: make build config=release
       - name: Test with Release Runtime
         run: make test-ci config=release usedebugger='${{ matrix.debugger }}'
+
+  riscv64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-cross-riscv64:20230808
+            name: riscv64 Linux glibc
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Configure Debug Runtime
+        run: make configure config=debug
+      - name: Build Debug Runtime
+        run: make build config=debug
+      - name: Build Debug Cross-Compiled Runtime
+        run: make cross-libponyrt config=debug CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
+      - name: Test with Debug Cross-Compiled Runtime
+        run: make test-cross-ci config=debug PONYPATH=../rv64gc/debug cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_linker=riscv64-linux-gnu-gcc-10 cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c --link-ldcmd=bfd' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+      - name: Configure Release Runtime
+        run: make configure config=release
+      - name: Build Release Runtime
+        run: make build config=release
+      - name: Build Release Cross-Compiled Runtime
+        run: make cross-libponyrt config=release CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
+      - name: Test with Release Cross-Compiled Runtime
+        run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_linker=riscv64-linux-gnu-gcc-10 cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c --link-ldcmd=bfd' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"

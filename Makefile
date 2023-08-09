@@ -203,7 +203,7 @@ test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release 
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: debuggercmd=
-test-cross-ci: test-stdlib-debug test-stdlib-release
+test-cross-ci: test-core test-stdlib-debug test-stdlib-release test-examples
 
 test-check-version: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --version
