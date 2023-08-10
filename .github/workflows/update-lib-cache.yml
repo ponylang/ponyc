@@ -2,8 +2,9 @@ name: Update lib cache
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 21 * * *"
+  push:
+    branches:
+      - main
 
 concurrency:
   group: "update-lib-cache"
