@@ -68,10 +68,10 @@ jobs:
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
-      - name: Configure Debug Runtime
-        run: make configure config=debug
       - name: Build Debug Runtime
-        run: make build config=debug
+        run: |
+          make configure config=debug
+          make build config=debug
       - name: Run Stress Test
         run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
       - name: Send alert on failure
