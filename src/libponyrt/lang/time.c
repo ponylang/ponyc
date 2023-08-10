@@ -1,6 +1,7 @@
 #include <platform.h>
 #include <pony.h>
 #include <time.h>
+#include <stdlib.h>
 #include <string.h>
 
 PONY_EXTERN_C_BEGIN
