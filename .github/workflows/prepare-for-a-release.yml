@@ -2,7 +2,7 @@ name: Prepare for a release
 
 on:
   push:
-    tags: release-\d+.\d+.\d+
+    tags: 'release-[0-9]+.[0-9]+.[0-9]+'
 
 concurrency: prepare-for-a-release
 

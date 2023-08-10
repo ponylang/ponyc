@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -106,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -125,7 +125,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
