@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Check workflow files
-        uses: ponylang/shared-docker-ci-actionlint:20230810
+        uses: docker://ponylang/shared-docker-ci-actionlint:20230810
         with:
           args: -color
 
