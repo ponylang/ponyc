@@ -2,7 +2,7 @@ name: Cirrus CI failures
 
 on:
   check_run:
-    types: ['completed']
+    type: ['completed']
 
 jobs:
   log-event:
