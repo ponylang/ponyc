@@ -136,6 +136,7 @@ jobs:
           make build config=debug
       - name: Build Debug Cross-Compiled Runtime
         run: make cross-libponyrt config=debug CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a cross_cflags="-march=armv8-a -mtune=cortex-a53" cross_lflags="-O3;-march=aarch64"
+      - name: Run Stress Test
         run: make ${{ matrix.target }} config=debug PONYPATH=../armv8-a/debug cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"
       - name: Send alert on failure
         if: ${{ failure() }}
