@@ -319,52 +319,6 @@ task:
 
   timeout_in: 120m
 
-  arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-    cpu: 8
-    memory: 4
-
-  matrix:
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [release]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-release
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [debug]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-debug
-      depends_on:
-        - "Stress Test: aarch64-unknown-linux-ubuntu22.04 [release]"
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-with-cd-release
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [cd] [debug]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-with-cd-debug
-      depends_on:
-        - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  configure_script:
-    - make configure arch=armv8-a config=debug
-  build_script:
-    - make build config=debug
-  stress_test_script:
-    - make ${TARGET} config=debug
-
-task:
-  only_if: $CIRRUS_CRON == "stress"
-
-  timeout_in: 120m
-
   macos_instance:
     image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
 
