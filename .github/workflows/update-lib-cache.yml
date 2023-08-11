@@ -41,3 +41,20 @@ jobs:
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+
+  x86_64-macos:
+    runs-on: macos-13
+
+    name: x86-64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v3
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
