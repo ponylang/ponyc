@@ -23,6 +23,7 @@ jobs:
           - image: ponylang/ponyc-ci-cross-riscv64:20230808
           - image: ponylang/ponyc-ci-cross-arm:20230809
           - image: ponylang/ponyc-ci-cross-armhf:20230809
+          - image: ponylang/ponyc-ci-cross-aarch64:20230811
 
     name: ${{ matrix.image }}
     container:

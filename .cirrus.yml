@@ -1,42 +1,6 @@
 #
 # Pull Request Tasks
 #
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  timeout_in: 120m
-
-  arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-    cpu: 8
-    memory: 16
-
-  environment:
-    IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-
-  name: "aarch64 Linux glibc"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  debug_configure_script:
-    - make configure arch=armv8-a config=debug
-  debug_build_script:
-    - make build config=debug
-  debug_test_script:
-    - make test-ci config=debug
-  release_configure_script:
-    - make configure arch=armv8-a config=release
-  release_build_script:
-    - make build config=release
-  release_test_script:
-    - make test-ci config=release
-
 task:
   only_if: $CIRRUS_PR != ''
 
@@ -350,52 +314,6 @@ task:
     - ps: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
 
 # Nightly stress tests using string-message-passewr
-task:
-  only_if: $CIRRUS_CRON == "stress"
-
-  timeout_in: 120m
-
-  arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-    cpu: 8
-    memory: 4
-
-  matrix:
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [release]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-release
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [debug]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-debug
-      depends_on:
-        - "Stress Test: aarch64-unknown-linux-ubuntu22.04 [release]"
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-with-cd-release
-    - name: "Stress Test: aarch64-unknown-linux-ubuntu22.04 [cd] [debug]"
-      environment:
-        IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-        TARGET: test-stress-with-cd-debug
-      depends_on:
-        - "Stress Test: aarch64-unknown-linux-ubuntu20.04 [cd] [release]"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  configure_script:
-    - make configure arch=armv8-a config=debug
-  build_script:
-    - make build config=debug
-  stress_test_script:
-    - make ${TARGET} config=debug
-
 task:
   only_if: $CIRRUS_CRON == "stress"
 
