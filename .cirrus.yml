@@ -1,42 +1,6 @@
 #
 # Pull Request Tasks
 #
-
-task:
-  only_if: $CIRRUS_PR != ''
-
-  timeout_in: 120m
-
-  arm_container:
-    image: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-    cpu: 8
-    memory: 16
-
-  environment:
-    IMAGE: ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu22.04-builder:20220720
-
-  name: "aarch64 Linux glibc"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5sum Makefile` `md5sum CMakeLists.txt` `md5sum lib/CMakeLists.txt` ${IMAGE}"
-    populate_script: make libs build_flags=-j8
-  upload_caches:
-    - libs
-
-  debug_configure_script:
-    - make configure arch=armv8-a config=debug
-  debug_build_script:
-    - make build config=debug
-  debug_test_script:
-    - make test-ci config=debug
-  release_configure_script:
-    - make configure arch=armv8-a config=release
-  release_build_script:
-    - make build config=release
-  release_test_script:
-    - make test-ci config=release
-
 task:
   only_if: $CIRRUS_PR != ''
 
