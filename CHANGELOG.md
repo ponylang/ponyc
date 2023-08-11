@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix broken linking when using a sanitizer ([PR #4393](https://github.com/ponylang/ponyc/pull/4393))
 
 ### Added
 
