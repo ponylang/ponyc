@@ -190,6 +190,9 @@ all: build
 build:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target all -- $(build_flags)
 
+ponyc:
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target ponyc -- $(build_flags)
+
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
 cross-libponyrt:
