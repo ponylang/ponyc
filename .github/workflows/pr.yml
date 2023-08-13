@@ -335,3 +335,45 @@ jobs:
         run: make cross-libponyrt config=release CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a cross_cflags="-march=armv8-a -mtune=cortex-a53" cross_lflags="-O3;-march=aarch64"
       - name: Test with Release Cross-Compiled Runtime
         run: make test-cross-ci config=release PONYPATH=../armv8-a/release cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"
+
+  x86_64-windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Dependencies
+        run: |
+          Invoke-WebRequest -Uri https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe -OutFile C:\msys2.exe
+          C:\msys2.exe -y -oC:\; function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-windows2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-windows2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Configure Debug Runtime
+        run: .\make.ps1 -Command configure -Config Debug -Generator "Visual Studio 17 2022"
+      - name: Build Debug Runtime
+        run: .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
+      - name: Configure Release Runtime
+        run: .\make.ps1 -Command configure -Config Release
+      - name: Build Release Runtime
+        run: .\make.ps1 -Command build -Config Release
+      - name: Test with Release Runtime
+        run: .\make.ps1 -Command test -Config Release -Uselldb yes
