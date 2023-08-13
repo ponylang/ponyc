@@ -76,7 +76,12 @@ endif
 
 srcDir := $(shell dirname '$(subst /Volumes/Macintosh HD/,/,$(realpath $(lastword $(MAKEFILE_LIST))))')
 buildDir := $(srcDir)/build/build_$(config)
-outDir := $(srcDir)/build/$(config)
+
+# get outDir from CMake install file or fall back to default if the file doesn't exist
+outDir := $(subst /libponyrt.tests,,$(shell grep -o -s '$(srcDir)\/build\/$(config).*\/libponyrt.tests' $(buildDir)/cmake_install.cmake))
+ifeq ($(outDir),)
+  outDir := $(srcDir)/build/$(config)
+endif
 
 libsSrcDir := $(srcDir)/lib
 libsBuildDir := $(srcDir)/build/build_libs
@@ -141,6 +146,8 @@ define USE_CHECK
     PONY_USES += -DPONY_USE_RUNTIMESTATS=true
   else ifeq ($1,runtimestats_messages)
     PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
+  else ifeq ($1,pool_memalign)
+    PONY_USES += -DPONY_USE_POOL_MEMALIGN=true
   else
     $$(error ERROR: Unknown use option specified: $1)
   endif
@@ -183,6 +190,9 @@ all: build
 build:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target all -- $(build_flags)
 
+ponyc:
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target ponyc -- $(build_flags)
+
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
 cross-libponyrt:
@@ -196,7 +206,7 @@ test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release 
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: debuggercmd=
-test-cross-ci: test-stdlib-debug test-stdlib-release
+test-cross-ci: test-core test-stdlib-debug test-stdlib-release test-examples
 
 test-check-version: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --version
@@ -237,15 +247,27 @@ test-examples: all
 test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
+test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-release: debuggercmd=
+test-cross-stress-release: test-stress-release
 test-stress-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
+test-cross-stress-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-debug: debuggercmd=
+test-cross-stress-debug: test-stress-debug
 test-stress-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 
+test-cross-stress-with-cd-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-with-cd-release: debuggercmd=
+test-cross-stress-with-cd-release: test-stress-with-cd-release
 test-stress-with-cd-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 
+test-cross-stress-with-cd-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-with-cd-debug: debuggercmd=
+test-cross-stress-with-cd-debug: test-stress-with-cd-debug
 test-stress-with-cd-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 

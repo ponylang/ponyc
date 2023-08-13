@@ -1262,5 +1262,5 @@ bool ponyint_acquire_cycle_detector_critical(pony_actor_t* actor)
 
 void ponyint_release_cycle_detector_critical(pony_actor_t* actor)
 {
-  actor->cycle_detector_critical = 0;
+  atomic_store_explicit(&actor->cycle_detector_critical, 0, memory_order_release);
 }

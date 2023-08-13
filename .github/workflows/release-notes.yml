@@ -8,7 +8,7 @@ on:
       - '**'
     paths-ignore:
       - .release-notes/next-release.md
-      - .release-notes/\d+.\d+.\d+.md
+      - .release-notes/[0-9]+.[0-9]+.[0-9]+.md
 
 jobs:
   release-notes:

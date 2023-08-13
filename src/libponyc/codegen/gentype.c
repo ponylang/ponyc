@@ -66,8 +66,8 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       {
         case TK_INTERFACE:
         case TK_TRAIT:
-          c_t->use_type = c->object_ptr;
-          c_t->mem_type = c->object_ptr;
+          c_t->use_type = c->ptr;
+          c_t->mem_type = c->ptr;
           return true;
 
         default: {}
@@ -149,14 +149,14 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
         }
         else if(name == c->str_Pointer)
         {
-          c_t->use_type = c->void_ptr;
-          c_t->mem_type = c->void_ptr;
+          c_t->use_type = c->ptr;
+          c_t->mem_type = c->ptr;
           return true;
         }
         else if(name == c->str_NullablePointer)
         {
-          c_t->use_type = c->void_ptr;
-          c_t->mem_type = c->void_ptr;
+          c_t->use_type = c->ptr;
+          c_t->mem_type = c->ptr;
           return true;
         }
       }
@@ -164,7 +164,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
       if(t->bare_method == NULL)
       {
         c_t->structure = LLVMStructCreateNamed(c->context, t->name);
-        c_t->structure_ptr = LLVMPointerType(c_t->structure, 0);
+        c_t->structure_ptr = c->ptr;
 
         if(c_t->primitive != NULL)
           c_t->use_type = c_t->primitive;
@@ -173,10 +173,10 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
 
         c_t->mem_type = c_t->use_type;
       } else {
-        c_t->structure = c->void_ptr;
-        c_t->structure_ptr = c->void_ptr;
-        c_t->use_type = c->void_ptr;
-        c_t->mem_type = c->void_ptr;
+        c_t->structure = c->ptr;
+        c_t->structure_ptr = c->ptr;
+        c_t->use_type = c->ptr;
+        c_t->mem_type = c->ptr;
       }
 
       return true;
@@ -191,8 +191,8 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
       // Just a raw object pointer.
-      c_t->use_type = c->object_ptr;
-      c_t->mem_type = c->object_ptr;
+      c_t->use_type = c->ptr;
+      c_t->mem_type = c->ptr;
       return true;
 
     default: {}
@@ -301,11 +301,11 @@ static void make_box_type(compile_t* c, reach_type_t* t)
   c_t->structure = LLVMStructCreateNamed(c->context, box_name);
 
   LLVMTypeRef elements[2];
-  elements[0] = LLVMPointerType(c_t->desc_type, 0);
+  elements[0] = c->ptr;
   elements[1] = c_t->mem_type;
   LLVMStructSetBody(c_t->structure, elements, 2, false);
 
-  c_t->structure_ptr = LLVMPointerType(c_t->structure, 0);
+  c_t->structure_ptr = c->ptr;
 }
 
 static void make_global_instance(compile_t* c, reach_type_t* t)
@@ -341,7 +341,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
   // Create a dispatch function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   const char* dispatch_name = genname_dispatch(t->name);
-  c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type, true);
+  c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_fn, true);
   LLVMSetFunctionCallConv(c_t->dispatch_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->dispatch_fn, LLVMExternalLinkage);
   codegen_startfun(c, c_t->dispatch_fn, NULL, NULL, NULL, false);
@@ -350,8 +350,9 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
 
   // Read the message ID.
   LLVMValueRef msg = LLVMGetParam(c_t->dispatch_fn, 2);
-  LLVMValueRef id_ptr = LLVMBuildStructGEP_P(c->builder, msg, 1, "");
-  LLVMValueRef id = LLVMBuildLoad_P(c->builder, id_ptr, "id");
+  LLVMValueRef id_ptr = LLVMBuildStructGEP2(c->builder, c->msg_type, msg, 1, "");
+  LLVMTypeRef id_type = LLVMStructGetTypeAtIndex(c->msg_type, 1);
+  LLVMValueRef id = LLVMBuildLoad2(c->builder, id_type, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we
   // will add cases to this switch statement based on message ID.
@@ -434,7 +435,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
   // Create the type descriptor as element 0.
   if(extra > 0)
-    elements[0] = LLVMPointerType(c_t->desc_type, 0);
+    elements[0] = c->ptr;
 
   // Create the actor pad as element 1.
   if(extra > 1)
@@ -653,12 +654,11 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   LLVMSetLinkage(c_t->trace_fn, LLVMExternalLinkage);
 
   LLVMValueRef ctx = LLVMGetParam(c_t->trace_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(c_t->trace_fn, 1);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, c_t->structure_ptr,
-    "object");
+  LLVMValueRef object = LLVMGetParam(c_t->trace_fn, 1);
 
   int extra = 0;
 
+  LLVMTypeRef structure = c_t->structure;
   switch(t->underlying)
   {
     case TK_CLASS:
@@ -671,7 +671,8 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
     case TK_TUPLETYPE:
       // Skip over the box's descriptor now. It avoids multi-level GEPs later.
-      object = LLVMBuildStructGEP_P(c->builder, object, 1, "");
+      object = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 1, "");
+      structure = c_t->primitive;
       break;
 
     default: {}
@@ -681,13 +682,13 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   {
     reach_field_t* f = &t->fields[i];
     compile_type_t* f_c_t = (compile_type_t*)f->type->c_type;
-    LLVMValueRef field = LLVMBuildStructGEP_P(c->builder, object, i + extra,
-      "");
+    LLVMValueRef field = LLVMBuildStructGEP2(c->builder, structure, object,
+      i + extra, "");
 
     if(!f->embed)
     {
       // Call the trace function indirectly depending on rcaps.
-      field = LLVMBuildLoad_P(c->builder, field, "");
+      field = LLVMBuildLoad2(c->builder, f_c_t->mem_type, field, "");
       ast_t* field_type = f->ast;
       field = gen_assign_cast(c, f_c_t->use_type, field, field_type);
       gentrace(c, ctx, field, field, field_type, field_type);
@@ -697,11 +698,12 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
       if(trace_fn != NULL)
       {
+        LLVMTypeRef trace_fn_type = LLVMGlobalGetValueType(trace_fn);
         LLVMValueRef args[2];
         args[0] = ctx;
-        args[1] = LLVMBuildBitCast(c->builder, field, c->object_ptr, "");
+        args[1] = field;
 
-        LLVMBuildCall_P(c->builder, trace_fn, args, 2, "");
+        LLVMBuildCall2(c->builder, trace_fn_type, trace_fn, args, 2, "");
       }
     }
   }

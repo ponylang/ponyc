@@ -142,7 +142,7 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   void name##_removeindex(name_t* map, size_t index); \
   void name##_clearindex(name_t* map, size_t index); \
   size_t name##_size(name_t* map); \
-  double name##_fill_ratio(hashmap_t* map); \
+  double name##_fill_ratio(name_t* map); \
   size_t name##_mem_size(name_t* map); \
   size_t name##_alloc_size(name_t* map); \
   type* name##_next(name_t* map, size_t* i); \
@@ -210,7 +210,7 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   { \
     return ponyint_hashmap_size((hashmap_t*)map); \
   } \
-  double name##_fill_ratio(hashmap_t* map) \
+  double name##_fill_ratio(name_t* map) \
   { \
     return ponyint_hashmap_fill_ratio((hashmap_t*)map); \
   } \
@@ -251,7 +251,6 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
     sizeof(name_t), \
     0, \
     0, \
-    0, \
     NULL, \
     NULL, \
     name##_serialise_trace, \
@@ -261,6 +260,7 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
     NULL, \
     NULL, \
     NULL, \
+    0, \
     0, \
     NULL, \
     NULL, \

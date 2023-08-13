@@ -20,9 +20,9 @@ jobs:
     name: Build latest GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -30,7 +30,7 @@ jobs:
         run: bash .dockerfiles/latest/x86-64-unknown-linux-gnu/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -38,7 +38,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-latest-musl-docker-image:
     if: |
@@ -48,9 +48,9 @@ jobs:
     name: Build latest musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -58,7 +58,7 @@ jobs:
         run: bash .dockerfiles/latest/x86-64-unknown-linux-musl/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -66,7 +66,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-latest-windows-docker-image:
     if: |
@@ -76,7 +76,7 @@ jobs:
     name: Build latest Windows Docker image
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker login
         run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
         env:
@@ -86,7 +86,7 @@ jobs:
         run: .dockerfiles/latest/x86-64-pc-windows-msvc/build-and-push.ps1
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -94,7 +94,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-release-gnu-docker-image:
     if: |
@@ -104,9 +104,9 @@ jobs:
     name: Build release GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -123,9 +123,9 @@ jobs:
     name: Build release musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -142,7 +142,7 @@ jobs:
     name: Build release Windows Docker image
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker login
         run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
         env:
@@ -175,7 +175,7 @@ jobs:
     name: Update stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -194,7 +194,7 @@ jobs:
     name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -207,7 +207,7 @@ jobs:
           MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -215,7 +215,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   build-and-push-stdlib-documentation:
     needs:
@@ -252,7 +252,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -274,12 +274,12 @@ jobs:
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -287,7 +287,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   send-musl-nightly-release-event:
     needs: [build-latest-musl-docker-image]
@@ -295,6 +295,7 @@ jobs:
     name: Send musl nightly release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/library-documentation-action-v2
@@ -309,7 +310,7 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -317,7 +318,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   send-windows-nightly-release-event:
     needs: [build-latest-windows-docker-image]
@@ -325,6 +326,7 @@ jobs:
     name: Send windows nightly release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/corral
@@ -338,7 +340,7 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -346,7 +348,7 @@ jobs:
           to: notifications
           type: stream
           topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
 
   send-musl-release-event:
     needs: [build-release-musl-docker-image]
@@ -354,6 +356,7 @@ jobs:
     name: Send release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/library-documentation-action

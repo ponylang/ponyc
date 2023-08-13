@@ -31,21 +31,6 @@ void LLVMSetMetadataStr(LLVMValueRef val, const char* str, LLVMValueRef node);
 void LLVMMDNodeReplaceOperand(LLVMValueRef parent, unsigned i,
   LLVMValueRef node);
 
-// These are copies of the original LLVM functions which are now deprecated
-LLVMValueRef LLVMBuildStructGEP_P(LLVMBuilderRef B, LLVMValueRef Pointer,
-  unsigned Idx, const char *Name);
-LLVMValueRef LLVMConstInBoundsGEP_P(LLVMValueRef ConstantVal,
-  LLVMValueRef *ConstantIndices, unsigned NumIndices);
-LLVMValueRef LLVMBuildInBoundsGEP_P(LLVMBuilderRef B, LLVMValueRef Pointer,
-  LLVMValueRef *Indices, unsigned NumIndices, const char *Name);
-LLVMValueRef LLVMBuildLoad_P(LLVMBuilderRef B, LLVMValueRef PointerVal,
-  const char *Name);
-LLVMValueRef LLVMBuildCall_P(LLVMBuilderRef B, LLVMValueRef Fn,
-  LLVMValueRef *Args, unsigned NumArgs, const char *Name);
-LLVMValueRef LLVMBuildInvoke_P(LLVMBuilderRef B, LLVMValueRef Fn,
-  LLVMValueRef *Args, unsigned NumArgs, LLVMBasicBlockRef Then,
-  LLVMBasicBlockRef Catch, const char *Name);
-
 // Intrinsics.
 LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
@@ -200,20 +185,14 @@ typedef struct compile_t
   LLVMTypeRef f64;
   LLVMTypeRef intptr;
 
-  LLVMTypeRef void_ptr;
+  LLVMTypeRef ptr;
   LLVMTypeRef descriptor_type;
-  LLVMTypeRef descriptor_ptr;
   LLVMTypeRef field_descriptor;
   LLVMTypeRef object_type;
-  LLVMTypeRef object_ptr;
   LLVMTypeRef msg_type;
-  LLVMTypeRef msg_ptr;
   LLVMTypeRef actor_pad;
-  LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
-  LLVMTypeRef serialise_type;
   LLVMTypeRef serialise_fn;
-  LLVMTypeRef dispatch_type;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
   LLVMTypeRef custom_serialise_space_fn;
@@ -288,8 +267,8 @@ LLVMValueRef codegen_fun(compile_t* c);
 
 LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
-LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  size_t count, bool setcc);
+LLVMValueRef codegen_call(compile_t* c, LLVMTypeRef fun_type, LLVMValueRef fun,
+  LLVMValueRef* args, size_t count, bool setcc);
 
 LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len);
 

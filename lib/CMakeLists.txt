@@ -54,7 +54,7 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "1f9140064dfbfb0bbda8e51306ea51080b2f7aac")
+set(LLVM_DESIRED_HASH "8dfdcc7b7bf66834a761bd8de445840ef68e4d1a")
 set(PATCHES_DESIRED_HASH "3e16c097794cb669a8f6a0bd7600b440205ac5c29a6135750c2e83263eb16a95")
 
 if(GIT_FOUND)
@@ -140,6 +140,7 @@ set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cach
 set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_ZLIB OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_ENABLE_ZSTD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_LIBXML2 OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")

@@ -10,15 +10,15 @@
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/DebugInfo.h>
 
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Analysis/CallGraph.h>
-#include <llvm/Analysis/Lint.h>
-#include <llvm/Analysis/TargetLibraryInfo.h>
-#include <llvm/Analysis/TargetTransformInfo.h>
+#include <llvm/IR/PassManager.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Passes/OptimizationLevel.h>
+#include <llvm/Passes/PassBuilder.h>
 
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/Analysis/Lint.h>
 #include <llvm/Transforms/IPO.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <llvm/Transforms/IPO/StripSymbols.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/ADT/SmallSet.h>
 
@@ -31,8 +31,6 @@
 
 using namespace llvm;
 using namespace llvm::legacy;
-
-static __pony_thread_local compile_t* the_compiler;
 
 static void print_transform(compile_t* c, Instruction* i, const char* s)
 {
@@ -77,20 +75,20 @@ static void print_transform(compile_t* c, Instruction* i, const char* s)
   }
 }
 
-class HeapToStack : public FunctionPass
+// Pass to move Pony heap allocations to the stack.
+class HeapToStack : public PassInfoMixin<HeapToStack>
 {
 public:
-  static char ID;
   compile_t* c;
 
-  HeapToStack() : FunctionPass(ID)
+  HeapToStack(compile_t* compiler) : PassInfoMixin<HeapToStack>()
   {
-    c = the_compiler;
+    c = compiler;
   }
 
-  bool runOnFunction(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
-    DominatorTree& dt = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+    DominatorTree& dt = am.getResult<DominatorTreeAnalysis>(f);
     BasicBlock& entry = f.getEntryBlock();
     IRBuilder<> builder(&entry, entry.begin());
 
@@ -107,7 +105,7 @@ public:
       }
     }
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
@@ -237,6 +235,28 @@ public:
         case Instruction::Call:
         case Instruction::Invoke:
         {
+          // Record any calls that are tail calls so they can be marked as
+          // "tail false" if we do a HeapToStack change. Accessing `alloca`
+          // memory from a call that is marked as "tail" is unsafe and can
+          // result in incorrect optimizations down the road.
+          //
+          // See: https://github.com/ponylang/ponyc/issues/4340
+          //
+          // Technically we don't need to do this for every call, just calls
+          // that touch alloca'd memory. However, without doing some alias
+          // analysis at this point, our next best bet is to simply mark
+          // every call as "not tail" if we do any HeapToStack change. It's
+          // "the safest" thing to do.
+          //
+          // N.B. the contents of the `tail` list will only be set to
+          // "tail false" if we return `true` from this `canStackAlloc`
+          // function.
+          auto ci = dyn_cast<CallInst>(inst);
+          if (ci && ci->isTailCall())
+          {
+            tail.push_back(ci);
+          }
+
           auto call_base = dyn_cast<CallBase>(inst);
           if (!call_base)
           {
@@ -276,12 +296,6 @@ public:
                 print_transform(c, alloc, "captured allocation");
                 print_transform(c, inst, "captured here (call arg)");
                 return false;
-              }
-
-              auto ci = dyn_cast<CallInst>(inst);
-              if (ci && ci->isTailCall())
-              {
-                tail.push_back(ci);
               }
             }
           }
@@ -456,34 +470,21 @@ public:
   }
 };
 
-char HeapToStack::ID = 0;
-
-static RegisterPass<HeapToStack>
-  H2S("heap2stack", "Move heap allocations to the stack");
-
-static void addHeapToStackPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2) {
-    pm.add(new DominatorTreeWrapperPass());
-    pm.add(new HeapToStack());
-  }
-}
-
-class DispatchPonyCtx : public FunctionPass
+// Pass to replace pony_ctx calls in a dispatch function by the context passed
+// to the function.
+class DispatchPonyCtx : public PassInfoMixin<DispatchPonyCtx>
 {
 public:
-  static char ID;
 
-  DispatchPonyCtx() : FunctionPass(ID)
+  DispatchPonyCtx() : PassInfoMixin<DispatchPonyCtx>()
   {}
 
-  bool runOnFunction(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
     // Check if we're in a Dispatch function.
     StringRef name = f.getName();
     if(name.size() < 10 || name.rfind("_Dispatch") != name.size() - 9)
-      return false;
+      return PreservedAnalyses::all();
 
     pony_assert(f.arg_size() > 0);
 
@@ -502,7 +503,7 @@ public:
       }
     }
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnInstruction(Instruction* inst, Value* ctx)
@@ -528,380 +529,8 @@ public:
   }
 };
 
-char DispatchPonyCtx::ID = 1;
-
-static RegisterPass<DispatchPonyCtx>
-  DPC("dispatchponyctx", "Replace pony_ctx calls in a dispatch function by the\
-                          context passed to the function");
-
-static void addDispatchPonyCtxPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2)
-    pm.add(new DispatchPonyCtx());
-}
-
-class MergeRealloc : public FunctionPass
-{
-public:
-  static char ID;
-  compile_t* c;
-  Function* alloc_fn;
-  Function* alloc_small_fn;
-  Function* alloc_large_fn;
-
-  MergeRealloc() : FunctionPass(ID)
-  {
-    c = the_compiler;
-    alloc_fn = NULL;
-    alloc_small_fn = NULL;
-    alloc_large_fn = NULL;
-  }
-
-  bool doInitialization(Module& m)
-  {
-    alloc_fn = m.getFunction("pony_alloc");
-    alloc_small_fn = m.getFunction("pony_alloc_small");
-    alloc_large_fn = m.getFunction("pony_alloc_large");
-
-    if(alloc_fn == NULL)
-      alloc_fn = declareAllocFunction(m, "pony_alloc", unwrap(c->intptr),
-        HEAP_MIN, true);
-
-    if(alloc_small_fn == NULL)
-      alloc_small_fn = declareAllocFunction(m, "pony_alloc_small",
-        unwrap(c->i32), HEAP_MIN, false);
-
-    if(alloc_large_fn == NULL)
-      alloc_large_fn = declareAllocFunction(m, "pony_alloc_large",
-        unwrap(c->intptr), HEAP_MAX << 1, false);
-
-    return false;
-  }
-
-  bool runOnFunction(Function& f)
-  {
-    BasicBlock& entry = f.getEntryBlock();
-    IRBuilder<> builder(&entry, entry.begin());
-
-    bool changed = false;
-    SmallVector<Instruction*, 16> new_allocs;
-    SmallVector<Instruction*, 16> removed;
-
-    for(auto block = f.begin(), end = f.end(); block != end; ++block)
-    {
-      for(auto iter = block->begin(), end = block->end(); iter != end; ++iter)
-      {
-        Instruction* inst = &(*iter);
-
-        if(runOnInstruction(builder, inst, new_allocs, removed))
-          changed = true;
-      }
-    }
-
-    while(!new_allocs.empty())
-    {
-      // If we get here, changed is already true
-      Instruction* inst = new_allocs.pop_back_val();
-      runOnInstruction(builder, inst, new_allocs, removed);
-    }
-
-    for(auto elt : removed)
-      elt->eraseFromParent();
-
-    return changed;
-  }
-
-  bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
-    SmallVector<Instruction*, 16>& new_allocs,
-    SmallVector<Instruction*, 16>& removed)
-  {
-    if(std::find(removed.begin(), removed.end(), inst) != removed.end())
-      return false;
-
-    auto call_base = dyn_cast<CallBase>(inst);
-    if (!call_base)
-    {
-      return false;
-    }
-
-    CallBase& call = *call_base;
-    Function* fun = call.getCalledFunction();
-
-    if(fun == NULL)
-      return false;
-
-    int alloc_type;
-
-    if(call.arg_size() < 2)
-      return false;
-
-    Value* arg0 = call.getArgOperand(0);
-    Value* arg1 = call.getArgOperand(1);
-
-    if(fun->getName().compare("pony_alloc") == 0)
-    {
-      alloc_type = 0;
-    } else if(fun->getName().compare("pony_alloc_small") == 0) {
-      alloc_type = 1;
-    } else if(fun->getName().compare("pony_alloc_large") == 0) {
-      alloc_type = -1;
-    } else if(fun->getName().compare("pony_realloc") == 0) {
-      Value* arg2 = call.getArgOperand(2);
-      Value* old_ptr = arg1;
-
-      if(dyn_cast_or_null<ConstantPointerNull>(old_ptr) == NULL)
-        return false;
-
-      Value* new_size = arg2;
-
-      builder.SetInsertPoint(inst);
-      Value* replace = mergeNoOp(builder, arg0, new_size);
-      new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
-      inst->replaceAllUsesWith(replace);
-      removed.push_back(inst);
-
-      return true;
-    } else {
-      return false;
-    }
-
-    Value* old_size = arg1;
-    ConstantInt* old_int_size = dyn_cast_or_null<ConstantInt>(old_size);
-
-    CallInst* realloc = findRealloc(inst);
-    Value* replace;
-
-    if(old_int_size == NULL)
-    {
-      if(realloc == NULL || !isZeroRealloc(realloc))
-        return false;
-
-      do
-      {
-        realloc->replaceAllUsesWith(inst);
-        realloc->eraseFromParent();
-        realloc = findRealloc(inst);
-      } while(realloc != NULL && isZeroRealloc(realloc));
-
-      return true;
-    } else {
-      // Alloc sizes always fit in size_t. We can safely cast.
-      size_t old_alloc_size = (size_t)old_int_size->getZExtValue();
-
-      if(realloc == NULL)
-      {
-        if(alloc_type != 0)
-          return false;
-
-        // Not realloc'd, but we can still turn a generic allocation into a
-        // small/large one.
-        builder.SetInsertPoint(inst);
-        replace = mergeConstant(builder, arg0, old_alloc_size);
-      } else {
-        Value* new_size = realloc->getArgOperand(2);
-
-        if(alloc_type > 0) // Small allocation.
-          old_alloc_size = ((size_t)1) << (old_alloc_size + HEAP_MINBITS);
-
-        ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
-
-        if(new_int_size == NULL)
-        {
-          if(old_alloc_size != 0)
-            return false;
-
-          builder.SetInsertPoint(realloc);
-          replace = mergeNoOp(builder, arg0, new_size);
-          new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
-        } else {
-          size_t new_alloc_size = (size_t)new_int_size->getZExtValue();
-          new_alloc_size = std::max(old_alloc_size, new_alloc_size);
-
-          replace = mergeReallocChain(builder, call, &realloc, new_alloc_size,
-            new_allocs);
-        }
-
-        realloc->replaceAllUsesWith(replace);
-        realloc->eraseFromParent();
-      }
-    }
-
-    inst->replaceAllUsesWith(replace);
-    removed.push_back(inst);
-
-    return true;
-  }
-
-  CallInst* findRealloc(Instruction* alloc)
-  {
-    CallInst* realloc = NULL;
-    for(auto iter = alloc->use_begin(), end = alloc->use_end();
-      iter != end; ++iter)
-    {
-      Use* use = &(*iter);
-      CallInst* call = dyn_cast_or_null<CallInst>(use->getUser());
-
-      if(call == NULL)
-        continue;
-
-      Function* fun = call->getCalledFunction();
-
-      if(fun == NULL)
-        continue;
-
-      if(fun->getName().compare("pony_realloc") == 0)
-      {
-        if(realloc != NULL)
-        {
-          // TODO: Handle more than one realloc path (caused by conditionals).
-          return NULL;
-        }
-        realloc = call;
-      }
-    }
-
-    return realloc;
-  }
-
-  Value* mergeReallocChain(IRBuilder<>& builder,
-    CallBase & alloc,
-    CallInst** last_realloc, size_t alloc_size,
-    SmallVector<Instruction*, 16>& new_allocs)
-  {
-    Value* arg0 = alloc.getArgOperand(0);
-
-    auto inst = static_cast<Instruction *>(&alloc);
-    if (inst)
-    {
-      builder.SetInsertPoint(inst);
-    }
-    Value* replace = mergeConstant(builder, arg0, alloc_size);
-
-    while(alloc_size == 0)
-    {
-      // replace is a LLVM null pointer here. We have to handle any realloc
-      // chain before losing call use information.
-
-      CallInst* next_realloc = findRealloc(*last_realloc);
-      if(next_realloc == NULL)
-        break;
-
-      Value* new_size = next_realloc->getArgOperand(2);
-      ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
-
-      if(new_int_size == NULL)
-      {
-        builder.SetInsertPoint(next_realloc);
-        replace = mergeNoOp(builder, arg0, new_size);
-        alloc_size = 1;
-      } else {
-        alloc_size = (size_t)new_int_size->getZExtValue();
-
-        builder.SetInsertPoint(*last_realloc);
-        replace = mergeConstant(builder, arg0, alloc_size);
-      }
-
-      new_allocs.push_back(reinterpret_cast<Instruction*>(replace));
-      (*last_realloc)->replaceAllUsesWith(replace);
-      (*last_realloc)->eraseFromParent();
-      *last_realloc = next_realloc;
-    }
-
-    return replace;
-  }
-
-  Value* mergeNoOp(IRBuilder<>& builder, Value* ctx, Value* size)
-  {
-    Value* args[2];
-    args[0] = ctx;
-    args[1] = size;
-
-    CallInst* inst = builder.CreateCall(alloc_fn, ArrayRef<Value*>(args, 2));
-    inst->setTailCall();
-    return inst;
-  }
-
-  Value* mergeConstant(IRBuilder<>& builder, Value* ctx, size_t size)
-  {
-    Function* used_alloc_fn;
-    IntegerType* int_type;
-
-    if(size == 0)
-    {
-      return ConstantPointerNull::get(builder.getInt8PtrTy());
-    } else if(size <= HEAP_MAX) {
-      used_alloc_fn = alloc_small_fn;
-      int_type = unwrap<IntegerType>(c->i32);
-      size = ponyint_heap_index(size);
-    } else {
-      used_alloc_fn = alloc_large_fn;
-      int_type = unwrap<IntegerType>(c->intptr);
-    }
-
-    Value* args[2];
-    args[0] = ctx;
-    args[1] = ConstantInt::get(int_type, size);
-
-    CallInst* inst = builder.CreateCall(used_alloc_fn,
-      ArrayRef<Value*>(args, 2));
-    inst->setTailCall();
-    return inst;
-  }
-
-  Function* declareAllocFunction(Module& m, std::string const& name,
-    Type* size_type, size_t min_size, bool can_be_null)
-  {
-    Type* params[2];
-    params[0] = unwrap(c->void_ptr);
-    params[1] = size_type;
-
-    FunctionType* fn_type = FunctionType::get(unwrap(c->void_ptr),
-      ArrayRef<Type*>(params, 2), false);
-    Function* fn = Function::Create(fn_type, Function::ExternalLinkage, name,
-      &m);
-
-    fn->addFnAttr(Attribute::NoUnwind);
-    fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
-
-    AttrBuilder attrs(m.getContext());
-    if(can_be_null)
-      attrs.addDereferenceableOrNullAttr(min_size);
-    else
-      attrs.addDereferenceableAttr(min_size);
-    attrs.addAlignmentAttr(target_is_ilp32(c->opt->triple) ? 4 : 8);
-    fn->addRetAttrs(attrs);
-
-    return fn;
-  }
-
-  bool isZeroRealloc(CallInst* realloc)
-  {
-    Value* new_size = realloc->getArgOperand(2);
-    ConstantInt* new_int_size = dyn_cast_or_null<ConstantInt>(new_size);
-    if(new_int_size == NULL)
-      return false;
-
-    uint64_t new_alloc_size = new_int_size->getZExtValue();
-    if(new_alloc_size != 0)
-      return false;
-    return true;
-  }
-};
-
-char MergeRealloc::ID = 2;
-
-static RegisterPass<MergeRealloc>
-  MR("mergerealloc", "Merge successive reallocations of the same variable");
-
-static void addMergeReallocPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2)
-    pm.add(new MergeRealloc());
-}
-
-class MergeMessageSend : public FunctionPass
+// A pass to group message sends in the same BasicBlock.
+class MergeMessageSend : public PassInfoMixin<MergeMessageSend>
 {
 public:
   struct MsgFnGroup
@@ -916,22 +545,23 @@ public:
     MsgTrace
   };
 
-  static char ID;
   compile_t* c;
   Function* send_next_fn;
   Function* msg_chain_fn;
   Function* sendv_single_fn;
 
-  MergeMessageSend() : FunctionPass(ID)
+  MergeMessageSend(compile_t* compiler) : PassInfoMixin<MergeMessageSend>()
   {
-    c = the_compiler;
+    c = compiler;
     send_next_fn = nullptr;
     msg_chain_fn = nullptr;
     sendv_single_fn = nullptr;
   }
 
-  bool doInitialization(Module& m)
+  void doInitialization(Module& m)
   {
+    if (send_next_fn != NULL) return;
+
     send_next_fn = m.getFunction("pony_send_next");
     msg_chain_fn = m.getFunction("pony_chain");
     sendv_single_fn = m.getFunction("pony_sendv_single");
@@ -942,24 +572,20 @@ public:
     if(msg_chain_fn == NULL)
       msg_chain_fn = declareMsgChainFn(m);
 
-    return false;
+    return;
   }
 
-  bool doInitialization(Function& f)
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
   {
-    (void)f;
-    return false;
-  }
+    doInitialization(*f.getParent());
 
-  bool runOnFunction(Function& f)
-  {
     bool changed = false;
     for (auto block = f.begin(), end = f.end(); block != end; ++block)
     {
       changed = changed || runOnBasicBlock(*block);
     }
 
-    return changed;
+    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
   }
 
   bool runOnBasicBlock(BasicBlock& b)
@@ -1294,7 +920,7 @@ public:
   Function* declareTraceNextFn(Module& m)
   {
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
-      {unwrap(c->void_ptr)}, false);
+      {unwrap(c->ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
 
@@ -1305,7 +931,7 @@ public:
   Function* declareMsgChainFn(Module& m)
   {
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
-      {unwrap(c->msg_ptr), unwrap(c->msg_ptr)}, false);
+      {unwrap(c->ptr), unwrap(c->ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_chain", &m);
 
@@ -1319,75 +945,45 @@ public:
   }
 };
 
-char MergeMessageSend::ID = 3;
-
-static RegisterPass<MergeMessageSend>
-  MMS("mergemessagesend", "Group message sends in the same BasicBlock");
-
-static void addMergeMessageSendPass(const PassManagerBuilder& pmb,
-  PassManagerBase& pm)
-{
-  if(pmb.OptLevel >= 2)
-    pm.add(new MergeMessageSend());
-}
-
 static void optimise(compile_t* c, bool pony_specific)
 {
-  the_compiler = c;
+  // Most of this is the standard ceremony for running standard LLVM passes.
+  // See <https://llvm.org/docs/NewPassManager.html> for details.
 
-  Module* m = unwrap(c->module);
-  TargetMachine* machine = reinterpret_cast<TargetMachine*>(c->machine);
+  PassBuilder PB;
+  LoopAnalysisManager LAM;
+  FunctionAnalysisManager FAM;
+  CGSCCAnalysisManager CGAM;
+  ModuleAnalysisManager MAM;
 
-  llvm::legacy::PassManager lpm;
-  llvm::legacy::PassManager mpm;
-  llvm::legacy::FunctionPassManager fpm(m);
-
-  TargetLibraryInfoImpl tl = TargetLibraryInfoImpl(
-    Triple(m->getTargetTriple()));
-
-  lpm.add(createTargetTransformInfoWrapperPass(
-    machine->getTargetIRAnalysis()));
-
-  mpm.add(new TargetLibraryInfoWrapperPass(tl));
-  mpm.add(createTargetTransformInfoWrapperPass(
-    machine->getTargetIRAnalysis()));
-
-  fpm.add(createTargetTransformInfoWrapperPass(
-    machine->getTargetIRAnalysis()));
-
-  PassManagerBuilder pmb;
-
-  if(c->opt->release)
-  {
-    if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-      fprintf(stderr, "Optimising\n");
-
-    pmb.OptLevel = 3;
-    pmb.Inliner = createFunctionInliningPass(275);
-    pmb.MergeFunctions = true;
-  } else {
-    pmb.OptLevel = 0;
-  }
-
-  pmb.LoopVectorize = true;
-  pmb.SLPVectorize = true;
-  pmb.RerollLoops = true;
-
+  // Wire in the Pony-specific passes if requested.
   if(pony_specific)
   {
-    pmb.addExtension(PassManagerBuilder::EP_Peephole,
-      addMergeReallocPass);
-    pmb.addExtension(PassManagerBuilder::EP_Peephole,
-      addHeapToStackPass);
-    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-      addDispatchPonyCtxPass);
-    pmb.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
-      addMergeMessageSendPass);
+    PB.registerPeepholeEPCallback(
+      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+        if(level.getSpeedupLevel() >= 2) {
+          fpm.addPass(HeapToStack(c));
+        }
+      }
+    );
+    PB.registerScalarOptimizerLateEPCallback(
+      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+        if(level.getSpeedupLevel() >= 2) {
+          fpm.addPass(DispatchPonyCtx());
+          fpm.addPass(MergeMessageSend(c));
+        }
+      }
+    );
   }
 
-  pmb.populateFunctionPassManager(fpm);
-  pmb.populateModulePassManager(mpm);
-  pmb.populateLTOPassManager(lpm);
+  // Add a linting pass at the start, if requested.
+  if (c->opt->lint_llvm) {
+    PB.registerOptimizerEarlyEPCallback(
+      [&](ModulePassManager &mpm, OptimizationLevel level) {
+        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
+      }
+    );
+  }
 
   // There is a problem with optimised debug info in certain cases. This is
   // due to unknown bugs in the way ponyc is generating debug info. When they
@@ -1396,21 +992,33 @@ static void optimise(compile_t* c, bool pony_specific)
   if(c->opt->release)
     c->opt->strip_debug = true;
 
-  if(c->opt->strip_debug)
-    lpm.add(createStripSymbolsPass(true));
+  // Add a debug-info-stripping pass at the end, if requested.
+  if(c->opt->strip_debug) {
+    PB.registerOptimizerLastEPCallback(
+      [&](ModulePassManager &mpm, OptimizationLevel level) {
+        mpm.addPass(StripSymbolsPass());
+      }
+    );
+  }
 
-  if (c->opt->lint_llvm)
-    fpm.add(createLintLegacyPassPass());
+  // Enable the default alias analysis pipeline.
+  FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
 
-  fpm.doInitialization();
+  // Wire in all of the analysis managers.
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-  for(Module::iterator f = m->begin(), end = m->end(); f != end; ++f)
-    fpm.run(*f);
+  // Create the top-level module pass manager using the default LLVM pipeline.
+  // Choose the appropriate optimization level based on if we're in a release.
+  ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+    c->opt->release ? OptimizationLevel::O3 : OptimizationLevel::O1
+  );
 
-  fpm.doFinalization();
-  mpm.run(*m);
-
-  lpm.run(*m);
+  // Run the passes.
+  MPM.run(*unwrap(c->module), MAM);
 }
 
 bool genopt(compile_t* c, bool pony_specific)

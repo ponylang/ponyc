@@ -467,7 +467,7 @@ static trace_t trace_type_dst_cap(trace_t src_trace, trace_t dst_trace,
   }
 }
 
-static void trace_nullable_pointer(compile_t* c, LLVMValueRef ctx, 
+static void trace_nullable_pointer(compile_t* c, LLVMValueRef ctx,
   LLVMValueRef object, ast_t* type)
 {
   // Only trace the element if it isn't NULL.
@@ -494,9 +494,8 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
   LLVMValueRef args[4];
   args[0] = ctx;
-  args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
-  args[2] = LLVMBuildBitCast(c->builder, ((compile_type_t*)t->c_type)->desc,
-    c->descriptor_ptr, "");
+  args[1] = object;
+  args[2] = ((compile_type_t*)t->c_type)->desc;
   args[3] = LLVMConstInt(c->i32, mutability, false);
 
   gencall_runtime(c, "pony_traceknown", args, 4, "");
@@ -507,7 +506,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 {
   LLVMValueRef args[3];
   args[0] = ctx;
-  args[1] = LLVMBuildBitCast(c->builder, object, c->object_ptr, "");
+  args[1] = object;
   args[2] = LLVMConstInt(c->i32, mutability, false);
 
   gencall_runtime(c, "pony_traceunknown", args, 3, "");
@@ -945,7 +944,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
     return;
 
   ((compile_type_t*)t->c_type)->trace_fn = codegen_addfun(c,
-    genname_trace(t->name), c->trace_type, true);
+    genname_trace(t->name), c->trace_fn, true);
 }
 
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,

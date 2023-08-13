@@ -24,7 +24,7 @@ Stack* ponyint_stack_push(Stack* list, void* data);
   name_t* name##_push(name_t* stack, elem* data); \
 
 #define DEFINE_STACK(name, name_t, elem) \
-  struct name_t {}; \
+  struct name_t { Stack contents; }; \
   \
   name_t* name##_pop(name_t* stack, elem** data) \
   { \

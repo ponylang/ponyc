@@ -199,18 +199,13 @@ TEST_F(CodegenTest, DescTable)
     // Check that for each element of the table, `desc_table[i]->id == i`.
 
     auto table_element = desc_table->getOperand(i);
-    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->descriptor_ptr));
+    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->ptr));
 
     if(table_element->isNullValue())
       continue;
 
-    auto elt_bitcast = llvm::dyn_cast_or_null<llvm::ConstantExpr>(
-      table_element);
-    ASSERT_NE(elt_bitcast, nullptr);
-    ASSERT_EQ(elt_bitcast->getOpcode(), llvm::Instruction::BitCast);
-
     auto desc_ptr = llvm::dyn_cast_or_null<llvm::GlobalVariable>(
-      elt_bitcast->getOperand(0));
+      table_element);
     ASSERT_NE(desc_ptr, nullptr);
     ASSERT_TRUE(desc_ptr->hasInitializer());
 

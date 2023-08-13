@@ -1,0 +1,151 @@
+name: Stress tests
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64-unknown-linux-ubuntu22.04 [release]
+            target: test-stress-release
+            debugger: lldb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64-unknown-linux-ubuntu22.04 [debug]
+            target: test-stress-debug
+            debugger: lldb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64-unknown-linux-ubuntu22.04 [cd] [release]
+            target: test-stress-with-cd-release
+            debugger: lldb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+            name: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]
+            target: test-stress-with-cd-debug
+            debugger: lldb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [release]
+            target: test-stress-release
+            debugger: gdb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [debug]
+            target: test-stress-debug
+            debugger: gdb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [cd] [release]
+            target: test-stress-with-cd-release
+            debugger: gdb
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+            name: x86-64-unknown-linux-musl [cd] [debug]
+            target: test-stress-with-cd-debug
+            debugger: gdb
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Run Stress Test
+        run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }} failed.
+
+  aarch64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # these don't currently use a debugger as cross compilation hasn't
+          # been set up to do 'run in debugger'
+          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+            name: aarch64-unknown-linux-ubuntu20.04 [release]
+            target: test-cross-stress-release
+          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+            name: aarch64-unknown-linux-ubuntu20.04 [debug]
+            target: test-cross-stress-debug
+          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+            name: aarch64-unknown-linux-ubuntu20.04 [cd] [release]
+            target: test-cross-stress-with-cd-release
+          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+            name: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]
+            target: test-cross-stress-with-cd-debug
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Build Debug Cross-Compiled Runtime
+        run: make cross-libponyrt config=debug CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a cross_cflags="-march=armv8-a -mtune=cortex-a53" cross_lflags="-O3;-march=aarch64"
+      - name: Run Stress Test
+        run: make ${{ matrix.target }} config=debug PONYPATH=../armv8-a/debug cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }} failed.

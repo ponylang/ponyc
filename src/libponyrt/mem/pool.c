@@ -14,15 +14,17 @@
 #include <platform.h>
 #include <pony/detail/atomics.h>
 
-#ifdef USE_VALGRIND
-#include <valgrind/valgrind.h>
-#include <valgrind/helgrind.h>
-#endif
-
 /// Allocations this size and above are aligned on this size. This is needed
 /// so that the pagemap for the heap is aligned.
 #define POOL_ALIGN_INDEX (POOL_ALIGN_BITS - POOL_MIN_BITS)
 #define POOL_ALIGN_MASK (POOL_ALIGN - 1)
+
+#ifdef POOL_USE_DEFAULT
+
+#ifdef USE_VALGRIND
+#include <valgrind/valgrind.h>
+#include <valgrind/helgrind.h>
+#endif
 
 /// When we mmap, pull at least this many bytes.
 #ifdef PLATFORM_IS_ILP32
@@ -997,6 +999,8 @@ void ponyint_pool_thread_cleanup()
   pool_block_header.total_size = 0;
   pool_block_header.largest_size = 0;
 }
+
+#endif
 
 size_t ponyint_pool_index(size_t size)
 {

@@ -1,0 +1,43 @@
+name: Update lib cache
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: "update-lib-cache"
+
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230807
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+          - image: ponylang/ponyc-ci-cross-riscv64:20230808
+          - image: ponylang/ponyc-ci-cross-arm:20230809
+          - image: ponylang/ponyc-ci-cross-armhf:20230809
+          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
