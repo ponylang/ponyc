@@ -973,7 +973,7 @@ static void optimise(compile_t* c, bool pony_specific)
   // due to unknown bugs in the way ponyc is generating debug info. When they
   // are found and fixed, an optimised build should not always strip debug
   // info.
-  if(c->opt->release)
+  //if(c->opt->release)
     c->opt->strip_debug = true;
 
   // Add a debug-info-stripping pass at the end, if requested.
