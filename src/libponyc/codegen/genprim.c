@@ -1937,7 +1937,7 @@ static void make_rdtscp(compile_t* c)
     // { i64, i32 } @llvm.x86.rdtscp()
     LLVMTypeRef r_type_fields[2] = { c->i64, c->i32 };
     LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, r_type_fields, 2,
-      false);
+      true);
     LLVMTypeRef f_type_r = LLVMFunctionType(r_type, NULL, 0, false);
     LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp",
       f_type_r);
