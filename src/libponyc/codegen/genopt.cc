@@ -1013,9 +1013,13 @@ static void optimise(compile_t* c, bool pony_specific)
 
   // Create the top-level module pass manager using the default LLVM pipeline.
   // Choose the appropriate optimization level based on if we're in a release.
-  ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
-    c->opt->release ? OptimizationLevel::O3 : OptimizationLevel::O1
-  );
+  ModulePassManager MPM;
+
+  if (c->opt->release) {
+    MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O3);
+  } else {
+    MPM = PB.buildO0DefaultPipeline(OptimizationLevel::O0);
+  }
 
   // Run the passes.
   MPM.run(*unwrap(c->module), MAM);
