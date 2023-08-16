@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Drop FreeBSD as a supported platform ([PR #4382](https://github.com/ponylang/ponyc/pull/4382))
 
 ## [0.55.1] - 2023-08-16
 
