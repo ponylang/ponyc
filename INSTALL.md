@@ -6,15 +6,6 @@ All prebuilt releases are currently AMD64 only. If you want to install on differ
 
 Prebuilt Pony installations will use clang as the default C compiler and clang++ as the default C++ compiler. If you prefer to use different compilers, such as gcc and g++, these defaults can be overridden by setting the `$CC` and `$CXX` environment variables to your compiler of choice.
 
-## FreeBSD 13.0
-
-Prebuilt FreeBSD 13.0 packages are available via [ponyup](https://github.com/ponylang/ponyup).
-
-```bash
-ponyup default freebsd-13.0
-ponyup update ponyc release
-```
-
 ## Linux
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.

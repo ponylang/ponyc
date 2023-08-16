@@ -13,7 +13,7 @@ clang -fPIC -Wall -Wextra -g -c -o struct.o struct.c
 clang -shared -o libffi-struct.dylib struct.o
 ```
 
-### FreeBSD/Linux
+### Linux
 
 ```console
 clang -fPIC -Wall -Wextra -g -c -o struct.o struct.c
@@ -30,7 +30,7 @@ cl.exe /c /Fo"lib\ffi-struct.obj" struct.c
 lib.exe .\lib\ffi-struct.obj
 ```
 
-Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc` on MacOS/FreeBSD/Linux and `ponyc.exe --path .\lib` on Windows. You should see content building the necessary packages, which ends with:
+Now we should be ready to compile our Pony code. With a minimal Pony installation, in the same directory as this README file run `ponyc` on MacOS/Linux and `ponyc.exe --path .\lib` on Windows. You should see content building the necessary packages, which ends with:
 
 ```console
 ...
