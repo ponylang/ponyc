@@ -70,6 +70,7 @@ jobs:
     runs-on: macos-13
 
     name: x86-64-apple-darwin
+    steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Restore Libs Cache
