@@ -2,15 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.55.1] - 2023-08-16
 
 ### Fixed
 
 - Fix broken linking when using a sanitizer ([PR #4393](https://github.com/ponylang/ponyc/pull/4393))
 - Fix memory errors with some `--debug` program builds ([PR #4372](https://github.com/ponylang/ponyc/pull/4372))
-
-### Added
-
 
 ### Changed
 
