@@ -1,0 +1,19 @@
+name: Lint GitHub Action Workflows
+
+on: pull_request
+
+concurrency:
+  group: lint-actions-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Check workflow files
+        uses: docker://ponylang/shared-docker-ci-actionlint:20230810
+        with:
+          args: -color
