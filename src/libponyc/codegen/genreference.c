@@ -254,6 +254,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   // Store the alloca to use when we reference this local.
   codegen_setlocal(c, name, alloc);
 
+  /*
   LLVMMetadataRef file = codegen_difile(c);
   LLVMMetadataRef scope = codegen_discope(c);
 
@@ -268,6 +269,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   LLVMDIBuilderInsertDeclare(c->di, alloc, info, expr,
     (unsigned)ast_line(ast), (unsigned)ast_pos(ast), scope,
     LLVMGetInsertBlock(c->builder));
+  */
 
   // Put the builder back where it was.
   LLVMPositionBuilderAtEnd(c->builder, this_block);
