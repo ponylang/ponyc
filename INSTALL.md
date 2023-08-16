@@ -67,7 +67,7 @@ If you get that error, it means that the Glibc we compiled ponyc with isn't comp
 
 ## macOS
 
-Prebuilt macOS packages for Apple Silicon are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
+Prebuilt macOS packages are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
 
 To install the most recent ponyc on macOS:
 
