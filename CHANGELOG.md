@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add macOS on Intel as fully supported platform ([PR #4390](https://github.com/ponylang/ponyc/pull/4390))
 
 ### Changed
 
