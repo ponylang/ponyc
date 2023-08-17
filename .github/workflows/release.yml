@@ -77,3 +77,39 @@ jobs:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
           TRIPLE_VENDOR: ${{ matrix.triple-vendor }}
           TRIPLE_OS: ${{ matrix.triple-os }}
+
+  x86_macos:
+    needs:
+      - pre-artefact-creation
+
+    runs-on: macos-13
+
+    name: x86-64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Install Dependencies
+        run: |
+          brew install python
+          pip3 install --upgrade cloudsmith-cli
+      - name: Release
+        run: bash .ci-scripts/x86-64-release.bash
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          TRIPLE_VENDOR: apple
+          TRIPLE_OS: darwin

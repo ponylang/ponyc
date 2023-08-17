@@ -11,7 +11,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 ### Operating Systems
 
 * Linux
-* macOS (Apple Silicon only)
+* macOS
 * Windows 10
 
 ### CPUs
