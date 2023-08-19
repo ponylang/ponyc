@@ -234,6 +234,8 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   if(value != NULL)
     return GEN_NOVALUE;
 
+  printf("%s\n", name);
+
   ast_t* type = deferred_reify(c->frame->reify, ast_type(id), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
   ast_free_unattached(type);
@@ -254,7 +256,15 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   // Store the alloca to use when we reference this local.
   codegen_setlocal(c, name, alloc);
 
-  /*
+  //if (strcmp(name, "t1") == 0 || strcmp(name, "t2") == 0) {
+  /*if (strcmp(name, "t1") == 0) {
+    ast_print(id, 80);
+    printf("%ld\n", ast_line(ast));
+    ast_print(ast, 80);
+    LLVMPositionBuilderAtEnd(c->builder, this_block);
+    return GEN_NOTNEEDED;
+  }*/
+
   LLVMMetadataRef file = codegen_difile(c);
   LLVMMetadataRef scope = codegen_discope(c);
 
@@ -269,7 +279,6 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   LLVMDIBuilderInsertDeclare(c->di, alloc, info, expr,
     (unsigned)ast_line(ast), (unsigned)ast_pos(ast), scope,
     LLVMGetInsertBlock(c->builder));
-  */
 
   // Put the builder back where it was.
   LLVMPositionBuilderAtEnd(c->builder, this_block);
