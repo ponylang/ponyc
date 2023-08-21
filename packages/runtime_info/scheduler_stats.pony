@@ -2,7 +2,9 @@ use @pony_scheduler_stats[_SchedulerStats]()
 
 primitive SchedulerStats
   """
-  Provides functions that expose statistics about the current scheduler.
+  Provides functions that expose statistics about the current scheduler. All
+  methods will return '0' if the runtime used the program wasn't compiled with
+  runtime statistics turned on.
   """
 
   fun total_mem_allocated(auth: SchedulerStatsAuth): I64 =>
