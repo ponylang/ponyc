@@ -196,7 +196,7 @@ actor _Tester
         _test_process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
           executable_file_path, args, vars,
           FilePath(FileAuth(_env.root), _definition.path))
-          .>done_writing()
+            .>done_writing()
       else
         _notify.print(_definition.name,
           _Colors.err(_definition.name + ": unable to find debugger"))
@@ -218,11 +218,9 @@ actor _Tester
                 debugger.replace("%22", "\"")
                 debugger.split(" ")
               end
-            let debugger_fname = debugger_split(0)?
-
             var in_quote = false
             var cur_arg = String
-            for fragment in debugger_split.trim(1).values() do
+            for fragment in debugger_split.values() do
               if fragment.size() == 0 then continue end
 
               if in_quote then
@@ -255,10 +253,10 @@ actor _Tester
                 end
               end
             end
-
-            _FindExecutable(_env, debugger_fname)?
+            _FindExecutable(_env, debugger_args(0)?)?
           else
-            _shutdown_failed("unable to find debugger: " + _options.debugger)
+            _shutdown_failed("unable to find debugger: " +
+              try debugger_args(0)? else _options.debugger end)
             error
           end
         end
@@ -280,11 +278,8 @@ actor _Tester
 
       match debugger_file_path
       | let dfp: FilePath =>
-        let args = Array[String]
-        args.push(dfp.path)
-        args.append(debugger_args)
-        args.push(test_fname)
-        (dfp, args)
+        debugger_args.push(test_fname)
+        (dfp, debugger_args)
       else
         (FilePath(FileAuth(_env.root), test_fname), [ test_fname ])
       end

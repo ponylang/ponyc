@@ -3,8 +3,15 @@ use "files"
 
 primitive _FindExecutable
   fun apply(env: Env, name: String): FilePath ? =>
-    if Path.is_abs(name) then
-      FilePath(FileAuth(env.root), name)
+    let fname =
+      if try name(0)? == '"' else false end then
+        name.trim(1, name.size() - 1)
+      else
+        name
+      end
+
+    if Path.is_abs(fname) then
+      FilePath(FileAuth(env.root), fname)
     else
       (let vars, let key) =
         ifdef windows then
@@ -19,13 +26,13 @@ primitive _FindExecutable
           ifdef windows then
             var bin_file_path: FilePath
             try
-              bin_file_path = FilePath.from(dir_file_path, name)?
+              bin_file_path = FilePath.from(dir_file_path, fname)?
               if bin_file_path.exists() then return bin_file_path end
             end
-            bin_file_path = FilePath.from(dir_file_path, name + ".exe")?
+            bin_file_path = FilePath.from(dir_file_path, fname + ".exe")?
             if bin_file_path.exists() then return bin_file_path end
           else
-            let bin_file_path = FilePath.from(dir_file_path, name)?
+            let bin_file_path = FilePath.from(dir_file_path, fname)?
             if bin_file_path.exists() then return bin_file_path end
           end
         end
