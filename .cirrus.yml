@@ -1,38 +1,6 @@
 #
 # Pull Request Tasks
 #
-task:
-  only_if: $CIRRUS_PR != ''
-
-  timeout_in: 120m
-
-  macos_instance:
-    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
-
-  name: "arm64 Apple Darwin"
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
-    populate_script: make libs build_flags=-j12
-  upload_caches:
-    - libs
-
-  install_script:
-    - brew update --force --quiet
-    - brew install llvm
-  debug_configure_script:
-    - make configure arch=armv8 config=debug
-  debug_build_script:
-    - make build arch=armv8 config=debug
-  debug_test_script:
-    - make test-ci config=debug usedebugger=/opt/homebrew/opt/llvm/bin/lldb
-  release_configure_script:
-    - make configure arch=armv8 config=release
-  release_build_script:
-    - make build arch=armv8 config=release
-  release_test_script:
-    - make test-ci config=release usedebugger=/opt/homebrew/opt/llvm/bin/lldb
 
 task:
   only_if: $CIRRUS_PR != ''
@@ -78,36 +46,6 @@ task:
 
   timeout_in: 120m
 
-  macos_instance:
-    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
-
-  name: "nightly: arm64-apple-darwin"
-
-  environment:
-    TRIPLE_VENDOR: apple
-    TRIPLE_OS: darwin
-    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
-    populate_script: make libs build_flags=-j12
-  upload_caches:
-    - libs
-
-  install_script:
-    - brew install python
-    - pip3 install --upgrade cloudsmith-cli
-
-  nightly_script:
-    - export TZ=utc
-    - bash .ci-scripts/arm64-nightly.bash
-
-task:
-  only_if: $CIRRUS_CRON == "nightly"
-
-  timeout_in: 120m
-
   windows_container:
     image: ponylang/ponyc-ci-x86-64-pc-windows-msvc-builder:20220803
     os_version: 2019
@@ -142,37 +80,6 @@ task:
 #
 # Release build tasks
 #
-
-task:
-  only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
-  use_compute_credits: true
-
-  timeout_in: 120m
-
-  macos_instance:
-    image: ghcr.io/cirruslabs/macos-ventura-xcode:14.3
-
-  name: "release: arm64-apple-darwin"
-
-  environment:
-    TRIPLE_VENDOR: apple
-    TRIPLE_OS: darwin
-    CLOUDSMITH_API_KEY: ENCRYPTED[!2cb1e71c189cabf043ac3a9030b3c7708f9c4c983c86d07372ae58ad246a07c54e40810d038d31c3cf3ed8888350caca!]
-
-  libs_cache:
-    folder: build/libs
-    fingerprint_script: echo "`md5 Makefile` `md5 CMakeLists.txt` `md5 lib/CMakeLists.txt` arm64 ghcr.io/cirruslabs/macos-ventura-xcode:14.3 20220511"
-    populate_script: make libs build_flags=-j12
-  upload_caches:
-    - libs
-
-  install_script:
-    - brew install python
-    - pip3 install --upgrade cloudsmith-cli
-
-  nightly_script:
-    - export TZ=utc
-    - bash .ci-scripts/arm64-release.bash
 
 task:
   only_if: $CIRRUS_TAG =~ '^\d+\.\d+\.\d+$'
