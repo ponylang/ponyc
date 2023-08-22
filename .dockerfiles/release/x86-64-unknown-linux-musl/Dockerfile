@@ -1,4 +1,4 @@
-FROM alpine:3.16
+FROM alpine:3.18
 
 ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
@@ -7,8 +7,6 @@ RUN apk add --update --no-cache \
     curl \
     build-base \
     binutils-gold \
-    libexecinfo-dev \
-    libexecinfo-static \
     git
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \

@@ -13,6 +13,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Drop support for Alpine versions prior to 3.17 ([PR #4407](https://github.com/ponylang/ponyc/pull/4407))
+- Update Pony musl Docker images to Alpine 3.18 ([PR #4407](https://github.com/ponylang/ponyc/pull/4407))
 - Drop FreeBSD as a supported platform ([PR #4382](https://github.com/ponylang/ponyc/pull/4382))
 - Drop macOS on Apple Silicon as a fully supported platform ([PR #4403](https://github.com/ponylang/ponyc/pull/4403))
 

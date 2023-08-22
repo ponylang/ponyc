@@ -1,3 +1,13 @@
+## Update Pony musl Docker images to Alpine 3.18
+
+We've updated our `ponylang/ponyc:latest-alpine`, `ponylang/ponyc:release-alpine`, and `ponylang/ponyc:x.y.z-alpine` images to be based on Alpine 3.18. Previously, we were using Alpine 3.16 as the base.
+
+## Drop support for Alpine versions prior to 3.17
+
+We've dropped support for Alpine versions prior to 3.17. The ponyc compiler that we supply will not work on earlier Alpine versions. If you need to use on 3.16 or earlier, you'll need to patch the compiler and build from source.
+
+The change is relatively straightforward and can be reverse engineered from the [pull request that dropped 3.16 support](https://github.com/ponylang/ponyc/pull/4407).
+
 ## FreeBSD is no longer a supported platform
 
 We no longer have access to hardware that we can test FreeBSD on as part of our regular Continous Integration and Release cycles. As such, we are removing FreeBSD as a supported platform. We will make best effort attempts to not break FreeBSD, however, it is likely to fall behind and need maintenance from interested community members.
