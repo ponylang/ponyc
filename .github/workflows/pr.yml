@@ -361,7 +361,7 @@ jobs:
         run: make test-ci config=release usedebugger=lldb
 
   x86_64-windows:
-    runs-on: windows-2022
+    runs-on: windows-2019
 
     name: x86-64 Windows MSVC
     steps:
@@ -376,7 +376,7 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: build/libs
-          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-windows-2019-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
@@ -385,7 +385,7 @@ jobs:
         uses: actions/cache/save@v3
         with:
           path: build/libs
-          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-windows-2019-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug
