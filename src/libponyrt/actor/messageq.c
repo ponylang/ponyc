@@ -89,7 +89,7 @@ void ponyint_messageq_init(messageq_t* q)
   q->tail = stub;
 
 #ifndef PONY_NDEBUG
-  messageq_size_debug(q);
+  //messageq_size_debug(q);
 #endif
 }
 

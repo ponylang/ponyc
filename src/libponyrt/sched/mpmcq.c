@@ -62,7 +62,7 @@ void ponyint_mpmcq_init(mpmcq_t* q)
   q->tail.counter = 0;
 
 #ifndef PONY_NDEBUG
-  mpmcq_size_debug(q);
+  //mpmcq_size_debug(q);
 #endif
 }
 

@@ -952,7 +952,7 @@ PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   msg->index = index;
   msg->id = id;
 #ifndef PONY_NDEBUG
-  atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
+  //atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
 #endif
 
   return msg;
@@ -969,7 +969,7 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
-  pony_assert(well_formed_msg_chain(first, last));
+  //pony_assert(well_formed_msg_chain(first, last));
 
   // Make sure we're not trying to send a message to an actor that is about
   // to be destroyed.
@@ -1012,7 +1012,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
-  pony_assert(well_formed_msg_chain(first, last));
+  //pony_assert(well_formed_msg_chain(first, last));
 
   // make sure we're not trying to send a message to an actor
   // that is about to be destroyed

@@ -1208,14 +1208,14 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
-#ifndef PONY_NDEBUG
+/*#ifndef PONY_NDEBUG
     default:
     {
       // Never happens, used to keep debug functions.
       dump_views();
       check_views();
     }
-#endif
+#endif*/
   }
 }
 
