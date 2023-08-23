@@ -292,7 +292,6 @@ jobs:
   prune-untagged-stdlib-builders:
     needs:
       - update-stdlib-builder-image-on-nightly
-      - update-stdlib-builder-image-on-release
 
     name: Prune untagged stdlib builders
     runs-on: ubuntu-latest
