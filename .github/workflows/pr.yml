@@ -40,7 +40,7 @@ jobs:
 
   validate-windows-docker-latest-image-builds:
     name: Validate Windows Docker image builds
-    runs-on: windows-2022
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v3
       - name: Docker build
@@ -64,7 +64,7 @@ jobs:
 
   validate-windows-docker-release-image-builds:
     name: Validate Windows Docker release image builds
-    runs-on: windows-2022
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v3
       - name: Docker build
@@ -362,6 +362,9 @@ jobs:
 
   x86_64-windows:
     runs-on: windows-2019
+    defaults:
+      run:
+        shell: pwsh
 
     name: x86-64 Windows MSVC
     steps:
@@ -369,8 +372,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Install Dependencies
         run: |
-          Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.10.10/python-3.10.10-embed-amd64.zip' -OutFile .\python_dlls.zip
-          Expand-Archive -Path .\python_dlls.zip -DestinationPath .
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -391,10 +393,10 @@ jobs:
           .\make.ps1 -Command configure -Config Debug
           .\make.ps1 -Command build -Config Debug
       - name: Test with Debug Runtime
-        run: .\make.ps1 -Command test -Config Debug
+        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
       - name: Build Release Runtime
         run: |
           .\make.ps1 -Command configure -Config Release
           .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
-        run: .\make.ps1 -Command test -Config Release
+        run: .\make.ps1 -Command test -Config Release -Uselldb yes
