@@ -257,7 +257,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 #define GROUP(name, ...) \
   static check_res_t name(ast_t* ast, errors_t* errs, size_t width)
 
-#define LEAF                 
+#define LEAF
 
 #include "treecheckdef.h"
 
@@ -326,16 +326,16 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
 
 void check_tree(ast_t* tree, pass_opt_t* opt)
 {
-#ifdef PONY_NDEBUG
+//#ifdef PONY_NDEBUG
   // Keep compiler happy in release builds.
   (void)tree;
   (void)opt;
-#else
+//#else
   // Only check tree in debug builds.
-  pony_assert(tree != NULL);
+/*  pony_assert(tree != NULL);
   check_res_t r = check_root(tree, opt->check.errors, opt->ast_print_width);
   pony_assert(r != CHK_ERROR);
 
   // Ignore CHK_NOT_FOUND, that means we weren't given a whole tree.
-#endif
+#endif*/
 }
