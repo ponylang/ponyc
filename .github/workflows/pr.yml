@@ -379,7 +379,7 @@ jobs:
           key: libs-windows-2019-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -Generator "Visual Studio 17 2022"
+        run: .\make.ps1 -Command libs
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v3
