@@ -386,12 +386,12 @@ jobs:
         with:
           path: build/libs
           key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
-      # - name: Build Debug Runtime
-      #   run: |
-      #     .\make.ps1 -Command configure -Config Debug
-      #     .\make.ps1 -Command build -Config Debug
-      # - name: Test with Debug Runtime
-      #   run: .\make.ps1 -Command test -Config Debug
+      - name: Build Debug Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug
       - name: Build Release Runtime
         run: |
           .\make.ps1 -Command configure -Config Release
