@@ -1018,7 +1018,7 @@ static void optimise(compile_t* c, bool pony_specific)
   if (c->opt->release) {
     MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O3);
   } else {
-    MPM = PB.buildO0DefaultPipeline(OptimizationLevel::O3);
+    MPM = PB.buildO0DefaultPipeline(OptimizationLevel::O2);
   }
 
   // Run the passes.
