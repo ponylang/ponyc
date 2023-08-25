@@ -58,3 +58,20 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+
+  x86_64-windows:
+    runs-on: windows-2022
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v3
+        with:
+          path: build/libs
+          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs

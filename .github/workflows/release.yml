@@ -113,3 +113,43 @@ jobs:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
           TRIPLE_VENDOR: apple
           TRIPLE_OS: darwin
+
+  x86_64-windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Dependencies
+        run: |
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+          python.exe -m pip install --upgrade cloudsmith-cli
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Configure
+        run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION
+      - name: Build
+        run: \make.ps1 -Command build -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION
+      - name: Install
+        run: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
+      - name: Package
+        run: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION
+      - name: Upload
+        run: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-x86-64-pc-windows-msvc.zip
