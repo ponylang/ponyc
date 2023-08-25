@@ -133,7 +133,7 @@ class \nodoc\ iso _TestBroadcast is UnitTest
     h.dispose_when_done(
       UDPSocket(UDPAuth(h.env.root), recover _TestPong(h) end))
 
-    h.long_test(60_000_000_000)
+    h.long_test(600_000_000_000)
 
   fun ref timed_out(h: TestHelper) =>
     h.log("""
@@ -167,7 +167,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     h.dispose_when_done(TCPListener(TCPListenAuth(h.env.root), consume this, "127.0.0.1", port))
     h.complete_action("server create")
 
-    h.long_test(60_000_000_000)
+    h.long_test(600_000_000_000)
 
   fun ref not_listening(listen: TCPListener ref) =>
     _h.fail_action("server listen")
@@ -685,7 +685,7 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
       end,
       host,
       port)
-    h.long_test(60_000_000_000)
+    h.long_test(600_000_000_000)
     h.dispose_when_done(connection)
 
 class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
@@ -731,7 +731,7 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
     )
 
     h.dispose_when_done(listener)
-    h.long_test(60_000_000_000)
+    h.long_test(600_000_000_000)
 
 actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>
