@@ -7,9 +7,7 @@ class Disposble
     _exit_code = 0
 
   fun ref set_exit(code: I32) =>
-    ifdef not debug then
-      _exit_code = code
-    end
+    _exit_code = code
 
   fun dispose() =>
     @pony_exitcode(_exit_code)
