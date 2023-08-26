@@ -101,6 +101,8 @@ jobs:
     steps:
       - name: About clang
         run: clang -v
+      - name: About cmake
+        run: cmake --version
       - name: Checkout
         uses: actions/checkout@v3
       - name: Restore Libs Cache
