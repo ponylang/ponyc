@@ -16,7 +16,7 @@ if(NOT DEFINED PONYC_VERSION)
 endif()
 
 # Uncomment this to show build commands
-# set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # We require C++14 (because LLVM does)
 set(CMAKE_CXX_STANDARD 14)
@@ -258,6 +258,8 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Werror -Wconversion -Wno-sign-conversion -Wextra -Wall -Wno-unknown-warning-option ${PONY_PIC_FLAG} -fexceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fno-rtti ${PONY_PIC_FLAG} -fexceptions")
     add_link_options(-rdynamic)
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O3")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O3")
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
