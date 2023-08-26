@@ -370,7 +370,6 @@ jobs:
     steps:
       - name: X
         run: Set-MpPreference -DisableRealtimeMonitoring $true
-          shell: powershell
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install Dependencies
