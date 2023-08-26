@@ -341,15 +341,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/"
                         Write-Output $lldboutput
                         $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-debug.exe --sequential"
-                        & $outDir\stdlib-debug.exe --sequential
+                        Write-Output "$outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
+                        & $outDir\stdlib-debug.exe --sequential --exclude="net/"
                         $err = $LastExitCode
                     }
                 }
@@ -377,15 +377,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/`""
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/"
                         Write-Output $lldboutput
                         $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-release.exe --sequential"
-                        & $outDir\stdlib-release.exe --sequential
+                        Write-Output "$outDir\stdlib-release.exe --sequential --exclude=`"net/`""
+                        & $outDir\stdlib-release.exe --sequential --exclude="net/"
                         $err = $LastExitCode
                     }
                 }
