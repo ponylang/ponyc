@@ -368,8 +368,6 @@ jobs:
 
     name: x86-64 Windows MSVC
     steps:
-      - name: X
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install Dependencies
