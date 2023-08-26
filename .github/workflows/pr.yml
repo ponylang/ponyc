@@ -99,6 +99,8 @@ jobs:
       image: ${{ matrix.image }}
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
+      - name: About clang
+        run: clang -v
       - name: Checkout
         uses: actions/checkout@v3
       - name: Restore Libs Cache
