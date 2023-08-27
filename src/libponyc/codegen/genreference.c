@@ -234,7 +234,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   if(value != NULL)
     return GEN_NOVALUE;
 
-  printf("%s\n", name);
+  //printf("%s\n", name);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(id), c->opt);
   reach_type_t* t = reach_type(c->reach, type);
