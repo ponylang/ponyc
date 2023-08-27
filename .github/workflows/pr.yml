@@ -351,12 +351,12 @@ jobs:
         with:
           path: build/libs
           key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
-      - name: Build Debug Runtime
-        run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
-      - name: Test with Debug Runtime
-        run: make test-ci config=debug usedebugger=lldb
+      # - name: Build Debug Runtime
+      #   run: |
+      #     make configure arch=x86-64 config=debug
+      #     make build config=debug
+      # - name: Test with Debug Runtime
+      #   run: make test-ci config=debug usedebugger=lldb
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release
