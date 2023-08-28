@@ -254,8 +254,9 @@ switch ($Command.ToLower())
                 if ($Uselldb -eq "yes")
                 {
                     Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
-                    & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
-                    $err = $LastExitCode
+                    $lldboutput = & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
+                    Write-Output $lldboutput
+                    $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                 }
                 else
                 {
@@ -280,8 +281,9 @@ switch ($Command.ToLower())
                 if ($Uselldb -eq "yes")
                 {
                     Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
-                    & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
-                    $err = $LastExitCode
+                    $lldboutput = & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
+                    Write-Output $lldboutput
+                    $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                 }
                 else
                 {
@@ -339,14 +341,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
-                        & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
-                        $err = $LastExitCode
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/"
+                        Write-Output $lldboutput
+                        $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-debug.exe"
-                        & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                        Write-Output "$outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
+                        & $outDir\stdlib-debug.exe --sequential --exclude="net/"
                         $err = $LastExitCode
                     }
                 }
@@ -374,14 +377,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/Broadcast`""
-                        & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
-                        $err = $LastExitCode
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/`""
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/"
+                        Write-Output $lldboutput
+                        $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-release.exe"
-                        & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                        Write-Output "$outDir\stdlib-release.exe --sequential --exclude=`"net/`""
+                        & $outDir\stdlib-release.exe --sequential --exclude="net/"
                         $err = $LastExitCode
                     }
                 }
