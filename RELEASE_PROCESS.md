@@ -9,9 +9,8 @@ This document is aimed at members of the Pony team who might be cutting a releas
 
 ### Validate external services are functional
 
-We rely on CirrusCI, Cloudsmith, DockerHub, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
+We rely on Cloudsmith, DockerHub, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
 
-* [CirrusCI Status](https://twitter.com/cirrus_labs)
 * [Cloudsmith](https://status.cloudsmith.io/)
 * [DockerHub](https://status.docker.com/)
 * [GitHub](https://www.githubstatus.com/)
@@ -38,7 +37,7 @@ git push origin release-0.3.1
 
 ### Wait on release artifacts
 
-On each release, we upload ponyc binaries for builds to Cloudsmith. The releases are built on [CirrusCI](https://cirrus-ci.com/github/ponylang/ponyc).
+On each release, we upload ponyc binaries for builds to Cloudsmith. The releases are built on [GitHub Actions](https://github.com/ponylang/ponyc/actions/workflows/release.yml).
 
 You can verify that the release artifacts were successfully built and uploaded by checking the [ponylang Cloudsmith releases repository](https://cloudsmith.io/~ponylang/repos/releases/packages/) and that all packages exist.
 
@@ -52,7 +51,7 @@ Package names will be:
 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
-If not all files are presents after 10 to 15 minutes then either a build job is delayed waiting for resources or something has gone wrong. Check [CirrusCI](https://cirrus-ci.com/github/ponylang/ponyc) to learn more.
+If not all files are presents after 10 to 15 minutes then either a build job is delayed waiting for resources or something has gone wrong. Check [GitHub Actions](https://github.com/ponylang/ponyc/actions/workflows/release.yml) to learn more.
 
 ### Wait on Docker images to be built
 
