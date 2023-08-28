@@ -151,7 +151,33 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
         COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
     )
-elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")
+elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
+    # add a rule to generate the standalone library if needed
+    add_custom_command(OUTPUT libponyc-standalone.a
+        COMMAND cp `${CMAKE_CXX_COMPILER} --print-file-name='libc++.a'` libcpp.a
+        COMMAND echo "create libponyc-standalone.a" > standalone.mri
+        COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
+        COMMAND echo "addlib libcpp.a" >> standalone.mri
+        COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
+        COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
+        COMMAND echo "save" >> standalone.mri
+        COMMAND echo "end" >> standalone.mri
+        COMMAND ${CMAKE_AR} -M < standalone.mri
+        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+    )
+    # add a separate target that depends on the standalone library file
+    add_custom_target(libponyc-standalone ALL
+        DEPENDS libponyc
+        SOURCES libponyc-standalone.a
+    )
+    # copy the generated file after it is built
+    add_custom_command(TARGET libponyc-standalone POST_BUILD
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+    )
+elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
     # TODO
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     # TODO
@@ -166,7 +192,7 @@ else()
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
-        COMMAND ar -M < standalone.mri
+        COMMAND ${CMAKE_AR} -M < standalone.mri
         DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
