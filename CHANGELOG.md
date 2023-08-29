@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Avoid hangs in async pony_check properties when using actions ([PR #4405](https://github.com/ponylang/ponyc/pull/4405))
 
 ### Added
 
