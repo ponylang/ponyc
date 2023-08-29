@@ -4,7 +4,7 @@ interface val _PropertyRunNotify
   Simple callback for notifying the runner
   that a run completed.
   """
-  fun apply(success: Bool)
+  fun apply(round: _Round, success: Bool)
 
 interface tag _IPropertyRunner
   """
@@ -12,13 +12,13 @@ interface tag _IPropertyRunner
   and only with the behaviours we are interested in.
   """
 
-  be expect_action(name: String)
+  be expect_action(name: String, round: _Round)
 
-  be complete_action(name: String, ph: PropertyHelper)
+  be complete_action(name: String, round: _Round, ph: PropertyHelper)
 
-  be fail_action(name: String, ph: PropertyHelper)
+  be fail_action(name: String, round: _Round, ph: PropertyHelper)
 
-  be dispose_when_done(disposable: DisposableActor)
+  be dispose_when_done(disposable: DisposableActor, round: _Round)
 
   be log(msg: String, verbose: Bool = false)
 
@@ -45,7 +45,8 @@ class val PropertyHelper
   """
   let _runner: _IPropertyRunner
   let _run_notify: _PropertyRunNotify
-  let _run_context: String
+  let _run: _Round
+  let _params: String
 
   let env: Env
 
@@ -53,12 +54,14 @@ class val PropertyHelper
     env': Env,
     runner: _IPropertyRunner,
     run_notify: _PropertyRunNotify,
-    run_context: String
+    run: _Round,
+    params: String
   ) =>
     env = env'
     _runner = runner
     _run_notify = run_notify
-    _run_context = run_context
+    _run = run
+    _params = params
 
 /****** START DUPLICATION FROM TESTHELPER ********/
 
@@ -400,7 +403,7 @@ class val PropertyHelper
     ```
 
     """
-    _runner.expect_action(name)
+    _runner.expect_action(name, _run)
 
   fun val complete_action(name: String) =>
     """
@@ -414,7 +417,7 @@ class val PropertyHelper
     If the action `name` was not expected, i.e. was not registered using
     `expect_action`, nothing happens.
     """
-    _runner.complete_action(name, this)
+    _runner.complete_action(name, _run, this)
 
   fun val fail_action(name: String) =>
     """
@@ -425,7 +428,7 @@ class val PropertyHelper
 
     If 1 action fails, the property is considered failing.
     """
-    _runner.fail_action(name, this)
+    _runner.fail_action(name, _run, this)
 
   fun complete(success: Bool) =>
     """
@@ -439,20 +442,20 @@ class val PropertyHelper
     a property that consists of many steps, consider using
     `expect_action`, `complete_action` and `fail_action`.
     """
-    _run_notify.apply(success)
+    _run_notify.apply(_run, success)
 
   fun dispose_when_done(disposable: DisposableActor) =>
     """
     Dispose the actor after a property run / a shrink is done.
     """
-    _runner.dispose_when_done(disposable)
+    _runner.dispose_when_done(disposable, _run)
 
   fun _fail(msg: String) =>
     _runner.log(msg)
-    _run_notify.apply(false)
+    _run_notify.apply(_run, false)
 
   fun _fmt_msg(loc: SourceLoc, msg: String): String =>
-    let msg_prefix = _run_context + " " + _format_loc(loc)
+    let msg_prefix = _params + " " + _run.string() + " " + _format_loc(loc)
     if msg.size() > 0 then
       msg_prefix + ": " + msg
     else
