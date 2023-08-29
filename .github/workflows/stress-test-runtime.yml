@@ -209,3 +209,56 @@ jobs:
           type: stream
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
+
+  x86_64-macos:
+    runs-on: macos-13
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "x86-64 macOS [release]"
+            target: test-stress-release
+          - name: "x86-64 macOS [debug]"
+            target: test-stress-debug
+          - name: "x86-64 macOS [cd] [release]"
+            target: test-stress-with-cd-release
+          - name: "x86-64 macOS [cd] [debug]"
+            target: test-stress-with-cd-debug
+
+    name: ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=x86-64 config=debug
+          make build config=debug
+      - name: Run Stress Test
+        run: make ${{ matrix.target }} config=debug usedebugger=lldb
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}  failed.
