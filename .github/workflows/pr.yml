@@ -87,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230829
             name: x86-64 Linux glibc
             debugger: lldb
           - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
