@@ -1,4 +1,4 @@
-FROM alpine:3.16
+FROM alpine:3.18
 
 RUN apk update \
   && apk upgrade \
@@ -7,8 +7,6 @@ RUN apk update \
   binutils-gold \
   clang \
   clang-dev \
-  libexecinfo-dev \
-  libexecinfo-static \
   coreutils \
   linux-headers \
   cmake \

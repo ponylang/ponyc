@@ -24,6 +24,10 @@ Currently, we have packages for the following Glibc based distributions:
 - Pop!_OS 20.04, 22.04
 - Ubuntu 20.04, 22.04
 
+### Supported Alpine versions
+
+Starting with Pony version 0.56.0, only Alpine 3.17 and later are supported. Pomyup will happily 0.56.0 on Alpine 3.16, but you won't be able to link programs. By the same token, installing version of Pony prior to 0.56.0 on Alpine 3.17 will also fail to link.
+
 ### Manually selecting your Linux platform
 
 To manually set your platform if ponyup is unable to identify it:

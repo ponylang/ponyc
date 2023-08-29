@@ -28,19 +28,19 @@ jobs:
             name: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: lldb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
             name: x86-64-unknown-linux-musl [release]
             target: test-stress-release
             debugger: gdb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
             name: x86-64-unknown-linux-musl [debug]
             target: test-stress-debug
             debugger: gdb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
             name: x86-64-unknown-linux-musl [cd] [release]
             target: test-stress-with-cd-release
             debugger: gdb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230808
+          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
             name: x86-64-unknown-linux-musl [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: gdb
