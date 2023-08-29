@@ -303,6 +303,16 @@ actor _Tester
             i = i + 1
           end
           exit_code' = num.i32()?
+        else
+          // Some versions of lldb such as lldb 14 don't do "exited with status"
+          // but they do do "stop reason =". Unlike with "exited with status",
+          // we only get the stop reason if there was an error.
+          // We know this impacts lldb 14 and 15. 17 works like earlier lldb
+          // versions. We haven't tested with lldb 16.
+          try
+            let idx1 = _out_buf.find("stop reason =")?
+            exit_code' = -1
+          end
         end
       end
 
