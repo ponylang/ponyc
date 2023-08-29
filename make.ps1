@@ -88,7 +88,7 @@ else
     $buildDir = Join-Path -Path $srcDir -ChildPath "build\build_$config_lower"
 }
 
-# Cirrus builds inside the temp directory, which MSVC doesn't like.
+# Some CI services build inside the temp directory, which MSVC doesn't like.
 $tempPath = [IO.Path]::GetFullPath($env:TEMP)
 $buildPath = [IO.Path]::GetFullPath((Join-Path -Path $srcDir -ChildPath "build"))
 if ($buildPath.StartsWith($tempPath, [StringComparison]::OrdinalIgnoreCase))
