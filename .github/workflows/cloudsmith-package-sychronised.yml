@@ -21,11 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Docker login
+      - name: Login to DockerHub
         run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/latest/x86-64-unknown-linux-gnu/build-and-push.bash
       - name: Alert on failure
@@ -49,11 +56,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Docker login
+      - name: Login to DockerHub
         run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/latest/x86-64-unknown-linux-musl/build-and-push.bash
       - name: Alert on failure
@@ -77,11 +91,18 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v3
-      - name: Docker login
-        run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
+      - name: Login to DockerHub
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: .dockerfiles/latest/x86-64-pc-windows-msvc/build-and-push.ps1
       - name: Alert on failure
@@ -105,11 +126,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Docker login
+      - name: Login to DockerHub
         run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/x86-64-unknown-linux-gnu/build-and-push.bash
         env:
@@ -124,11 +152,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Docker login
+      - name: Login to DockerHub
         run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/x86-64-unknown-linux-musl/build-and-push.bash
         env:
@@ -143,11 +178,18 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v3
-      - name: Docker login
-        run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
+      - name: Login to DockerHub
+        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: .dockerfiles/release/x86-64-pc-windows-msvc/build-and-push.ps1
         env:
@@ -428,3 +470,30 @@ jobs:
           repository: ${{ matrix.repo }}
           event-type: ponyc-musl-released
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
+
+  prune-untagged-images:
+    needs:
+      - build-latest-musl-docker-image
+
+    name: Prune untagged images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune
+        # v4.1.1
+        uses: actions/delete-package-versions@0d39a63126868f5eefaa47169615edd3c0f61e20
+        with:
+          package-name: 'ponyc'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

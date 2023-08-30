@@ -1,4 +1,5 @@
-# You should already be logged in to DockerHub when you run this.
+# You should already be logged in to DockerHub and GitHub Container Registry
+# when you run this.
 $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhitespace($env:VERSION))
@@ -13,10 +14,22 @@ if ([string]::IsNullOrWhitespace($env:GITHUB_REPOSITORY))
 
 $dockerfileDir = Split-Path $script:MyInvocation.MyCommand.Path
 
+## DockerHub
+
 $dockerTag = $env:GITHUB_REPOSITORY + ':' + $env:VERSION + '-windows'
 docker build --pull -t "$dockerTag" "$dockerfileDir"
 docker push "$dockerTag"
 
 $dockerTag = $env:GITHUB_REPOSITORY + ':release-windows'
+docker build --pull -t "$dockerTag" "$dockerfileDir"
+docker push "$dockerTag"
+
+## GitHub Container Registry
+
+$dockerTag = "ghcr.io/" + $env:GITHUB_REPOSITORY + ':' + $env:VERSION + '-windows'
+docker build --pull -t "$dockerTag" "$dockerfileDir"
+docker push "$dockerTag"
+
+$dockerTag = "ghcr.io" + $env:GITHUB_REPOSITORY + ':release-windows'
 docker build --pull -t "$dockerTag" "$dockerfileDir"
 docker push "$dockerTag"
