@@ -115,6 +115,9 @@ jobs:
           TRIPLE_OS: darwin
 
   x86_64-windows:
+    needs:
+      - pre-artefact-creation
+
     runs-on: windows-2022
     defaults:
       run:
