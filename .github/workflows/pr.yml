@@ -74,7 +74,7 @@ jobs:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
     container:
-      image: ponylang/changelog-tool:release
+      image: ghcr.io/ponylang/changelog-tool:release
     steps:
       - uses: actions/checkout@v3
       - name: Verify CHANGELOG
