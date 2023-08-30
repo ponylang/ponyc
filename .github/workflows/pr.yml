@@ -87,10 +87,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230830
             name: x86-64 Linux glibc
             debugger: lldb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
             name: x86-64 Linux musl
             debugger: gdb
 
@@ -136,7 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-cross-riscv64:20230808
+          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20230830
             name: riscv64 Linux glibc
 
     name: ${{ matrix.name }}
@@ -185,7 +185,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-cross-arm:20230809
+          - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20230830
             name: arm Linux glibc
 
     name: ${{ matrix.name }}
@@ -234,7 +234,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-cross-armhf:20230809
+          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20230830
             name: armhf Linux glibc
 
     name: ${{ matrix.name }}
@@ -283,7 +283,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
             name: aarch64 Linux glibc
 
     name: ${{ matrix.name }}

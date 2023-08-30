@@ -12,35 +12,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230830
             name: x86-64-unknown-linux-ubuntu22.04 [release]
             target: test-stress-release
             debugger: lldb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230830
             name: x86-64-unknown-linux-ubuntu22.04 [debug]
             target: test-stress-debug
             debugger: lldb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230830
             name: x86-64-unknown-linux-ubuntu22.04 [cd] [release]
             target: test-stress-with-cd-release
             debugger: lldb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230806
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230830
             name: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: lldb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
             name: x86-64-unknown-linux-musl [release]
             target: test-stress-release
             debugger: gdb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
             name: x86-64-unknown-linux-musl [debug]
             target: test-stress-debug
             debugger: gdb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
             name: x86-64-unknown-linux-musl [cd] [release]
             target: test-stress-with-cd-release
             debugger: gdb
-          - image: ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230822
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
             name: x86-64-unknown-linux-musl [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: gdb
@@ -95,16 +95,16 @@ jobs:
         include:
           # these don't currently use a debugger as cross compilation hasn't
           # been set up to do 'run in debugger'
-          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
             name: aarch64-unknown-linux-ubuntu20.04 [release]
             target: test-cross-stress-release
-          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
             name: aarch64-unknown-linux-ubuntu20.04 [debug]
             target: test-cross-stress-debug
-          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
             name: aarch64-unknown-linux-ubuntu20.04 [cd] [release]
             target: test-cross-stress-with-cd-release
-          - image: ponylang/ponyc-ci-cross-aarch64:20230811
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
             name: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]
             target: test-cross-stress-with-cd-debug
 
