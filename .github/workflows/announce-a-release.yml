@@ -17,20 +17,20 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Release notes
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: publish-release-notes-to-github
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       - name: Zulip
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: send-announcement-to-pony-zulip
         env:
           ZULIP_API_KEY: ${{ secrets.ZULIP_RELEASE_API_KEY }}
           ZULIP_EMAIL: ${{ secrets.ZULIP_RELEASE_EMAIL }}
       - name: Last Week in Pony
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: add-announcement-to-last-week-in-pony
         env:
@@ -48,14 +48,14 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Rotate release notes
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: rotate-release-notes
         env:
           GIT_USER_NAME: "Ponylang Main Bot"
           GIT_USER_EMAIL: "ponylang.main@gmail.com"
       - name: Delete announcement trigger tag
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: delete-announcement-tag
         env:
