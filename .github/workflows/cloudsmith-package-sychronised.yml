@@ -329,7 +329,8 @@ jobs:
           - ponylang/ponyup
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@26b39ed245ab8f31526069329e112ab2fb224588
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
@@ -360,7 +361,8 @@ jobs:
           - ponylang/shared-docker
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@26b39ed245ab8f31526069329e112ab2fb224588
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
@@ -390,7 +392,8 @@ jobs:
           - ponylang/corral
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@26b39ed245ab8f31526069329e112ab2fb224588
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
@@ -422,7 +425,8 @@ jobs:
           - ponylang/shared-docker
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@26b39ed245ab8f31526069329e112ab2fb224588
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
