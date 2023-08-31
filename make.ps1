@@ -322,8 +322,8 @@ switch ($Command.ToLower())
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-                Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-                & $buildDir\test\libponyc-run\runner\runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+                Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --only=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
+                & $buildDir\test\libponyc-run\runner\runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --only=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
                 $err = $LastExitCode
                 if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
             }
@@ -341,15 +341,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/"
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --only=`"net/`""
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --only="net/"
                         Write-Output $lldboutput
                         $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
-                        & $outDir\stdlib-debug.exe --sequential --exclude="net/"
+                        Write-Output "$outDir\stdlib-debug.exe --sequential --only=`"net/`""
+                        & $outDir\stdlib-debug.exe --sequential --only="net/"
                         $err = $LastExitCode
                     }
                 }
@@ -377,15 +377,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/`""
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/"
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --only=`"net/`""
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --only="net/"
                         Write-Output $lldboutput
                         $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-release.exe --sequential --exclude=`"net/`""
-                        & $outDir\stdlib-release.exe --sequential --exclude="net/"
+                        Write-Output "$outDir\stdlib-release.exe --sequential --only=`"net/`""
+                        & $outDir\stdlib-release.exe --sequential --only="net/"
                         $err = $LastExitCode
                     }
                 }
