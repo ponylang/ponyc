@@ -338,7 +338,7 @@ actor TCPConnection is AsioEventNotify
       @pony_os_connect_tcp(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     if _connect_count == 0 then
-      @printf("immediate failure of connect".cstring())
+      @printf("immediate failure of connect\n".cstring())
     end
     _notify_connecting()
 
@@ -371,7 +371,7 @@ actor TCPConnection is AsioEventNotify
       @pony_os_connect_tcp4(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     if _connect_count == 0 then
-      @printf("immediate failure of connect".cstring())
+      @printf("immediate failure of connect\n".cstring())
     end
     _notify_connecting()
 
@@ -404,7 +404,7 @@ actor TCPConnection is AsioEventNotify
       @pony_os_connect_tcp6(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     if _connect_count == 0 then
-      @printf("immediate failure of connect".cstring())
+      @printf("immediate failure of connect\n".cstring())
     end
     _notify_connecting()
 
@@ -451,7 +451,9 @@ actor TCPConnection is AsioEventNotify
     Write a single sequence of bytes. Data will be silently discarded if the
     connection has not yet been established though.
     """
+    @printf("write called\n".cstring())
     if _connected and not _closed then
+      @printf("write progressing\n".cstring())
       _in_sent = true
       write_final(_notify.sent(this, data))
       _in_sent = false
