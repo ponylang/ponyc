@@ -8,7 +8,7 @@ on:
       - '**'
     paths-ignore:
       - .release-notes/next-release.md
-      - .release-notes/[0-9]+.[0-9]+.[0-9]+.md
+      - .release-notes/\d+.\d+.\d+.md
 
 jobs:
   release-notes:
@@ -22,3 +22,14 @@ jobs:
           git_user_email: "ponylang.main@gmail.com"
         env:
           API_CREDENTIALS: ${{ secrets.GITHUB_TOKEN }}
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@b62d5a0e48a4d984ea4fce5dd65ba691963d4db4
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
