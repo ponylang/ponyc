@@ -457,6 +457,15 @@ actor TCPConnection is AsioEventNotify
       _in_sent = true
       write_final(_notify.sent(this, data))
       _in_sent = false
+    else
+      @printf("write NOT progressing\n".cstring())
+      if _connected == false then
+        @printf("_connected is false\n".cstring())
+      end
+      if _closed == true then
+        @printf("_closed is true\n".cstring())
+      end
+
     end
 
   be writev(data: ByteSeqIter) =>
