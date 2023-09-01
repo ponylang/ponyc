@@ -1,4 +1,5 @@
 use "collections"
+use @printf[I32](fmt: Pointer[None] tag, ...)
 
 use @pony_asio_event_create[AsioEventID](owner: AsioEventNotify, fd: U32,
   flags: U32, nsec: U64, noisy: Bool)
@@ -336,6 +337,9 @@ actor TCPConnection is AsioEventNotify
     _connect_count =
       @pony_os_connect_tcp(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
+    if _connect_count == 0 then
+      @printf("immediate failure of connect")
+    end
     _notify_connecting()
 
   new ip4(
@@ -366,6 +370,9 @@ actor TCPConnection is AsioEventNotify
     _connect_count =
       @pony_os_connect_tcp4(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
+    if _connect_count == 0 then
+      @printf("immediate failure of connect")
+    end
     _notify_connecting()
 
   new ip6(
@@ -396,6 +403,9 @@ actor TCPConnection is AsioEventNotify
     _connect_count =
       @pony_os_connect_tcp6(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
+    if _connect_count == 0 then
+      @printf("immediate failure of connect")
+    end
     _notify_connecting()
 
   new _accept(
