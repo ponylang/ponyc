@@ -460,10 +460,10 @@ actor TCPConnection is AsioEventNotify
     else
       @printf("write NOT progressing\n".cstring())
       if _connected == false then
-        @printf("_connected is false\n")
+        @printf("_connected is false\n".cstring())
       end
       if _closed == true then
-        @printf("_closed is true\n")
+        @printf("_closed is true\n".cstring())
       end
 
     end
