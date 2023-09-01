@@ -460,10 +460,10 @@ actor TCPConnection is AsioEventNotify
     else
       @printf("write NOT progressing\n".cstring())
       if _connected == false then
-        @printf("_connected is false\n".cstring())
+        @printf("_connected is false\n")
       end
       if _closed == true then
-        @printf("_closed is true\n".cstring())
+        @printf("_closed is true\n")
       end
 
     end
@@ -744,6 +744,7 @@ actor TCPConnection is AsioEventNotify
     ifdef windows then
       if len == 0 then
         // IOCP reported a failed write on this chunk. Non-graceful shutdown.
+        @printf("hard close in complete writes\n".cstring())
         hard_close()
         return
       end
@@ -944,6 +945,7 @@ actor TCPConnection is AsioEventNotify
           _read_buf.cpointer(_read_buf_offset),
           _read_buf.size() - _read_buf_offset) ?
       else
+        @printf("hard close in queue_read\n".cstring())
         hard_close()
       end
     end
@@ -1039,6 +1041,7 @@ actor TCPConnection is AsioEventNotify
       _notify.connecting(this, _connect_count)
     else
       _notify.connect_failed(this)
+      @printf("hard close in _notify_connecting\n".cstring())
       hard_close()
     end
 
@@ -1053,6 +1056,7 @@ actor TCPConnection is AsioEventNotify
       _close()
     else
       if _muted then
+        @printf("hard close in close\n".cstring())
         hard_close()
       else
         _close()
@@ -1091,6 +1095,7 @@ actor TCPConnection is AsioEventNotify
     end
 
     if _connected and _shutdown and _shutdown_peer then
+      @printf("hard close in try_shutdown\n".cstring())
       hard_close()
     end
 
