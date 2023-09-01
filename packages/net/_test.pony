@@ -164,7 +164,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     h.expect_action("client create")
     h.expect_action("server accept")
 
-    h.dispose_when_done(TCPListener(TCPListenAuth(h.env.root), consume this))
+    h.dispose_when_done(TCPListener.ip4(TCPListenAuth(h.env.root), consume this))
     h.complete_action("server create")
 
     h.long_test(300_000_000_000)
