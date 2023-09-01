@@ -338,7 +338,7 @@ actor TCPConnection is AsioEventNotify
       @pony_os_connect_tcp(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     if _connect_count == 0 then
-      @printf("immediate failure of connect")
+      @printf("immediate failure of connect".cstring())
     end
     _notify_connecting()
 
@@ -371,7 +371,7 @@ actor TCPConnection is AsioEventNotify
       @pony_os_connect_tcp4(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     if _connect_count == 0 then
-      @printf("immediate failure of connect")
+      @printf("immediate failure of connect".cstring())
     end
     _notify_connecting()
 
@@ -404,7 +404,7 @@ actor TCPConnection is AsioEventNotify
       @pony_os_connect_tcp6(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
     if _connect_count == 0 then
-      @printf("immediate failure of connect")
+      @printf("immediate failure of connect".cstring())
     end
     _notify_connecting()
 
