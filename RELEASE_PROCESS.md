@@ -9,11 +9,14 @@ This document is aimed at members of the Pony team who might be cutting a releas
 
 ### Validate external services are functional
 
-We rely on Cloudsmith, DockerHub, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
+We rely on Cloudsmith and GitHub Actions as part of our release process. Both need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
 
 * [Cloudsmith](https://status.cloudsmith.io/)
-* [DockerHub](https://status.docker.com/)
 * [GitHub](https://www.githubstatus.com/)
+
+We are in the process of migrating off of DockerHub, while that migration is going on, we are also relying on it, so you need to make sure it is functional before doing a release.
+
+* [DockerHub](https://status.docker.com/)
 
 ## Releasing
 
@@ -63,11 +66,11 @@ As part of every release, 6 Docker images are built:
 * Alpine images
   * release-alpine
   * 0.3.1-alpine
-* Windows imags
+* Windows images
   * release-windows
   * 0.3.1-windows
 
-The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
+The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
 
 ### Verify that the Pony Playground updated to the new version
 

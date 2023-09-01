@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# *** You should already be logged in to DockerHub when you run this ***
+# ** You should already be logged in to DockerHub and GHCR when you run this **
 #
 # Builds docker release images with two tags:
 #
@@ -41,12 +41,26 @@ set -o nounset
 
 DOCKERFILE_DIR="$(dirname "$0")"
 
+## DockerHub
+
 # Build and push :VERSION tag e.g. ponylang/ponyup:0.32.1-alpine
-DOCKER_TAG=${GITHUB_REPOSITORY}:"${VERSION}-alpine"
+DOCKER_TAG="${GITHUB_REPOSITORY}:${VERSION}-alpine"
 docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
 docker push "${DOCKER_TAG}"
 
 # Build and push "release" tag e.g. ponylang/ponyup:release-alpine
-DOCKER_TAG=${GITHUB_REPOSITORY}:release-alpine
+DOCKER_TAG="${GITHUB_REPOSITORY}:release-alpine"
+docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
+docker push "${DOCKER_TAG}"
+
+## GitHub Container Registry
+
+# Build and push :VERSION tag e.g. ponylang/ponyup:0.32.1-alpine
+DOCKER_TAG="ghcr.io/${GITHUB_REPOSITORY}:${VERSION}-alpine"
+docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
+docker push "${DOCKER_TAG}"
+
+# Build and push "release" tag e.g. ponylang/ponyup:release-alpine
+DOCKER_TAG="ghcr.io/${GITHUB_REPOSITORY}:release-alpine"
 docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
 docker push "${DOCKER_TAG}"
