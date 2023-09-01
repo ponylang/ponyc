@@ -282,9 +282,9 @@ else()
     add_subdirectory(src/ponyc)
 
     add_subdirectory(test/libponyc)
-    add_subdirectory(test/runner)
-    add_subdirectory(test/libponyc-run)
     add_subdirectory(test/libponyrt)
+    add_subdirectory(test/full-program-runner)
+    add_subdirectory(test/full-program-tests)
 
     add_subdirectory(benchmark/libponyc)
     add_subdirectory(benchmark/libponyrt)
