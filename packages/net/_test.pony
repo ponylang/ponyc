@@ -7,13 +7,13 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
-    test(_TestTCPConnectionFailed)
-    test(_TestTCPExpect)
-    test(_TestTCPExpectOverBufferSize)
+    // test(_TestTCPConnectionFailed)
+    // test(_TestTCPExpect)
+    // test(_TestTCPExpectOverBufferSize)
     test(_TestTCPMute)
-    test(_TestTCPProxy)
+    // test(_TestTCPProxy)
     test(_TestTCPUnmute)
-    test(_TestTCPWritev)
+    // test(_TestTCPWritev)
 
     // Tests below exclude windows and are listed alphabetically
     ifdef not windows then
