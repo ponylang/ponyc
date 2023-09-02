@@ -657,6 +657,7 @@ actor TCPConnection is AsioEventNotify
             @pony_asio_event_unsubscribe(event)
           end
           @pony_os_socket_close(fd)
+          @printf("try shutdown 1\n".cstring())
           _try_shutdown()
         end
       else
@@ -690,6 +691,7 @@ actor TCPConnection is AsioEventNotify
         _event = AsioEvent.none()
       end
 
+      @printf("try shutdown 2\n".cstring())
       _try_shutdown()
     end
 
@@ -1065,6 +1067,7 @@ actor TCPConnection is AsioEventNotify
 
   fun ref _close() =>
     _closed = true
+    @printf("try shutdown 3\n".cstring())
     _try_shutdown()
 
   fun ref _try_shutdown() =>
