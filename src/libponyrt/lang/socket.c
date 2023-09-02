@@ -385,7 +385,7 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
   {
     if(GetLastError() != WSA_IO_PENDING)
     {
-      printf("iocp_recv error: %ld\n".cstring(), GetLastError());
+      printf("iocp_recv error: %ld\n", GetLastError());
       iocp_destroy(iocp);
       return false;
     }
