@@ -907,10 +907,10 @@ actor TCPConnection is AsioEventNotify
       if len == 0 then
         // The socket has been closed from the other side, or a hard close has
         // cancelled the queued read.
-        // _readable = false
-        // _shutdown_peer = true
-        // @printf("close in _complete_reads()".cstring())
-        // close()
+        _readable = false
+        _shutdown_peer = true
+        @printf("close in _complete_reads()".cstring())
+        close()
         return
       end
 
