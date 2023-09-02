@@ -549,6 +549,7 @@ actor TCPConnection is AsioEventNotify
     """
     Close the connection gracefully once all writes are sent.
     """
+    @printf("close() in dispose()\n".cstring())
     close()
 
   fun local_address(): NetAddress =>
@@ -908,6 +909,7 @@ actor TCPConnection is AsioEventNotify
         // cancelled the queued read.
         _readable = false
         _shutdown_peer = true
+        @printf("close in _complete_reads()".cstring())
         close()
         return
       end
@@ -1055,6 +1057,7 @@ actor TCPConnection is AsioEventNotify
     down immediately.
     """
     ifdef windows then
+      @printf("_close 1\n".cstring())
       _close()
     else
       if _muted then
