@@ -904,7 +904,7 @@ actor TCPConnection is AsioEventNotify
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
-      if len == 0 then
+      /*if len == 0 then
         // The socket has been closed from the other side, or a hard close has
         // cancelled the queued read.
         _readable = false
@@ -912,7 +912,7 @@ actor TCPConnection is AsioEventNotify
         @printf("close in _complete_reads()".cstring())
         close()
         return
-      end
+      end*/
 
       _read_buf_offset = _read_buf_offset + len.usize()
 

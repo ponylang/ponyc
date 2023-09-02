@@ -196,6 +196,9 @@ class \nodoc\ _TestTCP is TCPListenNotify
       error
     end
 
+  fun ref closed(listen: TCPListener ref) =>
+    _h.log("listener closed")
+
 class \nodoc\ iso _TestTCPExpect is UnitTest
   """
   Test expecting framed data with TCP.
@@ -464,6 +467,12 @@ class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
 
+  fun ref throttled(conn: TCPConnection ref) =>
+    _h.log("_TestTCPMuteReceiveNotify throttled")
+
+  fun ref connecting(conn: TCPConnection ref, count: U32) =>
+    _h.log("_TestTCPMuteReceiveNotify connecting: " + count.string())
+
 class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
   """
   Notifier that sends data back when it receives any. Used in conjunction with
@@ -496,6 +505,11 @@ class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
 
   fun ref closed(conn: TCPConnection ref) =>
     _h.log("_TestTCPMuteSendNotify closed")
+
+  fun ref throttled(conn: TCPConnection ref) =>
+    _h.log("_TestTCPMuteSendNotify throttled")
+
+
 
 class \nodoc\ iso _TestTCPUnmute is UnitTest
   """
