@@ -355,7 +355,7 @@ class \nodoc\ iso _TestTCPWritev is UnitTest
     h.expect_action("client connect")
     h.expect_action("server receive")
 
-    _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h), , "60002")
+    _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h), "60002")
 
 class \nodoc\ _TestTCPWritevNotifyClient is TCPConnectionNotify
   let _h: TestHelper
