@@ -618,6 +618,7 @@ actor TCPConnection is AsioEventNotify
       if AsioEvent.writeable(flags) then
         // A connection has completed.
         var fd = @pony_asio_event_fd(event)
+        printf("event that isnt ours. fd is %ld\n".cstring(), _fd)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
