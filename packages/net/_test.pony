@@ -459,7 +459,7 @@ class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
     true
 
   fun ref closed(conn: TCPConnection ref) =>
-    printf("_TestTCPMuteReceiveNotify closed\n".cstring())
+    _h.log("_TestTCPMuteReceiveNotify closed")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
@@ -495,7 +495,7 @@ class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
      true
 
   fun ref closed(conn: TCPConnection ref) =>
-    printf("_TestTCPMuteSendNotify closed\n".cstring())
+    _h.log("_TestTCPMuteSendNotify closed")
 
 class \nodoc\ iso _TestTCPUnmute is UnitTest
   """
