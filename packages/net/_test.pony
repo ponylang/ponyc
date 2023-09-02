@@ -154,7 +154,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
   new iso create(h: TestHelper) =>
     _h = h
 
-  fun iso apply(c: TCPConnectionNotify iso, s: TCPConnectionNotify iso) =>
+  fun iso apply(c: TCPConnectionNotify iso, s: TCPConnectionNotify iso, port: String) =>
     _client_conn_notify = consume c
     _server_conn_notify = consume s
 
@@ -164,7 +164,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     h.expect_action("client create")
     h.expect_action("server accept")
 
-    h.dispose_when_done(TCPListener.ip4(TCPListenAuth(h.env.root), consume this, "127.0.0.1", "60000"))
+  h.dispose_when_done(TCPListener.ip4(TCPListenAuth(h.env.root), consume this, "127.0.0.1", port))
     h.complete_action("server create")
 
     h.long_test(300_000_000_000)
@@ -210,7 +210,7 @@ class \nodoc\ iso _TestTCPExpect is UnitTest
     h.expect_action("server receive")
     h.expect_action("expect received")
 
-    _TestTCP(h)(_TestTCPExpectNotify(h, false), _TestTCPExpectNotify(h, true))
+    _TestTCP(h)(_TestTCPExpectNotify(h, false), _TestTCPExpectNotify(h, true), "60000")
 
 class \nodoc\ iso _TestTCPExpectOverBufferSize is UnitTest
   """
@@ -226,7 +226,7 @@ class \nodoc\ iso _TestTCPExpectOverBufferSize is UnitTest
     h.expect_action("accepted")
 
     _TestTCP(h)(_TestTCPExpectOverBufferSizeNotify(h),
-      _TestTCPExpectOverBufferSizeNotify(h))
+      _TestTCPExpectOverBufferSizeNotify(h), "60001")
 
 class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
   let _h: TestHelper
@@ -355,7 +355,7 @@ class \nodoc\ iso _TestTCPWritev is UnitTest
     h.expect_action("client connect")
     h.expect_action("server receive")
 
-    _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h))
+    _TestTCP(h)(_TestTCPWritevNotifyClient(h), _TestTCPWritevNotifyServer(h), , "60002")
 
 class \nodoc\ _TestTCPWritevNotifyClient is TCPConnectionNotify
   let _h: TestHelper
@@ -426,7 +426,7 @@ class \nodoc\ iso _TestTCPMute is UnitTest
     h.expect_action("sender sent data")
 
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
-      _TestTCPMuteReceiveNotify(h))
+      _TestTCPMuteReceiveNotify(h), "60004")
 
   fun timed_out(h: TestHelper) =>
     h.complete(true)
@@ -522,7 +522,7 @@ class \nodoc\ iso _TestTCPUnmute is UnitTest
     h.expect_action("sender sent data")
 
     _TestTCP(h)(_TestTCPMuteSendNotify(h),
-      _TestTCPUnmuteReceiveNotify(h))
+      _TestTCPUnmuteReceiveNotify(h), "60005")
 
 class \nodoc\ _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
   """
@@ -580,7 +580,7 @@ class \nodoc\ iso _TestTCPThrottle is UnitTest
     h.expect_action("sender throttled")
 
     _TestTCP(h)(_TestTCPThrottleSendNotify(h),
-      _TestTCPThrottleReceiveNotify(h))
+      _TestTCPThrottleReceiveNotify(h), "60006")
 
 class \nodoc\ _TestTCPThrottleReceiveNotify is TCPConnectionNotify
   """
@@ -658,7 +658,7 @@ class \nodoc\ _TestTCPProxy is UnitTest
     h.expect_action("sender proxy request")
 
     _TestTCP(h)(_TestTCPProxyNotify(h),
-      _TestTCPProxyNotify(h))
+      _TestTCPProxyNotify(h), "60007")
 
 class \nodoc\ _TestTCPProxyNotify is TCPConnectionNotify
   let _h: TestHelper
