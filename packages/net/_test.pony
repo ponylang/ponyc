@@ -10,9 +10,13 @@ actor \nodoc\ Main is TestList
     // test(_TestTCPConnectionFailed)
     // test(_TestTCPExpect)
     // test(_TestTCPExpectOverBufferSize)
+    @printf("Starting tcp mute\n".cstring())
     test(_TestTCPMute)
+    @printf("Ending tcp mute\n".cstring())
     // test(_TestTCPProxy)
+    @printf("Starting tcp unmute\n".cstring())
     test(_TestTCPUnmute)
+    @printf("Ending tcp unmute\n".cstring())
     // test(_TestTCPWritev)
 
     // Tests below exclude windows and are listed alphabetically
@@ -23,7 +27,9 @@ actor \nodoc\ Main is TestList
 
     // Tests below exclude osx and are listed alphabetically
     ifdef not osx then
+      @printf("Starting broadcast\n".cstring())
       test(_TestBroadcast)
+      @printf("Ending broadcast\n".cstring())
     end
 
 class \nodoc\ _TestPing is UDPNotify
