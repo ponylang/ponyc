@@ -912,7 +912,7 @@ actor TCPConnection is AsioEventNotify
         // cancelled the queued read.
         _readable = false
         _shutdown_peer = true
-        @printf("close in _complete_reads()".cstring())
+        @printf("close in _complete_reads()\n".cstring())
         close()
         return
       end
@@ -1060,7 +1060,7 @@ actor TCPConnection is AsioEventNotify
     down immediately.
     """
     ifdef windows then
-      @printf("_close 1\n".cstring())
+      @printf("_close 1: fd is %ld\n".cstring(), _fd)
       _close()
     else
       if _muted then
