@@ -9,17 +9,15 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     @printf("Starting tcp connection failed\n".cstring())
     test(_TestTCPConnectionFailed)
-    @printf("Ending tcp connection failed\n".cstring())
 
-    // test(_TestTCPExpect)
+    @printf("Starting tcp expect\n".cstring())
+    test(_TestTCPExpect)
     // test(_TestTCPExpectOverBufferSize)
     @printf("Starting tcp mute\n".cstring())
     test(_TestTCPMute)
-    @printf("Ending tcp mute\n".cstring())
     // test(_TestTCPProxy)
     @printf("Starting tcp unmute\n".cstring())
     test(_TestTCPUnmute)
-    @printf("Ending tcp unmute\n".cstring())
     // test(_TestTCPWritev)
 
     // Tests below exclude windows and are listed alphabetically
