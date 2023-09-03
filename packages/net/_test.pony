@@ -7,16 +7,11 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
-    @printf("Starting tcp connection failed\n".cstring())
     test(_TestTCPConnectionFailed)
-
-    @printf("Starting tcp expect\n".cstring())
     test(_TestTCPExpect)
     // test(_TestTCPExpectOverBufferSize)
-    @printf("Starting tcp mute\n".cstring())
     test(_TestTCPMute)
     // test(_TestTCPProxy)
-    @printf("Starting tcp unmute\n".cstring())
     test(_TestTCPUnmute)
     // test(_TestTCPWritev)
 
@@ -130,6 +125,7 @@ class \nodoc\ iso _TestBroadcast is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting broadcast\n".cstring())
     h.expect_action("pong create")
     h.expect_action("pong listen")
     h.expect_action("ping create")
@@ -215,6 +211,7 @@ class \nodoc\ iso _TestTCPExpect is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting expect\n".cstring())
     h.expect_action("client connect")
     h.expect_action("client receive")
     h.expect_action("server receive")
@@ -231,6 +228,7 @@ class \nodoc\ iso _TestTCPExpectOverBufferSize is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting expect over buffer size\n".cstring())
     h.expect_action("client connect")
     h.expect_action("connected")
     h.expect_action("accepted")
@@ -362,6 +360,7 @@ class \nodoc\ iso _TestTCPWritev is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting writev\n".cstring())
     h.expect_action("client connect")
     h.expect_action("server receive")
 
@@ -429,6 +428,7 @@ class \nodoc\ iso _TestTCPMute is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting mute\n".cstring())
     h.expect_action("receiver accepted")
     h.expect_action("sender connected")
     h.expect_action("receiver muted")
@@ -535,6 +535,7 @@ class \nodoc\ iso _TestTCPUnmute is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting unmute\n".cstring())
     h.expect_action("receiver accepted")
     h.expect_action("sender connected")
     h.expect_action("receiver muted")
@@ -593,6 +594,7 @@ class \nodoc\ iso _TestTCPThrottle is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting throttle\n".cstring())
     h.expect_action("receiver accepted")
     h.expect_action("sender connected")
     h.expect_action("receiver muted")
@@ -675,6 +677,7 @@ class \nodoc\ _TestTCPProxy is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting proxy\n".cstring())
     h.expect_action("sender connected")
     h.expect_action("sender proxy request")
 
@@ -700,6 +703,7 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
   fun name(): String => "net/TCPConnectionFailed"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting connection failed\n".cstring())
     h.expect_action("connection failed")
 
     let host = "127.0.0.1"
@@ -729,6 +733,7 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
+    @printf("starting connection to closed server failed\n".cstring())
     h.expect_action("server listening")
     h.expect_action("client connection failed")
 
