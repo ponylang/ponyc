@@ -219,7 +219,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -238,7 +239,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        # v2.2.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
