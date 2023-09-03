@@ -423,7 +423,7 @@ actor TCPConnection is AsioEventNotify
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    @printf("accepted has _fd of %ld\n".cstring, _fd)
+    @printf("accepted has _fd of %ld\n".cstring(), _fd)
     ifdef not windows then
       _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write_oneshot(), 0, true)
