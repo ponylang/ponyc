@@ -616,7 +616,7 @@ actor TCPConnection is AsioEventNotify
     """
     if event isnt _event then
       @printf("event isnt ours\n".cstring())
-      @printf("%p %p\n",cstring(), event, _event);
+      @printf("%p %p\n",cstring(), event, _event)
 
       if AsioEvent.writeable(flags) then
         // A connection has completed.
@@ -683,7 +683,7 @@ actor TCPConnection is AsioEventNotify
       if _event is AsioEvent.none() then
         @printf("we got a none event that matched ours\n".cstring())
       end
-      @printf("%p %p\n",cstring(), event, _event);
+      @printf("%p %p\n",cstring(), event, _event)
       // At this point, it's our event.
       if AsioEvent.writeable(flags) then
         _writeable = true
