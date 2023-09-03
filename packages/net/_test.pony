@@ -250,7 +250,7 @@ class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     _h.log("connection accepted by _TestTCPExpectNotify")
-    conn.set_nodelay(true)
+    //conn.set_nodelay(true)
     try
       conn.expect(_expect)?
       _send(conn, "hi there")
@@ -263,7 +263,7 @@ class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
-    conn.set_nodelay(true)
+    //conn.set_nodelay(true)
     try
       conn.expect(_expect)?
     else
@@ -336,7 +336,7 @@ class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     _h.log("connection accepted by _TestTCPExpectOverBufferSizeNotify")
-    conn.set_nodelay(true)
+    //conn.set_nodelay(true)
     try
       conn.expect(_expect)?
       _h.fail("expect didn't error out")
@@ -346,7 +346,7 @@ class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
-    conn.set_nodelay(true)
+    //conn.set_nodelay(true)
     try
       conn.expect(_expect)?
       _h.fail("expect didn't error out")
