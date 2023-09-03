@@ -431,6 +431,7 @@ actor TCPConnection is AsioEventNotify
       _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write(), 0, true)
     end
+    @printf("event created %p\n".cstring(), _event)
     _connected = true
     ifdef not windows then
       @pony_asio_event_set_writeable(_event, true)
@@ -649,6 +650,7 @@ actor TCPConnection is AsioEventNotify
             end
           else
             // The connection failed, unsubscribe the event and close.
+            @printf("unsubscribing %p\n".cstring(), event)
             @pony_asio_event_unsubscribe(event)
             @pony_os_socket_close(fd)
             _notify_connecting()
@@ -661,6 +663,7 @@ actor TCPConnection is AsioEventNotify
           // of the event (not the flags that this behavior's args!)
           // to see if it's ok to unsubscribe.
           if not @pony_asio_event_get_disposable(event) then
+            @printf("unsubscribing %p\n".cstring(), event)
             @pony_asio_event_unsubscribe(event)
           end
           @pony_os_socket_close(fd)
@@ -1142,6 +1145,7 @@ actor TCPConnection is AsioEventNotify
     end
 
     // Unsubscribe immediately and drop all pending writes.
+    @printf("unsubscribing %p\n".cstring(), _event)
     @pony_asio_event_unsubscribe(_event)
     _readable = false
     _writeable = false
