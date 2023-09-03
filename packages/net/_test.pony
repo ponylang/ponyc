@@ -7,7 +7,10 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
-    // test(_TestTCPConnectionFailed)
+    @printf("Starting tcp connection failed\n".cstring())
+    test(_TestTCPConnectionFailed)
+    @printf("Ending tcp connection failed\n".cstring())
+
     // test(_TestTCPExpect)
     // test(_TestTCPExpectOverBufferSize)
     @printf("Starting tcp mute\n".cstring())
