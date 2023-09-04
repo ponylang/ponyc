@@ -1132,18 +1132,8 @@ PONY_API void pony_os_socket_shutdown(int fd)
 PONY_API void pony_os_socket_close(int fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if (CancelIoEx((HANDLE)(UINT_PTR)fd, NULL) == 0) {
-    printf("CancelIoEx failed\n");
-    printf("pony os socket close error: %ld\n", GetLastError());
-  } else {
-    printf("CancelIOEx good\n");
-  }
-  printf("closing socket %d\n", fd);
-  if (closesocket((SOCKET)fd) != 0) {
-    printf("close socket error: %ld\n", WSAGetLastError());
-  } else {
-    printf("close socket good\n");
-  }
+  CancelIoEx((HANDLE)(UINT_PTR)fd, NULL);
+  closesocket((SOCKET)fd);
 #else
   close(fd);
 #endif

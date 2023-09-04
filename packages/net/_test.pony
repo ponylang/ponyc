@@ -9,11 +9,11 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestTCPConnectionFailed)
     test(_TestTCPExpect)
-    // test(_TestTCPExpectOverBufferSize)
+    test(_TestTCPExpectOverBufferSize)
     test(_TestTCPMute)
-    // test(_TestTCPProxy)
+    test(_TestTCPProxy)
     test(_TestTCPUnmute)
-    // test(_TestTCPWritev)
+    test(_TestTCPWritev)
 
     // Tests below exclude windows and are listed alphabetically
     ifdef not windows then
@@ -22,9 +22,9 @@ actor \nodoc\ Main is TestList
     end
 
     // Tests below exclude osx and are listed alphabetically
-    /*ifdef not osx then
+    ifdef not osx then
       test(_TestBroadcast)
-    end*/
+    end
 
 class \nodoc\ _TestPing is UDPNotify
   let _h: TestHelper
@@ -134,7 +134,7 @@ class \nodoc\ iso _TestBroadcast is UnitTest
     h.dispose_when_done(
       UDPSocket(UDPAuth(h.env.root), recover _TestPong(h) end))
 
-    h.long_test(300_000_000_000)
+    h.long_test(30_000_000_000)
 
   fun ref timed_out(h: TestHelper) =>
     h.log("""
@@ -168,7 +168,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
   h.dispose_when_done(TCPListener.ip4(TCPListenAuth(h.env.root), consume this, "127.0.0.1", port))
     h.complete_action("server create")
 
-    h.long_test(300_000_000_000)
+    h.long_test(30_000_000_000)
 
   fun ref not_listening(listen: TCPListener ref) =>
     _h.fail_action("server listen")
@@ -247,7 +247,7 @@ class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     @printf("connection accepted by _TestTCPExpectNotify %p\n".cstring(), conn)
-    //conn.set_nodelay(true)
+    conn.set_nodelay(true)
     try
       conn.expect(_expect)?
       _send(conn, "hi there")
@@ -260,7 +260,7 @@ class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
-    //conn.set_nodelay(true)
+    conn.set_nodelay(true)
     try
       conn.expect(_expect)?
     else
@@ -333,7 +333,7 @@ class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     @printf("connection accepted by _TestTCPExpectOverBufferSizeNotify %p\n".cstring(), conn)
-    //conn.set_nodelay(true)
+    conn.set_nodelay(true)
     try
       conn.expect(_expect)?
       _h.fail("expect didn't error out")
@@ -343,7 +343,7 @@ class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
 
   fun ref connected(conn: TCPConnection ref) =>
     _h.complete_action("client connect")
-    //conn.set_nodelay(true)
+    conn.set_nodelay(true)
     try
       conn.expect(_expect)?
       _h.fail("expect didn't error out")
@@ -713,7 +713,7 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
       end,
       host,
       port)
-    h.long_test(300_000_000_000)
+    h.long_test(30_000_000_000)
     h.dispose_when_done(connection)
 
 class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
@@ -760,7 +760,7 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
     )
 
     h.dispose_when_done(listener)
-    h.long_test(300_000_000_000)
+    h.long_test(30_000_000_000)
 
 actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>

@@ -33,7 +33,7 @@
 
     [Parameter(HelpMessage="Tests to run")]
     [string]
-    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
+    $TestsToRun = 'stdlib-debug,stdlib-release'
 )
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
