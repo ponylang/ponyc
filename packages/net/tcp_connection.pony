@@ -1088,8 +1088,9 @@ actor TCPConnection is AsioEventNotify
       if _connected then
         ifdef windows then
 
-          @printf("%p socket close for %d in try shutdown\n".cstring(), this, _fd)
-          @pony_os_socket_close(_fd)
+          //@printf("%p socket close for %d in try shutdown\n".cstring(), this, _fd)
+          //@pony_os_socket_close(_fd)
+          @pony_os_socket_shutdown(_fd)
           // TODO SEAN
           //_connected = false
           //_closed = true
