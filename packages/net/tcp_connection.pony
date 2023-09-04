@@ -1084,6 +1084,8 @@ actor TCPConnection is AsioEventNotify
       if _connected then
         ifdef windows then
           @pony_os_socket_close(_fd)
+          // TODO SEAN
+          @pony_os_socket_shutdown(_fd)
         else
           @pony_os_socket_shutdown(_fd)
         end
