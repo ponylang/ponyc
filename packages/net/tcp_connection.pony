@@ -1131,6 +1131,8 @@ actor TCPConnection is AsioEventNotify
     // On windows, this will also cancel all outstanding IOCP operations.
     @printf("%p closing socket %d\n".cstring(), this, _fd)
     @pony_os_socket_close(_fd)
+    // TODO SEAN
+    @pony_os_socket_shutdown(_fd)
     _fd = -1
 
     _notify.closed(this)

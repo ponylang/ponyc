@@ -1137,7 +1137,7 @@ PONY_API void pony_os_socket_close(int fd)
     printf("pony os socket close error: %ld\n", GetLastError());
   }
   if (closesocket((SOCKET)fd) != 0) {
-    printf("close socket error: %ld\n", WSAGetLastError())
+    printf("close socket error: %ld\n", WSAGetLastError());
   }
 #else
   close(fd);
