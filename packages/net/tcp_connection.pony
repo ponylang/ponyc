@@ -337,9 +337,6 @@ actor TCPConnection is AsioEventNotify
     _connect_count =
       @pony_os_connect_tcp(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
-    if _connect_count == 0 then
-      @printf("immediate failure of connect\n".cstring())
-    end
     _notify_connecting()
 
   new ip4(
@@ -370,9 +367,6 @@ actor TCPConnection is AsioEventNotify
     _connect_count =
       @pony_os_connect_tcp4(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
-    if _connect_count == 0 then
-      @printf("immediate failure of connect\n".cstring())
-    end
     _notify_connecting()
 
   new ip6(
@@ -403,9 +397,6 @@ actor TCPConnection is AsioEventNotify
     _connect_count =
       @pony_os_connect_tcp6(this, host'.cstring(), service'.cstring(),
         from.cstring(), asio_flags)
-    if _connect_count == 0 then
-      @printf("immediate failure of connect\n".cstring())
-    end
     _notify_connecting()
 
   new _accept(
@@ -423,7 +414,7 @@ actor TCPConnection is AsioEventNotify
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    @printf("accepted has _fd of %ld\n".cstring(), _fd)
+    @printf("%p accepted has _fd of %ld\n".cstring(), this, _fd)
     ifdef not windows then
       _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write_oneshot(), 0, true)
@@ -431,7 +422,7 @@ actor TCPConnection is AsioEventNotify
       _event = @pony_asio_event_create(this, fd,
         AsioEvent.read_write(), 0, true)
     end
-    @printf("event created %p\n".cstring(), _event)
+    @printf("event created %p by %p\n".cstring(), _event, this)
     _connected = true
     ifdef not windows then
       @pony_asio_event_set_writeable(_event, true)
@@ -453,21 +444,10 @@ actor TCPConnection is AsioEventNotify
     Write a single sequence of bytes. Data will be silently discarded if the
     connection has not yet been established though.
     """
-    @printf("write called\n".cstring())
     if _connected and not _closed then
-      @printf("write progressing\n".cstring())
       _in_sent = true
       write_final(_notify.sent(this, data))
       _in_sent = false
-    else
-      @printf("write NOT progressing\n".cstring())
-      if _connected == false then
-        @printf("_connected is false\n".cstring())
-      end
-      if _closed == true then
-        @printf("_closed is true\n".cstring())
-      end
-
     end
 
   be writev(data: ByteSeqIter) =>
@@ -551,7 +531,7 @@ actor TCPConnection is AsioEventNotify
     """
     Close the connection gracefully once all writes are sent.
     """
-    @printf("close() in dispose()\n".cstring())
+    @printf("%p close() in dispose()\n".cstring(), this)
     close()
 
   fun local_address(): NetAddress =>
@@ -617,7 +597,7 @@ actor TCPConnection is AsioEventNotify
     """
     if event isnt _event then
       @printf("event isnt ours\n".cstring())
-      @printf("%p %p\n".cstring(), event, _event)
+      @printf("actor: %p. it: %p ours: %p\n".cstring(), this, event, _event)
 
       if AsioEvent.writeable(flags) then
         // A connection has completed.
@@ -630,8 +610,9 @@ actor TCPConnection is AsioEventNotify
           if _is_sock_connected(fd) then
             // The connection was successful, make it ours.
             _fd = fd
-            @printf("connnected. fd is %ld\n".cstring(), _fd)
+            @printf("%p connnected. fd is %ld\n".cstring(), this, _fd)
             _event = event
+            @printf("event for %p is now: %p\n".cstring(), this, _event)
             _connected = true
             _writeable = true
             _readable = true
@@ -650,7 +631,7 @@ actor TCPConnection is AsioEventNotify
             end
           else
             // The connection failed, unsubscribe the event and close.
-            @printf("unsubscribing %p\n".cstring(), event)
+            @printf("%p unsubscribing %p\n".cstring(), this, event)
             @pony_asio_event_unsubscribe(event)
             @pony_os_socket_close(fd)
             _notify_connecting()
@@ -663,11 +644,11 @@ actor TCPConnection is AsioEventNotify
           // of the event (not the flags that this behavior's args!)
           // to see if it's ok to unsubscribe.
           if not @pony_asio_event_get_disposable(event) then
-            @printf("unsubscribing %p\n".cstring(), event)
+            @printf("%p unsubscribing %p\n".cstring(), this, event)
             @pony_asio_event_unsubscribe(event)
           end
           @pony_os_socket_close(fd)
-          @printf("try shutdown 1\n".cstring())
+          @printf("%p try shutdown 1\n".cstring(), this)
           _try_shutdown()
         end
       else
@@ -678,15 +659,8 @@ actor TCPConnection is AsioEventNotify
         end
       end
     else
-
       @printf("event is ours\n".cstring())
-      if event is AsioEvent.none() then
-        @printf("we got a none event that matched ours\n".cstring())
-      end
-      if _event is AsioEvent.none() then
-        @printf("we got a none event that matched ours\n".cstring())
-      end
-      @printf("%p %p\n".cstring(), event, _event)
+      @printf("actor: %p. it: %p ours: %p\n".cstring(), this, event, _event)
       // At this point, it's our event.
       if AsioEvent.writeable(flags) then
         _writeable = true
@@ -710,7 +684,7 @@ actor TCPConnection is AsioEventNotify
         _event = AsioEvent.none()
       end
 
-      @printf("try shutdown 2\n".cstring())
+      @printf("%p try shutdown 2\n".cstring(), this)
       _try_shutdown()
     end
 
@@ -765,7 +739,7 @@ actor TCPConnection is AsioEventNotify
     ifdef windows then
       if len == 0 then
         // IOCP reported a failed write on this chunk. Non-graceful shutdown.
-        @printf("hard close in complete writes\n".cstring())
+        @printf("%p hard close in complete writes\n".cstring(), this)
         hard_close()
         return
       end
@@ -927,7 +901,7 @@ actor TCPConnection is AsioEventNotify
         // cancelled the queued read.
         _readable = false
         _shutdown_peer = true
-        @printf("close in _complete_reads()\n".cstring())
+        @printf("%p close in _complete_reads()\n".cstring(), this)
         close()
         return
       end
@@ -967,7 +941,7 @@ actor TCPConnection is AsioEventNotify
           _read_buf.cpointer(_read_buf_offset),
           _read_buf.size() - _read_buf_offset) ?
       else
-        @printf("hard close in queue_read\n".cstring())
+        @printf("%p hard close in queue_read\n".cstring(), this)
         hard_close()
       end
     end
@@ -1063,7 +1037,7 @@ actor TCPConnection is AsioEventNotify
       _notify.connecting(this, _connect_count)
     else
       _notify.connect_failed(this)
-      @printf("hard close in _notify_connecting\n".cstring())
+      @printf("%p hard close in _notify_connecting\n".cstring(), this)
       hard_close()
     end
 
@@ -1075,11 +1049,11 @@ actor TCPConnection is AsioEventNotify
     down immediately.
     """
     ifdef windows then
-      @printf("_close 1: fd is %ld\n".cstring(), _fd)
+      @printf("%p _close 1: fd is %ld\n".cstring(), this, _fd)
       _close()
     else
       if _muted then
-        @printf("hard close in close\n".cstring())
+        @printf("%p hard close in close\n".cstring(), this)
         hard_close()
       else
         _close()
@@ -1088,7 +1062,7 @@ actor TCPConnection is AsioEventNotify
 
   fun ref _close() =>
     _closed = true
-    @printf("try shutdown 3\n".cstring())
+    @printf("%p try shutdown 3\n".cstring(), this)
     _try_shutdown()
 
   fun ref _try_shutdown() =>
@@ -1119,7 +1093,7 @@ actor TCPConnection is AsioEventNotify
     end
 
     if _connected and _shutdown and _shutdown_peer then
-      @printf("hard close in try_shutdown\n".cstring())
+      @printf("%p hard close in try_shutdown\n".cstring(), this)
       hard_close()
     end
 
@@ -1145,7 +1119,7 @@ actor TCPConnection is AsioEventNotify
     end
 
     // Unsubscribe immediately and drop all pending writes.
-    @printf("unsubscribing %p\n".cstring(), _event)
+    @printf("%p unsubscribing %p\n".cstring(), this, _event)
     @pony_asio_event_unsubscribe(_event)
     _readable = false
     _writeable = false

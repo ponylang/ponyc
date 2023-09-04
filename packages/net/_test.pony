@@ -1,5 +1,6 @@
 use "files"
 use "pony_test"
+use @printf[I32](fmt: Pointer[None] tag, ...)
 
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -451,6 +452,7 @@ class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
     _h = h
 
   fun ref accepted(conn: TCPConnection ref) =>
+    @printf("TCPMUTERECEIVE IS %p\n".cstring(), conn)
     _h.log("connection accepted by _TestTCPMuteReceiveNotify")
     _h.complete_action("receiver accepted")
     conn.mute()
@@ -495,6 +497,7 @@ class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
     _h = h
 
   fun ref connected(conn: TCPConnection ref) =>
+    @printf("SENDER CONNECTED %p\n".cstring(), conn)
     _h.complete_action("sender connected")
 
   fun ref connect_failed(conn: TCPConnection ref) =>
@@ -506,6 +509,7 @@ class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
     times: USize)
     : Bool
    =>
+     @printf("SENDER WRITING %p\n".cstring(), conn)
      conn.write("it's sad that you won't ever read this")
      _h.complete_action("sender sent data")
      true
