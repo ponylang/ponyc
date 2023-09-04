@@ -1091,9 +1091,9 @@ actor TCPConnection is AsioEventNotify
           @printf("%p socket close for %d in try shutdown\n".cstring(), this, _fd)
           @pony_os_socket_close(_fd)
           // TODO SEAN
-          /*_connected = false
+          _connected = false
           _closed = true
-          _fd = -1*/
+          _fd = -1
         else
           @pony_os_socket_shutdown(_fd)
         end
