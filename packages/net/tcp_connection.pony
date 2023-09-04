@@ -656,6 +656,7 @@ actor TCPConnection is AsioEventNotify
         if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
           @pony_asio_event_destroy(event)
+          @printf("%p destroyed event %p that wasn't its\n".cstring(), this, event)
         end
       end
     else
@@ -681,6 +682,7 @@ actor TCPConnection is AsioEventNotify
 
       if AsioEvent.disposable(flags) then
         @pony_asio_event_destroy(event)
+        @printf("%p got disposable for %p\n".cstring(), this, _event)
         _event = AsioEvent.none()
       end
 
@@ -1083,9 +1085,10 @@ actor TCPConnection is AsioEventNotify
 
       if _connected then
         ifdef windows then
-          @pony_os_socket_close(_fd)
           // TODO SEAN
-          @pony_os_socket_shutdown(_fd)
+          _connected = false
+          _closed = true
+          @pony_os_socket_close(_fd)
         else
           @pony_os_socket_shutdown(_fd)
         end

@@ -1138,6 +1138,7 @@ PONY_API void pony_os_socket_close(int fd)
   } else {
     printf("CancelIOEx good\n");
   }
+  printf("closing socket %d\n", fd);
   if (closesocket((SOCKET)fd) != 0) {
     printf("close socket error: %ld\n", WSAGetLastError());
   } else {
