@@ -633,6 +633,7 @@ actor TCPConnection is AsioEventNotify
             // The connection failed, unsubscribe the event and close.
             @printf("%p unsubscribing %p\n".cstring(), this, event)
             @pony_asio_event_unsubscribe(event)
+            @printf("%p is closing %d at loc 1\n".cstring(), this, fd)
             @pony_os_socket_close(fd)
             _notify_connecting()
           end
@@ -647,6 +648,7 @@ actor TCPConnection is AsioEventNotify
             @printf("%p unsubscribing %p\n".cstring(), this, event)
             @pony_asio_event_unsubscribe(event)
           end
+          @printf("%p is closing %d at loc 1\n".cstring(), this, fd)
           @pony_os_socket_close(fd)
           @printf("%p try shutdown 1\n".cstring(), this)
           _try_shutdown()
@@ -1085,11 +1087,13 @@ actor TCPConnection is AsioEventNotify
 
       if _connected then
         ifdef windows then
-          // TODO SEAN
-          _connected = false
-          _closed = true
-          _fd = -1
+
+          @printf("%p socket close for %d in try shutdown\n".cstring(), this, _fd)
           @pony_os_socket_close(_fd)
+          // TODO SEAN
+          /*_connected = false
+          _closed = true
+          _fd = -1*/
         else
           @pony_os_socket_shutdown(_fd)
         end
