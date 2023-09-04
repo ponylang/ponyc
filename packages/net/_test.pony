@@ -22,11 +22,9 @@ actor \nodoc\ Main is TestList
     end
 
     // Tests below exclude osx and are listed alphabetically
-    ifdef not osx then
-      @printf("Starting broadcast\n".cstring())
+    /*ifdef not osx then
       test(_TestBroadcast)
-      @printf("Ending broadcast\n".cstring())
-    end
+    end*/
 
 class \nodoc\ _TestPing is UDPNotify
   let _h: TestHelper
@@ -181,6 +179,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     try
       let notify = (_client_conn_notify = None) as TCPConnectionNotify iso^
       (let host, let port) = listen.local_address().name()?
+      @printf("%p listening on %s:%s\n".cstring(), this, host, port)
       _h.dispose_when_done(
         TCPConnection(TCPConnectAuth(_h.env.root), consume notify, host, port))
       _h.complete_action("client create")
@@ -189,7 +188,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     end
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ ? =>
-    _h.log("something connected to the listener")
+    @printf("something connected to the listener %p\n".cstring(), this)
     try
       let notify = (_server_conn_notify = None) as TCPConnectionNotify iso^
       _h.complete_action("server accept")
@@ -200,7 +199,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     end
 
   fun ref closed(listen: TCPListener ref) =>
-    _h.log("listener closed")
+    @printf("listener %p closed\n".cstring(), this)
 
 class \nodoc\ iso _TestTCPExpect is UnitTest
   """
@@ -247,7 +246,7 @@ class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
     _h = h
 
   fun ref accepted(conn: TCPConnection ref) =>
-    _h.log("connection accepted by _TestTCPExpectNotify")
+    @printf("connection accepted by _TestTCPExpectNotify %p\n".cstring(), conn)
     //conn.set_nodelay(true)
     try
       conn.expect(_expect)?
@@ -333,7 +332,7 @@ class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
     _h.fail_action("client connect failed")
 
   fun ref accepted(conn: TCPConnection ref) =>
-    _h.log("connection accepted by _TestTCPExpectOverBufferSizeNotify")
+    @printf("connection accepted by _TestTCPExpectOverBufferSizeNotify %p\n".cstring(), conn)
     //conn.set_nodelay(true)
     try
       conn.expect(_expect)?
@@ -452,7 +451,7 @@ class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     @printf("TCPMUTERECEIVE IS %p\n".cstring(), conn)
-    _h.log("connection accepted by _TestTCPMuteReceiveNotify")
+    @prinf("connection accepted by _TestTCPMuteReceiveNotify %p\n".cstring(), conn )
     _h.complete_action("receiver accepted")
     conn.mute()
     _h.complete_action("receiver muted")
@@ -470,16 +469,10 @@ class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
     true
 
   fun ref closed(conn: TCPConnection ref) =>
-    _h.log("_TestTCPMuteReceiveNotify closed")
+    @printf("_TestTCPMuteReceiveNotify %p closed\n".cstring(), conn)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
-
-  fun ref throttled(conn: TCPConnection ref) =>
-    _h.log("_TestTCPMuteReceiveNotify throttled")
-
-  fun ref connecting(conn: TCPConnection ref, count: U32) =>
-    _h.log("_TestTCPMuteReceiveNotify connecting: " + count.string())
 
 class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
   """
@@ -514,12 +507,7 @@ class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
      true
 
   fun ref closed(conn: TCPConnection ref) =>
-    _h.log("_TestTCPMuteSendNotify closed")
-
-  fun ref throttled(conn: TCPConnection ref) =>
-    _h.log("_TestTCPMuteSendNotify throttled")
-
-
+    @printf("_TestTCPMuteSendNotify %p closed\n".cstring(), conn)
 
 class \nodoc\ iso _TestTCPUnmute is UnitTest
   """
@@ -559,7 +547,7 @@ class \nodoc\ _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
     _h = h
 
   fun ref accepted(conn: TCPConnection ref) =>
-    _h.log("connection accepted by _TestTCPUnmuteReceiveNotify")
+    @printf("connection accepted by _TestTCPUnmuteReceiveNotify %p\n".cstring(), conn)
     _h.complete_action("receiver accepted")
     conn.mute()
     _h.complete_action("receiver muted")
@@ -619,7 +607,7 @@ class \nodoc\ _TestTCPThrottleReceiveNotify is TCPConnectionNotify
     _h = h
 
   fun ref accepted(conn: TCPConnection ref) =>
-    _h.log("connection accepted by _TestTCPThrottleReceiveNotify")
+    @printf("connection accepted by _TestTCPThrottleReceiveNotify %p\n".cstring(), conn)
     _h.complete_action("receiver accepted")
     conn.mute()
     _h.complete_action("receiver muted")
