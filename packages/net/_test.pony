@@ -451,7 +451,7 @@ class \nodoc\ _TestTCPMuteReceiveNotify is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     @printf("TCPMUTERECEIVE IS %p\n".cstring(), conn)
-    @prinf("connection accepted by _TestTCPMuteReceiveNotify %p\n".cstring(), conn )
+    @printf("connection accepted by _TestTCPMuteReceiveNotify %p\n".cstring(), conn )
     _h.complete_action("receiver accepted")
     conn.mute()
     _h.complete_action("receiver muted")
