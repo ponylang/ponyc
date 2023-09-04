@@ -1,6 +1,5 @@
 use "files"
 use "pony_test"
-use @printf[I32](fmt: Pointer[None] tag, ...)
 
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
