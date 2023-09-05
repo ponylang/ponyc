@@ -228,12 +228,12 @@ else
 endif
 
 test-full-programs-release: all
-	@mkdir -p $(outDir)/runner-tests/release
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	@mkdir -p $(outDir)/full-program-tests/release
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --ponyc=$(outDir)/ponyc --output=$(outDir)/full-program-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
 test-full-programs-debug: all
-	@mkdir -p $(outDir)/runner-tests/debug
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	@mkdir -p $(outDir)/full-program-tests/debug
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/full-program-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential

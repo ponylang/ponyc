@@ -310,7 +310,7 @@ switch ($Command.ToLower())
                 }
                 $numTestSuitesRun += 1;
 
-                $runOutDir = "$outDir\runner-tests\$runConfig"
+                $runOutDir = "$outDir\full-program-tests\$runConfig"
                 $debugFlag = if ($runConfig -eq 'debug') { 'true' } else { 'false' }
 
                 $debuggercmd = ''
@@ -322,8 +322,8 @@ switch ($Command.ToLower())
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-                Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-                & $buildDir\test\libponyc-run\runner\runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
+                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
                 $err = $LastExitCode
                 if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
             }
