@@ -1059,11 +1059,7 @@ actor TCPConnection is AsioEventNotify
       _shutdown = true
 
       if _connected then
-        ifdef windows then
-          @pony_os_socket_close(_fd)
-        else
-          @pony_os_socket_shutdown(_fd)
-        end
+        @pony_os_socket_shutdown(_fd)
       else
         _shutdown_peer = true
       end
