@@ -1,6 +1,6 @@
 project(libponyc.tests.runner)
 
-set(RUNNER_EXECUTABLE "runner${CMAKE_EXECUTABLE_SUFFIX}")
+set(RUNNER_EXECUTABLE "full-program-runner${CMAKE_EXECUTABLE_SUFFIX}")
 
 add_custom_target(tests.runner ALL DEPENDS ${RUNNER_EXECUTABLE})
 
