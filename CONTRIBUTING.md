@@ -54,7 +54,7 @@ Some things to note that aren't immediately obvious to folks just starting out:
 2. Any changes you make on your branch that you used for the PR will automatically appear in the PR so if you have more than 1 PR, be sure to always create different branches for them.
 3. Weird things happen with commit history if you don't create your PR branches off of main so always make sure you have the main branch checked out before creating a branch for a PR
 
-If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [Zulip](https://ponylang.zulipchat.com).
+If you feel overwhelmed at any point, don't worry, it can be a lot to learn when you get started. Feel free to reach out via [Zulip](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to-Pony).
 
 You can get help using GitHub via [the official documentation](https://help.github.com/). Some highlights include:
 
@@ -64,12 +64,12 @@ You can get help using GitHub via [the official documentation](https://help.gith
 
 ## Pull request
 
-Before issuing a pull request we ask that you squash all your commits into a single logical commit. While your PR is in review, we may ask for additional changes, please do not squash those commits while the review is underway. Once everything is good, we'll then ask you to further squash those commits before merging. We ask that you not squash while a review is underway as it can make it hard to follow what is going on. Additionally, we ask that you:
+While we don't require that your pull request be a single commit, note that we will end up squashing all your commits into a single commit when we merge. While your PR is in review, we may ask for additional changes, please do not squash those commits while the review is underway. We ask that you not squash while a review is underway as it can make it hard to follow what is going on.
 
-* [Write a good commit message](http://chris.beams.io/posts/git-commit/)
-* Issue 1 Pull Request per feature. Don't lump unrelated changes together.
+When opening your pull request, please make sure that the initial comment on the PR is the commit message we should use when we merge. Making sure your commit message conforms to these guidelines for [writ(ing) a good commit message](http://chris.beams.io/posts/git-commit/).
 
-If you aren't sure how to squash multiple commits into one, Steve Klabnik wrote [a handy guide](http://blog.steveklabnik.com/posts/2012-11-08-how-to-squash-commits-in-a-github-pull-request) that you can refer to.
+Make sure to issue 1 pull request per feature. Don't lump unrelated changes together. If you find yourself using the word "and" in your commit comment, you
+are probably doing too much for a single PR.
 
 We keep a [CHANGELOG](CHANGELOG.md) of all software changes with behavioural effects in ponyc. If your PR includes such changes (rather than say a documentation update), a Pony team member will do the following before merging it, so that the PR will be automatically added to the CHANGELOG:
 
@@ -80,7 +80,9 @@ We keep a [CHANGELOG](CHANGELOG.md) of all software changes with behavioural eff
 
 Once those conditions are met, the PR can be merged, and an automated system will immediately add the entry to the changelog. Keeping the changelog entries out of the file changes in the PR helps to avoid conflicts and other administrative headaches when many PRs are in progress.
 
-Please note, if your changes are purely to things like README, CHANGELOG etc, you can add [skip ci] as the last line of your commit message and your PR won't be run through our continuous integration systems. We ask that you use [skip ci] where appropriate as it helps to get changes through CI faster and doesn't waste resources that Appveyor and TravisCI are kindly donating to the Open Source community.
+Any change that involves a changelog entry will trigger a bot to request that you add release notes to your PR.
+
+Pull requests from accounts that aren't members of the Ponylang organization require approval from a member before running. Approval is required after each update that you make. This could involve a lot of waiting on your part for approvals. If you are opening PRs to verify that changes all pass CI before "opening it for real", we strongly suggest that you open the PR against the `main` branch of your fork. CI will then run in your fork and you don't need to wait for approval from a Ponylang member.
 
 ## Grammar Changes
 
