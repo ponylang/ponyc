@@ -29,12 +29,20 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
   if(opt->pic)
     reloc = Reloc::PIC_;
 
-  // The Arm debug fix is a "temporary" fix for issue #3874
+  // The Arm debug fix is a "temporary" fix for issues #3874 and #4369.
   // https://github.com/ponylang/ponyc/issues/3874
-  // Hopefully we get #3874 figured out in a reasonable amount of time.
+  // https://github.com/ponylang/ponyc/issues/4369
+  // We believe both issues are LLVM issues (probably the same or related).
+  // We invested considerable time in trying to track down "the root cause" but
+  // haven't been able to.
+  // Ideally, debug builds would get CodeGenOpt::None here, however, that when
+  // mixed with other optimization options elsewhere seems to lead to bugs that
+  // related to DWARF info and inlining.
+  // As part of the the #4369 investigation, we came to believe that
+  // CodeGenOpt::None is an infrequently used code path and that we are better
+  // using Default as it is less likely to have bugs.
   CodeGenOpt::Level opt_level =
-    opt->release ? CodeGenOpt::Aggressive :
-      target_is_arm(opt->triple) ? CodeGenOpt::Default : CodeGenOpt::None;
+    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::Default;
 
   TargetOptions options;
 
