@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix "double socket close" issue with Windows version of TCPConnection ([PR #4437](https://github.com/ponylang/ponyc/pull/4437))
 
 ### Added
 
