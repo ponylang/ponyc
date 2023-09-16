@@ -30,6 +30,6 @@ $dockerTag = "ghcr.io/" + $env:GITHUB_REPOSITORY + ':' + $env:VERSION + '-window
 docker build --pull -t "$dockerTag" "$dockerfileDir"
 docker push "$dockerTag"
 
-$dockerTag = "ghcr.io" + $env:GITHUB_REPOSITORY + ':release-windows'
+$dockerTag = "ghcr.io/" + $env:GITHUB_REPOSITORY + ':release-windows'
 docker build --pull -t "$dockerTag" "$dockerfileDir"
 docker push "$dockerTag"
