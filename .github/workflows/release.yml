@@ -149,7 +149,7 @@ jobs:
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Build
-        run: \make.ps1 -Command build -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
+        run: .\make.ps1 -Command build -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Install
         run: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
       - name: Package
