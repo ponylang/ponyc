@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- "No op" release to get Windows release out
 
 ### Changed
 
