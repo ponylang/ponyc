@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.56.1] - 2023-09-16
 
 ### Fixed
 
 - Fix "double socket close" issue with Windows version of TCPConnection ([PR #4437](https://github.com/ponylang/ponyc/pull/4437))
-
-### Added
-
-
-### Changed
-
 
 ## [0.56.0] - 2023-08-30
 
