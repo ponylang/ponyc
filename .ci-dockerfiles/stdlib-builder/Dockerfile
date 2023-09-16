@@ -1,5 +1,5 @@
 ARG FROM_TAG=release-alpine
-FROM ponylang/ponyc:${FROM_TAG}
+FROM ghcr.io/ponylang/ponyc:${FROM_TAG}
 
 ARG MATERIAL_INSIDERS_ACCESS=fail
 
