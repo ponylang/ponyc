@@ -64,6 +64,14 @@ add_library(libponyrt STATIC
     ${_ll_except_obj}
 )
 
+if(PONY_USE_DTRACE)
+    add_custom_command(OUTPUT dtrace_probes.o
+        COMMAND dtrace -h -s "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d" -o "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.h"
+        COMMAND dtrace -G -s "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d" -o dtrace_probes.o
+    )
+    target_sources(libponyrt PRIVATE dtrace_probes.o)
+endif()
+
 if (NOT MSVC)
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64")
         target_compile_options(libponyrt PUBLIC -mcx16)

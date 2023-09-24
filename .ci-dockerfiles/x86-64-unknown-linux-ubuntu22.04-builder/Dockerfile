@@ -18,6 +18,7 @@ RUN apt-get update \
   curl \
   python3-pip \
   wget \
+  systemtap-sdt-dev \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \

@@ -87,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230830
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
             name: x86-64 Linux glibc
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
@@ -400,3 +400,51 @@ jobs:
           .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
         run: .\make.ps1 -Command test -Config Release -Uselldb yes
+
+  use_directives:
+    runs-on: ubuntu-latest
+    needs: x86_64-linux
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
+            debugger: lldb
+            directive: dtrace
+
+    name: use ${{ matrix.directive }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=x86-64 config=debug use=${{ matrix.directive }}
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
+      - name: Build Release Runtime
+        run: |
+          make configure arch=x86-64 config=release use=${{ matrix.directive }}
+
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger='${{ matrix.debugger }}'
