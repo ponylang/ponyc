@@ -172,6 +172,17 @@ make configure arch=arm7
 make build
 ```
 
+## dtrace
+
+BSD and Linux based versions of Pony support using DTrace and SystemTap for collecting Pony runtime events.
+
+DTrace support is enabled by setting `use=dtrace` in the build command line like:
+
+```bash
+make configure use=dtrace
+make build
+```
+
 ### lto
 
 Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
