@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix broken DTrace support ([PR #4453](https://github.com/ponylang/ponyc/pull/4453))
 
 ### Added
 
