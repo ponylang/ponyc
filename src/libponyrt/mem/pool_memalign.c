@@ -27,6 +27,7 @@ void* ponyint_pool_alloc(size_t index)
   else
   {
     int code = posix_memalign(&p, POOL_ALIGN, size);
+    (void)code;
     pony_assert(code == 0);
   }
 
@@ -35,6 +36,7 @@ void* ponyint_pool_alloc(size_t index)
 
 void ponyint_pool_free(size_t index, void* p)
 {
+  (void)index;
   pony_assert(index < POOL_COUNT);
 
   free(p);
@@ -44,6 +46,7 @@ static void* pool_alloc_size(size_t size)
 {
   void* p;
   int code = posix_memalign(&p, POOL_ALIGN, size);
+  (void)code;
   pony_assert(code == 0);
 
   return p;

@@ -411,9 +411,12 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
             debugger: lldb
-            directive: dtrace
+            directives: dtrace
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
+            debugger: lldb
+            directives: pool_memalign
 
-    name: use ${{ matrix.directive }}
+    name: use ${{ matrix.directives }}
     container:
       image: ${{ matrix.image }}
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
@@ -437,13 +440,13 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug use=${{ matrix.directive }}
+          make configure arch=x86-64 config=debug use=${{ matrix.directives }}
           make build config=debug
       - name: Test with Debug Runtime
         run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
       - name: Build Release Runtime
         run: |
-          make configure arch=x86-64 config=release use=${{ matrix.directive }}
+          make configure arch=x86-64 config=release use=${{ matrix.directives }}
 
           make build config=release
       - name: Test with Release Runtime
