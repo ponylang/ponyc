@@ -90,9 +90,9 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
             name: x86-64 Linux glibc
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20230830
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
             name: x86-64 Linux musl
-            debugger: gdb
+            debugger: lldb
 
     name: ${{ matrix.name }}
     container:
