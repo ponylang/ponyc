@@ -638,13 +638,13 @@ bool sendable(ast_t* type)
 
     case TK_ARROW:
     {
-      ast_t* lower = viewpoint_lower(type);
+      ast_t* upper = viewpoint_upper(type);
 
-      if(lower == NULL)
+      if(upper == NULL)
         return false;
 
-      bool ok = sendable(lower);
-      ast_free_unattached(lower);
+      bool ok = sendable(upper);
+      ast_free_unattached(upper);
       return ok;
     }
 

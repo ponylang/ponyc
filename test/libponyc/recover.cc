@@ -293,6 +293,49 @@ TEST_F(RecoverTest, CantAccess_NonSendableField)
   TEST_ERRORS_1(src, "can't access non-sendable field of non-sendable object");
 }
 
+// Issue #4244
+TEST_F(RecoverTest, CantRecover_BoxFieldToVal_V1)
+{
+  const char* src =
+    "class Foo\n"
+    "class Bar\n"
+    "  let f: Foo box\n"
+    "  new create(f': Foo box) => f = f'\n"
+    "  fun get_f(): Foo val => recover val f end\n";
+
+  TEST_ERRORS_1(src, "can't access non-sendable field of non-sendable object inside of a recover expression");
+}
+
+// Issue #4244
+TEST_F(RecoverTest, CantRecover_BoxFieldToVal_V2)
+{
+  const char* src =
+    "class Foo\n"
+    "class Bar\n"
+    "  let f: Foo box\n"
+    "  new create(f': Foo box) => f = f'\n"
+    "  fun get_f(): Foo val =>\n"
+    "    let b: this->(Bar box) = this\n"
+    "    recover val b.f end\n";
+
+  TEST_ERRORS_1(src, "can't access non-sendable field of non-sendable object inside of a recover expression");
+}
+
+// Issue #4244
+TEST_F(RecoverTest, CantRecover_BoxFieldToVal_V3)
+{
+  const char* src =
+    "class Foo\n"
+    "class Bar\n"
+    "  let f: Foo box\n"
+    "  new create(f': Foo box) => f = f'\n"
+    "  fun get_f(): Foo val =>\n"
+    "    let b: Bar box = this\n"
+    "    recover val b.f end\n";
+
+  TEST_ERRORS_1(src, "can't access non-sendable field of non-sendable object inside of a recover expression");
+}
+
 TEST_F(RecoverTest, CantAccess_AssignedField)
 {
   const char* src =
