@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix broken DTrace support ([PR #4453](https://github.com/ponylang/ponyc/pull/4453))
 - Fix compilation error when building with pool_memalign in release mode ([PR #4455](https://github.com/ponylang/ponyc/pull/4455))
+- Fix compiler bug that allows an unsafe data access pattern ([PR #4458](https://github.com/ponylang/ponyc/pull/4458))
 
 ### Added
 
