@@ -35,3 +35,5 @@ Upon investigation, we found that this bug goes back about 8 or 9 years to the w
 
 We've fixed the logic flaw and added tests to verify that it can't be reintroduced.
 
+This will potentially break your code if you coded an unsafe recover block that the compiler previously allowed.
+
