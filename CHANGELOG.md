@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- - Fix compiler bug that allows an unsafe data access pattern ([PR #4458](https://github.com/ponylang/ponyc/pull/4458))
 
 ## [0.56.2] - 2023-09-16
 
