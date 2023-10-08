@@ -2,16 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.57.0] - 2023-10-08
 
 ### Fixed
 
 - Fix broken DTrace support ([PR #4453](https://github.com/ponylang/ponyc/pull/4453))
 - Fix compilation error when building with pool_memalign in release mode ([PR #4455](https://github.com/ponylang/ponyc/pull/4455))
 - Fix compiler bug that allows an unsafe data access pattern ([PR #4458](https://github.com/ponylang/ponyc/pull/4458))
-
-### Added
-
 
 ### Changed
 
