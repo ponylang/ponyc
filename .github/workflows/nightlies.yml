@@ -88,10 +88,8 @@ jobs:
         with:
           path: build/libs
           key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
-      - name: Install Dependencies
-        run: |
-          brew install python
-          pip3 install --upgrade cloudsmith-cli
+      - name: Install Cloudsmith
+        run: pip3 install --upgrade cloudsmith-cli
       - name: Nightly
         run: bash .ci-scripts/x86-64-nightly.bash
         env:
