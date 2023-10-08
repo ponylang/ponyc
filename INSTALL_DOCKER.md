@@ -14,18 +14,32 @@ If you prefer to use the Alpine images, you can use the following tags:
 
 The docker images also include common Pony tools like [ponyup](https://github.com/ponylang/ponyup), [corral](https://github.com/ponylang/corral), and [changelog-tool](https://github.com/ponylang/changelog-tool).
 
-## Using Pony from Docker
+## Where to find images
 
-You'll need to install Docker using [the instructions here](https://docs.docker.com/engine/installation/). Then you can pull a pony docker image using the following command (where TAG is the tag you want to use)
+Images from 0.56.1 and later are available from GitHub Container Registry. Earlier images are hosted on DockerHub. To use an image from DockerHub, change the command below from the pattern:
+
+```bash
+docker pull docker://ghcr.io/ponylang/ponyc:TAG
+```
+
+to
 
 ```bash
 docker pull ponylang/ponyc:TAG
 ```
 
+## Using Pony from Docker
+
+You'll need to install Docker using [the instructions here](https://docs.docker.com/engine/installation/). Then you can pull a pony docker image using the following command (where TAG is the tag you want to use)
+
+```bash
+docker pull docker://ghcr.io/ponylang/ponyc:TAG
+```
+
 Then you'll be able to run `ponyc` to compile a Pony program in a given directory, running a command like this:
 
 ```bash
-docker run -v /path/to/my-code:/src/main ponylang/ponyc:TAG
+docker run -v /path/to/my-code:/src/main docker://ghcr.io/ponylang/ponyc:TAG
 ```
 
 If you're unfamiliar with Docker, remember to ensure that whatever path you provide for `/path/to/my-code` is a full path name and not a relative path, and also note the lack of a closing slash, `/`, at the *end* of the path name.
@@ -33,13 +47,13 @@ If you're unfamiliar with Docker, remember to ensure that whatever path you prov
 Note that if your host doesn't match the docker container, you'll probably have to run the resulting program inside the docker container as well, using a command like this:
 
 ```bash
-docker run -v /path/to/my-code:/src/main ponylang/ponyc:TAG ./main
+docker run -v /path/to/my-code:/src/main docker://ghcr.io/ponylang/ponyc:TAG ./main
 ```
 
 To compile and run in one step run a command like this:
 
 ```bash
-docker run -v /path/to/my-code:/src/main ponylang/ponyc:TAG sh -c "ponyc && ./main"
+docker run -v /path/to/my-code:/src/main docker://ghcr.io/ponylang/ponyc:TAG sh -c "ponyc && ./main"
 ```
 
 ### Docker for Windows
@@ -47,7 +61,7 @@ docker run -v /path/to/my-code:/src/main ponylang/ponyc:TAG sh -c "ponyc && ./ma
 Pull an image as above:
 
 ```bash
-docker pull ponylang/ponyc:TAG
+docker pull docker://ghcr.io/ponylang/ponyc:TAG
 ```
 
 Share a local drive (volume), such as `c:`, with Docker for Windows, so that they are available to your containers. (Refer to [shared drives](https://docs.docker.com/docker-for-windows/#shared-drives) in the Docker for Windows documentation for details.)
@@ -55,7 +69,7 @@ Share a local drive (volume), such as `c:`, with Docker for Windows, so that the
 Then you'll be able to run `ponyc` to compile a Pony program in a given directory, running a command like this:
 
 ```bash
-docker run -v c:/path/to/my-code:/src/main ponylang/ponyc:TAG
+docker run -v c:/path/to/my-code:/src/main docker://ghcr.io/ponylang/ponyc:TAG
 ```
 
 Note the inserted drive letter. Replace with your drive letter as appropriate.
@@ -63,11 +77,11 @@ Note the inserted drive letter. Replace with your drive letter as appropriate.
 To run a program, run a command like this:
 
 ```bash
-docker run -v c:/path/to/my-code:/src/main ponylang/ponyc:TAG ./main
+docker run -v c:/path/to/my-code:/src/main docker://ghcr.io/ponylang/ponyc:TAG ./main
 ```
 
 To compile and run in one step run a command like this:
 
 ```bash
-docker run -v c:/path/to/my-code:/src/main ponylang/ponyc:TAG sh -c "ponyc && ./main"
+docker run -v c:/path/to/my-code:/src/main docker://ghcr.io/ponylang/ponyc:TAG sh -c "ponyc && ./main"
 ```
