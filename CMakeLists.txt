@@ -263,7 +263,6 @@ endif()
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_SCHEDULER_SCALING_PTHREADS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    add_link_options(-ld_classic)
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
