@@ -818,9 +818,10 @@ bool codegen_pass_init(pass_opt_t* opt)
   {
     triple = LLVMCreateMessage(opt->triple);
   } else {
-#if defined(PLATFORM_IS_MACOSX) && !defined(PLATFORM_IS_ARM)
-    // This is to prevent XCode 7+ from claiming OSX 14.5 is required.
-    triple = LLVMCreateMessage("x86_64-apple-macosx");
+#if defined(PLATFORM_IS_MACOSX) && defined(PLATFORM_IS_ARM)
+    triple = LLVMCreateMessage("arm64-apple-macosx13.0.0");
+#elif defined(PLATFORM_IS_MACOSX) && !defined(PLATFORM_IS_ARM)
+    triple = LLVMCreateMessage("x86_64-apple-macosx13.0.0");
 #else
     triple = LLVMGetDefaultTargetTriple();
 #endif

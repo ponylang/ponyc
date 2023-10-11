@@ -295,7 +295,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   snprintf(ld_cmd, ld_len,
     "%s -execute -arch %.*s "
     "-o %s %s %s %s "
-    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
+    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s -platform_version macos '13.0.0' '0.0.0'",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt, sanitizer_arg
     );
