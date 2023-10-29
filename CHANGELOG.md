@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Disallow `return` at the end of a `with` block ([PR #4467](https://github.com/ponylang/ponyc/pull/4467))
 
 ## [0.57.1] - 2023-10-29
 
