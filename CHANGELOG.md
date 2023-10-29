@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.57.1] - 2023-10-29
 
 ### Fixed
 
 - Fix compiling Pony programs on X86 MacOS when XCode 15 is the linker ([PR #4466](https://github.com/ponylang/ponyc/pull/4466))
-
-### Added
-
-
-### Changed
-
 
 ## [0.57.0] - 2023-10-08
 
