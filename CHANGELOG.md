@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiling Pony programs on X86 MacOS when XCode 15 is the linker ([PR #4466](https://github.com/ponylang/ponyc/pull/4466))
 
 ### Added
 
