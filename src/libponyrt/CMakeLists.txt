@@ -59,6 +59,10 @@ find_file(_llc_command
     PATHS "${CMAKE_BINARY_DIR}/../../libs/bin" "${CMAKE_BINARY_DIR}/../libs/bin"
 )
 
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0.0)
+endif()
+
 add_library(libponyrt STATIC
     ${_c_src}
     ${_ll_except_obj}

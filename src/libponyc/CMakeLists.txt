@@ -104,6 +104,10 @@ target_include_directories(libponyc
     PRIVATE ../../lib/blake2
 )
 
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0.0)
+endif()
+
 if (MSVC)
     file(GLOB_RECURSE CFILES "${PROJECT_SOURCE_DIR}/*.c")
     set_source_files_properties(${CFILES} PROPERTIES LANGUAGE CXX)
@@ -126,7 +130,7 @@ if (MSVC)
     set(libponyc_standalone_file "${CMAKE_STATIC_LIBRARY_PREFIX}ponyc-standalone${CMAKE_STATIC_LIBRARY_SUFFIX}")
     set(libponyc_standalone_path "${CMAKE_BINARY_DIR}/${libponyc_standalone_file}")
     add_custom_target(libponyc-standalone ALL
-        # CMAKE_AR finds the appropriate version of lib.exe acdording to desired target and host architecture 
+        # CMAKE_AR finds the appropriate version of lib.exe acdording to desired target and host architecture
         COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /MACHINE:x64 /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
         DEPENDS libponyc)
     add_custom_command(TARGET libponyc-standalone POST_BUILD
