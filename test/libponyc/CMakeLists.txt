@@ -52,6 +52,7 @@ add_executable(libponyc.tests
     use.cc
     util.cc
     verify.cc
+    with.cc
 )
 
 target_include_directories(libponyc.tests

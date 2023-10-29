@@ -444,6 +444,13 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  if(ast_id(parent) == TK_DISPOSING_BLOCK)
+  {
+    ast_error(opt->check.errors, ast,
+      "use return only to exit early from a with block, not at the end");
+    return false;
+  }
+
   ast_t* type = ast_childidx(opt->check.frame->method, 4);
   ast_t* body = ast_child(ast);
 
