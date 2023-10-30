@@ -106,7 +106,6 @@ target_include_directories(libponyc
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
-    target_compile_definitions(libponyc PUBLIC PONY_OSX_PLATFORM=${PONY_OSX_PLATFORM})
 endif()
 
 if (MSVC)

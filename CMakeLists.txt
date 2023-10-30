@@ -131,7 +131,7 @@ if(NOT MSVC)
     endif()
 endif()
 
-set(PONY_OSX_PLATFORM "13.0.0")
+set(PONY_OSX_PLATFORM 13.0.0)
 
 # LLVM component setup
 if(NOT PONY_CROSS_LIBPONYRT)
@@ -227,6 +227,7 @@ add_compile_definitions(
     $<$<CONFIG:Release>:PONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     $<$<CONFIG:RelWithDebInfo>:PONY_VERSION_STR="${PONYC_VERSION} [relwithdebinfo]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     $<$<CONFIG:MinSizeRel>:PONY_VERSION_STR="${PONYC_VERSION} [minsizerel]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
+    PONY_OSX_PLATFORM=${PONY_OSX_PLATFORM}
 )
 
 include(CheckIPOSupported)
