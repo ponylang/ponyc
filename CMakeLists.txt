@@ -131,6 +131,8 @@ if(NOT MSVC)
     endif()
 endif()
 
+set(PONY_OSX_PLATFORM "13.0.0")
+
 # LLVM component setup
 if(NOT PONY_CROSS_LIBPONYRT)
     set(LLVM_COMPONENTS

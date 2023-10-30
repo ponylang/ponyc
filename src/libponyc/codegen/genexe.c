@@ -19,6 +19,8 @@
 #  include <unistd.h>
 #endif
 
+#define STRINGIFY(x) #x
+
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
@@ -295,7 +297,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   snprintf(ld_cmd, ld_len,
     "%s -execute -arch %.*s "
     "-o %s %s %s %s "
-    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s -platform_version macos '13.0.0' '0.0.0'",
+    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s -platform_version macos '" STRINGIFY(PONY_OSX_PLATFORM) "' '0.0.0'",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt, sanitizer_arg
     );
