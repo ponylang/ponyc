@@ -22,6 +22,9 @@
 #include <llvm-c/Support.h>
 #include <string.h>
 
+#define STR(x) STR2(x)
+#define STR2(x) #x
+
 struct compile_local_t
 {
   const char* name;
@@ -819,9 +822,11 @@ bool codegen_pass_init(pass_opt_t* opt)
     triple = LLVMCreateMessage(opt->triple);
   } else {
 #if defined(PLATFORM_IS_MACOSX) && defined(PLATFORM_IS_ARM)
-    triple = LLVMCreateMessage("arm64-apple-macosx13.0.0");
+    triple = LLVMCreateMessage("arm64-apple-macosx"
+      STR(PONY_OSX_PLATFORM));
 #elif defined(PLATFORM_IS_MACOSX) && !defined(PLATFORM_IS_ARM)
-    triple = LLVMCreateMessage("x86_64-apple-macosx13.0.0");
+    triple = LLVMCreateMessage("x86_64-apple-macosx"
+      STR(PONY_OSX_PLATFORM));
 #else
     triple = LLVMGetDefaultTargetTriple();
 #endif
