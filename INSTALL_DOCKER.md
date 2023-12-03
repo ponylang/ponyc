@@ -14,20 +14,6 @@ If you prefer to use the Alpine images, you can use the following tags:
 
 The docker images also include common Pony tools like [ponyup](https://github.com/ponylang/ponyup), [corral](https://github.com/ponylang/corral), and [changelog-tool](https://github.com/ponylang/changelog-tool).
 
-## Where to find images
-
-Images from 0.56.1 and later are available from GitHub Container Registry. Earlier images are hosted on DockerHub. To use an image from DockerHub, change the command below from the pattern:
-
-```bash
-docker pull docker://ghcr.io/ponylang/ponyc:TAG
-```
-
-to
-
-```bash
-docker pull ponylang/ponyc:TAG
-```
-
 ## Using Pony from Docker
 
 You'll need to install Docker using [the instructions here](https://docs.docker.com/engine/installation/). Then you can pull a pony docker image using the following command (where TAG is the tag you want to use)
