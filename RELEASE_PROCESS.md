@@ -14,10 +14,6 @@ We rely on Cloudsmith and GitHub Actions as part of our release process. Both ne
 * [Cloudsmith](https://status.cloudsmith.io/)
 * [GitHub](https://www.githubstatus.com/)
 
-We are in the process of migrating off of DockerHub, while that migration is going on, we are also relying on it, so you need to make sure it is functional before doing a release.
-
-* [DockerHub](https://status.docker.com/)
-
 ## Releasing
 
 Please note that this document was written with the assumption that you are using a clone of the `ponyc` repo. You have to be using a clone rather than a fork. It is advised that you do this by making a fresh clone of the `ponyc` repo from which you will release.
@@ -74,7 +70,7 @@ The images are built via GitHub action after Linux releases have been uploaded t
 
 ### Verify that the Pony Playground updated to the new version
 
-Once the DockerHub images have been updated, the Pony playground should automatically update. You can check the version running by compiling a small Pony program and verifying that the version listed in the output matches the newly released Pony version.
+Once the images have been updated, the Pony playground should automatically update. You can check the version running by compiling a small Pony program and verifying that the version listed in the output matches the newly released Pony version.
 
 If the versions are different, you'll need to log in to the playground server as root and run `bash update-playground.bash`.
 
