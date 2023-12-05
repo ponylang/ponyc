@@ -21,11 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Login to DockerHub
-        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -56,11 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Login to DockerHub
-        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -91,11 +81,6 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v3
-      - name: Login to DockerHub
-        run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -126,11 +111,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Login to DockerHub
-        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -152,11 +132,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Login to DockerHub
-        run: docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -178,11 +153,6 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v3
-      - name: Login to DockerHub
-        run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
