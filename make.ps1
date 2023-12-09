@@ -494,6 +494,8 @@ switch ($Command.ToLower())
         $package = "ponyc-x86-64-pc-windows-msvc.zip"
         Write-Output "Creating $buildDir\..\$package"
 
+        # Remove unneeded files; we do it this way because Compress-Archive cannot add a single file to anything other than the root directory
+        Get-ChildItem -File -Path "$Prefix\bin\*" -Exclude ponyc.exe | Remove-Item
         Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
         break
     }
