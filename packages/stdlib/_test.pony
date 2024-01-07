@@ -36,6 +36,7 @@ use pony_check = "pony_check"
 use process = "process"
 use promises = "promises"
 use random = "random"
+use runtime_info = "runtime_info"
 use serialise = "serialise"
 use signals = "signals"
 use strings = "strings"
@@ -66,6 +67,7 @@ actor \nodoc\ Main is TestList
     process.Main.make().tests(test)
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
+    runtime_info.Main.make().tests(test)
     serialise.Main.make().tests(test)
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
