@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix missing "runtime_info" package documentation ([PR #4476](https://github.com/ponylang/ponyc/pull/4476))
 
 ### Added
 
