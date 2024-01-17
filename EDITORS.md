@@ -19,3 +19,4 @@
 * Kate: update syntax definition file: Settings -> Configure Kate -> Open/Save -> Modes & Filetypes -> Download Highlighting Files
 * CudaText: lexer in Addon Manager
 * Vis: has a [lexer](https://github.com/martanne/vis/blob/master/lua/lexers/pony.lua) for Pony
+* Kakoune: has [Pony support](https://github.com/mawww/kakoune/blob/master/rc/filetype/pony.kak) in the main repository
