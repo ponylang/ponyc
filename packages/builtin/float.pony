@@ -18,8 +18,8 @@ use @logbf[F32](x: F32)
 use @logb[F64](x: F64)
 use @"llvm.pow.f32"[F32](x: F32, y: F32)
 use @"llvm.pow.f64"[F64](x: F64, y: F64)
-use @"llvm.powi.f32"[F32](x: F32, y: I32) if not windows
-use @"llvm.powi.f64"[F64](x: F64, y: I32) if not windows
+use @"llvm.powi.f32.i32"[F32](x: F32, y: I32) if not windows
+use @"llvm.powi.f64.i32"[F64](x: F64, y: I32) if not windows
 use @"llvm.sqrt.f32"[F32](x: F32)
 use @"llvm.sqrt.f64"[F64](x: F64)
 use @cbrtf[F32](x: F32)
@@ -217,7 +217,7 @@ primitive F32 is FloatingPoint[F32]
     ifdef windows then
       pow(y.f32())
     else
-      @"llvm.powi.f32"(this, y)
+      @"llvm.powi.f32.i32"(this, y)
     end
 
   fun sqrt(): F32 =>
@@ -434,7 +434,7 @@ primitive F64 is FloatingPoint[F64]
     ifdef windows then
       pow(y.f64())
     else
-      @"llvm.powi.f64"(this, y)
+      @"llvm.powi.f64.i32"(this, y)
     end
 
   fun sqrt(): F64 =>
