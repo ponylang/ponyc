@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.1] - 2024-01-27
 
 ### Fixed
 
 - Fix missing "runtime_info" package documentation ([PR #4476](https://github.com/ponylang/ponyc/pull/4476))
 - Use the correct LLVM intrinsics for `powi` on *nix. ([PR #4481](https://github.com/ponylang/ponyc/pull/4481))
-
-### Added
-
-
-### Changed
-
 
 ## [0.58.0] - 2023-11-24
 
