@@ -47,7 +47,7 @@ jobs:
             name: x86-64-unknown-linux-musl
             triple-os: linux-musl
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora39-builder:20240128
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora39-builder:20240129
             name: x86-64-unknown-linux-fedora39
             triple-os: linux-fedora39
             triple-vendor: unknown
