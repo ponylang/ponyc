@@ -9,6 +9,9 @@ RUN dnf install -y clang \
   python3-pip \
   lldb \
   libstdc++-static \
+ && dnf -y autoremove \
+ && dnf -y clean all \
+ && rm -rf /var/cache/dnf/* \
  && pip3 install cloudsmith-cli
 
 # needed for GitHub actions
