@@ -44,6 +44,7 @@ Package names will be:
 
 * ponyc-x86-64-apple-darwin.tar.gz
 * ponyc-x86-64-pc-windows-msvc.zip
+* ponyc-x86-64-unknown-linux-fedora39.tar.gz
 * ponyc-x86-64-unknown-linux-musl.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu22.04.tar.gz
