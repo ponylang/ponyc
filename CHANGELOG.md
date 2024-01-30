@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Fedora 39 as a supported platform ([PR #4485](https://github.com/ponylang/ponyc/pull/4485))
 
 ### Changed
 
