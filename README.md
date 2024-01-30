@@ -11,7 +11,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 ### Operating Systems
 
 * Linux
-* macOS (x86 only)
+* macOS
 * Windows 10
 
 ### CPUs
@@ -28,7 +28,6 @@ Best effort platforms mean that there is support for the platform in the codebas
 
 * DragonFlyBSD (x86 only)
 * FreeBSD (x86 only)
-* macOS (Apple Silicon only)
 
 ## More Information
 

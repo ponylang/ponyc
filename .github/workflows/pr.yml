@@ -360,6 +360,41 @@ jobs:
       - name: Test with Release Runtime
         run: make test-ci config=release usedebugger=lldb
 
+  arm64-macos:
+    runs-on: macos-14
+
+    name: arm64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=armv8  config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger=lldb
+      - name: Build Release Runtime
+        run: |
+          make configure arch=armv8  config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger=lldb
+
   x86_64-windows:
     runs-on: windows-2022
     defaults:

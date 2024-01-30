@@ -73,7 +73,7 @@ If you get that error, it means that the Glibc we compiled ponyc with isn't comp
 
 ## macOS
 
-Prebuilt macOS packages are available for macOS on Intel via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
+Prebuilt macOS packages are available for macOS via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
 
 To install the most recent ponyc on macOS:
 
