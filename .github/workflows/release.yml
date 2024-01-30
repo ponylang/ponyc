@@ -116,6 +116,40 @@ jobs:
           TRIPLE_VENDOR: apple
           TRIPLE_OS: darwin
 
+  arm64_macos:
+    needs:
+      - pre-artefact-creation
+
+    runs-on: macos-14
+
+    name: arm64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v3
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+      - name: Install Cloudsmith
+        run: pip3 install --upgrade cloudsmith-cli
+      - name: Release
+        run: bash .ci-scripts/arm64-release.bash
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          TRIPLE_VENDOR: apple
+          TRIPLE_OS: darwin
+
   x86_64-windows:
     needs:
       - pre-artefact-creation
