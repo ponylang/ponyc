@@ -30,6 +30,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
+    test(_TestArrayCopyTo)
     test(_TestArrayInsert)
     test(_TestArraySlice)
     test(_TestArraySwapElements)
@@ -1763,6 +1764,31 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
   fun apply(h: TestHelper) =>
     let arr = Array[U8].from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, arr.size())
+
+class \nodoc\ iso _TestArrayCopyTo is UnitTest
+  fun name(): String => 
+      "builtin/Array.copy_to"
+
+  fun apply(h: TestHelper) =>
+    // Test that a using an uninitialized array as a source leaves the destination unchanged
+    let src1: Array[U8] = []
+    let dest1: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    src1.copy_to(dest1, 0, 0, 10)
+    h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest1)
+
+    // Test that copying from an empty source array leaves 
+    // the destination unchanged
+    let src2: Array[U8] = [1]
+    try src2.pop()? end
+    h.assert_eq[USize](0, src2.size())
+    let dest2: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    src2.copy_to(dest2, 0, 0, 10) // try to copy 10 non-existant elements
+    h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest2)
+    src2.push(1) // re-add single element [1]
+    src2.copy_to(dest2, 11, 0, 1) // try to copy from too high start index
+    h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest2)
+    src2.copy_to(dest2, 0, 0, 10) // copies the sole available element
+    h.assert_array_eq[U8]([1; 1; 2; 3; 4; 5; 6], dest2)
 
 class \nodoc\ iso _TestMath128 is UnitTest
   """

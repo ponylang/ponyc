@@ -62,7 +62,7 @@ static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
 {
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
     c->opt);
-  deferred_reification_t* fun = lookup(NULL, pattern, pattern_type, c->str_eq);
+  deferred_reification_t* fun = lookup(c->opt, pattern, pattern_type, c->str_eq);
 
   AST_GET_CHILDREN(fun->ast, cap, id, typeparams, params, result, partial);
   ast_t* param = ast_child(params);
