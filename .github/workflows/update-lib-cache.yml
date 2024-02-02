@@ -31,7 +31,7 @@ jobs:
       options: --user pony
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Cache Libs
         id: cache-libs
         uses: actions/cache@v3
@@ -48,7 +48,7 @@ jobs:
     name: x86-64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Cache Libs
         id: restore-libs
         uses: actions/cache@v3
@@ -65,7 +65,7 @@ jobs:
     name: x86-64 Windows MSVC
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Cache Libs
         id: restore-libs
         uses: actions/cache@v3
