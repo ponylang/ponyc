@@ -11,7 +11,7 @@ jobs:
     name: Lint bash, docker, markdown, and yaml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Lint codebase
         uses: docker://github/super-linter:v3.8.3
         env:
@@ -26,7 +26,7 @@ jobs:
     name: Validate musl Docker image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/latest/x86-64-unknown-linux-musl/Dockerfile ."
 
@@ -34,7 +34,7 @@ jobs:
     name: Validate GNU Docker image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/latest/x86-64-unknown-linux-gnu/Dockerfile ."
 
@@ -42,7 +42,7 @@ jobs:
     name: Validate Windows Docker image builds
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull .dockerfiles/latest/x86-64-pc-windows-msvc"
 
@@ -50,7 +50,7 @@ jobs:
     name: Validate musl Docker release image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-musl/Dockerfile ."
 
@@ -58,7 +58,7 @@ jobs:
     name: Validate GNU Docker release image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-gnu/Dockerfile ."
 
@@ -66,7 +66,7 @@ jobs:
     name: Validate Windows Docker release image builds
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull .dockerfiles/release/x86-64-pc-windows-msvc"
 
@@ -76,7 +76,7 @@ jobs:
     container:
       image: ghcr.io/ponylang/changelog-tool:release
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Verify CHANGELOG
         run: changelog-tool verify
 
@@ -100,7 +100,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -145,7 +145,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -194,7 +194,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -243,7 +243,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -292,7 +292,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -331,7 +331,7 @@ jobs:
     name: x86-64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -366,7 +366,7 @@ jobs:
     name: arm64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3
@@ -404,7 +404,7 @@ jobs:
     name: x86-64 Windows MSVC
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Install Dependencies
         run: |
           function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
@@ -457,7 +457,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v3

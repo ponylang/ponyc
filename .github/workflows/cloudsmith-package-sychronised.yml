@@ -20,7 +20,7 @@ jobs:
     name: Build latest GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -50,7 +50,7 @@ jobs:
     name: Build latest musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -80,7 +80,7 @@ jobs:
     name: Build latest Windows Docker image
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -110,7 +110,7 @@ jobs:
     name: Build release GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -131,7 +131,7 @@ jobs:
     name: Build release musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -152,7 +152,7 @@ jobs:
     name: Build release Windows Docker image
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -187,7 +187,7 @@ jobs:
     name: Update stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -207,7 +207,7 @@ jobs:
     name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
         # v2.2.0
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
@@ -244,7 +244,7 @@ jobs:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:release
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Setup Pages
@@ -266,7 +266,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -288,7 +288,7 @@ jobs:
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.1.1
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Alert on failure
