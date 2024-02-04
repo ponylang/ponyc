@@ -1044,7 +1044,7 @@ bool genopt(compile_t* c, bool pony_specific)
     {
       errorf(errors, NULL, "Module verification failed: %s", msg);
       errorf_continue(errors, NULL,
-+        "Please file an issue ticket. Use --noverify to bypass this error.");
+        "Please file an issue ticket. Use --noverify to bypass this error.");
       LLVMDisposeMessage(msg);
       return false;
     }
