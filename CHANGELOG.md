@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix for potential memory corruption in `Array.copy_to` ([PR #4490](https://github.com/ponylang/ponyc/pull/4490))
+- Fix bug when serializing bare lambdas ([PR #4486](https://github.com/ponylang/ponyc/pull/4486))
 
 ### Added
 
