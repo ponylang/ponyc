@@ -40,3 +40,13 @@ When we switched to LLVM 15 in 0.54.1, we had to account for a rather large chan
 
 We've made the fix and introduced a regression test. Enjoy your fix Red!
 
+## Add constrained types package to standard library
+
+We've added a new package to the standard library: `constrained_types`.
+
+The `constrained_types` package allows you to represent in the type system, domain rules like "Username must be 6 to 12 characters in length and only container lower case ASCII letters".
+
+To learn more about the package, checkout its [documentation on the standard library docs site](https://stdlib.ponylang.io/constrained_types--index/).
+
+You can learn more about the motivation behind the package by reading [the RFC](https://github.com/ponylang/rfcs/blob/main/text/0079-constrained-types.md).
+
