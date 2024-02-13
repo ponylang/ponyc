@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add Fedora 39 as a supported platform ([PR #4485](https://github.com/ponylang/ponyc/pull/4485))
 - Add MacOS on Apple Silicon as a supported platform ([PR #4487](https://github.com/ponylang/ponyc/pull/4487))
+- Add constrained_types package to the standard library ([PR #4493](https://github.com/ponylang/ponyc/pull/4493))
 
 ### Changed
 
