@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.2] - 2024-02-24
 
 ### Fixed
 
@@ -14,9 +14,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add Fedora 39 as a supported platform ([PR #4485](https://github.com/ponylang/ponyc/pull/4485))
 - Add MacOS on Apple Silicon as a supported platform ([PR #4487](https://github.com/ponylang/ponyc/pull/4487))
 - Add constrained_types package to the standard library ([PR #4493](https://github.com/ponylang/ponyc/pull/4493))
-
-### Changed
-
 
 ## [0.58.1] - 2024-01-27
 
