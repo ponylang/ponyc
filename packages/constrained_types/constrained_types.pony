@@ -100,7 +100,7 @@ On our usage side we have:
     | let e: ValidationFailure =>
       print_errors(e)
     end
-``
+```
 
 Where we use the `MakeUsername` alias that we use to attempt to create a
 `Username` and get back either a `Username` or `ValidationFailure` that should
