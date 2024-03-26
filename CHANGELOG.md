@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix bug in documentation generation ([PR #4502](https://github.com/ponylang/ponyc/pull/4502))
 
 ### Added
 
