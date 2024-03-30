@@ -142,7 +142,7 @@ jobs:
           path: build/libs
           key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
       - name: Install Cloudsmith
-        run: pip3 install --upgrade cloudsmith-cli
+        run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Release
         run: bash .ci-scripts/arm64-release.bash
         env:
