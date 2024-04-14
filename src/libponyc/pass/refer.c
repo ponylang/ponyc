@@ -83,7 +83,7 @@ static bool is_this_incomplete(pass_opt_t* opt, ast_t* ast)
 // is used to get the definition for the type based on the `ast_data` to ensure
 // at some point the field is tied to a real type even if we haven't quite fully
 // determined the type of each field/subfield reference yet.
-static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
+static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** def_found, bool in_consume_ctx, bool *has_consume_error) {
   pony_assert(ast_id(ast) == TK_DOT);
 
   ast_t* def = NULL;
@@ -141,6 +141,20 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
     {
       if (def == NULL)
         return stringtab("");
+      else if (in_consume_ctx) {
+        pony_assert(has_consume_error);
+
+        *has_consume_error = true;
+
+        ast_error(opt->check.errors, temp_ast,
+                  "You can't consume an expression that isn't local. More"
+                  " specifically, you can only consume a local variable (a"
+                  " single lowercase identifier, with no dots) or a field"
+                  " of this (this followed by a dot and a single lowercase"
+                  " identifier).");
+         return stringtab("");
+      }
+
       pony_assert(0);
     }
   }
@@ -181,7 +195,7 @@ static const char* generate_multi_dot_name(ast_t* ast, ast_t** def_found) {
   return stringtab_consume(buf, len);
 }
 
-static bool is_matching_assign_lhs(ast_t* a, ast_t* b)
+static bool is_matching_assign_lhs(pass_opt_t *opt, ast_t* a, ast_t* b)
 {
   // Has to be the left hand side of an assignment (the first child).
   if(a == b)
@@ -191,8 +205,8 @@ static bool is_matching_assign_lhs(ast_t* a, ast_t* b)
   if((ast_id(a) == TK_DOT) && (ast_id(b) == TK_DOT))
   {
     // get fully qualified string identifier without `this`
-    const char* a_name = generate_multi_dot_name(a, NULL);
-    const char* b_name = generate_multi_dot_name(b, NULL);
+    const char* a_name = generate_multi_dot_name(opt, a, NULL, false, NULL);
+    const char* b_name = generate_multi_dot_name(opt, b, NULL, false, NULL);
 
     if(a_name == b_name)
       return true;
@@ -201,7 +215,7 @@ static bool is_matching_assign_lhs(ast_t* a, ast_t* b)
   return false;
 }
 
-static bool is_assigned_to(ast_t* ast, bool check_result_needed)
+static bool is_assigned_to(pass_opt_t *opt, ast_t* ast, bool check_result_needed)
 {
   while(true)
   {
@@ -211,7 +225,7 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
     {
       case TK_ASSIGN:
       {
-        if(!is_matching_assign_lhs(ast_child(parent), ast))
+        if(!is_matching_assign_lhs(opt, ast_child(parent), ast))
           return false;
 
         if(!check_result_needed)
@@ -309,7 +323,7 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
 
     case SYM_CONSUMED:
     case SYM_CONSUMED_SAME_EXPR:
-      if(is_assigned_to(ast, true))
+      if(is_assigned_to(opt, ast, true))
         return true;
 
       ast_error(opt->check.errors, ast,
@@ -317,7 +331,7 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
       return false;
 
     case SYM_UNDEFINED:
-      if(is_assigned_to(ast, true))
+      if(is_assigned_to(opt, ast, true))
         return true;
 
       ast_error(opt->check.errors, ast,
@@ -638,7 +652,7 @@ static bool refer_multi_dot(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, left, right);
 
   // get fully qualified string identifier without `this`
-  const char* name = generate_multi_dot_name(ast, NULL);
+  const char* name = generate_multi_dot_name(opt, ast, NULL, false, NULL);
 
   // use this string to check status using `valid_reference` function.
   sym_status_t status;
@@ -766,7 +780,7 @@ static lvalue_t assign_multi_dot(pass_opt_t* opt, ast_t* ast, bool need_value)
   pony_assert(ast_id(ast) == TK_DOT);
 
   // get fully qualified string identifier without `this`
-  const char* name = generate_multi_dot_name(ast, NULL);
+  const char* name = generate_multi_dot_name(opt, ast, NULL, false, NULL);
 
   sym_status_t status;
   ast_get(ast, name, &status);
@@ -1049,7 +1063,7 @@ static bool refer_assign(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static bool ast_get_child(ast_t* ast, const char* name)
+static bool ast_get_child(pass_opt_t *opt, ast_t* ast, const char* name)
 {
   const char* assign_name = NULL;
 
@@ -1064,7 +1078,7 @@ static bool ast_get_child(ast_t* ast, const char* name)
     case TK_DOT:
     {
       // get fully qualified string identifier without `this`
-      assign_name = generate_multi_dot_name(ast, NULL);
+      assign_name = generate_multi_dot_name(opt, ast, NULL, false, NULL);
       break;
     }
 
@@ -1079,7 +1093,7 @@ static bool ast_get_child(ast_t* ast, const char* name)
 
   while(child != NULL)
   {
-    if(ast_get_child(child, name))
+    if(ast_get_child(opt, child, name))
       return true;
 
     child = ast_sibling(child);
@@ -1088,7 +1102,7 @@ static bool ast_get_child(ast_t* ast, const char* name)
   return false;
 }
 
-static bool check_assigned_same_expression(ast_t* ast, const char* name,
+static bool check_assigned_same_expression(pass_opt_t *opt, ast_t* ast, const char* name,
   ast_t** ret_assign_ast)
 {
   ast_t* assign_ast = ast;
@@ -1101,7 +1115,7 @@ static bool check_assigned_same_expression(ast_t* ast, const char* name,
     return false;
 
   ast_t* assign_left = ast_child(assign_ast);
-  return ast_get_child(assign_left, name);
+  return ast_get_child(opt, assign_left, name);
 }
 
 static void set_flag_recursive(ast_t* outer, uint32_t flag)
@@ -1137,7 +1151,7 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
       ast_t* id = ast_child(term);
       name = ast_name(id);
       ast_t* assign_ast = NULL;
-      if(check_assigned_same_expression(id, name, &assign_ast))
+      if(check_assigned_same_expression(opt, id, name, &assign_ast))
       {
         consumed_same_expr = true;
         ast_setflag(assign_ast, AST_FLAG_CNSM_REASGN);
@@ -1157,6 +1171,7 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
       AST_GET_CHILDREN(term, left, right);
 
       ast_t* def = NULL;
+      bool has_consume_error = false;
 
       if(ast_id(left) == TK_THIS)
       {
@@ -1175,14 +1190,14 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
       {
         // get fully qualified string identifier without `this`
         // and def of the root object
-        name = generate_multi_dot_name(term, &def);
+        name = generate_multi_dot_name(opt, term, &def, true, &has_consume_error);
 
         // defer checking it's not a let or embed if it's not a `this` variable
         // because we don't have the type info available. The expr pass will
         // catch it in the `expr_consume` function.
       }
 
-      if(def == NULL)
+      if(def == NULL && !has_consume_error)
       {
         ast_error(opt->check.errors, ast,
           "cannot consume an unknown field type");
@@ -1191,7 +1206,7 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
 
       ast_t* assign_ast = NULL;
 
-      if(!check_assigned_same_expression(ast, name, &assign_ast))
+      if(!check_assigned_same_expression(opt, ast, name, &assign_ast))
       {
         ast_error(opt->check.errors, ast,
           "consuming a field is only allowed if it is reassigned in the same"
@@ -1274,7 +1289,7 @@ static bool refer_local(pass_opt_t* opt, ast_t* ast)
   if(ast_id(type) == TK_NONE)
   {
     // No type specified, infer it later
-    if(!is_dontcare && !is_assigned_to(ast, false))
+    if(!is_dontcare && !is_assigned_to(opt, ast, false))
     {
       ast_error(opt->check.errors, ast,
         "locals must specify a type or be assigned a value");
@@ -1284,7 +1299,7 @@ static bool refer_local(pass_opt_t* opt, ast_t* ast)
   else if(ast_id(ast) == TK_LET)
   {
     // Let, check we have a value assigned
-    if(!is_assigned_to(ast, false))
+    if(!is_assigned_to(opt, ast, false))
     {
       ast_error(opt->check.errors, ast,
         "can't declare a let local without assigning to it");
