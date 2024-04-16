@@ -18,6 +18,10 @@
   { const char* errs[] = {err1, err2, err3, NULL}; \
     DO(test_expected_errors(src, "refer", errs)); }
 
+#define TEST_ERRORS_4(src, err1, err2, err3, err4) \
+  { const char* errs[] = {err1, err2, err3, err4, NULL}; \
+    DO(test_expected_errors(src, "refer", errs)); }
+
 
 class ReferTest : public PassTest
 {};
@@ -882,6 +886,35 @@ TEST_F(ReferTest, ConsumeAfterMemberAccessWithConsumeLhs)
     TEST_ERRORS_2(src,
       "can't use a consumed local or field in an expression",
       "consume must take 'this', a local, or a parameter");
+}
+
+TEST_F(ReferTest, ConsumeInvalidExpression)
+{
+  // From issue #4477
+  const char *src =
+    "struct FFIBytes\n"
+      "var ptr: Pointer[U8 val] = Pointer[U8].create()\n"
+      "var length: USize = 0\n"
+      "fun iso string(): String val =>\n"
+        "recover String.from_cpointer(consume FFIBytes.ptr,"
+                                     "consume FFIBytes.length) end\n"
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "env.out.print(\"nothing to see here\")\n";
+
+  TEST_ERRORS_4(src,
+        "You can't consume an expression that isn't local. More specifically,"
+        " you can only consume a local variable (a single lowercase"
+        " identifier, with no dots) or a field of this (this followed by a dot"
+        " and a single lowercase identifier).",
+        "consuming a field is only allowed if it is reassigned in the same"
+        " expression",
+        "You can't consume an expression that isn't local. More specifically,"
+        " you can only consume a local variable (a single lowercase"
+        " identifier, with no dots) or a field of this (this followed by a dot"
+        " and a single lowercase identifier).",
+        "consuming a field is only allowed if it is reassigned in the same"
+        " expression");
 }
 
 TEST_F(ReferTest, MemberAccessWithConsumeLhs)
