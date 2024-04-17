@@ -367,3 +367,19 @@ TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(CodegenTest, ErrorInRetBlock)
+{
+  // From issue #4475
+  const char* src =
+    "class Foo\n"
+      "new create(a: U32) ? =>\n"
+        "error\n"
+     "actor Main\n"
+       "new create(env: Env) =>\n"
+         "try\n"
+           "let f = Foo(1)?\n"
+         "end";
+
+  TEST_COMPILE(src);
+}
