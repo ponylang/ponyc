@@ -385,7 +385,7 @@ static void add_dispatch_case(compile_t* c, reach_type_t* t,
 
   // Call the handler.
   codegen_call(c, LLVMGlobalGetValueType(handler), handler, args, count, true);
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
   ponyint_pool_free_size(args_buf_size, args);
   ponyint_pool_free_size(params_buf_size, param_types);
@@ -422,6 +422,36 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
   }
 }
 
+static bool
+genfun_has_terminator(compile_t* c)
+{
+  LLVMBasicBlockRef current_block = LLVMGetInsertBlock(c->builder);
+
+  pony_assert(current_block);
+
+  return LLVMGetBasicBlockTerminator(current_block);
+}
+
+LLVMValueRef
+genfun_build_ret(compile_t* c, LLVMValueRef v)
+{
+  if (!genfun_has_terminator(c)) {
+    return LLVMBuildRet(c->builder, v);
+  }
+
+  return NULL;
+}
+
+LLVMValueRef
+genfun_build_ret_void(compile_t* c)
+{
+  if (!genfun_has_terminator(c)) {
+    return LLVMBuildRetVoid(c->builder);
+  }
+
+  return NULL;
+}
+
 static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -454,7 +484,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
       ast_free_unattached(r_result);
       codegen_scope_lifetime_end(c);
       codegen_debugloc(c, ast_childlast(body));
-      LLVMBuildRetVoid(c->builder);
+
+      genfun_build_ret_void(c);
     } else {
       LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
       LLVMTypeRef r_type = LLVMGetReturnType(f_type);
@@ -470,7 +501,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
       codegen_scope_lifetime_end(c);
       codegen_debugloc(c, ast_childlast(body));
-      LLVMBuildRet(c->builder, ret);
+
+      genfun_build_ret(c, ret);
     }
 
     codegen_debugloc(c, NULL);
@@ -502,7 +534,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_scope_lifetime_end(c);
   if(value != GEN_NOVALUE)
-    LLVMBuildRetVoid(c->builder);
+    genfun_build_ret_void(c);
 
   codegen_finishfun(c);
 
@@ -516,7 +548,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   gen_send_message(c, m, param_vals, params);
 
   // Return None.
-  LLVMBuildRet(c->builder, c->none_instance);
+  genfun_build_ret(c, c->none_instance);
   codegen_finishfun(c);
 
   ponyint_pool_free_size(buf_size, param_vals);
@@ -552,9 +584,9 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast_childlast(body));
   if(t->underlying == TK_CLASS)
-    LLVMBuildRetVoid(c->builder);
+    genfun_build_ret_void(c);
   else
-    LLVMBuildRet(c->builder, value);
+    genfun_build_ret(c, value);
   codegen_debugloc(c, NULL);
 
   codegen_finishfun(c);
@@ -582,7 +614,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
     return false;
 
   codegen_scope_lifetime_end(c);
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 
   // Generate the sender.
@@ -595,7 +627,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   gen_send_message(c, m, param_vals, params);
 
   // Return 'this'.
-  LLVMBuildRet(c->builder, param_vals[0]);
+  genfun_build_ret(c, param_vals[0]);
   codegen_finishfun(c);
 
   ponyint_pool_free_size(buf_size, param_vals);
@@ -642,7 +674,7 @@ static bool genfun_implicit_final(compile_t* c, reach_type_t* t,
 
   codegen_startfun(c, c_m->func, NULL, NULL, NULL, false);
   call_embed_finalisers(c, t, NULL, gen_this(c, NULL));
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 
   return true;
@@ -708,7 +740,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
       return false;
   }
 
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
   return true;
 }
@@ -747,7 +779,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   codegen_debugloc(c, NULL);
   ret = gen_assign_cast(c, ((compile_type_t*)m->result->c_type)->use_type, ret,
     m2->result->ast_cap);
-  LLVMBuildRet(c->builder, ret);
+  genfun_build_ret(c, ret);
   codegen_finishfun(c);
   ponyint_pool_free_size(buf_size, args);
   return true;
@@ -1033,7 +1065,7 @@ void genfun_primitive_calls(compile_t* c)
 
     codegen_startfun(c, c->primitives_init, NULL, NULL, NULL, false);
     primitive_call(c, c->str__init);
-    LLVMBuildRetVoid(c->builder);
+    genfun_build_ret_void(c);
     codegen_finishfun(c);
   }
 
@@ -1046,7 +1078,7 @@ void genfun_primitive_calls(compile_t* c)
 
     codegen_startfun(c, c->primitives_final, NULL, NULL, NULL, false);
     primitive_call(c, c->str__final);
-    LLVMBuildRetVoid(c->builder);
+    genfun_build_ret_void(c);
     codegen_finishfun(c);
   }
 }

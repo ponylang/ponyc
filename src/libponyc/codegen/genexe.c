@@ -225,7 +225,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   rc = LLVMBuildSelect(c->builder, start_success, rc, minus_one, "");
 
   // Return the runtime exit code.
-  LLVMBuildRet(c->builder, rc);
+  genfun_build_ret(c, rc);
 
   codegen_finishfun(c);
 

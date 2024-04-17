@@ -498,7 +498,7 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
   LLVMValueRef value = LLVMGetParam(codegen_fun(c), 0);
 
   value = gen_unbox(c, t->ast_cap, value);
-  LLVMBuildRet(c->builder, gen_digestof_value(c, t->ast_cap, value));
+  genfun_build_ret(c, gen_digestof_value(c, t->ast_cap, value));
 
   codegen_finishfun(c);
 }

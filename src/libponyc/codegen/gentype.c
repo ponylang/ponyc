@@ -708,7 +708,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
     }
   }
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
   return true;
 }
