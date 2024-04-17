@@ -18,7 +18,7 @@ entry:
   call void @pony_error(), !dbg !890
   unreachable, !dbg !890
   ;;;;;;;;;;;;
-  ret void, !dbg !890 ; => problematic instruction, because the last instruction is terminator 
+  ret void, !dbg !890 ; => problematic instruction, because the previous instruction is terminator 
 }
 """
 class Foo
