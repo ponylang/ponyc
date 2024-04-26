@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add prebuilt ponyc binaries for Ubuntu 24.04 ([PR #4508](https://github.com/ponylang/ponyc/pull/4508))
 
 ### Changed
 
