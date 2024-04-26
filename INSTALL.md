@@ -22,8 +22,8 @@ Currently, we have packages for the following Glibc based distributions:
 
 - Fedora 39
 - Linux Mint 19, 20, 21
-- Pop!_OS 20.04, 22.04
-- Ubuntu 20.04, 22.04
+- Pop!_OS 20.04, 22.04, 24.04
+- Ubuntu 20.04, 22.04, 24.04
 
 ### Supported Alpine versions
 
@@ -47,8 +47,10 @@ Linux Mint 20.x | x86_64-linux-ubuntu20.04
 Linux Mint 21.x | x86_64-linux-ubuntu22.04
 Pop!_OS 20.04 | x86_64-linux-ubuntu20.04
 Pop!_OS 22.04 | x86_64-linux-ubuntu22.04
+Pop!_OS 24.04 | x86_64-linux-ubuntu24.04
 Ubuntu 20.04 | x86_64-linux-ubuntu20.04
 Ubuntu 22.04 | x86_64-linux-ubuntu22.04
+Ubuntu 24.04 | x86_64-linux-ubuntu24.04
 
 ### Install the latest release
 

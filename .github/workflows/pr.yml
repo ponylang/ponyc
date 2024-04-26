@@ -87,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
             name: x86-64 Linux glibc
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
@@ -444,10 +444,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
             debugger: lldb
             directives: dtrace
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
             debugger: lldb
             directives: pool_memalign
 

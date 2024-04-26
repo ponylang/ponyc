@@ -12,20 +12,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-            name: x86-64-unknown-linux-ubuntu22.04 [release]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+            name: x86-64-unknown-linux-ubuntu24.04 [release]
             target: test-stress-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-            name: x86-64-unknown-linux-ubuntu22.04 [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+            name: x86-64-unknown-linux-ubuntu24.04 [debug]
             target: test-stress-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-            name: x86-64-unknown-linux-ubuntu22.04 [cd] [release]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+            name: x86-64-unknown-linux-ubuntu24.04 [cd] [release]
             target: test-stress-with-cd-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-            name: x86-64-unknown-linux-ubuntu22.04 [cd] [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+            name: x86-64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
