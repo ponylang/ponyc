@@ -23,7 +23,7 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20230830
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20240427
-          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20230830
+          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20240427
           - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
 
     name: ${{ matrix.image }}
