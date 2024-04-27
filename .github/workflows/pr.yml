@@ -234,7 +234,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20230830
+          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20240427
             name: armhf Linux glibc
 
     name: ${{ matrix.name }}
