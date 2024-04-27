@@ -1,4 +1,4 @@
-FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230830
+FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
 
 ARG CROSS_TRIPLE=aarch64-unknown-linux-gnu
 ARG CROSS_CC=aarch64-linux-gnu-gcc
