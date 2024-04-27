@@ -95,17 +95,17 @@ jobs:
         include:
           # these don't currently use a debugger as cross compilation hasn't
           # been set up to do 'run in debugger'
-          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
-            name: aarch64-unknown-linux-ubuntu20.04 [release]
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
+            name: aarch64-unknown-linux-ubuntu24.04 [release]
             target: test-cross-stress-release
-          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
-            name: aarch64-unknown-linux-ubuntu20.04 [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
+            name: aarch64-unknown-linux-ubuntu24.04 [debug]
             target: test-cross-stress-debug
-          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
-            name: aarch64-unknown-linux-ubuntu20.04 [cd] [release]
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [release]
             target: test-cross-stress-with-cd-release
-          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20230830
-            name: aarch64-unknown-linux-ubuntu20.04 [cd] [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-cross-stress-with-cd-debug
 
     name: ${{ matrix.name }}
