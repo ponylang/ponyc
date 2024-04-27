@@ -47,7 +47,7 @@ jobs:
             name: x86-64-unknown-linux-ubuntu20.04
             triple-os: linux-ubuntu20.04
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20240427
             name: x86-64-unknown-linux-musl
             triple-os: linux-musl
             triple-vendor: unknown

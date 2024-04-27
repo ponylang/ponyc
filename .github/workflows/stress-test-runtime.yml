@@ -28,19 +28,19 @@ jobs:
             name: x86-64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20240427
             name: x86-64-unknown-linux-musl [release]
             target: test-stress-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20240427
             name: x86-64-unknown-linux-musl [debug]
             target: test-stress-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20240427
             name: x86-64-unknown-linux-musl [cd] [release]
             target: test-stress-with-cd-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20231003
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20240427
             name: x86-64-unknown-linux-musl [cd] [debug]
             target: test-stress-with-cd-debug
             debugger: lldb
