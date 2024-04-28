@@ -1,4 +1,4 @@
-FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230830
+FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
 
 USER root
 

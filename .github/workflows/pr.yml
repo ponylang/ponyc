@@ -136,7 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20230830
+          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
             name: riscv64 Linux glibc
 
     name: ${{ matrix.name }}
