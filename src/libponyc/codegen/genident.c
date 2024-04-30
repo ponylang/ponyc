@@ -762,7 +762,7 @@ void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
   // box_is_box(). Don't recheck it in tuple_is_box().
   LLVMValueRef same_identity = tuple_is_box(c, t->ast_cap, NULL, l_value,
     r_value, r_desc, true, false);
-  LLVMBuildRet(c->builder, same_identity);
+  genfun_build_ret(c, same_identity);
 
   codegen_finishfun(c);
 }

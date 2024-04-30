@@ -92,7 +92,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 
   LLVMValueRef result = codegen_call(c, LLVMGlobalGetValueType(c_m->func),
     c_m->func, args, count, m->cap != TK_AT);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 
   ponyint_pool_free_size(buf_size, params);

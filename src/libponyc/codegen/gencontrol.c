@@ -600,10 +600,10 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
     LLVMValueRef ret = gen_assign_cast(c, r_type, value, type);
     ast_free_unattached(type);
     codegen_scope_lifetime_end(c);
-    LLVMBuildRet(c->builder, ret);
+    genfun_build_ret(c, ret);
   } else {
     codegen_scope_lifetime_end(c);
-    LLVMBuildRetVoid(c->builder);
+    genfun_build_ret_void(c);
   }
 
   codegen_debugloc(c, NULL);

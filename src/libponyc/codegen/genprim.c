@@ -94,7 +94,7 @@ static void pointer_create(compile_t* c, reach_type_t* t)
 
   LLVMValueRef result = LLVMConstNull(c_t->use_type);
 
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -126,7 +126,7 @@ static void pointer_alloc(compile_t* c, reach_type_t* t,
   args[1] = LLVMBuildMul(c->builder, len, l_size, "");
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 2, "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -164,7 +164,7 @@ static void pointer_realloc(compile_t* c, reach_type_t* t,
   args[3] = LLVMBuildMul(c->builder, copy, l_size, "");
 
   LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 4, "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -173,7 +173,7 @@ static void pointer_unsafe(compile_t* c, reach_type_t* t)
   FIND_METHOD("_unsafe", TK_NONE);
   start_function(c, t, m, c_t->use_type, &c_t->use_type, 1);
 
-  LLVMBuildRet(c->builder, LLVMGetParam(c_m->func, 0));
+  genfun_build_ret(c, LLVMGetParam(c_m->func, 0));
   codegen_finishfun(c);
 }
 
@@ -188,7 +188,7 @@ static void pointer_convert(compile_t* c, reach_type_t* t, reach_method_t* m)
   start_function(c, t, m, t_result->use_type, &c_t->use_type, 1);
 
   LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
-  LLVMBuildRet(c->builder, ptr);
+  genfun_build_ret(c, ptr);
   codegen_finishfun(c);
 }
 
@@ -219,7 +219,7 @@ static void pointer_apply(compile_t* c, void* data, token_id cap)
   ast_setid(tcap, tmp_cap);
 
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -248,7 +248,7 @@ static void pointer_update(compile_t* c, reach_type_t* t,
   LLVMBuildStore(c->builder, value, loc);
 
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -271,7 +271,7 @@ static void pointer_offset(compile_t* c, void* data, token_id cap)
   LLVMValueRef result = LLVMBuildInBoundsGEP2(c->builder, t_elem->mem_type, ptr,
     &n, 1, "");
 
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -284,7 +284,7 @@ static void pointer_element_size(compile_t* c, reach_type_t* t,
   size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
   LLVMValueRef l_size = LLVMConstInt(c->intptr, size, false);
 
-  LLVMBuildRet(c->builder, l_size);
+  genfun_build_ret(c, l_size);
   codegen_finishfun(c);
 }
 
@@ -315,7 +315,7 @@ static void pointer_insert(compile_t* c, reach_type_t* t,
   gencall_memmove(c, dst, ptr, elen);
 
   // Return ptr.
-  LLVMBuildRet(c->builder, ptr);
+  genfun_build_ret(c, ptr);
   codegen_finishfun(c);
 }
 
@@ -351,7 +351,7 @@ static void pointer_delete(compile_t* c, reach_type_t* t,
 
   // Return ptr[0].
   result = gen_assign_cast(c, c_t_elem->use_type, result, t_elem->ast_cap);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -380,7 +380,7 @@ static void pointer_copy_to(compile_t* c, void* data, token_id cap)
   // llvm.memcpy.*(ptr2, ptr, n * sizeof(elem), 1, 0)
   gencall_memcpy(c, ptr2, ptr, elen);
 
-  LLVMBuildRet(c->builder, ptr);
+  genfun_build_ret(c, ptr);
   codegen_finishfun(c);
 }
 
@@ -392,7 +392,7 @@ static void pointer_usize(compile_t* c, reach_type_t* t)
   LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
   LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->intptr, "");
 
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -404,7 +404,7 @@ static void pointer_is_null(compile_t* c, reach_type_t* t)
   LLVMValueRef ptr = LLVMGetParam(c_m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, ptr, "");
 
-  LLVMBuildRet(c->builder, test);
+  genfun_build_ret(c, test);
   codegen_finishfun(c);
 }
 
@@ -420,7 +420,7 @@ static void pointer_eq(compile_t* c, reach_type_t* t)
   LLVMValueRef ptr2 = LLVMGetParam(c_m->func, 1);
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, ptr, ptr2, "");
 
-  LLVMBuildRet(c->builder, test);
+  genfun_build_ret(c, test);
   codegen_finishfun(c);
 }
 
@@ -436,7 +436,7 @@ static void pointer_lt(compile_t* c, reach_type_t* t)
   LLVMValueRef ptr2 = LLVMGetParam(c_m->func, 1);
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, ptr, ptr2, "");
 
-  LLVMBuildRet(c->builder, test);
+  genfun_build_ret(c, test);
   codegen_finishfun(c);
 }
 
@@ -483,7 +483,7 @@ static void nullable_pointer_create(compile_t* c, reach_type_t* t, compile_type_
   params[1] = t_elem->use_type;
   start_function(c, t, m, c_t->use_type, params, 2);
 
-  LLVMBuildRet(c->builder, LLVMGetParam(c_m->func, 1));
+  genfun_build_ret(c, LLVMGetParam(c_m->func, 1));
   codegen_finishfun(c);
 }
 
@@ -492,7 +492,7 @@ static void nullable_pointer_none(compile_t* c, reach_type_t* t)
   FIND_METHOD("none", TK_NONE);
   start_function(c, t, m, c_t->use_type, &c_t->use_type, 1);
 
-  LLVMBuildRet(c->builder, LLVMConstNull(c_t->use_type));
+  genfun_build_ret(c, LLVMConstNull(c_t->use_type));
   codegen_finishfun(c);
 }
 
@@ -513,7 +513,7 @@ static void nullable_pointer_apply(compile_t* c, void* data, token_id cap)
   LLVMBuildCondBr(c->builder, test, is_true, is_false);
 
   LLVMPositionBuilderAtEnd(c->builder, is_false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
 
   LLVMPositionBuilderAtEnd(c->builder, is_true);
   gencall_error(c);
@@ -530,7 +530,7 @@ static void nullable_pointer_is_none(compile_t* c, reach_type_t* t, token_id cap
   LLVMValueRef receiver = LLVMGetParam(c_m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, receiver, "");
 
-  LLVMBuildRet(c->builder, test);
+  genfun_build_ret(c, test);
   codegen_finishfun(c);
 }
 
@@ -591,7 +591,7 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
-  LLVMBuildRet(c->builder, t_result->instance);
+  genfun_build_ret(c, t_result->instance);
   codegen_finishfun(c);
 }
 
@@ -615,7 +615,7 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
-  LLVMBuildRet(c->builder, t_result->instance);
+  genfun_build_ret(c, t_result->instance);
   codegen_finishfun(c);
 }
 
@@ -698,7 +698,7 @@ void genprim_array_trace(compile_t* c, reach_type_t* t)
   gencall_runtime(c, "pony_trace", args, 2, "");
 
   trace_array_elements(c, t, ctx, object, pointer);
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -752,7 +752,7 @@ void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -873,7 +873,7 @@ void genprim_array_serialise(compile_t* c, reach_type_t* t)
   LLVMBuildBr(c->builder, post_block);
   LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -954,7 +954,7 @@ void genprim_array_deserialise(compile_t* c, reach_type_t* t)
     LLVMPositionBuilderAtEnd(c->builder, post_block);
   }
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -986,7 +986,7 @@ void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
   args[2] = alloc;
   gencall_runtime(c, "pony_serialise_reserve", args, 3, "");
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -1051,7 +1051,7 @@ void genprim_string_serialise(compile_t* c, reach_type_t* t)
 
   LLVMBuildBr(c->builder, post_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -1087,7 +1087,7 @@ void genprim_string_deserialise(compile_t* c, reach_type_t* t)
     "");
   LLVMBuildStore(c->builder, ptr_addr, ptr);
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -1098,7 +1098,7 @@ static void platform_freebsd(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_freebsd(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1109,7 +1109,7 @@ static void platform_dragonfly(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_dragonfly(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1120,7 +1120,7 @@ static void platform_openbsd(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_openbsd(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1131,7 +1131,7 @@ static void platform_linux(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_linux(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1142,7 +1142,7 @@ static void platform_osx(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_macosx(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1153,7 +1153,7 @@ static void platform_windows(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_windows(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1164,7 +1164,7 @@ static void platform_x86(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_x86(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1175,7 +1175,7 @@ static void platform_arm(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_arm(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1186,7 +1186,7 @@ static void platform_lp64(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_lp64(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1197,7 +1197,7 @@ static void platform_llp64(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_llp64(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1208,7 +1208,7 @@ static void platform_ilp32(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_ilp32(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1219,7 +1219,7 @@ static void platform_bigendian(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_bigendian(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1230,7 +1230,7 @@ static void platform_littleendian(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_littleendian(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1241,7 +1241,7 @@ static void platform_native128(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result =
     LLVMConstInt(c->i1, target_is_native128(c->opt->triple), false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1251,7 +1251,7 @@ static void platform_debug(compile_t* c, reach_type_t* t, token_id cap)
   start_function(c, t, m, c->i1, &c_t->use_type, 1);
 
   LLVMValueRef result = LLVMConstInt(c->i1, !c->opt->release, false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1267,7 +1267,7 @@ static void platform_runtimestats(compile_t* c, reach_type_t* t, token_id cap)
 #endif
 
   LLVMValueRef result = LLVMConstInt(c->i1, runtimestats_enabled, false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1283,7 +1283,7 @@ static void platform_runtimestatsmessages(compile_t* c, reach_type_t* t, token_i
 #endif
 
   LLVMValueRef result = LLVMConstInt(c->i1, runtimestatsmessages_enabled, false);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1329,7 +1329,7 @@ static void number_value(compile_t* c, num_conv_t* type, token_id cap)
   start_function(c, t, m, type->type, &type->type, 1);
 
   LLVMValueRef arg = LLVMGetParam(c_m->func, 0);
-  LLVMBuildRet(c->builder, arg);
+  genfun_build_ret(c, arg);
 
   codegen_finishfun(c);
 }
@@ -1378,7 +1378,7 @@ static LLVMValueRef handle_overflow_saturate(compile_t* c, LLVMValueRef arg,
   LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
 
   LLVMPositionBuilderAtEnd(c->builder, overflow);
-  LLVMBuildRet(c->builder, to_max);
+  genfun_build_ret(c, to_max);
 
   LLVMPositionBuilderAtEnd(c->builder, test_underflow);
 
@@ -1392,7 +1392,7 @@ static LLVMValueRef handle_overflow_saturate(compile_t* c, LLVMValueRef arg,
   LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
 
   LLVMPositionBuilderAtEnd(c->builder, underflow);
-  LLVMBuildRet(c->builder, to_min);
+  genfun_build_ret(c, to_min);
 
   LLVMPositionBuilderAtEnd(c->builder, normal);
 
@@ -1406,7 +1406,7 @@ static LLVMValueRef f32_to_si_saturation(compile_t* c, LLVMValueRef arg,
 {
   LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i32, 0x7F800000,
     0x007FFFFF);
-  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  genfun_build_ret(c, LLVMConstNull(to->type));
   LLVMPositionBuilderAtEnd(c->builder, test_overflow);
   LLVMValueRef to_max = LLVMConstNull(to->type);
   LLVMValueRef to_min = LLVMBuildNot(c->builder, to_max, "");
@@ -1422,7 +1422,7 @@ static LLVMValueRef f64_to_si_saturation(compile_t* c, LLVMValueRef arg,
 {
   LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
     0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
-  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  genfun_build_ret(c, LLVMConstNull(to->type));
   LLVMPositionBuilderAtEnd(c->builder, test_overflow);
   LLVMValueRef to_max = LLVMConstNull(to->type);
   LLVMValueRef to_min = LLVMBuildNot(c->builder, to_max, "");
@@ -1438,7 +1438,7 @@ static LLVMValueRef f32_to_ui_saturation(compile_t* c, LLVMValueRef arg,
 {
   LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i32, 0x7F800000,
     0x007FFFFF);
-  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  genfun_build_ret(c, LLVMConstNull(to->type));
   LLVMPositionBuilderAtEnd(c->builder, test_overflow);
   LLVMValueRef to_min = LLVMConstNull(to->type);
   LLVMValueRef to_max = LLVMBuildNot(c->builder, to_min, "");
@@ -1450,7 +1450,7 @@ static LLVMValueRef f32_to_u128_saturation(compile_t* c, LLVMValueRef arg)
 {
   LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i32, 0x7F800000,
     0x007FFFFF);
-  LLVMBuildRet(c->builder, LLVMConstNull(c->i128));
+  genfun_build_ret(c, LLVMConstNull(c->i128));
   LLVMPositionBuilderAtEnd(c->builder, test_overflow);
 
   LLVMBasicBlockRef overflow = codegen_block(c, "");
@@ -1466,7 +1466,7 @@ static LLVMValueRef f32_to_u128_saturation(compile_t* c, LLVMValueRef arg)
   LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
 
   LLVMPositionBuilderAtEnd(c->builder, overflow);
-  LLVMBuildRet(c->builder, LLVMBuildNot(c->builder, LLVMConstNull(c->i128),
+  genfun_build_ret(c, LLVMBuildNot(c->builder, LLVMConstNull(c->i128),
     ""));
 
   LLVMPositionBuilderAtEnd(c->builder, test_underflow);
@@ -1475,7 +1475,7 @@ static LLVMValueRef f32_to_u128_saturation(compile_t* c, LLVMValueRef arg)
   LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
 
   LLVMPositionBuilderAtEnd(c->builder, underflow);
-  LLVMBuildRet(c->builder, LLVMConstNull(c->i128));
+  genfun_build_ret(c, LLVMConstNull(c->i128));
 
   LLVMPositionBuilderAtEnd(c->builder, normal);
   return LLVMBuildFPToUI(c->builder, arg, c->i128, "");
@@ -1486,7 +1486,7 @@ static LLVMValueRef f64_to_ui_saturation(compile_t* c, LLVMValueRef arg,
 {
   LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
     0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
-  LLVMBuildRet(c->builder, LLVMConstNull(to->type));
+  genfun_build_ret(c, LLVMConstNull(to->type));
   LLVMPositionBuilderAtEnd(c->builder, test_overflow);
   LLVMValueRef to_min = LLVMConstNull(to->type);
   LLVMValueRef to_max = LLVMBuildNot(c->builder, to_min, "");
@@ -1498,7 +1498,7 @@ static LLVMValueRef f64_to_f32_saturation(compile_t* c, LLVMValueRef arg)
 {
   LLVMBasicBlockRef test_overflow = handle_nan(c, arg, c->i64,
     0x7FF0000000000000, 0x000FFFFFFFFFFFFF);
-  LLVMBuildRet(c->builder, LLVMConstNaN(c->f32));
+  genfun_build_ret(c, LLVMConstNaN(c->f32));
 
   LLVMBasicBlockRef overflow = codegen_block(c, "");
   LLVMBasicBlockRef test_underflow = codegen_block(c, "");
@@ -1514,7 +1514,7 @@ static LLVMValueRef f64_to_f32_saturation(compile_t* c, LLVMValueRef arg)
   LLVMBuildCondBr(c->builder, is_overflow, overflow, test_underflow);
 
   LLVMPositionBuilderAtEnd(c->builder, overflow);
-  LLVMBuildRet(c->builder, LLVMConstInf(c->f32, false));
+  genfun_build_ret(c, LLVMConstInf(c->f32, false));
 
   LLVMPositionBuilderAtEnd(c->builder, test_underflow);
   LLVMValueRef f32_min = LLVMConstInt(c->i32, 0xFF7FFFFF, false);
@@ -1525,7 +1525,7 @@ static LLVMValueRef f64_to_f32_saturation(compile_t* c, LLVMValueRef arg)
   LLVMBuildCondBr(c->builder, is_underflow, underflow, normal);
 
   LLVMPositionBuilderAtEnd(c->builder, underflow);
-  LLVMBuildRet(c->builder, LLVMConstInf(c->f32, true));
+  genfun_build_ret(c, LLVMConstInf(c->f32, true));
 
   LLVMPositionBuilderAtEnd(c->builder, normal);
   return LLVMBuildFPTrunc(c->builder, arg, c->f32, "");
@@ -1612,7 +1612,7 @@ static void number_conversion(compile_t* c, void** data, token_id cap)
     result = arg;
   }
 
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1674,7 +1674,7 @@ static void unsafe_number_conversion(compile_t* c, void** data, token_id cap)
     result = arg;
   }
 
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1788,7 +1788,7 @@ static void f32__nan(compile_t* c, reach_type_t* t)
   start_function(c, t, m, c->f32, &c->f32, 1);
 
   LLVMValueRef result = LLVMConstNaN(c->f32);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1803,7 +1803,7 @@ static void f32__inf(compile_t* c, reach_type_t* t)
   LLVMValueRef sign = LLVMGetParam(c_m->func, 1);
   LLVMValueRef result = LLVMBuildSelect(c->builder, sign,
     LLVMConstInf(c->f32, true), LLVMConstInf(c->f32, false), "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1818,7 +1818,7 @@ static void f32_from_bits(compile_t* c, reach_type_t* t)
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(c_m->func, 1),
     c->f32, "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1829,7 +1829,7 @@ static void f32_bits(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(c_m->func, 0),
     c->i32, "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1839,7 +1839,7 @@ static void f64__nan(compile_t* c, reach_type_t* t)
   start_function(c, t, m, c->f64, &c->f64, 1);
 
   LLVMValueRef result = LLVMConstNaN(c->f64);
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1854,7 +1854,7 @@ static void f64__inf(compile_t* c, reach_type_t* t)
   LLVMValueRef sign = LLVMGetParam(c_m->func, 1);
   LLVMValueRef result = LLVMBuildSelect(c->builder, sign,
     LLVMConstInf(c->f64, true), LLVMConstInf(c->f64, false), "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1869,7 +1869,7 @@ static void f64_from_bits(compile_t* c, reach_type_t* t)
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(c_m->func, 1),
     c->f64, "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1880,7 +1880,7 @@ static void f64_bits(compile_t* c, reach_type_t* t, token_id cap)
 
   LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(c_m->func, 0),
     c->i64, "");
-  LLVMBuildRet(c->builder, result);
+  genfun_build_ret(c, result);
   codegen_finishfun(c);
 }
 
@@ -1922,7 +1922,7 @@ static void make_cpuid(compile_t* c)
 
     LLVMValueRef result = LLVMBuildCall2(c->builder, f_type, cpuid, &arg, 1,
       "");
-    LLVMBuildRet(c->builder, result);
+    genfun_build_ret(c, result);
 
     codegen_finishfun(c);
   } else {
@@ -1956,7 +1956,7 @@ static void make_rdtscp(compile_t* c)
     LLVMValueRef argptr = LLVMGetParam(fun, 0);
     LLVMBuildStore(c->builder, second, argptr);
     LLVMValueRef first = LLVMBuildExtractValue(c->builder, result, 0, "");
-    LLVMBuildRet(c->builder, first);
+    genfun_build_ret(c, first);
     codegen_finishfun(c);
   } else {
     (void)c;
@@ -2021,7 +2021,7 @@ void genprim_signature(compile_t* c)
   LLVMValueRef fun = codegen_addfun(c, "internal.signature", f_type, false);
   LLVMSetFunctionCallConv(fun, LLVMCCallConv);
   codegen_startfun(c, fun, NULL, NULL, NULL, false);
-  LLVMBuildRet(c->builder, g_array);
+  genfun_build_ret(c, g_array);
   codegen_finishfun(c);
 }
 

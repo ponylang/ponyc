@@ -220,7 +220,7 @@ static void make_serialise(compile_t* c, reach_type_t* t)
 
   serialise(c, t, ctx, object, offset_addr, false);
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -357,7 +357,7 @@ static void make_deserialise(compile_t* c, reach_type_t* t)
   // object.
   deserialise(c, t, ctx, object, false);
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
