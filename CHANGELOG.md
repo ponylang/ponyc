@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.4] - 2024-05-01
 
 ### Fixed
 
@@ -12,9 +12,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add prebuilt ponyc binaries for Ubuntu 24.04 ([PR #4508](https://github.com/ponylang/ponyc/pull/4508))
-
-### Changed
-
 
 ## [0.58.3] - 2024-03-30
 
