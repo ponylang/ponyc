@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV PATH "/root/.local/share/ponyup/bin:$PATH"
 
@@ -9,7 +9,7 @@ RUN apt-get update \
     curl \
     g++ \
     git \
-    lsb-core \
+    lsb-release \
     make \
   && rm -rf /var/lib/apt/lists/*
 
