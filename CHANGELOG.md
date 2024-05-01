@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update the base image for our ponyc images ([PR #4515](https://github.com/ponylang/ponyc/pull/4515))
 
 ## [0.58.4] - 2024-05-01
 
