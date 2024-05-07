@@ -219,6 +219,9 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
     ast_error_frame(errorf, a,
       "%s has different type arguments than %s (the type arguments must be equivalent, not covariant nor contravariant)",
       ast_print_type(a), ast_print_type(b));
+    ast_error_frame(errorf, a,
+      "this might be possible if either %s or %s were an interface rather than a concrete type",
+      ast_print_type(a), ast_print_type(b));
   }
 
   // Make sure we had the same number of typeargs.
