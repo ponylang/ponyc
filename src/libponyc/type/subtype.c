@@ -216,7 +216,8 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
 
   if(!ret && errorf != NULL)
   {
-    ast_error_frame(errorf, a, "%s has different type arguments than %s",
+    ast_error_frame(errorf, a,
+      "%s has different type arguments than %s (the type arguments must be equivalent, not covariant nor contravariant)",
       ast_print_type(a), ast_print_type(b));
   }
 
