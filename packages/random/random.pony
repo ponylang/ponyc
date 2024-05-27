@@ -21,7 +21,7 @@ type Rand is XorOshiro128Plus
 trait Random
   """
   The `Random` trait should be implemented by all random number generators. The
-  only method you need to implement is `fun ref next(): 64`. Once that method
+  only method you need to implement is `fun ref next(): U64`. Once that method
   has been implemented, the `Random` trait provides default implementations of
   conversions to other number types.
   """
