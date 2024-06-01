@@ -69,7 +69,7 @@ As part of every release, 6 Docker images are built:
   * release-windows
   * 0.3.1-windows
 
-The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
+The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Cloudsmith package synchronised" workflow](https://github.com/ponylang/ponyc/actions/workflows/cloudsmith-package-sychronised.yml).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
 
 ### Verify that the Pony Playground updated to the new version
 
