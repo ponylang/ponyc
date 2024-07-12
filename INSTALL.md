@@ -20,6 +20,7 @@ At the moment, we support all supported LTS Ubuntu versions and any distribution
 
 Currently, we have packages for the following Glibc based distributions:
 
+- Archlinux
 - Fedora 39
 - Linux Mint 19, 20, 21
 - Pop!_OS 20.04, 22.04, 24.04
@@ -28,6 +29,12 @@ Currently, we have packages for the following Glibc based distributions:
 ### Supported Alpine versions
 
 Starting with Pony version 0.56.0, only Alpine 3.17 and later are supported. Pomyup will happily 0.56.0 on Alpine 3.16, but you won't be able to link programs. By the same token, installing version of Pony prior to 0.56.0 on Alpine 3.17 will also fail to link.
+
+### Archlinux
+Installing ponyc from the official [Archlinux repository](https://archlinux.org/packages/?q=ponyc) 
+```
+sudo pacman -S ponyc
+```
 
 ### Manually selecting your Linux platform
 
