@@ -82,7 +82,7 @@ class _Final
     match other
     | None => None
     | let o: this->_Final => 
-      if (num > 0) and (o.num > 0) then
+      if 1025 == (num + o.num) then
         @codegentest_large_dependent_finalisers_decrement_num_objects()
       end
     end  
@@ -90,6 +90,6 @@ class _Final
 actor Main
   new create(env: Env) =>
     let f1 = _Final(1)
-    let f2 = _Final(2)
+    let f2 = _Final(1024)
     f1.other = f2
     f2.other = f1

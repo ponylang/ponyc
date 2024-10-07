@@ -13,7 +13,7 @@ class _Final
     match other
     | None => None
     | let o: this->_Final => 
-      if (num > 0) and (o.num > 0) then
+      if 1025 == (num + o.num) then
         @codegentest_small_dependent_finalisers_decrement_num_objects()
       end
     end  
