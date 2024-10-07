@@ -324,6 +324,9 @@ static void destroy_small(small_chunk_t* chunk, uint32_t mark)
 
   char* m = get_m((chunk_t*)chunk);
   ponyint_pagemap_set(m, NULL, NULL);
+#ifndef PONY_NDEBUG
+  memset(m, 0, sizeof(block_t));
+#endif
   POOL_FREE(block_t, m);
   POOL_FREE(small_chunk_t, chunk);
 }
@@ -340,7 +343,12 @@ static void destroy_large(large_chunk_t* chunk, uint32_t mark)
   large_pagemap(m, chunk->size, NULL, NULL);
 
   if(m != NULL)
+  {
+#ifndef PONY_NDEBUG
+    memset(m, 0, chunk->size);
+#endif
     ponyint_pool_free_size(chunk->size, m);
+  }
 
   POOL_FREE(large_chunk_t, chunk);
 }
