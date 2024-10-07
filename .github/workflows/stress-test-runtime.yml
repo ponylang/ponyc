@@ -76,7 +76,7 @@ jobs:
         run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@08b6fbd07f5834e5b930a85bc7740e9fd44ab2e7
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -140,7 +140,7 @@ jobs:
         run: make ${{ matrix.target }} config=debug PONYPATH=../armv8-a/debug cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@08b6fbd07f5834e5b930a85bc7740e9fd44ab2e7
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -200,7 +200,7 @@ jobs:
         run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@08b6fbd07f5834e5b930a85bc7740e9fd44ab2e7
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -253,7 +253,7 @@ jobs:
         run: make ${{ matrix.target }} config=debug usedebugger=lldb
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@08b6fbd07f5834e5b930a85bc7740e9fd44ab2e7
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
