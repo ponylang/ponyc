@@ -353,7 +353,7 @@ static void destroy_large(large_chunk_t* chunk, uint32_t mark)
   POOL_FREE(large_chunk_t, chunk);
 }
 
-static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chunk_t** full,
+static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chunk_t** full, small_chunk_t** to_destroy,
 #ifdef USE_RUNTIMESTATS
   uint32_t empty, size_t size, size_t* mem_allocated, size_t* mem_used,
   size_t* num_allocated)
@@ -391,7 +391,13 @@ static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chu
       chunk->next = *full;
       *full = chunk;
     } else if(chunk->slots == empty) {
-      destroy_small(chunk, 0);
+      // run finalisers for freed slots
+      final_small(chunk, FORCE_ALL_FINALISERS);
+
+      // cannot destroy chunk yet since the heap has not been fully swept yet
+      // and another object may still reference this chunk and access it in a finaliser
+      chunk->next = *to_destroy;
+      *to_destroy = chunk;
     } else {
 #ifdef USE_RUNTIMESTATS
       *mem_allocated += POOL_ALLOC_SIZE(small_chunk_t);
@@ -406,9 +412,6 @@ static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chu
       // run finalisers for freed slots
       final_small(chunk, FORCE_NO_FINALISERS);
 
-      // make chunk available for allocations only after finalisers have been
-      // run to prevent premature reuse of memory slots by an allocation
-      // required for finaliser execution
       chunk->next = *avail;
       *avail = chunk;
     }
@@ -424,10 +427,10 @@ static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chu
 }
 
 #ifdef USE_RUNTIMESTATS
-static large_chunk_t* sweep_large(large_chunk_t* chunk, size_t* used, size_t* mem_allocated,
+static large_chunk_t* sweep_large(large_chunk_t* chunk, large_chunk_t** to_destroy, size_t* used, size_t* mem_allocated,
   size_t* mem_used, size_t* num_allocated)
 #else
-static large_chunk_t* sweep_large(large_chunk_t* chunk, size_t* used)
+static large_chunk_t* sweep_large(large_chunk_t* chunk, large_chunk_t** to_destroy, size_t* used)
 #endif
 {
 #ifdef USE_RUNTIMESTATS
@@ -460,7 +463,13 @@ static large_chunk_t* sweep_large(large_chunk_t* chunk, size_t* used)
 #endif
       *used += chunk->size;
     } else {
-      destroy_large(chunk, 0);
+      // run finaliser
+      final_large(chunk, 0);
+
+      // cannot destroy chunk yet since the heap has not been fully swept yet
+      // and another object may still reference this chunk and access it in a finaliser
+      chunk->next = *to_destroy;
+      *to_destroy = chunk;
     }
 
     chunk = next;
@@ -862,37 +871,123 @@ void ponyint_heap_endgc(heap_t* heap
   size_t num_allocated = 0;
 #endif
 
+  // make a copy of all the heap list pointers into a temporary heap
+  heap_t theap = {};
+  heap_t* temp_heap = &theap;
+  memcpy(temp_heap, heap, offsetof(heap_t, used));
+
+  // set all the heap list pointers to NULL in the real heap to ensure that
+  // any new allocations by finalisers during the GC process don't reuse memory
+  // freed during the GC process
+  memset(heap, 0, offsetof(heap_t, used));
+
+  // lists of chunks to destroy
+  small_chunk_t* to_destroy_small = NULL;
+  large_chunk_t* to_destroy_large = NULL;
+
+  // sweep all the chunks in the temporary heap while accumulating chunks to destroy
+  // NOTE: the real heap will get new chunks allocated and added to it during this process
+  //       if a finaliser allocates memory... we have to make sure that finalisers don't
+  //       reuse memory being freed or we'll end up with a use-after-free bug due to
+  //       potential cross objects references in finalisers after memory has been reused.
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    small_chunk_t* list1 = heap->small_free[i];
-    small_chunk_t* list2 = heap->small_full[i];
+    small_chunk_t* list1 = temp_heap->small_free[i];
+    small_chunk_t* list2 = temp_heap->small_full[i];
 
-    heap->small_free[i] = NULL;
-    heap->small_full[i] = NULL;
+    temp_heap->small_free[i] = NULL;
+    temp_heap->small_full[i] = NULL;
 
-    small_chunk_t** avail = &heap->small_free[i];
-    small_chunk_t** full = &heap->small_full[i];
+    small_chunk_t** avail = &temp_heap->small_free[i];
+    small_chunk_t** full = &temp_heap->small_full[i];
 
     size_t size = SIZECLASS_SIZE(i);
     uint32_t empty = sizeclass_empty[i];
 
 #ifdef USE_RUNTIMESTATS
-    used += sweep_small(list1, avail, full, empty, size,
+    used += sweep_small(list1, avail, full, &to_destroy_small, empty, size,
       &mem_allocated, &mem_used, &num_allocated);
-    used += sweep_small(list2, avail, full, empty, size,
+    used += sweep_small(list2, avail, full, &to_destroy_small, empty, size,
       &mem_allocated, &mem_used, &num_allocated);
 #else
-    used += sweep_small(list1, avail, full, empty, size);
-    used += sweep_small(list2, avail, full, empty, size);
+    used += sweep_small(list1, avail, full, &to_destroy_small, empty, size);
+    used += sweep_small(list2, avail, full, &to_destroy_small, empty, size);
 #endif
   }
 
 #ifdef USE_RUNTIMESTATS
-  heap->large = sweep_large(heap->large, &used, &mem_allocated, &mem_used,
+  temp_heap->large = sweep_large(temp_heap->large, &to_destroy_large, &used, &mem_allocated, &mem_used,
     &num_allocated);
 #else
-  heap->large = sweep_large(heap->large, &used);
+  temp_heap->large = sweep_large(temp_heap->large, &to_destroy_large, &used);
 #endif
+
+  // we need to combine the temporary heap lists with the real heap lists
+  // because the real heap might not be empty due to allocations in finalisers
+  // any new chunks with no finalisers to run can be destroyed immediately
+  // the new allocations will get GC'd in the next GC cycle even though they
+  // are definitely not reachable by the actor anymore
+  for(int i = 0; i < HEAP_SIZECLASSES; i++)
+  {
+    // iterate to the end of the real heap list and append the temporary heap list
+    // because the real heap list is likely to be smaller than the temporary heap list
+    // and remove any chunks that have no finalisers to run immediately
+    small_chunk_t** sc_temp = &heap->small_free[i];
+    while (*sc_temp != NULL)
+    {
+      if ((*sc_temp)->finalisers == 0)
+      {
+        small_chunk_t* temp = *sc_temp;
+        *sc_temp = temp->next;
+        temp->next = to_destroy_small;
+        to_destroy_small = temp;
+      } else {
+        sc_temp = &(*sc_temp)->next;
+      }
+    }
+    *sc_temp = temp_heap->small_free[i];
+
+    // iterate to the end of the real heap list and append the temporary heap list
+    // because the real heap list is likely to be smaller than the temporary heap list
+    // and remove any chunks that have no finalisers to run immediately
+    sc_temp = &heap->small_full[i];
+    while (*sc_temp != NULL)
+    {
+      if ((*sc_temp)->finalisers == 0)
+      {
+        small_chunk_t* temp = *sc_temp;
+        *sc_temp = temp->next;
+        temp->next = to_destroy_small;
+        to_destroy_small = temp;
+      } else {
+        sc_temp = &(*sc_temp)->next;
+      }
+    }
+    *sc_temp = temp_heap->small_full[i];
+  }
+
+  // iterate to the end of the real heap list and append the temporary heap list
+  // because the real heap list is likely to be smaller than the temporary heap list
+  // and remove any chunks that have no finalisers to run immediately
+  large_chunk_t** lc_temp = &heap->large;
+  while (*lc_temp != NULL)
+  {
+    if (get_large_chunk_finaliser(*lc_temp) == 0)
+    {
+      large_chunk_t* temp = *lc_temp;
+      *lc_temp = temp->next;
+      temp->next = to_destroy_large;
+      to_destroy_large = temp;
+    } else {
+      lc_temp = &(*lc_temp)->next;
+    }
+  }
+  *lc_temp = temp_heap->large;
+
+  // destroy all the chunks that need to be destroyed
+  small_chunk_list(destroy_small, to_destroy_small, 0);
+  large_chunk_list(destroy_large, to_destroy_large, 0);
+
 
   // Foreign object sizes will have been added to heap->used already. Here we
   // add local object sizes as well and set the next gc point for when memory
