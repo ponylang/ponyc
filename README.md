@@ -14,6 +14,8 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 * macOS
 * Windows 10
 
+test
+
 ### CPUs
 
 * Full support for 64-bit platforms
