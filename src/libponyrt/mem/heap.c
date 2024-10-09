@@ -172,7 +172,10 @@ static void set_large_chunk_slot(large_chunk_t* chunk, uint32_t slot)
 {
   // `!!` to normalize to 1 or 0
   slot = !!slot;
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SLOT_BITMASK) | (slot == 1 ? LARGE_CHUNK_SLOT_BITMASK : 0));
+  // left shift size to get bits in the right spot for OR'ing into `chunk->m`
+  slot = slot << 2;
+  pony_assert(slot == LARGE_CHUNK_SLOT_BITMASK || slot == 0);
+  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SLOT_BITMASK) | slot);
 }
 
 static uint32_t get_large_chunk_shallow(large_chunk_t* chunk)
@@ -185,7 +188,10 @@ static void set_large_chunk_shallow(large_chunk_t* chunk, uint32_t shallow)
 {
   // `!!` to normalize to 1 or 0
   shallow = !!shallow;
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SHALLOW_BITMASK) | (shallow == 1 ? LARGE_CHUNK_SHALLOW_BITMASK : 0));
+  // left shift size to get bits in the right spot for OR'ing into `chunk->m`
+  shallow = shallow << 3;
+  pony_assert(shallow == LARGE_CHUNK_SHALLOW_BITMASK || shallow == 0);
+  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SHALLOW_BITMASK) | shallow);
 }
 
 static uint32_t get_large_chunk_finaliser(large_chunk_t* chunk)
@@ -198,7 +204,10 @@ static void set_large_chunk_finaliser(large_chunk_t* chunk, uint32_t finaliser)
 {
   // `!!` to normalize to 1 or 0
   finaliser = !!finaliser;
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_FINALISER_BITMASK) | (finaliser == 1 ? LARGE_CHUNK_FINALISER_BITMASK : 0));
+  // left shift size to get bits in the right spot for OR'ing into `chunk->m`
+  finaliser = finaliser << 4;
+  pony_assert(finaliser == LARGE_CHUNK_FINALISER_BITMASK || finaliser == 0);
+  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_FINALISER_BITMASK) | finaliser);
 }
 
 static size_t get_small_chunk_size(small_chunk_t* chunk)
