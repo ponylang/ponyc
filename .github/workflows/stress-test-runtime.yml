@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -64,7 +64,7 @@ jobs:
         run: make libs build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -117,7 +117,7 @@ jobs:
         uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -126,7 +126,7 @@ jobs:
         run: make libs build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -179,7 +179,7 @@ jobs:
           python.exe -m pip install --upgrade cloudsmith-cli
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: build/libs
           key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -188,7 +188,7 @@ jobs:
         run: .\make.ps1 -Command libs
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: build/libs
           key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -232,7 +232,7 @@ jobs:
         uses: actions/checkout@v4.1.1
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: build/libs
           key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
@@ -241,7 +241,7 @@ jobs:
         run: make libs build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: build/libs
           key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
