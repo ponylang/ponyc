@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix use after free bug in actor heap finalisation that can lead to a segfault ([PR #4522](https://github.com/ponylang/ponyc/pull/4522))
 
 ### Added
 
