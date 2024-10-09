@@ -212,7 +212,7 @@ static void set_small_chunk_size(small_chunk_t* chunk, size_t size)
 
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
   size = size << SMALL_CHUNK_SIZECLASS_SHIFT;
-  ((chunk_t*)chunk)->m = (char*)((uintptr_t)((chunk_t*)chunk)->m | (size & SMALL_CHUNK_SIZECLASS_BITMASK));
+  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~SMALL_CHUNK_SIZECLASS_BITMASK) | (size & SMALL_CHUNK_SIZECLASS_BITMASK));
 }
 
 static bool get_chunk_needs_clearing(chunk_t* chunk)
