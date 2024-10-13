@@ -1888,6 +1888,28 @@ static void make_cntvct_el0(compile_t *c) {
   }
 }
 
+static void make_cntfrq_el0(compile_t *c) {
+  if (target_is_arm(c->opt->triple)) {
+    // i64 @internal.aarch64
+    LLVMTypeRef f_type_f = LLVMFunctionType(c->i64, &c->void_type, 0, false);
+    LLVMValueRef fun =
+        codegen_addfun(c, "internal.aarch64.cntfrq_el0", f_type_f, false);
+
+    LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+    codegen_startfun(c, fun, NULL, NULL, NULL, false);
+    LLVMValueRef get_cntvct_el0 =
+        LLVMGetInlineAsm(f_type_f, "MRS $0, CNTFRQ_EL0", 18, "=r", 2, false,
+                         false, LLVMInlineAsmDialectATT, false);
+
+    LLVMValueRef result =
+        LLVMBuildCall2(c->builder, f_type_f, get_cntvct_el0, NULL, 0, "");
+    genfun_build_ret(c, result);
+    codegen_finishfun(c);
+  } else {
+    (void)c;
+  }
+}
+
 static void make_pmccntr_el0(compile_t *c) {
   if (target_is_arm(c->opt->triple)) {
     // i64 @internal.aarch64
@@ -1976,6 +1998,7 @@ void genprim_builtins(compile_t *c) {
   make_cpuid(c);
   make_rdtscp(c);
   make_cntvct_el0(c);
+  make_cntfrq_el0(c);
   make_pmccntr_el0(c);
 }
 
