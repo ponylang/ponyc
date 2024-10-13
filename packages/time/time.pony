@@ -5,11 +5,13 @@ The Time Package provides classes and methods for timing operations,
 dealing with dates and times, and scheduling tasks.
 """
 
-use "lib:rt" if linux
-use @"internal.x86.cpuid"[(I32, I32, I32, I32)](eax: I32)
-use @"internal.x86.rdtscp"[U64](aux: Pointer[I32])
-use @"llvm.x86.rdtsc"[U64]()
+//use "lib:rt" if linux
+use @"internal.x86.cpuid"[(I32, I32, I32, I32)](eax: I32) if x86
+use @"internal.x86.rdtscp"[U64](aux: Pointer[I32]) if x86
+use @"llvm.x86.rdtsc"[U64]() if x86
 use @"llvm.readcyclecounter"[U64]()
+use @"llvm.aarch64.isb"[None](fifteen: U8) if arm
+use @"internal.aarch64.cntvct_el0"[U64]() if arm
 use @time[I64](tloc: Pointer[None])
 use @clock_gettime[I32](clock: U32, ts: Pointer[(I64, I64)])
   if lp64 and (linux or bsd)
@@ -145,8 +147,11 @@ primitive Time
     ifdef x86 then
       @"internal.x86.cpuid"(I32(0))
       @"llvm.x86.rdtsc"()
+    elseif arm then
+      @"llvm.aarch64.isb"(U8(15))
+      @"internal.aarch64.cntvct_el0"()
     else
-      compile_error "perf_begin only supported on x86"
+      compile_error "perf_begin only supported on x86 or aarch64"
     end
 
   fun perf_end(): U64 =>
@@ -160,8 +165,12 @@ primitive Time
       var ts = @"internal.x86.rdtscp"(addressof aux)
       @"internal.x86.cpuid"(I32(0))
       ts
+    elseif arm then
+      var ts = @"internal.aarch64.cntvct_el0"()
+      @"llvm.aarch64.isb"(U8(15))
+      ts
     else
-      compile_error "perf_end only supported on x86"
+      compile_error "perf_begin only supported on x86 or aarch64"
     end
 
   fun _clock_gettime(clock: _Clock): (I64, I64) =>
