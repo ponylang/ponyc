@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix use after free bug in actor heap finalisation that can lead to a segfault ([PR #4522](https://github.com/ponylang/ponyc/pull/4522))
+- Make heap small chunk size setting logic more precise/correct ([PR #4527](https://github.com/ponylang/ponyc/pull/4527))
 
 ### Added
 
