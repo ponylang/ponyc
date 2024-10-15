@@ -68,6 +68,9 @@ typedef struct pony_actor_t
   actorstats_t actorstats; // 64/128 bytes
 #endif
   gc_t gc; // 48/88 bytes
+  // if you add more members here, you need to update the PONY_ACTOR_PAD_SIZE
+  // calculation below and the pony_static_assert at the top of actor.c, to
+  // reference the final member, its offset, and size
 } pony_actor_t;
 
 /** Padding for actor types.
