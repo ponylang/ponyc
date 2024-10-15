@@ -46,9 +46,12 @@ typedef struct small_chunk_t
 #define SMALL_CHUNK_SIZECLASS_BITMASK (uintptr_t)0x1C
 // TODO: figure out how to calculate the `2` from `SMALL_CHUNK_SIZECLASS_BITMASK` at compile time
 #define SMALL_CHUNK_SIZECLASS_SHIFT (uintptr_t)2
-#define LARGE_CHUNK_SLOT_BITMASK (uintptr_t)0x4
-#define LARGE_CHUNK_SHALLOW_BITMASK (uintptr_t)0x8
-#define LARGE_CHUNK_FINALISER_BITMASK (uintptr_t)0x10
+#define LARGE_CHUNK_SLOT_BITMASK_SHIFT_AMOUNT (uintptr_t)2
+#define LARGE_CHUNK_SLOT_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_SLOT_BITMASK_SHIFT_AMOUNT)
+#define LARGE_CHUNK_SHALLOW_BITMASK_SHIFT_AMOUNT (uintptr_t)3
+#define LARGE_CHUNK_SHALLOW_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_SHALLOW_BITMASK_SHIFT_AMOUNT)
+#define LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT (uintptr_t)4
+#define LARGE_CHUNK_FINALISER_BITMASK ((uintptr_t)0x1 << LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT)
 #define CHUNK_M_BITMASK ~(CHUNK_TYPE_BITMASK | CHUNK_NEEDS_TO_BE_CLEARED_BITMASK | SMALL_CHUNK_SIZECLASS_BITMASK | LARGE_CHUNK_SLOT_BITMASK | LARGE_CHUNK_SHALLOW_BITMASK | LARGE_CHUNK_FINALISER_BITMASK)
 
 enum
@@ -173,7 +176,7 @@ static void set_large_chunk_slot(large_chunk_t* chunk, uint32_t slot)
   // `!!` to normalize to 1 or 0
   slot = !!slot;
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
-  slot = slot << 2;
+  slot = slot << LARGE_CHUNK_SLOT_BITMASK_SHIFT_AMOUNT;
   pony_assert(slot == LARGE_CHUNK_SLOT_BITMASK || slot == 0);
   ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SLOT_BITMASK) | slot);
 }
@@ -189,7 +192,7 @@ static void set_large_chunk_shallow(large_chunk_t* chunk, uint32_t shallow)
   // `!!` to normalize to 1 or 0
   shallow = !!shallow;
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
-  shallow = shallow << 3;
+  shallow = shallow << LARGE_CHUNK_SHALLOW_BITMASK_SHIFT_AMOUNT;
   pony_assert(shallow == LARGE_CHUNK_SHALLOW_BITMASK || shallow == 0);
   ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SHALLOW_BITMASK) | shallow);
 }
@@ -205,7 +208,7 @@ static void set_large_chunk_finaliser(large_chunk_t* chunk, uint32_t finaliser)
   // `!!` to normalize to 1 or 0
   finaliser = !!finaliser;
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
-  finaliser = finaliser << 4;
+  finaliser = finaliser << LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT;
   pony_assert(finaliser == LARGE_CHUNK_FINALISER_BITMASK || finaliser == 0);
   ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_FINALISER_BITMASK) | finaliser);
 }
