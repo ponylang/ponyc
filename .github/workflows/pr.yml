@@ -450,6 +450,9 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
             debugger: lldb
             directives: pool_memalign
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+            debugger: lldb
+            directives: runtimestats
 
     name: use ${{ matrix.directives }}
     container:
