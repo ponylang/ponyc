@@ -24,6 +24,8 @@ typedef struct heap_t
   small_chunk_t* small_free[HEAP_SIZECLASSES];
   small_chunk_t* small_full[HEAP_SIZECLASSES];
   large_chunk_t* large;
+  small_chunk_t* small_recyclable;
+  large_chunk_t* large_recyclable;
 
   size_t used;
   size_t next_gc;
