@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.6] - 2024-10-16
 
 ### Fixed
 
 - Fix use after free bug in actor heap finalisation that can lead to a segfault ([PR #4522](https://github.com/ponylang/ponyc/pull/4522))
 - Make heap small chunk size setting logic more precise/correct ([PR #4527](https://github.com/ponylang/ponyc/pull/4527))
-
-### Added
-
-
-### Changed
-
 
 ## [0.58.5] - 2024-06-01
 
