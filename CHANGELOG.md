@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Recycle actor heap chunks after GC instead of returning to pool ([PR #4531](https://github.com/ponylang/ponyc/pull/4531))
 
 ## [0.58.6] - 2024-10-16
 
