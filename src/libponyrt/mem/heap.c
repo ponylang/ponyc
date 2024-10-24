@@ -40,6 +40,8 @@ typedef struct small_chunk_t
   struct small_chunk_t* next;
 } small_chunk_t;
 
+// include it after defining `large_chunk_t`
+#include "heap_chunk_sorting.h"
 
 #define CHUNK_TYPE_BITMASK (uintptr_t)0x1
 #define CHUNK_NEEDS_TO_BE_CLEARED_BITMASK (uintptr_t)0x2
@@ -547,7 +549,10 @@ void ponyint_heap_init(heap_t* heap)
 
 void ponyint_heap_destroy(heap_t* heap)
 {
+  large_chunk_list(destroy_large, heap->large_recyclable, 0);
   large_chunk_list(destroy_large, heap->large, 0);
+
+  small_chunk_list(destroy_small, heap->small_recyclable, 0);
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
@@ -622,9 +627,29 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
       heap->small_full[sizeclass] = chunk;
     }
   } else {
-    small_chunk_t* n = (small_chunk_t*) POOL_ALLOC(small_chunk_t);
-    n->base.m = (char*) POOL_ALLOC(block_t);
+    small_chunk_t* n = NULL;
+
+    // recycle a small chunk if available because it avoids setting the pagemap
+    if (NULL != heap->small_recyclable)
+    {
+      n = heap->small_recyclable;
+      heap->small_recyclable = n->next;
+    }
+
+    // If there are none in the recyclable list, get a new one.
+    if (NULL == n)
+    {
+      n = (small_chunk_t*) POOL_ALLOC(small_chunk_t);
+      n->base.m = (char*) POOL_ALLOC(block_t);
+      ponyint_pagemap_set(get_m((chunk_t*)n), (chunk_t*)n, actor);
+    }
+
+    // we should always have a chunk and m at this point
+    pony_assert(n != NULL);
+    pony_assert(n->base.m != NULL);
+
     set_small_chunk_size(n, sizeclass);
+
 #ifdef USE_RUNTIMESTATS
     actor->actorstats.heap_mem_used += sizeof(small_chunk_t);
     actor->actorstats.heap_mem_allocated += POOL_ALLOC_SIZE(small_chunk_t);
@@ -640,9 +665,9 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
 
+    // this is required for the heap garbage collection as it needs to know that
+    // this chunk needs to be cleared
     set_chunk_needs_clearing((chunk_t*)n);
-
-    ponyint_pagemap_set(get_m((chunk_t*)n), (chunk_t*)n, actor);
 
     heap->small_free[sizeclass] = n;
     chunk = n;
@@ -672,9 +697,49 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   size = ponyint_pool_adjust_size(size);
 
-  large_chunk_t* chunk = (large_chunk_t*) POOL_ALLOC(large_chunk_t);
-  chunk->size = size;
-  chunk->base.m = (char*) ponyint_pool_alloc_size(size);
+  large_chunk_t* chunk = NULL;
+
+  // recycle a large chunk if available because it avoids setting the pagemap
+  if (NULL != heap->large_recyclable)
+  {
+    large_chunk_t* recycle = heap->large_recyclable;
+    large_chunk_t** prev = &recycle;
+
+    // short circuit as soon as we see a chunk that is too big because this list is sorted by size
+    while (NULL != recycle && recycle->size <= size)
+    {
+      // we only recycle if the size is exactly what is required
+      if (recycle->size == size)
+      {
+        if (*prev == heap->large_recyclable)
+          heap->large_recyclable = recycle->next;
+        else
+          (*prev)->next = recycle->next;
+
+        chunk = recycle;
+        chunk->next = NULL;
+        break;
+      } else {
+        prev = &recycle;
+        recycle = recycle->next;
+      }
+    }
+  }
+
+  // If there is no suitable one in the recyclable list, get a new one.
+  if (NULL == chunk)
+  {
+    chunk = (large_chunk_t*) POOL_ALLOC(large_chunk_t);
+    chunk->size = size;
+    chunk->base.m = (char*) ponyint_pool_alloc_size(size);
+    large_pagemap(get_m((chunk_t*)chunk), size, (chunk_t*)chunk, actor);
+  }
+
+  // we should always have a chunk and m of the right size at this point
+  pony_assert(chunk != NULL);
+  pony_assert(chunk->base.m != NULL);
+  pony_assert(chunk->size == size);
+
 #ifdef USE_RUNTIMESTATS
   actor->actorstats.heap_mem_used += sizeof(large_chunk_t);
   actor->actorstats.heap_mem_used += chunk->size;
@@ -685,12 +750,12 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 #endif
   set_large_chunk_slot(chunk, 0);
 
+  // this is required for the heap garbage collection as it needs to know that
+  // this chunk needs to be cleared
   set_chunk_needs_clearing((chunk_t*)chunk);
 
   // note if a finaliser needs to run or not
   set_large_chunk_finaliser(chunk, (track_finalisers_mask & 1));
-
-  large_pagemap(get_m((chunk_t*)chunk), size, (chunk_t*)chunk, actor);
 
   chunk->next = heap->large;
   heap->large = chunk;
@@ -886,18 +951,18 @@ void ponyint_heap_endgc(heap_t* heap
   // make a copy of all the heap list pointers into a temporary heap
   heap_t theap = {};
   heap_t* temp_heap = &theap;
-  memcpy(temp_heap, heap, offsetof(heap_t, used));
+  memcpy(temp_heap, heap, offsetof(heap_t, small_recyclable));
 
   // set all the heap list pointers to NULL in the real heap to ensure that
   // any new allocations by finalisers during the GC process don't reuse memory
   // freed during the GC process
   memset(heap, 0, offsetof(heap_t, used));
 
-  // lists of chunks to destroy
-  small_chunk_t* to_destroy_small = NULL;
-  large_chunk_t* to_destroy_large = NULL;
+  // lists of chunks to recycle
+  small_chunk_t** to_recycle_small = &temp_heap->small_recyclable;
+  large_chunk_t** to_recycle_large = &temp_heap->large_recyclable;
 
-  // sweep all the chunks in the temporary heap while accumulating chunks to destroy
+  // sweep all the chunks in the temporary heap while accumulating chunks to recycle
   // NOTE: the real heap will get new chunks allocated and added to it during this process
   //       if a finaliser allocates memory... we have to make sure that finalisers don't
   //       reuse memory being freed or we'll end up with a use-after-free bug due to
@@ -917,21 +982,21 @@ void ponyint_heap_endgc(heap_t* heap
     uint32_t empty = sizeclass_empty[i];
 
 #ifdef USE_RUNTIMESTATS
-    used += sweep_small(list1, avail, full, &to_destroy_small, empty, size,
+    used += sweep_small(list1, avail, full, to_recycle_small, empty, size,
       &mem_allocated, &mem_used, &num_allocated);
-    used += sweep_small(list2, avail, full, &to_destroy_small, empty, size,
+    used += sweep_small(list2, avail, full, to_recycle_small, empty, size,
       &mem_allocated, &mem_used, &num_allocated);
 #else
-    used += sweep_small(list1, avail, full, &to_destroy_small, empty, size);
-    used += sweep_small(list2, avail, full, &to_destroy_small, empty, size);
+    used += sweep_small(list1, avail, full, to_recycle_small, empty, size);
+    used += sweep_small(list2, avail, full, to_recycle_small, empty, size);
 #endif
   }
 
 #ifdef USE_RUNTIMESTATS
-  temp_heap->large = sweep_large(temp_heap->large, &to_destroy_large, &used, &mem_allocated, &mem_used,
+  temp_heap->large = sweep_large(temp_heap->large, to_recycle_large, &used, &mem_allocated, &mem_used,
     &num_allocated);
 #else
-  temp_heap->large = sweep_large(temp_heap->large, &to_destroy_large, &used);
+  temp_heap->large = sweep_large(temp_heap->large, to_recycle_large, &used);
 #endif
 
   // we need to combine the temporary heap lists with the real heap lists
@@ -951,8 +1016,8 @@ void ponyint_heap_endgc(heap_t* heap
       {
         small_chunk_t* temp = *sc_temp;
         *sc_temp = temp->next;
-        temp->next = to_destroy_small;
-        to_destroy_small = temp;
+        temp->next = *to_recycle_small;
+        *to_recycle_small = temp;
       } else {
         sc_temp = &(*sc_temp)->next;
       }
@@ -969,8 +1034,8 @@ void ponyint_heap_endgc(heap_t* heap
       {
         small_chunk_t* temp = *sc_temp;
         *sc_temp = temp->next;
-        temp->next = to_destroy_small;
-        to_destroy_small = temp;
+        temp->next = *to_recycle_small;
+        *to_recycle_small = temp;
       } else {
         sc_temp = &(*sc_temp)->next;
       }
@@ -988,18 +1053,23 @@ void ponyint_heap_endgc(heap_t* heap
     {
       large_chunk_t* temp = *lc_temp;
       *lc_temp = temp->next;
-      temp->next = to_destroy_large;
-      to_destroy_large = temp;
+      temp->next = *to_recycle_large;
+      *to_recycle_large = temp;
     } else {
       lc_temp = &(*lc_temp)->next;
     }
   }
   *lc_temp = temp_heap->large;
 
-  // destroy all the chunks that need to be destroyed
-  small_chunk_list(destroy_small, to_destroy_small, 0);
-  large_chunk_list(destroy_large, to_destroy_large, 0);
+  // destroy all the chunks that didn't get re-used since the last GC run so
+  // that other actors can re-use the memory from the pool
+  small_chunk_list(destroy_small, heap->small_recyclable, 0);
+  large_chunk_list(destroy_large, heap->large_recyclable, 0);
 
+  // save any chunks that can be recycled from this GC run
+  // sort large chunks by the size of the chunks
+  heap->large_recyclable = sort_large_chunk_list_by_size(*to_recycle_large);
+  heap->small_recyclable = *to_recycle_small;
 
   // Foreign object sizes will have been added to heap->used already. Here we
   // add local object sizes as well and set the next gc point for when memory
