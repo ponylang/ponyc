@@ -1066,6 +1066,11 @@ void ponyint_heap_endgc(heap_t* heap
   small_chunk_list(destroy_small, heap->small_recyclable, 0);
   large_chunk_list(destroy_large, heap->large_recyclable, 0);
 
+  // destroy all the potentially large recyclable chunks to effectively disabling
+  // large chunk recycling until it can be made smarterer
+  large_chunk_list(destroy_large, *to_recycle_large, 0);
+  *to_recycle_large = NULL;
+
   // save any chunks that can be recycled from this GC run
   // sort large chunks by the size of the chunks
   heap->large_recyclable = sort_large_chunk_list_by_size(*to_recycle_large);
