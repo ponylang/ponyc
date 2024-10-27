@@ -703,7 +703,7 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
   if (NULL != heap->large_recyclable)
   {
     large_chunk_t* recycle = heap->large_recyclable;
-    large_chunk_t** prev = &recycle;
+    large_chunk_t* prev = NULL;
 
     // short circuit as soon as we see a chunk that is too big because this list is sorted by size
     while (NULL != recycle && recycle->size <= size)
@@ -711,16 +711,16 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
       // we only recycle if the size is exactly what is required
       if (recycle->size == size)
       {
-        if (*prev == heap->large_recyclable)
+        if (NULL == prev)
           heap->large_recyclable = recycle->next;
         else
-          (*prev)->next = recycle->next;
+          prev->next = recycle->next;
 
         chunk = recycle;
         chunk->next = NULL;
         break;
       } else {
-        prev = &recycle;
+        prev = recycle;
         recycle = recycle->next;
       }
     }
@@ -949,14 +949,15 @@ void ponyint_heap_endgc(heap_t* heap
 #endif
 
   // make a copy of all the heap list pointers into a temporary heap
+  size_t amount_to_copy_clear = offsetof(heap_t, small_recyclable);
   heap_t theap = {};
   heap_t* temp_heap = &theap;
-  memcpy(temp_heap, heap, offsetof(heap_t, small_recyclable));
+  memcpy(temp_heap, heap, amount_to_copy_clear);
 
   // set all the heap list pointers to NULL in the real heap to ensure that
   // any new allocations by finalisers during the GC process don't reuse memory
   // freed during the GC process
-  memset(heap, 0, offsetof(heap_t, used));
+  memset(heap, 0, amount_to_copy_clear);
 
   // lists of chunks to recycle
   small_chunk_t** to_recycle_small = &temp_heap->small_recyclable;
@@ -1065,11 +1066,6 @@ void ponyint_heap_endgc(heap_t* heap
   // that other actors can re-use the memory from the pool
   small_chunk_list(destroy_small, heap->small_recyclable, 0);
   large_chunk_list(destroy_large, heap->large_recyclable, 0);
-
-  // destroy all the potentially large recyclable chunks to effectively disabling
-  // large chunk recycling until it can be made smarterer
-  large_chunk_list(destroy_large, *to_recycle_large, 0);
-  *to_recycle_large = NULL;
 
   // save any chunks that can be recycled from this GC run
   // sort large chunks by the size of the chunks
