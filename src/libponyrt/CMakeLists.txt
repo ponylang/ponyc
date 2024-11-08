@@ -56,7 +56,7 @@ set(_ll_except_obj "${CMAKE_BINARY_DIR}/except_try_catch.o")
 
 find_file(_llc_command
     NAMES llc.exe llc
-    PATHS "${CMAKE_BINARY_DIR}/../../libs/bin" "${CMAKE_BINARY_DIR}/../libs/bin"
+    HINTS "${CMAKE_BINARY_DIR}/../../libs/bin" "${CMAKE_BINARY_DIR}/../libs/bin"
 )
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
