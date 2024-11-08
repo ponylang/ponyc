@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Correctly find custom-built `llc` ([PR #4537](https://github.com/ponylang/ponyc/pull/4537))
 
 ### Added
 
