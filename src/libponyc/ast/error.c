@@ -206,7 +206,7 @@ static errormsg_t* make_errorv(source_t* source, size_t line, size_t pos,
 
     size_t start = tpos;
 
-    while((source->m[tpos] != '\n') && (tpos < source->len))
+    while((tpos < source->len) && (source->m[tpos] != '\n'))
       tpos++;
 
     size_t len = tpos - start;
