@@ -44,7 +44,6 @@ static uint64_t scheduler_suspend_threshold;
 static PONY_ATOMIC(uint32_t) active_scheduler_count;
 static PONY_ATOMIC(uint32_t) active_scheduler_count_check;
 static scheduler_t* scheduler;
-static pony_ctx_t* inject_context;
 static PONY_ATOMIC(bool) detect_quiescence;
 static bool use_yield;
 static mpmcq_t inject;
@@ -1138,7 +1137,7 @@ static void ponyint_sched_shutdown()
     ponyint_thread_join(scheduler[i].tid);
 
   DTRACE0(RT_END);
-  ponyint_cycle_terminate();
+  ponyint_cycle_terminate(&this_scheduler->ctx);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
@@ -1173,7 +1172,6 @@ static void ponyint_sched_shutdown()
     * sizeof(scheduler_t)));
 #endif
   scheduler = NULL;
-  inject_context = NULL;
   scheduler_count = 0;
   atomic_store_explicit(&active_scheduler_count, 0, memory_order_relaxed);
 
@@ -1288,9 +1286,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   ponyint_mpmcq_init(&inject);
   ponyint_asio_init(asio_cpu);
 
-  inject_context = pony_ctx();
-
-  return inject_context;
+  return pony_ctx();
 }
 
 bool ponyint_sched_start(bool library)
@@ -1337,7 +1333,7 @@ void ponyint_sched_stop()
   ponyint_sched_shutdown();
 }
 
-void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
+void ponyint_sched_add_inject_or_sched(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(ctx->scheduler != NULL)
   {
@@ -1347,6 +1343,20 @@ void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
     // Put on the shared mpmcq.
     ponyint_mpmcq_push(&inject, actor);
   }
+}
+
+void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  pony_assert(NULL != ctx->scheduler);
+
+  // Add to the current scheduler thread.
+  push(ctx->scheduler, actor);
+}
+
+void ponyint_sched_add_inject(pony_actor_t* actor)
+{
+  // Put on the shared mpmcq.
+  ponyint_mpmcq_push(&inject, actor);
 }
 
 PONY_API schedulerstats_t* pony_scheduler_stats()
@@ -1455,10 +1465,6 @@ void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id)
       }
     }
   }
-}
-
-pony_ctx_t* ponyint_sched_get_inject_context() {
-  return inject_context;
 }
 
 // Maybe wake up a scheduler thread if possible

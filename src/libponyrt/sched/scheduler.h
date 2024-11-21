@@ -122,6 +122,10 @@ void ponyint_sched_stop();
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
+void ponyint_sched_add_inject_or_sched(pony_ctx_t* ctx, pony_actor_t* actor);
+
+void ponyint_sched_add_inject(pony_actor_t* actor);
+
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv);
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
@@ -148,10 +152,6 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
 // Try and wake up a sleeping scheduler thread only if all scheduler
 // threads are asleep
 void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
-
-// Retrieves the global main thread context for scheduling
-// special actors on the inject queue.
-pony_ctx_t* ponyint_sched_get_inject_context();
 
 #ifdef USE_RUNTIMESTATS
 uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx);

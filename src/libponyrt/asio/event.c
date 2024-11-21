@@ -127,10 +127,10 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   m->flags = flags;
   m->arg = arg;
 
-  // ASIO messages technically are application messages, but since they have no
-  // sender they aren't covered by backpressure. We pass false for an early
-  // bailout in the backpressure code.
-  pony_sendv(pony_ctx(), ev->owner, &m->msg, &m->msg, false);
+  // ASIO messages technically are application messages, but they are not
+  // covered by backpressure. We send the message via a mechanism that will put
+  // an unscheduled actor onto the global inject queue for any actor to pick up.
+  ponyint_sendv_inject(ev->owner, &m->msg);
 
   // maybe wake up a scheduler thread if they've all fallen asleep
   ponyint_sched_maybe_wakeup_if_all_asleep(-1);
