@@ -369,24 +369,29 @@ static bool read_msg(scheduler_t* sched)
     {
       case SCHED_SUSPEND:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
         maybe_start_cnf_ack_cycle(sched);
         break;
       }
 
       case SCHED_BLOCK:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
         handle_sched_block(sched);
         break;
       }
 
       case SCHED_UNBLOCK:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
         handle_sched_unblock(sched);
         break;
       }
 
       case SCHED_CNF:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
+
         // Echo the token back as ACK(token).
         send_msg(sched->index, 0, SCHED_ACK, m->i);
         break;
@@ -394,6 +399,8 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_ACK:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
+
         // If it's the current token, increment the ack count.
         if(m->i == sched->ack_token)
           sched->ack_count++;
@@ -402,12 +409,15 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_TERMINATE:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
         sched->terminate = true;
         break;
       }
 
       case SCHED_UNMUTE_ACTOR:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
+
         if (ponyint_sched_unmute_senders(&sched->ctx, (pony_actor_t*)m->i))
           run_queue_changed = true;
 
@@ -416,6 +426,8 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_NOISY_ASIO:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
+
         // mark asio as being noisy
         sched->asio_noisy = true;
         break;
@@ -423,6 +435,8 @@ static bool read_msg(scheduler_t* sched)
 
       case SCHED_UNNOISY_ASIO:
       {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
+
         // mark asio as not being noisy
         sched->asio_noisy = false;
         break;
@@ -1394,7 +1408,7 @@ PONY_API void pony_register_thread()
   this_scheduler = POOL_ALLOC(scheduler_t);
   memset(this_scheduler, 0, sizeof(scheduler_t));
   this_scheduler->tid = ponyint_thread_self();
-  this_scheduler->index = -1;
+  this_scheduler->index = PONY_UNKNOWN_SCHEDULER_INDEX;
 }
 
 PONY_API void pony_unregister_thread()
