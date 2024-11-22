@@ -1,6 +1,7 @@
 #define PONY_WANT_ATOMIC_DEFS
 
 #include "mpmcq.h"
+#include "ponyassert.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 
@@ -16,9 +17,19 @@ struct mpmcq_node_t
   PONY_ATOMIC(void*) data;
 };
 
+static __pony_thread_local mpmcq_node_t* nodes_to_recycle;
+
 static mpmcq_node_t* node_alloc(void* data)
 {
-  mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
+  mpmcq_node_t* node = nodes_to_recycle;
+
+  if (NULL != node)
+  {
+    nodes_to_recycle = atomic_load_explicit(&node->next, memory_order_relaxed);
+  } else {
+    node = POOL_ALLOC(mpmcq_node_t);
+  }
+
   atomic_store_explicit(&node->next, NULL, memory_order_relaxed);
   atomic_store_explicit(&node->data, data, memory_order_relaxed);
 
@@ -55,6 +66,7 @@ static size_t mpmcq_size_debug(mpmcq_t* q)
 
 void ponyint_mpmcq_init(mpmcq_t* q)
 {
+  nodes_to_recycle = NULL;
   mpmcq_node_t* node = node_alloc(NULL);
 
   atomic_store_explicit(&q->head, node, memory_order_relaxed);
@@ -66,8 +78,20 @@ void ponyint_mpmcq_init(mpmcq_t* q)
 #endif
 }
 
+void ponyint_mpmcq_cleanup()
+{
+  while(nodes_to_recycle != NULL)
+  {
+    mpmcq_node_t* node = nodes_to_recycle;
+    nodes_to_recycle = atomic_load_explicit(&node->next, memory_order_relaxed);
+    node_free(node);
+  }
+}
+
 void ponyint_mpmcq_destroy(mpmcq_t* q)
 {
+  pony_assert(atomic_load_explicit(&q->head, memory_order_relaxed) == q->tail.object);
+
   atomic_store_explicit(&q->head, NULL, memory_order_relaxed);
   node_free(q->tail.object);
   q->tail.object = NULL;
@@ -177,7 +201,14 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   ANNOTATE_HAPPENS_AFTER(&tail->data);
 #endif
 
-  node_free(tail);
+  // if tail has already been consumed and freed by this thread, the read of
+  // `tail->next` above in another thread would be a use-after-free error but is
+  // technically safe in this context since we will end up looping due to the CAS
+  // failing in the while condition due to the aba counter being out of sync
+  // we cannot free the tail node if we want to ensure there are no use-after-free
+  // concerns so we instead add it to the list of nodes to recycle
+  atomic_store_explicit(&tail->next, nodes_to_recycle, memory_order_relaxed);
+  nodes_to_recycle = tail;
 
   return data;
 }

@@ -1125,6 +1125,8 @@ static DECLARE_THREAD_FN(run_thread)
 #endif
 
   run(sched);
+
+  ponyint_mpmcq_cleanup();
   ponyint_pool_thread_cleanup();
 
   return 0;
