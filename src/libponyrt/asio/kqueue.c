@@ -417,7 +417,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       ponyint_sched_unnoisy_asio(SPECIAL_THREADID_KQUEUE);
 
       // maybe wake up a scheduler thread if they've all fallen asleep
-      ponyint_sched_maybe_wakeup_if_all_asleep(-1);
+      ponyint_sched_maybe_wakeup_if_all_asleep(PONY_UNKNOWN_SCHEDULER_INDEX);
     }
 
     ev->noisy = false;

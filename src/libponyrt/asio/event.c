@@ -133,5 +133,5 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   pony_sendv(pony_ctx(), ev->owner, &m->msg, &m->msg, false);
 
   // maybe wake up a scheduler thread if they've all fallen asleep
-  ponyint_sched_maybe_wakeup_if_all_asleep(-1);
+  ponyint_sched_maybe_wakeup_if_all_asleep(PONY_UNKNOWN_SCHEDULER_INDEX);
 }

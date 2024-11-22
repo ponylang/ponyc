@@ -12,8 +12,6 @@ typedef struct messageq_t
 #include "../sched/scheduler.h"
 #include <platform.h>
 
-#define UNKNOWN_SCHEDULER -1
-
 PONY_EXTERN_C_BEGIN
 
 void ponyint_messageq_init(messageq_t* q);
