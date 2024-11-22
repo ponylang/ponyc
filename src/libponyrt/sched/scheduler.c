@@ -451,41 +451,46 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
   if(sched->terminate)
     return true;
 
-  uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
-  if(sched->ack_count >= current_active_scheduler_count)
+  // only scheduler 0 can initiate shutdown (it is the ony that gets all the
+  // ACK messages as part of the CNF/ACK coordination for shutdown)
+  if(0 == sched->index)
   {
-    // mark cycle_detector to pause
-    // this is required to ensure scheduler queues are empty
-    // upon termination
-    pause_cycle_detection = true;
+    uint32_t current_active_scheduler_count = get_active_scheduler_count();
 
-    if(sched->asio_stoppable && ponyint_asio_stop())
+    if(sched->ack_count >= current_active_scheduler_count)
     {
-      // successfully stopped ASIO thread
-      // tell all scheduler threads to terminate
-      send_msg_all(sched->index, SCHED_TERMINATE, 0);
+      // mark cycle_detector to pause
+      // this is required to ensure scheduler queues are empty
+      // upon termination
+      pause_cycle_detection = true;
 
-      wake_suspended_threads(sched->index);
+      if(sched->asio_stoppable && ponyint_asio_stop())
+      {
+        // successfully stopped ASIO thread
+        // tell all scheduler threads to terminate
+        send_msg_all(sched->index, SCHED_TERMINATE, 0);
 
-      sched->ack_token++;
-      sched->ack_count = 0;
-    } else if(ponyint_asio_stoppable()) {
-      sched->asio_stoppable = true;
-      sched->ack_token++;
-      sched->ack_count = 0;
+        wake_suspended_threads(sched->index);
 
-      // Run another CNF/ACK cycle.
-      send_msg_all_active(sched->index, SCHED_CNF, sched->ack_token);
+        sched->ack_token++;
+        sched->ack_count = 0;
+      } else if(ponyint_asio_stoppable()) {
+        sched->asio_stoppable = true;
+        sched->ack_token++;
+        sched->ack_count = 0;
 
-      // re-enable cycle detector triggering
-      pause_cycle_detection = false;
-    } else {
-      // ASIO is not stoppable
-      sched->asio_stoppable = false;
+        // Run another CNF/ACK cycle.
+        send_msg_all_active(sched->index, SCHED_CNF, sched->ack_token);
 
-      // re-enable cycle detector triggering
-      pause_cycle_detection = false;
+        // re-enable cycle detector triggering
+        pause_cycle_detection = false;
+      } else {
+        // ASIO is not stoppable
+        sched->asio_stoppable = false;
+
+        // re-enable cycle detector triggering
+        pause_cycle_detection = false;
+      }
     }
   }
 
