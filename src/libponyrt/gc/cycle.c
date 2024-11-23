@@ -1274,8 +1274,7 @@ bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2)
   uint64_t diff = ponyint_cpu_tick_diff(tsc, tsc2);
   if(diff > d->detect_interval)
   {
-    pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-    pony_send(ctx, cycle_detector, ACTORMSG_CHECKBLOCKED);
+    ponyint_send_inject(cycle_detector, ACTORMSG_CHECKBLOCKED);
     return true;
   }
 
@@ -1288,48 +1287,37 @@ void ponyint_cycle_actor_destroyed(pony_actor_t* actor)
   // and after the runtime has been shut down or if the cycle detector
   // is being destroyed
   if(cycle_detector && !ponyint_is_cycle(actor)) {
-    pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-    pony_sendp(ctx, cycle_detector, ACTORMSG_DESTROYED, actor);
+    ponyint_sendp_inject(cycle_detector, ACTORMSG_DESTROYED, actor);
   }
 }
 
 void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
 {
   pony_assert(&actor->gc == gc);
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
 
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
-
-#ifdef USE_RUNTIMESTATS_MESSAGES
-  ctx->schedulerstats.mem_used_inflight_messages += sizeof(block_msg_t);
-  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(block_msg_t);
-#endif
 
   m->actor = actor;
   m->rc = ponyint_gc_rc(gc);
   m->delta = ponyint_gc_delta(gc);
   pony_assert(gc->delta == NULL);
 
-  pony_sendv(ctx, cycle_detector, &m->msg, &m->msg, false);
+  ponyint_sendv_inject(cycle_detector, &m->msg);
 }
 
 void ponyint_cycle_unblock(pony_actor_t* actor)
 {
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-  pony_sendp(ctx, cycle_detector, ACTORMSG_UNBLOCK, actor);
+  ponyint_sendp_inject(cycle_detector, ACTORMSG_UNBLOCK, actor);
 }
 
 void ponyint_cycle_ack(size_t token)
 {
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-  pony_sendi(ctx, cycle_detector, ACTORMSG_ACK, token);
+  ponyint_sendi_inject(cycle_detector, ACTORMSG_ACK, token);
 }
 
-void ponyint_cycle_terminate()
+void ponyint_cycle_terminate(pony_ctx_t* ctx)
 {
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-
   ponyint_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
   ponyint_destroy(ctx, cycle_detector);

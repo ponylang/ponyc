@@ -1046,7 +1046,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
-      ponyint_sched_add(ctx, to);
+      ponyint_sched_add_inject_or_sched(ctx, to);
     }
   }
 }
@@ -1096,6 +1096,59 @@ PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   m->i = i;
 
   pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);
+}
+
+void ponyint_sendv_inject(pony_actor_t* to, pony_msg_t* msg)
+{
+  // Make sure we're not trying to send a message to an actor that is about
+  // to be destroyed.
+  pony_assert(!ponyint_actor_pendingdestroy(to));
+
+  pony_ctx_t* ctx = pony_ctx();
+
+  if(DTRACE_ENABLED(ACTOR_MSG_SEND))
+  {
+    DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, msg->id,
+      (uintptr_t)ctx->current, (uintptr_t)to);
+  }
+
+  if(ponyint_actor_messageq_push(&to->q, msg, msg
+#ifdef USE_DYNAMIC_TRACE
+    , ctx->scheduler, ctx->current, to
+#endif
+    ))
+  {
+    if(!has_sync_flag(to, SYNC_FLAG_MUTED))
+    {
+      ponyint_sched_add_inject(to);
+    }
+  }
+
+  (void)ctx;
+}
+
+void ponyint_send_inject(pony_actor_t* to, uint32_t id)
+{
+  pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
+  ponyint_sendv_inject(to, m);
+}
+
+void ponyint_sendp_inject(pony_actor_t* to, uint32_t id, void* p)
+{
+  pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msgp_t)), id);
+  m->p = p;
+
+  ponyint_sendv_inject(to, &m->msg);
+}
+
+void ponyint_sendi_inject(pony_actor_t* to, uint32_t id, intptr_t i)
+{
+  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msgi_t)), id);
+  m->i = i;
+
+  ponyint_sendv_inject(to, &m->msg);
 }
 
 PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)

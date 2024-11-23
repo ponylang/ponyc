@@ -21,7 +21,7 @@ void ponyint_cycle_unblock(pony_actor_t* actor);
 
 void ponyint_cycle_ack(size_t token);
 
-void ponyint_cycle_terminate();
+void ponyint_cycle_terminate(pony_ctx_t* ctx);
 
 bool ponyint_is_cycle(pony_actor_t* actor);
 

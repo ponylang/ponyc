@@ -96,6 +96,32 @@ typedef struct pony_actor_pad_t
  */
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor);
 
+/** Send a message to an actor and add to the inject queue if it is not currently
+ * scheduled.
+ */
+void ponyint_sendv_inject(pony_actor_t* to, pony_msg_t* msg);
+
+/** Convenience function to send a message with no arguments and add the actor
+ * to the inject queue if it is not currently scheduled.
+ *
+ * The dispatch function receives a pony_msg_t.
+ */
+void ponyint_send_inject(pony_actor_t* to, uint32_t id);
+
+/** Convenience function to send a pointer argument in a message and add the actor
+ * to the inject queue if it is not currently scheduled.
+ *
+ * The dispatch function receives a pony_msgp_t.
+ */
+void ponyint_sendp_inject(pony_actor_t* to, uint32_t id, void* p);
+
+/** Convenience function to send an integer argument in a message and add the actor
+ * to the inject queue if it is not currently scheduled.
+ *
+ * The dispatch function receives a pony_msgi_t.
+ */
+void ponyint_sendi_inject(pony_actor_t* to, uint32_t id, intptr_t i);
+
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling);
 
 void ponyint_actor_destroy(pony_actor_t* actor);
