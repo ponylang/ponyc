@@ -231,7 +231,11 @@ static void send_msg_all(uint32_t from, sched_msg_t msg, intptr_t arg)
 
 static void signal_suspended_threads(uint32_t sched_count, int32_t curr_sched_id)
 {
-  for(uint32_t i = 0; i < sched_count; i++)
+  // start at get_active_scheduler_count_check to not send signals to threads
+  // that are already known to be awake..
+  uint32_t start_sched_index = get_active_scheduler_count_check();
+
+  for(uint32_t i = start_sched_index; i < sched_count; i++)
   {
     if((int32_t)i != curr_sched_id)
 #if defined(USE_SYSTEMATIC_TESTING)
