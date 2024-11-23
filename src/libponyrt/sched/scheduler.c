@@ -1469,7 +1469,7 @@ void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id)
     {
       // wait for sleeping threads to wake and update check variable
       // to ensure that we have at least one fully awake scheduler thread
-      while (get_active_scheduler_count_check() == 0)
+      while (get_active_scheduler_count_check() == 0 && get_active_scheduler_count() > 0)
       {
         // send signals to all scheduler threads that should be awake
         // this is somewhat wasteful if a scheduler thread is already awake
