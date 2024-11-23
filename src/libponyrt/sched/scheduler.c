@@ -1162,6 +1162,7 @@ static void ponyint_sched_shutdown()
       , i
 #endif
       ) != NULL) { ; }
+    ponyint_mutemap_destroy(&scheduler[i].mute_mapping);
     ponyint_messageq_destroy(&scheduler[i].mq, false);
     ponyint_mpmcq_destroy(&scheduler[i].q);
 
