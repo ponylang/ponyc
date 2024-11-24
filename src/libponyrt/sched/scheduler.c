@@ -177,6 +177,7 @@ void ponyint_sched_decrement_pinned_actor_count()
 {
   uint32_t old = atomic_fetch_sub_explicit(&pinned_actor_count, 1, memory_order_relaxed);
   pony_assert(0 < old);
+  (void)old;
 }
 
 /**
