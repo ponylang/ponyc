@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Correctly find custom-built `llc` ([PR #4537](https://github.com/ponylang/ponyc/pull/4537))
+- Fix buffer out of bounds access issue ([PR #4540](https://github.com/ponylang/ponyc/pull/4540))
 
 ### Added
 
