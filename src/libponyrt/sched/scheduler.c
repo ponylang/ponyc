@@ -1783,7 +1783,7 @@ bool ponyint_sched_start(bool library)
 
   while(ponyint_thread_messageq_pop(&this_scheduler->mq
 #ifdef USE_DYNAMIC_TRACE
-    , i
+    , PONY_PINNED_ACTOR_THREAD_INDEX
 #endif
     ) != NULL) { ; }
   ponyint_mutemap_destroy(&this_scheduler->mute_mapping);
