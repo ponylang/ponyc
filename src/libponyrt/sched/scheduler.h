@@ -20,6 +20,10 @@ typedef struct scheduler_t scheduler_t;
 #define SPECIAL_THREADID_EPOLL    -12
 #define PONY_UNKNOWN_SCHEDULER_INDEX -1
 
+// the `-999` constant is the same value that is hardcoded in `actor_pinning.pony`
+// in the `actor_pinning` package
+#define PONY_PINNED_ACTOR_THREAD_INDEX -999
+
 #if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
 // Signal to use for suspending/resuming threads via `sigwait`/`pthread_kill`
 // If you change this, remember to change `signals` package accordingly
@@ -121,9 +125,11 @@ bool ponyint_sched_start(bool library);
 
 void ponyint_sched_stop();
 
-void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
+void ponyint_sched_increment_pinned_actor_count();
 
-void ponyint_sched_add_inject_or_sched(pony_ctx_t* ctx, pony_actor_t* actor);
+void ponyint_sched_decrement_pinned_actor_count();
+
+void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void ponyint_sched_add_inject(pony_actor_t* actor);
 
