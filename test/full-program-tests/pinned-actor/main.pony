@@ -1,6 +1,4 @@
 use @pony_exitcode[None](code: I32)
-use @pony_ctx[Pointer[None]]()
-use @pony_sched_index[I32](ctx: Pointer[None])
 
 use "actor_pinning"
 use "time"
@@ -13,15 +11,12 @@ actor Main
     _env = env
     _auth = PinUnpinActorAuth(env.root)
     ActorPinning.pin(_auth)
-    _env.out.print("initializing... sched index: " + @pony_sched_index(@pony_ctx()).string())
     let interval: U64 = (10 * 1_000_000_000) / 10
     let timers = Timers
     let timer = Timer(Tick(this, 1), interval, interval)
     timers(consume timer)
 
   be check_pinned() =>
-    let sched: I32 = @pony_sched_index(@pony_ctx())
-    _env.out.print("sched index: " + sched.string())
     if ActorPinning.is_successfully_pinned(_auth) then
       @pony_exitcode(5)
     else
