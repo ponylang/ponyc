@@ -59,7 +59,11 @@ cycle detector reaps pinned actors it allows the runtime to reach quiescence.
 If the cycle detector is unable to reap all pinned actors or if the cycle
 detector is disabled (via `--ponynoblock`), it is up to the programmer to
 manually `unpin` all pinned actors or else the runtime will be unable to reach
-quiescence and the program will never terminate.
+quiescence and the program will never terminate. Additionally, due to the fact
+that Pony uses cooperative scheduling of actors and that all pinned actors run
+on a single shared scheduler thread, any "greedy" actors that monopolize the
+cpu (with long running behaviors) will negatively inmpact all other pinned
+actors by starving them of cpu.
 """
 
 use @pony_actor_set_pinned[None]()
