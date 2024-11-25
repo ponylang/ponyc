@@ -1158,8 +1158,11 @@ static void ponyint_sched_shutdown()
 {
   uint32_t start = 0;
 
-  for(uint32_t i = start; i < scheduler_count; i++)
-    ponyint_thread_join(scheduler[i].tid);
+  while(start < scheduler_count)
+  {
+    if (ponyint_thread_join(scheduler[start].tid))
+      start++;
+  }
 
   DTRACE0(RT_END);
   ponyint_cycle_terminate(&this_scheduler->ctx);
