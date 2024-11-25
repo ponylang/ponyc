@@ -10,3 +10,7 @@ Previously our CMake build was failing to find our custom-built `llc` binary, bu
 
 Previously, the compiler error reporting had a minor buffer out of bounds access bug where it read one byte past the end of a buffer as part of an if condition before checking that the offset was smaller than the buffer length. This was fixed by switching the order of the if condition checks so that the check that the offset is smaller than the buffer length happens before reading the value from the buffer to prefer the out of bounds access issue.
 
+## Fix bug in ASIO shutdown
+
+There was a bug during our shutdown process that could cause a segmentation fault coming from our asynchrnous I/O subsystem. This has been fixed.
+
