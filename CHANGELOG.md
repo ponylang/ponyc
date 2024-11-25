@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Correctly find custom-built `llc` ([PR #4537](https://github.com/ponylang/ponyc/pull/4537))
 - Fix buffer out of bounds access issue ([PR #4540](https://github.com/ponylang/ponyc/pull/4540))
+- Fix bug in ASIO shutdown ([PR #4548](https://github.com/ponylang/ponyc/pull/4548))
 
 ### Added
 
