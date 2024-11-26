@@ -32,7 +32,7 @@ actor Main
   new create(env: Env) =>
     _env = env
     _auth = PinUnpinActorAuth(env.root)
-    ActorPinning.pin(_auth)
+    ActorPinning.request_pin(_auth)
     check_pinned()
 
   be check_pinned() =>
@@ -51,7 +51,7 @@ actor Main
     end
 
   be done() =>
-    ActorPinning.unpin(_auth)
+    ActorPinning.request_unpin(_auth)
 ```
 
 ## Caveat

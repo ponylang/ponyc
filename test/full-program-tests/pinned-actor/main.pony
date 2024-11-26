@@ -10,7 +10,7 @@ actor Main
   new create(env: Env) =>
     _env = env
     _auth = PinUnpinActorAuth(env.root)
-    ActorPinning.pin(_auth)
+    ActorPinning.request_pin(_auth)
     let interval: U64 = (10 * 1_000_000_000) / 10
     let timers = Timers
     let timer = Timer(Tick(this, 1), interval, interval)
