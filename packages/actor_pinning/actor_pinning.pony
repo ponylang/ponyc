@@ -6,10 +6,12 @@ scheduler thread. This can be required/used for interfacing with C libraries
 that rely on thread local storage. A common example of this is graphics/windowing
 libraries.
 
-The way it works is that an actor can request that it be pinned and then check
-to confirm that the pinning was successfully applied after which all subsequent
-behaviors on that actor will run on the same scheduler thread until the actor is
-destroyed or the actor requests to be unpinned.
+The way it works is that an actor can request that it be pinned (which may or
+may not happen immediately) and then it must wait and check to confirm that the
+pinning was successfully applied (prior to running any workload that required the
+actor to be pinned) after which all subsequent behaviors on that actor will run
+on the same scheduler thread until the actor is destroyed or the actor requests
+to be unpinned.
 
 ## Example program
 
@@ -71,10 +73,10 @@ use @pony_actor_unset_pinned[None]()
 use @pony_scheduler_index[I32]()
 
 primitive ActorPinning
-  fun pin(auth: PinUnpinActorAuth) =>
+  fun request_pin(auth: PinUnpinActorAuth) =>
     @pony_actor_set_pinned()
 
-  fun unpin(auth: PinUnpinActorAuth) =>
+  fun request_unpin(auth: PinUnpinActorAuth) =>
     @pony_actor_unset_pinned()
 
   fun is_successfully_pinned(auth: PinUnpinActorAuth): Bool =>
