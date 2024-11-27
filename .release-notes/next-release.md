@@ -14,3 +14,9 @@ Previously, the compiler error reporting had a minor buffer out of bounds access
 
 There was a bug during our shutdown process that could cause a segmentation fault coming from our asynchrnous I/O subsystem. This has been fixed.
 
+## Fix early quiescence/termination bug
+
+Previously, the logic to detect quiescence had a race condition in relation to dynamic scheduler scaling and it was possible for the runtime to incorrectly detect quiescence and termninate early if a scheduler thread suspended at just the right time.
+
+We have now changed the quiescence logic to keep an accurate track of exactly how many scheduler threads are active at the time the quiescence detection protocol begins so it can ensure that any scheduler threads suspending or unsuspending can no longer cause an incorrect determination that might lead to early termination of the runtime.
+
