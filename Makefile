@@ -163,6 +163,7 @@ endif
 
 ifneq ($(findstring lldb,$(usedebugger)),)
   debuggercmd := $(usedebugger) --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
+  testextras := --gtest_throw_on_failure
 else ifneq ($(findstring gdb,$(usedebugger)),)
   debuggercmd := $(usedebugger) --quiet --batch --return-child-result --eval-command="set confirm off" --eval-command="set pagination off" --eval-command="handle SIGINT nostop pass" --eval-command="handle SIGUSR2 nostop pass" --eval-command=run  --eval-command="info args" --eval-command="info locals" --eval-command="info registers" --eval-command="thread apply all bt full" --eval-command=quit --args
 else ifneq ($(strip $(usedebugger)),)
@@ -214,10 +215,10 @@ test-check-version: all
 test-core: all test-libponyrt test-libponyc test-full-programs-release test-full-programs-debug
 
 test-libponyrt: all
-	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyrt.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyrt.tests --gtest_shuffle $(testextras)
 
 test-libponyc: all
-	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyc.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyc.tests --gtest_shuffle $(testextras)
 
 ifeq ($(shell uname -s),FreeBSD)
   num_cores := `sysctl -n hw.ncpu`
