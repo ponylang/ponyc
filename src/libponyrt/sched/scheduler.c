@@ -324,7 +324,14 @@ static void maybe_start_cnf_ack_cycle(scheduler_t* sched)
 
   if(!sched->asio_noisy &&
     atomic_load_explicit(&detect_quiescence, memory_order_relaxed) &&
-    (sched->block_count >= get_active_scheduler_count()))
+    (sched->block_count >= get_active_scheduler_count()) &&
+    // we make sure active scheduler count > 0 because scheduler 0 does a
+    // `read_msg` call within `suspend_scheduler` and that can lead to calling
+    // `maybe_start_cnf_ack_cycle` while active scheduler count = 0 and cause
+    // all sort of havoc.. this check ensures that we avoid the havoc and
+    // scheduler 0 will end up trying to start the CNF/ACK cycle the next time
+    // it tries to `steal`..
+    (get_active_scheduler_count() > 0))
   {
     // If we think all threads are blocked, send CNF(token) to everyone.
     // save the # of active schedulers to expect ACK's from
