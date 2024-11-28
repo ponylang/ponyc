@@ -7,6 +7,12 @@
 
 #include <gtest/gtest.h>
 
+#define SMALL_CHUNK_T_SIZE 32
+#define SMALL_CHUNK_T_ALLOC 32
+#define SMALL_CHUNK_BLOCK_SIZE 1024
+#define LARGE_CHUNK_T_SIZE 24
+#define LARGE_CHUNK_T_ALLOC 32
+
 TEST(Heap, Init)
 {
 #ifdef USE_RUNTIMESTATS
@@ -26,8 +32,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)1, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)0, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(128 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(128 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   pony_actor_t* pagemap_actor = NULL;
@@ -45,8 +51,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)2, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)0, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(256 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   heap.next_gc = 0;
@@ -72,8 +78,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)2, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(128 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(128 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   void* p3 = ponyint_heap_alloc(actor, &heap, 107, TRACK_NO_FINALISERS);
@@ -83,8 +89,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)3, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(256 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   ponyint_heap_used(&heap, 1024);
@@ -94,8 +100,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)3, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(256 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   heap.next_gc = 0;
@@ -120,8 +126,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)3, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(128 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(128 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   void* p4 = ponyint_heap_alloc(actor, &heap, 67, TRACK_NO_FINALISERS);
@@ -131,8 +137,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)4, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(256 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(256 + SMALL_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE), actor->actorstats.heap_mem_allocated);
 #endif
 
   size_t large_size = (1 << 22) - 7;
@@ -144,8 +150,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)5, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)3, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)2, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(256 + 48 + 4194304 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(64 + 1024 + 4194304 + 64), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(256 + SMALL_CHUNK_T_SIZE + 4194304 + LARGE_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(SMALL_CHUNK_T_ALLOC + SMALL_CHUNK_BLOCK_SIZE + 4194304 + LARGE_CHUNK_T_ALLOC), actor->actorstats.heap_mem_allocated);
 #endif
 
   size_t adjust_size = ponyint_pool_adjust_size(large_size);
@@ -192,8 +198,8 @@ TEST(Heap, Init)
   ASSERT_EQ((size_t)5, actor->actorstats.heap_alloc_counter);
   ASSERT_EQ((size_t)1, actor->actorstats.heap_num_allocated);
   ASSERT_EQ((size_t)4, actor->actorstats.heap_free_counter);
-  ASSERT_EQ((size_t)(4194304 + 48), actor->actorstats.heap_mem_used);
-  ASSERT_EQ((size_t)(4194304 + 64), actor->actorstats.heap_mem_allocated);
+  ASSERT_EQ((size_t)(4194304 + LARGE_CHUNK_T_SIZE), actor->actorstats.heap_mem_used);
+  ASSERT_EQ((size_t)(4194304 + LARGE_CHUNK_T_ALLOC), actor->actorstats.heap_mem_allocated);
 #endif
 
   ponyint_heap_destroy(&heap);
