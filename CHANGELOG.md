@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.7] - 2024-11-30
 
 ### Fixed
 
@@ -10,9 +10,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix buffer out of bounds access issue ([PR #4540](https://github.com/ponylang/ponyc/pull/4540))
 - Fix bug in ASIO shutdown ([PR #4548](https://github.com/ponylang/ponyc/pull/4548))
 - Fix early quiescence/termination bug ([PR #4550](https://github.com/ponylang/ponyc/pull/4550))
-
-### Added
-
 
 ### Changed
 
