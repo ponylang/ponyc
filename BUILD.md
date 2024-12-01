@@ -67,6 +67,7 @@ Distribution | Requires
 Alpine 3.17+ | binutils-gold, clang, clang-dev, cmake, make
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Fedora | clang, cmake, libatomic, libstdc++-static, make
+Fedora 41 | binutils-gold, clang, cmake, libatomic, libstdc++-static, make
 OpenSuse Leap | binutils-gold, cmake
 Raspbian 32-bit | cmake
 Raspbian 64-bit | cmake, clang

@@ -20,7 +20,7 @@ At the moment, we support all supported LTS Ubuntu versions and any distribution
 
 Currently, we have packages for the following Glibc based distributions:
 
-- Fedora 39
+- Fedora 39, 41
 - Linux Mint 19, 20, 21
 - Pop!_OS 20.04, 22.04, 24.04
 - Ubuntu 20.04, 22.04, 24.04
@@ -43,6 +43,7 @@ Distribution | PLATFORM String
 --- | ---
 Alpine | x86_64-linux-musl
 Fedora 39 | x86_64-linux-fedora39
+Fedora 41 | x86_64-linux-fedora41
 Linux Mint 20.x | x86_64-linux-ubuntu20.04
 Linux Mint 21.x | x86_64-linux-ubuntu22.04
 Pop!_OS 20.04 | x86_64-linux-ubuntu20.04
