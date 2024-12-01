@@ -91,7 +91,7 @@ struct scheduler_t
   uint32_t node;
   bool terminate;
   bool asio_stoppable;
-  bool asio_noisy;
+  int32_t asio_noisy;
   pony_signal_event_t sleep_object;
 
   // These are changed primarily by the owning scheduler thread.

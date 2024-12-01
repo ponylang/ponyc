@@ -466,22 +466,6 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
 
-  if(ev->noisy)
-  {
-    uint64_t old_count = ponyint_asio_noisy_remove();
-    // tell scheduler threads that asio has no noisy actors
-    // if the old_count was 1
-    if (old_count == 1)
-    {
-      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_EPOLL);
-
-      // maybe wake up a scheduler thread if they've all fallen asleep
-      ponyint_sched_maybe_wakeup_if_all_asleep(PONY_UNKNOWN_SCHEDULER_INDEX);
-    }
-
-    ev->noisy = false;
-  }
-
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
 
   if(ev->flags & ASIO_TIMER)
