@@ -943,6 +943,11 @@ static pony_actor_t* steal(scheduler_t* sched)
           break;
       }
     }
+
+    // if we're scheduler 0 and we're in a termination CNF/ACK cycle
+    // make sure all threads are awake in case any missed a wake up signal
+    if(sched->index == 0 && sched->asio_stoppable)
+      wake_suspended_threads(sched->index);
   }
 
   // Only send unblock message if a corresponding block message was sent
