@@ -342,6 +342,11 @@ static void handle_sched_block(scheduler_t* sched)
       // If we think all threads are blocked, send CNF(token) to everyone.
       sched->ack_count = scheduler_count;
       send_msg_all(sched->index, SCHED_CNF, sched->ack_token);
+
+      // disable dynamic scheduler scaling since we need all scheulder awake
+      // for shutdown and a scheduler suspending during this process is
+      // unnecessary complexity
+      atomic_store_explicit(&temporarily_disable_scheduler_scaling, true, memory_order_relaxed);
       wake_suspended_threads(sched->index);
   } else {
     // re-enable dynamic scheduler scaling in case it was disabled
@@ -517,12 +522,6 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
         // Run another CNF/ACK cycle.
         sched->ack_count = scheduler_count;
         send_msg_all(sched->index, SCHED_CNF, sched->ack_token);
-
-        // disable dynamic scheduler scaling since we need all scheulder awake
-        // for shutdown and a scheduler suspending during this process is
-        // unnecessary complexity
-        atomic_store_explicit(&temporarily_disable_scheduler_scaling, true, memory_order_relaxed);
-        wake_suspended_threads(sched->index);
       } else {
         // reset ack_token/count for shutdown coordination
         sched->ack_token++;
@@ -890,9 +889,13 @@ static pony_actor_t* steal(scheduler_t* sched)
       else if ((clocks_elapsed > PONY_SCHED_BLOCK_THRESHOLD) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
-        send_msg(sched->index, 0, SCHED_BLOCK, 0);
-
-        block_sent = true;
+        // only considered blocked if we're scheduler > 0 or if we're scheduler
+        // 0 and there are no noiisy actors registered
+        if((sched->index > 0) || ((sched->index == 0) && !sched->asio_noisy))
+        {
+          send_msg(sched->index, 0, SCHED_BLOCK, 0);
+          block_sent = true;
+        }
 
         // only try and suspend if enough time has passed
         if(clocks_elapsed > scheduler_suspend_threshold)
@@ -946,7 +949,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     // if we're scheduler 0 and we're in a termination CNF/ACK cycle
     // make sure all threads are awake in case any missed a wake up signal
-    if(sched->index == 0 && sched->asio_stoppable)
+    if(sched->index == 0 && get_temporarily_disable_scheduler_scaling())
       wake_suspended_threads(sched->index);
   }
 
