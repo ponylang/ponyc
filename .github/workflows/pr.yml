@@ -352,13 +352,13 @@ jobs:
           make configure arch=x86-64 config=debug
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug usedebugger=lldb
+        run: make test-ci config=debug
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release usedebugger=lldb
+        run: make test-ci config=release
 
   arm64-macos:
     runs-on: macos-14
@@ -387,13 +387,13 @@ jobs:
           make configure arch=armv8  config=debug
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug usedebugger=lldb
+        run: make test-ci config=debug
       - name: Build Release Runtime
         run: |
           make configure arch=armv8  config=release
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release usedebugger=lldb
+        run: make test-ci config=release
 
   x86_64-windows:
     runs-on: windows-2022
