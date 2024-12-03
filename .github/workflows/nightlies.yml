@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
@@ -55,7 +55,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Nightly
         run: bash .ci-scripts/x86-64-nightly.bash
         env:
@@ -86,7 +86,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: build/libs
-          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
@@ -95,7 +95,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: build/libs
-          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Install Cloudsmith
         run: pip3 install --upgrade cloudsmith-cli
       - name: Nightly
@@ -128,7 +128,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: build/libs
-          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
@@ -137,7 +137,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: build/libs
-          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Nightly
@@ -177,7 +177,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: build/libs
-          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs
@@ -186,7 +186,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: build/libs
-          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'libs/CMakeLists.txt') }}
+          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version nightly
       - name: Build
