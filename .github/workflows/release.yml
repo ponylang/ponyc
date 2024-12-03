@@ -55,6 +55,10 @@ jobs:
             name: x86-64-unknown-linux-fedora39
             triple-os: linux-fedora39
             triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora41-builder:20241201
+            name: x86-64-unknown-linux-fedora41
+            triple-os: linux-fedora41
+            triple-vendor: unknown
 
     name: ${{ matrix.name }}
     container:
