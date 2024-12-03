@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:3.20
 
 
 RUN apk update \
@@ -19,7 +19,7 @@ RUN apk update \
   gdb \
   lldb \
   py3-lldb \
-&& pip install cloudsmith-cli
+&& pip install --break-system-packages cloudsmith-cli
 
 # add user pony in order to not run tests as root
 RUN adduser -D -u 1001 -s /bin/sh -h /home/pony -g root pony

@@ -6,16 +6,12 @@ use @read[ISize](fd: I32, buffer: Pointer[None], bytes_to_read: USize)
 use @_write[I32](fd: I32, buffer: Pointer[None], bytes_to_send: I32) if windows
 use @writev[ISize](fd: I32, buffer: Pointer[None], num_to_send: I32)
   if not windows
-use @_lseeki64[I64](fd: I32, offset: I64, base: I32) if windows
-use @lseek64[I64](fd: I32, offset: I64, base: I32) if linux
-use @lseek[I64](fd: I32, offset: I64, base: I32) if not windows and not linux
+use @pony_os_lseek[I64](fd: I32, offset: I64, base: I32)
 use @FlushFileBuffers[Bool](file_handle: Pointer[None]) if windows
 use @_get_osfhandle[Pointer[None]](fd: I32) if windows
 use @fsync[I32](fd: I32) if not windows
 use @fdatasync[I32](fd: I32) if not windows
-use @_chsize_s[I32](fd: I32, len: I64) if windows
-use @ftruncate64[I32](fd: I32, len: I64) if linux
-use @ftruncate[I32](fd: I32, len: I64) if not windows and not linux
+use @pony_os_ftruncate[I32](fd: I32, len: I64)
 use @_close[I32](fd: I32) if windows
 use @close[I32](fd: I32) if not windows
 use @pony_os_writev_max[I32]()
@@ -438,15 +434,7 @@ class File
     if _fd != -1 then
       let o: I64 = 0
       let b: I32 = 1
-      let r = ifdef windows then
-        @_lseeki64(_fd, o, b)
-      else
-        ifdef linux then
-          @lseek64(_fd, o, b)
-        else
-          @lseek(_fd, o, b)
-        end
-      end
+      let r = @pony_os_lseek(_fd, o, b)
 
       if r < 0 then
         _errno = _get_error()
@@ -535,15 +523,7 @@ class File
     """
     if path.caps(FileTruncate) and writeable and (_fd != -1) then
       let pos = position()
-      let result = ifdef windows then
-        @_chsize_s(_fd, len.i64())
-      else
-        ifdef linux then
-          @ftruncate64(_fd, len.i64())
-        else
-          @ftruncate(_fd, len.i64())
-        end
-      end
+      let result =  @pony_os_ftruncate(_fd, len.i64())
 
       if pos >= len then
         _seek(0, 2)
@@ -627,15 +607,7 @@ class File
     Move the cursor position.
     """
     if _fd != -1 then
-      let r = ifdef windows then
-        @_lseeki64(_fd, offset, base)
-      else
-        ifdef linux then
-          @lseek64(_fd, offset, base)
-        else
-          @lseek(_fd, offset, base)
-        end
-      end
+      let r = @pony_os_lseek(_fd, offset, base)
       if r < 0 then
         _errno = _get_error()
       end
