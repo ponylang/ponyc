@@ -60,6 +60,23 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
 
+  arm64-macos:
+    runs-on: macos-14
+
+    name: arm64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+
   x86_64-windows:
     runs-on: windows-2022
 
