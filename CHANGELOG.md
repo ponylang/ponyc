@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Drop Fedora 39 support ([PR #4558](https://github.com/ponylang/ponyc/pull/4558))
 
 ## [0.58.7] - 2024-11-30
 
