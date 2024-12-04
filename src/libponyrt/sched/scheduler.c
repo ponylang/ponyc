@@ -1568,7 +1568,7 @@ static void ponyint_sched_shutdown()
 }
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
-  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold,
+  bool pinasio, bool pinpat, uint32_t min_threads, uint32_t thread_suspend_threshold,
   uint32_t stats_interval
 #if defined(USE_SYSTEMATIC_TESTING)
   , uint64_t systematic_testing_seed)
@@ -1629,7 +1629,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
   uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pin,
-    pinasio);
+    pinasio, pinpat);
 
 #if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
   pthread_once(&sched_mut_once, sched_mut_init);

@@ -104,6 +104,12 @@ struct RuntimeOptions
     Requires `--ponypin` to be set to have any effect.
     """
 
+  var ponypinpinnedactorthread: Bool = false
+    """
+    Pin the pinned actor thread to a CPU the way scheduler threads are pinned to CPUs.
+    Requires `--ponypin` to be set to have any effect.
+    """
+
   var ponyprintstatsinterval: U32 = -1
     """
     Print actor stats before an actor is destroyed and print scheduler stats

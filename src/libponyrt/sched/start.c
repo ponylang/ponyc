@@ -33,12 +33,13 @@ typedef struct options_t
   bool noblock;
   bool pin;
   bool pinasio;
+  bool pinpat;
   uint32_t stats_interval;
   bool version;
+  bool ponyhelp;
 #if defined(USE_SYSTEMATIC_TESTING)
   uint64_t systematic_testing_seed;
 #endif
-  bool ponyhelp;
 } options_t;
 
 typedef enum running_kind_t
@@ -68,6 +69,7 @@ enum
   OPT_NOBLOCK,
   OPT_PIN,
   OPT_PINASIO,
+  OPT_PINPAT,
   OPT_STATSINTERVAL,
   OPT_VERSION,
 #if defined(USE_SYSTEMATIC_TESTING)
@@ -89,6 +91,7 @@ static opt_arg_t args[] =
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
+  {"ponypinpinnedactorthread", 0, OPT_ARG_NONE, OPT_PINPAT},
   {"ponyprintstatsinterval", 0, OPT_ARG_REQUIRED, OPT_STATSINTERVAL},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 #if defined(USE_SYSTEMATIC_TESTING)
@@ -181,6 +184,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_PIN: opt->pin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
+      case OPT_PINPAT: opt->pinpat = true; break;
       case OPT_STATSINTERVAL: if(parse_uint(&opt->stats_interval, 1, s.arg_val)) err_out(id, "can't be less than 1 second"); break;
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)
@@ -293,7 +297,7 @@ PONY_API int pony_init(int argc, char** argv)
   pony_exitcode(0);
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
-    opt.pinasio, opt.min_threads, opt.thread_suspend_threshold, opt.stats_interval
+    opt.pinasio, opt.pinpat, opt.min_threads, opt.thread_suspend_threshold, opt.stats_interval
 #if defined(USE_SYSTEMATIC_TESTING)
     , opt.systematic_testing_seed);
 #else
