@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix rare termination logic failures that could result in early shutdown ([PR #4556](https://github.com/ponylang/ponyc/pull/4556))
 
 ### Added
 
