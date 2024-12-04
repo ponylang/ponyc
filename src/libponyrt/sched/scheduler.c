@@ -248,11 +248,19 @@ static void signal_suspended_threads(uint32_t sched_count, int32_t curr_sched_id
   for(uint32_t i = start_sched_index; i < sched_count; i++)
   {
     if((int32_t)i != curr_sched_id)
+    {
 #if defined(USE_SYSTEMATIC_TESTING)
       SYSTEMATIC_TESTING_YIELD();
 #else
-      ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
+      // only send signal if the thread id is not NULL (musl specifically
+      // crashes if it is even though posix says it should return `ESRCH`
+      // instead if an invalid thread id is passed)
+      // this is only a concern during startup until the thread is created
+      // and pthread_create updates the thread id
+      if(scheduler[i].tid)
+        ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
 #endif
+    }
   }
 }
 
