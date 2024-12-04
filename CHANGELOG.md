@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Drop Fedora 39 support ([PR #4558](https://github.com/ponylang/ponyc/pull/4558))
+- Update Pony musl Docker images to Alpine 3.20 ([PR #4562](https://github.com/ponylang/ponyc/pull/4562))
 
 ## [0.58.7] - 2024-11-30
 

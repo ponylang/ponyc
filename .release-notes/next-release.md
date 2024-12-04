@@ -8,3 +8,6 @@ Fedora 39 has reached its end of life date. We've dropped it as a supported plat
 
 We will maintain best effort to keep Fedora 39 continuing to work for anyone who wants to use it and builds `ponyc` from source.
 
+## Update Pony musl Docker images to Alpine 3.20
+
+We've updated our `ponylang/ponyc:latest-alpine`, `ponylang/ponyc:release-alpine`, and `ponylang/ponyc:x.y.z-alpine` images to be based on Alpine 3.20. Previously, we were using Alpine 3.18 as the base.
