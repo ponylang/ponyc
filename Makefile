@@ -212,7 +212,7 @@ test-cross-ci: test-core test-stdlib-debug test-stdlib-release test-examples
 test-check-version: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --version
 
-test-core: all test-libponyrt test-libponyc test-full-programs-release test-full-programs-debug
+test-core: all test-libponyrt test-libponyc test-full-programs-debug test-full-programs-release
 
 test-libponyrt: all
 	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyrt.tests --gtest_shuffle $(testextras)

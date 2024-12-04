@@ -48,6 +48,17 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
     return;
   }
 
+  if(ev->noisy)
+  {
+    uint64_t old_count = ponyint_asio_noisy_remove();
+    // tell scheduler threads that asio has no noisy actors
+    // if the old_count was 1
+    if (old_count == 1)
+      ponyint_sched_unnoisy_asio(PONY_UNKNOWN_SCHEDULER_INDEX);
+
+    ev->noisy = false;
+  }
+
   ev->flags = ASIO_DESTROYED;
 
   // When we let go of an event, we treat it as if we had received it back from
