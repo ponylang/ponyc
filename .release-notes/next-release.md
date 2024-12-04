@@ -11,3 +11,9 @@ We will maintain best effort to keep Fedora 39 continuing to work for anyone who
 ## Update Pony musl Docker images to Alpine 3.20
 
 We've updated our `ponylang/ponyc:latest-alpine`, `ponylang/ponyc:release-alpine`, and `ponylang/ponyc:x.y.z-alpine` images to be based on Alpine 3.20. Previously, we were using Alpine 3.18 as the base.
+## Fix rare termination logic failures that could result in early shutdown
+
+There was a very rare edge case in the termination logic that could result in early shutdown resulting in a segfault.
+
+The edge cases have been addressed and the shutdown/termination logic has been overhauled to make it simpler and more robust.
+
