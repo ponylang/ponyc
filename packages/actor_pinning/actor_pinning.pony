@@ -56,27 +56,10 @@ actor Main
 
 ## Caveat
 
-Actor pinning is an experimental feature; use with caution.
-
-The current implementation of pinning actors can interact in surprising ways with program
-shutdown. If there are any live pinned actors in the program, it will continue to run even if
-there is no additional work to do.
-
-Actors that are garbage collected will be unpinned. This includes actors that are garbage
-collected by the cycle detector.
-
-At this time, using pinned actors is an advanced feature that requires knowledge of runtime to
-use safely. We strongly suggest that as part of your program design, that you make sure that
-you have a process for unpinning any actors that you have pinned. Designing actor unpinning
-into your program will avoid any issues with program shutdown.
-
-As we further implement actor pinning, we hope to remove this caveat.
-
-Additionally, due to the fact
-that Pony uses cooperative scheduling of actors and that all pinned actors run
-on a single shared scheduler thread, any "greedy" actors that monopolize the
-cpu (with long running behaviors) will negatively inmpact all other pinned
-actors by starving them of cpu.
+Due to the fact that Pony uses cooperative scheduling of actors and that all
+pinned actors run on a single shared scheduler thread, any "greedy" actors that
+monopolize the cpu (with long running behaviors) will negatively inmpact all
+other pinned actors by starving them of cpu.
 """
 
 use @pony_actor_set_pinned[None]()

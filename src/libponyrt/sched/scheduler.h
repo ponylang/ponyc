@@ -125,10 +125,6 @@ bool ponyint_sched_start(bool library);
 
 void ponyint_sched_stop();
 
-void ponyint_sched_increment_pinned_actor_count();
-
-void ponyint_sched_decrement_pinned_actor_count();
-
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void ponyint_sched_add_inject(pony_actor_t* actor);

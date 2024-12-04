@@ -815,12 +815,6 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   print_actor_stats(actor);
 #endif
 
-  if(ponyint_actor_is_pinned(actor))
-  {
-    unset_internal_flag(actor, FLAG_PINNED);
-    ponyint_sched_decrement_pinned_actor_count();
-  }
-
   // Free variable sized actors correctly.
   ponyint_pool_free_size(actor->type->size, actor);
 }
@@ -1234,21 +1228,13 @@ bool ponyint_actor_is_pinned(pony_actor_t* actor)
 PONY_API void pony_actor_set_pinned()
 {
   pony_ctx_t* ctx = pony_ctx();
-  if(!ponyint_actor_is_pinned(ctx->current))
-  {
-    set_internal_flag(ctx->current, FLAG_PINNED);
-    ponyint_sched_increment_pinned_actor_count();
-  }
+  set_internal_flag(ctx->current, FLAG_PINNED);
 }
 
 PONY_API void pony_actor_unset_pinned()
 {
   pony_ctx_t* ctx = pony_ctx();
-  if(ponyint_actor_is_pinned(ctx->current))
-  {
-    unset_internal_flag(ctx->current, FLAG_PINNED);
-    ponyint_sched_decrement_pinned_actor_count();
-  }
+  unset_internal_flag(ctx->current, FLAG_PINNED);
 }
 
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
