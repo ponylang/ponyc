@@ -42,6 +42,8 @@ const char* genname_unsafe(const char* name);
 
 const char* genname_program_fn(const char* program, const char* name);
 
+const char* genname_type_with_id(const char* type, uint64_t type_id);
+
 PONY_EXTERN_C_END
 
 #endif

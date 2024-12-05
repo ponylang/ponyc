@@ -134,6 +134,7 @@ static __pony_thread_local struct _pony_type_t string_pony =
   0,
   0,
   0,
+  0,
   NULL,
   NULL,
   NULL,
@@ -218,6 +219,7 @@ static pony_type_t strlist_pony =
 {
   0,
   sizeof(strlist_t),
+  0,
   0,
   0,
   NULL,

@@ -20,6 +20,7 @@ PONY_EXTERN_C_BEGIN
 
 static size_t desc_table_size = 0;
 static pony_type_t** desc_table = NULL;
+static desc_offset_lookup_fn desc_table_offset_lookup_fn = NULL;
 
 PONY_EXTERN_C_END
 
@@ -81,20 +82,36 @@ static void custom_deserialise(pony_ctx_t* ctx)
   }
 }
 
-bool ponyint_serialise_setup(pony_type_t** table, size_t table_size)
+bool ponyint_serialise_setup(pony_type_t** table, size_t table_size,
+  desc_offset_lookup_fn desc_table_offset_lookup)
 {
 #ifndef PONY_NDEBUG
   for(uint32_t i = 0; i < table_size; i++)
   {
     if(table[i] != NULL)
+    {
       pony_assert(table[i]->id == i);
+      pony_assert(desc_table_offset_lookup(table[i]->serialise_id) == i);
+    }
   }
 #endif
 
   desc_table = table;
   desc_table_size = table_size;
+  desc_table_offset_lookup_fn = desc_table_offset_lookup;
 
   return true;
+}
+
+static pony_type_t* get_descriptor(size_t serialise_id)
+{
+  uint32_t offset = desc_table_offset_lookup_fn(serialise_id);
+
+  // fail even in release builds because this is unrecoverable
+  if(offset >= desc_table_size || offset < 0)
+    ponyint_assert_fail("deserialise offset invalid", __FILE__, __LINE__, __func__);
+
+  return desc_table[offset];
 }
 
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -194,7 +211,7 @@ PONY_API size_t pony_serialise_offset(pony_ctx_t* ctx, void* p)
   // If we are not in the map, we are an untraced primitive. Return the type id
   // with the high bit set.
   pony_type_t* t = *(pony_type_t**)p;
-  return (size_t)t->id | HIGH_BIT;
+  return (size_t)t->serialise_id | HIGH_BIT;
 }
 
 PONY_API void pony_serialise(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -253,7 +270,7 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
     // Return the global instance, if there is one. It's ok to return null if
     // there is no global instance, as this will then be an unserialised
     // field in an opaque object.
-    t = desc_table[offset];
+    t = get_descriptor(offset);
     return t->instance;
   }
 
@@ -277,9 +294,9 @@ PONY_API void* pony_deserialise_offset(pony_ctx_t* ctx, pony_type_t* t,
       abort();
     }
 
-    // Turn the type id into a descriptor pointer.
-    uintptr_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
-    t = desc_table[id];
+    // Turn the serialise id into a descriptor pointer.
+    size_t id = *(uintptr_t*)((uintptr_t)ctx->serialise_buffer + offset);
+    t = get_descriptor(id);
   }
 
   // If it's a primitive, return the global instance.
