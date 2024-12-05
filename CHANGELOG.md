@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add Fedora 41 as a supported platform ([PR #4557](https://github.com/ponylang/ponyc/pull/4557))
+- Add support for pinning actors to a dedicated scheduler thread ([PR #4547](https://github.com/ponylang/ponyc/pull/4547))
 
 ### Changed
 
