@@ -108,7 +108,7 @@ static pony_type_t* get_descriptor(size_t serialise_id)
   uint32_t offset = desc_table_offset_lookup_fn(serialise_id);
 
   // fail even in release builds because this is unrecoverable
-  if(offset >= desc_table_size || offset < 0)
+  if(offset >= desc_table_size)
     ponyint_assert_fail("deserialise offset invalid", __FILE__, __LINE__, __func__);
 
   return desc_table[offset];
