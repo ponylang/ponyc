@@ -227,9 +227,10 @@ uint32_t ponyint_cpu_count()
 }
 
 uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
-  bool pin, bool pinasio)
+  bool pin, bool pinasio, bool pinpat)
 {
   uint32_t asio_cpu = -1;
+  uint32_t pat_cpu = -1;
 
   if(!pin)
   {
@@ -255,11 +256,12 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   if(pinasio)
     asio_cpu = avail_cpu_list[count % avail_cpu_count];
 
+  if(pinpat)
+    pat_cpu = avail_cpu_list[(count + 1) % avail_cpu_count];
+
   ponyint_pool_free_size(avail_cpu_size * sizeof(uint32_t), avail_cpu_list);
   avail_cpu_list = NULL;
   avail_cpu_count = avail_cpu_size = 0;
-
-  return asio_cpu;
 #elif defined(PLATFORM_IS_BSD)
   // FreeBSD does not currently do thread pinning, as we can't yet determine
   // which cores are hyperthreads.
@@ -268,6 +270,9 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   // asio_cpu of -1
   if(pinasio)
     asio_cpu = count % hw_cpu_count;
+
+  if(pinpat)
+    pat_cpu = (count + 1) % hw_cpu_count;
 
   for(uint32_t i = 0; i < count; i++)
   {
@@ -286,7 +291,14 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   // asio_cpu of -1
   if(pinasio)
     asio_cpu = count;
+
+  if(pinpat)
+    pat_cpu = (count + 1);
 #endif
+
+  // set the affinity of the current thread (nain thread) which is the pinned
+  // actor thread
+  ponyint_cpu_affinity(pat_cpu);
 
   return asio_cpu;
 }

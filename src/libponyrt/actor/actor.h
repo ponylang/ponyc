@@ -130,6 +130,12 @@ gc_t* ponyint_actor_gc(pony_actor_t* actor);
 
 heap_t* ponyint_actor_heap(pony_actor_t* actor);
 
+bool ponyint_actor_is_pinned(pony_actor_t* actor);
+
+PONY_API void pony_actor_set_pinned();
+
+PONY_API void pony_actor_unset_pinned();
+
 bool ponyint_actor_pendingdestroy(pony_actor_t* actor);
 
 void ponyint_actor_setpendingdestroy(pony_actor_t* actor);

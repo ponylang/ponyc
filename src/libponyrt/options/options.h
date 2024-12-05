@@ -43,6 +43,10 @@
   "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n" \
   "                   threads are pinned to CPUs. Requires `--ponypin` to\n" \
   "                   be set to have any effect.\n" \
+  "  --ponypinpinnedactorthread\n" \
+  "                   Pin the pinned actor thread to a CPU the way scheduler\n" \
+  "                   threads are pinned to CPUs. Requires `--ponypin` to\n" \
+  "                   be set to have any effect.\n" \
   "  --ponyprintstatsinterval\n" \
   "                   Print actor stats before an actor is destroyed and\n" \
   "                   print scheduler stats every X seconds. Defaults to -1 (never).\n" \

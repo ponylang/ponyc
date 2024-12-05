@@ -36,6 +36,7 @@ enum
   FLAG_UNSCHEDULED = 1 << 3,
   FLAG_CD_CONTACTED = 1 << 4,
   FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
+  FLAG_PINNED = 1 << 6,
 };
 
 enum
@@ -1046,7 +1047,7 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
     {
       // if the receiving actor is currently not unscheduled AND it's not
       // muted, schedule it.
-      ponyint_sched_add_inject_or_sched(ctx, to);
+      ponyint_sched_add(ctx, to);
     }
   }
 }
@@ -1217,6 +1218,23 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
   ctx->current->heap.next_gc = 0;
+}
+
+bool ponyint_actor_is_pinned(pony_actor_t* actor)
+{
+  return has_internal_flag(actor, FLAG_PINNED);
+}
+
+PONY_API void pony_actor_set_pinned()
+{
+  pony_ctx_t* ctx = pony_ctx();
+  set_internal_flag(ctx->current, FLAG_PINNED);
+}
+
+PONY_API void pony_actor_unset_pinned()
+{
+  pony_ctx_t* ctx = pony_ctx();
+  unset_internal_flag(ctx->current, FLAG_PINNED);
 }
 
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)

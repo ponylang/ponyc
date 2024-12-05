@@ -71,8 +71,8 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   // interleaving everywhere if needed
   srand((int)random_seed);
 
-  // initialize thead tracking array (should be max_threads + 1 to account for asio)
-  total_threads = max_threads + 1;
+  // initialize thead tracking array (should be max_threads + 2 to account for asio and pinned actor threads)
+  total_threads = max_threads + 2;
   size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
   threads_to_track = (systematic_testing_thread_t*)ponyint_pool_alloc_size(
     mem_needed);
@@ -89,6 +89,10 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal)
 {
   SYSTEMATIC_TESTING_PRINTF("thread %lu: waiting to start...\n", thread);
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  pthread_mutex_lock(&systematic_testing_mut);
+#endif
 
   atomic_fetch_add_explicit(&waiting_to_start_count, 1, memory_order_relaxed);
 
@@ -107,40 +111,54 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
 #endif
   }
 
-  SYSTEMATIC_TESTING_PRINTF("thread %lu: started...\n", thread);
+  SYSTEMATIC_TESTING_PRINTF("thread %lu: started... waiting_to_start_count: %i\n", thread, atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed));
 }
 
-void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal)
+void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal, pony_thread_id_t pinned_actor_thread, pony_signal_event_t pinned_actor_signal)
 {
-  threads_to_track[0].tid = asio_thread;
-  threads_to_track[0].sleep_object = asio_signal;
+  threads_to_track[0].tid = pinned_actor_thread;
+  threads_to_track[0].sleep_object = pinned_actor_signal;
   threads_to_track[0].stopped = false;
 
-  for(uint32_t i = 1; i < total_threads; i++)
+  threads_to_track[1].tid = asio_thread;
+  threads_to_track[1].sleep_object = asio_signal;
+  threads_to_track[1].stopped = false;
+
+  for(uint32_t i = 2; i < total_threads; i++)
   {
-    threads_to_track[i].tid = schedulers[i-1].tid;
-    threads_to_track[i].sleep_object = schedulers[i-1].sleep_object;
+    threads_to_track[i].tid = schedulers[i-2].tid;
+    threads_to_track[i].sleep_object = schedulers[i-2].sleep_object;
     threads_to_track[i].stopped = false;
   }
 
-  // always start the first scheduler thread (not asio which is 0)
-  active_thread = &threads_to_track[1];
-
-  while(total_threads != atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed))
+  while((total_threads - 1) != atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed))
   {
-    SYSTEMATIC_TESTING_PRINTF("Waiting for all threads to be ready before starting execution..\n");
+    SYSTEMATIC_TESTING_PRINTF("Waiting for all %i threads to be ready before starting execution.. currently: %i\n", (total_threads - 1), atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed));
     ponyint_cpu_core_pause(1, 10000002, true);
   }
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  pthread_mutex_lock(&systematic_testing_mut);
+#endif
+
+  // always start the first scheduler thread (not asio which is 1 nor the pinned actor thread which is 0)
+  active_thread = &threads_to_track[2];
 
   SYSTEMATIC_TESTING_PRINTF("Starting systematic testing with thread %lu...\n", active_thread->tid);
 
   ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
+
+#if defined(USE_SCHEDULER_SCALING_PTHREADS)
+  ponyint_thread_suspend(threads_to_track[0].sleep_object, &systematic_testing_mut);
+#else
+  ponyint_thread_suspend(threads_to_track[0].sleep_object);
+#endif
 }
 
 static uint32_t get_next_index()
 {
   uint32_t active_scheduler_count = pony_active_schedulers();
-  uint32_t active_count = active_scheduler_count + 1; // account for asio
+  uint32_t active_count = active_scheduler_count + 2; // account for asio and pinned actor thread
   uint32_t next_index = 0;
   do
   {
@@ -233,8 +251,8 @@ void ponyint_systematic_testing_suspend()
 
 bool ponyint_systematic_testing_asio_stopped()
 {
-  // asio is always the first thread
-  return threads_to_track[0].stopped;
+  // asio is always the second thread
+  return threads_to_track[1].stopped;
 }
 
 void ponyint_systematic_testing_stop_thread()
