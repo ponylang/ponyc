@@ -561,6 +561,7 @@ static pony_type_t deferred_reification_pony =
   sizeof(deferred_reification_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   deferred_reification_serialise_trace,

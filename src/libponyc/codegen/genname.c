@@ -199,3 +199,10 @@ const char* genname_program_fn(const char* program, const char* name)
 {
   return stringtab_two(program, name);
 }
+
+const char* genname_type_with_id(const char* type, uint64_t type_id)
+{
+  printbuf_t* buf = printbuf_new();
+  printbuf(buf, "%s_%" PRIu64, type, type_id);
+  return stringtab_buf(buf);
+}

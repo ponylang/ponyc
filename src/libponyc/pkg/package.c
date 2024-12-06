@@ -1430,6 +1430,7 @@ static pony_type_t package_dep_signature_pony =
   sizeof(package_signature_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   package_dep_signature_serialise_trace,
@@ -1457,6 +1458,7 @@ static pony_type_t package_signature_pony =
 {
   0,
   sizeof(package_signature_t),
+  0,
   0,
   0,
   NULL,
@@ -1537,6 +1539,7 @@ static pony_type_t package_group_dep_signature_pony =
   sizeof(const char*),
   0,
   0,
+  0,
   NULL,
   NULL,
   package_group_dep_signature_serialise_trace,
@@ -1564,6 +1567,7 @@ static pony_type_t package_group_signature_pony =
 {
   0,
   sizeof(const char*),
+  0,
   0,
   0,
   NULL,
@@ -1715,6 +1719,7 @@ static pony_type_t package_pony =
   sizeof(package_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   package_serialise_trace,
@@ -1786,6 +1791,7 @@ static pony_type_t package_group_pony =
 {
   0,
   sizeof(package_group_t),
+  0,
   0,
   0,
   NULL,

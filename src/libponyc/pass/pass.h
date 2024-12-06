@@ -313,6 +313,7 @@ typedef struct pass_opt_t
   char* abi;
   char* cpu;
   char* features;
+  unsigned char* serialise_id_hash_key;
 
   typecheck_t check;
 

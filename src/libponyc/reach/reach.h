@@ -99,6 +99,7 @@ struct reach_type_t
   reach_type_cache_t subtypes;
   uint32_t type_id;
   uint32_t vtable_size;
+  uint64_t serialise_id;
   bool can_be_boxed;
   bool is_trait;
 
