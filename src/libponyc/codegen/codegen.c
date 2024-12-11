@@ -789,7 +789,6 @@ bool codegen_llvm_init()
   LLVMInitializeCore(passreg);
   LLVMInitializeTransformUtils(passreg);
   LLVMInitializeScalarOpts(passreg);
-  LLVMInitializeObjCARCOpts(passreg);
   LLVMInitializeVectorization(passreg);
   LLVMInitializeInstCombine(passreg);
   LLVMInitializeIPO(passreg);
