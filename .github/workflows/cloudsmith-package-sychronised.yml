@@ -248,14 +248,14 @@ jobs:
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v4
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
           path: 'stdlib-docs/site/'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v3.0.1
 
   trigger-release-announcement:
     needs:
