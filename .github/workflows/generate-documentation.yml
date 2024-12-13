@@ -28,11 +28,11 @@ jobs:
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3.0.1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: 'stdlib-docs/site/'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v3.0.1
+        uses: actions/deploy-pages@v4
