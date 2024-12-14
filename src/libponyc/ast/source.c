@@ -114,6 +114,7 @@ static pony_type_t source_pony =
   sizeof(source_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   source_serialise_trace,

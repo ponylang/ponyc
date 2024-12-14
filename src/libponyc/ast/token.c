@@ -404,6 +404,7 @@ static pony_type_t token_signature_pony =
   sizeof(token_signature_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   token_signature_serialise_trace,
@@ -456,6 +457,7 @@ static pony_type_t token_docstring_signature_pony =
 {
   0,
   sizeof(token_signature_t),
+  0,
   0,
   0,
   NULL,
@@ -544,6 +546,7 @@ static pony_type_t token_pony =
 {
   0,
   sizeof(token_t),
+  0,
   0,
   0,
   NULL,

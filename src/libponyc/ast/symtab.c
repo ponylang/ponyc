@@ -389,6 +389,7 @@ static pony_type_t symbol_pony =
   sizeof(symbol_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   symbol_serialise_trace,

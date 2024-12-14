@@ -2013,6 +2013,7 @@ static pony_type_t ast_signature_pony =
   sizeof(ast_signature_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   ast_signature_serialise_trace,
@@ -2090,6 +2091,7 @@ static pony_type_t ast_nominal_pkg_id_signature_pony =
 {
   0,
   sizeof(ast_signature_t),
+  0,
   0,
   0,
   NULL,
@@ -2353,6 +2355,7 @@ static pony_type_t ast_pony =
 {
   0,
   sizeof(ast_t),
+  0,
   0,
   0,
   NULL,

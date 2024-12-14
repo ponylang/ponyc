@@ -2,6 +2,7 @@
 #include "subtype.h"
 #include "../ast/astbuild.h"
 #include "../codegen/genname.h"
+#include "../codegen/genopt.h"
 #include "../pass/expr.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
@@ -740,6 +741,7 @@ static reach_type_t* add_reach_type(reach_t* r, ast_t* type)
   t->ast = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   t->ast_cap = ast_dup(type);
   t->type_id = (uint32_t)-1;
+  t->serialise_id = (uint64_t)-1;
 
   ast_set_scope(t->ast, NULL);
   ast_set_scope(t->ast_cap, NULL);
@@ -793,6 +795,15 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t->underlying = TK_TUPLETYPE;
   t->type_id = get_new_tuple_id(r);
   t->can_be_boxed = true;
+
+  // TODO: ideally should be hashing AST tree for type name, fields and their types/names
+  // Only use 63/31 bits of the hash because we need the high bit for primitive types
+  if(target_is_ilp32(opt->triple))
+    t->serialise_id = (ponyint_hash_str_custom_key32(opt->serialise_id_hash_key, t->name) >> 1);
+  else
+    t->serialise_id = (ponyint_hash_str_custom_key64(opt->serialise_id_hash_key, t->name) >> 1);
+
+  pony_assert(t->serialise_id != ((uint64_t)-1)); // -1 is for `Pointer`s
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reach_field_t*)ponyint_pool_alloc_size(
@@ -925,6 +936,15 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     else if(t->underlying != TK_STRUCT)
       t->type_id = get_new_object_id(r);
   }
+
+  // TODO: ideally should be hashing AST tree for type name, fields and their types/names
+  // Only use 63/31 bits of the hash because we need the high bit for primitive types
+  if(target_is_ilp32(opt->triple))
+    t->serialise_id = (ponyint_hash_str_custom_key32(opt->serialise_id_hash_key, t->name) >> 1);
+  else
+    t->serialise_id = (ponyint_hash_str_custom_key64(opt->serialise_id_hash_key, t->name) >> 1);
+
+  pony_assert(t->serialise_id != ((uint64_t)-1)); // -1 is for `Pointer`s
 
   if(ast_id(def) != TK_PRIMITIVE)
     return t;
@@ -1510,6 +1530,10 @@ void reach_dump(reach_t* r)
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
 
+    printf("    serialise_id: %" PRIu64 "\n", t->serialise_id);
+    printf("    is_trait: %s\n", (t->is_trait)?"true":"false");
+    printf("    can_be_boxed: %s\n", (t->can_be_boxed)?"true":"false");
+
     printf("    vtable: %d\n", t->vtable_size);
 
     while((n = reach_method_names_next(&t->methods, &j)) != NULL)
@@ -1529,6 +1553,8 @@ void reach_dump(reach_t* r)
       printf("    %s\n", t2->name);
     }
   }
+
+  printf("  Total Type Count: %d\n", r->total_type_count);
 }
 
 static void reach_param_serialise_trace(pony_ctx_t* ctx, void* object)
@@ -1569,6 +1595,7 @@ static pony_type_t reach_param_pony =
 {
   0,
   sizeof(reach_param_t),
+  0,
   0,
   0,
   NULL,
@@ -1706,6 +1733,7 @@ static pony_type_t reach_method_pony =
   sizeof(reach_method_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   reach_method_serialise_trace,
@@ -1769,6 +1797,7 @@ static pony_type_t reach_method_name_pony =
   sizeof(reach_method_name_t),
   0,
   0,
+  0,
   NULL,
   NULL,
   reach_method_name_serialise_trace,
@@ -1825,6 +1854,7 @@ static pony_type_t reach_field_pony =
 {
   0,
   sizeof(reach_field_t),
+  0,
   0,
   0,
   NULL,
@@ -1898,6 +1928,7 @@ static void reach_type_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->vtable_size = t->vtable_size;
   dst->can_be_boxed = t->can_be_boxed;
   dst->is_trait = t->is_trait;
+  dst->serialise_id = t->serialise_id;
 
   dst->field_count = t->field_count;
   dst->fields = (reach_field_t*)pony_serialise_offset(ctx, t->fields);
@@ -1949,6 +1980,7 @@ static pony_type_t reach_type_pony =
 {
   0,
   sizeof(reach_type_t),
+  0,
   0,
   0,
   NULL,
@@ -2008,6 +2040,7 @@ static pony_type_t reach_pony =
 {
   0,
   sizeof(reach_t),
+  0,
   0,
   0,
   NULL,
