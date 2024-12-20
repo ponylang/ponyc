@@ -15,6 +15,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
+#include <blake2.h>
 #include <platform.h>
 #include <llvm-c/DebugInfo.h>
 #include <llvm-c/Initialization.h>
@@ -201,6 +202,13 @@ static void init_runtime(compile_t* c)
   params[1] = c->i32; // id
   c->msg_type = LLVMStructCreateNamed(c->context, "__message");
   LLVMStructSetBody(c->msg_type, params, 2, false);
+
+  // descriptor_offset_lookup
+  // uint32_t (*)(size_t)
+  params[0] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
+  c->descriptor_offset_lookup_type = LLVMFunctionType(c->i32, params, 1, false);
+  c->descriptor_offset_lookup_fn =
+    LLVMPointerType(c->descriptor_offset_lookup_type, 0);
 
   // trace
   // void (*)(i8*, __object*)
@@ -856,6 +864,21 @@ bool codegen_pass_init(pass_opt_t* opt)
   else
     opt->cpu = LLVMGetHostCPUName();
 
+  opt->serialise_id_hash_key = (unsigned char*)ponyint_pool_alloc_size(16);
+
+  const char* version = "pony-" PONY_VERSION;
+  const char* data_model = target_is_ilp32(opt->triple) ? "ilp32" : (target_is_lp64(opt->triple) ? "lp64" : (target_is_llp64(opt->triple) ? "llp64" : "unknown"));
+  const char* endian = target_is_bigendian(opt->triple) ? "be" : "le";
+
+  printbuf_t* target_version_buf = printbuf_new();
+  printbuf(target_version_buf, "%s-%s-%s", version, data_model, endian);
+
+  int status = blake2b(opt->serialise_id_hash_key, 16, target_version_buf->m, target_version_buf->offset, NULL, 0);
+  (void)status;
+  pony_assert(status == 0);
+
+  printbuf_free(target_version_buf);
+
   return true;
 }
 
@@ -872,6 +895,9 @@ void codegen_pass_cleanup(pass_opt_t* opt)
   opt->triple = NULL;
   opt->cpu = NULL;
   opt->features = NULL;
+
+  ponyint_pool_free_size(16, opt->serialise_id_hash_key);
+  opt->serialise_id_hash_key = NULL;
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt)

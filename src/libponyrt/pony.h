@@ -134,6 +134,7 @@ typedef const struct _pony_type_t
 {
   uint32_t id;
   uint32_t size;
+  size_t serialise_id;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
@@ -151,6 +152,12 @@ typedef const struct _pony_type_t
   void* fields;
   void* vtable;
 } pony_type_t;
+
+/** Desc table lookup function.
+ *
+ * A function to convert `serialise_id`s to offsets in the desc table
+ */
+typedef uint32_t (*desc_offset_lookup_fn)(size_t serialise_id);
 
 /** Language feature initialiser.
  *
@@ -178,6 +185,9 @@ typedef struct pony_language_features_init_t
 
   /// The total size of the descriptor_table array.
   size_t descriptor_table_size;
+
+  /// The function to translate `serialise_id`s to offsets in the desc_table
+  desc_offset_lookup_fn desc_table_offset_lookup;
 } pony_language_features_init_t;
 
 /// The currently executing context.

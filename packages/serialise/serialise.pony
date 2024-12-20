@@ -15,16 +15,18 @@ invariants. However, if only "trusted" data (i.e. data produced by Pony
 serialisation from the same binary) is deserialised, it will always maintain a
 well-formed heap and all object invariants.
 
-Note that serialised data is not usable between different Pony binaries. This is
-due to the use of type identifiers rather than a heavy-weight self-describing
-serialisation schema. This also means it isn't safe to deserialise something
-serialised by the same program compiled for a different platform.
+Note that serialised data can be used between binaries compiled with the same
+version of the pony compiler. Cross binary serialisation will only work for
+binaries of the same bit width (32 bit vs 64 bit), data model (ilp32, lp64, or
+llp64), and endianness (big endian or little endian) but is not limited to a
+single platform (for example: one can mix and match x86_64 linux and aarch64
+linux because they have the same bitwidth, data model, and endianness).
 
 The [Serialise.signature](serialise-Serialise.md#signature) method is provided
 for the purposes of comparing communicating Pony binaries to determine if they
-are the same. Confirming this before deserialising data can help mitigate the
-risk of accidental serialisation across different Pony binaries, but does not on
-its own address the security issues of accepting data from untrusted sources.
+are compatible. Confirming this before deserialising data can help mitigate the
+risk of accidental serialisation across incompatible Pony binaries, but does not
+on its own address the security issues of accepting data from untrusted sources.
 """
 
 use @"internal.signature"[Array[U8] val]()
