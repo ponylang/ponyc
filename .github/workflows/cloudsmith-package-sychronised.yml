@@ -255,7 +255,7 @@ jobs:
           path: 'stdlib-docs/site/'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v3.0.1
+        uses: actions/deploy-pages@v4
 
   trigger-release-announcement:
     needs:
