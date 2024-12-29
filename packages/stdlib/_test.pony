@@ -51,6 +51,7 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
+    actor_pinning.Main.make().tests(test)
     base64.Main.make().tests(test)
     buffered.Main.make().tests(test)
     builtin_test.Main.make().tests(test)
