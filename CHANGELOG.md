@@ -2,17 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.9] - 2024-12-29
 
 ### Fixed
 
 - Fixed an issue that caused the `actor_pinning` documentation to not be built
-
-### Added
-
-
-### Changed
-
 
 ## [0.58.8] - 2024-12-27
 
