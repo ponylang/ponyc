@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fixed an issue that caused the `actor_pinning` documentation to not be built
 
 ### Added
 
