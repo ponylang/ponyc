@@ -15,17 +15,23 @@ PONY_EXTERN_C_BEGIN
 #define HEAP_MIN (1 << HEAP_MINBITS)
 #define HEAP_MAX (1 << HEAP_MAXBITS)
 
+// The number of size classes for recycling. The last size class is for anything bigger than (HEAP_RECYCLE_MIXED_SIZE << (HEAP_RECYCLE_SIZECLASSES = 2))
+#define HEAP_RECYCLE_SIZECLASSES 4
+#define HEAP_RECYCLE_MIXED 0
+#define HEAP_RECYCLE_MIXED_SIZE 1024
+#define HEAP_RECYCLE_LARGE_OVERFLOW (HEAP_RECYCLE_SIZECLASSES - 1)
+
+// check HEAP_RECYCLE_SIZECLASSES size
+pony_static_assert(HEAP_RECYCLE_LARGE_OVERFLOW > HEAP_RECYCLE_MIXED, "Too few HEAP_RECYCLE_SIZECLASSES! There must be at least 2!");
+
 typedef struct chunk_t chunk_t;
-typedef struct small_chunk_t small_chunk_t;
-typedef struct large_chunk_t large_chunk_t;
 
 typedef struct heap_t
 {
-  small_chunk_t* small_free[HEAP_SIZECLASSES];
-  small_chunk_t* small_full[HEAP_SIZECLASSES];
-  large_chunk_t* large;
-  small_chunk_t* small_recyclable;
-  large_chunk_t* large_recyclable;
+  chunk_t* small_free[HEAP_SIZECLASSES];
+  chunk_t* small_full[HEAP_SIZECLASSES];
+  chunk_t* large;
+  chunk_t* recyclable[HEAP_RECYCLE_SIZECLASSES];
 
   size_t used;
   size_t next_gc;
