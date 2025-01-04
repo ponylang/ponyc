@@ -20,7 +20,7 @@ static PONY_ATOMIC_INIT(bool, assert_guard, false);
 
 #ifdef PLATFORM_IS_POSIX_BASED
 
-#if defined(PLATFORM_IS_BSD) && !defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_BSD)
 typedef size_t stack_depth_t;
 #else
 typedef int stack_depth_t;
