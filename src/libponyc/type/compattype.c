@@ -46,7 +46,7 @@ static bool is_arrow_compat_nominal(ast_t* a, ast_t* b)
   // T1->T2 ~ N k
   ast_t* a_lower = viewpoint_lower(a);
 
-  if(a == NULL)
+  if(a_lower == NULL)
     return false;
 
   bool ok = is_compat_type(a_lower, b);
