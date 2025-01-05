@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change stack_depth_t to size_t on OpenBSD ([PR #4575](https://github.com/ponylang/ponyc/pull/4575))
 
 ## [0.58.9] - 2024-12-29
 
