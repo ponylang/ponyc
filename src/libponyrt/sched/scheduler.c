@@ -463,7 +463,7 @@ static void handle_sched_unblock(scheduler_t* sched)
   pony_assert(sched->block_count <= scheduler_count);
 }
 
-static bool read_msg(scheduler_t* sched)
+static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
 {
 #ifdef USE_RUNTIMESTATS
     uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
@@ -506,8 +506,11 @@ static bool read_msg(scheduler_t* sched)
       {
         pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
 
-        // Echo the token back as ACK(token).
-        send_msg(sched->index, 0, SCHED_ACK, m->i);
+        if(NULL == actor)
+        {
+          // Echo the token back as ACK(token) only if we don't have an actor to run.
+          send_msg(sched->index, 0, SCHED_ACK, m->i);
+        }
         break;
       }
 
@@ -758,7 +761,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
       if(actor != NULL)
         break;
 
-      if(read_msg(sched))
+      if(read_msg(sched, actor))
       {
         // An actor was unmuted and added to our run queue. Pop it and return.
         // Effectively, we are "stealing" from ourselves. We need to verify that
@@ -925,7 +928,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     uint64_t tsc2 = ponyint_cpu_tick();
 
-    if(read_msg(sched))
+    if(read_msg(sched, actor))
     {
       // An actor was unmuted and added to our run queue. Pop it and return.
       // Effectively, we are "stealing" from ourselves. We need to verify that
@@ -1154,7 +1157,7 @@ static void run(scheduler_t* sched)
     // In response to reading a message, we might have unmuted an actor and
     // added it back to our queue. if we don't have an actor to run, we want
     // to pop from our queue to check for a recently unmuted actor
-    if(read_msg(sched) && actor == NULL)
+    if(read_msg(sched, actor) && actor == NULL)
     {
       actor = pop_global(sched);
     }
@@ -1419,7 +1422,7 @@ static void run_pinned_actors()
     // scheduler should be handled by the pinned actor scheduler but for the moment
     // that is how things work and the actor will eventually come back to this thread
     // to be run anyways.
-    read_msg(sched);
+    read_msg(sched, actor);
 
     // Termination. all the normal scheduler threads have decided there is no
     // more work to do so we can shutdown
