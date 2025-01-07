@@ -21,12 +21,16 @@ actor Main
     end
 
   be do_stuff(i: I32) =>
+    // sleep for a while so that the quiescence CNF/ACK protocol can happen
     ifdef windows then
       @Sleep(10)
     else
       @usleep(10000)
     end
     if i < 0 then
+      // set the exit code if this behavior has been run enough times
+      // issue 4582 identified early quiescence/termination if only pinned
+      // actors remained active
       @pony_exitcode(100)
     else
       do_stuff(i - 1)
