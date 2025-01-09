@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make sure scheduler threads don't ACK the quiescence protocol CNF messages if they have an actor waiting to be run ([PR #4583](https://github.com/ponylang/ponyc/pull/4583))
 
 ### Added
 
