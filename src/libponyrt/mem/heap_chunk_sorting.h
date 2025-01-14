@@ -3,6 +3,9 @@
 
 #include "heap.h"
 
+// declare function defined later in heap.c
+static bool get_chunk_is_small_chunk(chunk_t* chunk);
+
 /*
  * Shamelessly stolen/adapted from Simon Tatham from:
  * https://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c
@@ -30,9 +33,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-static large_chunk_t* sort_large_chunk_list_by_size(large_chunk_t *list)
+static chunk_t* sort_large_chunk_list_by_size(chunk_t *list)
 {
-  large_chunk_t *p, *q, *e, *tail;
+  chunk_t *p, *q, *e, *tail;
   int32_t insize, nmerges, psize, qsize, i;
 
   /*
@@ -75,22 +78,31 @@ static large_chunk_t* sort_large_chunk_list_by_size(large_chunk_t *list)
         /* decide whether next element of merge comes from p or q */
         if (psize == 0)
         {
+          pony_assert(!get_chunk_is_small_chunk(q));
+
           /* p is empty; e must come from q. */
           e = q;
           q = q->next;
           qsize--;
         } else if (qsize == 0 || !q) {
+          pony_assert(!get_chunk_is_small_chunk(p));
+
           /* q is empty; e must come from p. */
           e = p;
           p = p->next;
           psize--;
-        } else if (p->size <= q->size) {
+        } else if (p->large.size <= q->large.size) {
+          pony_assert(!get_chunk_is_small_chunk(p));
+          pony_assert(!get_chunk_is_small_chunk(q));
+
           /* First element of p is lower (or same);
           * e must come from p. */
           e = p;
           p = p->next;
           psize--;
         } else {
+          pony_assert(!get_chunk_is_small_chunk(q));
+
           /* First element of q is lower; e must come from q. */
           e = q;
           q = q->next;

@@ -14,33 +14,27 @@ typedef struct chunk_t
   // bit 0 (lowest bit) for keeping track of chunk type (1 = small; 0 = large)
   // bit 1 for keeping track of chunks to be cleared
   char* m;
+  union
+  {
+    struct
+    {
+      // small chunk
+      // mutable
+      uint32_t slots;
+      uint32_t shallow;
+      uint32_t finalisers;
+    } small;
+    struct
+    {
+      // large chunk
+      // immutable
+      size_t size;
+    } large;
+  };
+  struct chunk_t* next;
 } chunk_t;
 
-typedef struct large_chunk_t
-{
-  // stores slot/shallow/finaliser info as lowest bits 2 - 4 of chunk->m
-  chunk_t base;
-
-  // immutable
-  size_t size;
-
-  // mutable
-  struct large_chunk_t* next;
-} large_chunk_t;
-
-typedef struct small_chunk_t
-{
-  // stores sizeclass info as lowest bits 2 - 4 of chunk->m
-  chunk_t base;
-
-  // mutable
-  uint32_t slots;
-  uint32_t shallow;
-  uint32_t finalisers;
-  struct small_chunk_t* next;
-} small_chunk_t;
-
-// include it after defining `large_chunk_t`
+// include it after defining `chunk_t`
 #include "heap_chunk_sorting.h"
 
 #define CHUNK_TYPE_BITMASK (uintptr_t)0x1
@@ -63,8 +57,7 @@ enum
 };
 
 typedef char block_t[POOL_ALIGN];
-typedef void (*large_chunk_fn)(large_chunk_t* chunk, uint32_t mark);
-typedef void (*small_chunk_fn)(small_chunk_t* chunk, uint32_t mark);
+typedef void (*chunk_fn)(chunk_t* chunk, uint32_t mark);
 
 #define SIZECLASS_SIZE(sizeclass) (HEAP_MIN << (sizeclass))
 #define SIZECLASS_MASK(sizeclass) (~(SIZECLASS_SIZE(sizeclass) - 1))
@@ -157,6 +150,34 @@ size_t ponyint_heap_overhead_size(pony_actor_t* actor)
 
 #endif
 
+// check HEAP_RECYCLE_SIZECLASSES size
+// if more are needed update the switch statement in `heap_recycle_index`
+pony_static_assert(HEAP_RECYCLE_SIZECLASSES <= 6, "Too many HEAP_RECYCLE_SIZECLASSES! There must be at most 6!");
+
+static uint32_t heap_recycle_index(size_t size)
+{
+  switch (size)
+  {
+    case HEAP_RECYCLE_MIXED_SIZE:
+      return HEAP_RECYCLE_MIXED;
+
+    case HEAP_RECYCLE_MIXED_SIZE << 1:
+      return 1;
+
+    case HEAP_RECYCLE_MIXED_SIZE << 2:
+      return 2;
+
+    case HEAP_RECYCLE_MIXED_SIZE << 3:
+      return 3;
+
+    case HEAP_RECYCLE_MIXED_SIZE << 4:
+      return 4;
+
+    default:
+      return 5;
+  }
+}
+
 static bool get_chunk_is_small_chunk(chunk_t* chunk)
 {
   return (((uintptr_t)chunk->m & CHUNK_TYPE_BITMASK) == CHUNK_TYPE_BITMASK);
@@ -167,66 +188,74 @@ static void set_chunk_is_small_chunk(chunk_t* chunk)
   chunk->m = (char*)((uintptr_t)chunk->m | CHUNK_TYPE_BITMASK);
 }
 
-static uint32_t get_large_chunk_slot(large_chunk_t* chunk)
+static uint32_t get_large_chunk_slot(chunk_t* chunk)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   // `!!` to normalize to 1 or 0
-  return !!(((uintptr_t)((chunk_t*)chunk)->m & LARGE_CHUNK_SLOT_BITMASK) == LARGE_CHUNK_SLOT_BITMASK);
+  return !!(((uintptr_t)chunk->m & LARGE_CHUNK_SLOT_BITMASK) == LARGE_CHUNK_SLOT_BITMASK);
 }
 
-static void set_large_chunk_slot(large_chunk_t* chunk, uint32_t slot)
+static void set_large_chunk_slot(chunk_t* chunk, uint32_t slot)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   // `!!` to normalize to 1 or 0
   slot = !!slot;
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
   slot = slot << LARGE_CHUNK_SLOT_BITMASK_SHIFT_AMOUNT;
   pony_assert(slot == LARGE_CHUNK_SLOT_BITMASK || slot == 0);
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SLOT_BITMASK) | slot);
+  chunk->m = (char*)(((uintptr_t)chunk->m & ~LARGE_CHUNK_SLOT_BITMASK) | slot);
 }
 
-static uint32_t get_large_chunk_shallow(large_chunk_t* chunk)
+static uint32_t get_large_chunk_shallow(chunk_t* chunk)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   // `!!` to normalize to 1 or 0
-  return (((uintptr_t)((chunk_t*)chunk)->m & LARGE_CHUNK_SHALLOW_BITMASK) == LARGE_CHUNK_SHALLOW_BITMASK);
+  return (((uintptr_t)chunk->m & LARGE_CHUNK_SHALLOW_BITMASK) == LARGE_CHUNK_SHALLOW_BITMASK);
 }
 
-static void set_large_chunk_shallow(large_chunk_t* chunk, uint32_t shallow)
+static void set_large_chunk_shallow(chunk_t* chunk, uint32_t shallow)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   // `!!` to normalize to 1 or 0
   shallow = !!shallow;
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
   shallow = shallow << LARGE_CHUNK_SHALLOW_BITMASK_SHIFT_AMOUNT;
   pony_assert(shallow == LARGE_CHUNK_SHALLOW_BITMASK || shallow == 0);
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_SHALLOW_BITMASK) | shallow);
+  chunk->m = (char*)(((uintptr_t)chunk->m & ~LARGE_CHUNK_SHALLOW_BITMASK) | shallow);
 }
 
-static uint32_t get_large_chunk_finaliser(large_chunk_t* chunk)
+static uint32_t get_large_chunk_finaliser(chunk_t* chunk)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   // `!!` to normalize to 1 or 0
-  return !!(((uintptr_t)((chunk_t*)chunk)->m & LARGE_CHUNK_FINALISER_BITMASK) == LARGE_CHUNK_FINALISER_BITMASK);
+  return !!(((uintptr_t)chunk->m & LARGE_CHUNK_FINALISER_BITMASK) == LARGE_CHUNK_FINALISER_BITMASK);
 }
 
-static void set_large_chunk_finaliser(large_chunk_t* chunk, uint32_t finaliser)
+static void set_large_chunk_finaliser(chunk_t* chunk, uint32_t finaliser)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   // `!!` to normalize to 1 or 0
   finaliser = !!finaliser;
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
   finaliser = finaliser << LARGE_CHUNK_FINALISER_BITMASK_SHIFT_AMOUNT;
   pony_assert(finaliser == LARGE_CHUNK_FINALISER_BITMASK || finaliser == 0);
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~LARGE_CHUNK_FINALISER_BITMASK) | finaliser);
+  chunk->m = (char*)(((uintptr_t)chunk->m & ~LARGE_CHUNK_FINALISER_BITMASK) | finaliser);
 }
 
-static size_t get_small_chunk_size(small_chunk_t* chunk)
+static size_t get_small_chunk_size(chunk_t* chunk)
 {
-  return ((uintptr_t)((chunk_t*)chunk)->m & SMALL_CHUNK_SIZECLASS_BITMASK) >> SMALL_CHUNK_SIZECLASS_SHIFT;
+  pony_assert(get_chunk_is_small_chunk(chunk));
+  return ((uintptr_t)chunk->m & SMALL_CHUNK_SIZECLASS_BITMASK) >> SMALL_CHUNK_SIZECLASS_SHIFT;
 }
 
-static void set_small_chunk_size(small_chunk_t* chunk, size_t size)
+static void set_small_chunk_size(chunk_t* chunk, size_t size)
 {
+  pony_assert(get_chunk_is_small_chunk(chunk));
   pony_assert(size < HEAP_SIZECLASSES);
 
   // left shift size to get bits in the right spot for OR'ing into `chunk->m`
   size = size << SMALL_CHUNK_SIZECLASS_SHIFT;
-  ((chunk_t*)chunk)->m = (char*)(((uintptr_t)((chunk_t*)chunk)->m & ~SMALL_CHUNK_SIZECLASS_BITMASK) | (size & SMALL_CHUNK_SIZECLASS_BITMASK));
+  chunk->m = (char*)(((uintptr_t)chunk->m & ~SMALL_CHUNK_SIZECLASS_BITMASK) | (size & SMALL_CHUNK_SIZECLASS_BITMASK));
 }
 
 static bool get_chunk_needs_clearing(chunk_t* chunk)
@@ -249,6 +278,11 @@ static char* get_m(chunk_t* chunk)
   return (char*)((uintptr_t)chunk->m & CHUNK_M_BITMASK);
 }
 
+static void clear_chunk_flags(chunk_t* chunk)
+{
+  chunk->m = (char*)((uintptr_t)chunk->m & CHUNK_M_BITMASK);
+}
+
 static void large_pagemap(char* m, size_t size, chunk_t* chunk, pony_actor_t* actor)
 {
   ponyint_pagemap_set_bulk(m, chunk, actor, size);
@@ -262,39 +296,38 @@ static void maybe_clear_chunk(chunk_t* chunk)
   {
     if(get_chunk_is_small_chunk(chunk))
     {
-      small_chunk_t* small_chunk = (small_chunk_t*)chunk;
-      small_chunk->slots = sizeclass_empty[get_small_chunk_size(small_chunk)];
-      small_chunk->shallow = sizeclass_empty[get_small_chunk_size(small_chunk)];
+      chunk->small.slots = sizeclass_empty[get_small_chunk_size(chunk)];
+      chunk->small.shallow = sizeclass_empty[get_small_chunk_size(chunk)];
     }
     else
     {
-      large_chunk_t* large_chunk = (large_chunk_t*)chunk;
-      set_large_chunk_slot(large_chunk, 1);
-      set_large_chunk_shallow(large_chunk, 1);
+      set_large_chunk_slot(chunk, 1);
+      set_large_chunk_shallow(chunk, 1);
     }
     unset_chunk_needs_clearing(chunk);
   }
 }
 
-static void final_small(small_chunk_t* chunk, uint32_t force_finalisers_mask)
+static void final_small(chunk_t* chunk, uint32_t force_finalisers_mask)
 {
+  pony_assert(get_chunk_is_small_chunk(chunk));
   // this function is only called in one of two scenarios.
   // 1. when the full chunk is being freed or destroyed. In this case
   //    `force_finalisers_mask` should always be `FORCE_ALL_FINALISERS` to make
   //    all finalisers get run no matter what.
   // 2. when part of the chunk is being freed. In this case
   //    `force_finalisers_mask` should always be `0` to make sure that
-  //    only those finalisers get run as per the free `chunk->slots`
+  //    only those finalisers get run as per the free `chunk->small.slots`
   pony_assert(force_finalisers_mask == FORCE_NO_FINALISERS ||
     force_finalisers_mask == FORCE_ALL_FINALISERS);
-  uint32_t finalisers = chunk->finalisers & (chunk->slots | force_finalisers_mask);
+  uint32_t finalisers = chunk->small.finalisers & (chunk->small.slots | force_finalisers_mask);
 
   // exit early before any memory writes if no finalisers to run
   if(finalisers == 0)
     return;
 
   // unset all finalisers bits since we're going to run them all now
-  chunk->finalisers = chunk->finalisers & ~(chunk->slots | force_finalisers_mask);
+  chunk->small.finalisers = chunk->small.finalisers & ~(chunk->small.slots | force_finalisers_mask);
 
   // run any finalisers that need to be run
   void* p = NULL;
@@ -305,7 +338,7 @@ static void final_small(small_chunk_t* chunk, uint32_t force_finalisers_mask)
   while(finalisers != 0)
   {
     bit = __pony_ctz(finalisers);
-    p = get_m((chunk_t*)chunk) + (bit << HEAP_MINBITS);
+    p = get_m(chunk) + (bit << HEAP_MINBITS);
 
     // run finaliser
     pony_assert((*(pony_type_t**)p)->final != NULL);
@@ -316,12 +349,13 @@ static void final_small(small_chunk_t* chunk, uint32_t force_finalisers_mask)
   }
 }
 
-static void final_large(large_chunk_t* chunk, uint32_t mark)
+static void final_large(chunk_t* chunk, uint32_t mark)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
   if(get_large_chunk_finaliser(chunk) == 1)
   {
     // run finaliser
-    char* m = get_m((chunk_t*)chunk);
+    char* m = get_m(chunk);
     pony_assert((*(pony_type_t**)m)->final != NULL);
     (*(pony_type_t**)m)->final(m);
     set_large_chunk_finaliser(chunk, 0);
@@ -329,45 +363,55 @@ static void final_large(large_chunk_t* chunk, uint32_t mark)
   (void)mark;
 }
 
-static void destroy_small(small_chunk_t* chunk, uint32_t mark)
+static void destroy_small(chunk_t* chunk, uint32_t mark)
 {
+  pony_assert(get_chunk_is_small_chunk(chunk));
   (void)mark;
 
   // run any finalisers that need running
   final_small(chunk, FORCE_ALL_FINALISERS);
 
-  char* m = get_m((chunk_t*)chunk);
+  char* m = get_m(chunk);
   ponyint_pagemap_set(m, NULL, NULL);
 #ifndef PONY_NDEBUG
   memset(m, 0, sizeof(block_t));
 #endif
   POOL_FREE(block_t, m);
-  POOL_FREE(small_chunk_t, chunk);
+  POOL_FREE(chunk_t, chunk);
 }
 
-static void destroy_large(large_chunk_t* chunk, uint32_t mark)
+static void destroy_large(chunk_t* chunk, uint32_t mark)
 {
+  pony_assert(!get_chunk_is_small_chunk(chunk));
 
   (void)mark;
 
   // run any finalisers that need running
   final_large(chunk, mark);
 
-  char* m = get_m((chunk_t*)chunk);
-  large_pagemap(m, chunk->size, NULL, NULL);
+  char* m = get_m(chunk);
+  large_pagemap(m, chunk->large.size, NULL, NULL);
 
   if(m != NULL)
   {
 #ifndef PONY_NDEBUG
-    memset(m, 0, chunk->size);
+    memset(m, 0, chunk->large.size);
 #endif
-    ponyint_pool_free_size(chunk->size, m);
+    ponyint_pool_free_size(chunk->large.size, m);
   }
 
-  POOL_FREE(large_chunk_t, chunk);
+  POOL_FREE(chunk_t, chunk);
 }
 
-static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chunk_t** full, small_chunk_t** to_destroy,
+static void destroy_mixed(chunk_t* chunk, uint32_t mark)
+{
+  if(get_chunk_is_small_chunk(chunk))
+    destroy_small(chunk, mark);
+  else
+    destroy_large(chunk, mark);
+}
+
+static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full, chunk_t** to_destroy,
 #ifdef USE_RUNTIMESTATS
   uint32_t empty, size_t size, size_t* mem_allocated, size_t* mem_used,
   size_t* num_allocated)
@@ -380,31 +424,32 @@ static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chu
 #endif
 
   size_t used = 0;
-  small_chunk_t* next;
+  chunk_t* next;
 
   while(chunk != NULL)
   {
+    pony_assert(get_chunk_is_small_chunk(chunk));
     next = chunk->next;
 
-    maybe_clear_chunk((chunk_t*)chunk);
+    maybe_clear_chunk(chunk);
 
-    chunk->slots &= chunk->shallow;
+    chunk->small.slots &= chunk->small.shallow;
 
-    set_chunk_needs_clearing((chunk_t*)chunk);
+    set_chunk_needs_clearing(chunk);
 
-    if(chunk->slots == 0)
+    if(chunk->small.slots == 0)
     {
 #ifdef USE_RUNTIMESTATS
-      *mem_allocated += POOL_ALLOC_SIZE(small_chunk_t);
+      *mem_allocated += POOL_ALLOC_SIZE(chunk_t);
       *mem_allocated += POOL_ALLOC_SIZE(block_t);
-      *mem_used += sizeof(small_chunk_t);
+      *mem_used += sizeof(chunk_t);
       *mem_used += sizeof(block_t);
       num_slots_used += sizeclass_slot_count[ponyint_heap_index(size)];
 #endif
       used += sizeof(block_t);
       chunk->next = *full;
       *full = chunk;
-    } else if(chunk->slots == empty) {
+    } else if(chunk->small.slots == empty) {
       // run finalisers for freed slots
       final_small(chunk, FORCE_ALL_FINALISERS);
 
@@ -414,14 +459,14 @@ static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chu
       *to_destroy = chunk;
     } else {
 #ifdef USE_RUNTIMESTATS
-      *mem_allocated += POOL_ALLOC_SIZE(small_chunk_t);
+      *mem_allocated += POOL_ALLOC_SIZE(chunk_t);
       *mem_allocated += POOL_ALLOC_SIZE(block_t);
-      *mem_used += sizeof(small_chunk_t);
-      *mem_used += (sizeof(block_t) - (__pony_popcount(chunk->slots) * size));
-      num_slots_used += (sizeclass_slot_count[ponyint_heap_index(size)] - __pony_popcount(chunk->slots));
+      *mem_used += sizeof(chunk_t);
+      *mem_used += (sizeof(block_t) - (__pony_popcount(chunk->small.slots) * size));
+      num_slots_used += (sizeclass_slot_count[ponyint_heap_index(size)] - __pony_popcount(chunk->small.slots));
 #endif
       used += (sizeof(block_t) -
-        (__pony_popcount(chunk->slots) * size));
+        (__pony_popcount(chunk->small.slots) * size));
 
       // run finalisers for freed slots
       final_small(chunk, FORCE_NO_FINALISERS);
@@ -441,49 +486,59 @@ static size_t sweep_small(small_chunk_t* chunk, small_chunk_t** avail, small_chu
 }
 
 #ifdef USE_RUNTIMESTATS
-static large_chunk_t* sweep_large(large_chunk_t* chunk, large_chunk_t** to_destroy, size_t* used, size_t* mem_allocated,
+static chunk_t* sweep_large(chunk_t* chunk, chunk_t* to_destroy_sized_array[], size_t* used, size_t* mem_allocated,
   size_t* mem_used, size_t* num_allocated)
 #else
-static large_chunk_t* sweep_large(large_chunk_t* chunk, large_chunk_t** to_destroy, size_t* used)
+static chunk_t* sweep_large(chunk_t* chunk, chunk_t* to_destroy_sized_array[], size_t* used)
 #endif
 {
 #ifdef USE_RUNTIMESTATS
   size_t num_slots_used = 0;
 #endif
 
-  large_chunk_t* list = NULL;
-  large_chunk_t* next;
+  chunk_t* list = NULL;
+  chunk_t* next;
 
   while(chunk != NULL)
   {
+    pony_assert(!get_chunk_is_small_chunk(chunk));
     next = chunk->next;
 
-    maybe_clear_chunk((chunk_t*)chunk);
+    maybe_clear_chunk(chunk);
 
     set_large_chunk_slot(chunk, get_large_chunk_slot(chunk) & get_large_chunk_shallow(chunk));
 
-    set_chunk_needs_clearing((chunk_t*)chunk);
+    set_chunk_needs_clearing(chunk);
 
     if(get_large_chunk_slot(chunk) == 0)
     {
       chunk->next = list;
       list = chunk;
 #ifdef USE_RUNTIMESTATS
-      *mem_allocated += POOL_ALLOC_SIZE(large_chunk_t);
-      *mem_allocated += ponyint_pool_used_size(chunk->size);
-      *mem_used += sizeof(large_chunk_t);
-      *mem_used += chunk->size;
+      *mem_allocated += POOL_ALLOC_SIZE(chunk_t);
+      *mem_allocated += ponyint_pool_used_size(chunk->large.size);
+      *mem_used += sizeof(chunk_t);
+      *mem_used += chunk->large.size;
       num_slots_used++;
 #endif
-      *used += chunk->size;
+      *used += chunk->large.size;
     } else {
       // run finaliser
       final_large(chunk, 0);
 
       // cannot destroy chunk yet since the heap has not been fully swept yet
       // and another object may still reference this chunk and access it in a finaliser
-      chunk->next = *to_destroy;
-      *to_destroy = chunk;
+      uint32_t destroy_index = heap_recycle_index(chunk->large.size);
+      if(destroy_index >= HEAP_RECYCLE_LARGE_OVERFLOW)
+      {
+        // if the chunk overflow size, put in the overflow list to be sorted
+        chunk->next = to_destroy_sized_array[HEAP_RECYCLE_LARGE_OVERFLOW];
+        to_destroy_sized_array[HEAP_RECYCLE_LARGE_OVERFLOW] = chunk;
+      } else {
+        // otherwise put it in the sized recycle lists
+        chunk->next = to_destroy_sized_array[destroy_index];
+        to_destroy_sized_array[destroy_index] = chunk;
+      }
     }
 
     chunk = next;
@@ -496,21 +551,9 @@ static large_chunk_t* sweep_large(large_chunk_t* chunk, large_chunk_t** to_destr
   return list;
 }
 
-static void large_chunk_list(large_chunk_fn f, large_chunk_t* current, uint32_t mark)
+static void chunk_list(chunk_fn f, chunk_t* current, uint32_t mark)
 {
-  large_chunk_t* next;
-
-  while(current != NULL)
-  {
-    next = current->next;
-    f(current, mark);
-    current = next;
-  }
-}
-
-static void small_chunk_list(small_chunk_fn f, small_chunk_t* current, uint32_t mark)
-{
-  small_chunk_t* next;
+  chunk_t* next;
 
   while(current != NULL)
   {
@@ -549,26 +592,31 @@ void ponyint_heap_init(heap_t* heap)
 
 void ponyint_heap_destroy(heap_t* heap)
 {
-  large_chunk_list(destroy_large, heap->large_recyclable, 0);
-  large_chunk_list(destroy_large, heap->large, 0);
+  chunk_list(destroy_large, heap->large, 0);
 
-  small_chunk_list(destroy_small, heap->small_recyclable, 0);
+  for(int i = 0; i < HEAP_RECYCLE_SIZECLASSES; i++)
+  {
+    if(HEAP_RECYCLE_MIXED == i)
+      chunk_list(destroy_mixed, heap->recyclable[i], 0);
+    else
+      chunk_list(destroy_large, heap->recyclable[i], 0);
+  }
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    small_chunk_list(destroy_small, heap->small_free[i], 0);
-    small_chunk_list(destroy_small, heap->small_full[i], 0);
+    chunk_list(destroy_small, heap->small_free[i], 0);
+    chunk_list(destroy_small, heap->small_full[i], 0);
   }
 }
 
 void ponyint_heap_final(heap_t* heap)
 {
-  large_chunk_list(final_large, heap->large, 0);
+  chunk_list(final_large, heap->large, 0);
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    small_chunk_list(final_small, heap->small_free[i], FORCE_ALL_FINALISERS);
-    small_chunk_list(final_small, heap->small_full[i], FORCE_ALL_FINALISERS);
+    chunk_list(final_small, heap->small_free[i], FORCE_ALL_FINALISERS);
+    chunk_list(final_small, heap->small_full[i], FORCE_ALL_FINALISERS);
   }
 }
 
@@ -603,22 +651,22 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   pony_assert(track_finalisers_mask == TRACK_NO_FINALISERS ||
     track_finalisers_mask == TRACK_ALL_FINALISERS);
 
-  small_chunk_t* chunk = heap->small_free[sizeclass];
+  chunk_t* chunk = heap->small_free[sizeclass];
   void* m;
 
   // If there are none in this size class, get a new one.
   if(chunk != NULL)
   {
     // Clear and use the first available slot.
-    uint32_t slots = chunk->slots;
+    uint32_t slots = chunk->small.slots;
     uint32_t bit = __pony_ctz(slots);
     slots &= ~((uint32_t)1 << bit);
 
-    m = get_m((chunk_t*)chunk) + (bit << HEAP_MINBITS);
-    chunk->slots = slots;
+    m = get_m(chunk) + (bit << HEAP_MINBITS);
+    chunk->small.slots = slots;
 
     // note if a finaliser needs to run or not
-    chunk->finalisers |= (track_finalisers_mask & ((uint32_t)1 << bit));
+    chunk->small.finalisers |= (track_finalisers_mask & ((uint32_t)1 << bit));
 
     if(slots == 0)
     {
@@ -627,53 +675,56 @@ void* ponyint_heap_alloc_small(pony_actor_t* actor, heap_t* heap,
       heap->small_full[sizeclass] = chunk;
     }
   } else {
-    small_chunk_t* n = NULL;
+    chunk_t* n = NULL;
 
-    // recycle a small chunk if available because it avoids setting the pagemap
-    if (NULL != heap->small_recyclable)
+    // recycle a mixed chunk if available because it avoids setting the pagemap
+    if (NULL != heap->recyclable[HEAP_RECYCLE_MIXED])
     {
-      n = heap->small_recyclable;
-      heap->small_recyclable = n->next;
+      n = heap->recyclable[HEAP_RECYCLE_MIXED];
+      heap->recyclable[HEAP_RECYCLE_MIXED] = n->next;
+
+      // reset since it might have been a large chunk in a previous life
+      clear_chunk_flags(n);
     }
 
     // If there are none in the recyclable list, get a new one.
     if (NULL == n)
     {
-      n = (small_chunk_t*) POOL_ALLOC(small_chunk_t);
-      n->base.m = (char*) POOL_ALLOC(block_t);
-      ponyint_pagemap_set(get_m((chunk_t*)n), (chunk_t*)n, actor);
+      n = (chunk_t*) POOL_ALLOC(chunk_t);
+      n->m = (char*) POOL_ALLOC(block_t);
+      ponyint_pagemap_set(get_m(n), n, actor);
     }
 
     // we should always have a chunk and m at this point
     pony_assert(n != NULL);
-    pony_assert(n->base.m != NULL);
+    pony_assert(n->m != NULL);
+
+    set_chunk_is_small_chunk(n);
 
     set_small_chunk_size(n, sizeclass);
 
 #ifdef USE_RUNTIMESTATS
-    actor->actorstats.heap_mem_used += sizeof(small_chunk_t);
-    actor->actorstats.heap_mem_allocated += POOL_ALLOC_SIZE(small_chunk_t);
+    actor->actorstats.heap_mem_used += sizeof(chunk_t);
+    actor->actorstats.heap_mem_allocated += POOL_ALLOC_SIZE(chunk_t);
     actor->actorstats.heap_mem_allocated += POOL_ALLOC_SIZE(block_t);
 #endif
 
     // note if a finaliser needs to run or not
-    n->finalisers = (track_finalisers_mask & 1);
-
-    set_chunk_is_small_chunk((chunk_t*)n);
+    n->small.finalisers = (track_finalisers_mask & 1);
 
     // Clear the first bit.
-    n->slots = sizeclass_init[sizeclass];
+    n->small.slots = sizeclass_init[sizeclass];
     n->next = NULL;
 
     // this is required for the heap garbage collection as it needs to know that
     // this chunk needs to be cleared
-    set_chunk_needs_clearing((chunk_t*)n);
+    set_chunk_needs_clearing(n);
 
     heap->small_free[sizeclass] = n;
     chunk = n;
 
     // Use the first slot.
-    m = get_m((chunk_t*)chunk);
+    m = get_m(chunk);
   }
 
 #ifdef USE_RUNTIMESTATS
@@ -697,53 +748,72 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   size = ponyint_pool_adjust_size(size);
 
-  large_chunk_t* chunk = NULL;
+  chunk_t* chunk = NULL;
 
-  // recycle a large chunk if available because it avoids setting the pagemap
-  if (NULL != heap->large_recyclable)
+  uint32_t recycle_index = heap_recycle_index(size);
+  if(recycle_index >= HEAP_RECYCLE_LARGE_OVERFLOW)
   {
-    large_chunk_t* recycle = heap->large_recyclable;
-    large_chunk_t* prev = NULL;
-
-    // short circuit as soon as we see a chunk that is too big because this list is sorted by size
-    while (NULL != recycle && recycle->size <= size)
+    // recycle a large chunk if available because it avoids setting the pagemap
+    if (NULL != heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW])
     {
-      // we only recycle if the size is exactly what is required
-      if (recycle->size == size)
-      {
-        if (NULL == prev)
-          heap->large_recyclable = recycle->next;
-        else
-          prev->next = recycle->next;
+      pony_assert(size > HEAP_RECYCLE_MIXED_SIZE);
+      chunk_t* recycle = heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW];
+      chunk_t* prev = NULL;
 
-        chunk = recycle;
-        chunk->next = NULL;
-        break;
-      } else {
-        prev = recycle;
-        recycle = recycle->next;
+      // short circuit as soon as we see a chunk that is too big because this list is sorted by size
+      while (NULL != recycle && recycle->large.size <= size)
+      {
+        // we only recycle if the size is exactly what is required
+        if (recycle->large.size == size)
+        {
+          if (NULL == prev)
+            heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW] = recycle->next;
+          else
+            prev->next = recycle->next;
+
+          chunk = recycle;
+          chunk->next = NULL;
+          break;
+        } else {
+          prev = recycle;
+          recycle = recycle->next;
+        }
       }
+    }
+  } else {
+    pony_assert(recycle_index < HEAP_RECYCLE_LARGE_OVERFLOW);
+    pony_assert((HEAP_RECYCLE_MIXED != recycle_index && size > HEAP_RECYCLE_MIXED_SIZE) || (HEAP_RECYCLE_MIXED == recycle_index && HEAP_RECYCLE_MIXED_SIZE == size));
+    // recycle a chunk from a sized list if available because it avoids setting the pagemap
+    if (NULL != heap->recyclable[recycle_index])
+    {
+      chunk = heap->recyclable[recycle_index];
+      heap->recyclable[recycle_index] = chunk->next;
+
+      // reset since it might have been a small chunk in a previous life
+      clear_chunk_flags(chunk);
+      chunk->large.size = size;
+      chunk->next = NULL;
     }
   }
 
   // If there is no suitable one in the recyclable list, get a new one.
   if (NULL == chunk)
   {
-    chunk = (large_chunk_t*) POOL_ALLOC(large_chunk_t);
-    chunk->size = size;
-    chunk->base.m = (char*) ponyint_pool_alloc_size(size);
-    large_pagemap(get_m((chunk_t*)chunk), size, (chunk_t*)chunk, actor);
+    chunk = (chunk_t*) POOL_ALLOC(chunk_t);
+    chunk->large.size = size;
+    chunk->m = (char*) ponyint_pool_alloc_size(size);
+    large_pagemap(get_m(chunk), size, chunk, actor);
   }
 
   // we should always have a chunk and m of the right size at this point
   pony_assert(chunk != NULL);
-  pony_assert(chunk->base.m != NULL);
-  pony_assert(chunk->size == size);
+  pony_assert(chunk->m != NULL);
+  pony_assert(chunk->large.size == size);
 
 #ifdef USE_RUNTIMESTATS
-  actor->actorstats.heap_mem_used += sizeof(large_chunk_t);
-  actor->actorstats.heap_mem_used += chunk->size;
-  actor->actorstats.heap_mem_allocated += POOL_ALLOC_SIZE(large_chunk_t);
+  actor->actorstats.heap_mem_used += sizeof(chunk_t);
+  actor->actorstats.heap_mem_used += chunk->large.size;
+  actor->actorstats.heap_mem_allocated += POOL_ALLOC_SIZE(chunk_t);
   actor->actorstats.heap_mem_allocated += ponyint_pool_used_size(size);
   actor->actorstats.heap_alloc_counter++;
   actor->actorstats.heap_num_allocated++;
@@ -752,16 +822,16 @@ void* ponyint_heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size,
 
   // this is required for the heap garbage collection as it needs to know that
   // this chunk needs to be cleared
-  set_chunk_needs_clearing((chunk_t*)chunk);
+  set_chunk_needs_clearing(chunk);
 
   // note if a finaliser needs to run or not
   set_large_chunk_finaliser(chunk, (track_finalisers_mask & 1));
 
   chunk->next = heap->large;
   heap->large = chunk;
-  heap->used += chunk->size;
+  heap->used += chunk->large.size;
 
-  return get_m((chunk_t*)chunk);
+  return get_m(chunk);
 }
 
 void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
@@ -784,7 +854,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
 
   if(get_chunk_is_small_chunk(chunk))
   {
-    size_t chunk_size = get_small_chunk_size((small_chunk_t*)chunk);
+    size_t chunk_size = get_small_chunk_size(chunk);
     // Previous allocation was a ponyint_heap_alloc_small.
     void* ext = EXTERNAL_PTR(p, chunk_size);
 
@@ -792,7 +862,7 @@ void* ponyint_heap_realloc(pony_actor_t* actor, heap_t* heap, void* p,
   } else {
     // Previous allocation was a ponyint_heap_alloc_large.
 
-    oldsize = ((large_chunk_t*)chunk)->size - ((uintptr_t)p - (uintptr_t)get_m(chunk));
+    oldsize = chunk->large.size - ((uintptr_t)p - (uintptr_t)get_m(chunk));
   }
 
   pony_assert(copy <= size);
@@ -844,31 +914,27 @@ bool ponyint_heap_mark(chunk_t* chunk, void* p)
 
   if(get_chunk_is_small_chunk(chunk))
   {
-    small_chunk_t* small_chunk = (small_chunk_t*)chunk;
-
     // Calculate the external pointer.
-    void* ext = EXTERNAL_PTR(p, get_small_chunk_size(small_chunk));
+    void* ext = EXTERNAL_PTR(p, get_small_chunk_size(chunk));
 
     // Shift to account for smallest allocation size.
-    uint32_t slot = FIND_SLOT(ext, get_m((chunk_t*)small_chunk));
+    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
     // Check if it was already marked.
-    marked = (small_chunk->slots & slot) == 0;
+    marked = (chunk->small.slots & slot) == 0;
 
     // A clear bit is in-use, a set bit is available.
     if(p == ext)
-      small_chunk->slots &= ~slot;
+      chunk->small.slots &= ~slot;
     else
-      small_chunk->shallow &= ~slot;
+      chunk->small.shallow &= ~slot;
   } else {
-    large_chunk_t* large_chunk = (large_chunk_t*)chunk;
-
-    marked = get_large_chunk_slot(large_chunk) == 0;
+    marked = get_large_chunk_slot(chunk) == 0;
 
     if(p == get_m(chunk))
-      set_large_chunk_slot(large_chunk, 0);
+      set_large_chunk_slot(chunk, 0);
     else
-      set_large_chunk_shallow(large_chunk, 0);
+      set_large_chunk_shallow(chunk, 0);
   }
 
   return marked;
@@ -881,15 +947,15 @@ void ponyint_heap_mark_shallow(chunk_t* chunk, void* p)
   if(get_chunk_is_small_chunk(chunk))
   {
     // Calculate the external pointer.
-    void* ext = EXTERNAL_PTR(p, get_small_chunk_size((small_chunk_t*)chunk));
+    void* ext = EXTERNAL_PTR(p, get_small_chunk_size(chunk));
 
     // Shift to account for smallest allocation size.
     uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
     // A clear bit is in-use, a set bit is available.
-    ((small_chunk_t*)chunk)->shallow &= ~slot;
+    chunk->small.shallow &= ~slot;
   } else {
-    set_large_chunk_shallow((large_chunk_t*)chunk, 0);
+    set_large_chunk_shallow(chunk, 0);
   }
 }
 
@@ -900,37 +966,35 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
     if(p == get_m(chunk))
     {
       // run finaliser if needed
-      final_large((large_chunk_t*)chunk, 0);
+      final_large(chunk, 0);
 
-      ponyint_pool_free_size(((large_chunk_t*)chunk)->size, get_m(chunk));
+      ponyint_pool_free_size(chunk->large.size, get_m(chunk));
       chunk->m = NULL;
-      set_large_chunk_slot((large_chunk_t*)chunk, 1);
+      set_large_chunk_slot(chunk, 1);
     }
     return;
   }
 
-  small_chunk_t* small_chunk = (small_chunk_t*)chunk;
-
   // Calculate the external pointer.
-  void* ext = EXTERNAL_PTR(p, get_small_chunk_size(small_chunk));
+  void* ext = EXTERNAL_PTR(p, get_small_chunk_size(chunk));
 
   if(p == ext)
   {
     // Shift to account for smallest allocation size.
-    uint32_t slot = FIND_SLOT(ext, get_m((chunk_t*)small_chunk));
+    uint32_t slot = FIND_SLOT(ext, get_m(chunk));
 
     // check if there's a finaliser to run
-    if((small_chunk->finalisers & slot) != 0)
+    if((chunk->small.finalisers & slot) != 0)
     {
       // run finaliser
       (*(pony_type_t**)p)->final(p);
 
       // clear finaliser
-      small_chunk->finalisers &= ~slot;
+      chunk->small.finalisers &= ~slot;
     }
 
     // free slot
-    small_chunk->slots |= slot;
+    chunk->small.slots |= slot;
   }
 }
 
@@ -949,7 +1013,7 @@ void ponyint_heap_endgc(heap_t* heap
 #endif
 
   // make a copy of all the heap list pointers into a temporary heap
-  size_t amount_to_copy_clear = offsetof(heap_t, small_recyclable);
+  size_t amount_to_copy_clear = offsetof(heap_t, recyclable);
   heap_t theap = {};
   heap_t* temp_heap = &theap;
   memcpy(temp_heap, heap, amount_to_copy_clear);
@@ -959,10 +1023,6 @@ void ponyint_heap_endgc(heap_t* heap
   // freed during the GC process
   memset(heap, 0, amount_to_copy_clear);
 
-  // lists of chunks to recycle
-  small_chunk_t** to_recycle_small = &temp_heap->small_recyclable;
-  large_chunk_t** to_recycle_large = &temp_heap->large_recyclable;
-
   // sweep all the chunks in the temporary heap while accumulating chunks to recycle
   // NOTE: the real heap will get new chunks allocated and added to it during this process
   //       if a finaliser allocates memory... we have to make sure that finalisers don't
@@ -970,34 +1030,34 @@ void ponyint_heap_endgc(heap_t* heap
   //       potential cross objects references in finalisers after memory has been reused.
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
   {
-    small_chunk_t* list1 = temp_heap->small_free[i];
-    small_chunk_t* list2 = temp_heap->small_full[i];
+    chunk_t* list1 = temp_heap->small_free[i];
+    chunk_t* list2 = temp_heap->small_full[i];
 
     temp_heap->small_free[i] = NULL;
     temp_heap->small_full[i] = NULL;
 
-    small_chunk_t** avail = &temp_heap->small_free[i];
-    small_chunk_t** full = &temp_heap->small_full[i];
+    chunk_t** avail = &temp_heap->small_free[i];
+    chunk_t** full = &temp_heap->small_full[i];
 
     size_t size = SIZECLASS_SIZE(i);
     uint32_t empty = sizeclass_empty[i];
 
 #ifdef USE_RUNTIMESTATS
-    used += sweep_small(list1, avail, full, to_recycle_small, empty, size,
+    used += sweep_small(list1, avail, full, &temp_heap->recyclable[HEAP_RECYCLE_MIXED], empty, size,
       &mem_allocated, &mem_used, &num_allocated);
-    used += sweep_small(list2, avail, full, to_recycle_small, empty, size,
+    used += sweep_small(list2, avail, full, &temp_heap->recyclable[HEAP_RECYCLE_MIXED], empty, size,
       &mem_allocated, &mem_used, &num_allocated);
 #else
-    used += sweep_small(list1, avail, full, to_recycle_small, empty, size);
-    used += sweep_small(list2, avail, full, to_recycle_small, empty, size);
+    used += sweep_small(list1, avail, full, &temp_heap->recyclable[HEAP_RECYCLE_MIXED], empty, size);
+    used += sweep_small(list2, avail, full, &temp_heap->recyclable[HEAP_RECYCLE_MIXED], empty, size);
 #endif
   }
 
 #ifdef USE_RUNTIMESTATS
-  temp_heap->large = sweep_large(temp_heap->large, to_recycle_large, &used, &mem_allocated, &mem_used,
+  temp_heap->large = sweep_large(temp_heap->large, temp_heap->recyclable, &used, &mem_allocated, &mem_used,
     &num_allocated);
 #else
-  temp_heap->large = sweep_large(temp_heap->large, to_recycle_large, &used);
+  temp_heap->large = sweep_large(temp_heap->large, temp_heap->recyclable, &used);
 #endif
 
   // we need to combine the temporary heap lists with the real heap lists
@@ -1010,15 +1070,15 @@ void ponyint_heap_endgc(heap_t* heap
     // iterate to the end of the real heap list and append the temporary heap list
     // because the real heap list is likely to be smaller than the temporary heap list
     // and remove any chunks that have no finalisers to run immediately
-    small_chunk_t** sc_temp = &heap->small_free[i];
+    chunk_t** sc_temp = &heap->small_free[i];
     while (*sc_temp != NULL)
     {
-      if ((*sc_temp)->finalisers == 0)
+      if ((*sc_temp)->small.finalisers == 0)
       {
-        small_chunk_t* temp = *sc_temp;
+        chunk_t* temp = *sc_temp;
         *sc_temp = temp->next;
-        temp->next = *to_recycle_small;
-        *to_recycle_small = temp;
+        temp->next = temp_heap->recyclable[HEAP_RECYCLE_MIXED];
+        temp_heap->recyclable[HEAP_RECYCLE_MIXED] = temp;
       } else {
         sc_temp = &(*sc_temp)->next;
       }
@@ -1031,12 +1091,12 @@ void ponyint_heap_endgc(heap_t* heap
     sc_temp = &heap->small_full[i];
     while (*sc_temp != NULL)
     {
-      if ((*sc_temp)->finalisers == 0)
+      if ((*sc_temp)->small.finalisers == 0)
       {
-        small_chunk_t* temp = *sc_temp;
+        chunk_t* temp = *sc_temp;
         *sc_temp = temp->next;
-        temp->next = *to_recycle_small;
-        *to_recycle_small = temp;
+        temp->next = temp_heap->recyclable[HEAP_RECYCLE_MIXED];
+        temp_heap->recyclable[HEAP_RECYCLE_MIXED] = temp;
       } else {
         sc_temp = &(*sc_temp)->next;
       }
@@ -1047,15 +1107,25 @@ void ponyint_heap_endgc(heap_t* heap
   // iterate to the end of the real heap list and append the temporary heap list
   // because the real heap list is likely to be smaller than the temporary heap list
   // and remove any chunks that have no finalisers to run immediately
-  large_chunk_t** lc_temp = &heap->large;
+  chunk_t** lc_temp = &heap->large;
   while (*lc_temp != NULL)
   {
     if (get_large_chunk_finaliser(*lc_temp) == 0)
     {
-      large_chunk_t* temp = *lc_temp;
+      chunk_t* temp = *lc_temp;
       *lc_temp = temp->next;
-      temp->next = *to_recycle_large;
-      *to_recycle_large = temp;
+
+      uint32_t recycle_index = heap_recycle_index(temp->large.size);
+      if(recycle_index >= HEAP_RECYCLE_LARGE_OVERFLOW)
+      {
+        // if the chunk overflow size, put in the overflow list to be sorted
+        temp->next = temp_heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW];
+        temp_heap->recyclable[HEAP_RECYCLE_LARGE_OVERFLOW] = temp;
+      } else {
+        // otherwise put it in the sized recycle lists
+        temp->next = temp_heap->recyclable[recycle_index];
+        temp_heap->recyclable[recycle_index] = temp;
+      }
     } else {
       lc_temp = &(*lc_temp)->next;
     }
@@ -1064,13 +1134,24 @@ void ponyint_heap_endgc(heap_t* heap
 
   // destroy all the chunks that didn't get re-used since the last GC run so
   // that other actors can re-use the memory from the pool
-  small_chunk_list(destroy_small, heap->small_recyclable, 0);
-  large_chunk_list(destroy_large, heap->large_recyclable, 0);
+  for(int i = 0; i < HEAP_RECYCLE_SIZECLASSES; i++)
+  {
+    if(HEAP_RECYCLE_MIXED == i)
+      chunk_list(destroy_mixed, heap->recyclable[i], 0);
+    else
+      chunk_list(destroy_large, heap->recyclable[i], 0);
+  }
+
 
   // save any chunks that can be recycled from this GC run
   // sort large chunks by the size of the chunks
-  heap->large_recyclable = sort_large_chunk_list_by_size(*to_recycle_large);
-  heap->small_recyclable = *to_recycle_small;
+  for(int i = 0; i < HEAP_RECYCLE_SIZECLASSES; i++)
+  {
+    if(HEAP_RECYCLE_LARGE_OVERFLOW == i)
+      heap->recyclable[i] = sort_large_chunk_list_by_size(temp_heap->recyclable[i]);
+    else
+      heap->recyclable[i] = temp_heap->recyclable[i];
+  }
 
   // Foreign object sizes will have been added to heap->used already. Here we
   // add local object sizes as well and set the next gc point for when memory
@@ -1092,9 +1173,9 @@ void ponyint_heap_endgc(heap_t* heap
 size_t ponyint_heap_size(chunk_t* chunk)
 {
   if(get_chunk_is_small_chunk(chunk))
-    return SIZECLASS_SIZE(get_small_chunk_size((small_chunk_t*)chunk));
+    return SIZECLASS_SIZE(get_small_chunk_size(chunk));
 
-  return ((large_chunk_t*)chunk)->size;
+  return chunk->large.size;
 }
 
 // C99 requires inline symbols to be present in a compilation unit for un-
