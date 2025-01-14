@@ -12,24 +12,25 @@
 
 #define DESC_ID 0
 #define DESC_SIZE 1
-#define DESC_FIELD_COUNT 2
-#define DESC_FIELD_OFFSET 3
-#define DESC_INSTANCE 4
-#define DESC_TRACE 5
-#define DESC_SERIALISE_TRACE 6
-#define DESC_SERIALISE 7
-#define DESC_DESERIALISE 8
-#define DESC_CUSTOM_SERIALISE_SPACE 9
-#define DESC_CUSTOM_DESERIALISE 10
-#define DESC_DISPATCH 11
-#define DESC_FINALISE 12
-#define DESC_EVENT_NOTIFY 13
-#define DESC_MIGHT_REFERENCE_ACTOR 14
-#define DESC_TRAITS 15
-#define DESC_FIELDS 16
-#define DESC_VTABLE 17
+#define DESC_SERIALISEID 2
+#define DESC_FIELD_COUNT 3
+#define DESC_FIELD_OFFSET 4
+#define DESC_INSTANCE 5
+#define DESC_TRACE 6
+#define DESC_SERIALISE_TRACE 7
+#define DESC_SERIALISE 8
+#define DESC_DESERIALISE 9
+#define DESC_CUSTOM_SERIALISE_SPACE 10
+#define DESC_CUSTOM_DESERIALISE 11
+#define DESC_DISPATCH 12
+#define DESC_FINALISE 13
+#define DESC_EVENT_NOTIFY 14
+#define DESC_MIGHT_REFERENCE_ACTOR 15
+#define DESC_TRAITS 16
+#define DESC_FIELDS 17
+#define DESC_VTABLE 18
 
-#define DESC_LENGTH 18
+#define DESC_LENGTH 19
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -330,6 +331,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
 
   params[DESC_ID] = c->i32;
   params[DESC_SIZE] = c->i32;
+  params[DESC_SERIALISEID] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->ptr;
@@ -377,6 +379,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
 
   params[DESC_ID] = c->i32;
   params[DESC_SIZE] = c->i32;
+  params[DESC_SERIALISEID] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->ptr;
@@ -414,6 +417,7 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   LLVMValueRef args[DESC_LENGTH];
   args[DESC_ID] = LLVMConstInt(c->i32, t->type_id, false);
   args[DESC_SIZE] = LLVMConstInt(c->i32, c_t->abi_size, false);
+  args[DESC_SERIALISEID] = LLVMConstInt(target_is_ilp32(c->opt->triple) ? c->i32 : c->i64, t->serialise_id, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
   args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
@@ -476,6 +480,58 @@ void gendesc_table(compile_t* c)
   c->desc_table = table;
 
   ponyint_pool_free_size(size, args);
+}
+
+void gendesc_table_lookup(compile_t* c)
+{
+  reach_type_t* t;
+  size_t i = HASHMAP_BEGIN;
+
+  LLVMValueRef desc_lkp_fn = codegen_addfun(c, "__DescOffsetLookupFn",
+    c->descriptor_offset_lookup_type, false);
+  codegen_startfun(c, desc_lkp_fn, NULL, NULL, NULL, false);
+  LLVMSetFunctionCallConv(desc_lkp_fn, LLVMCCallConv);
+  LLVMSetLinkage(desc_lkp_fn, LLVMExternalLinkage);
+
+  LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
+
+  // Read the serialise ID.
+  LLVMValueRef serialise_id = LLVMGetParam(desc_lkp_fn, 0);
+
+  // switch based on serialise_id
+  LLVMValueRef serialise_switch = LLVMBuildSwitch(c->builder, serialise_id, unreachable, 0);
+
+  // the default case is unreachable unless something major has gone wrong
+  LLVMPositionBuilderAtEnd(c->builder, unreachable);
+
+  LLVMValueRef ret = LLVMConstInt(c->i32, (uint32_t)-1, false);
+  LLVMBuildRet(c->builder, ret);
+
+  while((t = reach_types_next(&c->reach->types, &i)) != NULL)
+  {
+    if(t->is_trait || (t->underlying == TK_STRUCT))
+      continue;
+
+    pony_assert(t->serialise_id != (uint64_t)-1);
+
+    LLVMBasicBlockRef type_block = codegen_block(c,
+      genname_type_with_id(t->name, t->serialise_id));
+
+    LLVMAddCase(serialise_switch, LLVMConstInt(target_is_ilp32(c->opt->triple) ? c->i32 : c->i64, t->serialise_id, false),
+      type_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, type_block);
+
+    ret = LLVMConstInt(c->i32, t->type_id, false);
+    LLVMBuildRet(c->builder, ret);
+  }
+
+  // Mark the default case as unreachable.
+  LLVMPositionBuilderAtEnd(c->builder, unreachable);
+
+  codegen_finishfun(c);
+
+  c->desc_table_offset_lookup_fn = make_desc_ptr(c, desc_lkp_fn);
 }
 
 static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)

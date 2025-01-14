@@ -172,6 +172,7 @@ typedef struct compile_t
   LLVMValueRef primitives_init;
   LLVMValueRef primitives_final;
   LLVMValueRef desc_table;
+  LLVMValueRef desc_table_offset_lookup_fn;
   LLVMValueRef numeric_sizes;
 
   LLVMTypeRef void_type;
@@ -187,6 +188,8 @@ typedef struct compile_t
 
   LLVMTypeRef ptr;
   LLVMTypeRef descriptor_type;
+  LLVMTypeRef descriptor_offset_lookup_type;
+  LLVMTypeRef descriptor_offset_lookup_fn;
   LLVMTypeRef field_descriptor;
   LLVMTypeRef object_type;
   LLVMTypeRef msg_type;

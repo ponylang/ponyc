@@ -25,6 +25,10 @@ PONY_API size_t ponyint_hash_block(const void* p, size_t len);
 
 PONY_API uint64_t ponyint_hash_block64(const void* p, size_t len);
 
+uint32_t ponyint_hash_str_custom_key32(const unsigned char* key, const char* str);
+
+uint64_t ponyint_hash_str_custom_key64(const unsigned char* key, const char* str);
+
 size_t ponyint_hash_str(const char* str);
 
 size_t ponyint_hash_ptr(const void* p);

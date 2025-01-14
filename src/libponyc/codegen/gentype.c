@@ -744,6 +744,7 @@ bool gentypes(compile_t* c)
   }
 
   gendesc_table(c);
+  gendesc_table_lookup(c);
 
   c->numeric_sizes = gen_numeric_size_table(c);
 
