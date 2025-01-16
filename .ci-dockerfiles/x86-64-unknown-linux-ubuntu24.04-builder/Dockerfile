@@ -12,6 +12,7 @@ RUN apt-get update \
   clang \
   cmake \
   git \
+  libclang-rt-dev \
   lldb \
   make \
   xz-utils \
