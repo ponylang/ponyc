@@ -1340,7 +1340,7 @@ TEST_F(BadPonyTest, MatchIsoLetWithoutConsume)
     "    let a: String iso = recover iso String end\n"
 
     "    match a\n"
-    "    | let a': String => None\n"
+    "    | let a': String iso => None\n"
     "    end";
 
     TEST_ERRORS_1(src, "this capture violates capabilities");

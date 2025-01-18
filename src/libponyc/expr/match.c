@@ -497,20 +497,16 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   if(!infer_pattern_type(pattern, match_type, opt))
     return false;
 
-  ast_t* declared_pattern_type = make_pattern_type(opt, pattern);
-  if(declared_pattern_type == NULL)
-    return false;
-
-  ast_settype(ast, declared_pattern_type);
-
-  ast_t* pattern_type = consume_type(declared_pattern_type, TK_NONE, false);
+  ast_t* pattern_type = make_pattern_type(opt, pattern);
   if(pattern_type == NULL)
     return false;
+
+  ast_settype(ast, pattern_type);
 
   bool ok = true;
   errorframe_t info = NULL;
 
-  switch(is_matchtype(match_type, declared_pattern_type, &info, opt))
+  switch(is_matchtype(match_type, pattern_type, &info, opt))
   {
     case MATCHTYPE_ACCEPT:
       break;
