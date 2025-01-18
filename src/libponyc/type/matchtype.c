@@ -942,8 +942,9 @@ matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
 
   matchtype_t rslt = is_x_match_x(operand, consumed_pattern, errorf, true, opt);
 
-  // TODO this seems to segfault
-  //ast_free_unattached(consumed_pattern);
+  // TODO discuss with joe
+  if (consumed_pattern != pattern)
+    ast_free_unattached(consumed_pattern);
 
   return rslt;
 }
