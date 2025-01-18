@@ -581,7 +581,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         "guard must be a boolean expression");
     }
   }
-
   return ok;
 }
 
