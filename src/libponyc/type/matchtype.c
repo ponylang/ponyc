@@ -938,7 +938,7 @@ matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
 
   // TODO discuss with joe
   if (consumed_pattern != pattern)
-  ast_free_unattached(consumed_pattern);
+    ast_free_unattached(consumed_pattern);
 
   return rslt;
 }
