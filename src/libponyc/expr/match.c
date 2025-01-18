@@ -498,6 +498,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_t* pattern_type = make_pattern_type(opt, pattern);
+
   if(pattern_type == NULL)
     return false;
 
@@ -580,8 +581,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         "guard must be a boolean expression");
     }
   }
-
-  ast_free_unattached(pattern_type);
 
   return ok;
 }
