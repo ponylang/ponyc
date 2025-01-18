@@ -600,6 +600,7 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
     }
     else
     {
+      printf("----> o_cap: %d, o_eph: %d, p_cap: %d, p_eph: %d\n", ast_id(o_cap), ast_id(o_eph), ast_id(p_cap), ast_id(p_eph));
       printf("----> errorf is NULL\n");
     }
 
