@@ -27,7 +27,32 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20240427
           - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20240427
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
-          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+
+  aarch64-linux:
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
 
     name: ${{ matrix.image }}
     container:

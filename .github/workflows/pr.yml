@@ -280,13 +280,13 @@ jobs:
         run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
 
   aarch64-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-aarch64:20240427
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64 Linux glibc
 
     name: ${{ matrix.name }}
@@ -313,20 +313,16 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Debug Runtime
         run: |
-          make configure config=debug
+          make configure arch=armv8-a config=debug
           make build config=debug
-      - name: Build Debug Cross-Compiled Runtime
-        run: make cross-libponyrt config=debug CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a cross_cflags="-march=armv8-a -mtune=cortex-a53" cross_lflags="-O3;-march=aarch64"
-      - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv8-a/debug cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger=lldb
       - name: Build Release Runtime
         run: |
-          make configure config=release
+          make configure arch=armv8-a config=release
           make build config=release
-      - name: Build Release Cross-Compiled Runtime
-        run: make cross-libponyrt config=release CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ arch=armv8-a cross_cflags="-march=armv8-a -mtune=cortex-a53" cross_lflags="-O3;-march=aarch64"
-      - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv8-a/release cross_triple=aarch64-unknown-linux-gnu cross_arch=armv8-a cross_cpu=cortex-a53 cross_linker=aarch64-linux-gnu-gcc cross_runner="qemu-aarch64-static -cpu cortex-a53 -L /usr/local/aarch64-linux-gnu/libc"
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger=lldb
 
   x86_64-macos:
     runs-on: macos-13
