@@ -9,6 +9,9 @@ on:
 concurrency:
   group: "update-lib-cache"
 
+permissions:
+  packages: read
+
 jobs:
   x86_64-linux:
     runs-on: ubuntu-latest
