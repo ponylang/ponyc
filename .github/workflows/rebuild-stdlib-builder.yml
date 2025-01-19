@@ -7,6 +7,9 @@ concurrency:
   group: "rebuild-stdlib-builder"
   cancel-in-progress: true
 
+permissions:
+  packages: write
+
 jobs:
   rebuild-stdlib-builder:
     name: Update stdlib-builder Docker image

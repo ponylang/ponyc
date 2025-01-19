@@ -7,6 +7,9 @@ on:
 
 concurrency: release
 
+permissions:
+  packages: read
+
 jobs:
   # validation to assure that we should in fact continue with the release should
   # be done here. the primary reason for this step is to verify that the release

@@ -6,6 +6,10 @@ on:
 
 concurrency: announce-a-release
 
+permissions:
+  packages: read
+  contents: write
+
 jobs:
   announce:
     name: Announcements

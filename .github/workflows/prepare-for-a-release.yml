@@ -6,6 +6,10 @@ on:
 
 concurrency: prepare-for-a-release
 
+permissions:
+  packages: read
+  contents: write
+
 jobs:
   # all tasks that need to be done before we add an X.Y.Z tag
   # should be done as a step in the pre-tagging job.
