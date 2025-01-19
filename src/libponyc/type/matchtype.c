@@ -596,7 +596,15 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
           ast_error_frame(errorf, o_cap,
             "this would be possible if the subcap were more ephemeral. "
             "Perhaps you meant to consume this variable");
-  }
+    }
+    else
+    {
+      // While working on fixing issue 4579, Joe and I became convinced that
+      // any code that ends up going down this path is buggy and we should
+      // assert. It is possible that we are wrong, but nothing in the ponyc
+      // test suite ends up here at the time we added the assert.
+      pony_assert(0);
+    }
 
     return MATCHTYPE_DENY_CAP;
   }
