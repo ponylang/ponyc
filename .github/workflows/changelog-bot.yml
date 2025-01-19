@@ -9,6 +9,11 @@ on:
     paths-ignore:
       - CHANGELOG.md
 
+permissions:
+  packages: read
+  pull-requests: read
+  contents: write
+
 jobs:
   changelog-bot:
     runs-on: ubuntu-latest

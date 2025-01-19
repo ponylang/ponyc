@@ -6,6 +6,9 @@ concurrency:
   group: lint-actions-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  packages: read
+
 jobs:
   lint:
     name: Lint
