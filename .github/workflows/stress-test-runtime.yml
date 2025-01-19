@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "30 2 * * *"
 
+permissions:
+  packages: read
+
 jobs:
   x86_64-linux:
     runs-on: ubuntu-latest
