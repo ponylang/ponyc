@@ -18,6 +18,9 @@ on:
     types:
       - submitted
 
+permissions:
+  pull-requests: write
+
 jobs:
   add-label:
     runs-on: ubuntu-latest

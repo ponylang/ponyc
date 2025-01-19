@@ -10,6 +10,11 @@ on:
       - .release-notes/next-release.md
       - .release-notes/\d+.\d+.\d+.md
 
+permissions:
+  packages: read
+  pull-requests: read
+  contents: write
+
 jobs:
   release-notes:
     runs-on: ubuntu-latest
