@@ -96,11 +96,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64-unknown-linux-ubuntu24.04 [release]
             target: test-stress-release
             debugger: lldb
-          - image: ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64-unknown-linux-ubuntu24.04 [debug]
             target: test-stress-debug
             debugger: lldb
