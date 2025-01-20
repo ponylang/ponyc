@@ -8,3 +8,7 @@ ponyc may not be compilable on earlier versions of OpenBSD.
 
 Prior to this, the pinned actor thread could cause early termination/quiescence of a pony program if there were only pinned actors active. This change fixes the issue to ensure that pony programs with only pinned actors active will no longer terminate too early.
 
+## Apply default options for a CLI parent command when a sub command is parsed
+
+In the CLI package's parser, a default option for a parent command was ignored when a subcommand was present. This fix makes sure that parents' defaults are applied before handling the sub command.
+
