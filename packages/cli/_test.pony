@@ -10,6 +10,7 @@ actor \nodoc\ Main is TestList
     test(_TestBools)
     test(_TestChat)
     test(_TestDefaults)
+    test(_TestDefaultWithSub)
     test(_TestDuplicate)
     test(_TestEnvs)
     test(_TestHelp)
@@ -237,6 +238,17 @@ class \nodoc\ iso _TestDefaults is UnitTest
     h.assert_eq[U64](47, cmd.option("uinto").u64())
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
     h.assert_eq[USize](0, cmd.option("stringso").string_seq().size())
+
+class \nodoc\ iso _TestDefaultWithSub is UnitTest
+  fun name(): String => "cli/default_with_sub"
+
+  fun apply(h: TestHelper) ? =>
+    let cs = _Fixtures.default_with_sub_spec()?
+    h.assert_true(cs.is_parent())
+
+    let cmd = CommandParser(cs).parse([ "cmd"; "sub" ]) as Command
+
+    h.assert_eq[String]("foo", cmd.option("arg").string())
 
 class \nodoc\ iso _TestShortsAdj is UnitTest
   fun name(): String => "cli/shorts_adjacent"
@@ -668,3 +680,14 @@ primitive _Fixtures
           ArgSpec.string_seq("args", "Arguments to run.")
         ])?
     ])?
+
+  fun default_with_sub_spec(): CommandSpec box ? =>
+    let root = CommandSpec.parent(
+      "cmd",
+      "Main command",
+      [ OptionSpec.string("arg", "an arg" where default' = "foo") ])?
+    let sub = CommandSpec.leaf("sub", "Sub command")?
+
+    root.add_command(sub)?
+    root.add_help()?
+    root
