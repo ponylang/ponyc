@@ -99,7 +99,7 @@ static void make_signature(compile_t* c, reach_type_t* t,
   if(message_type)
   {
     if (tparam_size == 0)
-      tparam_size = sizeof(LLVMTypeRef));
+      tparam_size = sizeof(LLVMTypeRef);
     tparam_size += tparam_size + (2 * sizeof(LLVMTypeRef));
   }
 
