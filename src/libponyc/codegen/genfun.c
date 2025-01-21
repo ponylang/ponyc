@@ -98,11 +98,9 @@ static void make_signature(compile_t* c, reach_type_t* t,
 
   if(message_type)
   {
+    if (tparam_size == 0)
+      tparam_size = sizeof(LLVMTypeRef));
     tparam_size += tparam_size + (2 * sizeof(LLVMTypeRef));
-
-    // must be at least the size of 3 or else we get a heap buffer overflow
-    if((2 * sizeof(LLVMTypeRef)) == tparam_size)
-      tparam_size += tparam_size + sizeof(LLVMTypeRef);
   }
 
   LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(tparam_size);
