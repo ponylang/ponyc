@@ -497,16 +497,16 @@ jobs:
       - name: Build Debug Runtime (sanitizers)
         if: matrix.directives == 'pool_memalign,address_sanitizer,undefined_behavior_sanitizer'
         run: |
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PATH=$PWD/build/libs/bin/:$PATH make configure arch=x86-64 config=debug use=${{ matrix.directives }}
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PATH=$PWD/build/libs/bin/:$PATH make build config=debug
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=debug
       - name: Test with Debug Runtime (sanitizers)
         if: matrix.directives == 'pool_memalign,address_sanitizer,undefined_behavior_sanitizer'
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PATH=$PWD/build/libs/bin/:$PATH make test-ci config=debug
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=debug
       - name: Build Release Runtime (sanitizers)
         if: matrix.directives == 'pool_memalign,address_sanitizer,undefined_behavior_sanitizer'
         run: |
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PATH=$PWD/build/libs/bin/:$PATH make configure arch=x86-64 config=release use=${{ matrix.directives }}
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PATH=$PWD/build/libs/bin/:$PATH make build config=release
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=release use=${{ matrix.directives }}
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=release
       - name: Test with Release Runtime (sanitizers)
         if: matrix.directives == 'pool_memalign,address_sanitizer,undefined_behavior_sanitizer'
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PATH=$PWD/build/libs/bin/:$PATH make test-ci config=release
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=release
