@@ -97,7 +97,11 @@ static void make_signature(compile_t* c, reach_type_t* t,
   size_t tparam_size = count * sizeof(LLVMTypeRef);
 
   if(message_type)
+  {
+    if (tparam_size == 0)
+      tparam_size = sizeof(LLVMTypeRef);
     tparam_size += tparam_size + (2 * sizeof(LLVMTypeRef));
+  }
 
   LLVMTypeRef* tparams = (LLVMTypeRef*)ponyint_pool_alloc_size(tparam_size);
   LLVMTypeRef* mparams = NULL;
