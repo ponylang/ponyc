@@ -930,6 +930,12 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
 matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
   pass_opt_t* opt)
 {
+  return is_x_match_x(operand, pattern, errorf, true, opt);
+}
+
+matchtype_t is_matchtype_with_consumed_pattern(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
+  pass_opt_t* opt)
+{
   ast_t* consumed_pattern = consume_type(pattern, TK_NONE, false);
   if (consumed_pattern == NULL)
     return MATCHTYPE_REJECT;
@@ -941,10 +947,4 @@ matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
     ast_free_unattached(consumed_pattern);
 
   return rslt;
-}
-
-matchtype_t is_astype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
-  pass_opt_t* opt)
-{
-  return is_x_match_x(operand, pattern, errorf, true, opt);
 }
