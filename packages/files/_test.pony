@@ -255,6 +255,8 @@ class \nodoc\ iso _TestDirectoryFileOpen is UnitTest
   fun name(): String => "files/Directory.open-file"
   fun apply(h: TestHelper) =>
   try
+    h.env.err.print("Cwd is... ")
+    h.env.err.print(Path.cwd())
     // make a temporary directory
     let dir_path = FilePath.mkdtemp(
       FileAuth(h.env.root),
