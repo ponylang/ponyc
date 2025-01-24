@@ -2,7 +2,7 @@ name: Stress tests
 
 on:
   schedule:
-    - cron: "30 2 * * *"
+    - cron: "30 5 * * *"
 
 permissions:
   packages: read
