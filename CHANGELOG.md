@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Make sure scheduler threads don't ACK the quiescence protocol CNF messages if they have an actor waiting to be run ([PR #4583](https://github.com/ponylang/ponyc/pull/4583))
 - Apply default options for a CLI parent command when a sub command is parsed ([PR #4593](https://github.com/ponylang/ponyc/pull/4593))
+- Fix compiler crash from `match` with extra parens around `let` in tuple ([PR #4595](https://github.com/ponylang/ponyc/pull/4595))
 
 ### Added
 
