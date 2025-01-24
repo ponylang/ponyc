@@ -321,6 +321,11 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
 
     // Skip over the SEQ node.
     ast_t* pattern_expr = ast_child(pattern_child);
+    while(ast_id(pattern_expr) == TK_SEQ)
+    {
+      pony_assert(ast_childcount(pattern_expr) == 1);
+      pattern_expr = ast_child(pattern_expr);
+    }
 
     if(!dynamic_tuple_element(c, ptr, desc, pattern_expr, next_block, i))
       return false;
