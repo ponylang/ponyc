@@ -12,3 +12,17 @@ Prior to this, the pinned actor thread could cause early termination/quiescence 
 
 In the CLI package's parser, a default option for a parent command was ignored when a subcommand was present. This fix makes sure that parents' defaults are applied before handling the sub command.
 
+## Fix compiler crash from `match` with extra parens around `let` in tuple
+
+When matching on a tuple element within a union type, the compiler would crash when extra parentheses were present.
+
+The following code fails to compile because of `(123, (let x: I32))` in the `match`. The extra parentheses should be ignored and treated like `(123, let x: I32)`.
+
+```pony
+let value: (I32 | (I32, I32)) = (123, 42)
+
+match value
+| (123, (let x: I32)) => x
+end
+```
+
