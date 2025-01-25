@@ -388,6 +388,7 @@ TEST_F(MatchTypeTest, Capabilities)
 
     "interface Test\n"
     "  fun z(c1: C1, c2: C2, t1: T1, t2: T2,\n"
+    "    c1iso: C1 iso,\n"
     "    c1ref: C1 ref, c1val: C1 val, c1box: C1 box,\n"
     "    c2ref: C2 ref,\n"
     "    c1refc2ref: (C1 ref, C2 ref),\n"
@@ -461,6 +462,18 @@ TEST_F(MatchTypeTest, Capabilities)
     is_matchtype(type_of("t1refandt2ref"), type_of("t1valandt2box"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_ACCEPT,
     is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2box"), NULL, &opt));
+
+  // Ephemerality
+  ast_t* c1iso_bang = alias(type_of("c1iso"));
+  ast_t* c1iso_eph = consume_type(type_of("c1iso"), TK_NONE, false);
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1iso"), type_of("c1iso"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY_CAP,
+    is_matchtype(c1iso_bang, type_of("c1iso"), NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_DENY_CAP,
+    is_matchtype(type_of("c1iso"), c1iso_eph, NULL, &opt));
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(c1iso_eph, c1iso_eph, NULL, &opt));
 }
 
 
