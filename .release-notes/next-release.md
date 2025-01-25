@@ -44,7 +44,7 @@ class Bad
     end
 ```
 
-The code should not compile because `let s': String iso` is aliasing `_s` an iso field. Consuming an aliases iso shouldn't return an iso^.
+The code should not compile because `let s': String iso` is aliasing `_s` an iso field. Consuming an aliased iso shouldn't return an iso^.
 
 The take-away is that "very bad things could happen" and the data race freedom guarantees of the Pony compiler were being violated.
 
