@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.10] - 2025-02-01
 
 ### Fixed
 
@@ -10,9 +10,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Apply default options for a CLI parent command when a sub command is parsed ([PR #4593](https://github.com/ponylang/ponyc/pull/4593))
 - Fix compiler crash from `match` with extra parens around `let` in tuple ([PR #4595](https://github.com/ponylang/ponyc/pull/4595))
 - Fix soundness problem when matching `iso` variables ([PR #4588](https://github.com/ponylang/ponyc/pull/4588))
-
-### Added
-
 
 ### Changed
 
