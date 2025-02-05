@@ -160,43 +160,48 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   typedef bool (*name##_cmp_fn)(type* a, type* b); \
   typedef void (*name##_free_fn)(type* a); \
   \
+  static void name##_freef(void* data) \
+  { \
+    name##_free_fn freef = free_elem; \
+    freef((type*)data); \
+  } \
+  static bool name##_cmpf(void* a, void* b) \
+  { \
+    name##_cmp_fn cmpf = cmp; \
+    return cmpf((type*)a, (type*)b); \
+  } \
   void name##_init(name_t* map, size_t size) \
   { \
     ponyint_hashmap_init((hashmap_t*)map, size); \
   } \
   void name##_destroy(name_t* map) \
   { \
-    name##_free_fn freef = free_elem; \
-    ponyint_hashmap_destroy((hashmap_t*)map, (free_fn)freef); \
+    free_fn free_f = free_elem?name##_freef:NULL; \
+    ponyint_hashmap_destroy((hashmap_t*)map, free_f); \
   } \
   void name##_optimize(name_t* map) \
   { \
-    name##_cmp_fn cmpf = cmp; \
-    return ponyint_hashmap_optimize((hashmap_t*)map, (cmp_fn)cmpf); \
+    return ponyint_hashmap_optimize((hashmap_t*)map, name##_cmpf); \
   } \
   type* name##_get(name_t* map, type* key, size_t* index) \
   { \
-    name##_cmp_fn cmpf = cmp; \
     return (type*)ponyint_hashmap_get((hashmap_t*)map, (void*)key, \
-      hash(key), (cmp_fn)cmpf, index); \
+      hash(key), name##_cmpf, index); \
   } \
   type* name##_put(name_t* map, type* entry) \
   { \
-    name##_cmp_fn cmpf = cmp; \
     return (type*)ponyint_hashmap_put((hashmap_t*)map, (void*)entry, \
-      hash(entry), (cmp_fn)cmpf); \
+      hash(entry), name##_cmpf); \
   } \
   void name##_putindex(name_t* map, type* entry, size_t index) \
   { \
-    name##_cmp_fn cmpf = cmp; \
     ponyint_hashmap_putindex((hashmap_t*)map, (void*)entry, \
-      hash(entry), (cmp_fn)cmpf, index); \
+      hash(entry), name##_cmpf, index); \
   } \
   type* name##_remove(name_t* map, type* entry) \
   { \
-    name##_cmp_fn cmpf = cmp; \
     return (type*)ponyint_hashmap_remove((hashmap_t*) map, (void*)entry, \
-      hash(entry), (cmp_fn)cmpf); \
+      hash(entry), name##_cmpf); \
   } \
   void name##_removeindex(name_t* map, size_t index) \
   { \

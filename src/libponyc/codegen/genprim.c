@@ -28,12 +28,25 @@
   (void)c_m;
 
 #define BOX_FUNCTION(gen, gen_data) \
-  box_function(c, (generate_box_fn)gen, gen_data);
+  box_function(c, gen, gen_data);
+
+#define BOX_VOID_FUNCTION(gen, gen_data) \
+  box_void_function(c, gen, gen_data);
+
+#define BOX_VOIDPTR_FUNCTION(gen, gen_data) \
+  box_voidptr_function(c, gen, gen_data);
+
+#define BOX_NUMCONV_FUNCTION(gen, gen_data) \
+  box_numconv_function(c, gen, gen_data);
 
 #define GENERIC_FUNCTION(name, gen) \
   generic_function(c, t, stringtab(name), gen);
 
-typedef void (*generate_box_fn)(compile_t*, void*, token_id);
+typedef struct num_conv_t num_conv_t;
+typedef void (*generate_box_fn)(compile_t*, reach_type_t*, token_id);
+typedef void (*generate_box_void_fn)(compile_t*, void*, token_id);
+typedef void (*generate_box_voidptr_fn)(compile_t*, void**, token_id);
+typedef void (*generate_box_numconv_fn)(compile_t*, num_conv_t*, token_id);
 typedef void (*generate_gen_fn)(compile_t*, reach_type_t*, reach_method_t*);
 
 static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
@@ -47,6 +60,27 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
 }
 
 static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
+{
+  gen(c, gen_data, TK_BOX);
+  gen(c, gen_data, TK_REF);
+  gen(c, gen_data, TK_VAL);
+}
+
+static void box_void_function(compile_t* c, generate_box_void_fn gen, void* gen_data)
+{
+  gen(c, gen_data, TK_BOX);
+  gen(c, gen_data, TK_REF);
+  gen(c, gen_data, TK_VAL);
+}
+
+static void box_voidptr_function(compile_t* c, generate_box_voidptr_fn gen, void* gen_data)
+{
+  gen(c, gen_data, TK_BOX);
+  gen(c, gen_data, TK_REF);
+  gen(c, gen_data, TK_VAL);
+}
+
+static void box_numconv_function(compile_t* c, generate_box_numconv_fn gen, void* gen_data)
 {
   gen(c, gen_data, TK_BOX);
   gen(c, gen_data, TK_REF);
@@ -461,13 +495,13 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_realloc(c, t, c_t_elem);
   pointer_unsafe(c, t);
   GENERIC_FUNCTION("_convert", pointer_convert);
-  BOX_FUNCTION(pointer_apply, box_args);
+  BOX_VOID_FUNCTION(pointer_apply, box_args);
   pointer_update(c, t, t_elem);
-  BOX_FUNCTION(pointer_offset, c_box_args);
+  BOX_VOID_FUNCTION(pointer_offset, c_box_args);
   pointer_element_size(c, t, c_t_elem);
   pointer_insert(c, t, c_t_elem);
   pointer_delete(c, t, t_elem);
-  BOX_FUNCTION(pointer_copy_to, c_box_args);
+  BOX_VOID_FUNCTION(pointer_copy_to, c_box_args);
   pointer_usize(c, t);
   pointer_is_null(c, t);
   pointer_eq(c, t);
@@ -547,7 +581,7 @@ void genprim_nullable_pointer_methods(compile_t* c, reach_type_t* t)
 
   nullable_pointer_create(c, t, t_elem);
   nullable_pointer_none(c, t);
-  BOX_FUNCTION(nullable_pointer_apply, box_args);
+  BOX_VOID_FUNCTION(nullable_pointer_apply, box_args);
   BOX_FUNCTION(nullable_pointer_is_none, t);
 }
 
@@ -1771,13 +1805,13 @@ static void number_conversions(compile_t* c)
 
   for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
-    BOX_FUNCTION(number_value, from);
+    BOX_NUMCONV_FUNCTION(number_value, from);
     data[0] = from;
     for(num_conv_t* to = conv; to->type_name != NULL; to++)
     {
       data[1] = to;
-      BOX_FUNCTION(number_conversion, data);
-      BOX_FUNCTION(unsafe_number_conversion, data);
+      BOX_VOIDPTR_FUNCTION(number_conversion, data);
+      BOX_VOIDPTR_FUNCTION(unsafe_number_conversion, data);
     }
   }
 }
