@@ -176,7 +176,9 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   } \
   void name##_destroy(name_t* map) \
   { \
-    free_fn free_f = free_elem?name##_freef:NULL; \
+    free_fn free_f = NULL; \
+    if (free_elem != NULL) \
+      free_f = name##_freef; \
     ponyint_hashmap_destroy((hashmap_t*)map, free_f); \
   } \
   void name##_optimize(name_t* map) \

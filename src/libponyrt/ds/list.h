@@ -147,7 +147,9 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   } \
   void name##_free(name_t* list) \
   { \
-    free_fn free_fn = freef?name##_freef:NULL; \
+    free_fn free_fn = NULL; \
+    if (freef != NULL) \
+      free_fn = name##_freef; \
     ponyint_list_free((list_t*)list, free_fn); \
   } \
 
