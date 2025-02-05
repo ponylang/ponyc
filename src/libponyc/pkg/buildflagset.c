@@ -146,8 +146,9 @@ buildflagset_t* buildflagset_create()
   p->started_enum = false;
   p->flags = POOL_ALLOC(flagtab_t);
   flagtab_init(p->flags, 8);
-  p->text_buffer = NULL;
-  p->buffer_size = 0;
+  p->text_buffer = (char*)ponyint_pool_alloc_size(1);
+  p->buffer_size = 1;
+  p->text_buffer[0] = '\0';
 
   return p;
 }
