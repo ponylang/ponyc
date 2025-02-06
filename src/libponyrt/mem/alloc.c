@@ -4,6 +4,7 @@
 #include <platform.h>
 #include <string.h>
 #include <stdio.h>
+#include "ponyassert.h"
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #include <sys/mman.h>
@@ -48,8 +49,8 @@ void* ponyint_virt_alloc(size_t bytes)
 
   if(!ok)
   {
-    perror("out of memory: ");
-    abort();
+    fprintf(stderr, "out of memory trying to allocate %zu bytes: %s\n", bytes, strerror(errno));
+    pony_assert(bytes < 0);
   }
 
   return p;
