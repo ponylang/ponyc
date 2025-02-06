@@ -65,8 +65,8 @@ class WatcherWaker is TimerNotify
     true
 
 actor Main
-  var _ring_size: U32 = 100
-  var _ring_count: U32 = 100
+  var _ring_size: U32 = 10
+  var _ring_count: U32 = 10
   var _pass: USize = 10
 
   new create(env: Env) =>
