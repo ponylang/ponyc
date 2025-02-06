@@ -274,7 +274,8 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
   mangled->param_count = m->param_count;
   mangled->params = (reach_param_t*)ponyint_pool_alloc_size(
     mangled->param_count * sizeof(reach_param_t));
-  memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
+  if(m->param_count > 0)
+    memcpy(mangled->params, m->params, m->param_count * sizeof(reach_param_t));
   mangled->result = m->result;
 
   // Add to the mangled table only.
