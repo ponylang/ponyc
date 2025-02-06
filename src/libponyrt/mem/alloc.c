@@ -51,6 +51,7 @@ void* ponyint_virt_alloc(size_t bytes)
   {
     fprintf(stderr, "out of memory trying to allocate %zu bytes: %s\n", bytes, strerror(errno));
     pony_assert(0);
+    abort();
   }
 
   return p;
