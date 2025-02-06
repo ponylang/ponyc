@@ -57,7 +57,6 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
   pony_assert(ast_id(type) == TK_NOMINAL);
-  typecheck_t* t = &opt->check;
 
   ast_t* def = (ast_t*)ast_data(type);
   AST_GET_CHILDREN(def, type_id, typeparams);
@@ -66,6 +65,8 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   if(is_name_private(type_name) && (from != NULL) && (opt != NULL)
     && !allow_private)
   {
+    typecheck_t* t = &opt->check;
+
     if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
     {
       if(errors)
@@ -142,6 +143,8 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 
   if(is_name_private(name) && (from != NULL) && (opt != NULL) && !allow_private)
   {
+    typecheck_t* t = &opt->check;
+
     switch(ast_id(find))
     {
       case TK_FVAR:
