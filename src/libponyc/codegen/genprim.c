@@ -28,12 +28,13 @@
   (void)c_m;
 
 #define BOX_FUNCTION(gen, gen_data) \
-  box_function(c, (generate_box_fn)gen, gen_data);
+  gen(c, gen_data, TK_BOX); \
+  gen(c, gen_data, TK_REF); \
+  gen(c, gen_data, TK_VAL);
 
 #define GENERIC_FUNCTION(name, gen) \
   generic_function(c, t, stringtab(name), gen);
 
-typedef void (*generate_box_fn)(compile_t*, void*, token_id);
 typedef void (*generate_gen_fn)(compile_t*, reach_type_t*, reach_method_t*);
 
 static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
@@ -44,13 +45,6 @@ static void start_function(compile_t* c, reach_type_t* t, reach_method_t* m,
   c_m->func = codegen_addfun(c, m->full_name, c_m->func_type, true);
   genfun_param_attrs(c, t, m, c_m->func);
   codegen_startfun(c, c_m->func, NULL, NULL, NULL, false);
-}
-
-static void box_function(compile_t* c, generate_box_fn gen, void* gen_data)
-{
-  gen(c, gen_data, TK_BOX);
-  gen(c, gen_data, TK_REF);
-  gen(c, gen_data, TK_VAL);
 }
 
 static void generic_function(compile_t* c, reach_type_t* t, const char* name,
