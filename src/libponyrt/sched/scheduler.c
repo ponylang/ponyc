@@ -35,7 +35,6 @@ typedef enum
 } sched_msg_t;
 
 // Scheduler global data.
-static bool pause_cycle_detection;
 static uint64_t last_cd_tsc;
 static uint32_t scheduler_count;
 static uint32_t min_scheduler_count;
@@ -598,12 +597,6 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
     // the countdown to `ack_count == 0` all over again
     if(0 == sched->ack_count)
     {
-      // mark cycle_detector to pause
-      // this is required to ensure scheduler queues are empty
-      // upon termination and so scheduler 0 doesn't unblock iterrupting the
-      // termination CNF/ACK process
-      pause_cycle_detection = true;
-
       if(sched->asio_stoppable && ponyint_asio_stop())
       {
         // successfully stopped ASIO thread
@@ -636,9 +629,6 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 
         // re-enable dynamic scheduler scaling in case it was disabled
         atomic_store_explicit(&temporarily_disable_scheduler_scaling, false, memory_order_relaxed);
-
-        // re-enable cycle detector triggering
-        pause_cycle_detection = false;
       }
     }
   }
@@ -1036,8 +1026,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     }
 
     // if we're scheduler 0 and cycle detection is enabled
-    if(!ponyint_actor_getnoblock() && (sched->index == 0)
-      && (!pause_cycle_detection))
+    if(!ponyint_actor_getnoblock() && (sched->index == 0))
     {
       // trigger cycle detector by sending it a message if it is time
       uint64_t current_tsc = ponyint_cpu_tick();
@@ -1047,8 +1036,47 @@ static pony_actor_t* steal(scheduler_t* sched)
 
         // cycle detector should now be on the queue
         actor = pop_global(sched);
+
         if(actor != NULL)
-          break;
+        {
+          // if we were able to get the cycle detector and we're in the final
+          // round of the CNF/ACK protocol (because asio_stoppable is true)
+          // run the cycle detector manually without unblocking
+          if(ponyint_is_cycle(actor) && sched->asio_stoppable)
+          {
+            // Run the cycle detector and get the next actor
+            DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
+            bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+            sched->ctx.current = NULL;
+            pony_actor_t* next = pop_global(sched);
+
+            if(reschedule || next != NULL)
+            {
+              if(next != NULL)
+              {
+                // If we have a next actor, push the cycle detector to the back
+                // of the queue
+                push(sched, actor);
+                DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
+                actor = next;
+              }
+
+              // if there's more work for the cycle detector to do or there is
+              // another actor to run, break out of the while loop to return the
+              // actor to be run normally after this scheduler unblocks
+              break;
+            } else {
+              // if there's no more work for the cycle detector to do and no next
+              // actor, reset actor to NULL and keep looping in steal waiting for
+              // termination
+              actor = NULL;
+            }
+          } else {
+            // otherwise break out of the while loop to return the actor to be
+            // run normally after this scheduler unblocks
+            break;
+          }
+        }
       }
     }
 
@@ -1093,7 +1121,6 @@ static void run(scheduler_t* sched)
   SYSTEMATIC_TESTING_WAIT_START(sched->tid, sched->sleep_object);
 
   if(sched->index == 0) {
-    pause_cycle_detection = false;
     last_cd_tsc = 0;
   }
 
@@ -1126,18 +1153,15 @@ static void run(scheduler_t* sched)
       // if cycle detection is enabled
       if(!ponyint_actor_getnoblock())
       {
-        if(!pause_cycle_detection)
+        // trigger cycle detector by sending it a message if it is time
+        uint64_t current_tsc = ponyint_cpu_tick();
+        if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
         {
-          // trigger cycle detector by sending it a message if it is time
-          uint64_t current_tsc = ponyint_cpu_tick();
-          if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
-          {
-            last_cd_tsc = current_tsc;
+          last_cd_tsc = current_tsc;
 
-            // cycle detector should now be on the queue
-            if(actor == NULL)
-              actor = pop_global(sched);
-          }
+          // cycle detector should now be on the queue
+          if(actor == NULL)
+            actor = pop_global(sched);
         }
       }
 
