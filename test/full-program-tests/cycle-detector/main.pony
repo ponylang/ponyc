@@ -73,6 +73,10 @@ actor Main
     setup_ring()
     Watcher((_ring_size * _ring_count).i32())
 
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+    rto.ponycdinterval = 10
+    rto.ponymaxthreads = 1
+
   fun setup_ring() =>
     var j: U32 = 0
     while true do
