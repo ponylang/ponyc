@@ -1055,8 +1055,9 @@ static pony_actor_t* steal(scheduler_t* sched)
               if(next != NULL)
               {
                 // If we have a next actor, push the cycle detector to the back
-                // of the queue
-                push(sched, actor);
+                // of the queue only if it needs to be rescheduled
+                if(reschedule)
+                  push(sched, actor);
                 DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
                 actor = next;
               }
