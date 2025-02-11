@@ -182,6 +182,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   }
 
   reach_type_t* t = reach_type(c->reach, type);
+  ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   int count = LLVMCountStructElementTypes(c_t->primitive);
   size_t buf_size = count * sizeof(LLVMTypeRef);
