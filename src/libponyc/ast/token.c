@@ -305,7 +305,9 @@ size_t token_line_position(token_t* token)
 void token_set_id(token_t* token, token_id id)
 {
   pony_assert(token != NULL);
+#ifndef PONY_NDEBUG
   pony_assert(!token->frozen);
+#endif
   token->id = id;
 }
 
@@ -314,7 +316,9 @@ void token_set_string(token_t* token, const char* value, size_t length)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_STRING || token->id == TK_ID);
+#ifndef PONY_NDEBUG
   pony_assert(!token->frozen);
+#endif
   pony_assert(value != NULL);
 
   if(length == 0)
@@ -329,7 +333,9 @@ void token_set_float(token_t* token, double value)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_FLOAT);
+#ifndef PONY_NDEBUG
   pony_assert(!token->frozen);
+#endif
   token->real = value;
 }
 
@@ -338,7 +344,9 @@ void token_set_int(token_t* token, lexint_t* value)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_INT);
+#ifndef PONY_NDEBUG
   pony_assert(!token->frozen);
+#endif
   token->integer = *value;
 }
 
@@ -346,7 +354,9 @@ void token_set_int(token_t* token, lexint_t* value)
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 {
   pony_assert(token != NULL);
+#ifndef PONY_NDEBUG
   pony_assert(!token->frozen);
+#endif
 
   if(source != NULL)
     token->source = source;
