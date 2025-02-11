@@ -48,7 +48,8 @@ static uint32_t halfsiphash24(const unsigned char* key, const unsigned char* in,
 
   for (; in != end; in += 4)
   {
-    uint32_t m = *(uint32_t*)in;
+    uint32_t m;
+    memcpy(&m, in, sizeof(uint32_t));
     v3 ^= m;
     SIPROUND32;
     SIPROUND32;
@@ -101,7 +102,8 @@ static uint64_t siphash24(const unsigned char* key, const unsigned char* in, siz
 
   for(; in != end; in += 8)
   {
-    uint64_t m = *(uint64_t*)in;
+    uint64_t m;
+    memcpy(&m, in, sizeof(uint64_t));
     v3 ^= m;
     SIPROUND64;
     SIPROUND64;
