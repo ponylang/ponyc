@@ -310,7 +310,6 @@ static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
   pony_triggergc(ctx);
   try_gc(ctx, actor);
 
-
   // We're blocked, send block message.
   set_internal_flag(actor, FLAG_BLOCKED_SENT);
   set_internal_flag(actor, FLAG_CD_CONTACTED);
