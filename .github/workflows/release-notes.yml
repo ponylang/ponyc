@@ -23,8 +23,8 @@ jobs:
       - name: Update
         uses: docker://ghcr.io/ponylang/release-notes-bot-action:0.3.9
         with:
-          git_user_name: "Ponylang Main Bot"
-          git_user_email: "ponylang.main@gmail.com"
+          GIT_USER_NAME: "Ponylang Main Bot"
+          GIT_USER_EMAIL: "ponylang.main@gmail.com"
         env:
           API_CREDENTIALS: ${{ secrets.GITHUB_TOKEN }}
       - name: Send alert on failure
