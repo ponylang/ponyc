@@ -104,6 +104,14 @@ jobs:
             name: aarch64-unknown-linux-ubuntu24.04 [debug]
             target: test-stress-debug
             debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [release]
+            target: test-stress-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
+            target: test-stress-with-cd-debug
+            debugger: lldb
 
     name: ${{ matrix.name }}
     container:
