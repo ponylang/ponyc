@@ -2,11 +2,9 @@
 
 #pragma D option quiet
 
-inline unsigned int UINT32_MAX = -1;
-inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 11);
-inline unsigned int ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);
-inline unsigned int ACTORMSG_DESTROYED = (UINT32_MAX - 9);
-inline unsigned int ACTORMSG_CREATED = (UINT32_MAX - 8);
+inline unsigned int UINT32_MAX = 4294967295;
+inline unsigned int ACTORMSG_APPLICATION_START = (UINT32_MAX - 9);
+inline unsigned int ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 8);
 inline unsigned int ACTORMSG_ISBLOCKED = (UINT32_MAX - 7);
 inline unsigned int ACTORMSG_BLOCK = (UINT32_MAX - 6);
 inline unsigned int ACTORMSG_UNBLOCK = (UINT32_MAX - 5);
@@ -25,12 +23,6 @@ pony$target:::actor-msg-send
 / (unsigned int)arg1 == (unsigned int)ACTORMSG_CHECKBLOCKED /
 {
   @counts[arg0, "Check Blocked Messages Sent"] = count();
-}
-
-pony$target:::actor-msg-send
-/ (unsigned int)arg1 == (unsigned int)ACTORMSG_DESTROYED /
-{
-  @counts[arg0, "Destroyed Messages Sent"] = count();
 }
 
 pony$target:::actor-msg-send

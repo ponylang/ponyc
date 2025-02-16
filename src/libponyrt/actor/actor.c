@@ -463,19 +463,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       return false;
     }
 
-    case ACTORMSG_DESTROYED:
-    {
-#ifdef USE_RUNTIMESTATS_MESSAGES
-      ctx->schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgp_t);
-      ctx->schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgp_t);
-#endif
-
-      pony_assert(ponyint_is_cycle(actor));
-      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
-      actor->type->dispatch(ctx, actor, msg);
-      return false;
-    }
-
     case ACTORMSG_CHECKBLOCKED:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
@@ -925,9 +912,8 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
 //
 // as a result, this does not need to be concurrency safe
 // or tell the cycle detector of what it is doing
-PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor)
+PONY_API void ponyint_destroy(pony_actor_t* actor)
 {
-  (void)ctx;
   // This destroys an actor immediately.
   // The finaliser is not called.
 
