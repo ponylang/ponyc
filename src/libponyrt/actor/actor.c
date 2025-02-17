@@ -307,8 +307,13 @@ static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
   // that eventually trigger a GC which may not happen for a long time
   // (or ever). Do this BEFORE sending the message or else we might be
   // GCing while the CD destroys us.
-  pony_triggergc(ctx);
-  try_gc(ctx, actor);
+  // only if `gc.rc > 0` because if `gc.rc == 0` then the actor is a zombie
+  // and the cycle detector will destroy it upon receiving the block message
+  if(actor->gc.rc > 0)
+  {
+    pony_triggergc(ctx);
+    try_gc(ctx, actor);
+  }
 
   // We're blocked, send block message.
   set_internal_flag(actor, FLAG_BLOCKED_SENT);
