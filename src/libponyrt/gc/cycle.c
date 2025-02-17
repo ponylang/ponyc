@@ -640,23 +640,7 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    // The actor itself is also allowed to initiate a deletion of itself if
-    // it is blocked and has a reference count of 0. Because deletion is
-    // not an atomic operation, and the message queue remaining empty is an
-    // invariant that can't be violated if the cycle detector is sending
-    // a message to an actor, that actor isn't eligible to initiate getting
-    // reaped in a short-circuit fashion. Only the actor or the cycle
-    // detector can be in the "cycle detector critical" section for the actor.
-    if (ponyint_acquire_cycle_detector_critical(view->actor))
-    {
-      // To avoid a race condition, we have to make sure that the actor isn't
-      // pending destroy before sending a message. Failure to do so could
-      // eventually result in a double free.
-      if(!ponyint_actor_pendingdestroy(view->actor))
-        pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
-
-      ponyint_release_cycle_detector_critical(view->actor);
-    }
+    pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
   }
 }
 
@@ -808,23 +792,7 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     // if it is not already blocked
     if(!view->blocked)
     {
-      // The actor itself is also allowed to initiate a deletion of itself if
-      // it is blocked and has a reference count of 0. Because deletion is
-      // not an atomic operation, and the message queue remaining empty is an
-      // invariant that can't be violated if the cycle detector is sending
-      // a message to an actor, that actor isn't eligible to initiate getting
-      // reaped in a short-circuit fashion. Only the actor or the cycle
-      // detector can be in the "cycle detector critical" section for the actor.
-      if (ponyint_acquire_cycle_detector_critical(view->actor))
-      {
-        // To avoid a race condition, we have to make sure that the actor isn't
-        // pending destroy before sending a message. Failure to do so could
-        // eventually result in a double free.
-        if(!ponyint_actor_pendingdestroy(view->actor))
-          pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
-
-        ponyint_release_cycle_detector_critical(view->actor);
-      }
+      pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
     }
 
     // Stop if we've hit the max limit for # of actors to check
@@ -902,10 +870,29 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
       ponyint_deltamap_free(map);
     }
 
-    // the actor should already be marked as pending destroy
-    pony_assert(ponyint_actor_pendingdestroy(actor));
+    // the actor should not already be marked as pending destroy
+    pony_assert(!ponyint_actor_pendingdestroy(actor));
+
+    pony_msg_t* msg;
+
+    // the actor's queue wasn't marked empty because we didn't want the actor
+    // to be rescheduled if the cycle detector sent it a message
+    // make sure the actor's queue is empty and the only pending messages are
+    // the expected ones from the cycle detector
+    while(!ponyint_messageq_markempty(&actor->q))
+    {
+      while((msg = ponyint_actor_messageq_pop(&actor->q
+  #ifdef USE_DYNAMIC_TRACE
+        , ctx->scheduler, actor
+  #endif
+        )) != NULL)
+      {
+        pony_assert((msg->id == ACTORMSG_CONF) || (msg->id == ACTORMSG_ISBLOCKED));
+      }
+    }
 
     // invoke the actor's finalizer and destroy it
+    ponyint_actor_setpendingdestroy(actor);
     ponyint_actor_final(ctx, actor);
     ponyint_actor_sendrelease(ctx, actor);
     ponyint_actor_destroy(actor);
