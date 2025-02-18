@@ -815,24 +815,6 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
   deferred(ctx, d);
 }
 
-static void actor_destroyed(detector_t* d, pony_actor_t* actor)
-{
-  // this would only called by a manual destroy of an actor
-  // if that was possible. It is currently unused.
-  // used to clean up the dangling reference to this actor
-  // in the cycle detector to avoid a crash
-
-  // get view for actor
-  view_t* view = get_view(d, actor, false);
-
-  if(view)
-  {
-    // remove and free view
-    ponyint_viewmap_remove(&d->views, view);
-    view_free(view);
-  }
-}
-
 static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
   size_t rc, deltamap_t* map)
 {
@@ -1162,13 +1144,6 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
-    case ACTORMSG_DESTROYED:
-    {
-      pony_msgp_t* m = (pony_msgp_t*)msg;
-      actor_destroyed(d, (pony_actor_t*)m->p);
-      break;
-    }
-
     case ACTORMSG_BLOCK:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
@@ -1269,16 +1244,6 @@ bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2)
   return false;
 }
 
-void ponyint_cycle_actor_destroyed(pony_actor_t* actor)
-{
-  // this will only be false during the creation of the cycle detector
-  // and after the runtime has been shut down or if the cycle detector
-  // is being destroyed
-  if(cycle_detector && !ponyint_is_cycle(actor)) {
-    ponyint_sendp_inject(cycle_detector, ACTORMSG_DESTROYED, actor);
-  }
-}
-
 void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
 {
   pony_assert(&actor->gc == gc);
@@ -1308,7 +1273,7 @@ void ponyint_cycle_terminate(pony_ctx_t* ctx)
 {
   ponyint_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
-  ponyint_destroy(ctx, cycle_detector);
+  ponyint_destroy(cycle_detector);
   ponyint_become(ctx, NULL);
   cycle_detector = NULL;
 }

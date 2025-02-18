@@ -17,9 +17,8 @@ PONY_EXTERN_C_BEGIN
 // Reminder: When adding new types, please also update
 // examples/dtrace/telemetry.d
 
-#define ACTORMSG_APPLICATION_START (UINT32_MAX - 11)
-#define ACTORMSG_CHECKBLOCKED (UINT32_MAX - 10)
-#define ACTORMSG_DESTROYED (UINT32_MAX - 9)
+#define ACTORMSG_APPLICATION_START (UINT32_MAX - 9)
+#define ACTORMSG_CHECKBLOCKED (UINT32_MAX - 8)
 #define ACTORMSG_ISBLOCKED (UINT32_MAX - 7)
 #define ACTORMSG_BLOCK (UINT32_MAX - 6)
 #define ACTORMSG_UNBLOCK (UINT32_MAX - 5)
@@ -156,7 +155,7 @@ PONY_API actorstats_t* pony_actor_stats();
 
 void ponyint_unmute_actor(pony_actor_t* actor);
 
-PONY_API void ponyint_destroy(pony_ctx_t* ctx, pony_actor_t* actor);
+PONY_API void ponyint_destroy(pony_actor_t* actor);
 
 #ifdef USE_RUNTIMESTATS
 size_t ponyint_actor_mem_size(pony_actor_t* actor);
