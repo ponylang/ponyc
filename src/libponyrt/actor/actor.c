@@ -769,7 +769,8 @@ void ponyint_actor_destroy(pony_actor_t* actor)
   ctx->schedulerstats.mem_used_actors -= actor->type->size;
   ctx->schedulerstats.mem_allocated_actors -= ponyint_pool_used_size(actor->type->size);
   ctx->schedulerstats.destroyed_actors_counter++;
-  print_actor_stats(actor);
+  if (ponyint_sched_print_stats())
+    print_actor_stats(actor);
 #endif
 
   // Free variable sized actors correctly.
