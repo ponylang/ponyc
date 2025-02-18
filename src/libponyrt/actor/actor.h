@@ -56,8 +56,6 @@ typedef struct pony_actor_t
   messageq_t q;
   // sync flags are access from multiple scheduler threads concurrently
   PONY_ATOMIC(uint8_t) sync_flags;
-  // accessed from the cycle detector and the actor
-  PONY_ATOMIC(uint8_t) cycle_detector_critical;
 
   // keep things accessed by other actors on a separate cache line
   alignas(64) heap_t heap; // 52/104 bytes

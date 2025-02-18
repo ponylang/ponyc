@@ -712,71 +712,37 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
           return !empty;
         }
       } else {
-        // The cycle detector is running so we have to ensure that it doesn't
-        // send a message to the actor while we're in the process of telling
-        // it that it is safe to destroy the actor.
+        // Tell cycle detector that this actor is a zombie and will not get
+        // any more messages/work and can be reaped.
+        // Mark the actor as FLAG_BLOCKED_SENT and send a BLOCKED message
+        // to speed up reaping otherwise waiting for the cycle detector
+        // to get around to asking if we're blocked could result in
+        // unnecessary memory growth.
         //
-        // Before we check if our queue is empty, we need to obtain the
-        // "critical delete" atomic for this actor. The cycle detector will
-        // bail from sending any messages if it can't obtain the atomic.
-        // Similarly, if the actor can't obtain the atomic here, then we do not
-        // attempt any "I can be destroyed" operations as the cycle detector is
-        // in the process of sending us a message.
-        if (ponyint_acquire_cycle_detector_critical(actor))
-        {
-          if(ponyint_messageq_isempty(&actor->q))
-          {
-            // At this point the actors queue is empty and the cycle detector
-            // will not send it any more messages because we "own" the barrier
-            // for sending cycle detector messages to this actor.
-            ponyint_actor_setpendingdestroy(actor);
+        // We're blocked, send block message telling the cycle detector
+        // to reap this actor (because its `rc == 0`).
+        // This is concurrency safe because, only the cycle detector might
+        // have a reference to this actor (rc is 0) so another actor can not
+        // send it an application message that results this actor becoming
+        // unblocked (which would create a race condition).
+        send_block(ctx, actor);
 
-            // Tell cycle detector that this actor is a zombie and will not get
-            // any more messages/work and can be reaped.
-            // Mark the actor as FLAG_BLOCKED_SENT and send a BLOCKED message
-            // to speed up reaping otherwise waiting for the cycle detector
-            // to get around to asking if we're blocked could result in
-            // unnecessary memory growth.
-            //
-            // We're blocked, send block message telling the cycle detector
-            // to reap this actor (because its `rc == 0`).
-            // This is concurrency safe because, only the cycle detector might
-            // have a reference to this actor (rc is 0) so another actor can not
-            // send it an application message that results this actor becoming
-            // unblocked (which would create a race condition) and we've also
-            // ensured that the cycle detector will not send this actor any more
-            // messages (which would also create a race condition).
-            send_block(ctx, actor);
-
-            // mark the queue as empty or else destroy will hang
-            bool empty = ponyint_messageq_markempty(&actor->q);
-
-            // make sure the queue is actually empty as expected
-            pony_assert(empty);
-
-            // "give up" critical section ownership
-            ponyint_release_cycle_detector_critical(actor);
-
-            // make sure the scheduler will not reschedule this actor
-            return !empty;
-          } else {
-            // "give up" critical section ownership
-            ponyint_release_cycle_detector_critical(actor);
-          }
-        }
+        // We have to ensure that this actor will not be rescheduled if the
+        // cycle detector happens to send it a message.
+        //
+        // intentionally don't mark the queue as empty because we don't want
+        // this actor to be rescheduled if the cycle detector sends it a message
+        //
+        // make sure the scheduler will not reschedule this actor
+        return false;
       }
     } else {
       // gc is greater than 0
       if (!actor_noblock && !has_internal_flag(actor, FLAG_CD_CONTACTED))
       {
         // The cycle detector is running and we've never contacted it ourselves,
-        // so let's it know we exist in case it is unaware.
-        if (ponyint_acquire_cycle_detector_critical(actor))
-        {
-          send_block(ctx, actor);
-          // "give up" critical section ownership
-          ponyint_release_cycle_detector_critical(actor);
-        }
+        // so let it know we exist in case it is unaware.
+        send_block(ctx, actor);
       }
     }
   }
@@ -1328,14 +1294,3 @@ size_t ponyint_actor_total_alloc_size(pony_actor_t* actor)
     + POOL_ALLOC_SIZE(pony_msg_t);
 }
 #endif
-
-bool ponyint_acquire_cycle_detector_critical(pony_actor_t* actor)
-{
-  uint8_t expected = 0;
-  return atomic_compare_exchange_strong_explicit(&actor->cycle_detector_critical, &expected, 1, memory_order_acq_rel, memory_order_acquire);
-}
-
-void ponyint_release_cycle_detector_critical(pony_actor_t* actor)
-{
-  atomic_store_explicit(&actor->cycle_detector_critical, 0, memory_order_release);
-}
