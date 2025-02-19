@@ -157,6 +157,8 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
 void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
 
 #ifdef USE_RUNTIMESTATS
+bool ponyint_sched_print_stats();
+
 uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx);
 
 /** Get the static memory used by the scheduler subsystem.

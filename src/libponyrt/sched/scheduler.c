@@ -110,6 +110,12 @@ void print_scheduler_stats(scheduler_t* sched)
         );
 }
 
+/* Get whether stat printing is on */
+bool ponyint_sched_print_stats()
+{
+  return print_stats;
+}
+
 /** Get the static memory used by the scheduler subsystem.
  */
 size_t ponyint_sched_static_mem_size()
@@ -1134,7 +1140,7 @@ static void run(scheduler_t* sched)
   while(true)
   {
 #ifdef USE_RUNTIMESTATS
-    if(print_stats)
+    if(ponyint_sched_print_stats())
     {
       // convert to cycles for use with ponyint_cpu_tick()
       // 1 second = 2000000000 cycles (approx.)
@@ -1219,7 +1225,8 @@ static void run(scheduler_t* sched)
 #ifdef USE_RUNTIMESTATS
         uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
         sched->ctx.schedulerstats.misc_cpu += used_cpu;
-        print_scheduler_stats(sched);
+        if(ponyint_sched_print_stats())
+          print_scheduler_stats(sched);
 #endif
 
         // Termination.
@@ -1427,7 +1434,7 @@ static void run_pinned_actors()
   while(true)
   {
 #ifdef USE_RUNTIMESTATS
-    if(print_stats)
+    if(ponyint_sched_print_stats())
     {
       // convert to cycles for use with ponyint_cpu_tick()
       // 1 second = 2000000000 cycles (approx.)
@@ -1454,8 +1461,9 @@ static void run_pinned_actors()
     if(sched->terminate)
     {
 #ifdef USE_RUNTIMESTATS
-        uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
-        sched->ctx.schedulerstats.misc_cpu += used_cpu;
+      uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
+      sched->ctx.schedulerstats.misc_cpu += used_cpu;
+      if(ponyint_sched_print_stats())
         print_scheduler_stats(sched);
 #endif
 
@@ -1484,7 +1492,7 @@ static void run_pinned_actors()
       uint64_t clocks_elapsed = tsc2 - tsc;
 
       // We had an empty queue and no actor. need to suspend or sleep only if
-      // mutemap is empty as this thread doesn't participate in work stealing 
+      // mutemap is empty as this thread doesn't participate in work stealing
       if(ponyint_mutemap_size(&sched->mute_mapping) == 0 && clocks_elapsed > scheduler_suspend_threshold)
       {
         // suspend
