@@ -4,3 +4,7 @@ The logic in the actor run and the cycle detector work together to enable fast r
 
 This commit changes things to remove the need to protect the logic with critical sections. It achieves this by ensuring that an actor with rc == 0 that the cycle detector knows about will never be rescheduled again even if the cycle detector happens to send it a message and the cycle detector is free to reap the actor when it receives the block message. The cycle detector ensures that the actor's message queue is empty or that the only messages pending are the expected ones from the cycle detector so it can safely destroy the actor.
 
+## Fix incorrect printing of runtime stats
+
+When the runtime was compiled with the runtime stats option on, some stats were being printed to standard out without them having been requested. We've fixed the issue so stats will only be printed if the option is turned on by the user.
+
