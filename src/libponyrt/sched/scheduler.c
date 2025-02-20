@@ -1305,8 +1305,6 @@ static DECLARE_THREAD_FN(run_thread)
 #endif
 
   run(sched);
-
-  ponyint_mpmcq_cleanup();
   ponyint_pool_thread_cleanup();
 
   return 0;
@@ -1803,7 +1801,6 @@ bool ponyint_sched_start(bool library)
     ponyint_sched_shutdown();
   }
 
-  ponyint_mpmcq_cleanup();
   ponyint_pool_thread_cleanup();
 
   while(ponyint_thread_messageq_pop(&this_scheduler->mq

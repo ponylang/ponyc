@@ -24,8 +24,6 @@ void ponyint_mpmcq_init(mpmcq_t* q);
 
 void ponyint_mpmcq_destroy(mpmcq_t* q);
 
-void ponyint_mpmcq_cleanup();
-
 void ponyint_mpmcq_push(mpmcq_t* q, void* data);
 
 void ponyint_mpmcq_push_single(mpmcq_t* q, void* data);
