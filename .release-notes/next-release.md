@@ -8,3 +8,7 @@ This commit changes things to remove the need to protect the logic with critical
 
 When the runtime was compiled with the runtime stats option on, some stats were being printed to standard out without them having been requested. We've fixed the issue so stats will only be printed if the option is turned on by the user.
 
+## Fix memory leak
+
+In the process of fixing a "in theory could be use after free" that tooling found, we created a real memory leak. We've reverted back to the "in theory bad, in practice not" code from before and fixed the leak.
+
