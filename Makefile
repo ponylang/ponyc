@@ -78,7 +78,7 @@ srcDir := $(shell dirname '$(subst /Volumes/Macintosh HD/,/,$(realpath $(lastwor
 buildDir := $(srcDir)/build/build_$(config)
 
 # get outDir from CMake install file or fall back to default if the file doesn't exist
-outDir := $(subst /libponyrt.tests,,$(shell grep -o -s '$(srcDir)\/build\/$(config).*\/libponyrt.tests' $(buildDir)/cmake_install.cmake))
+outDir := $(subst /libponyrt.tests,,$(shell grep -o -s '$(srcDir)/build/$(config).*/libponyrt.tests' $(buildDir)/cmake_install.cmake))
 ifeq ($(outDir),)
   outDir := $(srcDir)/build/$(config)
 endif
