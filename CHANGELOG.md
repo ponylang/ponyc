@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix use-after-free triggered by fast actor reaping when the cycle detector is active ([PR #4616](https://github.com/ponylang/ponyc/pull/4616))
 - Fix incorrect printing of runtime stats ([PR #4620](https://github.com/ponylang/ponyc/pull/4620))
 - Fix memory leak ([PR #4621](https://github.com/ponylang/ponyc/pull/4621))
+- Fix being unable to compile programs that use runtime info on Windows ([PR #4625](https://github.com/ponylang/ponyc/pull/4625))
 
 ### Added
 
