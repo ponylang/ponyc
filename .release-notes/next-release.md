@@ -12,3 +12,7 @@ When the runtime was compiled with the runtime stats option on, some stats were 
 
 In the process of fixing a "in theory could be use after free" that tooling found, we created a real memory leak. We've reverted back to the "in theory bad, in practice not" code from before and fixed the leak.
 
+## Fix being unable to compile programs that use runtime info on Windows
+
+We accidentally weren't properly exporting the Pony runtime methods needed by the "runtime_info" package so that they could be linked on Windows.
+
