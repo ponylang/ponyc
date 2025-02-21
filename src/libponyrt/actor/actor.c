@@ -22,6 +22,8 @@
 // default actor batch size
 #define PONY_SCHED_BATCH 100
 
+PONY_EXTERN_C_BEGIN
+
 // Ignore padding at the end of the type.
 pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
    sizeof(pony_actor_pad_t), "Wrong actor pad size!");
@@ -1281,3 +1283,5 @@ size_t ponyint_actor_total_alloc_size(pony_actor_t* actor)
     + POOL_ALLOC_SIZE(pony_msg_t);
 }
 #endif
+
+PONY_EXTERN_C_END

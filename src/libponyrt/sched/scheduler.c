@@ -20,6 +20,8 @@
 
 #define PONY_SCHED_BLOCK_THRESHOLD 1000000
 
+PONY_EXTERN_C_BEGIN
+
 static DECLARE_THREAD_FN(run_thread);
 
 typedef enum
@@ -2158,3 +2160,5 @@ PONY_API int32_t pony_sched_index(pony_ctx_t* ctx)
 {
   return ctx->scheduler->index;
 }
+
+PONY_EXTERN_C_END
