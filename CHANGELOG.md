@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.11] - 2025-02-22
 
 ### Fixed
 
@@ -10,12 +10,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix incorrect printing of runtime stats ([PR #4620](https://github.com/ponylang/ponyc/pull/4620))
 - Fix memory leak ([PR #4621](https://github.com/ponylang/ponyc/pull/4621))
 - Fix being unable to compile programs that use runtime info on Windows ([PR #4625](https://github.com/ponylang/ponyc/pull/4625))
-
-### Added
-
-
-### Changed
-
 
 ## [0.58.10] - 2025-02-01
 
