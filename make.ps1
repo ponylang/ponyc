@@ -437,7 +437,7 @@ switch ($Command.ToLower())
         }
         break
     }
-    "stress-test-release"
+    "stress-test-ubench-release"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
@@ -448,7 +448,7 @@ switch ($Command.ToLower())
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
-    "stress-test-with-cd-release"
+    "stress-test-ubench-with-cd-release"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
@@ -459,7 +459,7 @@ switch ($Command.ToLower())
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
-    "stress-test-debug"
+    "stress-test-ubench-debug"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
@@ -470,13 +470,57 @@ switch ($Command.ToLower())
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
-    "stress-test-with-cd-debug"
+    "stress-test-ubench-with-cd-debug"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-tcp-open-close-release"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-tcp-open-close-with-cd-release"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-tcp-open-close-debug"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        $err = $LastExitCode
+        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        break
+    }
+    "stress-test-tcp-open-close-with-cd-debug"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        & $lldbcmd $lldbargs $outDir\open-close.exe 1000
         $err = $LastExitCode
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
