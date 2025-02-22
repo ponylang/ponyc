@@ -17,38 +17,70 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             name: x86-64-unknown-linux-ubuntu24.04 [release]
-            target: test-stress-release
+            target: test-stress-ubench-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             name: x86-64-unknown-linux-ubuntu24.04 [debug]
-            target: test-stress-debug
+            target: test-stress-ubench-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             name: x86-64-unknown-linux-ubuntu24.04 [cd] [release]
-            target: test-stress-with-cd-release
+            target: test-stress-ubench-with-cd-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             name: x86-64-unknown-linux-ubuntu24.04 [cd] [debug]
-            target: test-stress-with-cd-debug
+            target: test-stress-ubench-with-cd-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
             name: x86-64-unknown-linux-musl [release]
-            target: test-stress-release
+            target: test-stress-ubench-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
             name: x86-64-unknown-linux-musl [debug]
-            target: test-stress-debug
+            target: test-stress-ubench-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
             name: x86-64-unknown-linux-musl [cd] [release]
-            target: test-stress-with-cd-release
+            target: test-stress-ubench-with-cd-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
             name: x86-64-unknown-linux-musl [cd] [debug]
-            target: test-stress-with-cd-debug
+            target: test-stress-ubench-with-cd-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [release]
+            target: test-stress-tcp-open-close-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [debug]
+            target: test-stress-tcp-open-close-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [cd] [release]
+            target: test-stress-tcp-open-close-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [cd] [debug]
+            target: test-stress-tcp-open-close-with-cd-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [release]
+            target: test-stress-tcp-open-close-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [debug]
+            target: test-stress-tcp-open-close-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [cd] [release]
+            target: test-stress-tcp-open-close-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [cd] [debug]
+            target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
 
-    name: ${{ matrix.name }}
+    name: ${{matrix.target}}:${{ matrix.name }}
     container:
       image: ${{ matrix.image }}
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
@@ -98,22 +130,38 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64-unknown-linux-ubuntu24.04 [release]
-            target: test-stress-release
+            target: test-stress-ubench-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64-unknown-linux-ubuntu24.04 [debug]
-            target: test-stress-debug
+            target: test-stress-ubench-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64-unknown-linux-ubuntu24.04 [cd] [release]
-            target: test-stress-with-cd-release
+            target: test-stress-ubench-with-cd-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
-            target: test-stress-with-cd-debug
+            target: test-stress-ubench-with-cd-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [release]
+            target: test-stress-tcp-open-close-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [debug]
+            target: test-stress-tcp-open-close-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [release]
+            target: test-stress-tcp-open-close-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
+            target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
 
-    name: ${{ matrix.name }}
+    name: ${{matrix.target}}:${{ matrix.name }}
     container:
       image: ${{ matrix.image }}
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
@@ -165,15 +213,23 @@ jobs:
       matrix:
         include:
           - name: "x86-64 Windows [release]"
-            target: stress-test-release
+            target: stress-test-ubench-release
           - name: "x86-64 Windows [debug]"
-            target: stress-test-debug
+            target: stress-test-ubench-debug
           - name: "x86-64 Windows [cd] [release]"
-            target: stress-test-with-cd-release
+            target: stress-test-ubench-with-cd-release
           - name: "x86-64 Windows [cd] [debug]"
-            target: stress-test-with-cd-debug
+            target: stress-test-ubench-with-cd-debug
+          - name: "x86-64 Windows [release]"
+            target: stress-test-tcp-open-close-release
+          - name: "x86-64 Windows [debug]"
+            target: stress-test-tcp-open-close-debug
+          - name: "x86-64 Windows [cd] [release]"
+            target: stress-test-tcp-open-close-with-cd-release
+          - name: "x86-64 Windows [cd] [debug]"
+            target: stress-test-tcp-open-close-with-cd-debug
 
-    name: ${{ matrix.name }}
+    name: ${{matrix.target}}:${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
@@ -222,15 +278,23 @@ jobs:
       matrix:
         include:
           - name: "x86-64 macOS [release]"
-            target: test-stress-release
+            target: test-stress-ubench-release
           - name: "x86-64 macOS [debug]"
-            target: test-stress-debug
+            target: test-stress-ubench-debug
           - name: "x86-64 macOS [cd] [release]"
-            target: test-stress-with-cd-release
+            target: test-stress-ubench-with-cd-release
           - name: "x86-64 macOS [cd] [debug]"
-            target: test-stress-with-cd-debug
+            target: test-stress-ubench-with-cd-debug
+          - name: "x86-64 macOS [release]"
+            target: test-stress-tcp-open-close-release
+          - name: "x86-64 macOS [debug]"
+            target: test-stress-tcp-open-close-debug
+          - name: "x86-64 macOS [cd] [release]"
+            target: test-stress-tcp-open-close-with-cd-release
+          - name: "x86-64 macOS [cd] [debug]"
+            target: test-stress-tcp-open-close-with-cd-debug
 
-    name: ${{ matrix.name }}
+    name: ${{matrix.target}}:${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
