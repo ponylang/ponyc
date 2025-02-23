@@ -332,3 +332,66 @@ jobs:
           type: stream
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  arm64-macos:
+    runs-on: macos-14
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "arm64 macOS [release]"
+            target: test-stress-ubench-release
+          - name: "arm64 macOS [debug]"
+            target: test-stress-ubench-debug
+          - name: "arm64 macOS [cd] [release]"
+            target: test-stress-ubench-with-cd-release
+          - name: "arm64 macOS [cd] [debug]"
+            target: test-stress-ubench-with-cd-debug
+          - name: "arm64 macOS [release]"
+            target: test-stress-tcp-open-close-release
+          - name: "arm64 macOS [debug]"
+            target: test-stress-tcp-open-close-debug
+          - name: "arm64 macOS [cd] [release]"
+            target: test-stress-tcp-open-close-with-cd-release
+          - name: "arm64 macOS [cd] [debug]"
+            target: test-stress-tcp-open-close-with-cd-debug
+
+    name: ${{matrix.target}}:${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Configure networking
+        run: bash .ci-scripts/macOS-configure-networking.bash
+      - name: Run Stress Test
+        run: make ${{ matrix.target }} config=debug usedebugger=lldb
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
