@@ -66,9 +66,9 @@ actor _Tester
     // find ponyc executable
     let ponyc_file_path =
       try
-        _FindExecutable(_env, _options.ponyc)?
+        _FindExecutable(_env, _options.compiler_path)?
       else
-        _shutdown_failed("unable to find executable: " + _options.ponyc)
+        _shutdown_failed("unable to find executable: " + _options.compiler_path)
         return
       end
 

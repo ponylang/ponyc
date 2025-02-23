@@ -3,7 +3,7 @@ use "collections"
 
 class val _Options
   let test_path: String
-  let ponyc: String
+  let compiler_path: String
   let output: String
   let pony_path: String
   let test_lib: String
@@ -18,7 +18,7 @@ class val _Options
   new create(command: Command) =>
     test_path = command.arg(_CliOptions._str_test_path()).string()
 
-    ponyc = command.option(_CliOptions._str_ponyc()).string()
+    compiler_path = command.option(_CliOptions._compiler_path()).string()
     output = command.option(_CliOptions._str_output()).string()
     pony_path = command.option(_CliOptions._str_pony_path()).string()
     test_lib = command.option(_CliOptions._str_test_lib()).string()
@@ -45,7 +45,7 @@ class val _Options
 
 primitive _CliOptions
   fun _str_test_path(): String => "test_path"
-  fun _str_ponyc(): String => "ponyc"
+  fun _compiler_path(): String => "compiler"
   fun _str_output(): String => "output"
   fun _str_pony_path(): String => "pony_path"
   fun _str_test_lib(): String => "test_lib"
@@ -61,7 +61,7 @@ primitive _CliOptions
     let spec =
       recover val
         CommandSpec.leaf("runner", "Test runner for Pony compiler tests", [
-          OptionSpec.string(_str_ponyc(), "Path to the ponyc binary"
+          OptionSpec.string(_compiler_path(), "Path to the ponyc binary"
             where short' = 'c', default' = "ponyc")
           OptionSpec.string(_str_output(), "Output directory for test programs"
             where short' = 'o', default' = ".")
