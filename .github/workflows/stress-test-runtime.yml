@@ -317,6 +317,8 @@ jobs:
         run: |
           make configure arch=x86-64 config=debug
           make build config=debug
+      - name: Configure networking
+        run: bash .ci-scripts/macOS-configure-networking.bash
       - name: Run Stress Test
         run: make ${{ matrix.target }} config=debug usedebugger=lldb
       - name: Send alert on failure
