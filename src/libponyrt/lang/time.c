@@ -109,11 +109,32 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
   // Bail out on strftime formats that can produce a zero-length string.
   if((fmt[0] == '\0') || !strcmp(fmt, "%p") || !strcmp(fmt, "%P"))
   {
-    buffer = (char*)pony_alloc(ctx, 1);
+    char* buffer = (char*)pony_alloc(ctx, 1);
     buffer[0] = '\0';
     return buffer;
   }
 
+  // Check if the format string contains only `%p` and/or `%P`
+  // This addresses https://github.com/ponylang/ponyc/issues/4446
+
+  bool only_p_or_P = true;
+  const char* p = fmt;
+
+  while (*p && only_p_or_P) {
+      if (*p != '%' || (p[1] != 'p' && p[1] != 'P')) {
+          only_p_or_P = false;
+      } else {
+          p += 2;  // Skip both '%' and 'p'/'P'
+      }
+  }
+
+  if (only_p_or_P) {
+      char* buffer = (char*)pony_alloc(ctx, 1);
+      buffer[0] = '\0';
+      return buffer;
+  }
+
+  // Our real logic here
   struct tm tm;
   date_to_tm(date, &tm);
 
