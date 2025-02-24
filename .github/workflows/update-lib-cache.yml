@@ -106,7 +106,7 @@ jobs:
         run: make libs build_flags=-j8
 
   x86_64-windows:
-    runs-on: windows-2022
+    runs-on: windows-2025
 
     name: x86-64 Windows MSVC
     steps:
@@ -117,7 +117,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/libs
-          key: libs-windows-2022-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs
