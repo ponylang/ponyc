@@ -1,0 +1,76 @@
+name: Test With Latest Tools
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+
+concurrency:
+  group: "test-with-latest-tools"
+
+permissions:
+  packages: write
+
+jobs:
+  rebuild-test-environment:
+    name: Update arch builder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Build and Push
+        run: bash .ci-dockerfiles/x86-64-unknown-linux-arch-builder/build-and-push.bash
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  build-and-test-ponyc:
+    needs: rebuild-test-environment
+
+    name: Build and Test ponyc
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-arch-builder:latest
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Build Libs
+        run: make libs build_flags=-j8
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger=lldb
+      - name: Build Release Runtime
+        run: |
+          make configure config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger=lldb
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
