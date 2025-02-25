@@ -166,7 +166,18 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
       case TK_BE:
       case TK_FUN:
       {
-        if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
+        // If the method definition is inherited from a trait then we don't
+        // want to check "private" here. It should only be checked in the
+        // context of the original trait.
+        bool skip_check = false;
+        ast_t* body_donor = (ast_t*)ast_data(find);
+        if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
+         && (opt->check.frame->type != body_donor))
+        {
+          skip_check = true;
+        }
+
+        if(!skip_check && (ast_nearest(def, TK_PACKAGE) != t->frame->package))
         {
           if(errors)
           {
