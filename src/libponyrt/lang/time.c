@@ -107,13 +107,39 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
   char* buffer;
 
   // Bail out on strftime formats that can produce a zero-length string.
-  if((fmt[0] == '\0') || !strcmp(fmt, "%p") || !strcmp(fmt, "%P"))
+  if((fmt[0] == '\0')
+    || !strcmp(fmt, "%p")
+    || !strcmp(fmt, "%P")
+    || !strcmp(fmt, "%z")
+    || !strcmp(fmt, "%Z"))
   {
-    buffer = (char*)pony_alloc(ctx, 1);
+    char* buffer = (char*)pony_alloc(ctx, 1);
     buffer[0] = '\0';
     return buffer;
   }
 
+  // Check if the format string contains only %p, %P, %z, and/or %Z.
+  // This addresses https://github.com/ponylang/ponyc/issues/4446
+
+  bool only_possible_zeros = true;
+  const char* p = fmt;
+
+  while (*p && only_possible_zeros) {
+      if (*p != '%'
+          || (p[1] != 'p' && p[1] != 'P' && p[1] != 'z' && p[1] != 'Z')) {
+        only_possible_zeros = false;
+      } else {
+          p += 2;  // Skip both '%' and 'p'/'P'
+      }
+  }
+
+  if (only_possible_zeros) {
+      char* buffer = (char*)pony_alloc(ctx, 1);
+      buffer[0] = '\0';
+      return buffer;
+  }
+
+  // Our real logic here
   struct tm tm;
   date_to_tm(date, &tm);
 
