@@ -6,6 +6,7 @@ RUN pacman -Syyu --noconfirm \
  && pacman -S --noconfirm \
  clang \
  cmake \
+ diffutils \
  git \
  lldb \
  make
