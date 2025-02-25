@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Don't duplicate match checks for inherited trait bodies ([PR #4628](https://github.com/ponylang/ponyc/pull/4628))
+- Don't duplicate visibility tests for inherited trait bodies ([PR #4632](https://github.com/ponylang/ponyc/pull/4632))
 
 ### Added
 
