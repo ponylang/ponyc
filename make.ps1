@@ -437,6 +437,34 @@ switch ($Command.ToLower())
         }
         break
     }
+    "build-examples"
+    {
+        # Find all .pony files in examples directory, get their unique directories, and build each one
+        $examples = Get-ChildItem -Path "$srcDir\examples\*\*" -Filter "*.pony" -Recurse |
+                Select-Object -ExpandProperty Directory -Unique |
+                Where-Object { $_.FullName -notlike "*ffi-*" } |
+                Select-Object -ExpandProperty FullName
+
+        $failed = @()
+        foreach ($example in $examples)
+        {
+            Write-Output "Building example: $example"
+            & $outDir\ponyc.exe -d -s --checktree -o "$example" "$example"
+            if ($LastExitCode -ne 0)
+            {
+                $failed += $example
+                Write-Output "Failed to build example: $example"
+            }
+        }
+
+        if ($failed.Count -gt 0)
+        {
+            Write-Output "Failed to build the following examples:"
+            $failed | ForEach-Object { Write-Output "  $_" }
+            throw "Some examples failed to build"
+        }
+        break
+    }
     "stress-test-ubench-release"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'

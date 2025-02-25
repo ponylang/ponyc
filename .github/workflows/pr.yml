@@ -434,6 +434,8 @@ jobs:
           .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
         run: .\make.ps1 -Command test -Config Release -Uselldb yes
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
 
   use_directives:
     runs-on: ubuntu-latest
