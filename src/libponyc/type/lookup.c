@@ -166,16 +166,23 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
       case TK_BE:
       case TK_FUN:
       {
-        // If the method definition is inherited from a trait then we don't
-        // want to check "private" here. It should only be checked in the
-        // context of the original trait.
+        // Given that we can pick up method bodies from default methods on
+        // traits, we need to allow the lookup of private methods from within
+        // the same package.
+        // We do this by getting the method we are calling from:
+        //
+        // t->frame->method
+        //
+        // And getting its body donor.
+        // If the body_donor is a trait then check if that trait is in the same
+        // package the method we are trying to lookup is defined in.
+        //
+        // If the method we are looking up is in the same package as the trait
+        // that we got our method body from then we can allow the lookup.
         bool skip_check = false;
-        ast_t* body_donor = (ast_t*)ast_data(find);
-        if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
-         && (opt->check.frame->type != body_donor))
-        {
-          skip_check = true;
-        }
+        ast_t* body_donor = (ast_t*)ast_data(t->frame->method);
+        if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT) && (ast_nearest(find, TK_PACKAGE) == ast_nearest(body_donor, TK_PACKAGE)))
+           skip_check = true;
 
         if(!skip_check && (ast_nearest(def, TK_PACKAGE) != t->frame->package))
         {
