@@ -225,7 +225,7 @@ int ponyint_opt_next(opt_state_t* s)
   }
   else if(m == (opt_arg_t*)2)
   {
-    printf("%s: Unrecognised pony runtime option: '%s'!\nRun '%s --ponyhelp' for available pony runtime options.\n", s->argv[0], s->argv[s->idx], s->argv[0]);
+    printf("%s: Unrecognised pony runtime option: '%s'!\nRun '%s --ponyhelp' for available pony runtime options.\nIf you're trying to use this as an application argument, you'll need to rename it to not include the '--pony' prefix.\n", s->argv[0], s->argv[s->idx], s->argv[0]);
     return -2;
   }
 
