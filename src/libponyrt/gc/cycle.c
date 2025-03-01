@@ -818,11 +818,14 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
 static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
   size_t rc, deltamap_t* map)
 {
-  if (rc == 0)
+  if ((rc == 0) && (actor->live_asio_events == 0))
   {
-    // if rc == 0 then this is a zombie actor with no references left to it
+    // IF rc == 0
+    // AND actor->live_asio_events == 0
+    // THEN this is a zombie actor with no references left to it
     // - the actor blocked because it has no messages in its queue
     // - there's no references to this actor because rc == 0
+    // - there's no live ASIO events for this actor because live_asio_events == 0
     // therefore the actor is a zombie and can be reaped.
 
     view_t* view = get_view(d, actor, false);
