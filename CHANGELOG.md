@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.12] - 2025-03-01
 
 ### Fixed
 
 - Don't duplicate match checks for inherited trait bodies ([PR #4628](https://github.com/ponylang/ponyc/pull/4628))
 - Don't duplicate visibility tests for inherited trait bodies ([PR #4640](https://github.com/ponylang/ponyc/pull/4640))
-
-### Added
-
-
-### Changed
-
 
 ## [0.58.11] - 2025-02-22
 
