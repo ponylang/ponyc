@@ -25,8 +25,7 @@
 PONY_EXTERN_C_BEGIN
 
 // Ignore padding at the end of the type.
-pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
-   sizeof(pony_actor_pad_t), "Wrong actor pad size!");
+pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) == sizeof(pony_actor_pad_t), "Wrong actor pad size!");
 
 static bool actor_noblock = false;
 
@@ -660,13 +659,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
   if (has_internal_flag(actor, FLAG_BLOCKED))
   {
-    if (actor->gc.rc == 0)
+    if ((actor->gc.rc == 0) && (actor->live_asio_events == 0))
     {
       // Here, we is what we know to be true:
       //
       // - the actor is blocked
       // - the actor likely has no messages in its queue
-      // - there's no references to this actor
+      // - there's no references to this actor from other actors
+      // - there's no live events for this actor in the ASIO subsystem
       //
 
       if (actor_noblock || !has_internal_flag(actor, FLAG_RC_OVER_ZERO_SEEN))
