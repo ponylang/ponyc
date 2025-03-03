@@ -30,6 +30,8 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->writeable = false;
   ev->readable = false;
 
+  owner->live_asio_events = owner->live_asio_events + 1;
+
   // The event is effectively being sent to another thread, so mark it here.
   pony_ctx_t* ctx = pony_ctx();
   pony_gc_send(ctx);
@@ -60,6 +62,9 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
   }
 
   ev->flags = ASIO_DESTROYED;
+
+  pony_assert(ev->owner->live_asio_events > 0);
+  ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
 
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.

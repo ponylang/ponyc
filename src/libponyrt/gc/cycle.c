@@ -145,6 +145,7 @@ typedef struct block_msg_t
   pony_msg_t msg;
   pony_actor_t* actor;
   size_t rc;
+  uint32_t live_asio_events;
   deltamap_t* delta;
 } block_msg_t;
 
@@ -816,10 +817,12 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
 }
 
 static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
-  size_t rc, deltamap_t* map)
+  size_t rc, uint32_t live_asio_events, deltamap_t* map)
 {
   if (rc == 0)
   {
+    (void)live_asio_events;
+    pony_assert(live_asio_events == 0);
     // if rc == 0 then this is a zombie actor with no references left to it
     // - the actor blocked because it has no messages in its queue
     // - there's no references to this actor because rc == 0
@@ -1152,7 +1155,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 #endif
 
       block_msg_t* m = (block_msg_t*)msg;
-      block(d, ctx, m->actor, m->rc, m->delta);
+      block(d, ctx, m->actor, m->rc, m->live_asio_events, m->delta);
       break;
     }
 
@@ -1253,6 +1256,7 @@ void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
 
   m->actor = actor;
   m->rc = ponyint_gc_rc(gc);
+  m->live_asio_events = actor->live_asio_events;
   m->delta = ponyint_gc_delta(gc);
   pony_assert(gc->delta == NULL);
 
