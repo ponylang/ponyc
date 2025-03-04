@@ -659,6 +659,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   {
     if (actor->gc.rc == 0)
     {
+      pony_assert(actor->live_asio_events == 0);
       // Here, we is what we know to be true:
       //
       // - the actor is blocked

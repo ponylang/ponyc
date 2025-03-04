@@ -61,6 +61,7 @@ typedef struct pony_actor_t
   size_t muted; // 4/8 bytes
   // internal flags are only ever accessed from a single scheduler thread
   uint8_t internal_flags; // 4/8 bytes (after alignment)
+  uint32_t live_asio_events;
 #ifdef USE_RUNTIMESTATS
   actorstats_t actorstats; // 64/128 bytes
 #endif
@@ -73,7 +74,7 @@ typedef struct pony_actor_t
 /** Padding for actor types.
  *
  * Size of pony_actor_t minus the padding at the end and the pony_type_t* at the beginning.
- * 
+ *
  */
 #define PONY_ACTOR_PAD_SIZE (offsetof(pony_actor_t, gc) + sizeof(gc_t) - sizeof(pony_type_t*))
 
