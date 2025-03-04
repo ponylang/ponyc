@@ -15,9 +15,9 @@ typedef struct scheduler_t scheduler_t;
 #include <platform.h>
 #include "mutemap.h"
 
-#define SPECIAL_THREADID_KQUEUE   -10
-#define SPECIAL_THREADID_IOCP     -11
-#define SPECIAL_THREADID_EPOLL    -12
+#define PONY_KQUEUE_SCHEDULER_INDEX   -10
+#define PONY_IOCP_SCHEDULER_INDEX     -11
+#define PONY_EPOLL_SCHEDULER_INDEX    -12
 #define PONY_UNKNOWN_SCHEDULER_INDEX -1
 
 // the `-999` constant is the same value that is hardcoded in `actor_pinning.pony`
@@ -140,6 +140,8 @@ PONY_API uint32_t pony_active_schedulers();
 PONY_API int32_t pony_scheduler_index();
 
 PONY_API schedulerstats_t* pony_scheduler_stats();
+
+void ponyint_register_asio_thread();
 
 /** Mark asio as being noisy
  */

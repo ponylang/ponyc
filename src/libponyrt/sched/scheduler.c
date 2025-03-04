@@ -1883,6 +1883,7 @@ PONY_API void pony_register_thread()
   memset(this_scheduler, 0, sizeof(scheduler_t));
   this_scheduler->tid = ponyint_thread_self();
   this_scheduler->index = PONY_UNKNOWN_SCHEDULER_INDEX;
+  this_scheduler->ctx.scheduler = this_scheduler;
 }
 
 PONY_API void pony_unregister_thread()
@@ -1900,6 +1901,12 @@ PONY_API pony_ctx_t* pony_ctx()
 {
   pony_assert(this_scheduler != NULL);
   return &this_scheduler->ctx;
+}
+
+void ponyint_register_asio_thread()
+{
+  pony_register_thread();
+  this_scheduler->index = PONY_ASIO_SCHEDULER_INDEX;
 }
 
 // Tell all scheduler threads that asio is noisy

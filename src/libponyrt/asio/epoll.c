@@ -45,7 +45,7 @@ static void send_request(asio_event_t* ev, int req)
   msg->flags = req;
   ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
 #ifdef USE_DYNAMIC_TRACE
-    , SPECIAL_THREADID_EPOLL, SPECIAL_THREADID_EPOLL
+    , pony_scheduler_index(), pony_scheduler_index()
 #endif
     );
 
@@ -85,7 +85,7 @@ static void handle_queue(asio_backend_t* b)
 
   while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
 #ifdef USE_DYNAMIC_TRACE
-    , SPECIAL_THREADID_EPOLL
+    , pony_scheduler_index()
 #endif
     )) != NULL)
   {
@@ -206,7 +206,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
-  pony_register_thread();
+  ponyint_register_asio_thread();
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 
@@ -367,7 +367,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // tell scheduler threads that asio has at least one noisy actor
     // if the old_count was 0
     if (old_count == 0)
-      ponyint_sched_noisy_asio(SPECIAL_THREADID_EPOLL);
+      ponyint_sched_noisy_asio(pony_scheduler_index());
   }
 
   struct epoll_event ep;
