@@ -56,7 +56,7 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
     // tell scheduler threads that asio has no noisy actors
     // if the old_count was 1
     if (old_count == 1)
-      ponyint_sched_unnoisy_asio(PONY_UNKNOWN_SCHEDULER_INDEX);
+      ponyint_sched_unnoisy_asio(pony_scheduler_index());
 
     ev->noisy = false;
   }
@@ -134,7 +134,7 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
 #ifdef PLATFORM_IS_WINDOWS
   // On Windows, this can be called from an IOCP callback thread, which may
   // not have a pony_ctx() associated with it yet.
-  pony_register_thread();
+  ponyint_register_asio_thread();
 #endif
 
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
@@ -149,5 +149,5 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   ponyint_sendv_inject(ev->owner, &m->msg);
 
   // maybe wake up a scheduler thread if they've all fallen asleep
-  ponyint_sched_maybe_wakeup_if_all_asleep(PONY_UNKNOWN_SCHEDULER_INDEX);
+  ponyint_sched_maybe_wakeup_if_all_asleep(pony_scheduler_index());
 }
