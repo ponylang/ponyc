@@ -291,11 +291,14 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 #endif
 }
 
-static void send_unblock(pony_actor_t* actor)
+static void unblock(pony_actor_t* actor)
 {
-  // Send unblock before continuing.
-  unset_internal_flag(actor, FLAG_BLOCKED | FLAG_BLOCKED_SENT);
-  ponyint_cycle_unblock(actor);
+  if(has_internal_flag(actor, FLAG_BLOCKED_SENT)) {
+    unset_internal_flag(actor, FLAG_BLOCKED | FLAG_BLOCKED_SENT);
+    ponyint_cycle_unblock(actor);
+  } else {
+    unset_internal_flag(actor, FLAG_BLOCKED);
+  }
 }
 
 static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -349,11 +352,10 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         + ponyint_objectmap_total_alloc_size(&((actorref_t*)m->p)->map));
 #endif
 
-      if(ponyint_gc_acquire(&actor->gc, (actorref_t*)m->p) &&
-        has_internal_flag(actor, FLAG_BLOCKED_SENT))
+      if(ponyint_gc_acquire(&actor->gc, (actorref_t*)m->p))
       {
         // send unblock if we've sent a block
-        send_unblock(actor);
+        unblock(actor);
       }
 
       return false;
@@ -376,11 +378,10 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         + ponyint_objectmap_total_alloc_size(&((actorref_t*)m->p)->map));
 #endif
 
-      if(ponyint_gc_release(&actor->gc, (actorref_t*)m->p) &&
-        has_internal_flag(actor, FLAG_BLOCKED_SENT))
+      if(ponyint_gc_release(&actor->gc, (actorref_t*)m->p))
       {
         // send unblock if we've sent a block
-        send_unblock(actor);
+        unblock(actor);
       }
 
       return false;
@@ -491,11 +492,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
-      if(has_internal_flag(actor, FLAG_BLOCKED_SENT))
-      {
-        // send unblock if we've sent a block
-        send_unblock(actor);
-      }
+      unblock(actor);
 
       DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
