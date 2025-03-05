@@ -2,6 +2,8 @@
 
 #include "tracing.h"
 
+#if defined(USE_RUNTIME_TRACING)
+
 #include <fnmatch.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -18,8 +20,6 @@
 #if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
 #  include <execinfo.h>
 #endif
-
-#if defined(USE_RUNTIME_TRACING)
 
 #define PONY_TRACING_THREAD_INDEX -998
 #define PONY_TRACING_MAX_STACK_FRAME_DEPTH 256
