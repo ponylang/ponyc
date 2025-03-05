@@ -1,0 +1,166 @@
+name: Linux TCP Open/Close Stress Tests
+
+on:
+  schedule:
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA to test'
+        required: true
+        type: string
+        default: 'main'
+
+permissions:
+  packages: read
+
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [release]
+            target: test-stress-tcp-open-close-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [debug]
+            target: test-stress-tcp-open-close-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [cd] [release]
+            target: test-stress-tcp-open-close-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64-unknown-linux-ubuntu24.04 [cd] [debug]
+            target: test-stress-tcp-open-close-with-cd-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [release]
+            target: test-stress-tcp-open-close-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [debug]
+            target: test-stress-tcp-open-close-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [cd] [release]
+            target: test-stress-tcp-open-close-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64-unknown-linux-musl [cd] [debug]
+            target: test-stress-tcp-open-close-with-cd-debug
+            debugger: lldb
+
+    name: ${{matrix.target}}:${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Run Stress Test
+        run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}failed.
+
+  aarch64-linux:
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [release]
+            target: test-stress-tcp-open-close-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [debug]
+            target: test-stress-tcp-open-close-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [release]
+            target: test-stress-tcp-open-close-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
+            name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
+            target: test-stress-tcp-open-close-with-cd-debug
+            debugger: lldb
+
+    name: ${{matrix.target}}:${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=armv8-a config=debug
+          make build config=debug
+      - name: Run Stress Test
+        run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }}failed.
