@@ -24,18 +24,6 @@ PONY_EXTERN_C_BEGIN
 
 static DECLARE_THREAD_FN(run_thread);
 
-typedef enum
-{
-  SCHED_BLOCK = 20,
-  SCHED_UNBLOCK = 21,
-  SCHED_CNF = 30,
-  SCHED_ACK,
-  SCHED_TERMINATE = 40,
-  SCHED_UNMUTE_ACTOR = 50,
-  SCHED_NOISY_ASIO = 51,
-  SCHED_UNNOISY_ASIO = 52
-} sched_msg_t;
-
 // Scheduler global data.
 static uint64_t last_cd_tsc;
 static uint32_t scheduler_count;

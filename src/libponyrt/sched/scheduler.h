@@ -37,6 +37,18 @@ typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
 
 typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* actor);
 
+typedef enum
+{
+  SCHED_BLOCK = 20,
+  SCHED_UNBLOCK = 21,
+  SCHED_CNF = 30,
+  SCHED_ACK,
+  SCHED_TERMINATE = 40,
+  SCHED_UNMUTE_ACTOR = 50,
+  SCHED_NOISY_ASIO = 51,
+  SCHED_UNNOISY_ASIO = 52
+} sched_msg_t;
+
 typedef struct schedulerstats_t
 {
   // includes memory for mutemap stuff only
