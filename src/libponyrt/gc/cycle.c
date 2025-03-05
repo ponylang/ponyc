@@ -1186,7 +1186,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
 static pony_type_t cycle_type =
 {
-  -1, // so it is easily identifiable in traces
+  (uint32_t)-1, // so it is easily identifiable in traces
   sizeof(detector_t),
   0,
   0,
