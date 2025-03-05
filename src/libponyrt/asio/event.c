@@ -134,7 +134,10 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
 #ifdef PLATFORM_IS_WINDOWS
   // On Windows, this can be called from an IOCP callback thread, which may
   // not have a pony_ctx() associated with it yet.
-  ponyint_register_asio_thread();
+  // Don't call `ponyint_register_asio_thread` because that would overwrite the
+  // scheduler index if this is run on a normal scheduler thread and that would
+  // be not good.
+  pony_register_thread();
 #endif
 
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
