@@ -36,6 +36,21 @@
     $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
 )
 
+# Function to extract process exit code from LLDB output
+function Get-ProcessExitCodeFromLLDB {
+    param (
+        [string[]]$LLDBOutput
+    )
+
+    $processExitMatch = $LLDBOutput | Select-String -Pattern 'Process \d+ exited with status = (\d+)'
+    if ($processExitMatch.Matches.Count -gt 0) {
+        return [int]$processExitMatch.Matches[0].Groups[1].Value
+    } else {
+        # If we can't find the pattern, return LLDB's exit code
+        return $LastExitCode
+    }
+}
+
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
 
 switch ($Version)
@@ -256,7 +271,7 @@ switch ($Command.ToLower())
                     Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
                     $lldboutput = & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
                     Write-Output $lldboutput
-                    $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
+                    $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                 }
                 else
                 {
@@ -283,7 +298,7 @@ switch ($Command.ToLower())
                     Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
                     $lldboutput = & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
                     Write-Output $lldboutput
-                    $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
+                    $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                 }
                 else
                 {
@@ -344,7 +359,7 @@ switch ($Command.ToLower())
                         Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/`""
                         $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/"
                         Write-Output $lldboutput
-                        $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
+                        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
@@ -380,7 +395,7 @@ switch ($Command.ToLower())
                         Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/`""
                         $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/"
                         Write-Output $lldboutput
-                        $err = ($lldboutput | Select-String -Pattern 'exited with status = (\S+)').Matches[0].Groups[1].Value
+                        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
@@ -472,7 +487,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -483,7 +498,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -494,7 +509,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -505,7 +520,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
         & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -516,7 +531,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
         & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -527,7 +542,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
         & $lldbcmd $lldbargs $outDir\open-close.exe 1000
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -538,7 +553,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
         & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
@@ -549,7 +564,7 @@ switch ($Command.ToLower())
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
         & $lldbcmd $lldbargs $outDir\open-close.exe 1000
-        $err = $LastExitCode
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         if ($err -ne 0) { throw "Stress test failed: exit code $err" }
         break
     }
