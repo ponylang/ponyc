@@ -10,6 +10,31 @@
 #include "ponyassert.h"
 #include <string.h>
 
+#if defined(USE_RUNTIME_TRACING)
+#define DESC_ID 0
+#define DESC_SIZE 1
+#define DESC_SERIALISEID 2
+#define DESC_FIELD_COUNT 3
+#define DESC_FIELD_OFFSET 4
+#define DESC_INSTANCE 5
+#define DESC_NAME 6
+#define DESC_GET_BEHAVIOR_NAME 7
+#define DESC_TRACE 8
+#define DESC_SERIALISE_TRACE 9
+#define DESC_SERIALISE 10
+#define DESC_DESERIALISE 11
+#define DESC_CUSTOM_SERIALISE_SPACE 12
+#define DESC_CUSTOM_DESERIALISE 13
+#define DESC_DISPATCH 14
+#define DESC_FINALISE 15
+#define DESC_EVENT_NOTIFY 16
+#define DESC_MIGHT_REFERENCE_ACTOR 17
+#define DESC_TRAITS 18
+#define DESC_FIELDS 19
+#define DESC_VTABLE 20
+
+#define DESC_LENGTH 21
+#else
 #define DESC_ID 0
 #define DESC_SIZE 1
 #define DESC_SERIALISEID 2
@@ -31,6 +56,7 @@
 #define DESC_VTABLE 18
 
 #define DESC_LENGTH 19
+#endif
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   reach_method_t* m)
@@ -195,6 +221,13 @@ static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
   return global;
 }
 
+#if defined(USE_RUNTIME_TRACING)
+static LLVMValueRef make_name(compile_t* c, reach_type_t* t)
+{
+  return codegen_string(c, t->name, strlen(t->name));
+}
+#endif
+
 static LLVMValueRef make_field_count(compile_t* c, reach_type_t* t)
 {
   if(t->underlying != TK_TUPLETYPE)
@@ -335,6 +368,10 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->ptr;
+#if defined(USE_RUNTIME_TRACING)
+  params[DESC_NAME] = c->ptr;
+  params[DESC_GET_BEHAVIOR_NAME] = c->ptr;
+#endif
   params[DESC_TRACE] = c->ptr;
   params[DESC_SERIALISE_TRACE] = c->ptr;
   params[DESC_SERIALISE] = c->ptr;
@@ -383,6 +420,10 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->ptr;
+#if defined(USE_RUNTIME_TRACING)
+  params[DESC_NAME] = c->ptr;
+  params[DESC_GET_BEHAVIOR_NAME] = c->ptr;
+#endif
   params[DESC_TRACE] = c->ptr;
   params[DESC_SERIALISE_TRACE] = c->ptr;
   params[DESC_SERIALISE] = c->ptr;
@@ -421,6 +462,10 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
   args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
+#if defined(USE_RUNTIME_TRACING)
+  args[DESC_NAME] = make_name(c, t);
+  args[DESC_GET_BEHAVIOR_NAME] = make_desc_ptr(c, c_t->get_behavior_name_fn);
+#endif
   args[DESC_TRACE] = make_desc_ptr(c, c_t->trace_fn);
   args[DESC_SERIALISE_TRACE] = make_desc_ptr(c, c_t->serialise_trace_fn);
   args[DESC_SERIALISE] = make_desc_ptr(c, c_t->serialise_fn);

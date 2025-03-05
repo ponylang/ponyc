@@ -153,6 +153,13 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     ponyint_list_free((list_t*)list, free_fn); \
   } \
 
+#if defined(USE_RUNTIME_TRACING)
+#define LIST_TRACING_DESC_FIELDS  NULL, \
+  NULL,
+#else
+#define LIST_TRACING_DESC_FIELDS 
+#endif
+
 #define DEFINE_LIST_SERIALISE(name, name_t, elem, cmpf, freef, elem_type) \
   DEFINE_LIST(name, name_t, elem, cmpf, freef) \
   void name##_serialise_trace(pony_ctx_t* ctx, void* object) \
@@ -177,6 +184,7 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     0, \
     0, \
     NULL, \
+    LIST_TRACING_DESC_FIELDS \
     NULL, \
     name##_serialise_trace, \
     name##_serialise, \

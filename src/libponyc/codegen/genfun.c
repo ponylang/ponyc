@@ -328,6 +328,28 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   }
 }
 
+#if defined(USE_RUNTIME_TRACING)
+static void add_get_behavior_name_case(compile_t* c, reach_type_t* t,
+  const char* be_name, uint32_t index)
+{
+  // Add a case to the get behavior name function to handle this message type.
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  codegen_startfun(c, c_t->get_behavior_name_fn, NULL, NULL, NULL, false);
+  LLVMBasicBlockRef block = codegen_block(c, "handler");
+  LLVMValueRef id = LLVMConstInt(c->i32, index, false);
+  LLVMAddCase(c_t->get_behavior_name_switch, id, block);
+
+  LLVMPositionBuilderAtEnd(c->builder, block);
+
+  // hack to get the behavior name since it's always a "tag_" prefix
+  const char* name = genname_behavior_name(t->name, be_name + 4);
+
+  LLVMValueRef ret = codegen_string(c, name, strlen(name));
+  genfun_build_ret(c, ret);
+  codegen_finishfun(c);
+}
+#endif
+
 static void add_dispatch_case(compile_t* c, reach_type_t* t,
   reach_param_t* params, uint32_t index, LLVMValueRef handler,
   LLVMTypeRef fun_type, LLVMTypeRef msg_type)
@@ -561,6 +583,11 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   add_dispatch_case(c, t, m->params, m->vtable_index, c_m->func_handler,
     c_m->func_type, c_m->msg_type);
 
+#if defined(USE_RUNTIME_TRACING)
+  // Add the get behavior name case.
+  add_get_behavior_name_case(c, t, m->name, m->vtable_index);
+#endif
+
   return true;
 }
 
@@ -639,6 +666,11 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   // Add the dispatch case.
   add_dispatch_case(c, t, m->params, m->vtable_index, c_m->func_handler,
     c_m->func_type, c_m->msg_type);
+
+#if defined(USE_RUNTIME_TRACING)
+  // Add the get behavior name case.
+  add_get_behavior_name_case(c, t, m->name, m->vtable_index);
+#endif
 
   return true;
 }

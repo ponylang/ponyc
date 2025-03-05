@@ -197,6 +197,9 @@ typedef struct compile_t
   LLVMTypeRef trace_fn;
   LLVMTypeRef serialise_fn;
   LLVMTypeRef dispatch_fn;
+#if defined(USE_RUNTIME_TRACING)
+  LLVMTypeRef get_behavior_name_fn;
+#endif
   LLVMTypeRef final_fn;
   LLVMTypeRef custom_serialise_space_fn;
   LLVMTypeRef custom_deserialise_fn;

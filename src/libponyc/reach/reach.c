@@ -1600,6 +1600,10 @@ static pony_type_t reach_param_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   reach_param_serialise_trace,
   reach_param_serialise,
@@ -1736,6 +1740,10 @@ static pony_type_t reach_method_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   reach_method_serialise_trace,
   reach_method_serialise,
@@ -1800,6 +1808,10 @@ static pony_type_t reach_method_name_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   reach_method_name_serialise_trace,
   reach_method_name_serialise,
@@ -1859,6 +1871,10 @@ static pony_type_t reach_field_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   reach_field_serialise_trace,
   reach_field_serialise,
@@ -1985,6 +2001,10 @@ static pony_type_t reach_type_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   reach_type_serialise_trace,
   reach_type_serialise,
@@ -2045,6 +2065,10 @@ static pony_type_t reach_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   reach_serialise_trace,
   reach_serialise,
