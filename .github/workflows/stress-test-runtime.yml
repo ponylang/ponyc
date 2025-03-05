@@ -3,6 +3,13 @@ name: Stress tests
 on:
   schedule:
     - cron: "30 5 * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA to test'
+        required: true
+        type: string
+        default: 'main'
 
 permissions:
   packages: read
@@ -88,6 +95,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -169,6 +178,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -233,6 +244,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Install Dependencies
         run: |
           function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
@@ -298,6 +311,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -361,6 +376,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
