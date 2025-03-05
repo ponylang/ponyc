@@ -135,6 +135,8 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
 
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
+bool ponyint_get_pinned_actor_scheduler_suspended();
+
 PONY_API uint32_t pony_active_schedulers();
 
 PONY_API int32_t pony_scheduler_index();

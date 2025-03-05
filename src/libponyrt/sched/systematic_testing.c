@@ -158,11 +158,21 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
 static uint32_t get_next_index()
 {
   uint32_t active_scheduler_count = pony_active_schedulers();
-  uint32_t active_count = active_scheduler_count + 2; // account for asio and pinned actor thread
-  uint32_t next_index = 0;
+  bool pinned_actor_scheduler_suspended = ponyint_get_pinned_actor_scheduler_suspended();
+  uint32_t active_count = active_scheduler_count + 1; // account for asio thread
+  // account for pinned actor thread if it is not suspended
+  if(!pinned_actor_scheduler_suspended)
+    active_count = active_count + 1;
+
+  uint32_t next_index = -1;
   do
   {
     next_index = rand() % active_count;
+
+    // skip over pinned actor thread index if it is suspended
+    if(pinned_actor_scheduler_suspended)
+      next_index = next_index + 1;
+
     pony_assert(next_index <= total_threads);
   }
   while (threads_to_track[next_index].stopped);
