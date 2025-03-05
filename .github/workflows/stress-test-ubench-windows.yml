@@ -1,4 +1,4 @@
-name: Windows UBench Stress Tests
+name: "Stress Test: Windows UBench"
 
 on:
   schedule:

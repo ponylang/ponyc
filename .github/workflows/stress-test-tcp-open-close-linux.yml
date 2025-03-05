@@ -1,4 +1,4 @@
-name: Linux TCP Open/Close Stress Tests
+name: "Stress Test: Linux TCP Open/Close"
 
 on:
   schedule:

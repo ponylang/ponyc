@@ -1,4 +1,4 @@
-name: MacOS TCP Open/Close Stress Tests
+name: "Stress Test: MacOS TCP Open/Close"
 
 on:
   schedule:

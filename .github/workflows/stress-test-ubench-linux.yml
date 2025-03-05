@@ -1,4 +1,4 @@
-name: Linux UBench Stress Tests
+name: "Stress Test: Linux UBench"
 
 on:
   schedule:

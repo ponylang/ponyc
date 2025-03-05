@@ -1,4 +1,4 @@
-name: MacOS UBench Stress Tests
+name: "Stress Test: MacOS UBench"
 
 on:
   schedule:

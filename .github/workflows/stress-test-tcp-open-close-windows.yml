@@ -1,4 +1,4 @@
-name: Windows TCP Open/Close Stress Tests
+name: "Stress Test: Windows TCP Open/Close"
 
 on:
   schedule:
