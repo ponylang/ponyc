@@ -36,6 +36,9 @@ enum
   ACTOR_FLAG_CD_CONTACTED = 1 << 4,
   ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
   ACTOR_FLAG_PINNED = 1 << 6,
+#ifdef USE_RUNTIME_TRACING
+  ACTOR_FLAG_TRACE = 1 << 7,
+#endif
 };
 
 enum
@@ -176,6 +179,16 @@ PONY_API actorstats_t* pony_actor_stats();
 void ponyint_unmute_actor(pony_actor_t* actor);
 
 PONY_API void ponyint_destroy(pony_actor_t* actor);
+
+#ifdef USE_RUNTIME_TRACING
+void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor);
+
+bool ponyint_actor_tracing_enabled(pony_actor_t* actor);
+
+void ponyint_actor_enable_tracing();
+
+void ponyint_actor_disable_tracing();
+#endif
 
 #ifdef USE_RUNTIMESTATS
 size_t ponyint_actor_mem_size(pony_actor_t* actor);

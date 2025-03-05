@@ -6,6 +6,7 @@
 #include "../mem/pool.h"
 #include "../gc/cycle.h"
 #include "../gc/trace.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <assert.h>
 #include <string.h>
@@ -136,12 +137,14 @@ static void unset_internal_flag(pony_actor_t* actor, uint8_t flag)
 static void mute_actor(pony_actor_t* actor)
 {
   set_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED);
+  TRACING_ACTOR_MUTED(actor);
   DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
 }
 
 void ponyint_unmute_actor(pony_actor_t* actor)
 {
   unset_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED);
+  TRACING_ACTOR_UNMUTED(actor);
   DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
 }
 
@@ -155,6 +158,7 @@ static void actor_setoverloaded(pony_actor_t* actor)
 {
   pony_assert(!ponyint_is_cycle(actor));
   set_sync_flag(actor, ACTOR_SYNC_FLAG_OVERLOADED);
+  TRACING_ACTOR_OVERLOADED(actor);
   DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
 }
 
@@ -162,6 +166,7 @@ static void actor_unsetoverloaded(pony_actor_t* actor)
 {
   pony_ctx_t* ctx = pony_ctx();
   unset_sync_flag(actor, ACTOR_SYNC_FLAG_OVERLOADED);
+  TRACING_ACTOR_NOTOVERLOADED(actor);
   DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
   if (!has_sync_flag(actor, ACTOR_SYNC_FLAG_UNDER_PRESSURE))
   {
@@ -242,6 +247,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 #endif
 
   DTRACE2(GC_START, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
+  TRACING_ACTOR_GC_MARK_START(actor);
 
   ponyint_gc_mark(ctx);
 
@@ -249,6 +255,8 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->type->trace(ctx, actor);
 
   ponyint_mark_done(ctx);
+  TRACING_ACTOR_GC_MARK_END(actor);
+  TRACING_ACTOR_GC_SWEEP_START(actor);
 
 #ifdef USE_RUNTIMESTATS
     used_cpu = ponyint_sched_cpu_used(ctx);
@@ -263,6 +271,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   );
 #endif
 
+  TRACING_ACTOR_GC_SWEEP_END(actor);
   DTRACE2(GC_END, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
 
 #ifdef USE_RUNTIMESTATS
@@ -280,6 +289,7 @@ static void unblock(pony_actor_t* actor)
   } else {
     unset_internal_flag(actor, ACTOR_FLAG_BLOCKED);
   }
+  TRACING_ACTOR_UNBLOCKED(actor);
 }
 
 static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -561,7 +571,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     ctx->schedulerstats.misc_cpu += used_cpu;
 #endif
 
+    TRACING_ACTOR_BEHAVIOR_RUN_START(actor, msg->id);
     bool app_msg = handle_message(ctx, actor, msg);
+    TRACING_ACTOR_BEHAVIOR_RUN_END(actor, msg->id);
 
     // if an actors rc never goes above 0, it will be able to safely delete
     // itself even in the presence of the cycle detector. This is one of two
@@ -634,6 +646,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   if(!has_internal_flag(actor, ACTOR_FLAG_BLOCKED | ACTOR_FLAG_SYSTEM | ACTOR_FLAG_BLOCKED_SENT))
   {
     set_internal_flag(actor, ACTOR_FLAG_BLOCKED);
+    TRACING_ACTOR_BLOCKED(actor);
   }
 
   if (has_internal_flag(actor, ACTOR_FLAG_BLOCKED))
@@ -754,6 +767,8 @@ void ponyint_actor_destroy(pony_actor_t* actor)
     print_actor_stats(actor);
 #endif
 
+  TRACING_ACTOR_DESTROYED(actor);
+
   // Free variable sized actors correctly.
   ponyint_pool_free_size(actor->type->size, actor);
 }
@@ -853,6 +868,7 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
     actor->gc.rc = 0;
   }
 
+  TRACING_ACTOR_CREATED(actor);
   DTRACE2(ACTOR_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   return actor;
 }
@@ -1188,10 +1204,41 @@ PONY_API void pony_poll(pony_ctx_t* ctx)
   ponyint_actor_run(ctx, ctx->current, true);
 }
 
+#ifdef USE_RUNTIME_TRACING
+void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor)
+{
+  pony_assert(ponyint_is_cycle(actor));
+  set_internal_flag(actor, ACTOR_FLAG_TRACE);
+  TRACING_ACTOR_TRACING_ENABLED(actor);
+}
+
+// TODO: expose these properly via runtime_tracing package/pony API
+//       can be called direcly via c-ffi from pony for now
+bool ponyint_actor_tracing_enabled(pony_actor_t* actor)
+{
+  return has_internal_flag(actor, ACTOR_FLAG_TRACE);
+}
+
+void ponyint_actor_enable_tracing()
+{
+  pony_actor_t* actor = pony_ctx()->current;
+  set_internal_flag(actor, ACTOR_FLAG_TRACE);
+  TRACING_ACTOR_TRACING_ENABLED(actor);
+}
+
+void ponyint_actor_disable_tracing()
+{
+  pony_actor_t* actor = pony_ctx()->current;
+  unset_internal_flag(actor, ACTOR_FLAG_TRACE);
+  TRACING_ACTOR_TRACING_DISABLED(actor);
+}
+#endif
+
 PONY_API void pony_apply_backpressure()
 {
   pony_ctx_t* ctx = pony_ctx();
   set_sync_flag(ctx->current, ACTOR_SYNC_FLAG_UNDER_PRESSURE);
+  TRACING_ACTOR_UNDERPRESSURE(ctx->current);
   DTRACE1(ACTOR_UNDER_PRESSURE, (uintptr_t)ctx->current);
 }
 
@@ -1199,6 +1246,7 @@ PONY_API void pony_release_backpressure()
 {
   pony_ctx_t* ctx = pony_ctx();
   unset_sync_flag(ctx->current, ACTOR_SYNC_FLAG_UNDER_PRESSURE);
+  TRACING_ACTOR_NOTUNDERPRESSURE(ctx->current);
   DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
   if (!has_sync_flag(ctx->current, ACTOR_SYNC_FLAG_OVERLOADED))
     ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);

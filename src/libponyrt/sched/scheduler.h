@@ -126,7 +126,7 @@ struct scheduler_t
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
   bool pinasio, bool pinpat, uint32_t min_threads, uint32_t thread_suspend_threshold,
-  uint32_t stats_interval
+  uint32_t stats_interval, bool pin_tracing_thread
 #if defined(USE_SYSTEMATIC_TESTING)
   , uint64_t systematic_testing_seed);
 #else
