@@ -626,17 +626,21 @@ actor TCPConnection is AsioEventNotify
             _notify_connecting()
           end
         else
-          // There is a possibility that a non-Windows system has
-          // already unsubscribed this event already.  (Windows might
-          // be vulnerable to this race, too, I'm not sure.) It's a
-          // bug to do a second time.  Look at the disposable status
-          // of the event (not the flags that this behavior's args!)
-          // to see if it's ok to unsubscribe.
-          if not @pony_asio_event_get_disposable(event) then
-            @pony_asio_event_unsubscribe(event)
+          // connected already.
+          if _connected and not _closed then
+            if not @pony_asio_event_get_disposable(event) then
+              @pony_asio_event_unsubscribe(event)
+            end
+            @pony_os_socket_close(fd)
           end
-          @pony_os_socket_close(fd)
-          _try_shutdown()
+          // we already connected and closed
+          if not _connected and _closed then
+            if not @pony_asio_event_get_disposable(event) then
+              @pony_asio_event_unsubscribe(event)
+            end
+            @pony_os_socket_close(fd)
+            _try_shutdown()
+          end
         end
       else
         // It's not our event.
