@@ -107,6 +107,7 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
@@ -137,6 +138,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
@@ -285,6 +287,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
@@ -363,6 +366,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
@@ -396,6 +400,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 

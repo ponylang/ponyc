@@ -154,6 +154,7 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
     (ev->flags == ASIO_DESTROYED) ||
     !(ev->flags & ASIO_ONESHOT))
   {
+    pony_assert(0);
     return;
   }
 
@@ -309,15 +310,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       // to an actor
       if(flags != 0)
       {
-        // if this event hasn't been destroyed or disposed.
-        // to avoid a race condition if destroyed or dispoed events
-        // are resubscribed
-        if((ev->flags != ASIO_DISPOSABLE) && (ev->flags != ASIO_DESTROYED))
-          // if this event is using one shot and should auto resubscribe and
-          // then resubscribe
-          if(ev->flags & ASIO_ONESHOT)
-            pony_asio_event_resubscribe(ev);
-
         // send the event to the actor
         pony_asio_event_send(ev, flags, count);
       }
@@ -355,6 +347,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
@@ -440,6 +433,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
@@ -456,6 +450,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
   {
+    pony_assert(0);
     return;
   }
 
