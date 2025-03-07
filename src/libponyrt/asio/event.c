@@ -63,15 +63,15 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
 
   ev->flags = ASIO_DESTROYED;
 
-  pony_assert(ev->owner->live_asio_events > 0);
-  ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
-
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.
   pony_ctx_t* ctx = pony_ctx();
   pony_gc_recv(ctx);
   pony_traceunknown(ctx, ev->owner, PONY_TRACE_OPAQUE);
   pony_recv_done(ctx);
+
+  pony_assert(ev->owner->live_asio_events > 0);
+  ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
 
   POOL_FREE(asio_event_t, ev);
 }
