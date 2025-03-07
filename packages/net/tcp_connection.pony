@@ -636,7 +636,19 @@ actor TCPConnection is AsioEventNotify
             @pony_asio_event_unsubscribe(event)
           end
           @pony_os_socket_close(fd)
-          _try_shutdown()
+          ifdef windows then
+            // Fix for windows happy-eyeballs related hang from
+            // 95a06bb290150d13b5764de70c1332a6d7b237cf.
+            //
+            // This should not be called on non-IOCP as that can result in
+            // `pony_asio_event_unsubscribe` being called more than once.
+            // This can result in "bad things".
+            //
+            // This might be a race condition on Windows (I think it could be)
+            // but Windows is so slow closing down connections that we don't
+            // to ever hit it if it is indeed a race condition.
+            _try_shutdown()
+          end
         end
       else
         // It's not our event.
