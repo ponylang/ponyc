@@ -1334,13 +1334,6 @@ void ponyint_tracing_actor_gc_sweep_end(pony_actor_t* actor)
   m->type = actor->type;
 
   send_trace_message((pony_msg_t*)m);
-
-  if(this_tracing_scheduler->sched->index == 0)
-  {
-    // TODO: REMOVE ME
-    int z = *((int*)1);
-    printf("%d\n", z);
-  }
 }
 
 void ponyint_tracing_actor_muted(pony_actor_t* actor)
