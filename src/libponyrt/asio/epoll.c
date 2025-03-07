@@ -345,11 +345,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         // if this event hasn't been destroyed or disposed.
         // to avoid a race condition if destroyed or dispoed events
         // are resubscribed
-        if((ev->flags != ASIO_DISPOSABLE) && (ev->flags != ASIO_DESTROYED))
-          // if this event is using one shot and should auto resubscribe and
-          // then resubscribe
-          if(ev->flags & ASIO_ONESHOT)
-            pony_asio_event_resubscribe(ev);
+        // if((ev->flags != ASIO_DISPOSABLE) && (ev->flags != ASIO_DESTROYED))
+        //   // if this event is using one shot and should auto resubscribe and
+        //   // then resubscribe
+        //   if(ev->flags & ASIO_ONESHOT)
+        //     pony_asio_event_resubscribe(ev);
 
         // send the event to the actor
         pony_asio_event_send(ev, flags, count);
