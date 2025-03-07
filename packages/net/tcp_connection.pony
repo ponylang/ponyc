@@ -626,22 +626,11 @@ actor TCPConnection is AsioEventNotify
             _notify_connecting()
           end
         else
-          // connected already.
-          if _connected and not _closed then
-            if not @pony_asio_event_get_disposable(event) then
-              @pony_asio_event_unsubscribe(event)
-            end
-            @pony_os_socket_close(fd)
-            _try_shutdown()
+          if not @pony_asio_event_get_disposable(event) then
+            @pony_asio_event_unsubscribe(event)
           end
-          // we already connected and closed
-          if not _connected and _closed then
-            if not @pony_asio_event_get_disposable(event) then
-              @pony_asio_event_unsubscribe(event)
-            end
-            @pony_os_socket_close(fd)
-            _try_shutdown()
-          end
+          @pony_os_socket_close(fd)
+          _try_shutdown()
         end
       else
         // It's not our event.
