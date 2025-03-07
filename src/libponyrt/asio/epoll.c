@@ -149,6 +149,36 @@ void ponyint_asio_backend_final(asio_backend_t* b)
 PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 {
   // needs to be a valid event that is one shot enabled
+  if(ev == NULL)
+  {
+
+    pony_assert(0);
+    return;
+  }
+  // needs to be a valid event that is one shot enabled
+  if(ev->flags == ASIO_DISPOSABLE)
+  {
+
+    pony_assert(0);
+    return;
+  }
+  // needs to be a valid event that is one shot enabled
+  if(ev->flags == ASIO_DESTROYED)
+  {
+
+    pony_assert(0);
+    return;
+  }
+  // needs to be a valid event that is one shot enabled
+  if(!(ev->flags & ASIO_ONESHOT))
+  {
+
+    pony_assert(0);
+    return;
+  }
+
+
+  // needs to be a valid event that is one shot enabled
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED) ||
