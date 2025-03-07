@@ -223,7 +223,8 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 // immediately
 PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 {
-  pony_asio_event_resubscribe(ev);
+  if((ev->flags != ASIO_DISPOSABLE) && (ev->flags != ASIO_DESTROYED))
+    pony_asio_event_resubscribe(ev);
 }
 
 // Kept to maintain backwards compatibility so folks don't
@@ -231,7 +232,8 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 // immediately
 PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 {
-  pony_asio_event_resubscribe(ev);
+  if((ev->flags != ASIO_DISPOSABLE) && (ev->flags != ASIO_DESTROYED))
+    pony_asio_event_resubscribe(ev);
 }
 
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
