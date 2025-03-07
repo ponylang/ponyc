@@ -489,7 +489,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-ubench-with-cd-release"
@@ -501,7 +501,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-ubench-debug"
@@ -513,7 +513,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-ubench-with-cd-debug"
@@ -525,7 +525,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-tcp-open-close-release"
@@ -537,7 +537,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-tcp-open-close-with-cd-release"
@@ -549,7 +549,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-tcp-open-close-debug"
@@ -561,7 +561,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "stress-test-tcp-open-close-with-cd-debug"
@@ -573,7 +573,7 @@ switch ($Command.ToLower())
         $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        exit $err
         break
     }
     "install"
