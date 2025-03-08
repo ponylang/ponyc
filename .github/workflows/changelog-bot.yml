@@ -20,7 +20,7 @@ jobs:
     name: Update CHANGELOG.md
     steps:
       - name: Update Changelog
-        uses: docker://ghcr.io/ponylang/changelog-bot-action:0.3.6
+        uses: docker://ghcr.io/ponylang/changelog-bot-action:0.3.7
         with:
           GIT_USER_NAME: "Ponylang Main Bot"
           GIT_USER_EMAIL: "ponylang.main@gmail.com"
