@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make sure systematic testing doesn't switch to suspended thread ([PR #4647](https://github.com/ponylang/ponyc/pull/4647))
 - Fix race condition in epoll ASIO system ([PR #4658](https://github.com/ponylang/ponyc/pull/4658))
 
 ### Added
