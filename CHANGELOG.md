@@ -2,18 +2,12 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.58.13] - 2025-03-09
 
 ### Fixed
 
 - Make sure systematic testing doesn't switch to suspended thread ([PR #4647](https://github.com/ponylang/ponyc/pull/4647))
 - Fix race condition in epoll ASIO system ([PR #4658](https://github.com/ponylang/ponyc/pull/4658))
-
-### Added
-
-
-### Changed
-
 
 ## [0.58.12] - 2025-03-01
 
@@ -2218,3 +2212,4 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
+
