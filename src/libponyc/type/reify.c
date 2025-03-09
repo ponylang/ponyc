@@ -563,6 +563,10 @@ static pony_type_t deferred_reification_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   deferred_reification_serialise_trace,
   deferred_reification_serialise,

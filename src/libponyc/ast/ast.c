@@ -2099,6 +2099,10 @@ static pony_type_t ast_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   ast_signature_serialise_trace,
   ast_signature_serialise,
@@ -2179,6 +2183,10 @@ static pony_type_t ast_nominal_pkg_id_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   ast_nominal_pkg_id_signature_serialise_trace,
   ast_nominal_pkg_id_signature_serialise,
@@ -2443,6 +2451,10 @@ static pony_type_t ast_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   ast_serialise_trace,
   ast_serialise,
