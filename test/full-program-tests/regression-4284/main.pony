@@ -1,6 +1,5 @@
 use "pony_test"
 
-
 // As long as #4284 is fixed, this program will run to completion and
 // _TestIssue4284 will pass. If a regression is introduced, this
 // program will crash.
@@ -23,7 +22,7 @@ class iso _TestIssue4284 is UnitTest
       SomeActor.trace(HasOpaqueReferenceToMutableState(mutable), 100_000)
     end
 
-    h.long_test(1_000_000_000)
+    h.long_test(1_000_000_000_000)
     h.complete(true)
 
 class MutableState
