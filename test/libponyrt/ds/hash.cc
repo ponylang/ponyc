@@ -74,6 +74,10 @@ static pony_type_t hash_elem_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   hash_elem_serialise_trace,
   hash_elem_serialise,

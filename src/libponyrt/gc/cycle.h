@@ -9,7 +9,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval);
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_cycle_detector_tracing);
 
 bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2);
 

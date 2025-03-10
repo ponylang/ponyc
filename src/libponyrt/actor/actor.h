@@ -27,6 +27,28 @@ PONY_EXTERN_C_BEGIN
 #define ACTORMSG_CONF (UINT32_MAX - 2)
 #define ACTORMSG_ACK (UINT32_MAX - 1)
 
+enum
+{
+  ACTOR_FLAG_BLOCKED = 1 << 0,
+  ACTOR_FLAG_BLOCKED_SENT = 1 << 1,
+  ACTOR_FLAG_SYSTEM = 1 << 2,
+  ACTOR_FLAG_UNSCHEDULED = 1 << 3,
+  ACTOR_FLAG_CD_CONTACTED = 1 << 4,
+  ACTOR_FLAG_RC_OVER_ZERO_SEEN = 1 << 5,
+  ACTOR_FLAG_PINNED = 1 << 6,
+#ifdef USE_RUNTIME_TRACING
+  ACTOR_FLAG_TRACE = 1 << 7,
+#endif
+};
+
+enum
+{
+  ACTOR_SYNC_FLAG_PENDINGDESTROY = 1 << 0,
+  ACTOR_SYNC_FLAG_OVERLOADED = 1 << 1,
+  ACTOR_SYNC_FLAG_UNDER_PRESSURE = 1 << 2,
+  ACTOR_SYNC_FLAG_MUTED = 1 << 3,
+};
+
 typedef struct actorstats_t
 {
   size_t heap_mem_allocated;
@@ -157,6 +179,16 @@ PONY_API actorstats_t* pony_actor_stats();
 void ponyint_unmute_actor(pony_actor_t* actor);
 
 PONY_API void ponyint_destroy(pony_actor_t* actor);
+
+#ifdef USE_RUNTIME_TRACING
+void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor);
+
+bool ponyint_actor_tracing_enabled(pony_actor_t* actor);
+
+void ponyint_actor_enable_tracing();
+
+void ponyint_actor_disable_tracing();
+#endif
 
 #ifdef USE_RUNTIMESTATS
 size_t ponyint_actor_mem_size(pony_actor_t* actor);
