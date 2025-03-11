@@ -227,7 +227,7 @@ uint32_t ponyint_cpu_count()
 }
 
 uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
-  bool pin, bool pinasio, bool pinpat, uint32_t* tracing_cpu, bool pin_tracing_thread)
+  bool pin, bool pinasio, bool pinpat, bool pin_tracing_thread, uint32_t* tracing_cpu)
 {
   uint32_t asio_cpu = -1;
   uint32_t pat_cpu = -1;

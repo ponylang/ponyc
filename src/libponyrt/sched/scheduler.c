@@ -1679,7 +1679,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   uint32_t tracing_cpu = -1;
 
   uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pin,
-    pinasio, pinpat, &tracing_cpu, pin_tracing_thread);
+    pinasio, pinpat, pin_tracing_thread, &tracing_cpu);
 
   // make sure tracing knows how mant schedulers there are
   TRACING_SCHEDULERS_INIT(scheduler_count, tracing_cpu);
