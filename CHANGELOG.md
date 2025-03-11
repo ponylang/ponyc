@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Make pony programs exit on an unrecognized pony runtime option ([PR #4622](https://github.com/ponylang/ponyc/pull/4622))
 
 ## [0.58.13] - 2025-03-09
 
