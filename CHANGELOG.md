@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add ability to trace runtime events in chromium json format ([PR #4649](https://github.com/ponylang/ponyc/pull/4649))
 
 ### Changed
 
