@@ -192,6 +192,11 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[4] = LLVMConstInt(c->i1, 1, false);
   gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
+  // unbecome the main actor before starting the runtime to set sched->ctx.current = NULL
+  args[0] = ctx;
+  args[1] = LLVMConstNull(c->ptr);
+  gencall_runtime(c, "ponyint_become", args, 2, "");
+
   // Start the runtime.
   args[0] = LLVMConstInt(c->i1, 0, false);
   args[1] = LLVMConstNull(c->ptr);

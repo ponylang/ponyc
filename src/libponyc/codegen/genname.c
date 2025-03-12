@@ -153,6 +153,20 @@ const char* genname_dispatch(const char* type)
   return stringtab_two(type, "Dispatch");
 }
 
+#if defined(USE_RUNTIME_TRACING)
+const char* genname_get_behavior_name(const char* type)
+{
+  return stringtab_two(type, "GetBehaviourName");
+}
+
+const char* genname_behavior_name(const char* type, const char* name)
+{
+  printbuf_t* buf = printbuf_new();
+  printbuf(buf, "%s.%s", type, name);
+  return stringtab_buf(buf);
+}
+#endif
+
 const char* genname_descriptor(const char* type)
 {
   return stringtab_two(type, "Desc");

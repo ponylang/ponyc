@@ -1432,6 +1432,10 @@ static pony_type_t package_dep_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   package_dep_signature_serialise_trace,
   package_signature_serialise, // Same function for both package and package_dep.
@@ -1462,6 +1466,10 @@ static pony_type_t package_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   package_signature_serialise_trace,
   package_signature_serialise,
@@ -1541,6 +1549,10 @@ static pony_type_t package_group_dep_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   package_group_dep_signature_serialise_trace,
   package_group_signature_serialise, // Same function for both group and group_dep.
@@ -1571,6 +1583,10 @@ static pony_type_t package_group_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   package_group_signature_serialise_trace,
   package_group_signature_serialise,
@@ -1721,6 +1737,10 @@ static pony_type_t package_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   package_serialise_trace,
   package_serialise,
@@ -1795,6 +1815,10 @@ static pony_type_t package_group_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   package_group_serialise_trace,
   package_group_serialise,

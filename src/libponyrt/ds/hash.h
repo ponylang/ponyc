@@ -236,6 +236,13 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
       h->size, h->buckets); \
   } \
 
+#if defined(USE_RUNTIME_TRACING)
+#define HASH_TRACING_DESC_FIELDS  NULL, \
+    NULL,
+#else
+#define HASH_TRACING_DESC_FIELDS 
+#endif
+
 #define DEFINE_HASHMAP_SERIALISE(name, name_t, type, hash, cmp, free_elem, elem_type) \
   DEFINE_HASHMAP(name, name_t, type, hash, cmp, free_elem) \
   void name##_serialise_trace(pony_ctx_t* ctx, void* object) \
@@ -260,6 +267,7 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
     0, \
     0, \
     NULL, \
+    HASH_TRACING_DESC_FIELDS \
     NULL, \
     name##_serialise_trace, \
     name##_serialise, \

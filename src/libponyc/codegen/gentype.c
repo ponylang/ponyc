@@ -332,6 +332,40 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
   LLVMSetLinkage(c_t->instance, LLVMPrivateLinkage);
 }
 
+#if defined(USE_RUNTIME_TRACING)
+static void make_get_behavior_name(compile_t* c, reach_type_t* t)
+{
+  // Do nothing if we're not an actor.
+  if(t->underlying != TK_ACTOR)
+    return;
+
+  // Create a dispatch function.
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  const char* get_behavior_name_name = genname_get_behavior_name(t->name);
+  c_t->get_behavior_name_fn = codegen_addfun(c, get_behavior_name_name, c->get_behavior_name_fn, true);
+  LLVMSetFunctionCallConv(c_t->get_behavior_name_fn, LLVMCCallConv);
+  LLVMSetLinkage(c_t->get_behavior_name_fn, LLVMExternalLinkage);
+  codegen_startfun(c, c_t->get_behavior_name_fn, NULL, NULL, NULL, false);
+
+  LLVMBasicBlockRef default_block = codegen_block(c, "default");
+
+  // Read the message ID.
+  LLVMValueRef msg_id = LLVMGetParam(c_t->get_behavior_name_fn, 0);
+
+  // Store a reference to the dispatch switch. When we build behaviours, we
+  // will add cases to this switch statement based on message ID.
+  c_t->get_behavior_name_switch = LLVMBuildSwitch(c->builder, msg_id, default_block, 0);
+
+  // Mark the default case as unreachable.
+  LLVMPositionBuilderAtEnd(c->builder, default_block);
+  const char* name = genname_behavior_name(t->name, "*UNKNOWN*");
+  LLVMValueRef ret = codegen_string(c, name, strlen(name));
+  genfun_build_ret(c, ret);
+
+  codegen_finishfun(c);
+}
+#endif
+
 static void make_dispatch(compile_t* c, reach_type_t* t)
 {
   // Do nothing if we're not an actor.
@@ -740,6 +774,9 @@ bool gentypes(compile_t* c)
     make_debug_info(c, t);
     make_box_type(c, t);
     make_dispatch(c, t);
+#if defined(USE_RUNTIME_TRACING)
+    make_get_behavior_name(c, t);
+#endif
     gentrace_prototype(c, t);
   }
 

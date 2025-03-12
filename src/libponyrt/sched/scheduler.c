@@ -11,8 +11,10 @@
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <dtrace.h>
+#include <inttypes.h>
 #include <string.h>
 #include "mutemap.h"
+#include "../tracing/tracing.h"
 
 #ifdef USE_RUNTIMESTATS
 #include <stdio.h>
@@ -23,18 +25,6 @@
 PONY_EXTERN_C_BEGIN
 
 static DECLARE_THREAD_FN(run_thread);
-
-typedef enum
-{
-  SCHED_BLOCK = 20,
-  SCHED_UNBLOCK = 21,
-  SCHED_CNF = 30,
-  SCHED_ACK,
-  SCHED_TERMINATE = 40,
-  SCHED_UNMUTE_ACTOR = 50,
-  SCHED_NOISY_ASIO = 51,
-  SCHED_UNNOISY_ASIO = 52
-} sched_msg_t;
 
 // Scheduler global data.
 static uint64_t last_cd_tsc;
@@ -76,8 +66,8 @@ static size_t print_stats_interval;
 void print_scheduler_stats(scheduler_t* sched)
 {
   printf("Scheduler stats for index: %d, "
-        "total memory allocated: %ld, "
-        "total memory used: %ld, "
+        "total memory allocated: %" PRIu64 ", "
+        "total memory used: %" PRIu64 ", "
         "created actors counter: %lu, "
         "destroyed actors counter: %lu, "
         "actors app cpu: %lu, "
@@ -86,9 +76,9 @@ void print_scheduler_stats(scheduler_t* sched)
         "actors system cpu: %lu, "
         "scheduler msgs cpu: %lu, "
         "scheduler misc cpu: %lu, "
-        "memory used inflight messages: %ld, "
-        "memory allocated inflight messages: %ld, "
-        "number of inflight messages: %ld\n",
+        "memory used inflight messages: %" PRIu64 ", "
+        "memory allocated inflight messages: %" PRIu64 ", "
+        "number of inflight messages: %" PRIu64 "\n",
         sched->index,
         sched->ctx.schedulerstats.mem_used + sched->ctx.schedulerstats.mem_used_actors,
         sched->ctx.schedulerstats.mem_allocated + sched->ctx.schedulerstats.mem_allocated_actors,
@@ -215,6 +205,8 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 
 static void send_msg_pinned_actor_thread(uint32_t from, sched_msg_t msg, intptr_t arg)
 {
+  TRACING_THREAD_SEND_MESSAGE(msg, arg, from, PONY_PINNED_ACTOR_THREAD_INDEX);
+
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
@@ -240,6 +232,8 @@ static void send_msg_pinned_actor_thread(uint32_t from, sched_msg_t msg, intptr_
 
 static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
 {
+  TRACING_THREAD_SEND_MESSAGE(msg, arg, from, to);
+
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
@@ -492,6 +486,8 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
     sched->ctx.schedulerstats.mem_used_inflight_messages -= sizeof(pony_msgi_t);
     sched->ctx.schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
+
+    TRACING_THREAD_RECEIVE_MESSAGE(m->msg.id, m->i);
 
     switch(m->msg.id)
     {
@@ -746,6 +742,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
   // dtrace suspend notification
   DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
+  TRACING_THREAD_SUSPEND();
 
   while(get_active_scheduler_count() <= (uint32_t)sched->index)
   {
@@ -795,6 +792,7 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
   // dtrace resume notification
   DTRACE1(THREAD_RESUME, (uintptr_t)sched);
+  TRACING_THREAD_RESUME();
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // When using signals, need to acquire sched count changing variable
@@ -1054,7 +1052,9 @@ static pony_actor_t* steal(scheduler_t* sched)
           {
             // Run the cycle detector and get the next actor
             DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
+            TRACING_THREAD_ACTOR_RUN_START(actor);
             bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+            TRACING_THREAD_ACTOR_RUN_STOP(actor);
             sched->ctx.current = NULL;
             pony_actor_t* next = pop_global(sched);
 
@@ -1252,9 +1252,11 @@ static void run(scheduler_t* sched)
       ponyint_sched_maybe_wakeup(sched->index);
 
     pony_assert(!ponyint_actor_is_pinned(actor));
+    TRACING_THREAD_ACTOR_RUN_START(actor);
 
     // Run the current actor and get the next actor.
     bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+    TRACING_THREAD_ACTOR_RUN_STOP(actor);
     sched->ctx.current = NULL;
     SYSTEMATIC_TESTING_YIELD();
     pony_actor_t* next = pop_global(sched);
@@ -1296,6 +1298,7 @@ static DECLARE_THREAD_FN(run_thread)
   scheduler_t* sched = (scheduler_t*) arg;
   this_scheduler = sched;
   ponyint_cpu_affinity(sched->cpu);
+  TRACING_THREAD_START(this_scheduler);
 
 #if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we block signals related to scheduler sleeping/waking
@@ -1307,6 +1310,8 @@ static DECLARE_THREAD_FN(run_thread)
 #endif
 
   run(sched);
+
+  TRACING_THREAD_STOP();
   ponyint_pool_thread_cleanup();
 
   return 0;
@@ -1344,6 +1349,7 @@ static void perhaps_suspend_pinned_actor_scheduler(
 
     // dtrace suspend notification
     DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
+    TRACING_THREAD_SUSPEND();
 
     // sleep waiting for signal to wake up again
 #if defined(USE_SYSTEMATIC_TESTING)
@@ -1362,6 +1368,7 @@ static void perhaps_suspend_pinned_actor_scheduler(
 
     // dtrace resume notification
     DTRACE1(THREAD_RESUME, (uintptr_t)sched);
+    TRACING_THREAD_RESUME();
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
     // When using signals, need to acquire sched count changing variable
@@ -1508,10 +1515,11 @@ static void run_pinned_actors()
     } else {
       pony_assert(ponyint_actor_is_pinned(actor));
 
-      tsc = ponyint_cpu_tick();
+      TRACING_THREAD_ACTOR_RUN_START(actor);
 
       // Run the current actor and get the next actor.
       bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+      TRACING_THREAD_ACTOR_RUN_STOP(actor);
       sched->ctx.current = NULL;
       SYSTEMATIC_TESTING_YIELD();
 
@@ -1523,6 +1531,10 @@ static void run_pinned_actors()
       ponyint_sched_maybe_wakeup_if_all_asleep(PONY_PINNED_ACTOR_THREAD_INDEX);
 
       pony_actor_t* next = pop(sched);
+
+      // update the last time the scheduler did meaningful work (used for
+      // deciding when to suspend the thread)
+      tsc = ponyint_cpu_tick();
 
       if(reschedule)
       {
@@ -1605,7 +1617,7 @@ static void ponyint_sched_shutdown()
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   bool pinasio, bool pinpat, uint32_t min_threads, uint32_t thread_suspend_threshold,
-  uint32_t stats_interval
+  uint32_t stats_interval, bool pin_tracing_thread
 #if defined(USE_SYSTEMATIC_TESTING)
   , uint64_t systematic_testing_seed)
 #else
@@ -1664,8 +1676,13 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 #endif
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
+  uint32_t tracing_cpu = -1;
+
   uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pin,
-    pinasio, pinpat);
+    pinasio, pinpat, pin_tracing_thread, &tracing_cpu);
+
+  // make sure tracing knows how mant schedulers there are
+  TRACING_SCHEDULERS_INIT(scheduler_count, tracing_cpu);
 
 #if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
   pthread_once(&sched_mut_once, sched_mut_init);
@@ -1707,9 +1724,6 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
     ponyint_messageq_init(&scheduler[i].mq);
     ponyint_mpmcq_init(&scheduler[i].q);
   }
-
-  // initialize systematic testing
-  SYSTEMATIC_TESTING_INIT(systematic_testing_seed, scheduler_count);
 
   ponyint_mpmcq_init(&inject);
   ponyint_asio_init(asio_cpu);
@@ -1754,6 +1768,11 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 #endif
 
   pinned_actor_scheduler = this_scheduler;
+
+  TRACING_THREAD_START(this_scheduler);
+
+  // initialize systematic testing after starting the tracing thread
+  SYSTEMATIC_TESTING_INIT(systematic_testing_seed, scheduler_count);
 
   return pony_ctx();
 }
@@ -1803,6 +1822,7 @@ bool ponyint_sched_start(bool library)
     ponyint_sched_shutdown();
   }
 
+  TRACING_THREAD_STOP();
   ponyint_pool_thread_cleanup();
 
   while(ponyint_thread_messageq_pop(&this_scheduler->mq
@@ -1915,6 +1935,7 @@ void ponyint_register_asio_thread()
 {
   pony_register_thread();
   this_scheduler->index = PONY_ASIO_SCHEDULER_INDEX;
+  TRACING_THREAD_START(this_scheduler);
 }
 
 // Tell all scheduler threads that asio is noisy

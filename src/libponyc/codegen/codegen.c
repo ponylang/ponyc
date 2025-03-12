@@ -236,6 +236,13 @@ static void init_runtime(compile_t* c)
   params[1] = c->ptr;
   c->custom_deserialise_fn = LLVMFunctionType(c->void_type, params, 2, false);
 
+#if defined(USE_RUNTIME_TRACING)
+  // get_behavior_name
+  // void (*)(i8*, __object*, $message*)
+  params[0] = c->i32;
+  c->get_behavior_name_fn = LLVMFunctionType(c->ptr, params, 1, false);
+#endif
+
   // dispatch
   // void (*)(i8*, __object*, $message*)
   params[0] = c->ptr;

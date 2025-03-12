@@ -1186,12 +1186,16 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
 static pony_type_t cycle_type =
 {
-  0,
+  (uint32_t)-1, // so it is easily identifiable in traces
   sizeof(detector_t),
   0,
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  "cycle detector",
+  NULL,
+#endif
   NULL,
   NULL,
   NULL,
@@ -1207,7 +1211,7 @@ static pony_type_t cycle_type =
   NULL
 };
 
-void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_cycle_detector_tracing)
 {
   // max is 1 second (1000 ms)
   if(detect_interval > 1000)
@@ -1220,6 +1224,12 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
   cycle_detector = NULL;
   cycle_detector = pony_create(ctx, &cycle_type, false);
   ponyint_actor_setsystem(cycle_detector);
+
+  (void)force_cycle_detector_tracing;
+#ifdef USE_RUNTIME_TRACING
+  if(force_cycle_detector_tracing)
+    ponyint_cycle_detector_enable_tracing(cycle_detector);
+#endif
 
   detector_t* d = (detector_t*)cycle_detector;
 

@@ -9,6 +9,7 @@
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
 #include "../sched/systematic_testing.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
@@ -324,6 +325,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   POOL_FREE(asio_backend_t, b);
 
   SYSTEMATIC_TESTING_STOP_THREAD();
+  TRACING_THREAD_STOP();
 
   pony_unregister_thread();
   return NULL;

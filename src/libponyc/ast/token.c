@@ -416,6 +416,10 @@ static pony_type_t token_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   token_signature_serialise_trace,
   token_signature_serialise,
@@ -471,6 +475,10 @@ static pony_type_t token_docstring_signature_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   token_docstring_signature_serialise_trace,
   token_docstring_signature_serialise,
@@ -560,6 +568,10 @@ static pony_type_t token_pony =
   0,
   0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   token_serialise_trace,
   token_serialise,

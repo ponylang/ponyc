@@ -34,6 +34,8 @@ typedef struct compile_type_t
   LLVMValueRef final_fn;
   LLVMValueRef dispatch_fn;
   LLVMValueRef dispatch_switch;
+  LLVMValueRef get_behavior_name_fn;
+  LLVMValueRef get_behavior_name_switch;
 
   LLVMMetadataRef di_file;
   LLVMMetadataRef di_type;

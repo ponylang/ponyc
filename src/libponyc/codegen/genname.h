@@ -26,6 +26,12 @@ const char* genname_deserialise(const char* type);
 
 const char* genname_dispatch(const char* type);
 
+#if defined(USE_RUNTIME_TRACING)
+const char* genname_get_behavior_name(const char* type);
+
+const char* genname_behavior_name(const char* type, const char* name);
+#endif
+
 const char* genname_descriptor(const char* type);
 
 const char* genname_instance(const char* type);
