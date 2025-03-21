@@ -75,9 +75,9 @@ void ponyint_mark_done(pony_ctx_t* ctx)
   ponyint_gc_handlestack(ctx);
 
 #ifdef USE_RUNTIMESTATS
-    used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
-    ctx->current->actorstats.gc_mark_cpu += used_cpu;
+  uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
+  ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
+  ctx->current->actorstats.gc_mark_cpu += used_cpu;
 #endif
 
   TRACING_ACTOR_GC_MARK_END(ctx->current);
