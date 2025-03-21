@@ -247,6 +247,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 #endif
 
   DTRACE2(GC_START, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
+  TRACING_ACTOR_GC_START(actor);
   TRACING_ACTOR_GC_MARK_START(actor);
 
   ponyint_gc_mark(ctx);
@@ -255,14 +256,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->type->trace(ctx, actor);
 
   ponyint_mark_done(ctx);
-  TRACING_ACTOR_GC_MARK_END(actor);
-  TRACING_ACTOR_GC_SWEEP_START(actor);
-
-#ifdef USE_RUNTIMESTATS
-    used_cpu = ponyint_sched_cpu_used(ctx);
-    ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
-    actor->actorstats.gc_mark_cpu += used_cpu;
-#endif
+  TRACING_ACTOR_GC_HEAP_SWEEP_START(actor);
 
   ponyint_heap_endgc(&actor->heap
 #ifdef USE_RUNTIMESTATS
@@ -271,14 +265,16 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   );
 #endif
 
-  TRACING_ACTOR_GC_SWEEP_END(actor);
-  DTRACE2(GC_END, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
-
 #ifdef USE_RUNTIMESTATS
     used_cpu = ponyint_sched_cpu_used(ctx);
     ctx->schedulerstats.actor_gc_sweep_cpu += used_cpu;
     actor->actorstats.gc_sweep_cpu += used_cpu;
 #endif
+
+  DTRACE2(GC_END, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
+  TRACING_ACTOR_GC_HEAP_SWEEP_END(actor);
+  TRACING_ACTOR_GC_SWEEP_END(actor);
+  TRACING_ACTOR_GC_END(actor);
 }
 
 static void unblock(pony_actor_t* actor)

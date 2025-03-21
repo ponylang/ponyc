@@ -28,10 +28,18 @@ void ponyint_tracing_actor_created(pony_actor_t* actor);
 void ponyint_tracing_actor_destroyed(pony_actor_t* actor);
 void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t behavior_id);
 void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, uint32_t behavior_id);
+void ponyint_tracing_actor_gc_start(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_end(pony_actor_t* actor);
 void ponyint_tracing_actor_gc_mark_start(pony_actor_t* actor);
 void ponyint_tracing_actor_gc_mark_end(pony_actor_t* actor);
 void ponyint_tracing_actor_gc_sweep_start(pony_actor_t* actor);
 void ponyint_tracing_actor_gc_sweep_end(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_objectmap_sweep_start(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_objectmap_sweep_end(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_actormap_sweep_start(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_actormap_sweep_end(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_heap_sweep_start(pony_actor_t* actor);
+void ponyint_tracing_actor_gc_heap_sweep_end(pony_actor_t* actor);
 void ponyint_tracing_actor_muted(pony_actor_t* actor);
 void ponyint_tracing_actor_unmuted(pony_actor_t* actor);
 void ponyint_tracing_actor_overloaded(pony_actor_t* actor);
@@ -67,10 +75,18 @@ void ponyint_tracing_systematic_testing_timeslice_end();
 #define TRACING_ACTOR_DESTROYED(ACTOR) ponyint_tracing_actor_destroyed(ACTOR)
 #define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_start(ACTOR, BEHAVIOR_ID)
 #define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_end(ACTOR, BEHAVIOR_ID)
+#define TRACING_ACTOR_GC_START(ACTOR) ponyint_tracing_actor_gc_start(ACTOR)
+#define TRACING_ACTOR_GC_END(ACTOR) ponyint_tracing_actor_gc_end(ACTOR)
 #define TRACING_ACTOR_GC_MARK_START(ACTOR) ponyint_tracing_actor_gc_mark_start(ACTOR)
 #define TRACING_ACTOR_GC_MARK_END(ACTOR) ponyint_tracing_actor_gc_mark_end(ACTOR)
 #define TRACING_ACTOR_GC_SWEEP_START(ACTOR) ponyint_tracing_actor_gc_sweep_start(ACTOR)
 #define TRACING_ACTOR_GC_SWEEP_END(ACTOR) ponyint_tracing_actor_gc_sweep_end(ACTOR)
+#define TRACING_ACTOR_GC_OBJECTMAP_SWEEP_START(ACTOR) ponyint_tracing_actor_gc_objectmap_sweep_start(ACTOR)
+#define TRACING_ACTOR_GC_OBJECTMAP_SWEEP_END(ACTOR) ponyint_tracing_actor_gc_objectmap_sweep_end(ACTOR)
+#define TRACING_ACTOR_GC_ACTORMAP_SWEEP_START(ACTOR) ponyint_tracing_actor_gc_actormap_sweep_start(ACTOR)
+#define TRACING_ACTOR_GC_ACTORMAP_SWEEP_END(ACTOR) ponyint_tracing_actor_gc_actormap_sweep_end(ACTOR)
+#define TRACING_ACTOR_GC_HEAP_SWEEP_START(ACTOR) ponyint_tracing_actor_gc_heap_sweep_start(ACTOR)
+#define TRACING_ACTOR_GC_HEAP_SWEEP_END(ACTOR) ponyint_tracing_actor_gc_heap_sweep_end(ACTOR)
 #define TRACING_ACTOR_MUTED(ACTOR) ponyint_tracing_actor_muted(ACTOR)
 #define TRACING_ACTOR_UNMUTED(ACTOR) ponyint_tracing_actor_unmuted(ACTOR)
 #define TRACING_ACTOR_OVERLOADED(ACTOR) ponyint_tracing_actor_overloaded(ACTOR)
@@ -109,10 +125,18 @@ PONY_EXTERN_C_END
 #define TRACING_ACTOR_DESTROYED(ACTOR)
 #define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, BEHAVIOR_ID)
 #define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, BEHAVIOR_ID)
+#define TRACING_ACTOR_GC_START(ACTOR)
+#define TRACING_ACTOR_GC_END(ACTOR)
 #define TRACING_ACTOR_GC_MARK_START(ACTOR)
 #define TRACING_ACTOR_GC_MARK_END(ACTOR)
 #define TRACING_ACTOR_GC_SWEEP_START(ACTOR)
 #define TRACING_ACTOR_GC_SWEEP_END(ACTOR)
+#define TRACING_ACTOR_GC_OBJECTMAP_SWEEP_START(ACTOR)
+#define TRACING_ACTOR_GC_OBJECTMAP_SWEEP_END(ACTOR)
+#define TRACING_ACTOR_GC_ACTORMAP_SWEEP_START(ACTOR)
+#define TRACING_ACTOR_GC_ACTORMAP_SWEEP_END(ACTOR)
+#define TRACING_ACTOR_GC_HEAP_SWEEP_START(ACTOR)
+#define TRACING_ACTOR_GC_HEAP_SWEEP_END(ACTOR)
 #define TRACING_ACTOR_MUTED(ACTOR)
 #define TRACING_ACTOR_UNMUTED(ACTOR)
 #define TRACING_ACTOR_OVERLOADED(ACTOR)

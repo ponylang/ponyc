@@ -64,10 +64,18 @@ typedef enum
   TRACING_MSG_ACTOR_RUN_STOP,
   TRACING_MSG_ACTOR_BEHAVIOR_RUN_START,
   TRACING_MSG_ACTOR_BEHAVIOR_RUN_STOP,
+  TRACING_MSG_ACTOR_GC_START,
+  TRACING_MSG_ACTOR_GC_END,
   TRACING_MSG_ACTOR_GC_MARK_START,
   TRACING_MSG_ACTOR_GC_MARK_END,
   TRACING_MSG_ACTOR_GC_SWEEP_START,
   TRACING_MSG_ACTOR_GC_SWEEP_END,
+  TRACING_MSG_ACTOR_GC_OBJECTMAP_SWEEP_START,
+  TRACING_MSG_ACTOR_GC_OBJECTMAP_SWEEP_END,
+  TRACING_MSG_ACTOR_GC_ACTORMAP_SWEEP_START,
+  TRACING_MSG_ACTOR_GC_ACTORMAP_SWEEP_END,
+  TRACING_MSG_ACTOR_GC_HEAP_SWEEP_START,
+  TRACING_MSG_ACTOR_GC_HEAP_SWEEP_END,
   TRACING_MSG_ACTOR_MUTED,
   TRACING_MSG_ACTOR_UNMUTED,
   TRACING_MSG_ACTOR_OVERLOADED,
@@ -254,6 +262,24 @@ typedef struct tracing_actor_behavior_run_end_t
   uint8_t sync_flags;
 } tracing_actor_behavior_run_end_t;
 
+typedef struct tracing_actor_gc_start_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_start_t;
+
+typedef struct tracing_actor_gc_end_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_end_t;
+
 typedef struct tracing_actor_gc_mark_start_t
 {
   pony_msg_t msg;
@@ -289,6 +315,60 @@ typedef struct tracing_actor_gc_sweep_end_t
   pony_actor_t* actor;
   pony_type_t* type;
 } tracing_actor_gc_sweep_end_t;
+
+typedef struct tracing_actor_gc_objectmap_sweep_start_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_objectmap_sweep_start_t;
+
+typedef struct tracing_actor_gc_objectmap_sweep_end_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_objectmap_sweep_end_t;
+
+typedef struct tracing_actor_gc_actormap_sweep_start_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_actormap_sweep_start_t;
+
+typedef struct tracing_actor_gc_actormap_sweep_end_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_actormap_sweep_end_t;
+
+typedef struct tracing_actor_gc_heap_sweep_start_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_heap_sweep_start_t;
+
+typedef struct tracing_actor_gc_heap_sweep_end_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  pony_actor_t* actor;
+  pony_type_t* type;
+} tracing_actor_gc_heap_sweep_end_t;
 
 typedef struct tracing_actor_muted_t
 {
@@ -1260,6 +1340,44 @@ void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, uint32_t behavi
   send_trace_message((pony_msg_t*)m);
 }
 
+void ponyint_tracing_actor_gc_start(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_start_t* m = (tracing_actor_gc_start_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_start_t)), TRACING_MSG_ACTOR_GC_START);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_end(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_end_t* m = (tracing_actor_gc_end_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_end_t)), TRACING_MSG_ACTOR_GC_END);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
 void ponyint_tracing_actor_gc_mark_start(pony_actor_t* actor)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
@@ -1327,6 +1445,120 @@ void ponyint_tracing_actor_gc_sweep_end(pony_actor_t* actor)
 
   tracing_actor_gc_sweep_end_t* m = (tracing_actor_gc_sweep_end_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(tracing_actor_gc_sweep_end_t)), TRACING_MSG_ACTOR_GC_SWEEP_END);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_objectmap_sweep_start(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_objectmap_sweep_start_t* m = (tracing_actor_gc_objectmap_sweep_start_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_objectmap_sweep_start_t)), TRACING_MSG_ACTOR_GC_OBJECTMAP_SWEEP_START);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_objectmap_sweep_end(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_objectmap_sweep_end_t* m = (tracing_actor_gc_objectmap_sweep_end_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_objectmap_sweep_end_t)), TRACING_MSG_ACTOR_GC_OBJECTMAP_SWEEP_END);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_actormap_sweep_start(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_actormap_sweep_start_t* m = (tracing_actor_gc_actormap_sweep_start_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_actormap_sweep_start_t)), TRACING_MSG_ACTOR_GC_ACTORMAP_SWEEP_START);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_actormap_sweep_end(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_actormap_sweep_end_t* m = (tracing_actor_gc_actormap_sweep_end_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_actormap_sweep_end_t)), TRACING_MSG_ACTOR_GC_ACTORMAP_SWEEP_END);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_heap_sweep_start(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_heap_sweep_start_t* m = (tracing_actor_gc_heap_sweep_start_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_heap_sweep_start_t)), TRACING_MSG_ACTOR_GC_HEAP_SWEEP_START);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor->type;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
+void ponyint_tracing_actor_gc_heap_sweep_end(pony_actor_t* actor)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_GC))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_gc_heap_sweep_end_t* m = (tracing_actor_gc_heap_sweep_end_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_gc_heap_sweep_end_t)), TRACING_MSG_ACTOR_GC_HEAP_SWEEP_END);
 
   m->thread_id = this_tracing_scheduler->tid;
   m->ts = get_time_nanos();
@@ -1974,6 +2206,18 @@ static void handle_message(pony_msg_t* msg)
 
       break;
     }
+    case TRACING_MSG_ACTOR_GC_START:
+    {
+      tracing_actor_gc_start_t* m = (tracing_actor_gc_start_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_END:
+    {
+      tracing_actor_gc_end_t* m = (tracing_actor_gc_end_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
     case TRACING_MSG_ACTOR_GC_MARK_START:
     {
       tracing_actor_gc_mark_start_t* m = (tracing_actor_gc_mark_start_t*)msg;
@@ -1996,6 +2240,42 @@ static void handle_message(pony_msg_t* msg)
     {
       tracing_actor_gc_sweep_end_t* m = (tracing_actor_gc_sweep_end_t*)msg;
       fprintf(log_file, ",\n{\"name\":\"actor_gc_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_OBJECTMAP_SWEEP_START:
+    {
+      tracing_actor_gc_objectmap_sweep_start_t* m = (tracing_actor_gc_objectmap_sweep_start_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc_objectmap_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_OBJECTMAP_SWEEP_END:
+    {
+      tracing_actor_gc_objectmap_sweep_end_t* m = (tracing_actor_gc_objectmap_sweep_end_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc_objectmap_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_ACTORMAP_SWEEP_START:
+    {
+      tracing_actor_gc_actormap_sweep_start_t* m = (tracing_actor_gc_actormap_sweep_start_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc_actormap_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_ACTORMAP_SWEEP_END:
+    {
+      tracing_actor_gc_actormap_sweep_end_t* m = (tracing_actor_gc_actormap_sweep_end_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc_actormap_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_HEAP_SWEEP_START:
+    {
+      tracing_actor_gc_heap_sweep_start_t* m = (tracing_actor_gc_heap_sweep_start_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc_heap_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
+      break;
+    }
+    case TRACING_MSG_ACTOR_GC_HEAP_SWEEP_END:
+    {
+      tracing_actor_gc_heap_sweep_end_t* m = (tracing_actor_gc_heap_sweep_end_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_gc_heap_sweep\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name);
       break;
     }
     case TRACING_MSG_ACTOR_MUTED:

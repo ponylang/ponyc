@@ -2,6 +2,7 @@
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
 #include "../mem/pagemap.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -693,12 +694,16 @@ void ponyint_gc_discardstack(pony_ctx_t* ctx)
 
 void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 {
+  TRACING_ACTOR_GC_OBJECTMAP_SWEEP_START(ctx->current);
   ponyint_objectmap_sweep(&gc->local);
+  TRACING_ACTOR_GC_OBJECTMAP_SWEEP_END(ctx->current);
 
 #ifdef USE_RUNTIMESTATS
   size_t objectmap_mem_used_freed = 0;
   size_t objectmap_mem_allocated_freed = 0;
 #endif
+
+  TRACING_ACTOR_GC_ACTORMAP_SWEEP_START(ctx->current);
 
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS
@@ -719,6 +724,8 @@ void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
     + ctx->current->actorstats.foreign_actormap_objectmap_mem_allocated)
     == ponyint_actormap_total_alloc_size(&gc->foreign));
 #endif
+
+  TRACING_ACTOR_GC_ACTORMAP_SWEEP_END(ctx->current);
 }
 
 bool ponyint_gc_acquire(gc_t* gc, actorref_t* aref)
