@@ -205,10 +205,10 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 
 static void send_msg_pinned_actor_thread(uint32_t from, sched_msg_t msg, intptr_t arg)
 {
-  TRACING_THREAD_SEND_MESSAGE(msg, arg, from, PONY_PINNED_ACTOR_THREAD_INDEX);
-
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
+
+  TRACING_THREAD_SEND_MESSAGE(m, msg, arg, from, PONY_PINNED_ACTOR_THREAD_INDEX);
 
 #ifdef USE_RUNTIMESTATS_MESSAGES
   this_scheduler->ctx.schedulerstats.num_inflight_messages--;
@@ -232,10 +232,10 @@ static void send_msg_pinned_actor_thread(uint32_t from, sched_msg_t msg, intptr_
 
 static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
 {
-  TRACING_THREAD_SEND_MESSAGE(msg, arg, from, to);
-
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
+
+  TRACING_THREAD_SEND_MESSAGE(m, msg, arg, from, to);
 
 #ifdef USE_RUNTIMESTATS_MESSAGES
   this_scheduler->ctx.schedulerstats.num_inflight_messages--;
@@ -487,7 +487,7 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
     sched->ctx.schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
-    TRACING_THREAD_RECEIVE_MESSAGE(m->msg.id, m->i);
+    TRACING_THREAD_RECEIVE_MESSAGE(m, m->msg.id, m->i);
 
     switch(m->msg.id)
     {

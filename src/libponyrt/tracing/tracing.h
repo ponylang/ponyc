@@ -20,8 +20,8 @@ void ponyint_tracing_thread_start(scheduler_t* sched);
 void ponyint_tracing_thread_stop();
 void ponyint_tracing_thread_suspend();
 void ponyint_tracing_thread_resume();
-void ponyint_tracing_thread_receive_message(sched_msg_t msg_type, intptr_t arg);
-void ponyint_tracing_thread_send_message(sched_msg_t msg_type, intptr_t arg, int32_t from_sched_index, int32_t to_sched_index);
+void ponyint_tracing_thread_receive_message(pony_msgi_t* msg_id, sched_msg_t msg_type, intptr_t arg);
+void ponyint_tracing_thread_send_message(pony_msgi_t* msg_id, sched_msg_t msg_type, intptr_t arg, int32_t from_sched_index, int32_t to_sched_index);
 void ponyint_tracing_thread_actor_run_start(pony_actor_t* actor);
 void ponyint_tracing_thread_actor_run_stop(pony_actor_t* actor);
 void ponyint_tracing_actor_created(pony_actor_t* actor);
@@ -59,8 +59,8 @@ void ponyint_tracing_systematic_testing_timeslice_end();
 #define TRACING_THREAD_STOP() ponyint_tracing_thread_stop()
 #define TRACING_THREAD_SUSPEND() ponyint_tracing_thread_suspend()
 #define TRACING_THREAD_RESUME() ponyint_tracing_thread_resume()
-#define TRACING_THREAD_RECEIVE_MESSAGE(MSG_TYPE, ARG) ponyint_tracing_thread_receive_message(MSG_TYPE, ARG)
-#define TRACING_THREAD_SEND_MESSAGE(MSG_TYPE, ARG, FROM_SCHED_INDEX, TO_SCHED_INDEX) ponyint_tracing_thread_send_message(MSG_TYPE, ARG, FROM_SCHED_INDEX, TO_SCHED_INDEX)
+#define TRACING_THREAD_RECEIVE_MESSAGE(MSG_ID, MSG_TYPE, ARG) ponyint_tracing_thread_receive_message(MSG_ID, MSG_TYPE, ARG)
+#define TRACING_THREAD_SEND_MESSAGE(MSG_ID, MSG_TYPE, ARG, FROM_SCHED_INDEX, TO_SCHED_INDEX) ponyint_tracing_thread_send_message(MSG_ID, MSG_TYPE, ARG, FROM_SCHED_INDEX, TO_SCHED_INDEX)
 #define TRACING_THREAD_ACTOR_RUN_START(ACTOR) ponyint_tracing_thread_actor_run_start(ACTOR)
 #define TRACING_THREAD_ACTOR_RUN_STOP(ACTOR) ponyint_tracing_thread_actor_run_stop(ACTOR)
 #define TRACING_ACTOR_CREATED(ACTOR) ponyint_tracing_actor_created(ACTOR)
@@ -101,8 +101,8 @@ PONY_EXTERN_C_END
 #define TRACING_THREAD_STOP()
 #define TRACING_THREAD_SUSPEND()
 #define TRACING_THREAD_RESUME()
-#define TRACING_THREAD_RECEIVE_MESSAGE(MSG_TYPE, ARG)
-#define TRACING_THREAD_SEND_MESSAGE(MSG_TYPE, ARG, FROM_SCHED_INDEX, TO_SCHED_INDEX)
+#define TRACING_THREAD_RECEIVE_MESSAGE(MSG_ID, MSG_TYPE, ARG)
+#define TRACING_THREAD_SEND_MESSAGE(MSG_ID, MSG_TYPE, ARG, FROM_SCHED_INDEX, TO_SCHED_INDEX)
 #define TRACING_THREAD_ACTOR_RUN_START(ACTOR)
 #define TRACING_THREAD_ACTOR_RUN_STOP(ACTOR)
 #define TRACING_ACTOR_CREATED(ACTOR)
