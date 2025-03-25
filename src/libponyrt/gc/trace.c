@@ -3,6 +3,7 @@
 #include "../sched/scheduler.h"
 #include "../sched/cpu.h"
 #include "../actor/actor.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <dtrace.h>
 
@@ -72,7 +73,16 @@ void ponyint_mark_done(pony_ctx_t* ctx)
 {
   ponyint_gc_markimmutable(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_handlestack(ctx);
+
+#ifdef USE_RUNTIMESTATS
+  uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
+  ctx->schedulerstats.actor_gc_mark_cpu += used_cpu;
+  ctx->current->actorstats.gc_mark_cpu += used_cpu;
+#endif
+
+  TRACING_ACTOR_GC_MARK_END(ctx->current);
   ponyint_gc_sendacquire(ctx);
+  TRACING_ACTOR_GC_SWEEP_START(ctx->current);
   ponyint_gc_sweep(ctx, ponyint_actor_gc(ctx->current));
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
