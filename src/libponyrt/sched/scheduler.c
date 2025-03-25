@@ -1052,9 +1052,7 @@ static pony_actor_t* steal(scheduler_t* sched)
           {
             // Run the cycle detector and get the next actor
             DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-            TRACING_THREAD_ACTOR_RUN_START(actor);
             bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
-            TRACING_THREAD_ACTOR_RUN_STOP(actor);
             sched->ctx.current = NULL;
             pony_actor_t* next = pop_global(sched);
 
@@ -1252,11 +1250,9 @@ static void run(scheduler_t* sched)
       ponyint_sched_maybe_wakeup(sched->index);
 
     pony_assert(!ponyint_actor_is_pinned(actor));
-    TRACING_THREAD_ACTOR_RUN_START(actor);
 
     // Run the current actor and get the next actor.
     bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
-    TRACING_THREAD_ACTOR_RUN_STOP(actor);
     sched->ctx.current = NULL;
     SYSTEMATIC_TESTING_YIELD();
     pony_actor_t* next = pop_global(sched);
@@ -1515,11 +1511,8 @@ static void run_pinned_actors()
     } else {
       pony_assert(ponyint_actor_is_pinned(actor));
 
-      TRACING_THREAD_ACTOR_RUN_START(actor);
-
       // Run the current actor and get the next actor.
       bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
-      TRACING_THREAD_ACTOR_RUN_STOP(actor);
       sched->ctx.current = NULL;
       SYSTEMATIC_TESTING_YIELD();
 
