@@ -87,7 +87,6 @@ jobs:
             target: test-stress-ubench-with-cd-release
           - name: "arm64 macOS [cd] [debug]"
             target: test-stress-ubench-with-cd-debug
-          - name: "arm64 macOS [release]"
 
     name: ${{matrix.target}}:${{ matrix.name }}
     steps:
