@@ -281,15 +281,17 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 #endif
 }
 
-static void unblock(pony_actor_t* actor)
+static void maybe_unblock(pony_actor_t* actor)
 {
-  if(has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT)) {
-    unset_internal_flag(actor, ACTOR_FLAG_BLOCKED | ACTOR_FLAG_BLOCKED_SENT);
-    ponyint_cycle_unblock(actor);
-  } else {
-    unset_internal_flag(actor, ACTOR_FLAG_BLOCKED);
+  if(has_internal_flag(actor, ACTOR_FLAG_BLOCKED)) {
+    if(has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT)) {
+      unset_internal_flag(actor, ACTOR_FLAG_BLOCKED | ACTOR_FLAG_BLOCKED_SENT);
+      ponyint_cycle_unblock(actor);
+    } else {
+      unset_internal_flag(actor, ACTOR_FLAG_BLOCKED);
+    }
+    TRACING_ACTOR_UNBLOCKED(actor);
   }
-  TRACING_ACTOR_UNBLOCKED(actor);
 }
 
 static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -346,7 +348,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       if(ponyint_gc_acquire(&actor->gc, (actorref_t*)m->p))
       {
         // send unblock if we've sent a block
-        unblock(actor);
+        maybe_unblock(actor);
       }
 
       return false;
@@ -372,7 +374,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       if(ponyint_gc_release(&actor->gc, (actorref_t*)m->p))
       {
         // send unblock if we've sent a block
-        unblock(actor);
+        maybe_unblock(actor);
       }
 
       return false;
@@ -483,7 +485,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(!ponyint_is_cycle(actor));
-      unblock(actor);
+      maybe_unblock(actor);
 
       DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
