@@ -59,7 +59,7 @@ jobs:
       - name: Configure networking
         run: bash .ci-scripts/macOS-configure-networking.bash
       - name: Run Stress Test
-        run: make ${{ matrix.target }} config=debug usedebugger=lldb
+        run: make ${{ matrix.target }} open_close_stress_connections=1000000 config=debug usedebugger=lldb
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5

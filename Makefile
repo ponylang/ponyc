@@ -6,6 +6,7 @@ llvm_archs ?= X86;ARM;AArch64;WebAssembly;RISCV
 llvm_config ?= Release
 llc_arch ?= x86-64
 pic_flag ?=
+open_close_stress_connections ?= 10000000
 
 ifndef version
   version := $(shell cat VERSION)
@@ -256,7 +257,7 @@ test-cross-stress-release: test-stress-release
 test-stress-ubench-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 test-stress-tcp-open-close-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock 10000000
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock $(open_close_stress_connections)
 
 test-cross-stress-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-debug: debuggercmd=
@@ -264,7 +265,7 @@ test-cross-stress-debug: test-stress-debug
 test-stress-ubench-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
 test-stress-tcp-open-close-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock 10000000
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock $(open_close_stress_connections)
 
 test-cross-stress-with-cd-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-with-cd-release: debuggercmd=
@@ -272,7 +273,7 @@ test-cross-stress-with-cd-release: test-stress-with-cd-release
 test-stress-ubench-with-cd-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 test-stress-tcp-open-close-with-cd-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close 10000000
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close $(open_close_stress_connections)
 
 test-cross-stress-with-cd-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-with-cd-debug: debuggercmd=
@@ -280,7 +281,7 @@ test-cross-stress-with-cd-debug: test-stress-with-cd-debug
 test-stress-ubench-with-cd-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
 test-stress-tcp-open-close-with-cd-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close 10000000
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close $(open_close_stress_connections)
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true
