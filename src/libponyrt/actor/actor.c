@@ -249,6 +249,8 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
   DTRACE2(GC_START, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   TRACING_ACTOR_GC_MARK_START(actor);
 
+  uint64_t num_actor_references = ponyint_actormap_size(&actor->gc.foreign);
+
   ponyint_gc_mark(ctx);
 
   if(actor->type->trace != NULL)
@@ -264,7 +266,9 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->actorstats.gc_mark_cpu += used_cpu;
 #endif
 
-  ponyint_heap_endgc(&actor->heap
+  uint64_t num_actor_references_deleted = num_actor_references - ponyint_actormap_size(&actor->gc.foreign);
+
+  ponyint_heap_endgc(&actor->heap, num_actor_references_deleted
 #ifdef USE_RUNTIMESTATS
   , actor);
 #else

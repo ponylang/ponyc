@@ -65,6 +65,7 @@ typedef void (*chunk_fn)(chunk_t* chunk, uint32_t mark);
 
 #define SIZECLASS_SIZE(sizeclass) (HEAP_MIN << (sizeclass))
 #define SIZECLASS_MASK(sizeclass) (~(SIZECLASS_SIZE(sizeclass) - 1))
+#define ACTOR_REFERENCES_DELETED_THRESHOLD 100
 
 #define EXTERNAL_PTR(p, sizeclass) \
   ((void*)((uintptr_t)p & SIZECLASS_MASK(sizeclass)))
@@ -1037,7 +1038,7 @@ void ponyint_heap_free(chunk_t* chunk, void* p)
   }
 }
 
-void ponyint_heap_endgc(heap_t* heap
+void ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
 #ifdef USE_RUNTIMESTATS
   , pony_actor_t* actor)
 #else
@@ -1220,10 +1221,22 @@ void ponyint_heap_endgc(heap_t* heap
   actor->actorstats.heap_num_allocated = num_allocated;
   actor->actorstats.heap_gc_counter++;
 #endif
-  heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 
-  if(heap->next_gc < heap_initialgc)
-    heap->next_gc = heap_initialgc;
+  size_t next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
+
+  if(next_gc < heap_initialgc)
+    next_gc = heap_initialgc;
+
+  // don't grow heap next gc size if we deleted more than
+  // ACTOR_REFERENCES_DELETED_THRESHOLD actor references in this GC cycle
+  // this effectively causes GC to run more frequently for this actor if
+  // it tends to have a lot of references to other actors that are
+  // frequently created and destroyed
+  if((num_actor_references_deleted > ACTOR_REFERENCES_DELETED_THRESHOLD)
+    && (next_gc > heap->next_gc))
+    next_gc = heap->next_gc;
+
+  heap->next_gc = next_gc;
 }
 
 size_t ponyint_heap_size(chunk_t* chunk)
