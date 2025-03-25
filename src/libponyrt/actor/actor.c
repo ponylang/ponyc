@@ -538,6 +538,7 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 {
+  TRACING_THREAD_ACTOR_RUN_START(actor);
   pony_assert(!has_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED));
   ctx->current = actor;
   size_t batch = PONY_SCHED_BATCH;
@@ -599,12 +600,18 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
       // maybe mute actor; returns true if mute occurs
       if(maybe_should_mute(actor))
+      {
+        TRACING_THREAD_ACTOR_RUN_STOP(actor);
         return false;
+      }
 
       // if we've reached our batch limit
       // or if we're polling where we want to stop after one app message
       if(app == batch || polling)
+      {
+        TRACING_THREAD_ACTOR_RUN_STOP(actor);
         return batch_limit_reached(actor, polling);
+      }
     }
     else
     {
@@ -640,7 +647,10 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
 
   // If we have processed any application level messages, defer blocking.
   if(app > 0)
+  {
+    TRACING_THREAD_ACTOR_RUN_STOP(actor);
     return true;
+  }
 
   // note that we're logically blocked
   if(!has_internal_flag(actor, ACTOR_FLAG_BLOCKED | ACTOR_FLAG_SYSTEM | ACTOR_FLAG_BLOCKED_SENT))
@@ -683,6 +693,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
           // make sure the queue is actually empty as expected
           pony_assert(empty);
 
+          TRACING_THREAD_ACTOR_RUN_STOP(actor);
+
           // "Locally delete" the actor.
           ponyint_actor_setpendingdestroy(actor);
           ponyint_actor_final(ctx, actor);
@@ -708,6 +720,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // unblocked (which would create a race condition).
         send_block(ctx, actor);
 
+        TRACING_THREAD_ACTOR_RUN_STOP(actor);
+
         // We have to ensure that this actor will not be rescheduled if the
         // cycle detector happens to send it a message.
         //
@@ -727,6 +741,8 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       }
     }
   }
+
+  TRACING_THREAD_ACTOR_RUN_STOP(actor);
 
   // If we mark the queue as empty, then it is no longer safe to do any
   // operations on this actor that aren't concurrency safe so make
