@@ -157,6 +157,7 @@ typedef struct tracing_thread_receive_message_t
   uint64_t thread_id;
   uint64_t ts;
   int32_t index;
+  void* msg_id;
   sched_msg_t msg_type;
   intptr_t arg;
 } tracing_thread_receive_message_t;
@@ -168,6 +169,7 @@ typedef struct tracing_thread_send_message_t
   uint64_t ts;
   int32_t index;
   int32_t to_sched_index;
+  void* msg_id;
   sched_msg_t msg_type;
   intptr_t arg;
 } tracing_thread_send_message_t;
@@ -1076,7 +1078,7 @@ void ponyint_tracing_thread_resume()
   send_trace_message((pony_msg_t*)m);
 }
 
-void ponyint_tracing_thread_receive_message(sched_msg_t msg_type, intptr_t arg)
+void ponyint_tracing_thread_receive_message(pony_msgi_t* msg_id, sched_msg_t msg_type, intptr_t arg)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_MESSAGING))
     return;
@@ -1087,13 +1089,14 @@ void ponyint_tracing_thread_receive_message(sched_msg_t msg_type, intptr_t arg)
   m->index = this_tracing_scheduler->sched->index;
   m->thread_id = this_tracing_scheduler->tid;
   m->ts = get_time_nanos();
+  m->msg_id = msg_id;
   m->msg_type = msg_type;
   m->arg = arg;
 
   send_trace_message((pony_msg_t*)m);
 }
 
-void ponyint_tracing_thread_send_message(sched_msg_t msg_type, intptr_t arg, int32_t from_sched_index, int32_t to_sched_index)
+void ponyint_tracing_thread_send_message(pony_msgi_t* msg_id, sched_msg_t msg_type, intptr_t arg, int32_t from_sched_index, int32_t to_sched_index)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_SCHEDULER_MESSAGING))
     return;
@@ -1106,6 +1109,7 @@ void ponyint_tracing_thread_send_message(sched_msg_t msg_type, intptr_t arg, int
 
   m->thread_id = this_tracing_scheduler->tid;
   m->ts = get_time_nanos();
+  m->msg_id = msg_id;
   m->msg_type = msg_type;
   m->arg = arg;
   m->index = this_tracing_scheduler->sched->index;
@@ -1768,13 +1772,13 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_THREAD_RECEIVE_MESSAGE:
     {
       tracing_thread_receive_message_t* m = (tracing_thread_receive_message_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"RECEIVE:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%ld,\"index\":%d}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index);
+      fprintf(log_file, ",\n{\"name\":\"RECEIVE:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%ld,\"index\":%d,\"msg_id\":\"%p\"}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->msg_id);
       break;
     }
     case TRACING_MSG_THREAD_SEND_MESSAGE:
     {
       tracing_thread_send_message_t* m = (tracing_thread_send_message_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"SEND:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%ld,\"index\":%d,\"to_index\":%d}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->to_sched_index);
+      fprintf(log_file, ",\n{\"name\":\"SEND:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%ld,\"index\":%d,\"to_index\":%d,\"msg_id\":\"%p\"}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->to_sched_index, m->msg_id);
       break;
     }
     case TRACING_MSG_ACTOR_CREATED:
