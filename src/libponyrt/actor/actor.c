@@ -288,25 +288,8 @@ static void unblock(pony_actor_t* actor)
   TRACING_ACTOR_UNBLOCKED(actor);
 }
 
-static void send_block(pony_ctx_t* ctx, pony_actor_t* actor)
+static void send_block(pony_actor_t* actor)
 {
-  pony_assert(ctx->current == actor);
-
-  // Try and run GC because we're blocked and sending a block message
-  // to the CD. This will try and free any memory the actor has in its
-  // heap that wouldn't get freed otherwise until the actor is
-  // destroyed or happens to receive more work via application messages
-  // that eventually trigger a GC which may not happen for a long time
-  // (or ever). Do this BEFORE sending the message or else we might be
-  // GCing while the CD destroys us.
-  // only if `gc.rc > 0` because if `gc.rc == 0` then the actor is a zombie
-  // and the cycle detector will destroy it upon receiving the block message
-  if(actor->gc.rc > 0)
-  {
-    pony_triggergc(ctx);
-    try_gc(ctx, actor);
-  }
-
   // We're blocked, send block message.
   set_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT);
   set_internal_flag(actor, ACTOR_FLAG_CD_CONTACTED);
@@ -429,7 +412,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         //
         // Sending multiple "i'm blocked" messages to the cycle detector
         // will result in actor potentially being freed more than once.
-        send_block(ctx, actor);
+        send_block(actor);
       }
 
       return false;
@@ -714,7 +697,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         // have a reference to this actor (rc is 0) so another actor can not
         // send it an application message that results this actor becoming
         // unblocked (which would create a race condition).
-        send_block(ctx, actor);
+        send_block(actor);
 
         TRACING_THREAD_ACTOR_RUN_STOP(actor);
 
@@ -728,12 +711,22 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
         return false;
       }
     } else {
-      // gc is greater than 0
+      // rc is greater than 0 which means other actors have references to us
+      // preventing us from being destroyed.
+
+      // Force GC to run because we're blocked and our rc is greater than 0.
+      // This will try and free any memory the actor has in its heap along with
+      // references to other actors that have been deleted. This could result
+      // in other actors being unblocked and/or destroyed which could eventually
+      // result in our rc going to 0 so we can be also be destroyed.
+      pony_triggergc(ctx);
+      try_gc(ctx, actor);
+
       if (!actor_noblock && !has_internal_flag(actor, ACTOR_FLAG_CD_CONTACTED))
       {
         // The cycle detector is running and we've never contacted it ourselves,
         // so let it know we exist in case it is unaware.
-        send_block(ctx, actor);
+        send_block(actor);
       }
     }
   }
