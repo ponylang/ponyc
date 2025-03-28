@@ -189,6 +189,8 @@ typedef struct tracing_actor_created_t
   uint64_t ts;
   pony_actor_t* actor;
   pony_type_t* type;
+  void* created_by_actor;
+  pony_type_t* created_by_actor_type;
   uint8_t internal_flags;
   uint8_t sync_flags;
 } tracing_actor_created_t;
@@ -1213,6 +1215,8 @@ void ponyint_tracing_actor_created(pony_actor_t* actor)
   m->ts = get_time_nanos();
   m->actor = actor;
   m->type = actor->type;
+  m->created_by_actor = this_tracing_scheduler->sched->ctx.current;
+  m->created_by_actor_type = this_tracing_scheduler->sched->ctx.current!=NULL?this_tracing_scheduler->sched->ctx.current->type:NULL;
   m->internal_flags = actor->internal_flags;
   m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
 
@@ -2016,7 +2020,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_CREATED:
     {
       tracing_actor_created_t* m = (tracing_actor_created_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"created_by_actor_id\":\"%p\",\"created_by_actor_type_id\":%u,\"created_by_actor_type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, m->created_by_actor, m->created_by_actor_type!=NULL?m->created_by_actor_type->id:0, m->created_by_actor_type!=NULL?m->created_by_actor_type->name:"@@SYSTEM INJECT@@",
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
