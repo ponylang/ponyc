@@ -568,9 +568,9 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
     ctx->schedulerstats.misc_cpu += used_cpu;
 #endif
 
-    TRACING_ACTOR_BEHAVIOR_RUN_START(actor, msg->id);
+    TRACING_ACTOR_BEHAVIOR_RUN_START(actor, msg, msg->id);
     bool app_msg = handle_message(ctx, actor, msg);
-    TRACING_ACTOR_BEHAVIOR_RUN_END(actor, msg->id);
+    TRACING_ACTOR_BEHAVIOR_RUN_END(actor, msg, msg->id);
 
     // if an actors rc never goes above 0, it will be able to safely delete
     // itself even in the presence of the cycle detector. This is one of two
