@@ -2566,9 +2566,19 @@ static void handle_message(pony_msg_t* msg)
     }
     case TRACING_MSG_FLIGHT_RECORDER_DUMP:
     {
-      // TODO: should flight recorder events be dumped to a file based on cli
-      // options like normal tracing? or is stderr only/always acceptable?
-      log_file = stderr;
+      if(strcmp(output_file, "-") == 0)
+        log_file = stdout;
+      else if(strcmp(output_file, "~") == 0)
+        log_file = stderr;
+      else
+        log_file = fopen(output_file, "w");
+
+      // if we have trouble opening the file, default to stderr
+      if(log_file == NULL)
+      {
+        fprintf(stderr, "\nflight recorder dumping to `stderr` due to file open error for `%s`..\n\n", output_file);
+        log_file = stderr;
+      }
 
       print_header(0);
 
@@ -2641,7 +2651,17 @@ static void handle_message(pony_msg_t* msg)
 
       print_footer(0);
 
-      fprintf(stderr, "\nflight recorder events dumped to `stderr` above..\n\n");
+      if(log_file != stderr && log_file != stdout)
+      {
+        fflush(log_file);
+        fclose(log_file);
+        fprintf(stderr, "\nflight recorder events dumped to `%s`..\n\n", output_file);
+      } else if(log_file == stderr) {
+        fprintf(stderr, "\nflight recorder events dumped to `stderr` above..\n\n");
+      } else {
+        fflush(log_file);
+        fprintf(stderr, "\nflight recorder events dumped to `stdout` above..\n\n");
+      }
 
 #if defined(PLATFORM_IS_MACOSX)
       psignal(m->siginfo->si_signo, "\nFatal signal encountered");
@@ -2662,6 +2682,8 @@ static void handle_message(pony_msg_t* msg)
           "imprecise or incorrect.\nUse a debug version to get more meaningful "
           "information.\n", stderr);
       }
+
+      fflush(stderr);
 
       atomic_store_explicit(&flight_recorder_dump_completed, true, memory_order_relaxed);
 
