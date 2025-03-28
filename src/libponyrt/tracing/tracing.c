@@ -2604,7 +2604,7 @@ static void handle_message(pony_msg_t* msg)
       }
   
       tracing_flight_recorder_dump_t* m = (tracing_flight_recorder_dump_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"fatal_signal\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",args:{\"signal\":%d,\"signal_name\":\"%s\",\"scheduler_index\":%d,\"active_actor\":", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, m->siginfo->si_signo, strsignal(m->siginfo->si_signo), m->index);
+      fprintf(log_file, ",\n{\"name\":\"fatal_signal\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"args\":{\"signal\":%d,\"signal_name\":\"%s\",\"scheduler_index\":%d,\"active_actor\":", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, m->siginfo->si_signo, strsignal(m->siginfo->si_signo), m->index);
 
       if(m->actor != NULL)
       {
