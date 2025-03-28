@@ -263,6 +263,7 @@ typedef struct tracing_actor_behavior_run_start_t
   uint64_t ts;
   void* actor;
   pony_type_t* type;
+  void* msg_id;
   uint32_t behavior_id;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -275,6 +276,7 @@ typedef struct tracing_actor_behavior_run_end_t
   uint64_t ts;
   void* actor;
   pony_type_t* type;
+  void* msg_id;
   uint32_t behavior_id;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -1343,7 +1345,7 @@ void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor
   send_trace_message((pony_msg_t*)m);
 }
 
-void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t behavior_id)
+void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, pony_msg_t* msg_id, uint32_t behavior_id)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
     return;
@@ -1358,6 +1360,7 @@ void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t beha
   m->ts = get_time_nanos();
   m->actor = actor;
   m->type = actor->type;
+  m->msg_id = msg_id;
   m->behavior_id = behavior_id;
   m->internal_flags = actor->internal_flags;
   m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
@@ -1365,7 +1368,7 @@ void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t beha
   send_trace_message((pony_msg_t*)m);
 }
 
-void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, uint32_t behavior_id)
+void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, pony_msg_t* msg_id, uint32_t behavior_id)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
     return;
@@ -1380,6 +1383,7 @@ void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, uint32_t behavi
   m->ts = get_time_nanos();
   m->actor = actor;
   m->type = actor->type;
+  m->msg_id = msg_id;
   m->behavior_id = behavior_id;
   m->internal_flags = actor->internal_flags;
   m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
@@ -2226,7 +2230,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_BEHAVIOR_RUN_START:
     {
       tracing_actor_behavior_run_start_t* m = (tracing_actor_behavior_run_start_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_BEGIN), pid, m->thread_id, m->actor, m->actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2244,7 +2248,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_BEHAVIOR_RUN_STOP:
     {
       tracing_actor_behavior_run_end_t* m = (tracing_actor_behavior_run_end_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_behavior_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->type->get_behavior_name, m->behavior_id), m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",

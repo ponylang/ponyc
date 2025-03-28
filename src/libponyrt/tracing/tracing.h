@@ -27,8 +27,8 @@ void ponyint_tracing_thread_actor_run_stop(pony_actor_t* actor);
 void ponyint_tracing_actor_created(pony_actor_t* actor);
 void ponyint_tracing_actor_destroyed(pony_actor_t* actor);
 void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor_t* to_actor, pony_msg_t* msg_id, uint32_t behavior_id);
-void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t behavior_id);
-void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, uint32_t behavior_id);
+void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, pony_msg_t* msg_id, uint32_t behavior_id);
+void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, pony_msg_t* msg_id, uint32_t behavior_id);
 void ponyint_tracing_actor_gc_start(pony_actor_t* actor);
 void ponyint_tracing_actor_gc_end(pony_actor_t* actor);
 void ponyint_tracing_actor_gc_mark_start(pony_actor_t* actor);
@@ -75,8 +75,8 @@ void ponyint_tracing_systematic_testing_timeslice_end();
 #define TRACING_ACTOR_CREATED(ACTOR) ponyint_tracing_actor_created(ACTOR)
 #define TRACING_ACTOR_DESTROYED(ACTOR) ponyint_tracing_actor_destroyed(ACTOR)
 #define TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ACTOR, TO_ACTOR, MSG_ID, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_schedule(ACTOR, TO_ACTOR, MSG_ID, BEHAVIOR_ID)
-#define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_start(ACTOR, BEHAVIOR_ID)
-#define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_end(ACTOR, BEHAVIOR_ID)
+#define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, MSG_ID, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_start(ACTOR, MSG_ID, BEHAVIOR_ID)
+#define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, MSG_ID, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_end(ACTOR, MSG_ID, BEHAVIOR_ID)
 #define TRACING_ACTOR_GC_START(ACTOR) ponyint_tracing_actor_gc_start(ACTOR)
 #define TRACING_ACTOR_GC_END(ACTOR) ponyint_tracing_actor_gc_end(ACTOR)
 #define TRACING_ACTOR_GC_MARK_START(ACTOR) ponyint_tracing_actor_gc_mark_start(ACTOR)
@@ -126,8 +126,8 @@ PONY_EXTERN_C_END
 #define TRACING_ACTOR_CREATED(ACTOR)
 #define TRACING_ACTOR_DESTROYED(ACTOR)
 #define TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ACTOR, TO_ACTOR, MSG_ID, BEHAVIOR_ID)
-#define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, BEHAVIOR_ID)
-#define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, BEHAVIOR_ID)
+#define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, MSG_ID, BEHAVIOR_ID)
+#define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, MSG_ID, BEHAVIOR_ID)
 #define TRACING_ACTOR_GC_START(ACTOR)
 #define TRACING_ACTOR_GC_END(ACTOR)
 #define TRACING_ACTOR_GC_MARK_START(ACTOR)
