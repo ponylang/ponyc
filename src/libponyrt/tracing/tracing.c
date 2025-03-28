@@ -187,7 +187,7 @@ typedef struct tracing_actor_created_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -198,7 +198,7 @@ typedef struct tracing_actor_destroyed_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -216,7 +216,7 @@ typedef struct tracing_actor_run_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -227,7 +227,7 @@ typedef struct tracing_actor_run_stop_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -245,7 +245,7 @@ typedef struct tracing_actor_behavior_run_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint32_t behavior_id;
   uint8_t internal_flags;
@@ -257,7 +257,7 @@ typedef struct tracing_actor_behavior_run_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint32_t behavior_id;
   uint8_t internal_flags;
@@ -269,7 +269,7 @@ typedef struct tracing_actor_gc_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_start_t;
 
@@ -278,7 +278,7 @@ typedef struct tracing_actor_gc_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_end_t;
 
@@ -287,7 +287,7 @@ typedef struct tracing_actor_gc_mark_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_mark_start_t;
 
@@ -296,7 +296,7 @@ typedef struct tracing_actor_gc_mark_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_mark_end_t;
 
@@ -305,7 +305,7 @@ typedef struct tracing_actor_gc_sweep_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_sweep_start_t;
 
@@ -314,7 +314,7 @@ typedef struct tracing_actor_gc_sweep_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_sweep_end_t;
 
@@ -323,7 +323,7 @@ typedef struct tracing_actor_gc_objectmap_sweep_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_objectmap_sweep_start_t;
 
@@ -332,7 +332,7 @@ typedef struct tracing_actor_gc_objectmap_sweep_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_objectmap_sweep_end_t;
 
@@ -341,7 +341,7 @@ typedef struct tracing_actor_gc_actormap_sweep_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_actormap_sweep_start_t;
 
@@ -350,7 +350,7 @@ typedef struct tracing_actor_gc_actormap_sweep_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_actormap_sweep_end_t;
 
@@ -359,7 +359,7 @@ typedef struct tracing_actor_gc_heap_sweep_start_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_heap_sweep_start_t;
 
@@ -368,7 +368,7 @@ typedef struct tracing_actor_gc_heap_sweep_end_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
 } tracing_actor_gc_heap_sweep_end_t;
 
@@ -377,7 +377,7 @@ typedef struct tracing_actor_muted_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -388,7 +388,7 @@ typedef struct tracing_actor_unmuted_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -399,7 +399,7 @@ typedef struct tracing_actor_overloaded_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -410,7 +410,7 @@ typedef struct tracing_actor_notoverloaded_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -421,7 +421,7 @@ typedef struct tracing_actor_underpressure_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -432,7 +432,7 @@ typedef struct tracing_actor_notunderpressure_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -443,7 +443,7 @@ typedef struct tracing_actor_blocked_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -454,7 +454,7 @@ typedef struct tracing_actor_unblocked_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -465,7 +465,7 @@ typedef struct tracing_actor_tracing_enabled_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -483,7 +483,7 @@ typedef struct tracing_actor_tracing_disabled_t
   pony_msg_t msg;
   uint64_t thread_id;
   uint64_t ts;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
@@ -552,7 +552,7 @@ typedef struct tracing_flight_recorder_dump_t
   uint64_t thread_id;
   uint64_t ts;
   int32_t index;
-  pony_actor_t* actor;
+  void* actor;
   pony_type_t* type;
   uint8_t internal_flags;
   uint8_t sync_flags;
