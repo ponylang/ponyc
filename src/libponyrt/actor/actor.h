@@ -49,6 +49,15 @@ enum
   ACTOR_SYNC_FLAG_MUTED = 1 << 3,
 };
 
+typedef enum actor_destroyed_reason_t
+{
+  ACTOR_DESTROYED_FAST_REAP = 0,
+  ACTOR_DESTROYED_CD_FAST_REAP = 1,
+  ACTOR_DESTROYED_CD_NORMAL = 2,
+  ACTOR_DESTROYED_CD_SHUTDOWN = 3,
+  ACTOR_DESTROYED_MANUAL = 4,
+} actor_destroyed_reason_t;
+
 typedef struct actorstats_t
 {
   size_t heap_mem_allocated;
@@ -144,7 +153,7 @@ void ponyint_sendi_inject(pony_actor_t* to, uint32_t id, intptr_t i);
 
 bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling);
 
-void ponyint_actor_destroy(pony_actor_t* actor);
+void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason);
 
 gc_t* ponyint_actor_gc(pony_actor_t* actor);
 

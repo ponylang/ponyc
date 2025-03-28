@@ -25,7 +25,7 @@ void ponyint_tracing_thread_send_message(pony_msgi_t* msg_id, sched_msg_t msg_ty
 void ponyint_tracing_thread_actor_run_start(pony_actor_t* actor);
 void ponyint_tracing_thread_actor_run_stop(pony_actor_t* actor);
 void ponyint_tracing_actor_created(pony_actor_t* actor);
-void ponyint_tracing_actor_destroyed(pony_actor_t* actor);
+void ponyint_tracing_actor_destroyed(pony_actor_t* actor, actor_destroyed_reason_t reason);
 void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor_t* to_actor, pony_msg_t* msg_id, uint32_t behavior_id);
 void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t behavior_id);
 void ponyint_tracing_actor_behavior_run_end(pony_actor_t* actor, uint32_t behavior_id);
@@ -73,7 +73,7 @@ void ponyint_tracing_systematic_testing_timeslice_end();
 #define TRACING_THREAD_ACTOR_RUN_START(ACTOR) ponyint_tracing_thread_actor_run_start(ACTOR)
 #define TRACING_THREAD_ACTOR_RUN_STOP(ACTOR) ponyint_tracing_thread_actor_run_stop(ACTOR)
 #define TRACING_ACTOR_CREATED(ACTOR) ponyint_tracing_actor_created(ACTOR)
-#define TRACING_ACTOR_DESTROYED(ACTOR) ponyint_tracing_actor_destroyed(ACTOR)
+#define TRACING_ACTOR_DESTROYED(ACTOR, REASON) ponyint_tracing_actor_destroyed(ACTOR, REASON)
 #define TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ACTOR, TO_ACTOR, MSG_ID, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_schedule(ACTOR, TO_ACTOR, MSG_ID, BEHAVIOR_ID)
 #define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_start(ACTOR, BEHAVIOR_ID)
 #define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, BEHAVIOR_ID) ponyint_tracing_actor_behavior_run_end(ACTOR, BEHAVIOR_ID)
@@ -124,7 +124,7 @@ PONY_EXTERN_C_END
 #define TRACING_THREAD_ACTOR_RUN_START(ACTOR)
 #define TRACING_THREAD_ACTOR_RUN_STOP(ACTOR)
 #define TRACING_ACTOR_CREATED(ACTOR)
-#define TRACING_ACTOR_DESTROYED(ACTOR)
+#define TRACING_ACTOR_DESTROYED(ACTOR, REASON)
 #define TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ACTOR, TO_ACTOR, MSG_ID, BEHAVIOR_ID)
 #define TRACING_ACTOR_BEHAVIOR_RUN_START(ACTOR, BEHAVIOR_ID)
 #define TRACING_ACTOR_BEHAVIOR_RUN_END(ACTOR, BEHAVIOR_ID)

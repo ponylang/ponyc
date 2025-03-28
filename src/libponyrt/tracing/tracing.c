@@ -201,6 +201,7 @@ typedef struct tracing_actor_destroyed_t
   uint64_t ts;
   void* actor;
   pony_type_t* type;
+  actor_destroyed_reason_t reason;
   uint8_t internal_flags;
   uint8_t sync_flags;
   size_t heap_next_gc;
@@ -968,6 +969,26 @@ static char* get_scheduler_message_type_string(sched_msg_t msg_type)
   }
 }
 
+static char* get_actor_destroyed_reason_string(actor_destroyed_reason_t reason)
+{
+  switch(reason)
+  {
+    case ACTOR_DESTROYED_MANUAL:
+      return "MANUAL";
+    case ACTOR_DESTROYED_CD_FAST_REAP:
+      return "CYCLE DETECTOR FAST REAP";
+    case ACTOR_DESTROYED_CD_NORMAL:
+      return "CYCLE DETECTOR NORMAL";
+    case ACTOR_DESTROYED_CD_SHUTDOWN:
+      return "CYCLE DETECTOR SHUTDOWN";
+    case ACTOR_DESTROYED_FAST_REAP:
+      return "FAST REAP";
+    default:
+      pony_assert(0);
+      return NULL;
+  }
+}
+
 static char* get_actor_behavior_string(pony_behavior_name_fn get_behavior_name_fn, uint32_t behavior_id)
 {
   switch(behavior_id)
@@ -1237,7 +1258,7 @@ void ponyint_tracing_actor_created(pony_actor_t* actor)
   send_trace_message((pony_msg_t*)m);
 }
 
-void ponyint_tracing_actor_destroyed(pony_actor_t* actor)
+void ponyint_tracing_actor_destroyed(pony_actor_t* actor, actor_destroyed_reason_t reason)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR))
     return;
@@ -1252,6 +1273,7 @@ void ponyint_tracing_actor_destroyed(pony_actor_t* actor)
   m->ts = get_time_nanos();
   m->actor = actor;
   m->type = actor->type;
+  m->reason = reason;
   m->internal_flags = actor->internal_flags;
   m->sync_flags = atomic_load_explicit(&actor->sync_flags, memory_order_relaxed);
   m->heap_next_gc = actor->heap.next_gc;
@@ -2076,7 +2098,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_DESTROYED:
     {
       tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s destroyed\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"%s destroyed\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"reason\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, get_actor_destroyed_reason_string(m->reason),
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
