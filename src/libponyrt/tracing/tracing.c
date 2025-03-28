@@ -570,7 +570,7 @@ typedef struct tracing_scheduler_t
   uint64_t tid;
   scheduler_t* sched;
   uint64_t flight_recorder_event_idx;
-  pony_msg_t** flight_recorder_events;
+  PONY_ATOMIC(pony_msg_t*)* flight_recorder_events;
 } tracing_scheduler_t;
 
 
@@ -997,15 +997,15 @@ static void send_trace_message(pony_msg_t* msg)
 
     uint64_t idx = this_tracing_scheduler->flight_recorder_event_idx & (flight_recorder_max_events - 1);
 
-    pony_msg_t* old = this_tracing_scheduler->flight_recorder_events[idx];
+    pony_msg_t* old = atomic_load_explicit(&this_tracing_scheduler->flight_recorder_events[idx], memory_order_relaxed);
+
+    this_tracing_scheduler->flight_recorder_event_idx++;
+    atomic_store_explicit(&this_tracing_scheduler->flight_recorder_events[idx], msg, memory_order_release);
 
     if(old != NULL)
     {
       ponyint_pool_free(old->index, old);
     }
-
-    this_tracing_scheduler->flight_recorder_events[idx] = msg;
-    this_tracing_scheduler->flight_recorder_event_idx++;
   }
   else
   {
@@ -1048,8 +1048,8 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
   if(flight_recorder_enabled)
   {
     this_tracing_scheduler->flight_recorder_event_idx = 0;
-    this_tracing_scheduler->flight_recorder_events = (pony_msg_t**)ponyint_pool_alloc_size(sizeof(pony_msg_t*) * flight_recorder_max_events);
-    memset(this_tracing_scheduler->flight_recorder_events, 0, sizeof(pony_msg_t*) * flight_recorder_max_events);
+    this_tracing_scheduler->flight_recorder_events = (PONY_ATOMIC(pony_msg_t*)*)ponyint_pool_alloc_size(sizeof(PONY_ATOMIC(pony_msg_t*)) * flight_recorder_max_events);
+    memset(this_tracing_scheduler->flight_recorder_events, 0, sizeof(PONY_ATOMIC(pony_msg_t*)) * flight_recorder_max_events);
 
     // linux specific: but probably not harmful on other platforms
     // call `backtrace` to load `libgcc` so that we can use it in the signal handler safely
@@ -2596,7 +2596,7 @@ static void handle_message(pony_msg_t* msg)
         // dump all events for this scheduler
         for(uint64_t event_idx = 0; event_idx < flight_recorder_max_events; event_idx++)
         {
-          pony_msg_t* msg = tracing_schedulers[sched_idx].flight_recorder_events[event_idx];
+          pony_msg_t* msg = atomic_load_explicit(&tracing_schedulers[sched_idx].flight_recorder_events[event_idx], memory_order_acquire);
     
           if(msg != NULL)
             handle_message(msg);
@@ -2874,12 +2874,12 @@ void ponyint_tracing_stop()
 
       for(uint64_t event_idx = 0; event_idx < flight_recorder_max_events; event_idx++)
       {
-        pony_msg_t* msg = tracing_schedulers[sched_idx].flight_recorder_events[event_idx];
+        pony_msg_t* msg = atomic_load_explicit(&tracing_schedulers[sched_idx].flight_recorder_events[event_idx], memory_order_relaxed);
   
         if(msg != NULL)
         {
           ponyint_pool_free(msg->index, msg);
-          tracing_schedulers[sched_idx].flight_recorder_events[event_idx] = NULL;
+          atomic_store_explicit(&tracing_schedulers[sched_idx].flight_recorder_events[event_idx], NULL, memory_order_relaxed);
         }
       }
   
