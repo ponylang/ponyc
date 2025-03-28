@@ -719,8 +719,14 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       // references to other actors that have been deleted. This could result
       // in other actors being unblocked and/or destroyed which could eventually
       // result in our rc going to 0 so we can be also be destroyed.
-      pony_triggergc(ctx);
-      try_gc(ctx, actor);
+      // This is only safe to do if we have not sent a block message to the
+      // cycle detector because the cycle detector could concurrently reap us
+      // if we have and then we could have use-after-free issues.
+      if (actor_noblock || !has_internal_flag(actor, ACTOR_FLAG_BLOCKED_SENT))
+      {
+        pony_triggergc(ctx);
+        try_gc(ctx, actor);
+      }
 
       if (!actor_noblock && !has_internal_flag(actor, ACTOR_FLAG_CD_CONTACTED))
       {
