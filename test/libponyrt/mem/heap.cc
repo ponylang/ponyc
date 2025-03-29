@@ -63,7 +63,7 @@ TEST(Heap, Init)
 
   ponyint_heap_mark(chunk, p);
 
-  ponyint_heap_endgc(&heap
+  ponyint_heap_endgc(&heap, 0
 #ifdef USE_RUNTIMESTATS
   , actor);
 #else
@@ -111,7 +111,7 @@ TEST(Heap, Init)
 #endif
 
   ponyint_heap_mark_shallow(chunk, p3);
-  ponyint_heap_endgc(&heap
+  ponyint_heap_endgc(&heap, 0
 #ifdef USE_RUNTIMESTATS
   , actor);
 #else
@@ -183,7 +183,7 @@ TEST(Heap, Init)
 #endif
 
   ponyint_heap_mark_shallow(chunk5, p5);
-  ponyint_heap_endgc(&heap
+  ponyint_heap_endgc(&heap, 0
 #ifdef USE_RUNTIMESTATS
   , actor);
 #else

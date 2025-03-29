@@ -103,7 +103,7 @@ void ponyint_heap_mark_shallow(chunk_t* chunk, void* p);
  */
 void ponyint_heap_free(chunk_t* chunk, void* p);
 
-void ponyint_heap_endgc(heap_t* heap
+void ponyint_heap_endgc(heap_t* heap, uint64_t num_actor_references_deleted
 #ifdef USE_RUNTIMESTATS
   , pony_actor_t* actor);
 #else
