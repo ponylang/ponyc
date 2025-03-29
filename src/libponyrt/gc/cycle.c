@@ -768,7 +768,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    ponyint_actor_destroy(view->actor);
+    ponyint_actor_destroy(view->actor, ACTOR_DESTROYED_CD_NORMAL);
     ponyint_viewmap_remove(&d->views, view);
     view_free(view);
   }
@@ -880,7 +880,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
     ponyint_actor_setpendingdestroy(actor);
     ponyint_actor_final(ctx, actor);
     ponyint_actor_sendrelease(ctx, actor);
-    ponyint_actor_destroy(actor);
+    ponyint_actor_destroy(actor, ACTOR_DESTROYED_CD_FAST_REAP);
 
     d->destroyed++;
 
@@ -1022,7 +1022,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   while(stack != NULL)
   {
     stack = ponyint_pendingdestroystack_pop(stack, &actor);
-    ponyint_actor_destroy(actor);
+    ponyint_actor_destroy(actor, ACTOR_DESTROYED_CD_SHUTDOWN);
   }
 
   i = HASHMAP_BEGIN;

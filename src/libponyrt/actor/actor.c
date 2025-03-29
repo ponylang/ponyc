@@ -695,7 +695,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
           ponyint_actor_setpendingdestroy(actor);
           ponyint_actor_final(ctx, actor);
           ponyint_actor_sendrelease(ctx, actor);
-          ponyint_actor_destroy(actor);
+          ponyint_actor_destroy(actor, ACTOR_DESTROYED_FAST_REAP);
 
           // make sure the scheduler will not reschedule this actor
           return !empty;
@@ -747,7 +747,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
   return !ponyint_messageq_markempty(&actor->q);
 }
 
-void ponyint_actor_destroy(pony_actor_t* actor)
+void ponyint_actor_destroy(pony_actor_t* actor, actor_destroyed_reason_t reason)
 {
   pony_assert(has_sync_flag(actor, ACTOR_SYNC_FLAG_PENDINGDESTROY));
 
@@ -779,7 +779,8 @@ void ponyint_actor_destroy(pony_actor_t* actor)
     print_actor_stats(actor);
 #endif
 
-  TRACING_ACTOR_DESTROYED(actor);
+  (void)reason;
+  TRACING_ACTOR_DESTROYED(actor, reason);
 
   // Free variable sized actors correctly.
   ponyint_pool_free_size(actor->type->size, actor);
@@ -899,7 +900,7 @@ PONY_API void ponyint_destroy(pony_actor_t* actor)
   // The finaliser is not called.
 
   ponyint_actor_setpendingdestroy(actor);
-  ponyint_actor_destroy(actor);
+  ponyint_actor_destroy(actor, ACTOR_DESTROYED_MANUAL);
 }
 
 PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
