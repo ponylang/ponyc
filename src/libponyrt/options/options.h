@@ -16,7 +16,7 @@
   "                       flight_recorder - save events to a per-thread in memory\n" \
   "                                         circular buffer in case of program error\n" \
   "                                         (SIGSEGV, SIGILL, SIGBUS, SIGFPE, etc)\n" \
-  "                                         when they are written to stderr\n" \
+  "                                         when they are written out\n" \
   "                   defaults to: file\n" \
   "  --ponytracingformat\n" \
   "                   Output format for tracing in file mode. Valid options are:\n" \
