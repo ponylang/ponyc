@@ -671,6 +671,8 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
   if(!atomic_exchange_explicit(&handling_flight_recorder_dump, true,
     memory_order_acquire))
   {
+    uint64_t crash_ts = get_time_nanos();
+
     // try to pause all threads to ensure no new events get generated
     for(uint32_t i = 0; i < total_sched_count; i++)
     {
@@ -687,7 +689,7 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
     flight_recorder_dump_message.siginfo = siginfo;
     flight_recorder_dump_message.index = this_tracing_scheduler->sched->index;
     flight_recorder_dump_message.thread_id = this_tracing_scheduler->tid;
-    flight_recorder_dump_message.ts = get_time_nanos();
+    flight_recorder_dump_message.ts = crash_ts;
     flight_recorder_dump_message.actor = this_tracing_scheduler->sched->ctx.current;
     if(this_tracing_scheduler->sched->ctx.current != NULL)
     {
