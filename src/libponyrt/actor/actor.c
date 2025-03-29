@@ -936,6 +936,20 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
+#if defined(USE_RUNTIME_TRACING)
+  {
+    pony_msg_t* m = first;
+
+    while(m != last)
+    {
+      TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+      m = atomic_load_explicit(&m->next, memory_order_relaxed);
+    }
+
+    TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+  }
+#endif
+
   pony_assert(well_formed_msg_chain(first, last));
 
   // Make sure we're not trying to send a message to an actor that is about
@@ -978,6 +992,20 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
 {
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
+
+#if defined(USE_RUNTIME_TRACING)
+  {
+    pony_msg_t* m = first;
+
+    while(m != last)
+    {
+      TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+      m = atomic_load_explicit(&m->next, memory_order_relaxed);
+    }
+
+    TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+  }
+#endif
 
   pony_assert(well_formed_msg_chain(first, last));
 
@@ -1069,9 +1097,12 @@ void ponyint_sendv_inject(pony_actor_t* to, pony_msg_t* msg)
 {
   // Make sure we're not trying to send a message to an actor that is about
   // to be destroyed.
-  pony_assert(!ponyint_actor_pendingdestroy(to));
 
   pony_ctx_t* ctx = pony_ctx();
+
+  TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, msg, msg->id);
+
+  pony_assert(!ponyint_actor_pendingdestroy(to));
 
   if(DTRACE_ENABLED(ACTOR_MSG_SEND))
   {

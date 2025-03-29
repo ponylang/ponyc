@@ -62,6 +62,7 @@ typedef enum
   TRACING_MSG_ACTOR_DESTROYED,
   TRACING_MSG_ACTOR_RUN_START,
   TRACING_MSG_ACTOR_RUN_STOP,
+  TRACING_MSG_ACTOR_BEHAVIOR_RUN_SCHEDULE,
   TRACING_MSG_ACTOR_BEHAVIOR_RUN_START,
   TRACING_MSG_ACTOR_BEHAVIOR_RUN_STOP,
   TRACING_MSG_ACTOR_GC_START,
@@ -239,6 +240,21 @@ typedef struct tracing_actor_run_stop_t
   actorstats_t actorstats;
 #endif
 } tracing_actor_run_stop_t;
+
+typedef struct tracing_actor_behavior_run_schedule_t
+{
+  pony_msg_t msg;
+  uint64_t thread_id;
+  uint64_t ts;
+  void* actor;
+  pony_type_t* type;
+  void* to_actor;
+  pony_type_t* to_actor_type;
+  void* msg_id;
+  uint32_t behavior_id;
+  uint8_t internal_flags;
+  uint8_t sync_flags;
+} tracing_actor_behavior_run_schedule_t;
 
 typedef struct tracing_actor_behavior_run_start_t
 {
@@ -1300,6 +1316,31 @@ void ponyint_tracing_thread_actor_run_stop(pony_actor_t* actor)
   send_trace_message((pony_msg_t*)m);
 }
 
+void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor_t* to_actor, pony_msg_t* msg_id, uint32_t behavior_id)
+{
+  if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
+    return;
+
+  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+    return;
+
+  tracing_actor_behavior_run_schedule_t* m = (tracing_actor_behavior_run_schedule_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(tracing_actor_behavior_run_schedule_t)), TRACING_MSG_ACTOR_BEHAVIOR_RUN_SCHEDULE);
+
+  m->thread_id = this_tracing_scheduler->tid;
+  m->ts = get_time_nanos();
+  m->actor = actor;
+  m->type = actor!=NULL?actor->type:NULL;
+  m->to_actor = to_actor;
+  m->to_actor_type = to_actor->type;
+  m->msg_id = msg_id;
+  m->behavior_id = behavior_id;
+  m->internal_flags = actor!=NULL?actor->internal_flags:0;
+  m->sync_flags = actor!=NULL?atomic_load_explicit(&actor->sync_flags, memory_order_relaxed):0;
+
+  send_trace_message((pony_msg_t*)m);
+}
+
 void ponyint_tracing_actor_behavior_run_start(pony_actor_t* actor, uint32_t behavior_id)
 {
   if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
@@ -2172,6 +2213,12 @@ static void handle_message(pony_msg_t* msg)
         m->gc_rc);
 #endif
 
+      break;
+    }
+    case TRACING_MSG_ACTOR_BEHAVIOR_RUN_SCHEDULE:
+    {
+      tracing_actor_behavior_run_schedule_t* m = (tracing_actor_behavior_run_schedule_t*)msg;
+      fprintf(log_file, ",\n{\"name\":\"actor_behavior_schedule\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"msg_id\":\"%p\",\"behavior_id\":%u,\"behavior_name\":\"%s\",\"type_id\":%u,\"type_name\":\"%s\",\"from_actor_id\":\"%p\",\"from_actor_type_id\":%u,\"from_actor_type_name\":\"%s\"}}", convert_time_nanos_to_micros(m->ts), m->to_actor_type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->to_actor, m->to_actor, m->msg_id, m->behavior_id, get_actor_behavior_string(m->to_actor_type->get_behavior_name, m->behavior_id), m->to_actor_type->id, m->to_actor_type->name, m->actor, m->type!=NULL?m->type->id:0, m->type!=NULL?m->type->name:"@@ASIO INJECT@@");
       break;
     }
     case TRACING_MSG_ACTOR_BEHAVIOR_RUN_START:
