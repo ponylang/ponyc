@@ -617,7 +617,7 @@ static uint64_t get_time_nanos()
 {
 #if defined PLATFORM_IS_ARM
 # if defined(__APPLE__)
-  return clock_gettime_nsec_np(CLOCK_UPTIME_RAW)/1000;
+  return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 # else
 #   if defined(PLATFORM_IS_LINUX)
   struct timespec ts;
