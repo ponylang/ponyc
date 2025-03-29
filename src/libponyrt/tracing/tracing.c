@@ -2591,7 +2591,7 @@ static void handle_message(pony_msg_t* msg)
         handle_message((pony_msg_t*)thread_start_msg);
 
         // make sure to free the message
-        ponyint_pool_free(thread_start_msg->index, thread_start_msg);
+        ponyint_pool_free(thread_start_msg->msg.index, thread_start_msg);
 
         // dump all events for this scheduler
         for(uint64_t event_idx = 0; event_idx < flight_recorder_max_events; event_idx++)
