@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Prevent memory explosion when using ponynoblock in some programs ([PR #4666](https://github.com/ponylang/ponyc/pull/4666))
+- Make GC for an actor more aggressive if an actor GC frees many refs ([PR #4662](https://github.com/ponylang/ponyc/pull/4662))
 
 ### Added
 
