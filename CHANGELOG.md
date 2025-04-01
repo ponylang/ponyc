@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Prevent memory explosion when using ponynoblock in some programs ([PR #4666](https://github.com/ponylang/ponyc/pull/4666))
 
 ### Added
 
