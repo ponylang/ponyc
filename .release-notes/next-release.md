@@ -135,3 +135,7 @@ root@5babe01f566f:/workspaces/ponyc# /usr/bin/time ./after --ponynoblock
 0inputs+0outputs (3major+3137minor)pagefaults 0swaps
 ```
 
+## Make GC for an actor more aggressive if an actor GC frees many actor references
+
+We have enhanced the runtime to make actor GC more aggressive if an actor GC cycle deleted many references to other actors (> 100). This could be due to a program design where an actor creates many other actors and keeps references to them for a bit before replacing those references with ones for other newly created actors. This change will make GC for these actors more aggressive in order to try and limit memory explosion that could potentially occur otherwise.
+
