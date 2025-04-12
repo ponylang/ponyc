@@ -120,7 +120,7 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   arm64_macos:
-    runs-on: macos-14
+    runs-on: macos-15
 
     name: arm64-apple-darwin
     steps:
@@ -131,7 +131,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: build/libs
-          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
@@ -140,7 +140,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: build/libs
-          key: libs-arm64-macos-14-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Nightly
