@@ -40,12 +40,35 @@ else()
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
         target_link_libraries(ponyc PRIVATE execinfo atomic)
     else()
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.a
+            OUTPUT_VARIABLE LIBSTDCXX_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
         target_link_libraries(ponyc PRIVATE atomic dl)
-        target_link_options(ponyc PRIVATE "-static-libstdc++")
+
+        if(LIBSTDCXX_PATH STREQUAL "libstdc++.a")
+            execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libc++.a
+                OUTPUT_VARIABLE LIBCXX_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+            if(LIBCXX_PATH STREQUAL "libc++.a")
+                message(FATAL_ERROR "Cannot find C++ implementation, looked for libstdc++ and libc++")
+            else()
+                target_link_options(ponyc PRIVATE "-static-libc++")
+            endif()
+        else()
+            target_link_options(ponyc PRIVATE "-static-libstdc++")
+        endif()
     endif()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_link_options(ponyc PRIVATE "-static-libgcc")
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libgcc.a
+            OUTPUT_VARIABLE LIBGCC_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(NOT LIBGCC_PATH STREQUAL "libgcc.a")
+            target_link_options(ponyc PRIVATE "-static-libgcc")
+        endif()
     endif()
 endif (MSVC)
 

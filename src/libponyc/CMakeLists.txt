@@ -190,9 +190,27 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     # TODO
 else()
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.a
+        OUTPUT_VARIABLE LIBSTDCXX_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if(LIBSTDCXX_PATH STREQUAL "libstdc++.a")
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libc++.a
+            OUTPUT_VARIABLE LIBCXX_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        if(LIBCXX_PATH STREQUAL "libc++.a")
+            message(FATAL_ERROR "Cannot find C++ implementation, looked for libstdc++ and libc++")
+        else()
+            set(CXX_STDLIB_PATH ${LIBCXX_PATH})
+        endif()
+    else()
+        set(CXX_STDLIB_PATH ${LIBSTDCXX_PATH})
+    endif()
+
     # add a rule to generate the standalone library if needed
     add_custom_command(OUTPUT libponyc-standalone.a
-        COMMAND cp `${CMAKE_CXX_COMPILER} --print-file-name='libstdc++.a'` libstdcpp.a
+        COMMAND cp ${CXX_STDLIB_PATH} libstdcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
         COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libstdcpp.a" >> standalone.mri
