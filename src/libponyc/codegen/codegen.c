@@ -18,7 +18,6 @@
 #include <blake2.h>
 #include <platform.h>
 #include <llvm-c/DebugInfo.h>
-#include <llvm-c/Initialization.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/Support.h>
 #include <string.h>
@@ -277,8 +276,11 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
-  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
-    inaccessiblemem_or_argmemonly, 0);
+  // C API has no defines for memory effects attributes
+  // 0 = none, 1 = read, 2 = write, 3 = readwrite
+  // argmem: bit offset 0, inaccessiblemem: bit offset 2
+  // 0x3 = argmem: readwrite, 0xc = inaccessiblemem: readwrite
+  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory, 0xf);
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
@@ -295,7 +297,6 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_ctx", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readnone_attr);
 
   // __object* pony_create(i8*, __Desc*, i1)
   params[0] = c->ptr;
@@ -601,7 +602,6 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_get_exitcode", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readonly_attr);
 
   // void pony_error()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
@@ -621,7 +621,6 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "memcmp", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readonly_attr);
   LLVMAddAttributeAtIndex(value, 1, readonly_attr);
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
@@ -798,18 +797,6 @@ bool codegen_llvm_init()
   LLVMInitializeAllAsmParsers();
   LLVMEnablePrettyStackTrace();
   LLVMInstallFatalErrorHandler(fatal_error);
-
-  LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
-  LLVMInitializeCore(passreg);
-  LLVMInitializeTransformUtils(passreg);
-  LLVMInitializeScalarOpts(passreg);
-  LLVMInitializeVectorization(passreg);
-  LLVMInitializeInstCombine(passreg);
-  LLVMInitializeIPO(passreg);
-  LLVMInitializeAnalysis(passreg);
-  LLVMInitializeIPA(passreg);
-  LLVMInitializeCodeGen(passreg);
-  LLVMInitializeTarget(passreg);
 
   return true;
 }
