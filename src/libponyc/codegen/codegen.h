@@ -5,7 +5,7 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
-#include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Transforms/PassBuilder.h>
 #include <llvm-c/Analysis.h>
 #include <stdio.h>
 
@@ -42,6 +42,7 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
   { \
     unsigned decl##_id = \
       LLVMGetEnumAttributeKindForName(#name, sizeof(#name) - 1); \
+    pony_assert(decl##_id != 0);\
     decl = LLVMCreateEnumAttribute(c->context, decl##_id, val); \
   }
 
