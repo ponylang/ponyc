@@ -37,6 +37,18 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type);
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
 
+// The LLVM C API has no defines for memory effects attributes
+// Corresponds to MemoryEffects template class in
+// llvm/include/llvm/Support/ModRef.h
+#define LLVM_MEMORYEFFECTS_NONE 0
+#define LLVM_MEMORYEFFECTS_READ 1
+#define LLVM_MEMORYEFFECTS_WRITE 2
+#define LLVM_MEMORYEFFECTS_READWRITE 3
+
+#define LLVM_MEMORYEFFECTS_ARG(x) x
+#define LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(x) (x << 2)
+#define LLVM_MEMORYEFFECTS_OTHER(x) (x << 4)
+
 #define LLVM_DECLARE_ATTRIBUTEREF(decl, name, val) \
   LLVMAttributeRef decl; \
   { \

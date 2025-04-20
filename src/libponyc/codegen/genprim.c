@@ -574,11 +574,9 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
 
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
-  // C API has no defines for memory effects attributes
-  // 0 = none, 1 = read, 2 = write, 3 = readwrite
-  // argmem: bit offset 0, inaccessiblemem: bit offset 2
-  // 0x3 = argmem: readwrite, 0xc = inaccessiblemem: readwrite
-  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory, 0xf);
+  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory,
+    LLVM_MEMORYEFFECTS_ARG(LLVM_MEMORYEFFECTS_READWRITE) |
+    LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(LLVM_MEMORYEFFECTS_READWRITE));
 
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
 
@@ -605,11 +603,9 @@ static void donotoptimise_observe(compile_t* c, reach_type_t* t, token_id cap)
   LLVMValueRef call = LLVMBuildCall2(c->builder, void_fn, asmstr, NULL, 0, "");
 
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
-  // C API has no defines for memory effects attributes
-  // 0 = none, 1 = read, 2 = write, 3 = readwrite
-  // argmem: bit offset 0, inaccessiblemem: bit offset 2
-  // 0x3 = argmem: readwrite, 0xc = inaccessiblemem: readwrite
-  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory, 0xf);
+  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory,
+    LLVM_MEMORYEFFECTS_ARG(LLVM_MEMORYEFFECTS_READWRITE) |
+    LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(LLVM_MEMORYEFFECTS_READWRITE));
 
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddCallSiteAttribute(call, LLVMAttributeFunctionIndex,
