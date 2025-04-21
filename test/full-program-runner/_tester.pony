@@ -159,7 +159,12 @@ actor _Tester
             end
             vars'
           else
-            _env.vars
+            let vars' = Array[String val](_env.vars.size() + 1)
+            for v in _env.vars.values() do
+              vars'.push(v)
+            end
+            vars'.push("c:\\")
+            vars'
           end
         end
 

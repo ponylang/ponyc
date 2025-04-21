@@ -89,6 +89,35 @@ if ($null -eq (Get-Command "cmake.exe" -ErrorAction SilentlyContinue)) {
 	Pop-Location
 }
 
+if ($Uselldb -eq "yes") {
+    if ($null -eq (Get-Command "lldb.exe" -ErrorAction SilentlyContinue)) {
+        Write-Output "Warning, unable to find lldb.exe in your PATH, trying to discover one."
+        Push-Location
+        # Check common installation locations
+        $possibleLocations = @(
+            "C:\Program Files\LLVM\bin\lldb.exe",
+            "C:\msys64\mingw64\bin\lldb.exe"
+        )
+
+        $lldbFound = $false
+        foreach ($location in $possibleLocations) {
+            if (Test-Path $location) {
+                $lldbPath = (Get-Item $location).Directory.FullName
+                $env:Path = "$env:Path;$lldbPath"
+                Write-Output "Success, LLDB added to current PATH from $lldbPath"
+                $lldbFound = $true
+                break
+            }
+        }
+
+        if (-not $lldbFound) {
+            Write-Error "Error: Unable to find lldb.exe in PATH or common installation locations."
+            exit 1
+        }
+        Pop-Location
+    }
+}
+
 if ($Generator -eq "default")
 {
     $Generator = cmake --help | Where-Object { $_ -match '\*\s+(.*\S)\s+(\[arch\])?\s+=' } | Foreach-Object { $Matches[1].Trim() } | Select-Object -First 1
@@ -256,7 +285,6 @@ switch ($Command.ToLower())
 
         if ($Uselldb -eq "yes")
         {
-            $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
             $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
         }
 
@@ -268,8 +296,8 @@ switch ($Command.ToLower())
             {
                 if ($Uselldb -eq "yes")
                 {
-                    Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
-                    $lldboutput = & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
+                    Write-Output "lldb.exe $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
+                    $lldboutput = & lldb.exe $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
                     Write-Output $lldboutput
                     $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                 }
@@ -295,8 +323,8 @@ switch ($Command.ToLower())
             {
                 if ($Uselldb -eq "yes")
                 {
-                    Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
-                    $lldboutput = & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
+                    Write-Output "lldb.exe $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
+                    $lldboutput = & lldb.exe $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
                     Write-Output $lldboutput
                     $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                 }
@@ -331,7 +359,8 @@ switch ($Command.ToLower())
                 $debuggercmd = ''
                 if ($Uselldb -eq "yes")
                 {
-                    $debuggercmd = "$lldbcmd $lldbargs"
+                    # add " around cmd in case the path contains spaces
+                    $debuggercmd = "lldb.exe $lldbargs"
                     $debuggercmd = $debuggercmd -replace ' ', '%20'
                     $debuggercmd = $debuggercmd -replace '"', '%22'
                 }
@@ -356,8 +385,8 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential
+                        Write-Output "lldb.exe $lldbargs $outDir\stdlib-debug.exe --sequential"
+                        $lldboutput = & lldb.exe $lldbargs $outDir\stdlib-debug.exe --sequential
                         Write-Output $lldboutput
                         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
@@ -392,8 +421,8 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential
+                        Write-Output "lldb.exe $lldbargs $outDir\stdlib-release.exe --sequential"
+                        $lldboutput = & lldb.exe $lldbargs $outDir\stdlib-release.exe --sequential
                         Write-Output $lldboutput
                         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
@@ -482,11 +511,10 @@ switch ($Command.ToLower())
     }
     "stress-test-ubench-release"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        $lldboutput = & lldb.exe $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -494,11 +522,10 @@ switch ($Command.ToLower())
     }
     "stress-test-ubench-with-cd-release"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $lldboutput = & lldb.exe $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -506,11 +533,10 @@ switch ($Command.ToLower())
     }
     "stress-test-ubench-debug"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        $lldboutput = & lldb.exe $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -518,11 +544,10 @@ switch ($Command.ToLower())
     }
     "stress-test-ubench-with-cd-debug"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $lldboutput = & lldb.exe $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -530,11 +555,10 @@ switch ($Command.ToLower())
     }
     "stress-test-tcp-open-close-release"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        $lldboutput = & lldb.exe $lldbargs $outDir\open-close.exe --ponynoblock 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -542,11 +566,10 @@ switch ($Command.ToLower())
     }
     "stress-test-tcp-open-close-with-cd-release"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        $lldboutput = & lldb.exe $lldbargs $outDir\open-close.exe 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -554,11 +577,10 @@ switch ($Command.ToLower())
     }
     "stress-test-tcp-open-close-debug"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        $lldboutput = & lldb.exe $lldbargs $outDir\open-close.exe --ponynoblock 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -566,11 +588,10 @@ switch ($Command.ToLower())
     }
     "stress-test-tcp-open-close-with-cd-debug"
     {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        $lldboutput = & lldb.exe $lldbargs $outDir\open-close.exe 1000
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err

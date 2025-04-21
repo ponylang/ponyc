@@ -404,9 +404,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
-      - name: Install Dependencies
-        run: |
-          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+      - run: |
+          Get-Command "lldb.exe"
+          $env:Path += ";C:\Program Files\LLVM\bin"
+          "C:\Program Files\LLVM\bin\lldb.exe --version"
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -422,6 +423,51 @@ jobs:
         with:
           path: build/libs
           key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
+      - name: Build Release Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Release
+          .\make.ps1 -Command build -Config Release
+      - name: Test with Release Runtime
+        run: .\make.ps1 -Command test -Config Release -Uselldb yes
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
+
+  arm64-windows:
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+
+    name: arm64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - run: |
+          ls "C:\Program Files\LLVM\bin"
+          Get-Command "lldb.exe"
+          $env:Path += ";C:\Program Files\LLVM\bin"
+          "C:\Program Files\LLVM\bin\lldb.exe --version"
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug
