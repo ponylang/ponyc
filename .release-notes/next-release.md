@@ -139,3 +139,7 @@ root@5babe01f566f:/workspaces/ponyc# /usr/bin/time ./after --ponynoblock
 
 We have enhanced the runtime to make actor GC more aggressive if an actor GC cycle deleted many references to other actors (> 100). This could be due to a program design where an actor creates many other actors and keeps references to them for a bit before replacing those references with ones for other newly created actors. This change will make GC for these actors more aggressive in order to try and limit memory explosion that could potentially occur otherwise.
 
+## Update to LLVM 17.0.1
+
+We've updated the LLVM version used to build Pony to 17.0.1.
+
