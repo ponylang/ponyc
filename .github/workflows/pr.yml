@@ -437,6 +437,46 @@ jobs:
       - name: Build examples
         run: .\make.ps1 -Command build-examples
 
+  arm64-windows:
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+
+    name: arm64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
+      - name: Build Debug Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug
+      - name: Build Release Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Release
+          .\make.ps1 -Command build -Config Release
+      - name: Test with Release Runtime
+        run: .\make.ps1 -Command test -Config Release
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
+
   use_directives:
     runs-on: ubuntu-latest
     needs: x86_64-linux
