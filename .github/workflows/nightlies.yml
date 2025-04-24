@@ -197,7 +197,7 @@ jobs:
       - name: Install
         run: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
       - name: Package
-        run: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version nightly
+        run: .\make.ps1 -Command package-x86-64 -Config Release -Prefix "build\install\release" -Version nightly
       - name: Upload
         run: $version = (Get-Date).ToString("yyyyMMdd"); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-x86-64-pc-windows-msvc.zip
       - name: Send alert on failure
@@ -247,7 +247,7 @@ jobs:
       - name: Install
         run: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
       - name: Package
-        run: .\make.ps1 -Command package -Config Release -Prefix "build\install\release" -Version nightly
+        run: .\make.ps1 -Command package-arm64 -Config Release -Prefix "build\install\release" -Version nightly
       - name: Upload
         run: $version = (Get-Date).ToString("yyyyMMdd"); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-arm64-pc-windows-msvc.zip
       - name: Send alert on failure
