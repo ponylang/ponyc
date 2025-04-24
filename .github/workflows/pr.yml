@@ -455,7 +455,7 @@ jobs:
           key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs
+        run: .\make.ps1 -Command libs -Arch arm64
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -464,18 +464,20 @@ jobs:
           key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt') }}
       - name: Build Debug Runtime
         run: |
-          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command configure -Config Debug -Arch arm64
           .\make.ps1 -Command build -Config Debug
       - name: Test with Debug Runtime
         run: .\make.ps1 -Command test -Config Debug
       - name: Build Release Runtime
         run: |
-          .\make.ps1 -Command configure -Config Release
+          .\make.ps1 -Command configure -Config Release  -Arch arm64
           .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
         run: .\make.ps1 -Command test -Config Release
       - name: Build examples
         run: .\make.ps1 -Command build-examples
+      - name: Version
+        run: .\build\build\bin\ponyc.exe --version
 
   use_directives:
     runs-on: ubuntu-latest
