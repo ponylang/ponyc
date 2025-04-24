@@ -418,6 +418,10 @@ uint64_t ponyint_cpu_tick()
 #if defined PLATFORM_IS_ARM
 # if defined(__APPLE__)
   return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+# elif defined(PLATFORM_IS_WINDOWS)
+  LARGE_INTEGER PerformanceCount;
+  QueryPerformanceCounter(&PerformanceCount);
+  return PerformanceCount.QuadPart;
 # else
 #   if defined ARMV6
   // V6 is the earliest arch that has a standard cyclecount

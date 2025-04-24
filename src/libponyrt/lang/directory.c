@@ -9,6 +9,7 @@
 #include <direct.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
 #include <stdio.h>
