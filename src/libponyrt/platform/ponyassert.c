@@ -105,6 +105,11 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   frame.AddrStack.Offset = context.Rsp;
   frame.AddrFrame.Offset = context.Rbp;
   DWORD machine = IMAGE_FILE_MACHINE_AMD64;
+#  elif defined(_M_ARM64)
+  frame.AddrPC.Offset = context.Pc;
+  frame.AddrStack.Offset = context.Sp;
+  frame.AddrFrame.Offset = context.Fp;
+  DWORD machine = IMAGE_FILE_MACHINE_ARM64;
 #  endif
 
   fputs("Backtrace:\n", stderr);

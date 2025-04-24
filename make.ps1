@@ -7,7 +7,7 @@
     [string]
     $Config = "Release",
 
-    [Parameter(HelpMessage="The CMake generator, e.g. `"Visual Studio 16 2019`"")]
+    [Parameter(HelpMessage="The CMake generator, e.g. `"Visual Studio 17 2022`"")]
     [string]
     $Generator = "default",
 
@@ -142,10 +142,21 @@ if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -a
     throw "Libs directory '$libsDir' does not exist; you may need to run 'make.ps1 libs' first."
 }
 
-if ($Generator.Contains("Win64") -or $Generator.Contains("Win32"))
+if ($Arch -ieq "x64")
 {
-    $Arch = ""
+    $Thost = "x64"
 }
+elseif ($Arch -ieq "arm64")
+{
+    # if this is lowercase arm64, then things go boom.
+    $Thost = "ARM64"
+}
+
+# TODO: ask Gordon why this is here
+# if ($Generator.Contains("Win64") -or $Generator.Contains("Win32"))
+# {
+#     $Arch = ""
+# }
 
 switch ($Command.ToLower())
 {
@@ -167,12 +178,12 @@ switch ($Command.ToLower())
         Write-Output "Configuring libraries..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -203,13 +214,13 @@ switch ($Command.ToLower())
 
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
