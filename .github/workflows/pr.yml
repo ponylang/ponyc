@@ -579,3 +579,19 @@ jobs:
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=release
       - name: Test with Release Runtime
         run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=release
+
+  sean-test:
+    name: sean-test
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Download and install
+        run: |
+          Invoke-WebRequest https://dl.cloudsmith.io/public/ponylang/nightlies/raw/versions/latest/ponyc-arm64-pc-windows-msvc.zip -OutFile C:\ponyc.zip;
+          Expand-Archive -Path C:\ponyc.zip -DestinationPath C:\ponyc;
+          $env:PATH = 'C:\ponyc\bin;' + $env:PATH;
+          ponyc --version
+      - name: Machine type
+        run: |
+          ls .\.ci-scripts\
+          .\.ci-scripts\foo.ps1
