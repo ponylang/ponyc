@@ -22,7 +22,6 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230830
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
