@@ -7,6 +7,7 @@ llvm_config ?= Release
 llc_arch ?= x86-64
 pic_flag ?=
 open_close_stress_connections ?= 10000000
+test_full_program_timeout ?= 60
 
 ifndef version
   version := $(shell cat VERSION)
@@ -233,11 +234,11 @@ endif
 
 test-full-programs-release: all
 	@mkdir -p $(outDir)/full-program-tests/release
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --compiler=$(outDir)/ponyc --output=$(outDir)/full-program-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=$(test_full_program_timeout) --max_parallel=$(num_cores) --compiler=$(outDir)/ponyc --output=$(outDir)/full-program-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
 test-full-programs-debug: all
 	@mkdir -p $(outDir)/full-program-tests/debug
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --compiler=$(outDir)/ponyc --debug --output=$(outDir)/full-program-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=$(test_full_program_timeout) --max_parallel=$(num_cores) --compiler=$(outDir)/ponyc --debug --output=$(outDir)/full-program-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
 test-stdlib-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential
