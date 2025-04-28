@@ -1,5 +1,6 @@
 use "collections"
 use @printf[I32](fmt: Pointer[U8] tag, ...)
+use "time"
 
 actor _BoomActor
   be dispatch(request: Payload) =>
@@ -35,6 +36,6 @@ actor Test
   be do_it() =>
     c = c + 1
     if (c % 10_000) == 0 then
-      @printf("Boom actor dispatch number: %ld\n".cstring(), c)
+      @printf("Boom actor dispatch number: %ld at %ld\n".cstring(), c, Time.seconds())
     end
     _BoomActor.dispatch(Payload)
