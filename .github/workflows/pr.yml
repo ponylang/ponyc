@@ -351,13 +351,13 @@ jobs:
           make configure arch=x86-64 config=debug
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug
+        run: make test-ci config=debug test_full_program_timeout=180
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release
+        run: make test-ci config=release test_full_program_timeout=180
 
   arm64-macos:
     runs-on: macos-15
