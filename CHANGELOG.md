@@ -6,6 +6,18 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+
+### Added
+
+
+### Changed
+
+- Drop Ubuntu 20.04 Support ([PR #4693](https://github.com/ponylang/ponyc/pull/4693))
+
+## [0.59.0] - 2025-04-26
+
+### Fixed
+
 - Prevent memory explosion when using ponynoblock in some programs ([PR #4666](https://github.com/ponylang/ponyc/pull/4666))
 - Make GC for an actor more aggressive if an actor GC frees many refs ([PR #4662](https://github.com/ponylang/ponyc/pull/4662))
 
