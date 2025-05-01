@@ -154,7 +154,7 @@ LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
   Module* m = unwrap(module);
 
   Type* params[3];
-  params[0] = PointerType::getUnqual(m->getContext());
+  params[0] = PointerType::get(m->getContext(), 0);
   params[1] = params[0];
   params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
 
@@ -166,7 +166,7 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
   Module* m = unwrap(module);
 
   Type* params[3];
-  params[0] = PointerType::getUnqual(m->getContext());
+  params[0] = PointerType::get(m->getContext(), 0);
   params[1] = params[0];
   params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
 
