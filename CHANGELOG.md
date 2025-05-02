@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Drop Ubuntu 20.04 Support ([PR #4693](https://github.com/ponylang/ponyc/pull/4693))
+- Update to LLVM 17.0.6 ([PR #4682](https://github.com/ponylang/ponyc/pull/4682))
 
 ## [0.59.0] - 2025-04-26
 
