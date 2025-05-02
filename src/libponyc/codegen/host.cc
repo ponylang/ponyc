@@ -188,3 +188,13 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
   Type* t[1] = { unwrap(type) };
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, t));
 }
+
+LLVMValueRef LLVMBuildAlignedLoad(LLVMBuilderRef b, LLVMTypeRef t, LLVMValueRef p, uint64_t align, const char* name)
+{
+  return wrap(unwrap(b)->CreateAlignedLoad(unwrap(t), unwrap(p), MaybeAlign(align), name));
+}
+
+LLVMValueRef LLVMBuildAlignedStore(LLVMBuilderRef b, LLVMValueRef v, LLVMValueRef p, uint64_t align)
+{
+  return wrap(unwrap(b)->CreateAlignedStore(unwrap(v), unwrap(p), MaybeAlign(align)));
+}
