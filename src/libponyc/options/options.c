@@ -142,7 +142,7 @@ static void usage(void)
     "  --bin-name, -b   Name of executable binary.\n"
     "    =name          Defaults to name of the directory.\n"
     "  --runtimebc      Compile with the LLVM bitcode file for the runtime.\n"
-    "  --static         Compile a static binary (experimental, Linux-only).\n"
+    "  --static         Compile a static binary (musl libc only).\n"
     "  --pic            Compile using position independent code.\n"
     "  --nopic          Don't compile using position independent code.\n"
     "  --docs, -g       Generate code documentation.\n"
