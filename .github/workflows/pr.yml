@@ -220,7 +220,7 @@ jobs:
       - name: Build Debug Cross-Compiled Runtime
         run: make cross-libponyrt config=debug CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
       - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
       - name: Build Release Runtime
         run: |
           make configure config=release
@@ -228,7 +228,7 @@ jobs:
       - name: Build Release Cross-Compiled Runtime
         run: make cross-libponyrt config=release CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
       - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
 
   armhf-linux:
     runs-on: ubuntu-latest
@@ -269,7 +269,7 @@ jobs:
       - name: Build Debug Cross-Compiled Runtime
         run: make cross-libponyrt config=debug CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
       - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
       - name: Build Release Runtime
         run: |
           make configure config=release
@@ -277,7 +277,7 @@ jobs:
       - name: Build Release Cross-Compiled Runtime
         run: make cross-libponyrt config=release CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
       - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
 
   aarch64-linux:
     runs-on: ubuntu-24.04-arm
