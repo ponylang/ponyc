@@ -304,54 +304,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Pull Docker image
         run: docker pull ${{ matrix.image }}
-
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: |
           docker run --rm \
             --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
             make libs build_flags=-j8
-
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-
       - name: Build Debug Runtime
         run: |
           docker run --rm \
             --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
             bash -c "make configure arch=armv8-a config=debug && make build config=debug"
-
       - name: Test with Debug Runtime
         run: |
           docker run --rm \
@@ -362,18 +351,14 @@ jobs:
             -w /home/pony/project \
             ${{ matrix.image }} \
             make test-ci config=debug
-
       - name: Build Release Runtime
         run: |
           docker run --rm \
             --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
             bash -c "make configure arch=armv8-a config=release && make build config=release"
-
       - name: Test with Release Runtime
         run: |
           docker run --rm \

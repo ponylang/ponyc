@@ -98,6 +98,15 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  # Currently, Github actions supplied by GH like checkout and cache do not work
+  # in musl libc environments on aarch64. We can work around this by running
+  # those actions on the host and then "manually" doing our work that would
+  # normally be done "in the musl container" by starting the container ourselves
+  # for various steps by invoking docker directly.
+  #
+  # This is not in line with our standard pattern of "just do it all in the
+  # container" but is required to work around the GitHub actions limitation
+  # documented above.
   aarch64-linux:
     runs-on: ubuntu-24.04-arm
 
@@ -121,17 +130,36 @@ jobs:
             name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-stress-ubench-with-cd-debug
             debugger: lldb
-
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
+            name: aarch64-unknown-linux-musl [release]
+            target: test-stress-ubench-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
+            name: aarch64-unknown-linux-musl [debug]
+            target: test-stress-ubench-debug
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
+            name: aarch64-unknown-linux-musl [cd] [release]
+            target: test-stress-ubench-with-cd-release
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
+            name: aarch64-unknown-linux-musl [cd] [debug]
+            target: test-stress-ubench-with-cd-debug
+            debugger: lldb
     name: ${{matrix.target}}:${{ matrix.name }}
-    container:
-      image: ${{ matrix.image }}
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        run: docker pull ${{ matrix.image }}
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -140,7 +168,13 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make libs build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -149,10 +183,22 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
-          make configure arch=armv8-a config=debug
-          make build config=debug
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "make configure arch=armv8-a config=debug && make build config=debug"
       - name: Run Stress Test
-        run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
