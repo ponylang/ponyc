@@ -63,9 +63,6 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
     name: ${{ matrix.image }}
-    container:
-      image: ${{ matrix.image }}
-      options: --user pony
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
