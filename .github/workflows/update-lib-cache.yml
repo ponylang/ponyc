@@ -44,6 +44,15 @@ jobs:
         if: steps.cache-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
 
+  # Currently, Github actions supplied by GH like checkout and cache do not work
+  # in musl libc environments on aarch64. We can work around this by running
+  # those actions on the host and then "manually" doing our work that would
+  # normally be done "in the musl container" by starting the container ourselves
+  # for various steps by invoking docker directly.
+  #
+  # This is not in line with our standard pattern of "just do it all in the
+  # container" but is required to work around the GitHub actions limitation
+  # documented above.
   aarch64-linux:
     runs-on: ubuntu-24.04-arm
 
@@ -52,7 +61,7 @@ jobs:
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
-
+          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
     name: ${{ matrix.image }}
     container:
       image: ${{ matrix.image }}
@@ -66,9 +75,25 @@ jobs:
         with:
           path: build/libs
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Login to GitHub Container Registry
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: docker pull ${{ matrix.image }}
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make libs build_flags=-j8
 
   x86_64-macos:
     runs-on: macos-13
