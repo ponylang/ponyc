@@ -36,7 +36,7 @@ ExternalProject_Add(gbenchmark
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
-set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz)
+set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz)
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
