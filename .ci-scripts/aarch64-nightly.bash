@@ -27,8 +27,8 @@ fi
 TODAY=$(date +%Y%m%d)
 
 # Compiler target parameters
-MACHINE=armv8-a
-PROCESSOR=aarch64
+MACHINE=aarch64
+PROCESSOR=armv8-a
 
 # Triple construction
 TRIPLE=${MACHINE}-${TRIPLE_VENDOR}-${TRIPLE_OS}
