@@ -58,6 +58,10 @@ jobs:
             name: x86-64-unknown-linux-alpine3.20
             triple-os: linux-alpine3.20
             triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+            name: x86-64-unknown-linux-alpine3.21
+            triple-os: linux-alpine3.21
+            triple-vendor: unknown
 
     name: ${{ matrix.name }}
     container:
