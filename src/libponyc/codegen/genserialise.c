@@ -166,8 +166,10 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
     serialise(c, t, ctx, ptr, offset, true);
   } else if(c_t->primitive != NULL) {
     // Machine word, write the bits to the buffer.
-    LLVMValueRef value = LLVMBuildLoad2(c->builder, c_t->mem_type, ptr, "");
-    LLVMBuildStore(c->builder, value, offset);
+    uint64_t t_align = LLVMABIAlignmentOfType(c->target_data, c_t->mem_type);
+    uint64_t align = (t_align < 8) ? t_align : 8;
+    LLVMValueRef value = LLVMBuildAlignedLoad(c->builder, c_t->mem_type, ptr, align, "");
+    LLVMBuildAlignedStore(c->builder, value, offset, align);
   } else if(t->bare_method != NULL) {
     // Bare object, either write the serialise_id id directly if it is a concrete object
     // or compute the serialise_id id based on the object value and write it if it isn't.

@@ -37,6 +37,10 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32);
 LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type);
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type);
 
+// Instructions
+LLVMValueRef LLVMBuildAlignedLoad(LLVMBuilderRef b, LLVMTypeRef t, LLVMValueRef p, uint64_t align, const char* name);
+LLVMValueRef LLVMBuildAlignedStore(LLVMBuilderRef b, LLVMValueRef v, LLVMValueRef p, uint64_t align);
+
 // The LLVM C API has no defines for memory effects attributes
 // Corresponds to MemoryEffects template class in
 // llvm/include/llvm/Support/ModRef.h
