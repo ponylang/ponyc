@@ -137,7 +137,7 @@ jobs:
           -e TRIPLE_VENDOR=${{ matrix.triple-vendor }} \
           -e TRIPLE_OS=${{ matrix.triple-os }} \
           ${{ matrix.image }} \
-          bash .ci-scripts/aarch64-nightly.bash
+          bash .ci-scripts/arm64-nightly.bash
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
