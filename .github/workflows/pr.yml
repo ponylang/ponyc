@@ -297,7 +297,7 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
             name: aarch64 Linux glibc
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
             name: arm64 Linux musl
 
     name: ${{ matrix.name }}

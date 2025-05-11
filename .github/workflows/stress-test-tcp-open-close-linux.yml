@@ -130,20 +130,20 @@ jobs:
             name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
-            name: arm64-unknown-linux-alpine3.20 [release]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64-unknown-linux-alpine3.21 [release]
             target: test-stress-tcp-open-close-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
-            name: arm64-unknown-linux-alpine3.20 [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64-unknown-linux-alpine3.21 [debug]
             target: test-stress-tcp-open-close-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
-            name: arm64-unknown-linux-alpine3.20 [cd] [release]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64-unknown-linux-alpine3.21 [cd] [release]
             target: test-stress-tcp-open-close-with-cd-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
-            name: arm64-unknown-linux-alpine3.20 [cd] [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64-unknown-linux-alpine3.21 [cd] [debug]
             target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
 
