@@ -99,7 +99,7 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   # Currently, Github actions supplied by GH like checkout and cache do not work
-  # in musl libc environments on aarch64. We can work around this by running
+  # in musl libc environments on arm64. We can work around this by running
   # those actions on the host and then "manually" doing our work that would
   # normally be done "in the musl container" by starting the container ourselves
   # for various steps by invoking docker directly.
@@ -130,20 +130,20 @@ jobs:
             name: aarch64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
-            name: aarch64-unknown-linux-musl [release]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+            name: arm64-unknown-linux-alpine3.20 [release]
             target: test-stress-tcp-open-close-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
-            name: aarch64-unknown-linux-musl [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+            name: arm64-unknown-linux-alpine3.20 [debug]
             target: test-stress-tcp-open-close-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
-            name: aarch64-unknown-linux-musl [cd] [release]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+            name: arm64-unknown-linux-alpine3.20 [cd] [release]
             target: test-stress-tcp-open-close-with-cd-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-musl-builder:20250505
-            name: aarch64-unknown-linux-musl [cd] [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+            name: arm64-unknown-linux-alpine3.20 [cd] [debug]
             target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
 
