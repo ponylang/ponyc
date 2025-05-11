@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add Alpine 3.20 as a supported platform ([PR #4709](https://github.com/ponylang/ponyc/pull/4709))
+- Add Alpine 3.21 as a supported platform ([PR #4710](https://github.com/ponylang/ponyc/pull/4710))
 
 ### Changed
 
