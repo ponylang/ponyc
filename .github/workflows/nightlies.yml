@@ -97,9 +97,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-musl-builder:20250505
-            name: arm64-unknown-linux-musl
-            triple-os: linux-musl
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+            name: arm64-unknown-linux-alpine3.20
+            triple-os: linux-alpine3.20
+            triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64-unknown-linux-alpine3.21
+            triple-os: linux-alpine3.21
             triple-vendor: unknown
 
     name: ${{ matrix.name }}
