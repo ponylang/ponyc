@@ -53,15 +53,16 @@ jobs:
   # This is not in line with our standard pattern of "just do it all in the
   # container" but is required to work around the GitHub actions limitation
   # documented above.
-  aarch64-linux:
+  arm64-linux:
     runs-on: ubuntu-24.04-arm
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-aarch64-unknown-linux-ubuntu24.04-builder:20250118
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.20-builder:20250510
+
     name: ${{ matrix.image }}
     steps:
       - name: Checkout
