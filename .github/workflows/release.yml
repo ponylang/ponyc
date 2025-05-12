@@ -112,6 +112,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64-unknown-linux-alpine3.21
+            triple-os: linux-alpine3.21
+            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-.ubuntu24.04-builder:20250510
             name: arm64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
