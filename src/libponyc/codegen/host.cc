@@ -41,8 +41,8 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
   // As part of the the #4369 investigation, we came to believe that
   // CodeGenOpt::None is an infrequently used code path and that we are better
   // using Default as it is less likely to have bugs.
-  CodeGenOpt::Level opt_level =
-    opt->release ? CodeGenOpt::Aggressive : CodeGenOpt::Default;
+  CodeGenOptLevel opt_level =
+    opt->release ? CodeGenOptLevel::Aggressive : CodeGenOptLevel::Default;
 
   TargetOptions options;
 
@@ -154,7 +154,7 @@ LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
   Module* m = unwrap(module);
 
   Type* params[3];
-  params[0] = Type::getInt8PtrTy(m->getContext());
+  params[0] = PointerType::get(m->getContext(), 0);
   params[1] = params[0];
   params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
 
@@ -166,7 +166,7 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
   Module* m = unwrap(module);
 
   Type* params[3];
-  params[0] = Type::getInt8PtrTy(m->getContext());
+  params[0] = PointerType::get(m->getContext(), 0);
   params[1] = params[0];
   params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
 
@@ -187,4 +187,14 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
 
   Type* t[1] = { unwrap(type) };
   return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, t));
+}
+
+LLVMValueRef LLVMBuildAlignedLoad(LLVMBuilderRef b, LLVMTypeRef t, LLVMValueRef p, uint64_t align, const char* name)
+{
+  return wrap(unwrap(b)->CreateAlignedLoad(unwrap(t), unwrap(p), MaybeAlign(align), name));
+}
+
+LLVMValueRef LLVMBuildAlignedStore(LLVMBuilderRef b, LLVMValueRef v, LLVMValueRef p, uint64_t align)
+{
+  return wrap(unwrap(b)->CreateAlignedStore(unwrap(v), unwrap(p), MaybeAlign(align)));
 }

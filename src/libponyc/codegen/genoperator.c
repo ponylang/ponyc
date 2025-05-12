@@ -765,9 +765,9 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right, bool safe)
     if(LLVMIsConstant(l_value))
     {
       if(sign)
-        return LLVMConstAShr(l_value, r_value);
+        return LLVMBuildAShr(c->builder, l_value, r_value, "");
 
-      return LLVMConstLShr(l_value, r_value);
+      return LLVMBuildLShr(c->builder, l_value, r_value, "");
     }
   }
 
@@ -827,7 +827,7 @@ LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
     return NULL;
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstOr(l_value, r_value);
+    return LLVMBuildOr(c->builder, l_value, r_value, "");
 
   return LLVMBuildOr(c->builder, l_value, r_value, "");
 }

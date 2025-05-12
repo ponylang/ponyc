@@ -172,10 +172,8 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
 
-    unsigned int align = target_is_ilp32(c->opt->triple) ? 4 : 8;
-
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
-      Align(align), "", begin);
+      inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
 
     replace->setDebugLoc(inst->getDebugLoc());
 
