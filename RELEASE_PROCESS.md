@@ -43,6 +43,7 @@ You can verify that the release artifacts were successfully built and uploaded b
 Package names will be:
 
 * ponyc-arm64-apple-darwin.tar.gz
+* ponyc-arm64-unknown-linux-alpine3.21.tar.gz
 * ponyc-arm64-unknown-linux-ubuntu24.04.tar.gz
 * ponyc-x86-64-apple-darwin.tar.gz
 * ponyc-x86-64-pc-windows-msvc.zip
