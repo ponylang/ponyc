@@ -26,7 +26,7 @@ fi
 
 # Compiler target parameters
 MACHINE=arm64
-PROCESSOR=armv8
+PROCESSOR=armv8-a
 
 # Triple construction
 TRIPLE=${MACHINE}-${TRIPLE_VENDOR}-${TRIPLE_OS}
