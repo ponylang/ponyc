@@ -9,10 +9,15 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Alpine 3.20 as a supported platform ([PR #4709](https://github.com/ponylang/ponyc/pull/4709))
+- Add Alpine 3.21 as a supported platform ([PR #4710](https://github.com/ponylang/ponyc/pull/4710))
+- Add Ubuntu 24.04 on arm64 as a supported platform ([PR #4714](https://github.com/ponylang/ponyc/pull/4714))
+- Add Alpine 3.21 on arm64 as a supported platform ([PR #4716](https://github.com/ponylang/ponyc/pull/4716))
 
 ### Changed
 
 - Drop Ubuntu 20.04 Support ([PR #4693](https://github.com/ponylang/ponyc/pull/4693))
+- Don't set gold as the default ponyc linker on Linux ([PR #4704](https://github.com/ponylang/ponyc/pull/4704))
 
 ## [0.59.0] - 2025-04-26
 

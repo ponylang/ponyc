@@ -359,7 +359,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* mcx16_arg = (target_is_lp64(c->opt->triple)
     && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
   const char* fuseldcmd = c->opt->link_ldcmd != NULL ? c->opt->link_ldcmd :
-    (target_is_linux(c->opt->triple) ? "gold" : "");
+    "";
   const char* fuseld = strlen(fuseldcmd) ? "-fuse-ld=" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
   const char* atomic =
