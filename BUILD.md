@@ -117,7 +117,6 @@ sudo make install
 
 ## macOS
 
-
 ```bash
 make libs
 make configure
