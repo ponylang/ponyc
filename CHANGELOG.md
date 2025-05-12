@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add Alpine 3.20 as a supported platform ([PR #4709](https://github.com/ponylang/ponyc/pull/4709))
 - Add Alpine 3.21 as a supported platform ([PR #4710](https://github.com/ponylang/ponyc/pull/4710))
+- Add Ubuntu 24.04 on arm64 as a supported platform ([PR #4714](https://github.com/ponylang/ponyc/pull/4714))
 
 ### Changed
 
