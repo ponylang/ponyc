@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Drop Ubuntu 20.04 Support ([PR #4693](https://github.com/ponylang/ponyc/pull/4693))
 - Don't set gold as the default ponyc linker on Linux ([PR #4704](https://github.com/ponylang/ponyc/pull/4704))
+- Update to LLVM 18.1.8 ([PR #4701](https://github.com/ponylang/ponyc/pull/4701))
 
 ## [0.59.0] - 2025-04-26
 
