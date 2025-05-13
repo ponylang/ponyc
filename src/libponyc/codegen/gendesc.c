@@ -727,9 +727,9 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
     mask = LLVMConstInt(c->intptr, 63, false);
   }
 
-  shift = LLVMConstLShr(trait_id, shift);
-  mask = LLVMConstAnd(trait_id, mask);
-  mask = LLVMConstShl(LLVMConstInt(c->intptr, 1, false), mask);
+  shift = LLVMBuildLShr(c->builder, trait_id, shift, "");
+  mask = LLVMBuildAnd(c->builder, trait_id, mask, "");
+  mask = LLVMBuildShl(c->builder, LLVMConstInt(c->intptr, 1, false), mask, "");
 
   LLVMValueRef bitmap = desc_field(c, desc, DESC_TRAITS);
 

@@ -4,10 +4,6 @@ Ubuntu 20.04 has reached its end of life date. We've dropped it as a supported p
 
 We will maintain best effort to keep Ubuntu 20.04 continuing to work for anyone who wants to use it and builds `ponyc` from source.
 
-## Update to LLVM 17.0.6
-
-We've updated the LLVM version used to build Pony to 17.0.6.
-
 ## Don't set ld.gold as the default Linux linker
 
 Previously, we were setting ld.gold as our default linker on Linux. If you wanted to use a different linker, you had to override it using the ponyc option `--link-ldcmd`.
@@ -39,4 +35,3 @@ We've added Ubuntu 24.04 on arm64 as a supported platform. We'll be building pon
 ## Alpine 3.21 on arm64 added as a supported platform
 
 We've added Alpine 3.21 on arm64 as a supported platform. We'll be building ponyc releases for it until it stops receiving security updates in 2026. At that point, we'll stop building releases for it.
-
