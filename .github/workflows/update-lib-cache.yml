@@ -23,6 +23,9 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora41-builder:20241201
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.20-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
