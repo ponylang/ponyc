@@ -175,9 +175,9 @@
 /** Architecture flags.
  *
  */
-#if defined(ARMV2) || defined(__arm__) || defined(__aarch64__)
+#if defined(ARMV2) || defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
 # define PLATFORM_IS_ARM
-# if defined(__aarch64__)
+# if defined(__aarch64__) || defined(_M_ARM64)
 #  define PLATFORM_IS_ARM64
 # else
 #  define PLATFORM_IS_ARM32
