@@ -24,8 +24,8 @@ static const vsinfo_t vs_infos[] =
 {
 #ifdef _M_ARM64
   { // VS2022 full install & Visual C++ Build Tools 2022
-    "17.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
-    "17.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\ARM64\\", "lib\\ARM64"
+    "17.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio",
+    "17.0", "VC\\Tools\\MSVC\\", "bin\\Hostarm64\\arm64\\", "lib\\arm64"
   },
 #elif defined(_M_X64)
   { // VS2017 full install & Visual C++ Build Tools 2017

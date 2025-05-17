@@ -135,7 +135,7 @@ if (MSVC)
     set(libponyc_standalone_path "${CMAKE_BINARY_DIR}/${libponyc_standalone_file}")
     add_custom_target(libponyc-standalone ALL
         # CMAKE_AR finds the appropriate version of lib.exe according to desired target and host architecture
-        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /MACHINE:${PONY_ARCH} /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
+        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /MACHINE:${CMAKE_SYSTEM_PROCESSOR} /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
         DEPENDS libponyc)
     add_custom_command(TARGET libponyc-standalone POST_BUILD
         COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/${libponyc_standalone_file}

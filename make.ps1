@@ -11,9 +11,9 @@
     [string]
     $Generator = "default",
 
-    [Parameter(HelpMessage="The architecture to use for compiling, e.g. `"x64`"")]
+    [Parameter(HelpMessage="The architecture to use for compiling, e.g. `"X64`", `"Arm64`"")]
     [string]
-    $Arch = "x64",
+    $Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture,
 
     [Parameter(HelpMessage="The location to install to")]
     [string]
@@ -142,21 +142,12 @@ if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -a
     throw "Libs directory '$libsDir' does not exist; you may need to run 'make.ps1 libs' first."
 }
 
-if ($Arch -ieq "x64")
-{
-    $Thost = "x64"
-}
-elseif ($Arch -ieq "arm64")
+$Thost = "x64"
+if ($Arch -ieq "arm64")
 {
     # if this is lowercase arm64, then things go boom.
     $Thost = "ARM64"
 }
-
-# TODO: ask Gordon why this is here
-# if ($Generator.Contains("Win64") -or $Generator.Contains("Win32"))
-# {
-#     $Arch = ""
-# }
 
 switch ($Command.ToLower())
 {
