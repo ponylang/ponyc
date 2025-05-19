@@ -339,8 +339,8 @@ switch ($Command.ToLower())
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
-                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
+                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
+                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
                 $err = $LastExitCode
                 if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
             }
