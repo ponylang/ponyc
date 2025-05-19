@@ -523,9 +523,9 @@ jobs:
       - name: Build examples
         run: .\make.ps1 -Command build-examples
       - name: Version
-        run: .\build\release\bin\ponyc.exe --version
+        run: .\build\release\ponyc.exe --version
       - name: Validate we are native
-        run: .\.ci-scripts\windows-print-binary-machine-type.ps1 .\build\release\bin\ponyc.exe
+        run: .\.ci-scripts\windows-print-binary-machine-type.ps1 .\build\release\ponyc.exe
 
   use_directives:
     runs-on: ubuntu-latest
