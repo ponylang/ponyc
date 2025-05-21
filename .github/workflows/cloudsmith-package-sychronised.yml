@@ -42,7 +42,7 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  build-latest-musl-docker-image:
+  build-latest-x86_64-musl-docker-image:
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
@@ -60,6 +60,40 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/latest/x86-64-unknown-linux-musl/build-and-push.bash
+      - name: Alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  build-latest-arm64-musl-docker-image:
+    if: |
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-musl.tar.gz'
+
+    name: Build latest musl Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .dockerfiles/latest/arm64-unknown-linux-musl/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -202,7 +236,7 @@ jobs:
 
   update-stdlib-builder-image-on-nightly:
     needs:
-      - build-latest-musl-docker-image
+      - build-latest-x86_64-musl-docker-image
 
     name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
@@ -395,7 +429,9 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   send-musl-nightly-release-event:
-    needs: [build-latest-musl-docker-image]
+    needs:
+      - build-latest-x86_64-musl-docker-image
+#      - build-latest-arm64-musl-docker-image
 
     name: Send musl nightly release event
     runs-on: ubuntu-latest
@@ -481,7 +517,7 @@ jobs:
 
   prune-untagged-images:
     needs:
-      - build-latest-musl-docker-image
+      - build-latest-x86_64-musl-docker-image
 
     name: Prune untagged images
     runs-on: ubuntu-latest
