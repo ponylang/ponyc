@@ -126,7 +126,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -173,7 +173,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -224,7 +224,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -275,7 +275,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -348,7 +348,7 @@ jobs:
             ${{ matrix.image }} \
             make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -409,7 +409,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -446,7 +446,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -547,7 +547,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -596,7 +596,7 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
       - name: Remove LLVM bin
-        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-lto" \) -delete
+        run: find build/libs/bin/ -type f -not \( -name "llvm-tblgen" -o -name "llvm-ar" -o -name "llvm-config" -o -name "llvm-profdata" -o -name "llvm-lto" \) -delete
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
