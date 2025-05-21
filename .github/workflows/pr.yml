@@ -125,6 +125,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -170,6 +172,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -219,6 +223,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -268,6 +274,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -339,6 +347,8 @@ jobs:
             -w /home/pony/project \
             ${{ matrix.image }} \
             make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -398,6 +408,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -433,6 +445,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -532,6 +546,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -579,6 +595,8 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
+      - name: Remove LLVM bin
+        run: rm -rf build/libs/bin/*
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
