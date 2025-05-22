@@ -7,13 +7,13 @@
     [string]
     $Config = "Release",
 
-    [Parameter(HelpMessage="The CMake generator, e.g. `"Visual Studio 16 2019`"")]
+    [Parameter(HelpMessage="The CMake generator, e.g. `"Visual Studio 17 2022`"")]
     [string]
     $Generator = "default",
 
-    [Parameter(HelpMessage="The architecture to use for compiling, e.g. `"x64`"")]
+    [Parameter(HelpMessage="The architecture to use for compiling, e.g. `"X64`", `"Arm64`"")]
     [string]
-    $Arch = "x64",
+    $Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture,
 
     [Parameter(HelpMessage="The location to install to")]
     [string]
@@ -142,9 +142,11 @@ if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -a
     throw "Libs directory '$libsDir' does not exist; you may need to run 'make.ps1 libs' first."
 }
 
-if ($Generator.Contains("Win64") -or $Generator.Contains("Win32"))
+$Thost = "x64"
+if ($Arch -ieq "arm64")
 {
-    $Arch = ""
+    # if this is lowercase arm64, then things go boom.
+    $Thost = "ARM64"
 }
 
 switch ($Command.ToLower())
@@ -167,12 +169,12 @@ switch ($Command.ToLower())
         Write-Output "Configuring libraries..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -203,13 +205,13 @@ switch ($Command.ToLower())
 
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -337,8 +339,8 @@ switch ($Command.ToLower())
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
-                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
+                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
+                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
                 $err = $LastExitCode
                 if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
             }

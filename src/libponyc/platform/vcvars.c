@@ -22,6 +22,16 @@ typedef struct vsinfo_t
 
 static const vsinfo_t vs_infos[] =
 {
+#ifdef _M_ARM64
+  { // VS2022 full install & Visual C++ Build Tools 2022
+    "17.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio",
+    "17.0", "VC\\Tools\\MSVC\\", "bin\\Hostarm64\\arm64\\", "lib\\arm64"
+  },
+#elif defined(_M_X64)
+  { // VS2017 full install & Visual C++ Build Tools 2017
+    "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
+    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64"
+  },
   { // VS2017 full install & Visual C++ Build Tools 2017
     "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
     "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64"
@@ -38,6 +48,7 @@ static const vsinfo_t vs_infos[] =
     "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\14.0",
     "InstallDir", NULL, "..\\..\\VC\\bin\\amd64\\", "..\\..\\VC\\lib\\amd64"
   },
+#endif
   {
     NULL
   }
@@ -246,7 +257,11 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
     }
 
     strcpy(vcvars->ucrt, vcvars->kernel32);
+#ifdef _M_ARM64
+    strcat(vcvars->ucrt, "\\ucrt\\ARM64");
+#elif defined(_M_X64)
     strcat(vcvars->ucrt, "\\ucrt\\x64");
+#endif
     strcat(vcvars->default_libs, " ucrt.lib");
   }
   else
@@ -255,7 +270,11 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
       "see https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk");
     return false;
   }
+#ifdef _M_ARM64
+  strcat(vcvars->kernel32, "\\um\\ARM64");
+#elif defined(_M_X64)
   strcat(vcvars->kernel32, "\\um\\x64");
+#endif
 
   return true;
 }

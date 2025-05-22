@@ -4,7 +4,8 @@
 #if !defined(__ARM_ARCH_2__) && !defined(__arm__) && !defined(__aarch64__) && \
  !defined(__i386__) && !defined(_M_IX86) && !defined(_X86_) && \
  !defined(__amd64__) && !defined(__x86_64__) && !defined(_M_X64) && \
- !defined(_M_AMD64) && !defined(__EMSCRIPTEN__) && !defined(__riscv)
+ !defined(_M_AMD64) && !defined(_M_ARM64) && !defined(__EMSCRIPTEN__) && \
+ !defined(__riscv)
 #  error "Unsupported platform"
 #endif
 

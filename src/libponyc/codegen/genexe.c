@@ -467,7 +467,16 @@ static bool link_exe(compile_t* c, ast_t* program,
   else
     ucrt_lib[0] = '\0';
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
+
+#ifdef _M_ARM64
+  const char* arch = "ARM64";
+#elif defined(_M_X64)
+  const char* arch="x64";
+#else
+  const char* arch = "";
+#endif
+
+  size_t ld_len = 253 + strlen(arch) + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -478,13 +487,13 @@ static bool link_exe(compile_t* c, ast_t* program,
   while (true)
   {
     size_t num_written = snprintf(ld_cmd, ld_len,
-      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 /ignore:4099 "
+      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:%s /ignore:4099 "
       "/OUT:%s "
       "%s %s "
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
       "%s %s %s \"",
-      linker, file_exe, file_o, ucrt_lib, vcvars.kernel32,
+      linker, arch, file_exe, file_o, ucrt_lib, vcvars.kernel32,
       vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
     );
 

@@ -102,8 +102,14 @@ PONY_API EXCEPTION_DISPOSITION ponyint_personality_v0(
 
   if(ExcRecord->ExceptionFlags & EXCEPTION_TARGET_UNWIND)
   {
+#ifdef _M_ARM64
+    // On ARM64, X1 is the register used for the second parameter (equivalent to RDX on x86-64)
+    DispatcherContext->ContextRecord->X1 = landing_pad;
+    return ExceptionContinueSearch;
+#elif defined(_M_X64)
     DispatcherContext->ContextRecord->Rdx = landing_pad;
     return ExceptionContinueSearch;
+#endif
   }
 
   //never reaches here, if it does, impending doom incoming
