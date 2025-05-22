@@ -146,3 +146,20 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs
+
+  arm64-windows:
+    runs-on: windows-11-arm
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs -Arch ARM64
