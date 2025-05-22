@@ -39,3 +39,7 @@ We've added Alpine 3.21 on arm64 as a supported platform. We'll be building pony
 
 We've updated the LLVM version used to build Pony to 18.1.8.
 
+## Support building ponyc natively on arm64 Windows
+
+We've added support for building Pony for arm64 Windows.
+
