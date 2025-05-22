@@ -47,7 +47,7 @@ jobs:
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
 
-    name: Build latest musl Docker image
+    name: Build latest x86_64 musl Docker image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.1.1
@@ -77,7 +77,7 @@ jobs:
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-musl.tar.gz'
 
-    name: Build latest musl Docker image
+    name: Build latest arm64 musl Docker image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
