@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make the check for Visual Studio more robust ([PR #4722](https://github.com/ponylang/ponyc/pull/4722))
 
 ### Added
 
