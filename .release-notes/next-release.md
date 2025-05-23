@@ -47,3 +47,7 @@ We've added support for building Pony for arm64 Windows.
 
 We've added arm64 Windows as a supported platform. Builds for it are available in [Cloudsmith](https://cloudsmith.io/~ponylang/repos/). Corral and ponyup support will be coming soon.
 
+## Make finding Visual Studio more robust
+
+Ponyc will now ignore applications other than Visual Studio itself which use the Visual Studio installation system (e.g. SQL Server Management Studio) when looking for `link.exe`.
+
