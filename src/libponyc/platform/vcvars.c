@@ -370,7 +370,7 @@ static bool find_executables(compile_t *c, const vsinfo_t *info, vcvars_t *vcvar
 }
 
 static const TCHAR* VSWHERE_PATH =
-  "\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -prerelease -latest -products *\"";
+  "\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -prerelease -products *\"";
 
 static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
   errors_t *errors)
@@ -391,7 +391,8 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
     {
       size_t len;
       if (strncmp("installationPath", buffer, 16) == 0
-        && (len = strlen(buffer)) > 18)
+        && (len = strlen(buffer)) > 18
+        && strncmp("Microsoft Visual Studio", buffer, 23))
       {
         // strip newlines, add a slash if necessary
         while (len > 0 && buffer[len - 1] == '\n')
