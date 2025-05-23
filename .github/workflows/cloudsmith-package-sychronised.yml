@@ -78,7 +78,7 @@ jobs:
       github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-alpine3.21.tar.gz'
 
     name: Build latest arm64 musl Docker image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
@@ -431,7 +431,7 @@ jobs:
   send-musl-nightly-release-event:
     needs:
       - build-latest-x86_64-musl-docker-image
-#      - build-latest-arm64-musl-docker-image
+      - build-latest-arm64-musl-docker-image
 
     name: Send musl nightly release event
     runs-on: ubuntu-latest

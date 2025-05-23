@@ -35,7 +35,7 @@ jobs:
 
   validate-arm64-musl-docker-latest-image-builds:
     name: Validate arm64 musl Docker image builds
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
