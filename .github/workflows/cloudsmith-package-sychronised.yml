@@ -431,7 +431,6 @@ jobs:
   send-musl-nightly-release-event:
     needs:
       - build-latest-x86_64-musl-docker-image
-      - build-latest-arm64-musl-docker-image
 
     name: Send musl nightly release event
     runs-on: ubuntu-latest
