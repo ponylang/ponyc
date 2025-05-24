@@ -461,6 +461,38 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  send-arm64-musl-nightly-release-event:
+    needs:
+      - build-latest-arm64-musl-docker-image
+
+    name: Send arm64 musl nightly release event
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - ponylang/shared-docker
+    steps:
+      - name: Send
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-arm64-musl-nightly-released
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
+      - name: Alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
   send-windows-nightly-release-event:
     needs: [build-latest-windows-docker-image]
 
