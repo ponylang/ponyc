@@ -1,0 +1,32 @@
+name: Arm builder test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  packages: write
+
+jobs:
+  build-latest-arm64-musl-docker-image:
+    name: Build latest arm64 musl Docker image
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .dockerfiles/latest/arm64-unknown-linux-musl/build-and-push.bash
