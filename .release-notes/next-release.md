@@ -51,3 +51,7 @@ We've added arm64 Windows as a supported platform. Builds for it are available i
 
 Ponyc will now ignore applications other than Visual Studio itself which use the Visual Studio installation system (e.g. SQL Server Management Studio) when looking for `link.exe`.
 
+## Fix linking on Linux arm64 when using musl libc
+
+On arm64-based Linux systems using musl libc, program linking could fail due to missing libgcc symbols. We've now added linking against libgcc on all arm-based Linux systems to resolve this issue.
+
