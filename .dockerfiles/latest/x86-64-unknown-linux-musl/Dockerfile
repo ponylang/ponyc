@@ -1,6 +1,6 @@
 FROM alpine:3.20
 
-ENV PATH "/root/.local/share/ponyup/bin:$PATH"
+ENV PATH="/root/.local/share/ponyup/bin:$PATH"
 
 RUN apk add --update --no-cache \
     clang \

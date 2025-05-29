@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-ENV PATH "/root/.local/share/ponyup/bin:$PATH"
+ENV PATH="/root/.local/share/ponyup/bin:$PATH"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
