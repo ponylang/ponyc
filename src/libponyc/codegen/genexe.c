@@ -386,7 +386,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "";
 #endif
 
-  const char* arm32_linker_args = target_is_arm32(c->opt->triple)
+  const char* arm_linker_args = target_is_arm(c->opt->triple)
     ? " -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libgnustl_shared.so -Wl,--exclude-libs,libunwind.a"
     : "";
 
@@ -394,7 +394,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
                   + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg) + strlen(arm32_linker_args);
+                  + strlen(sanitizer_arg) + strlen(arm_linker_args);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -421,7 +421,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
     "%s",
     linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
-    arm32_linker_args,
+    arm_linker_args,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
 
