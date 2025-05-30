@@ -13,5 +13,5 @@ NAME="ghcr.io/ponylang/ponyc:alpine-arm64"
 BUILDER="arm64-builder-$(date +%s)"
 
 docker buildx create --use --name "${BUILDER}"
-docker buildx build --platform linux/arm64 --pull --push -t "${NAME}" "${DOCKERFILE_DIR}"
+docker buildx build --provenance false --sbom false --platform linux/arm64 --pull --push -t "${NAME}" "${DOCKERFILE_DIR}"
 docker buildx rm "${BUILDER}"
