@@ -1,6 +1,8 @@
 ARG FROM_TAG=release-alpine
 FROM ghcr.io/ponylang/ponyc:${FROM_TAG}
 
+LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
+
 ARG MATERIAL_INSIDERS_ACCESS=fail
 
 RUN apk update \

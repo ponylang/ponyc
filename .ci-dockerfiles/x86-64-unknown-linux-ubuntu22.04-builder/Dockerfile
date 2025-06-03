@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
+
 # Keep annoying tzdata prompt from coming up
 # Thanks cmake!
 ENV DEBIAN_FRONTEND=noninteractive
