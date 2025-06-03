@@ -1,5 +1,7 @@
 FROM fedora:41
 
+LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
+
 RUN dnf install -y binutils-gold \
   clang \
   cmake \
