@@ -88,12 +88,12 @@ jobs:
   verify-changelog:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ponylang/changelog-tool:release
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Verify CHANGELOG
-        run: changelog-tool verify
+        uses: docker://ghcr.io/ponylang/changelog-tool:release
+        with:
+          args: changelog-tool verify
 
   x86_64-linux:
     runs-on: ubuntu-latest
