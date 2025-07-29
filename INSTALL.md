@@ -10,7 +10,7 @@ Prebuilt Pony installations will use clang as the default C compiler and clang++
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
 
-If you are running on a support Linux platform, ponyup should correctly select it so long as you have `cc` and `lsb_release` installed. If for some reason, the installation script can't identify your distribution, you can manually select your platform.
+If you are running on a supported Linux platform, ponyup should correctly select it so long as you have `cc` and `lsb_release` installed. If for some reason, the installation script can't identify your distribution, you can manually select your platform.
 
 If we aren't creating packages for your distribution and you would like us to, please stop by the [release stream](https://ponylang.zulipchat.com/#narrow/stream/190364-release) in the [ponylang Zulip](https://ponylang.zulipchat.com) to discuss adding support. Please note, we are almost assuredly going to ask you to help support your distribution.
 
