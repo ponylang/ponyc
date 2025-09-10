@@ -125,47 +125,6 @@ actor Main
       _ptr = str
     end
 
-  new copy_cpointer(str: Pointer[U8] box, len: USize) =>
-    """
-    Create a string by copying a fixed number of bytes from a pointer.
-    """
-    if str.is_null() then
-      _size = 0
-      _alloc = 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, 0)
-    else
-      _size = len
-      _alloc = _size + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      str._copy_to(_ptr, _alloc)
-    end
-
-  new copy_cstring(str: Pointer[U8] box) =>
-    """
-    Create a string by copying a null-terminated C string. Note that
-    the scan is unbounded; the pointed to data must be null-terminated
-    within the allocated array to preserve memory safety. If a null
-    pointer is given then an empty string is returned.
-    """
-    if str.is_null() then
-      _size = 0
-      _alloc = 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      _set(0, 0)
-    else
-      var i: USize = 0
-
-      while str._apply(i) != 0 do
-        i = i + 1
-      end
-
-      _size = i
-      _alloc = i + 1
-      _ptr = Pointer[U8]._alloc(_alloc)
-      str._copy_to(_ptr, _alloc)
-    end
-
   new from_utf32(value: U32) =>
     """
     Create a UTF-8 string from a single UTF-32 code point.
@@ -185,6 +144,42 @@ actor Main
       end
     end
     _set(_size, 0)
+
+  fun copy_cpointer(ptr: Pointer[U8] box, len: USize): String iso^ =>
+    """
+    Create a string by copying a fixed number of bytes from a pointer.
+    """
+    let str: String iso = recover iso String(len + 1) end
+    if not ptr.is_null() then
+      ptr._copy_to(str._ptr._unsafe(), len)
+      str._set(len, 0)
+      str.recalc()
+    end
+    consume str
+
+  fun copy_cstring(ptr: Pointer[U8] box): String iso^ =>
+    """
+    Create a string by copying a null-terminated C string. Note that
+    the scan is unbounded; the pointed to data must be null-terminated
+    within the allocated array to preserve memory safety. If a null
+    pointer is given then an empty string is returned.
+    """
+    var len: USize =
+      if not ptr.is_null() then
+        var i: USize = 0
+        while ptr._apply(i) != 0 do
+          i = i + 1
+        end
+        i
+      else
+        0
+      end
+
+    var str: String iso = recover iso String(len + 1) end
+    ptr._copy_to(str._ptr._unsafe(), len)
+    str._set(len, 0)
+    str.recalc()
+    consume str
 
   fun ref push_utf32(value: U32) =>
     """

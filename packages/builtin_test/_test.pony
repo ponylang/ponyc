@@ -12,7 +12,9 @@ use @pony_exitcode[None](code: I32)
 use @pony_get_exitcode[I32]()
 use @pony_triggergc[None](ctx: Pointer[None])
 use @ponyint_pagemap_get_chunk[Pointer[None]](p: Pointer[None] tag)
+use @ponyint_formattime[Pointer[U8]](date: PosixDate tag, fmt: Pointer[U8] tag) ?
 
+use "time"
 use "pony_test"
 use "collections"
 
@@ -64,6 +66,8 @@ actor \nodoc\ Main is TestList
     test(_TestStringCompare)
     test(_TestStringConcatOffsetLen)
     test(_TestStringContains)
+    test(_TestStringCopyCString)
+    test(_TestStringCopyCPointer)
     test(_TestStringCount)
     test(_TestStringCut)
     test(_TestStringFromArray)
@@ -1332,9 +1336,50 @@ class \nodoc\ iso _TestStringFromCPointer is UnitTest
   """
   fun name(): String => "builtin/String.from_cpointer"
 
-  fun apply(h: TestHelper) =>
-    let str = String.from_cpointer(Pointer[U8], 1, 1)
+  fun apply(h: TestHelper) ? =>
+    var str = String.from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, str.size())
+
+    var string: String = "This is a test string"
+    var s: Pointer[U8] ref = @ponyint_formattime[Pointer[U8] ref](PosixDate, string.cstring())?
+    h.assert_eq[String box](string, String.from_cpointer(s, string.size()))
+    h.assert_eq[USize](21, String.from_cpointer(s, string.size()).size())
+
+class \nodoc\ iso _TestStringCopyCPointer is UnitTest
+  """
+  Test creating a new string from a cpointer
+  """
+  fun name(): String => "builtin/String.copy_cpointer"
+
+  fun apply(h: TestHelper) ? =>
+    var string: String = "This is a test string"
+    h.assert_eq[String](string, PosixDate.format(string)?)
+
+    var ptr_ref: Pointer[U8] ref = @ponyint_formattime[Pointer[U8] ref](PosixDate, string.cstring())?
+    h.assert_eq[String box](string, String.copy_cpointer(ptr_ref, string.size()))
+    h.assert_eq[USize](21, String.copy_cpointer(ptr_ref, string.size()).size())
+
+    var ptr_val: Pointer[U8] val = @ponyint_formattime[Pointer[U8] val](PosixDate, string.cstring())?
+    h.assert_eq[String box](string, String.copy_cpointer(ptr_val, string.size()))
+    h.assert_eq[USize](21, String.copy_cpointer(ptr_val, string.size()).size())
+
+class \nodoc\ iso _TestStringCopyCString is UnitTest
+  """
+  Test creating a new string from a cstring
+  """
+  fun name(): String => "builtin/String.copy_cstring"
+
+  fun apply(h: TestHelper) ? =>
+    var string: String = "This is a test string"
+    h.assert_eq[String](string, PosixDate.format(string)?)
+
+    var ptr_ref: Pointer[U8] ref = @ponyint_formattime[Pointer[U8] ref](PosixDate, string.cstring())?
+    h.assert_eq[String box](string, String.copy_cstring(ptr_ref))
+    h.assert_eq[USize](21, String.copy_cstring(ptr_ref).size())
+
+    var ptr_val: Pointer[U8] val = @ponyint_formattime[Pointer[U8] val](PosixDate, string.cstring())?
+    h.assert_eq[String box](string, String.copy_cstring(ptr_val))
+    h.assert_eq[USize](21, String.copy_cstring(ptr_val).size())
 
 class \nodoc\ iso _TestArrayAppend is UnitTest
   fun name(): String => "builtin/Array.append"
