@@ -112,6 +112,11 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
   atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
+// There's a known issue with "use after free" in the do loop. However,
+// we are handling in a way that ASAN doesn't understand with the CAS so
+// it is actually ok. If the CAS loop is changed, this no sanitize might
+// become problematic.
+__attribute__((no_sanitize_address))
 void* ponyint_mpmcq_pop(mpmcq_t* q)
 {
   PONY_ABA_PROTECTED_PTR(mpmcq_node_t) cmp;

@@ -7,7 +7,7 @@ version passes Strings rather than I64s around amongst its various actors. The
 change to String helps exercise the ORCA garbage collector in a way that using
 I64's doesn't.
 
-Thisstress test executes a sequence of intervals.  During an interval,
+This stress test executes a sequence of intervals.  During an interval,
 1 second long by default, the SyncLeader actor sends an initial
 set of ping messages to a static set of Pinger actors.  When a Pinger
 actor receives a ping() message, the Pinger will randomly choose
@@ -16,13 +16,15 @@ the total number of messages "in flight" in the runtime to avoid
 causing unnecessary memory consumption & overhead by the Pony runtime.
 """
 
-use "assert"
 use "cli"
 use "collections"
 use "random"
 use "time"
-use @printf[I32](fmt: Pointer[U8] tag, ...)
+use @exit[None](status: U8)
+use @fprintf[I32](stream: Pointer[U8] tag, fmt: Pointer[U8] tag, ...)
+use @pony_os_stderr[Pointer[U8]]()
 use @ponyint_cpu_tick[U64]()
+use @printf[I32](fmt: Pointer[U8] tag, ...)
 
 actor Main
   new create(env: Env) =>
@@ -261,22 +263,31 @@ actor Pinger
   be ping(payload: String) =>
     if _go then
       _count = _count + 1
-      send_pings()
+      send_pings(payload)
     else
       // This is a late-arriving ping.  But it should be arriving
       // before we get a report() message from the SyncLeader.
-      try
-        Assert(_report is false, "Late message, what???")?
+      if _report is true then
+        FatalError()
       end
     end
 
-  fun ref send_pings() =>
+  fun ref send_pings(payload: String) =>
     let n: U64 = _rand.int(_num_ps)
+    let msg: String = if payload.size() > 1024 then
+        state_message()
+      else
+        payload + "-" + state_message()
+      end
     try
-      _ps(n.usize())?.ping("42".clone())
+      _ps(n.usize())?.ping(msg)
     else
-      _env.out.print("Should never happen but did to pinger " + _id.string())
+      _env.err.print("Should never happen but did to pinger " + _id.string())
+      FatalError()
     end
+
+  fun ref state_message(): String =>
+    _id.string() + "-" + _count.string()
 
 class Tick is TimerNotify
   let _env: Env
@@ -294,3 +305,15 @@ class Tick is TimerNotify
       let done = (_report_count > 0) and (_tick_count >= _report_count)
       _sync_leader.tick_fired(done)
       not (done)
+
+primitive FatalError
+  """
+  We encountered a fatal error and want to end and fail the stress test immediately.
+  """
+  fun apply(loc: SourceLoc = __loc) =>
+    @fprintf(
+      @pony_os_stderr(),
+      ("A fatal error occurred at line %s\n")
+       .cstring(),
+      loc.line().string().cstring())
+    @exit(1)

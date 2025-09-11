@@ -30,13 +30,13 @@ endif()
 
 # Libraries
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.7.1.tar.gz)
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.1.tar.gz)
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
-set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/archive/release-1.12.1.tar.gz)
+set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz)
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
@@ -54,8 +54,8 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "8dfdcc7b7bf66834a761bd8de445840ef68e4d1a")
-set(PATCHES_DESIRED_HASH "3e16c097794cb669a8f6a0bd7600b440205ac5c29a6135750c2e83263eb16a95")
+set(LLVM_DESIRED_HASH "3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff")
+set(PATCHES_DESIRED_HASH "b272d53fbbf35476362d21b0fd6141d50372f824ef5e3e02e13c83604538eaad")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -93,15 +93,11 @@ if(GIT_FOUND)
     set(PATCHES_ACTUAL_HASH "needed_if_no_patches")
     foreach (PATCH ${PONY_LLVM_PATCHES})
         file(STRINGS ${PATCH} patch_file NEWLINE_CONSUME)
-        string(REPLACE "\n" " " patch_file ${patch_file})
-        string(SHA256 patch_file_hash ${patch_file})
-        # message("${PATCH}: '${patch_file_hash}'")
+        string(REPLACE "\n" " " patch_file "${patch_file}")
+        string(SHA256 patch_file_hash "${patch_file}")
         string(CONCAT PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH} ${patch_file_hash})
-        # message("concat is '${PATCHES_ACTUAL_HASH}'")
     endforeach()
     string(SHA256 PATCHES_ACTUAL_HASH ${PATCHES_ACTUAL_HASH})
-    # message("Desired hash ${PATCHES_DESIRED_HASH}")
-    # message("Actual hash  ${PATCHES_ACTUAL_HASH}")
     if(NOT PATCHES_ACTUAL_HASH MATCHES "${PATCHES_DESIRED_HASH}")
         message(FATAL_ERROR "Patch hash actual '${PATCHES_ACTUAL_HASH}' does not match desired '${PATCHES_DESIRED_HASH}'")
     endif()

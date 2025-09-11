@@ -15,22 +15,24 @@ jobs:
   build-latest-gnu-docker-image:
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
-      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu22.04.tar.gz'
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu24.04.tar.gz'
 
     name: Build latest GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/latest/x86-64-unknown-linux-gnu/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -40,25 +42,63 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  build-latest-musl-docker-image:
+  build-latest-x86_64-musl-docker-image:
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
       github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz'
 
-    name: Build latest musl Docker image
+    name: Build latest x86_64 musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/latest/x86-64-unknown-linux-musl/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  build-latest-arm64-musl-docker-image:
+    if: |
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-alpine3.21.tar.gz'
+
+    name: Build latest arm64 musl Docker image
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .dockerfiles/latest/arm64-unknown-linux-musl/build-and-push.bash
+      - name: Alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -74,19 +114,21 @@ jobs:
       github.event.client_payload.data.name == 'ponyc-x86-64-pc-windows-msvc.zip'
 
     name: Build latest Windows Docker image
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: .dockerfiles/latest/x86-64-pc-windows-msvc/build-and-push.ps1
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -99,17 +141,19 @@ jobs:
   build-release-gnu-docker-image:
     if: |
       github.event.client_payload.data.repository == 'releases' &&
-      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu22.04.tar.gz'
+      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu24.04.tar.gz'
 
     name: Build release GNU Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/x86-64-unknown-linux-gnu/build-and-push.bash
         env:
@@ -123,12 +167,14 @@ jobs:
     name: Build release musl Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/x86-64-unknown-linux-musl/build-and-push.bash
         env:
@@ -140,14 +186,16 @@ jobs:
       github.event.client_payload.data.name == 'ponyc-x86-64-pc-windows-msvc.zip'
 
     name: Build release Windows Docker image
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v2
-      - name: Docker login
-        run: "docker login -u $env:DOCKER_USERNAME -p $env:DOCKER_PASSWORD"
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: .dockerfiles/release/x86-64-pc-windows-msvc/build-and-push.ps1
         env:
@@ -175,9 +223,10 @@ jobs:
     name: Update stdlib-builder Docker image with newly released ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -189,14 +238,15 @@ jobs:
 
   update-stdlib-builder-image-on-nightly:
     needs:
-      - build-latest-musl-docker-image
+      - build-latest-x86_64-musl-docker-image
 
     name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -207,7 +257,7 @@ jobs:
           MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -230,18 +280,18 @@ jobs:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:release
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v5
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: 'stdlib-docs/site/'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
 
   trigger-release-announcement:
     needs:
@@ -252,12 +302,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.1.1
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Trigger
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: trigger-release-announcement
         env:
@@ -274,12 +324,103 @@ jobs:
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  prune-untagged-stdlib-builders:
+    needs:
+      - update-stdlib-builder-image-on-nightly
+
+    name: Prune untagged stdlib builders
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune
+        # v4.1.1
+        uses: actions/delete-package-versions@0d39a63126868f5eefaa47169615edd3c0f61e20
+        with:
+          package-name: 'ponyc-ci-stdlib-builder'
+          package-type: 'container'
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: 'true'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  send-x86-64-macos-nightly-release-event:
+    if: |
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-x86-64-apple-darwin.tar.gz'
+    name: Send x86-64 macos nightly release event
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - ponylang/corral
+          - ponylang/ponyup
+    steps:
+      - name: Send
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-x86_64-macos-nightly-released
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
+      - name: Alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  send-arm64-macos-nightly-release-event:
+    if: |
+      github.event.client_payload.data.repository == 'nightlies' &&
+      github.event.client_payload.data.name == 'ponyc-arm64-apple-darwin.tar.gz'
+    name: Send arm64 macos nightly release event
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - ponylang/corral
+          - ponylang/ponyup
+    steps:
+      - name: Send
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-arm64-macos-nightly-released
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
+      - name: Alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -290,18 +431,21 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   send-musl-nightly-release-event:
-    needs: [build-latest-musl-docker-image]
+    needs:
+      - build-latest-x86_64-musl-docker-image
 
     name: Send musl nightly release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/library-documentation-action-v2
           - ponylang/shared-docker
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
@@ -309,7 +453,39 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  send-arm64-musl-nightly-release-event:
+    needs:
+      - build-latest-arm64-musl-docker-image
+
+    name: Send arm64 musl nightly release event
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - ponylang/shared-docker
+    steps:
+      - name: Send
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-arm64-musl-nightly-released
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
+      - name: Alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -325,12 +501,14 @@ jobs:
     name: Send windows nightly release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/corral
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
@@ -338,7 +516,7 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip@35d7ad8e98444f894dcfe1d4e17332581d28ebeb
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -354,6 +532,7 @@ jobs:
     name: Send release event
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         repo:
           - ponylang/library-documentation-action
@@ -361,9 +540,37 @@ jobs:
           - ponylang/shared-docker
     steps:
       - name: Send
-        uses: ponylang-main/repository-dispatch@ce5485de42c9b2622d2ed064be479e8ed65e76f4
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
         with:
           token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: ponyc-musl-released
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
+
+  prune-untagged-images:
+    needs:
+      - build-latest-x86_64-musl-docker-image
+
+    name: Prune untagged images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune
+        # v4.1.1
+        uses: actions/delete-package-versions@0d39a63126868f5eefaa47169615edd3c0f61e20
+        with:
+          package-name: 'ponyc'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

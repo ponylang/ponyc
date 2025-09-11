@@ -321,6 +321,11 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
 
     // Skip over the SEQ node.
     ast_t* pattern_expr = ast_child(pattern_child);
+    while(ast_id(pattern_expr) == TK_SEQ)
+    {
+      pony_assert(ast_childcount(pattern_expr) == 1);
+      pattern_expr = ast_child(pattern_expr);
+    }
 
     if(!dynamic_tuple_element(c, ptr, desc, pattern_expr, next_block, i))
       return false;
@@ -754,11 +759,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     ast_free_unattached(type);
   }
 
-  ast_t* expr_type = deferred_reify(reify, ast_type(match_expr), c->opt);
-  ast_t* match_type = alias(expr_type);
-
-  if(match_type != expr_type)
-    ast_free_unattached(expr_type);
+  ast_t* match_type = deferred_reify(reify, ast_type(match_expr), c->opt);
 
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
@@ -808,7 +809,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
     ast_t* pattern_type = deferred_reify(reify, ast_type(the_case), c->opt);
     bool ok = true;
 
-    matchtype_t match = is_matchtype(match_type, pattern_type, NULL, c->opt);
+    matchtype_t match = is_matchtype_with_consumed_pattern(match_type, pattern_type, NULL, c->opt);
 
     ast_free_unattached(pattern_type);
 

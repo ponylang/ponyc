@@ -1,6 +1,15 @@
 use "files"
 use "pony_test"
 
+primitive TimeoutValue
+  fun apply(): U64 =>
+    ifdef windows then
+      // Windows networking is just damn slow at many things
+      60_000_000_000
+    else
+      30_000_000_000
+    end
+
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
   new make() => None
@@ -133,7 +142,7 @@ class \nodoc\ iso _TestBroadcast is UnitTest
     h.dispose_when_done(
       UDPSocket(UDPAuth(h.env.root), recover _TestPong(h) end))
 
-    h.long_test(30_000_000_000)
+    h.long_test(TimeoutValue())
 
   fun ref timed_out(h: TestHelper) =>
     h.log("""
@@ -167,7 +176,7 @@ class \nodoc\ _TestTCP is TCPListenNotify
     h.dispose_when_done(TCPListener(TCPListenAuth(h.env.root), consume this))
     h.complete_action("server create")
 
-    h.long_test(30_000_000_000)
+    h.long_test(TimeoutValue())
 
   fun ref not_listening(listen: TCPListener ref) =>
     _h.fail_action("server listen")
@@ -685,7 +694,7 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
       end,
       host,
       port)
-    h.long_test(30_000_000_000)
+    h.long_test(TimeoutValue())
     h.dispose_when_done(connection)
 
 class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
@@ -731,7 +740,7 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
     )
 
     h.dispose_when_done(listener)
-    h.long_test(30_000_000_000)
+    h.long_test(TimeoutValue())
 
 actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>

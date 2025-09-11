@@ -64,9 +64,10 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-Alpine | binutils-gold, clang, clang-dev, cmake, libexecinfo-dev, libexecinfo-static, make
+Alpine 3.17+ | binutils-gold, clang, clang-dev, cmake, make
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Fedora | clang, cmake, libatomic, libstdc++-static, make
+Fedora 41 | binutils-gold, clang, cmake, libatomic, libstdc++-static, make
 OpenSuse Leap | binutils-gold, cmake
 Raspbian 32-bit | cmake
 Raspbian 64-bit | cmake, clang
@@ -116,21 +117,10 @@ sudo make install
 
 ## macOS
 
-For Intel-based macOS:
-
 ```bash
 make libs
 make configure
 make build
-sudo make install
-```
-
-For Apple Silicon macOS (M1 processors):
-
-```bash
-make libs
-make configure arch=armv8
-make build arch=armv8
 sudo make install
 ```
 
@@ -169,6 +159,17 @@ You can specify the CPU architecture to build Pony for via the `arch` make optio
 
 ```bash
 make configure arch=arm7
+make build
+```
+
+## dtrace
+
+BSD and Linux based versions of Pony support using DTrace and SystemTap for collecting Pony runtime events.
+
+DTrace support is enabled by setting `use=dtrace` in the build command line like:
+
+```bash
+make configure use=dtrace
 make build
 ```
 

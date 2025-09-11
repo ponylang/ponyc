@@ -227,9 +227,11 @@ uint32_t ponyint_cpu_count()
 }
 
 uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
-  bool pin, bool pinasio)
+  bool pin, bool pinasio, bool pinpat, bool pin_tracing_thread, uint32_t* tracing_cpu)
 {
   uint32_t asio_cpu = -1;
+  uint32_t pat_cpu = -1;
+  *tracing_cpu = -1;
 
   if(!pin)
   {
@@ -255,11 +257,15 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   if(pinasio)
     asio_cpu = avail_cpu_list[count % avail_cpu_count];
 
+  if(pinpat)
+    pat_cpu = avail_cpu_list[(count + 1) % avail_cpu_count];
+
+  if(pin_tracing_thread)
+    *tracing_cpu = avail_cpu_list[(count + 2) % avail_cpu_count];
+
   ponyint_pool_free_size(avail_cpu_size * sizeof(uint32_t), avail_cpu_list);
   avail_cpu_list = NULL;
   avail_cpu_count = avail_cpu_size = 0;
-
-  return asio_cpu;
 #elif defined(PLATFORM_IS_BSD)
   // FreeBSD does not currently do thread pinning, as we can't yet determine
   // which cores are hyperthreads.
@@ -268,6 +274,12 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   // asio_cpu of -1
   if(pinasio)
     asio_cpu = count % hw_cpu_count;
+
+  if(pinpat)
+    pat_cpu = (count + 1) % hw_cpu_count;
+
+  if(pin_tracing_thread)
+    *tracing_cpu = (count + 2) % hw_cpu_count;
 
   for(uint32_t i = 0; i < count; i++)
   {
@@ -286,7 +298,17 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
   // asio_cpu of -1
   if(pinasio)
     asio_cpu = count;
+
+  if(pinpat)
+    pat_cpu = (count + 1);
+
+  if(pin_tracing_thread)
+    *tracing_cpu = (count + 2);
 #endif
+
+  // set the affinity of the current thread (nain thread) which is the pinned
+  // actor thread
+  ponyint_cpu_affinity(pat_cpu);
 
   return asio_cpu;
 }
@@ -396,6 +418,10 @@ uint64_t ponyint_cpu_tick()
 #if defined PLATFORM_IS_ARM
 # if defined(__APPLE__)
   return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+# elif defined(PLATFORM_IS_WINDOWS)
+  LARGE_INTEGER PerformanceCount;
+  QueryPerformanceCounter(&PerformanceCount);
+  return PerformanceCount.QuadPart;
 # else
 #   if defined ARMV6
   // V6 is the earliest arch that has a standard cyclecount

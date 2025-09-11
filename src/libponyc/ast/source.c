@@ -114,7 +114,12 @@ static pony_type_t source_pony =
   sizeof(source_t),
   0,
   0,
+  0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   source_serialise_trace,
   source_serialise,

@@ -172,10 +172,8 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
 
-    unsigned int align = target_is_ilp32(c->opt->triple) ? 4 : 8;
-
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
-      Align(align), "", begin);
+      inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
 
     replace->setDebugLoc(inst->getDebugLoc());
 
@@ -938,7 +936,7 @@ public:
     unsigned functionIndex = AttributeList::FunctionIndex;
 
     fn->addFnAttr(Attribute::NoUnwind);
-    fn->addFnAttr(Attribute::ArgMemOnly);
+    fn->setOnlyAccessesArgMemory();
     fn->addParamAttr(1, Attribute::NoCapture);
     fn->addParamAttr(2, Attribute::ReadNone);
     return fn;
@@ -1013,9 +1011,13 @@ static void optimise(compile_t* c, bool pony_specific)
 
   // Create the top-level module pass manager using the default LLVM pipeline.
   // Choose the appropriate optimization level based on if we're in a release.
-  ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
-    c->opt->release ? OptimizationLevel::O3 : OptimizationLevel::O1
-  );
+  ModulePassManager MPM;
+
+  if (c->opt->release) {
+    MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O3);
+  } else {
+    MPM = PB.buildO0DefaultPipeline(OptimizationLevel::O0);
+  }
 
   // Run the passes.
   MPM.run(*unwrap(c->module), MAM);
@@ -1039,6 +1041,8 @@ bool genopt(compile_t* c, bool pony_specific)
     if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
     {
       errorf(errors, NULL, "Module verification failed: %s", msg);
+      errorf_continue(errors, NULL,
+        "Please file an issue ticket. Use --noverify to bypass this error.");
       LLVMDisposeMessage(msg);
       return false;
     }

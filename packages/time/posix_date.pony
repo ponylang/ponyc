@@ -44,6 +44,8 @@ class PosixDate
   fun format(fmt: String): String ? =>
     """
     Format the time as for strftime.
+
+    Will return an empty string if the format string is "%p" or "%P".
     """
     recover
       String.from_cstring(@ponyint_formattime(this, fmt.cstring())?)

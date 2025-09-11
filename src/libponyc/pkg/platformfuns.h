@@ -27,10 +27,6 @@ PONY_EXTERN_C_BEGIN
 #define OS_RUNTIMESTATS_NAME "runtimestats"
 #define OS_RUNTIMESTATSMESSAGES_NAME "runtimestatsmessages"
 
-/** Report whether the named platform attribute is true
- * @param out_is true if the specified attribute is set, false otherwise
- * @return true on success, false is specified attribute does not exist
- */
 bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass_opt_t* options);
 
 PONY_EXTERN_C_END

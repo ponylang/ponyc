@@ -30,6 +30,14 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t);
 
 void genfun_primitive_calls(compile_t* c);
 
+bool genfun_last_inst_is_terminator(compile_t* c);
+
+LLVMValueRef
+genfun_build_ret(compile_t* c, LLVMValueRef v);
+
+LLVMValueRef
+genfun_build_ret_void(compile_t* c);
+
 PONY_EXTERN_C_END
 
 #endif

@@ -6,14 +6,234 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Make the check for Visual Studio more robust ([PR #4722](https://github.com/ponylang/ponyc/pull/4722))
+- Fix linking on Linux arm64 when using musl libc ([PR #4726](https://github.com/ponylang/ponyc/pull/4726))
 
 ### Added
 
+- Add Alpine 3.20 as a supported platform ([PR #4709](https://github.com/ponylang/ponyc/pull/4709))
+- Add Alpine 3.21 as a supported platform ([PR #4710](https://github.com/ponylang/ponyc/pull/4710))
+- Add Ubuntu 24.04 on arm64 as a supported platform ([PR #4714](https://github.com/ponylang/ponyc/pull/4714))
+- Add Alpine 3.21 on arm64 as a supported platform ([PR #4716](https://github.com/ponylang/ponyc/pull/4716))
+- Support building ponyc natively on arm64 Windows machines ([PR #4689](https://github.com/ponylang/ponyc/pull/4689))
+- Add arm64 Windows as a supported platform ([PR #4721](https://github.com/ponylang/ponyc/pull/4721))
+
+### Changed
+
+- Drop Ubuntu 20.04 Support ([PR #4693](https://github.com/ponylang/ponyc/pull/4693))
+- Don't set gold as the default ponyc linker on Linux ([PR #4704](https://github.com/ponylang/ponyc/pull/4704))
+- Update to LLVM 18.1.8 ([PR #4701](https://github.com/ponylang/ponyc/pull/4701))
+
+## [0.59.0] - 2025-04-26
+
+### Fixed
+
+- Prevent memory explosion when using ponynoblock in some programs ([PR #4666](https://github.com/ponylang/ponyc/pull/4666))
+- Make GC for an actor more aggressive if an actor GC frees many refs ([PR #4662](https://github.com/ponylang/ponyc/pull/4662))
+
+### Added
+
+- Add ability to trace runtime events in chromium json format ([PR #4649](https://github.com/ponylang/ponyc/pull/4649))
+
+### Changed
+
+- Make pony programs exit on an unrecognized pony runtime option ([PR #4622](https://github.com/ponylang/ponyc/pull/4622))
+- Update to LLVM 17.0.1 ([PR #4680](https://github.com/ponylang/ponyc/pull/4680))
+
+## [0.58.13] - 2025-03-09
+
+### Fixed
+
+- Make sure systematic testing doesn't switch to suspended thread ([PR #4647](https://github.com/ponylang/ponyc/pull/4647))
+- Fix race condition in epoll ASIO system ([PR #4658](https://github.com/ponylang/ponyc/pull/4658))
+
+## [0.58.12] - 2025-03-01
+
+### Fixed
+
+- Don't duplicate match checks for inherited trait bodies ([PR #4628](https://github.com/ponylang/ponyc/pull/4628))
+- Don't duplicate visibility tests for inherited trait bodies ([PR #4640](https://github.com/ponylang/ponyc/pull/4640))
+
+## [0.58.11] - 2025-02-22
+
+### Fixed
+
+- Fix use-after-free triggered by fast actor reaping when the cycle detector is active ([PR #4616](https://github.com/ponylang/ponyc/pull/4616))
+- Fix incorrect printing of runtime stats ([PR #4620](https://github.com/ponylang/ponyc/pull/4620))
+- Fix memory leak ([PR #4621](https://github.com/ponylang/ponyc/pull/4621))
+- Fix being unable to compile programs that use runtime info on Windows ([PR #4625](https://github.com/ponylang/ponyc/pull/4625))
+
+## [0.58.10] - 2025-02-01
+
+### Fixed
+
+- Make sure scheduler threads don't ACK the quiescence protocol CNF messages if they have an actor waiting to be run ([PR #4583](https://github.com/ponylang/ponyc/pull/4583))
+- Apply default options for a CLI parent command when a sub command is parsed ([PR #4593](https://github.com/ponylang/ponyc/pull/4593))
+- Fix compiler crash from `match` with extra parens around `let` in tuple ([PR #4595](https://github.com/ponylang/ponyc/pull/4595))
+- Fix soundness problem when matching `iso` variables ([PR #4588](https://github.com/ponylang/ponyc/pull/4588))
+
+### Changed
+
+- Change stack_depth_t to size_t on OpenBSD ([PR #4575](https://github.com/ponylang/ponyc/pull/4575))
+
+## [0.58.9] - 2024-12-29
+
+### Fixed
+
+- Fixed an issue that caused the `actor_pinning` documentation to not be built
+
+## [0.58.8] - 2024-12-27
+
+### Fixed
+
+- Fix rare termination logic failures that could result in early shutdown ([PR #4556](https://github.com/ponylang/ponyc/pull/4556))
+
+### Added
+
+- Add Fedora 41 as a supported platform ([PR #4557](https://github.com/ponylang/ponyc/pull/4557))
+- Add support for pinning actors to a dedicated scheduler thread ([PR #4547](https://github.com/ponylang/ponyc/pull/4547))
+
+### Changed
+
+- Drop Fedora 39 support ([PR #4558](https://github.com/ponylang/ponyc/pull/4558))
+- Update Pony musl Docker images to Alpine 3.20 ([PR #4562](https://github.com/ponylang/ponyc/pull/4562))
+
+## [0.58.7] - 2024-11-30
+
+### Fixed
+
+- Correctly find custom-built `llc` ([PR #4537](https://github.com/ponylang/ponyc/pull/4537))
+- Fix buffer out of bounds access issue ([PR #4540](https://github.com/ponylang/ponyc/pull/4540))
+- Fix bug in ASIO shutdown ([PR #4548](https://github.com/ponylang/ponyc/pull/4548))
+- Fix early quiescence/termination bug ([PR #4550](https://github.com/ponylang/ponyc/pull/4550))
+
+### Changed
+
+- Recycle actor heap chunks after GC instead of returning to pool ([PR #4531](https://github.com/ponylang/ponyc/pull/4531))
+
+## [0.58.6] - 2024-10-16
+
+### Fixed
+
+- Fix use after free bug in actor heap finalisation that can lead to a segfault ([PR #4522](https://github.com/ponylang/ponyc/pull/4522))
+- Make heap small chunk size setting logic more precise/correct ([PR #4527](https://github.com/ponylang/ponyc/pull/4527))
+
+## [0.58.5] - 2024-06-01
+
+### Changed
+
+- Update the base image for our ponyc images ([PR #4515](https://github.com/ponylang/ponyc/pull/4515))
+
+## [0.58.4] - 2024-05-01
+
+### Fixed
+
+- Fix compiler crash ([PR #4505](https://github.com/ponylang/ponyc/pull/4505))
+- Fix generation of invalid LLVM IR  ([PR #4506](https://github.com/ponylang/ponyc/pull/4506))
+
+### Added
+
+- Add prebuilt ponyc binaries for Ubuntu 24.04 ([PR #4508](https://github.com/ponylang/ponyc/pull/4508))
+
+## [0.58.3] - 2024-03-30
+
+### Fixed
+
+- Fix bug in documentation generation ([PR #4502](https://github.com/ponylang/ponyc/pull/4502))
+
+## [0.58.2] - 2024-02-24
+
+### Fixed
+
+- Fix for potential memory corruption in `Array.copy_to` ([PR #4490](https://github.com/ponylang/ponyc/pull/4490))
+- Fix bug when serializing bare lambdas ([PR #4486](https://github.com/ponylang/ponyc/pull/4486))
+
+### Added
+
+- Add Fedora 39 as a supported platform ([PR #4485](https://github.com/ponylang/ponyc/pull/4485))
+- Add MacOS on Apple Silicon as a supported platform ([PR #4487](https://github.com/ponylang/ponyc/pull/4487))
+- Add constrained_types package to the standard library ([PR #4493](https://github.com/ponylang/ponyc/pull/4493))
+
+## [0.58.1] - 2024-01-27
+
+### Fixed
+
+- Fix missing "runtime_info" package documentation ([PR #4476](https://github.com/ponylang/ponyc/pull/4476))
+- Use the correct LLVM intrinsics for `powi` on *nix. ([PR #4481](https://github.com/ponylang/ponyc/pull/4481))
+
+## [0.58.0] - 2023-11-24
+
+### Changed
+
+- Disallow `return` at the end of a `with` block ([PR #4467](https://github.com/ponylang/ponyc/pull/4467))
+- Make the `verify` pass on by default ([PR #4036](https://github.com/ponylang/ponyc/pull/4036))
+
+## [0.57.1] - 2023-10-29
+
+### Fixed
+
+- Fix compiling Pony programs on X86 MacOS when XCode 15 is the linker ([PR #4466](https://github.com/ponylang/ponyc/pull/4466))
+
+## [0.57.0] - 2023-10-08
+
+### Fixed
+
+- Fix broken DTrace support ([PR #4453](https://github.com/ponylang/ponyc/pull/4453))
+- Fix compilation error when building with pool_memalign in release mode ([PR #4455](https://github.com/ponylang/ponyc/pull/4455))
+- Fix compiler bug that allows an unsafe data access pattern ([PR #4458](https://github.com/ponylang/ponyc/pull/4458))
+
+### Changed
+
+- Fix compiler bug that allows an unsafe data access pattern ([PR #4458](https://github.com/ponylang/ponyc/pull/4458))
+
+## [0.56.2] - 2023-09-16
+
+### Added
+
+- "No op" release to get Windows release out
+
+## [0.56.1] - 2023-09-16
+
+### Fixed
+
+- Fix "double socket close" issue with Windows version of TCPConnection ([PR #4437](https://github.com/ponylang/ponyc/pull/4437))
+
+## [0.56.0] - 2023-08-30
+
+### Fixed
+
+- Avoid hangs in async pony_check properties when using actions ([PR #4405](https://github.com/ponylang/ponyc/pull/4405))
+
+### Added
+
+- Add macOS on Intel as fully supported platform ([PR #4390](https://github.com/ponylang/ponyc/pull/4390))
+
+### Changed
+
+- Drop support for Alpine versions prior to 3.17 ([PR #4407](https://github.com/ponylang/ponyc/pull/4407))
+- Update Pony musl Docker images to Alpine 3.18 ([PR #4407](https://github.com/ponylang/ponyc/pull/4407))
+- Drop FreeBSD as a supported platform ([PR #4382](https://github.com/ponylang/ponyc/pull/4382))
+- Drop macOS on Apple Silicon as a fully supported platform ([PR #4403](https://github.com/ponylang/ponyc/pull/4403))
+
+## [0.55.1] - 2023-08-16
+
+### Fixed
+
+- Fix broken linking when using a sanitizer ([PR #4393](https://github.com/ponylang/ponyc/pull/4393))
+- Fix memory errors with some `--debug` program builds ([PR #4372](https://github.com/ponylang/ponyc/pull/4372))
+
+### Changed
+
+- Stop putting `stable` in ponyc Docker images ([PR #4353](https://github.com/ponylang/ponyc/pull/4353))
+- Move heap ownership info from chunk to pagemap ([PR #4371](https://github.com/ponylang/ponyc/pull/4371))
+
+## [0.55.0] - 2023-05-27
 
 ### Changed
 
 - Change supported MacOS version from Monterey to Ventura ([PR #4349](https://github.com/ponylang/ponyc/pull/4349))
 - Fix a possible resource leak with `with` blocks ([PR #4347](https://github.com/ponylang/ponyc/pull/4347))
+- Drop Ubuntu 18.04 support ([PR #4351](https://github.com/ponylang/ponyc/pull/4351))
 
 ## [0.54.1] - 2023-04-12
 

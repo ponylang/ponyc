@@ -15,12 +15,15 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
+#include <blake2.h>
 #include <platform.h>
 #include <llvm-c/DebugInfo.h>
-#include <llvm-c/Initialization.h>
 #include <llvm-c/Linker.h>
 #include <llvm-c/Support.h>
 #include <string.h>
+
+#define STR(x) STR2(x)
+#define STR2(x) #x
 
 struct compile_local_t
 {
@@ -199,6 +202,13 @@ static void init_runtime(compile_t* c)
   c->msg_type = LLVMStructCreateNamed(c->context, "__message");
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
+  // descriptor_offset_lookup
+  // uint32_t (*)(size_t)
+  params[0] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
+  c->descriptor_offset_lookup_type = LLVMFunctionType(c->i32, params, 1, false);
+  c->descriptor_offset_lookup_fn =
+    LLVMPointerType(c->descriptor_offset_lookup_type, 0);
+
   // trace
   // void (*)(i8*, __object*)
   params[0] = c->ptr;
@@ -224,6 +234,13 @@ static void init_runtime(compile_t* c)
   params[0] = c->ptr;
   params[1] = c->ptr;
   c->custom_deserialise_fn = LLVMFunctionType(c->void_type, params, 2, false);
+
+#if defined(USE_RUNTIME_TRACING)
+  // get_behavior_name
+  // void (*)(i8*, __object*, $message*)
+  params[0] = c->i32;
+  c->get_behavior_name_fn = LLVMFunctionType(c->ptr, params, 1, false);
+#endif
 
   // dispatch
   // void (*)(i8*, __object*, $message*)
@@ -259,8 +276,11 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
-  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr,
-    inaccessiblemem_or_argmemonly, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(memory_readnone, memory, LLVM_MEMORYEFFECTS_NONE);
+  LLVM_DECLARE_ATTRIBUTEREF(memory_readonly, memory, LLVM_MEMORYEFFECTS_READ);
+  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory,
+    LLVM_MEMORYEFFECTS_ARG(LLVM_MEMORYEFFECTS_READWRITE) |
+    LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(LLVM_MEMORYEFFECTS_READWRITE));
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
@@ -277,7 +297,7 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_ctx", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readnone_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readnone);
 
   // __object* pony_create(i8*, __Desc*, i1)
   params[0] = c->ptr;
@@ -293,10 +313,9 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
 
-  // void ponyint_destroy(i8*, __object*)
+  // void ponyint_destroy(__object*)
   params[0] = c->ptr;
-  params[1] = c->ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
+  type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
@@ -584,7 +603,7 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_get_exitcode", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readonly_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readonly);
 
   // void pony_error()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
@@ -604,7 +623,7 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "memcmp", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, readonly_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readonly);
   LLVMAddAttributeAtIndex(value, 1, readonly_attr);
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
@@ -782,20 +801,6 @@ bool codegen_llvm_init()
   LLVMEnablePrettyStackTrace();
   LLVMInstallFatalErrorHandler(fatal_error);
 
-  LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
-  LLVMInitializeCore(passreg);
-  LLVMInitializeTransformUtils(passreg);
-  LLVMInitializeScalarOpts(passreg);
-  LLVMInitializeObjCARCOpts(passreg);
-  LLVMInitializeVectorization(passreg);
-  LLVMInitializeInstCombine(passreg);
-  LLVMInitializeIPO(passreg);
-  LLVMInitializeInstrumentation(passreg);
-  LLVMInitializeAnalysis(passreg);
-  LLVMInitializeIPA(passreg);
-  LLVMInitializeCodeGen(passreg);
-  LLVMInitializeTarget(passreg);
-
   return true;
 }
 
@@ -818,9 +823,12 @@ bool codegen_pass_init(pass_opt_t* opt)
   {
     triple = LLVMCreateMessage(opt->triple);
   } else {
-#if defined(PLATFORM_IS_MACOSX) && !defined(PLATFORM_IS_ARM)
-    // This is to prevent XCode 7+ from claiming OSX 14.5 is required.
-    triple = LLVMCreateMessage("x86_64-apple-macosx");
+#if defined(PLATFORM_IS_MACOSX) && defined(PLATFORM_IS_ARM)
+    triple = LLVMCreateMessage("arm64-apple-macosx"
+      STR(PONY_OSX_PLATFORM));
+#elif defined(PLATFORM_IS_MACOSX) && !defined(PLATFORM_IS_ARM)
+    triple = LLVMCreateMessage("x86_64-apple-macosx"
+      STR(PONY_OSX_PLATFORM));
 #else
     triple = LLVMGetDefaultTargetTriple();
 #endif
@@ -850,6 +858,21 @@ bool codegen_pass_init(pass_opt_t* opt)
   else
     opt->cpu = LLVMGetHostCPUName();
 
+  opt->serialise_id_hash_key = (unsigned char*)ponyint_pool_alloc_size(16);
+
+  const char* version = "pony-" PONY_VERSION;
+  const char* data_model = target_is_ilp32(opt->triple) ? "ilp32" : (target_is_lp64(opt->triple) ? "lp64" : (target_is_llp64(opt->triple) ? "llp64" : "unknown"));
+  const char* endian = target_is_bigendian(opt->triple) ? "be" : "le";
+
+  printbuf_t* target_version_buf = printbuf_new();
+  printbuf(target_version_buf, "%s-%s-%s", version, data_model, endian);
+
+  int status = blake2b(opt->serialise_id_hash_key, 16, target_version_buf->m, target_version_buf->offset, NULL, 0);
+  (void)status;
+  pony_assert(status == 0);
+
+  printbuf_free(target_version_buf);
+
   return true;
 }
 
@@ -866,6 +889,9 @@ void codegen_pass_cleanup(pass_opt_t* opt)
   opt->triple = NULL;
   opt->cpu = NULL;
   opt->features = NULL;
+
+  ponyint_pool_free_size(16, opt->serialise_id_hash_key);
+  opt->serialise_id_hash_key = NULL;
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt)

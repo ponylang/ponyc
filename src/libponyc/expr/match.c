@@ -187,48 +187,62 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     type = control_type_add_branch(opt, type, cases);
   }
 
-  // analyze exhaustiveness
-  ast_t* exhaustive_at = is_match_exhaustive(opt, expr_type, cases);
-
-  if(exhaustive_at == NULL)
+  // If the method definition containing the match site had its body inherited
+  // from a trait, we don't want to check exhaustiveness here -
+  // it should only be checked in the context of the original trait.
+  bool skip_exhaustive = false;
+  ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
+  if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
+    && (opt->check.frame->type != body_donor))
   {
-    // match might not be exhaustive
-    if ((ast_id(else_clause) == TK_NONE))
-    {
-      // If we have no else clause, and the match is not found to be exhaustive,
-      // we must generate an implicit else clause that returns None as the value.
-      ast_scope(else_clause);
-      ast_setid(else_clause, TK_SEQ);
-
-      BUILD(ref, else_clause,
-        NODE(TK_TYPEREF,
-          NONE
-          ID("None")
-          NONE));
-      ast_add(else_clause, ref);
-
-      if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
-        return false;
-    }
+    skip_exhaustive = true;
   }
-  else
+
+  if(!skip_exhaustive)
   {
-    // match is exhaustive
-    if(ast_sibling(exhaustive_at) != NULL)
+    // analyze exhaustiveness
+    ast_t* exhaustive_at = is_match_exhaustive(opt, expr_type, cases);
+
+    if(exhaustive_at == NULL)
     {
-      // we have unreachable cases
-      ast_error(opt->check.errors, ast, "match contains unreachable cases");
-      ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
-        "first unreachable case expression");
-      return false;
+      // match might not be exhaustive
+      if ((ast_id(else_clause) == TK_NONE))
+      {
+        // If we have no else clause, and the match is not found to be exhaustive,
+        // we must generate an implicit else clause that returns None as the value.
+        ast_scope(else_clause);
+        ast_setid(else_clause, TK_SEQ);
+
+        BUILD(ref, else_clause,
+          NODE(TK_TYPEREF,
+            NONE
+            ID("None")
+            NONE));
+        ast_add(else_clause, ref);
+
+        if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
+          return false;
+      }
     }
-    else if((ast_id(else_clause) != TK_NONE))
+    else
     {
-      ast_error(opt->check.errors, ast,
-        "match is exhaustive, the else clause is unreachable");
-      ast_error_continue(opt->check.errors, else_clause,
-        "unreachable code");
-      return false;
+      // match is exhaustive
+      if(ast_sibling(exhaustive_at) != NULL)
+      {
+        // we have unreachable cases
+        ast_error(opt->check.errors, ast, "match contains unreachable cases");
+        ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
+          "first unreachable case expression");
+        return false;
+      }
+      else if((ast_id(else_clause) != TK_NONE))
+      {
+        ast_error(opt->check.errors, ast,
+          "match is exhaustive, the else clause is unreachable");
+        ast_error_continue(opt->check.errors, else_clause,
+          "unreachable code");
+        return false;
+      }
     }
   }
 
@@ -504,79 +518,96 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
   ast_settype(ast, pattern_type);
 
-  bool ok = true;
-  errorframe_t info = NULL;
-
-  switch(is_matchtype(match_type, pattern_type, &info, opt))
+   // If the method definition containing the match site had its body inherited
+  // from a trait, we don't want to check it here -
+  // it should only be checked in the context of the original trait.
+  bool skip = false;
+  ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
+  if ((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
+    && (opt->check.frame->type != body_donor))
   {
-    case MATCHTYPE_ACCEPT:
-      break;
-
-    case MATCHTYPE_REJECT:
-    {
-      errorframe_t frame = NULL;
-      ast_error_frame(&frame, pattern, "this pattern can never match");
-      ast_error_frame(&frame, match_type, "match type: %s",
-        ast_print_type(match_type));
-      // TODO report unaliased type when body is consume !
-      ast_error_frame(&frame, pattern, "pattern type: %s",
-        ast_print_type(pattern_type));
-      errorframe_append(&frame, &info);
-      errorframe_report(&frame, opt->check.errors);
-
-      ok = false;
-      break;
-    }
-
-    case MATCHTYPE_DENY_CAP:
-    {
-      errorframe_t frame = NULL;
-      ast_error_frame(&frame, pattern,
-        "this capture violates capabilities, because the match would "
-        "need to differentiate by capability at runtime instead of matching "
-        "on type alone");
-      ast_error_frame(&frame, match_type, "the match type allows for more than "
-        "one possibility with the same type as pattern type, but different "
-        "capabilities. match type: %s",
-        ast_print_type(match_type));
-      ast_error_frame(&frame, pattern, "pattern type: %s",
-        ast_print_type(pattern_type));
-      errorframe_append(&frame, &info);
-      errorframe_report(&frame, opt->check.errors);
-
-      ok = false;
-      break;
-    }
-
-    case MATCHTYPE_DENY_NODESC:
-    {
-      errorframe_t frame = NULL;
-      ast_error_frame(&frame, pattern,
-        "this capture cannot match, since the type %s "
-        "is a struct and lacks a type descriptor",
-        ast_print_type(pattern_type));
-      ast_error_frame(&frame, match_type,
-        "a struct cannot be part of a union type. match type: %s",
-        ast_print_type(match_type));
-      ast_error_frame(&frame, pattern, "pattern type: %s",
-        ast_print_type(pattern_type));
-      errorframe_append(&frame, &info);
-      errorframe_report(&frame, opt->check.errors);
-      ok = false;
-      break;
-    }
+    skip = true;
   }
 
-  if(ast_id(guard) != TK_NONE)
-  {
-    ast_t* guard_type = ast_type(guard);
+  bool ok = true;
 
-    if(is_typecheck_error(guard_type))
+  if (!skip)
+  {
+    errorframe_t info = NULL;
+
+    switch(is_matchtype_with_consumed_pattern(match_type, pattern_type, &info, opt))
     {
-      ok = false;
-    } else if(!is_bool(guard_type)) {
-      ast_error(opt->check.errors, guard,
-        "guard must be a boolean expression");
+      case MATCHTYPE_ACCEPT:
+        break;
+
+      case MATCHTYPE_REJECT:
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, pattern, "this pattern can never match");
+        ast_error_frame(&frame, match_type, "match type: %s",
+          ast_print_type(match_type));
+        // TODO report unaliased type when body is consume !
+        ast_error_frame(&frame, pattern, "pattern type: %s",
+          ast_print_type(pattern_type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
+
+        ok = false;
+        break;
+      }
+
+      case MATCHTYPE_DENY_CAP:
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, pattern,
+          "this capture violates capabilities, because the match would "
+          "need to differentiate by capability at runtime instead of matching "
+          "on type alone");
+        ast_error_frame(&frame, match_type, "the match type allows for more than "
+          "one possibility with the same type as pattern type, but different "
+          "capabilities. match type: %s",
+          ast_print_type(match_type));
+        ast_error_frame(&frame, pattern, "pattern type: %s",
+          ast_print_type(pattern_type));
+        errorframe_append(&frame, &info);
+        ast_error_frame(&frame, match_expr,
+          "the match expression with the inadequate capability is here");
+        errorframe_report(&frame, opt->check.errors);
+
+        ok = false;
+        break;
+      }
+
+      case MATCHTYPE_DENY_NODESC:
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, pattern,
+          "this capture cannot match, since the type %s "
+          "is a struct and lacks a type descriptor",
+          ast_print_type(pattern_type));
+        ast_error_frame(&frame, match_type,
+          "a struct cannot be part of a union type. match type: %s",
+          ast_print_type(match_type));
+        ast_error_frame(&frame, pattern, "pattern type: %s",
+          ast_print_type(pattern_type));
+        errorframe_append(&frame, &info);
+        errorframe_report(&frame, opt->check.errors);
+        ok = false;
+        break;
+      }
+    }
+
+    if(ast_id(guard) != TK_NONE)
+    {
+      ast_t* guard_type = ast_type(guard);
+
+      if(is_typecheck_error(guard_type))
+      {
+        ok = false;
+      } else if(!is_bool(guard_type)) {
+        ast_error(opt->check.errors, guard,
+          "guard must be a boolean expression");
+      }
     }
   }
   return ok;

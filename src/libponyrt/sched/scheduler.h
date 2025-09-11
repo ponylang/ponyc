@@ -15,9 +15,14 @@ typedef struct scheduler_t scheduler_t;
 #include <platform.h>
 #include "mutemap.h"
 
-#define SPECIAL_THREADID_KQUEUE   -10
-#define SPECIAL_THREADID_IOCP     -11
-#define SPECIAL_THREADID_EPOLL    -12
+#define PONY_KQUEUE_SCHEDULER_INDEX   -10
+#define PONY_IOCP_SCHEDULER_INDEX     -11
+#define PONY_EPOLL_SCHEDULER_INDEX    -12
+#define PONY_UNKNOWN_SCHEDULER_INDEX -1
+
+// the `-999` constant is the same value that is hardcoded in `actor_pinning.pony`
+// in the `actor_pinning` package
+#define PONY_PINNED_ACTOR_THREAD_INDEX -999
 
 #if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
 // Signal to use for suspending/resuming threads via `sigwait`/`pthread_kill`
@@ -31,6 +36,18 @@ typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);
 
 typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* actor);
+
+typedef enum
+{
+  SCHED_BLOCK = 20,
+  SCHED_UNBLOCK = 21,
+  SCHED_CNF = 30,
+  SCHED_ACK,
+  SCHED_TERMINATE = 40,
+  SCHED_UNMUTE_ACTOR = 50,
+  SCHED_NOISY_ASIO = 51,
+  SCHED_UNNOISY_ASIO = 52
+} sched_msg_t;
 
 typedef struct schedulerstats_t
 {
@@ -90,7 +107,7 @@ struct scheduler_t
   uint32_t node;
   bool terminate;
   bool asio_stoppable;
-  bool asio_noisy;
+  int32_t asio_noisy;
   pony_signal_event_t sleep_object;
 
   // These are changed primarily by the owning scheduler thread.
@@ -108,8 +125,8 @@ struct scheduler_t
 };
 
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
-  bool pinasio, uint32_t min_threads, uint32_t thread_suspend_threshold,
-  uint32_t stats_interval
+  bool pinasio, bool pinpat, uint32_t min_threads, uint32_t thread_suspend_threshold,
+  uint32_t stats_interval, bool pin_tracing_thread
 #if defined(USE_SYSTEMATIC_TESTING)
   , uint64_t systematic_testing_seed);
 #else
@@ -122,17 +139,23 @@ void ponyint_sched_stop();
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
+void ponyint_sched_add_inject(pony_actor_t* actor);
+
 void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* recv);
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
 
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
+bool ponyint_get_pinned_actor_scheduler_suspended();
+
 PONY_API uint32_t pony_active_schedulers();
 
 PONY_API int32_t pony_scheduler_index();
 
 PONY_API schedulerstats_t* pony_scheduler_stats();
+
+void ponyint_register_asio_thread();
 
 /** Mark asio as being noisy
  */
@@ -149,11 +172,9 @@ void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
 // threads are asleep
 void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
 
-// Retrieves the global main thread context for scheduling
-// special actors on the inject queue.
-pony_ctx_t* ponyint_sched_get_inject_context();
-
 #ifdef USE_RUNTIMESTATS
+bool ponyint_sched_print_stats();
+
 uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx);
 
 /** Get the static memory used by the scheduler subsystem.

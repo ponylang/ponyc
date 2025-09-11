@@ -1,6 +1,6 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
-ENV PATH "/root/.local/share/ponyup/bin:$PATH"
+ENV PATH="/root/.local/share/ponyup/bin:$PATH"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -9,13 +9,12 @@ RUN apt-get update \
     curl \
     g++ \
     git \
-    lsb-core \
+    lsb-release \
     make \
   && rm -rf /var/lib/apt/lists/*
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
  && ponyup update ponyc release \
- && ponyup update stable release \
  && ponyup update corral release \
  && ponyup update changelog-tool release
 

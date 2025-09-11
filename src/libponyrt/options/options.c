@@ -76,6 +76,15 @@ static const opt_arg_t* find_match(opt_state_t* s)
     }
   }
 
+  // if we didn't find a match
+  if(match == NULL)
+  {
+    // and the option starts with "pony",
+    // complain
+    if(!strncmp("pony", s->opt_start, 4))
+      return (opt_arg_t*)2;
+  }
+
   return match;
 }
 
@@ -212,6 +221,11 @@ int ponyint_opt_next(opt_state_t* s)
   else if(m == (opt_arg_t*)1)
   {
     printf("%s: '%s' option is ambiguous!\n", s->argv[0], s->argv[s->idx]);
+    return -2;
+  }
+  else if(m == (opt_arg_t*)2)
+  {
+    printf("%s: Unrecognised pony runtime option: '%s'!\nRun '%s --ponyhelp' for available pony runtime options.\nIf you're trying to use this as an application argument, you'll need to rename it to not include the '--pony' prefix.\n", s->argv[0], s->argv[s->idx], s->argv[0]);
     return -2;
   }
 

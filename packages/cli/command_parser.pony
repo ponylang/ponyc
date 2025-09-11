@@ -98,6 +98,12 @@ class CommandParser
           try
             match _spec.commands()(token)?
             | let cs: CommandSpec box =>
+              // check args and assign defaults
+              match _check_args(options, args, envsmap, arg_pos)
+              | let se: SyntaxError =>
+                return se
+              end
+
               return CommandParser._sub(cs, this).
                 _parse_command(tokens, options, args, envsmap, opt_stop)
             end
@@ -142,6 +148,29 @@ class CommandParser
       end
       return Help.general(_root_spec())
     end
+
+    // check args and assign defaults
+    match _check_args(options, args, envsmap, arg_pos)
+    | let se: SyntaxError =>
+      return se
+    end
+
+    // Specifying only the parent and not a leaf command is an error.
+    if _spec.is_parent() then
+      return SyntaxError(_spec.name(), "missing subcommand")
+    end
+
+    // A successfully parsed and populated leaf Command.
+    Command._create(_spec, _fullname(), consume options, args)
+
+  fun _check_args(
+    options: Map[String,Option] ref,
+    args: Map[String,Arg] ref,
+    envsmap: Map[String, String] box,
+    arg_pos': USize)
+    : (SyntaxError | USize)
+  =>
+    var arg_pos = arg_pos'
 
     // Fill in option values from env or from coded defaults.
     for os in _spec.options().values() do
@@ -190,14 +219,7 @@ class CommandParser
       end
       arg_pos = arg_pos + 1
     end
-
-    // Specifying only the parent and not a leaf command is an error.
-    if _spec.is_parent() then
-      return SyntaxError(_spec.name(), "missing subcommand")
-    end
-
-    // A successfully parsed and populated leaf Command.
-    Command._create(_spec, _fullname(), consume options, args)
+    arg_pos
 
   fun _parse_long_option(
     token: String,

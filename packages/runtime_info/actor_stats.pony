@@ -2,7 +2,9 @@ use @pony_actor_stats[_ActorStats]()
 
 primitive ActorStats
   """
-  Provides functions that expose statistics about the current actor.
+  Provides functions that expose statistics about the current actor. All
+  methods will return '0' if the runtime used the program wasn't compiled with
+  runtime statistics turned on.
   """
 
   fun heap_mem_allocated(auth: ActorStatsAuth): USize =>

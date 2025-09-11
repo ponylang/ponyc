@@ -9,6 +9,7 @@
 #include "../lang/process.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <dtrace.h>
 #include <string.h>
@@ -33,12 +34,23 @@ typedef struct options_t
   bool noblock;
   bool pin;
   bool pinasio;
+  bool pinpat;
   uint32_t stats_interval;
   bool version;
+  bool ponyhelp;
 #if defined(USE_SYSTEMATIC_TESTING)
   uint64_t systematic_testing_seed;
 #endif
-  bool ponyhelp;
+#if defined(USE_RUNTIME_TRACING)
+  char* tracing_format;
+  char* tracing_output;
+  char* tracing_enabled_categories_patterns;
+  char* tracing_mode;
+  char* tracing_force_actor_tracing;
+  size_t tracing_flight_recorder_events_size;
+  bool tracing_flight_recorder_handle_term_int;
+  bool pintracing;
+#endif
 } options_t;
 
 typedef enum running_kind_t
@@ -68,10 +80,21 @@ enum
   OPT_NOBLOCK,
   OPT_PIN,
   OPT_PINASIO,
+  OPT_PINPAT,
   OPT_STATSINTERVAL,
   OPT_VERSION,
 #if defined(USE_SYSTEMATIC_TESTING)
   OPT_SYSTEMATIC_TESTING_SEED,
+#endif
+#if defined(USE_RUNTIME_TRACING)
+  OPT_TRACING_FORMAT,
+  OPT_TRACING_OUTPUT,
+  OPT_TRACING_ENABLED_CATEGORIES_PATTERNS,
+  OPT_TRACING_MODE,
+  OPT_TRACING_FORCE_ACTOR_TRACING,
+  OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE,
+  OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT,
+  OPT_PINTRACING,
 #endif
   OPT_PONYHELP
 };
@@ -89,12 +112,23 @@ static opt_arg_t args[] =
   {"ponynoblock", 0, OPT_ARG_NONE, OPT_NOBLOCK},
   {"ponypin", 0, OPT_ARG_NONE, OPT_PIN},
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
+  {"ponypinpinnedactorthread", 0, OPT_ARG_NONE, OPT_PINPAT},
   {"ponyprintstatsinterval", 0, OPT_ARG_REQUIRED, OPT_STATSINTERVAL},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 #if defined(USE_SYSTEMATIC_TESTING)
   {"ponysystematictestingseed", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_SEED},
 #endif
   {"ponyhelp", 0, OPT_ARG_NONE, OPT_PONYHELP},
+#if defined(USE_RUNTIME_TRACING)
+  {"ponytracingformat", 0, OPT_ARG_REQUIRED, OPT_TRACING_FORMAT},
+  {"ponytracingoutput", 0, OPT_ARG_REQUIRED, OPT_TRACING_OUTPUT},
+  {"ponytracingcategories", 0, OPT_ARG_REQUIRED, OPT_TRACING_ENABLED_CATEGORIES_PATTERNS},
+  {"ponytracingmode", 0, OPT_ARG_REQUIRED, OPT_TRACING_MODE},
+  {"ponytracingforceactortracing", 0, OPT_ARG_REQUIRED, OPT_TRACING_FORCE_ACTOR_TRACING},
+  {"ponytracingflightrecorderbuffer", 0, OPT_ARG_REQUIRED, OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE},
+  {"ponytracingflightrecorderhandletermint", 0, OPT_ARG_NONE, OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT},
+  {"ponypintracingthread", 0, OPT_ARG_NONE, OPT_PINTRACING},
+#endif
 
   OPT_ARGS_FINISH
 };
@@ -181,12 +215,23 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_NOBLOCK: opt->noblock = true; break;
       case OPT_PIN: opt->pin = true; break;
       case OPT_PINASIO: opt->pinasio = true; break;
+      case OPT_PINPAT: opt->pinpat = true; break;
       case OPT_STATSINTERVAL: if(parse_uint(&opt->stats_interval, 1, s.arg_val)) err_out(id, "can't be less than 1 second"); break;
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)
       case OPT_SYSTEMATIC_TESTING_SEED: if(parse_uint64(&opt->systematic_testing_seed, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
 #endif
       case OPT_PONYHELP: opt->ponyhelp = true; break;
+#if defined(USE_RUNTIME_TRACING)
+      case OPT_TRACING_FORMAT: opt->tracing_format = s.arg_val; break;
+      case OPT_TRACING_OUTPUT: opt->tracing_output = s.arg_val; break;
+      case OPT_TRACING_ENABLED_CATEGORIES_PATTERNS: opt->tracing_enabled_categories_patterns = s.arg_val; break;
+      case OPT_TRACING_MODE: opt->tracing_mode = s.arg_val; break;
+      case OPT_TRACING_FORCE_ACTOR_TRACING: opt->tracing_force_actor_tracing = s.arg_val; break;
+      case OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE: if(parse_size(&opt->tracing_flight_recorder_events_size, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
+      case OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT: opt->tracing_flight_recorder_handle_term_int = true; break;
+      case OPT_PINTRACING: opt->pintracing = true; break;
+#endif
 
       case -2:
         // an error message has been printed by ponyint_opt_next
@@ -242,6 +287,16 @@ PONY_API int pony_init(int argc, char** argv)
 #if defined(USE_SYSTEMATIC_TESTING)
   opt.systematic_testing_seed = 0;
 #endif
+#if defined(USE_RUNTIME_TRACING)
+  opt.tracing_format = "json";
+  opt.tracing_output = "ponytrace.json";
+  opt.tracing_enabled_categories_patterns = "";
+  opt.tracing_mode = "file";
+  opt.tracing_force_actor_tracing = "none";
+  opt.tracing_flight_recorder_events_size = 16384;
+  opt.tracing_flight_recorder_handle_term_int = false;
+  opt.pintracing = false;
+#endif
 
   pony_register_thread();
 
@@ -292,15 +347,26 @@ PONY_API int pony_init(int argc, char** argv)
 
   pony_exitcode(0);
 
+#if defined(USE_RUNTIME_TRACING)
+  // initialize tracing backend before any threads/actors are created in case they generate tracing data..
+  TRACING_INIT(opt.tracing_format, opt.tracing_output, opt.tracing_enabled_categories_patterns, opt.tracing_mode, opt.tracing_flight_recorder_events_size, opt.tracing_flight_recorder_handle_term_int, opt.tracing_force_actor_tracing);
+#define PIN_TRACING_CPU opt.pintracing
+#define TRACING_FORCE_CYCLE_DETECTOR_TRACING (strcmp(opt.tracing_force_actor_tracing, "cd_only") == 0)
+#else
+#define PIN_TRACING_CPU false
+#define TRACING_FORCE_CYCLE_DETECTOR_TRACING false
+#endif
+
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
-    opt.pinasio, opt.min_threads, opt.thread_suspend_threshold, opt.stats_interval
+    opt.pinasio, opt.pinpat, opt.min_threads, opt.thread_suspend_threshold,
+    opt.stats_interval, PIN_TRACING_CPU
 #if defined(USE_SYSTEMATIC_TESTING)
     , opt.systematic_testing_seed);
 #else
     );
 #endif
 
-  ponyint_cycle_create(ctx, opt.cd_detect_interval);
+  ponyint_cycle_create(ctx, opt.cd_detect_interval, TRACING_FORCE_CYCLE_DETECTOR_TRACING);
 
   return argc;
 }
@@ -330,13 +396,20 @@ PONY_API bool pony_start(bool library, int* exit_code,
 
     if(language_init.init_serialisation &&
       !ponyint_serialise_setup(language_init.descriptor_table,
-        language_init.descriptor_table_size))
+        language_init.descriptor_table_size,
+        language_init.desc_table_offset_lookup))
     {
       atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
       return false;
     }
   } else {
     memset(&language_init, 0, sizeof(pony_language_features_init_t));
+  }
+
+  if(!TRACING_START())
+  {
+    atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
+    return false;
   }
 
   if(!ponyint_sched_start(library))
@@ -369,6 +442,9 @@ PONY_API bool pony_start(bool library, int* exit_code,
   if(exit_code != NULL)
     *exit_code = ec;
 
+  // stop tracing as the last thing the program does
+  TRACING_STOP();
+
   return true;
 }
 
@@ -397,6 +473,10 @@ PONY_API int pony_stop()
   atomic_thread_fence(memory_order_acq_rel);
   atomic_store_explicit(&initialised, false, memory_order_relaxed);
   atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
+
+  // stop tracing as the last thing the program does
+  TRACING_STOP();
+
   return ec;
 }
 

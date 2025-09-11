@@ -73,7 +73,7 @@ static void handle_queue(asio_backend_t* b)
 
   while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
 #ifdef USE_DYNAMIC_TRACE
-    , SPECIAL_THREADID_EPOLL
+    , pony_scheduler_index()
 #endif
     )) != NULL)
   {
@@ -93,7 +93,7 @@ static void handle_queue(asio_backend_t* b)
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
-  pony_register_thread();
+  ponyint_register_asio_thread();
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 

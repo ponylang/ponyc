@@ -1,0 +1,165 @@
+name: Update lib cache
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: "update-lib-cache"
+
+permissions:
+  packages: read
+
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora41-builder:20241201
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.20-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
+          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
+          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+
+  # Currently, Github actions supplied by GH like checkout and cache do not work
+  # in musl libc environments on arm64. We can work around this by running
+  # those actions on the host and then "manually" doing our work that would
+  # normally be done "in the musl container" by starting the container ourselves
+  # for various steps by invoking docker directly.
+  #
+  # This is not in line with our standard pattern of "just do it all in the
+  # container" but is required to work around the GitHub actions limitation
+  # documented above.
+  arm64-linux:
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+
+    name: ${{ matrix.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: cache-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Login to GitHub Container Registry
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: docker pull ${{ matrix.image }}
+      - name: Build Libs
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make libs build_flags=-j8
+
+  x86_64-macos:
+    runs-on: macos-13
+
+    name: x86-64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+
+  arm64-macos:
+    runs-on: macos-15
+
+    name: arm64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+
+  x86_64-windows:
+    runs-on: windows-2025
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+
+  arm64-windows:
+    runs-on: windows-11-arm
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Cache Libs
+        id: restore-libs
+        uses: actions/cache@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs -Arch ARM64

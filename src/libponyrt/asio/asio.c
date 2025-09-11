@@ -137,7 +137,12 @@ bool ponyint_asio_stop()
       SYSTEMATIC_TESTING_YIELD();
 #endif
 
-    ponyint_thread_join(running_base.tid);
+    // If we weren't able to wait on the asio
+    // thread until termination, return false
+    // Otherwise, we are probably setting a running
+    // backend to NULL and hilarity will ensue
+    if(!ponyint_thread_join(running_base.tid))
+      return false;
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
 #if defined(USE_SYSTEMATIC_TESTING)

@@ -1,19 +1,16 @@
-FROM alpine:3.16
+FROM alpine:3.20
 
-ENV PATH "/root/.local/share/ponyup/bin:$PATH"
+ENV PATH="/root/.local/share/ponyup/bin:$PATH"
 
 RUN apk add --update --no-cache \
     clang \
     curl \
     build-base \
     binutils-gold \
-    libexecinfo-dev \
-    libexecinfo-static \
     git
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
  && ponyup update ponyc nightly \
- && ponyup update stable nightly \
  && ponyup update corral nightly \
  && ponyup update changelog-tool nightly
 

@@ -1,0 +1,78 @@
+name: "Stress Test: Windows UBench"
+
+on:
+  schedule:
+    - cron: "45 5 * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA to test'
+        required: true
+        type: string
+        default: 'main'
+
+permissions:
+  packages: read
+
+jobs:
+  x86_64-windows:
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "x86-64 Windows [release]"
+            target: stress-test-ubench-release
+          - name: "x86-64 Windows [debug]"
+            target: stress-test-ubench-debug
+          - name: "x86-64 Windows [cd] [release]"
+            target: stress-test-ubench-with-cd-release
+          - name: "x86-64 Windows [cd] [debug]"
+            target: stress-test-ubench-with-cd-debug
+
+    name: ${{matrix.target}}:${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Install Dependencies
+        run: |
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+          python.exe -m pip install --upgrade cloudsmith-cli
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Configure
+        run: .\make.ps1 -Command configure -Config Debug
+      - name: Build Debug Runtime
+        run: .\make.ps1 -Command build -Config Debug
+      - name: Run Stress Test
+        run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

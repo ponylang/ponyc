@@ -389,7 +389,12 @@ static pony_type_t symbol_pony =
   sizeof(symbol_t),
   0,
   0,
+  0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   symbol_serialise_trace,
   symbol_serialise,

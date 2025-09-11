@@ -6,13 +6,25 @@
 
 #include <platform.h>
 
+#if defined(USE_POOL_MEMALIGN)
+#  define POOL_USE_MEMALIGN
+#else
+#  define POOL_USE_DEFAULT
+#endif
+
 PONY_EXTERN_C_BEGIN
 
 /* Because of the way free memory is reused as its own linked list container,
- * the minimum allocation size is 32 bytes.
+ * the minimum allocation size is 32 bytes for the default pool implementation
+ * and 16 bytes for the memalign pool implementation.
  */
 
+#ifndef POOL_USE_DEFAULT
+#define POOL_MIN_BITS 4
+#else
 #define POOL_MIN_BITS 5
+#endif
+
 #define POOL_MAX_BITS 20
 #define POOL_ALIGN_BITS 10
 
@@ -37,6 +49,7 @@ size_t ponyint_pool_used_size(size_t index);
 
 size_t ponyint_pool_adjust_size(size_t size);
 
+#ifdef POOL_USE_DEFAULT
 #define POOL_INDEX(SIZE) \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 1)), 1, \
@@ -56,6 +69,28 @@ size_t ponyint_pool_adjust_size(size_t size);
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 15)), 15, \
     EXPR_NONE \
     ))))))))))))))))
+#else
+#define POOL_INDEX(SIZE) \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 1)), 1, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 2)), 2, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 3)), 3, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 4)), 4, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 5)), 5, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 6)), 6, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 7)), 7, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 8)), 8, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 9)), 9, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 10)), 10, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 11)), 11, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 12)), 12, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 13)), 13, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 14)), 14, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 15)), 15, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 16)), 16, \
+    EXPR_NONE \
+    )))))))))))))))))
+#endif
 
 #define POOL_ALLOC(TYPE) \
   (TYPE*) ponyint_pool_alloc(POOL_INDEX(sizeof(TYPE)))

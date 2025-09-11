@@ -114,6 +114,13 @@ typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
 typedef void (*pony_dispatch_fn)(pony_ctx_t* ctx, pony_actor_t* actor,
   pony_msg_t* m);
 
+/** Behavior name function.
+ *
+ * Each actor has a behavior name function that translates a message id for an
+ * actor to a string behavior name that will run for that message.
+ */
+typedef char* (*pony_behavior_name_fn)(uint32_t id);
+
 /** Finaliser.
  *
  * An actor or object can supply a finaliser, which is called before it is
@@ -134,9 +141,14 @@ typedef const struct _pony_type_t
 {
   uint32_t id;
   uint32_t size;
+  size_t serialise_id;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
+  #if defined(USE_RUNTIME_TRACING)
+  char* name;
+  pony_behavior_name_fn get_behavior_name;
+  #endif
   pony_trace_fn trace;
   pony_trace_fn serialise_trace;
   pony_serialise_fn serialise;
@@ -151,6 +163,12 @@ typedef const struct _pony_type_t
   void* fields;
   void* vtable;
 } pony_type_t;
+
+/** Desc table lookup function.
+ *
+ * A function to convert `serialise_id`s to offsets in the desc table
+ */
+typedef uint32_t (*desc_offset_lookup_fn)(size_t serialise_id);
 
 /** Language feature initialiser.
  *
@@ -178,6 +196,9 @@ typedef struct pony_language_features_init_t
 
   /// The total size of the descriptor_table array.
   size_t descriptor_table_size;
+
+  /// The function to translate `serialise_id`s to offsets in the desc_table
+  desc_offset_lookup_fn desc_table_offset_lookup;
 } pony_language_features_init_t;
 
 /// The currently executing context.

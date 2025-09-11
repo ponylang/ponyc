@@ -18,8 +18,8 @@ endif()
 # Uncomment this to show build commands
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# We require C++14 (because LLVM does)
-set(CMAKE_CXX_STANDARD 14)
+# We require C++17 (because LLVM does)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # We require LLVM, Google Test and Google Benchmark
@@ -31,30 +31,35 @@ endif()
 
 # Uses
 if(PONY_USE_VALGRIND)
-    set(PONY_OUTPUT_SUFFIX "-valgrind")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-valgrind")
     add_compile_options(-DUSE_VALGRIND)
 endif()
 
 if(PONY_USE_THREAD_SANITIZER)
-    set(PONY_OUTPUT_SUFFIX "-thread_sanitizer")
-    add_compile_options(-fsanitize=thread -DPONY_SANITIZER=\"thread\")
-    add_link_options(-fsanitize=thread -DPONY_SANITIZER=\"thread\")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-thread_sanitizer")
+    list(APPEND PONY_SANITIZERS_ENABLED "thread")
 endif()
 
 if(PONY_USE_ADDRESS_SANITIZER)
-    set(PONY_OUTPUT_SUFFIX "-address_sanitizer")
-    add_compile_options(-fsanitize=address -DPONY_SANITIZER=\"address\")
-    add_link_options(-fsanitize=address -DPONY_SANITIZER=\"address\")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-address_sanitizer")
+    list(APPEND PONY_SANITIZERS_ENABLED "address")
+    add_compile_options(-DUSE_ADDRESS_SANITIZER)
+    add_link_options(-DUSE_ADDRESS_SANITIZER)
 endif()
 
 if(PONY_USE_UNDEFINED_BEHAVIOR_SANITIZER)
-    set(PONY_OUTPUT_SUFFIX "-undefined_behavior_sanitizer")
-    add_compile_options(-fsanitize=undefined -DPONY_SANITIZER=\"undefined\")
-    add_link_options(-fsanitize=undefined -DPONY_SANITIZER=\"undefined\")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-undefined_behavior_sanitizer")
+    list(APPEND PONY_SANITIZERS_ENABLED "undefined")
+endif()
+
+if(PONY_SANITIZERS_ENABLED)
+    list(JOIN PONY_SANITIZERS_ENABLED "," PONY_SANITIZERS_VALUE)
+    add_compile_options(-fsanitize=${PONY_SANITIZERS_VALUE} -DPONY_SANITIZER=\"${PONY_SANITIZERS_VALUE}\")
+    add_link_options(-fsanitize=${PONY_SANITIZERS_VALUE} -DPONY_SANITIZER=\"${PONY_SANITIZERS_VALUE}\")
 endif()
 
 if(PONY_USE_COVERAGE)
-    set(PONY_OUTPUT_SUFFIX "-coverage")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-coverage")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         add_compile_options(-O0 -fprofile-instr-generate -fcoverage-mapping)
         add_link_options(-fprofile-instr-generate -fcoverage-mapping)
@@ -65,33 +70,43 @@ if(PONY_USE_COVERAGE)
 endif()
 
 if(PONY_USE_POOLTRACK)
-    set(PONY_OUTPUT_SUFFIX "-pooltrack")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pooltrack")
     add_compile_options(-DUSE_POOLTRACK)
 endif()
 
 if(PONY_USE_DTRACE)
-    set(PONY_OUTPUT_SUFFIX "-dtrace")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-dtrace")
     add_compile_options(-DUSE_DYNAMIC_TRACE)
 endif()
 
 if(PONY_USE_RUNTIMESTATS)
-    set(PONY_OUTPUT_SUFFIX "-runtimestats")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtimestats")
     add_compile_options(-DUSE_RUNTIMESTATS)
 endif()
 
 if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
-    set(PONY_OUTPUT_SUFFIX "-scheduler_scaling_pthreads")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-scheduler_scaling_pthreads")
     add_compile_options(-DUSE_SCHEDULER_SCALING_PTHREADS)
 endif()
 
 if(PONY_USE_SYSTEMATIC_TESTING)
-    set(PONY_OUTPUT_SUFFIX "-systematic_testing")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-systematic_testing")
     add_compile_options(-DUSE_SYSTEMATIC_TESTING)
 endif()
 
 if(PONY_USE_RUNTIMESTATS_MESSAGES)
-    set(PONY_OUTPUT_SUFFIX "-runtimestats_messages")
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtimestats_messages")
     add_compile_options(-DUSE_RUNTIMESTATS -DUSE_RUNTIMESTATS_MESSAGES)
+endif()
+
+if(PONY_USE_POOL_MEMALIGN)
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_memalign")
+    add_compile_options(-DUSE_POOL_MEMALIGN)
+endif()
+
+if(PONY_USE_RUNTIME_TRACING)
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtime_tracing")
+    add_compile_options(-DUSE_RUNTIME_TRACING)
 endif()
 
 # LibPonyC tests assume that our outputs are two directories above the root directory.
@@ -125,6 +140,8 @@ if(NOT MSVC)
         set(PONY_PIC_FLAG "-fpic")
     endif()
 endif()
+
+set(PONY_OSX_PLATFORM 13.0.0)
 
 # LLVM component setup
 if(NOT PONY_CROSS_LIBPONYRT)
@@ -220,6 +237,7 @@ add_compile_definitions(
     $<$<CONFIG:Release>:PONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     $<$<CONFIG:RelWithDebInfo>:PONY_VERSION_STR="${PONYC_VERSION} [relwithdebinfo]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     $<$<CONFIG:MinSizeRel>:PONY_VERSION_STR="${PONYC_VERSION} [minsizerel]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
+    PONY_OSX_PLATFORM=${PONY_OSX_PLATFORM}
 )
 
 include(CheckIPOSupported)
@@ -277,9 +295,9 @@ else()
     add_subdirectory(src/ponyc)
 
     add_subdirectory(test/libponyc)
-    add_subdirectory(test/libponyc-run)
-    add_subdirectory(test/libponyc-run/runner)
     add_subdirectory(test/libponyrt)
+    add_subdirectory(test/full-program-runner)
+    add_subdirectory(test/full-program-tests)
 
     add_subdirectory(benchmark/libponyc)
     add_subdirectory(benchmark/libponyrt)

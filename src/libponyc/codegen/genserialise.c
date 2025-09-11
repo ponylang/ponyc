@@ -3,6 +3,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "genname.h"
+#include "genopt.h"
 #include "genprim.h"
 #include "ponyassert.h"
 #include "../../libponyrt/mem/pool.h"
@@ -19,7 +20,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   {
     case TK_PRIMITIVE:
     {
-      genserialise_typeid(c, t, offset);
+      genserialise_serialiseid(c, t, offset);
 
       if(c_t->primitive != NULL)
       {
@@ -37,7 +38,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
 
     case TK_CLASS:
     {
-      genserialise_typeid(c, t, offset);
+      genserialise_serialiseid(c, t, offset);
       extra++;
       break;
     }
@@ -45,7 +46,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     case TK_ACTOR:
     {
       // Skip the actor pad.
-      genserialise_typeid(c, t, offset);
+      genserialise_serialiseid(c, t, offset);
       extra += 2;
       break;
     }
@@ -54,7 +55,7 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     {
       if(!is_bare_tuple)
       {
-        genserialise_typeid(c, t, offset);
+        genserialise_serialiseid(c, t, offset);
         object = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 1, "");
         LLVMValueRef size = LLVMConstInt(c->intptr,
           LLVMOffsetOfElement(c->target_data, structure, 1), false);
@@ -103,10 +104,10 @@ static void serialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   }
 }
 
-void genserialise_typeid(compile_t* c, reach_type_t* t, LLVMValueRef offset)
+void genserialise_serialiseid(compile_t* c, reach_type_t* t, LLVMValueRef offset)
 {
-  // Write the type id instead of the descriptor.
-  LLVMValueRef value = LLVMConstInt(c->intptr, t->type_id, false);
+  // Write the serialise id instead of the descriptor.
+  LLVMValueRef value = LLVMConstInt(target_is_ilp32(c->opt->triple) ? c->i32 : c->i64, t->serialise_id, false);
   LLVMBuildStore(c->builder, value, offset);
 }
 
@@ -136,7 +137,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
     LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, obj,
       ((compile_type_t*)sub->c_type)->instance, "");
     LLVMBuildCondBr(c->builder, test, post_block, next_block);
-    LLVMValueRef value = LLVMConstInt(c->intptr, sub->type_id, false);
+    LLVMValueRef value = LLVMConstInt(target_is_ilp32(c->opt->triple) ? c->i32 : c->i64, sub->serialise_id, false);
     LLVMAddIncoming(phi, &value, &current_block, 1);
     LLVMPositionBuilderAtEnd(c->builder, next_block);
     sub = next;
@@ -145,7 +146,7 @@ static void serialise_bare_interface(compile_t* c, reach_type_t* t,
   }
 
   LLVMBuildBr(c->builder, post_block);
-  LLVMValueRef value = LLVMConstInt(c->intptr, sub->type_id, false);
+  LLVMValueRef value = LLVMConstInt(target_is_ilp32(c->opt->triple) ? c->i32 : c->i64, sub->serialise_id, false);
   LLVMAddIncoming(phi, &value, &current_block, 1);
 
   LLVMMoveBasicBlockAfter(post_block, current_block);
@@ -165,15 +166,17 @@ void genserialise_element(compile_t* c, reach_type_t* t, bool embed,
     serialise(c, t, ctx, ptr, offset, true);
   } else if(c_t->primitive != NULL) {
     // Machine word, write the bits to the buffer.
-    LLVMValueRef value = LLVMBuildLoad2(c->builder, c_t->mem_type, ptr, "");
-    LLVMBuildStore(c->builder, value, offset);
+    uint64_t t_align = LLVMABIAlignmentOfType(c->target_data, c_t->mem_type);
+    uint64_t align = (t_align < 8) ? t_align : 8;
+    LLVMValueRef value = LLVMBuildAlignedLoad(c->builder, c_t->mem_type, ptr, align, "");
+    LLVMBuildAlignedStore(c->builder, value, offset, align);
   } else if(t->bare_method != NULL) {
-    // Bare object, either write the type id directly if it is a concrete object
-    // or compute the type id based on the object value and write it if it isn't.
+    // Bare object, either write the serialise_id id directly if it is a concrete object
+    // or compute the serialise_id id based on the object value and write it if it isn't.
     switch(t->underlying)
     {
       case TK_PRIMITIVE:
-        genserialise_typeid(c, t, offset);
+        genserialise_serialiseid(c, t, offset);
         break;
 
       case TK_INTERFACE:
@@ -220,7 +223,7 @@ static void make_serialise(compile_t* c, reach_type_t* t)
 
   serialise(c, t, ctx, object, offset_addr, false);
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 
@@ -237,7 +240,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     case TK_PRIMITIVE:
     case TK_CLASS:
     {
-      gendeserialise_typeid(c, c_t, object);
+      gendeserialise_serialiseid(c, c_t, object);
       extra++;
       break;
     }
@@ -245,7 +248,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     case TK_ACTOR:
     {
       // Skip the actor pad.
-      gendeserialise_typeid(c, c_t, object);
+      gendeserialise_serialiseid(c, c_t, object);
       extra += 2;
       break;
     }
@@ -254,7 +257,7 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
     {
       if(!is_bare_tuple)
       {
-        gendeserialise_typeid(c, c_t, object);
+        gendeserialise_serialiseid(c, c_t, object);
         object = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 1, "");
       }
 
@@ -274,9 +277,9 @@ static void deserialise(compile_t* c, reach_type_t* t, LLVMValueRef ctx,
   }
 }
 
-void gendeserialise_typeid(compile_t* c, compile_type_t* t, LLVMValueRef object)
+void gendeserialise_serialiseid(compile_t* c, compile_type_t* t, LLVMValueRef object)
 {
-  // Write the descriptor instead of the type id.
+  // Write the descriptor instead of the serialiseid id.
   LLVMValueRef desc_ptr = LLVMBuildStructGEP2(c->builder, t->structure, object,
     0, "");
   LLVMBuildStore(c->builder, t->desc, desc_ptr);
@@ -290,7 +293,7 @@ static void deserialise_bare_interface(compile_t* c, LLVMValueRef ptr)
 
   LLVMValueRef desc = LLVMBuildInBoundsGEP2(c->builder,
     LLVMArrayType(c->ptr, 0), c->desc_table, args, 2, "");
-  desc = LLVMBuildLoad2(c->builder, c->descriptor_type, desc, "");
+  desc = LLVMBuildLoad2(c->builder, c->ptr, desc, "");
   LLVMValueRef func = gendesc_instance(c, desc);
   LLVMBuildStore(c->builder, func, ptr);
 }
@@ -357,7 +360,7 @@ static void make_deserialise(compile_t* c, reach_type_t* t)
   // object.
   deserialise(c, t, ctx, object, false);
 
-  LLVMBuildRetVoid(c->builder);
+  genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
 

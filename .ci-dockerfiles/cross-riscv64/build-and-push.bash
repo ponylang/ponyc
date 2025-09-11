@@ -4,10 +4,10 @@ set -o errexit
 set -o nounset
 
 #
-# *** You should already be logged in to DockerHub when you run this ***
+# *** You should already be logged in to GHCR when you run this ***
 #
 
-NAME="ponylang/ponyc-ci-cross-riscv64"
+NAME="ghcr.io/ponylang/ponyc-ci-cross-riscv64"
 TODAY=$(date +%Y%m%d)
 DOCKERFILE_DIR="$(dirname "$0")"
 

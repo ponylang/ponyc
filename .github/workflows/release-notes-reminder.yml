@@ -5,13 +5,17 @@ on:
     types:
       - labeled
 
+permissions:
+  packages: read
+  pull-requests: write
+
 jobs:
   release-note-reminder:
     runs-on: ubuntu-latest
     name: Prompt to add release notes
     steps:
       - name: Prompt to add release notes
-        uses: docker://ponylang/release-notes-reminder-bot-action:0.1.0
+        uses: docker://ghcr.io/ponylang/release-notes-reminder-bot-action:0.1.1
         env:
           API_CREDENTIALS: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
 

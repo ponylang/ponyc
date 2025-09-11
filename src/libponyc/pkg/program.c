@@ -471,7 +471,12 @@ static pony_type_t program_pony =
   sizeof(program_t),
   0,
   0,
+  0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   program_serialise_trace,
   program_serialise,

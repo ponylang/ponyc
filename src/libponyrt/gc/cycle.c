@@ -145,6 +145,7 @@ typedef struct block_msg_t
   pony_msg_t msg;
   pony_actor_t* actor;
   size_t rc;
+  uint32_t live_asio_events;
   deltamap_t* delta;
 } block_msg_t;
 
@@ -640,23 +641,7 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    // The actor itself is also allowed to initiate a deletion of itself if
-    // it is blocked and has a reference count of 0. Because deletion is
-    // not an atomic operation, and the message queue remaining empty is an
-    // invariant that can't be violated if the cycle detector is sending
-    // a message to an actor, that actor isn't eligible to initiate getting
-    // reaped in a short-circuit fashion. Only the actor or the cycle
-    // detector can be in the "cycle detector critical" section for the actor.
-    if (ponyint_acquire_cycle_detector_critical(view->actor))
-    {
-      // To avoid a race condition, we have to make sure that the actor isn't
-      // pending destroy before sending a message. Failure to do so could
-      // eventually result in a double free.
-      if(!ponyint_actor_pendingdestroy(view->actor))
-        pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
-
-      ponyint_release_cycle_detector_critical(view->actor);
-    }
+    pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
   }
 }
 
@@ -783,7 +768,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    ponyint_actor_destroy(view->actor);
+    ponyint_actor_destroy(view->actor, ACTOR_DESTROYED_CD_NORMAL);
     ponyint_viewmap_remove(&d->views, view);
     view_free(view);
   }
@@ -808,23 +793,7 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     // if it is not already blocked
     if(!view->blocked)
     {
-      // The actor itself is also allowed to initiate a deletion of itself if
-      // it is blocked and has a reference count of 0. Because deletion is
-      // not an atomic operation, and the message queue remaining empty is an
-      // invariant that can't be violated if the cycle detector is sending
-      // a message to an actor, that actor isn't eligible to initiate getting
-      // reaped in a short-circuit fashion. Only the actor or the cycle
-      // detector can be in the "cycle detector critical" section for the actor.
-      if (ponyint_acquire_cycle_detector_critical(view->actor))
-      {
-        // To avoid a race condition, we have to make sure that the actor isn't
-        // pending destroy before sending a message. Failure to do so could
-        // eventually result in a double free.
-        if(!ponyint_actor_pendingdestroy(view->actor))
-          pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
-
-        ponyint_release_cycle_detector_critical(view->actor);
-      }
+      pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
     }
 
     // Stop if we've hit the max limit for # of actors to check
@@ -847,29 +816,13 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
   deferred(ctx, d);
 }
 
-static void actor_destroyed(detector_t* d, pony_actor_t* actor)
-{
-  // this would only called by a manual destroy of an actor
-  // if that was possible. It is currently unused.
-  // used to clean up the dangling reference to this actor
-  // in the cycle detector to avoid a crash
-
-  // get view for actor
-  view_t* view = get_view(d, actor, false);
-
-  if(view)
-  {
-    // remove and free view
-    ponyint_viewmap_remove(&d->views, view);
-    view_free(view);
-  }
-}
-
 static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
-  size_t rc, deltamap_t* map)
+  size_t rc, uint32_t live_asio_events, deltamap_t* map)
 {
   if (rc == 0)
   {
+    (void)live_asio_events;
+    pony_assert(live_asio_events == 0);
     // if rc == 0 then this is a zombie actor with no references left to it
     // - the actor blocked because it has no messages in its queue
     // - there's no references to this actor because rc == 0
@@ -902,13 +855,32 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
       ponyint_deltamap_free(map);
     }
 
-    // the actor should already be marked as pending destroy
-    pony_assert(ponyint_actor_pendingdestroy(actor));
+    // the actor should not already be marked as pending destroy
+    pony_assert(!ponyint_actor_pendingdestroy(actor));
+
+    pony_msg_t* msg;
+
+    // the actor's queue wasn't marked empty because we didn't want the actor
+    // to be rescheduled if the cycle detector sent it a message
+    // make sure the actor's queue is empty and the only pending messages are
+    // the expected ones from the cycle detector
+    while(!ponyint_messageq_markempty(&actor->q))
+    {
+      while((msg = ponyint_actor_messageq_pop(&actor->q
+  #ifdef USE_DYNAMIC_TRACE
+        , ctx->scheduler, actor
+  #endif
+        )) != NULL)
+      {
+        pony_assert((msg->id == ACTORMSG_CONF) || (msg->id == ACTORMSG_ISBLOCKED));
+      }
+    }
 
     // invoke the actor's finalizer and destroy it
+    ponyint_actor_setpendingdestroy(actor);
     ponyint_actor_final(ctx, actor);
     ponyint_actor_sendrelease(ctx, actor);
-    ponyint_actor_destroy(actor);
+    ponyint_actor_destroy(actor, ACTOR_DESTROYED_CD_FAST_REAP);
 
     d->destroyed++;
 
@@ -1050,7 +1022,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
   while(stack != NULL)
   {
     stack = ponyint_pendingdestroystack_pop(stack, &actor);
-    ponyint_actor_destroy(actor);
+    ponyint_actor_destroy(actor, ACTOR_DESTROYED_CD_SHUTDOWN);
   }
 
   i = HASHMAP_BEGIN;
@@ -1175,13 +1147,6 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
       break;
     }
 
-    case ACTORMSG_DESTROYED:
-    {
-      pony_msgp_t* m = (pony_msgp_t*)msg;
-      actor_destroyed(d, (pony_actor_t*)m->p);
-      break;
-    }
-
     case ACTORMSG_BLOCK:
     {
 #ifdef USE_RUNTIMESTATS_MESSAGES
@@ -1190,7 +1155,7 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 #endif
 
       block_msg_t* m = (block_msg_t*)msg;
-      block(d, ctx, m->actor, m->rc, m->delta);
+      block(d, ctx, m->actor, m->rc, m->live_asio_events, m->delta);
       break;
     }
 
@@ -1221,11 +1186,16 @@ static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
 
 static pony_type_t cycle_type =
 {
-  0,
+  (uint32_t)-1, // so it is easily identifiable in traces
   sizeof(detector_t),
   0,
   0,
+  0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  "cycle detector",
+  NULL,
+#endif
   NULL,
   NULL,
   NULL,
@@ -1241,7 +1211,7 @@ static pony_type_t cycle_type =
   NULL
 };
 
-void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_cycle_detector_tracing)
 {
   // max is 1 second (1000 ms)
   if(detect_interval > 1000)
@@ -1254,6 +1224,12 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval)
   cycle_detector = NULL;
   cycle_detector = pony_create(ctx, &cycle_type, false);
   ponyint_actor_setsystem(cycle_detector);
+
+  (void)force_cycle_detector_tracing;
+#ifdef USE_RUNTIME_TRACING
+  if(force_cycle_detector_tracing)
+    ponyint_cycle_detector_enable_tracing(cycle_detector);
+#endif
 
   detector_t* d = (detector_t*)cycle_detector;
 
@@ -1274,65 +1250,45 @@ bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2)
   uint64_t diff = ponyint_cpu_tick_diff(tsc, tsc2);
   if(diff > d->detect_interval)
   {
-    pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-    pony_send(ctx, cycle_detector, ACTORMSG_CHECKBLOCKED);
+    ponyint_send_inject(cycle_detector, ACTORMSG_CHECKBLOCKED);
     return true;
   }
 
   return false;
 }
 
-void ponyint_cycle_actor_destroyed(pony_actor_t* actor)
-{
-  // this will only be false during the creation of the cycle detector
-  // and after the runtime has been shut down or if the cycle detector
-  // is being destroyed
-  if(cycle_detector && !ponyint_is_cycle(actor)) {
-    pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-    pony_sendp(ctx, cycle_detector, ACTORMSG_DESTROYED, actor);
-  }
-}
-
 void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc)
 {
   pony_assert(&actor->gc == gc);
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
 
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), ACTORMSG_BLOCK);
 
-#ifdef USE_RUNTIMESTATS_MESSAGES
-  ctx->schedulerstats.mem_used_inflight_messages += sizeof(block_msg_t);
-  ctx->schedulerstats.mem_used_inflight_messages -= POOL_ALLOC_SIZE(block_msg_t);
-#endif
-
   m->actor = actor;
   m->rc = ponyint_gc_rc(gc);
+  m->live_asio_events = actor->live_asio_events;
   m->delta = ponyint_gc_delta(gc);
   pony_assert(gc->delta == NULL);
 
-  pony_sendv(ctx, cycle_detector, &m->msg, &m->msg, false);
+  ponyint_sendv_inject(cycle_detector, &m->msg);
 }
 
 void ponyint_cycle_unblock(pony_actor_t* actor)
 {
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-  pony_sendp(ctx, cycle_detector, ACTORMSG_UNBLOCK, actor);
+  ponyint_sendp_inject(cycle_detector, ACTORMSG_UNBLOCK, actor);
 }
 
 void ponyint_cycle_ack(size_t token)
 {
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-  pony_sendi(ctx, cycle_detector, ACTORMSG_ACK, token);
+  ponyint_sendi_inject(cycle_detector, ACTORMSG_ACK, token);
 }
 
-void ponyint_cycle_terminate()
+void ponyint_cycle_terminate(pony_ctx_t* ctx)
 {
-  pony_ctx_t* ctx = ponyint_sched_get_inject_context();
-
   ponyint_become(ctx, cycle_detector);
   final(ctx, cycle_detector);
-  ponyint_destroy(ctx, cycle_detector);
+  ponyint_destroy(cycle_detector);
+  ponyint_become(ctx, NULL);
   cycle_detector = NULL;
 }
 

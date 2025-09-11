@@ -2,12 +2,19 @@ name: PR
 
 on: pull_request
 
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
 jobs:
   superlinter:
     name: Lint bash, docker, markdown, and yaml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Lint codebase
         uses: docker://github/super-linter:v3.8.3
         env:
@@ -18,27 +25,39 @@ jobs:
           VALIDATE_MD: true
           VALIDATE_YAML: true
 
-  validate-musl-docker-latest-image-builds:
-    name: Validate musl Docker image builds
+  validate-x86_64-musl-docker-latest-image-builds:
+    name: Validate x86_64 musl Docker image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/latest/x86-64-unknown-linux-musl/Dockerfile ."
+
+  validate-arm64-musl-docker-latest-image-builds:
+    name: Validate arm64 musl Docker image builds
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+      - name: Docker build
+        run: docker build --pull --file=.dockerfiles/latest/arm64-unknown-linux-musl/Dockerfile .
 
   validate-gnu-docker-latest-image-builds:
     name: Validate GNU Docker image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/latest/x86-64-unknown-linux-gnu/Dockerfile ."
 
   validate-windows-docker-latest-image-builds:
     name: Validate Windows Docker image builds
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull .dockerfiles/latest/x86-64-pc-windows-msvc"
 
@@ -46,7 +65,7 @@ jobs:
     name: Validate musl Docker release image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-musl/Dockerfile ."
 
@@ -54,24 +73,567 @@ jobs:
     name: Validate GNU Docker release image builds
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-gnu/Dockerfile ."
 
   validate-windows-docker-release-image-builds:
     name: Validate Windows Docker release image builds
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Docker build
         run: "docker build --pull .dockerfiles/release/x86-64-pc-windows-msvc"
 
   verify-changelog:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
-    container:
-      image: ponylang/changelog-tool:release
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
       - name: Verify CHANGELOG
-        run: changelog-tool verify
+        uses: docker://ghcr.io/ponylang/changelog-tool:release
+        with:
+          args: changelog-tool verify
+
+  x86_64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64 Linux glibc
+            debugger: lldb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
+            name: x86-64 Linux musl
+            debugger: lldb
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=x86-64 config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
+      - name: Build Release Runtime
+        run: |
+          make configure arch=x86-64 config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger='${{ matrix.debugger }}'
+
+  riscv64-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
+            name: riscv64 Linux glibc
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Build Debug Cross-Compiled Runtime
+        run: make cross-libponyrt config=debug CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
+      - name: Test with Debug Cross-Compiled Runtime
+        run: make test-cross-ci config=debug PONYPATH=../rv64gc/debug cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_linker=riscv64-linux-gnu-gcc-10 cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c --link-ldcmd=bfd' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+      - name: Build Release Runtime
+        run: |
+          make configure config=release
+          make build config=release
+      - name: Build Release Cross-Compiled Runtime
+        run: make cross-libponyrt config=release CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
+      - name: Test with Release Cross-Compiled Runtime
+        run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_linker=riscv64-linux-gnu-gcc-10 cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c --link-ldcmd=bfd' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+
+  arm-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
+            name: arm Linux glibc
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Build Debug Cross-Compiled Runtime
+        run: make cross-libponyrt config=debug CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+      - name: Test with Debug Cross-Compiled Runtime
+        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+      - name: Build Release Runtime
+        run: |
+          make configure config=release
+          make build config=release
+      - name: Build Release Cross-Compiled Runtime
+        run: make cross-libponyrt config=release CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+      - name: Test with Release Cross-Compiled Runtime
+        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+
+  armhf-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
+            name: armhf Linux glibc
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Build Debug Cross-Compiled Runtime
+        run: make cross-libponyrt config=debug CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+      - name: Test with Debug Cross-Compiled Runtime
+        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+      - name: Build Release Runtime
+        run: |
+          make configure config=release
+          make build config=release
+      - name: Build Release Cross-Compiled Runtime
+        run: make cross-libponyrt config=release CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
+      - name: Test with Release Cross-Compiled Runtime
+        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabihf-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+
+  # Currently, Github actions supplied by GH like checkout and cache do not work
+  # in musl libc environments on arm64. We can work around this by running
+  # those actions on the host and then "manually" doing our work that would
+  # normally be done "in the musl container" by starting the container ourselves
+  # for various steps by invoking docker directly.
+  #
+  # This is not in line with our standard pattern of "just do it all in the
+  # container" but is required to work around the GitHub actions limitation
+  # documented above.
+  arm64-linux:
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
+            name: arm64 Linux glibc
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+            name: arm64 Linux musl
+
+    name: ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        run: docker pull ${{ matrix.image }}
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "make configure arch=armv8-a config=debug && make build config=debug"
+      - name: Test with Debug Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-ci config=debug
+      - name: Build Release Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "make configure arch=armv8-a config=release && make build config=release"
+      - name: Test with Release Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-ci config=release
+
+  x86_64-macos:
+    runs-on: macos-13
+
+    name: x86-64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=x86-64 config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug test_full_program_timeout=180
+      - name: Build Release Runtime
+        run: |
+          make configure arch=x86-64 config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release test_full_program_timeout=180
+
+  arm64-macos:
+    runs-on: macos-15
+
+    name: arm64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=armv8  config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug
+      - name: Build Release Runtime
+        run: |
+          make configure arch=armv8  config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release
+
+  x86_64-windows:
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+
+    name: x86-64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Install Dependencies
+        run: |
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
+      - name: Build Release Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Release
+          .\make.ps1 -Command build -Config Release
+      - name: Test with Release Runtime
+        run: .\make.ps1 -Command test -Config Release -Uselldb yes
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
+
+  arm64-windows:
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+
+    name: arm64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs -Arch ARM64
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Debug -Arch ARM64
+          .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug
+      - name: Build Release Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Release -Arch ARM64
+          .\make.ps1 -Command build -Config Release
+      - name: Test with Release Runtime
+        run: .\make.ps1 -Command test -Config Release
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
+
+  use_directives:
+    runs-on: ubuntu-latest
+    needs: x86_64-linux
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            debugger: lldb
+            directives: dtrace
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            debugger: lldb
+            directives: pool_memalign
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            debugger: lldb
+            directives: runtimestats
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            debugger: lldb
+            directives: runtime_tracing
+
+    name: use ${{ matrix.directives }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=x86-64 config=debug use=${{ matrix.directives }}
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
+      - name: Build Release Runtime
+        run: |
+          make configure arch=x86-64 config=release use=${{ matrix.directives }}
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci config=release usedebugger='${{ matrix.debugger }}'
+
+  with_sanitizers:
+    runs-on: ubuntu-latest
+    needs: x86_64-linux
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            debugger: lldb
+            directives: pool_memalign,address_sanitizer,undefined_behavior_sanitizer
+
+    name: with sanitizers ${{ matrix.directives }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Debug Runtime
+        run: |
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=debug
+      - name: Test with Debug Runtime
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=debug test_full_program_timeout=300
+      - name: Build Release Runtime
+        run: |
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=release use=${{ matrix.directives }}
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=release
+      - name: Test with Release Runtime
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=release test_full_program_timeout=300

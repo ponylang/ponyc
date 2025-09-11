@@ -1,4 +1,6 @@
-FROM ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
+FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+
+LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
 ARG CROSS_TRIPLE=arm-unknown-linux-gnueabihf
 ARG CROSS_CC=arm-linux-gnueabihf-gcc
@@ -16,7 +18,7 @@ RUN curl -L --output gcc-linearo.tar.xz "https://releases.linaro.org/components/
  && tar xJf gcc-linearo.tar.xz -C /usr/local --strip 1 \
  && arm-linux-gnueabihf-gcc --version \
  && rm gcc-linearo.tar.xz \
- && curl -L --output /usr/bin/qemu-arm-static https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-2/qemu-arm-static \
+ && curl -L --output /usr/bin/qemu-arm-static https://github.com/multiarch/qemu-user-static/releases/download/v6.1.0-8/qemu-arm-static \
  && chmod +x /usr/bin/qemu-arm-static \
  && apt-get update \
  && apt-get install -y --no-install-recommends \

@@ -1,4 +1,6 @@
-FROM ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu20.04-builder:20230115
+FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+
+LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
 USER root
 

@@ -9,11 +9,9 @@ This document is aimed at members of the Pony team who might be cutting a releas
 
 ### Validate external services are functional
 
-We rely on CirrusCI, Cloudsmith, DockerHub, and GitHub Actions as part of our release process. All  need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
+We rely on Cloudsmith and GitHub Actions as part of our release process. Both need to be up and functional in order to do a release. Check the status of each before starting a release. If any are reporting issues, push the release back a day or until whenever they are all reporting no problems.
 
-* [CirrusCI Status](https://twitter.com/cirrus_labs)
 * [Cloudsmith](https://status.cloudsmith.io/)
-* [DockerHub](https://status.docker.com/)
 * [GitHub](https://www.githubstatus.com/)
 
 ## Releasing
@@ -38,25 +36,27 @@ git push origin release-0.3.1
 
 ### Wait on release artifacts
 
-On each release, we upload ponyc binaries for builds to Cloudsmith. The releases are built on [CirrusCI](https://cirrus-ci.com/github/ponylang/ponyc).
+On each release, we upload ponyc binaries for builds to Cloudsmith. The releases are built on [GitHub Actions](https://github.com/ponylang/ponyc/actions/workflows/release.yml).
 
 You can verify that the release artifacts were successfully built and uploaded by checking the [ponylang Cloudsmith releases repository](https://cloudsmith.io/~ponylang/repos/releases/packages/) and that all packages exist.
 
 Package names will be:
 
 * ponyc-arm64-apple-darwin.tar.gz
-* ponyc-x86-64-unknown-freebsd-13.1.tar.gz
+* ponyc-arm64-unknown-linux-alpine3.21.tar.gz
+* ponyc-arm64-unknown-linux-ubuntu24.04.tar.gz
+* ponyc-x86-64-apple-darwin.tar.gz
 * ponyc-x86-64-pc-windows-msvc.zip
-* ponyc-x86-64-unknown-linux-gnu.tar.gz
+* ponyc-x86-64-unknown-linux-alpine3.20.tar.gz
+* ponyc-x86-64-unknown-linux-alpine3.21.tar.gz
+* ponyc-x86-64-unknown-linux-fedora41.tar.gz
 * ponyc-x86-64-unknown-linux-musl.tar.gz
-* ponyc-x86-64-unknown-linux-rocky8.tar.gz
-* ponyc-x86-64-unknown-linux-ubuntu18.04.tar.gz
-* ponyc-x86-64-unknown-linux-ubuntu20.04.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu22.04.tar.gz
+* ponyc-x86-64-unknown-linux-ubuntu24.04.tar.gz
 
 and should have a version field listing that matches the current release e.g. `0.3.1`.
 
-If not all files are presents after 10 to 15 minutes then either a build job is delayed waiting for resources or something has gone wrong. Check [CirrusCI](https://cirrus-ci.com/github/ponylang/ponyc) to learn more.
+If not all files are presents after 10 to 15 minutes then either a build job is delayed waiting for resources or something has gone wrong. Check [GitHub Actions](https://github.com/ponylang/ponyc/actions/workflows/release.yml) to learn more.
 
 ### Wait on Docker images to be built
 
@@ -68,15 +68,15 @@ As part of every release, 6 Docker images are built:
 * Alpine images
   * release-alpine
   * 0.3.1-alpine
-* Windows imags
+* Windows images
   * release-windows
   * 0.3.1-windows
 
-The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Handle External Events" workflow](https://github.com/ponylang/ponyc/actions?query=workflow%3A%22Handle+external+events%22).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the [tag page](https://hub.docker.com/r/ponylang/ponyc/tags) of the [ponyc DockerHub repository](https://hub.docker.com/r/ponylang/ponyc/).
+The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Cloudsmith package synchronised" workflow](https://github.com/ponylang/ponyc/actions/workflows/cloudsmith-package-sychronised.yml).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
 
 ### Verify that the Pony Playground updated to the new version
 
-Once the DockerHub images have been updated, the Pony playground should automatically update. You can check the version running by compiling a small Pony program and verifying that the version listed in the output matches the newly released Pony version.
+Once the images have been updated, the Pony playground should automatically update. You can check the version running by compiling a small Pony program and verifying that the version listed in the output matches the newly released Pony version.
 
 If the versions are different, you'll need to log in to the playground server as root and run `bash update-playground.bash`.
 

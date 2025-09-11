@@ -134,7 +134,12 @@ static __pony_thread_local struct _pony_type_t string_pony =
   0,
   0,
   0,
+  0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   NULL,
   string_serialise,
@@ -220,7 +225,12 @@ static pony_type_t strlist_pony =
   sizeof(strlist_t),
   0,
   0,
+  0,
   NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
   NULL,
   strlist_serialise_trace,
   strlist_serialise,

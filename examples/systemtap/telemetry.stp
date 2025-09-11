@@ -7,11 +7,9 @@ probe process.mark("actor-msg-send")
         size of unsigned integer in SystemTap. This is needed since
         the message type is calculated from that value. UINT32_MAX
         must be changed on different types of machines */
-    UINT32_MAX = 4294967296;
-    ACTORMSG_APPLICATION_START = (UINT32_MAX - 11);
-    ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 10);
-    ACTORMSG_DESTROYED = (UINT32_MAX - 9);
-    ACTORMSG_CREATED = (UINT32_MAX - 8);
+    UINT32_MAX = 4294967295;
+    ACTORMSG_APPLICATION_START = (UINT32_MAX - 9);
+    ACTORMSG_CHECKBLOCKED = (UINT32_MAX - 8);
     ACTORMSG_ISBLOCKED = (UINT32_MAX - 7);
     ACTORMSG_BLOCK = (UINT32_MAX - 6);
     ACTORMSG_UNBLOCK = (UINT32_MAX - 5);
@@ -25,12 +23,6 @@ probe process.mark("actor-msg-send")
     }
     if ($arg2 == ACTORMSG_CHECKBLOCKED) {
         messages[$arg1, "count_msg_checkblocked"] ++;
-    }
-    if ($arg2 == ACTORMSG_DESTROYED) {
-        messages[$arg1, "count_msg_destroyed"] ++;
-    }
-    if ($arg2 == ACTORMSG_CREATED) {
-        messages[$arg1, "count_msg_created"] ++;
     }
     if ($arg2 == ACTORMSG_ISBLOCKED) {
         messages[$arg1, "count_msg_isblocked"] ++;

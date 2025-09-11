@@ -2,9 +2,13 @@ name: Prepare for a release
 
 on:
   push:
-    tags: release-\d+.\d+.\d+
+    tags: 'release-[0-9]+.[0-9]+.[0-9]+'
 
 concurrency: prepare-for-a-release
+
+permissions:
+  packages: read
+  contents: write
 
 jobs:
   # all tasks that need to be done before we add an X.Y.Z tag
@@ -16,19 +20,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.1.1
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Update CHANGELOG.md
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: update-changelog-for-release
         env:
           GIT_USER_NAME: "Ponylang Main Bot"
           GIT_USER_EMAIL: "ponylang.main@gmail.com"
       - name: Update VERSION
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: update-version-in-VERSION
         env:
@@ -45,12 +49,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.1.1
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Trigger artefact creation
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: trigger-artefact-creation
         env:
@@ -70,12 +74,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.1.1
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Add "unreleased" section to CHANGELOG.md
-        uses: ponylang/release-bot-action@0.6.1
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
         with:
           entrypoint: add-unreleased-section-to-changelog
         env:

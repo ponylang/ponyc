@@ -2,6 +2,7 @@
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
 #include "../mem/pagemap.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -482,7 +483,8 @@ static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = ponyint_pagemap_get(p);
+  pony_actor_t* actor = NULL;
+  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -491,8 +493,6 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
       recurse(ctx, p, t->trace);
     return;
   }
-
-  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     send_local_object(ctx, p, t, mutability);
@@ -503,7 +503,8 @@ void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = ponyint_pagemap_get(p);
+  pony_actor_t* actor = NULL;
+  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -512,8 +513,6 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
       recurse(ctx, p, t->trace);
     return;
   }
-
-  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     recv_local_object(ctx, p, t, mutability);
@@ -524,7 +523,8 @@ void ponyint_gc_recvobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = ponyint_pagemap_get(p);
+  pony_actor_t* actor = NULL;
+  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -533,8 +533,6 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
       recurse(ctx, p, t->trace);
     return;
   }
-
-  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     mark_local_object(ctx, chunk, p, t, mutability);
@@ -545,7 +543,8 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = ponyint_pagemap_get(p);
+  pony_actor_t* actor = NULL;
+  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -554,8 +553,6 @@ void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
       recurse(ctx, p, t->trace);
     return;
   }
-
-  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     acquire_local_object(ctx, p, t, mutability);
@@ -566,7 +563,8 @@ void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
 void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
-  chunk_t* chunk = ponyint_pagemap_get(p);
+  pony_actor_t* actor = NULL;
+  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
@@ -575,8 +573,6 @@ void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
       recurse(ctx, p, t->trace);
     return;
   }
-
-  pony_actor_t* actor = ponyint_heap_owner(chunk);
 
   if(actor == ctx->current)
     release_local_object(ctx, p, t, mutability);
@@ -665,7 +661,7 @@ void ponyint_gc_markimmutable(pony_ctx_t* ctx, gc_t* gc)
     {
       // Mark in our heap and recurse if it wasn't already marked.
       void* p = obj->address;
-      chunk_t* chunk = ponyint_pagemap_get(p);
+      chunk_t* chunk = ponyint_pagemap_get_chunk(p);
       mark_local_object(ctx, chunk, p, obj->type, PONY_TRACE_IMMUTABLE);
     }
   }
@@ -698,12 +694,16 @@ void ponyint_gc_discardstack(pony_ctx_t* ctx)
 
 void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 {
+  TRACING_ACTOR_GC_OBJECTMAP_SWEEP_START(ctx->current);
   ponyint_objectmap_sweep(&gc->local);
+  TRACING_ACTOR_GC_OBJECTMAP_SWEEP_END(ctx->current);
 
 #ifdef USE_RUNTIMESTATS
   size_t objectmap_mem_used_freed = 0;
   size_t objectmap_mem_allocated_freed = 0;
 #endif
+
+  TRACING_ACTOR_GC_ACTORMAP_SWEEP_START(ctx->current);
 
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS
@@ -724,6 +724,8 @@ void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
     + ctx->current->actorstats.foreign_actormap_objectmap_mem_allocated)
     == ponyint_actormap_total_alloc_size(&gc->foreign));
 #endif
+
+  TRACING_ACTOR_GC_ACTORMAP_SWEEP_END(ctx->current);
 }
 
 bool ponyint_gc_acquire(gc_t* gc, actorref_t* aref)

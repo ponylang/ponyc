@@ -11,7 +11,7 @@ use @pony_alloc_final[Pointer[U8]](ctx: Pointer[None], size: USize)
 use @pony_exitcode[None](code: I32)
 use @pony_get_exitcode[I32]()
 use @pony_triggergc[None](ctx: Pointer[None])
-use @ponyint_pagemap_get[Pointer[None]](p: Pointer[None] tag)
+use @ponyint_pagemap_get_chunk[Pointer[None]](p: Pointer[None] tag)
 
 use "pony_test"
 use "collections"
@@ -30,6 +30,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
+    test(_TestArrayCopyTo)
     test(_TestArrayInsert)
     test(_TestArraySlice)
     test(_TestArraySwapElements)
@@ -617,12 +618,12 @@ class \nodoc\ iso _TestStringTrimInPlace is UnitTest
     space: USize = 0)
   =>
     let copy: String ref = orig.clone()
-    let pre_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
+    let pre_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
     h.assert_eq[USize](space, copy.space())
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
-    let post_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
+    let post_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
     if copy.space() == 0 then
       h.assert_eq[USize](0, post_trim_pagemap.usize())
     else
@@ -1480,11 +1481,11 @@ class \nodoc\ iso _TestArrayTrimInPlace is UnitTest
     space: USize = 0)
   =>
     let copy: Array[U8] ref = orig.clone()
-    let pre_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
+    let pre_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[USize](space, copy.space())
     h.assert_array_eq[U8](expected, copy)
-    let post_trim_pagemap = @ponyint_pagemap_get(copy.cpointer())
+    let post_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
     if copy.space() == 0 then
       h.assert_eq[USize](0, post_trim_pagemap.usize())
     else
@@ -1763,6 +1764,87 @@ class \nodoc\ iso _TestArrayFromCPointer is UnitTest
   fun apply(h: TestHelper) =>
     let arr = Array[U8].from_cpointer(Pointer[U8], 1, 1)
     h.assert_eq[USize](0, arr.size())
+
+class \nodoc\ iso _TestArrayCopyTo is UnitTest
+  fun name(): String =>
+      "builtin/Array.copy_to"
+
+  fun apply(h: TestHelper) =>
+    // Test that a using an uninitialized array as a source leaves the destination unchanged
+    let src1: Array[U8] = []
+    let dest1: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    src1.copy_to(dest1, 0, 0, 10)
+    h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest1)
+
+    // Test that copying from an empty source array leaves
+    // the destination unchanged
+    let src2: Array[U8] = [1]
+    let dest2: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    try src2.pop()? end
+    src2.copy_to(dest2, 0, 0, 10)
+    h.assert_eq[USize](0, src2.size())
+    h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest2)
+
+    // try to copy 10 elements; some non-existant
+    let src3: Array[U8] = [1]
+    let dest3: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    src3.copy_to(dest3, 0, 0, 10)
+    h.assert_array_eq[U8]([1; 1; 2; 3; 4; 5; 6], dest3)
+
+    // try to copy from too high start index
+    let src4: Array[U8] = [1]
+    let dest4: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    src4.copy_to(dest4, 11, 0, 1)
+    h.assert_array_eq[U8]([0; 1; 2; 3; 4; 5; 6], dest4)
+
+    // copies the sole available element
+    let src5: Array[U8] = [1]
+    let dest5: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    src5.copy_to(dest5, 0, 0, 10)
+    h.assert_array_eq[U8]([1; 1; 2; 3; 4; 5; 6], dest5)
+
+    // copy larger than destination chunk into the middle of destination
+    let src6: Array[U8] = [0; 1; 2; 3; 4; 5; 6]
+    let dest6: Array[U8] = [7; 8; 9]
+    src6.copy_to(dest6, 0, 1, 7)
+    h.assert_array_eq[U8]([7; 0; 1; 2; 3; 4; 5; 6], dest6)
+
+    // copy into the front of destination so copied amount fits within
+    // existing destination
+    let src7: Array[U8] = [0; 1]
+    let dest7: Array[U8] = [4; 5; 6]
+    src7.copy_to(dest7, 0, 0, 2)
+    h.assert_array_eq[U8]([0; 1; 6], dest7)
+
+    // copy into the middle of a destination
+    let src8: Array[U8] = [0]
+    let dest8: Array[U8] = [4; 5; 6]
+    src8.copy_to(dest8, 0, 1, 1)
+    h.assert_array_eq[U8]([4; 0; 6], dest8)
+
+    // copy onto the end of the destination
+    let src9: Array[U8] = [0]
+    let dest9: Array[U8] = [4; 5; 6]
+    src9.copy_to(dest9, 0, 2, 1)
+    h.assert_array_eq[U8]([4; 5; 0], dest9)
+
+    // destination is empty
+    let src10: Array[U8] = [0; 1; 2; 3]
+    let dest10: Array[U8] = []
+    src10.copy_to(dest10, 0, 0, 4)
+    h.assert_array_eq[U8]([0; 1; 2; 3], dest10)
+
+    // copy right after the  end of the destination
+    let src11: Array[U8] = [0]
+    let dest11: Array[U8] = [4; 5; 6]
+    src11.copy_to(dest11, 0, 3, 1)
+    h.assert_array_eq[U8]([4; 5; 6; 0], dest11)
+
+    // destination index is "someone else's memory"
+    let src12: Array[U8] = [0]
+    let dest12: Array[U8] = [4; 5; 6]
+    src12.copy_to(dest12, 0, 100, 1)
+    h.assert_array_eq[U8]([4; 5; 6], dest12)
 
 class \nodoc\ iso _TestMath128 is UnitTest
   """

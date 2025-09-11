@@ -9,11 +9,9 @@
 
 PONY_EXTERN_C_BEGIN
 
-void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval);
+void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_cycle_detector_tracing);
 
 bool ponyint_cycle_check_blocked(uint64_t tsc, uint64_t tsc2);
-
-void ponyint_cycle_actor_destroyed(pony_actor_t* actor);
 
 void ponyint_cycle_block(pony_actor_t* actor, gc_t* gc);
 
@@ -21,7 +19,7 @@ void ponyint_cycle_unblock(pony_actor_t* actor);
 
 void ponyint_cycle_ack(size_t token);
 
-void ponyint_cycle_terminate();
+void ponyint_cycle_terminate(pony_ctx_t* ctx);
 
 bool ponyint_is_cycle(pony_actor_t* actor);
 

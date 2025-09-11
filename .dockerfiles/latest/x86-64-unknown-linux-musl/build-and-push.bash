@@ -4,10 +4,13 @@ set -o errexit
 set -o nounset
 
 #
-# *** You should already be logged in to DockerHub when you run this ***
+# *** You should already be logged in to GitHub Container Registry when you run
+#     this ***
 #
 
 DOCKERFILE_DIR="$(dirname "$0")"
 
-docker build --pull -t "ponylang/ponyc:alpine" "${DOCKERFILE_DIR}"
-docker push "ponylang/ponyc:alpine"
+## GitHub Container Registry
+
+docker build --pull -t "ghcr.io/ponylang/ponyc:alpine" "${DOCKERFILE_DIR}"
+docker push "ghcr.io/ponylang/ponyc:alpine"

@@ -39,6 +39,7 @@ set(_c_src
     mem/heap.c
     mem/pagemap.c
     mem/pool.c
+    mem/pool_memalign.c
     options/options.c
     platform/ponyassert.c
     platform/threads.c
@@ -48,6 +49,7 @@ set(_c_src
     sched/scheduler.c
     sched/start.c
     sched/systematic_testing.c
+    tracing/tracing.c
 )
 
 set(_ll_except_src "${CMAKE_CURRENT_SOURCE_DIR}/lang/except_try_catch.ll")
@@ -55,13 +57,25 @@ set(_ll_except_obj "${CMAKE_BINARY_DIR}/except_try_catch.o")
 
 find_file(_llc_command
     NAMES llc.exe llc
-    PATHS "${CMAKE_BINARY_DIR}/../../libs/bin" "${CMAKE_BINARY_DIR}/../libs/bin"
+    HINTS "${CMAKE_BINARY_DIR}/../../libs/bin" "${CMAKE_BINARY_DIR}/../libs/bin"
 )
+
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
+endif()
 
 add_library(libponyrt STATIC
     ${_c_src}
     ${_ll_except_obj}
 )
+
+if(PONY_USE_DTRACE)
+    add_custom_command(OUTPUT dtrace_probes.o
+        COMMAND dtrace -h -s "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d" -o "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.h"
+        COMMAND dtrace -G -s "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d" -o dtrace_probes.o
+    )
+    target_sources(libponyrt PRIVATE dtrace_probes.o)
+endif()
 
 if (NOT MSVC)
     if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64")
@@ -156,9 +170,9 @@ if(PONY_RUNTIME_BITCODE)
     )
 
     add_custom_command(TARGET libponyrt_bc POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../debug/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../release/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../relwithdebinfo/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../minsizerel/
+        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
+        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
     )
 endif()

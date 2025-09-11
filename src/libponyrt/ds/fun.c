@@ -9,8 +9,6 @@ static const unsigned char the_key[16] = {
 };
 
 
-#ifdef PLATFORM_IS_ILP32
-
 #define ROTL32(x, b) (uint32_t)(((x) << (b)) | ((x) >> (32 - (b))))
 
 #define SIPROUND32 \
@@ -50,7 +48,8 @@ static uint32_t halfsiphash24(const unsigned char* key, const unsigned char* in,
 
   for (; in != end; in += 4)
   {
-    uint32_t m = *(uint32_t*)in;
+    uint32_t m;
+    memcpy(&m, in, sizeof(uint32_t));
     v3 ^= m;
     SIPROUND32;
     SIPROUND32;
@@ -76,7 +75,6 @@ static uint32_t halfsiphash24(const unsigned char* key, const unsigned char* in,
 
   return v0 ^ v1 ^ v2 ^ v3;
 }
-#endif
 
 #define ROTL64(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
@@ -104,7 +102,8 @@ static uint64_t siphash24(const unsigned char* key, const unsigned char* in, siz
 
   for(; in != end; in += 8)
   {
-    uint64_t m = *(uint64_t*)in;
+    uint64_t m;
+    memcpy(&m, in, sizeof(uint64_t));
     v3 ^= m;
     SIPROUND64;
     SIPROUND64;
@@ -147,6 +146,16 @@ PONY_API size_t ponyint_hash_block(const void* p, size_t len)
 PONY_API uint64_t ponyint_hash_block64(const void* p, size_t len)
 {
   return siphash24(the_key, (const unsigned char*)p, len);
+}
+
+uint32_t ponyint_hash_str_custom_key32(const unsigned char* key, const char* str)
+{
+  return halfsiphash24((const unsigned char *)key, (const unsigned char *)str, strlen(str));
+}
+
+uint64_t ponyint_hash_str_custom_key64(const unsigned char* key, const char* str)
+{
+  return siphash24((const unsigned char *)key, (const unsigned char *)str, strlen(str));
 }
 
 size_t ponyint_hash_str(const char* str)

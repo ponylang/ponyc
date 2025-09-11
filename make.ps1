@@ -7,13 +7,13 @@
     [string]
     $Config = "Release",
 
-    [Parameter(HelpMessage="The CMake generator, e.g. `"Visual Studio 16 2019`"")]
+    [Parameter(HelpMessage="The CMake generator, e.g. `"Visual Studio 17 2022`"")]
     [string]
     $Generator = "default",
 
-    [Parameter(HelpMessage="The architecture to use for compiling, e.g. `"x64`"")]
+    [Parameter(HelpMessage="The architecture to use for compiling, e.g. `"X64`", `"Arm64`"")]
     [string]
-    $Arch = "x64",
+    $Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture,
 
     [Parameter(HelpMessage="The location to install to")]
     [string]
@@ -35,6 +35,21 @@
     [string]
     $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
 )
+
+# Function to extract process exit code from LLDB output
+function Get-ProcessExitCodeFromLLDB {
+    param (
+        [string[]]$LLDBOutput
+    )
+
+    $processExitMatch = $LLDBOutput | Select-String -Pattern 'Process \d+ exited with status = (\d+)'
+    if ($processExitMatch.Matches.Count -gt 0) {
+        return [int]$processExitMatch.Matches[0].Groups[1].Value
+    } else {
+        # If we can't find the pattern, return LLDB's exit code
+        return $LastExitCode
+    }
+}
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
 
@@ -88,7 +103,7 @@ else
     $buildDir = Join-Path -Path $srcDir -ChildPath "build\build_$config_lower"
 }
 
-# Cirrus builds inside the temp directory, which MSVC doesn't like.
+# Some CI services build inside the temp directory, which MSVC doesn't like.
 $tempPath = [IO.Path]::GetFullPath($env:TEMP)
 $buildPath = [IO.Path]::GetFullPath((Join-Path -Path $srcDir -ChildPath "build"))
 if ($buildPath.StartsWith($tempPath, [StringComparison]::OrdinalIgnoreCase))
@@ -127,9 +142,11 @@ if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -a
     throw "Libs directory '$libsDir' does not exist; you may need to run 'make.ps1 libs' first."
 }
 
-if ($Generator.Contains("Win64") -or $Generator.Contains("Win32"))
+$Thost = "x64"
+if ($Arch -ieq "arm64")
 {
-    $Arch = ""
+    # if this is lowercase arm64, then things go boom.
+    $Thost = "ARM64"
 }
 
 switch ($Command.ToLower())
@@ -152,12 +169,12 @@ switch ($Command.ToLower())
         Write-Output "Configuring libraries..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -188,13 +205,13 @@ switch ($Command.ToLower())
 
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost=x64 -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost=x64 -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost=x64 -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -254,8 +271,9 @@ switch ($Command.ToLower())
                 if ($Uselldb -eq "yes")
                 {
                     Write-Output "$lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle"
-                    & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
-                    $err = $LastExitCode
+                    $lldboutput = & $lldbcmd $lldbargs $outDir\libponyrt.tests.exe --gtest_shuffle
+                    Write-Output $lldboutput
+                    $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                 }
                 else
                 {
@@ -280,8 +298,9 @@ switch ($Command.ToLower())
                 if ($Uselldb -eq "yes")
                 {
                     Write-Output "$lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle"
-                    & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
-                    $err = $LastExitCode
+                    $lldboutput = & $lldbcmd $lldbargs $outDir\libponyc.tests.exe --gtest_shuffle
+                    Write-Output $lldboutput
+                    $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                 }
                 else
                 {
@@ -308,7 +327,7 @@ switch ($Command.ToLower())
                 }
                 $numTestSuitesRun += 1;
 
-                $runOutDir = "$outDir\runner-tests\$runConfig"
+                $runOutDir = "$outDir\full-program-tests\$runConfig"
                 $debugFlag = if ($runConfig -eq 'debug') { 'true' } else { 'false' }
 
                 $debuggercmd = ''
@@ -320,8 +339,8 @@ switch ($Command.ToLower())
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-                Write-Output "$buildDir\test\libponyc-run\runner\runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner $debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run"
-                & $buildDir\test\libponyc-run\runner\runner.exe --debugger=$debuggercmd --timeout_s=60 --max_parallel=1 --exclude=runner --debug=$debugFlag --test_lib=$outDir\test_lib --ponyc=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\libponyc-run
+                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
+                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
                 $err = $LastExitCode
                 if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
             }
@@ -331,22 +350,23 @@ switch ($Command.ToLower())
         if ($TestsToRun -match 'stdlib-debug')
         {
             $numTestSuitesRun += 1;
-            Write-Output "$outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib"
-            & $outDir\ponyc.exe -d --checktree --verify -b stdlib-debug -o $outDir $srcDir\packages\stdlib
+            Write-Output "$outDir\ponyc.exe -d --checktree -b stdlib-debug -o $outDir $srcDir\packages\stdlib"
+            & $outDir\ponyc.exe -d --checktree -b stdlib-debug -o $outDir $srcDir\packages\stdlib
             if ($LastExitCode -eq 0)
             {
                 try
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude=`"net/Broadcast`""
-                        & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
-                        $err = $LastExitCode
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential"
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential
+                        Write-Output $lldboutput
+                        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-debug.exe"
-                        & $outDir\stdlib-debug.exe --sequential --exclude="net/Broadcast"
+                        Write-Output "$outDir\stdlib-debug.exe --sequential"
+                        & $outDir\stdlib-debug.exe --sequential
                         $err = $LastExitCode
                     }
                 }
@@ -366,22 +386,23 @@ switch ($Command.ToLower())
         if ($TestsToRun -match 'stdlib-release')
         {
             $numTestSuitesRun += 1;
-            Write-Output "$outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib"
-            & $outDir\ponyc.exe --checktree --verify -b stdlib-release -o $outDir $srcDir\packages\stdlib
+            Write-Output "$outDir\ponyc.exe --checktree -b stdlib-release -o $outDir $srcDir\packages\stdlib"
+            & $outDir\ponyc.exe --checktree -b stdlib-release -o $outDir $srcDir\packages\stdlib
             if ($LastExitCode -eq 0)
             {
                 try
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude=`"net/Broadcast`""
-                        & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
-                        $err = $LastExitCode
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential"
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential
+                        Write-Output $lldboutput
+                        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-release.exe"
-                        & $outDir\stdlib-release.exe --sequential --exclude="net/Broadcast"
+                        Write-Output "$outDir\stdlib-release.exe --sequential"
+                        & $outDir\stdlib-release.exe --sequential
                         $err = $LastExitCode
                     }
                 }
@@ -433,48 +454,128 @@ switch ($Command.ToLower())
         }
         break
     }
-    "stress-test-release"
+    "build-examples"
+    {
+        # Find all .pony files in examples directory, get their unique directories, and build each one
+        $examples = Get-ChildItem -Path "$srcDir\examples\*\*" -Filter "*.pony" -Recurse |
+                Select-Object -ExpandProperty Directory -Unique |
+                Where-Object { $_.FullName -notlike "*ffi-*" } |
+                Select-Object -ExpandProperty FullName
+
+        $failed = @()
+        foreach ($example in $examples)
+        {
+            Write-Output "Building example: $example"
+            & $outDir\ponyc.exe -d -s --checktree -o "$example" "$example"
+            if ($LastExitCode -ne 0)
+            {
+                $failed += $example
+                Write-Output "Failed to build example: $example"
+            }
+        }
+
+        if ($failed.Count -gt 0)
+        {
+            Write-Output "Failed to build the following examples:"
+            $failed | ForEach-Object { Write-Output "  $_" }
+            throw "Some examples failed to build"
+        }
+        break
+    }
+    "stress-test-ubench-release"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        $err = $LastExitCode
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
         break
     }
-    "stress-test-with-cd-release"
+    "stress-test-ubench-with-cd-release"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        $err = $LastExitCode
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
         break
     }
-    "stress-test-debug"
+    "stress-test-ubench-debug"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        $err = $LastExitCode
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
         break
     }
-    "stress-test-with-cd-debug"
+    "stress-test-ubench-with-cd-debug"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        $err = $LastExitCode
-        if ($err -ne 0) { throw "Stress test failed: exit code $err" }
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
+        break
+    }
+    "stress-test-tcp-open-close-release"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
+        break
+    }
+    "stress-test-tcp-open-close-with-cd-release"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
+        break
+    }
+    "stress-test-tcp-open-close-debug"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
+        break
+    }
+    "stress-test-tcp-open-close-with-cd-debug"
+    {
+        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
+        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
+
+        & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        Write-Output $lldboutput
+        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
+        exit $err
         break
     }
     "install"
@@ -485,11 +586,23 @@ switch ($Command.ToLower())
         if ($err -ne 0) { throw "Error: exit code $err" }
         break
     }
-    "package"
+    "package-x86-64"
     {
         $package = "ponyc-x86-64-pc-windows-msvc.zip"
         Write-Output "Creating $buildDir\..\$package"
 
+        # Remove unneeded files; we do it this way because Compress-Archive cannot add a single file to anything other than the root directory
+        Get-ChildItem -File -Path "$Prefix\bin\*" -Exclude ponyc.exe | Remove-Item
+        Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
+        break
+    }
+    "package-arm64"
+    {
+        $package = "ponyc-arm64-pc-windows-msvc.zip"
+        Write-Output "Creating $buildDir\..\$package"
+
+        # Remove unneeded files; we do it this way because Compress-Archive cannot add a single file to anything other than the root directory
+        Get-ChildItem -File -Path "$Prefix\bin\*" -Exclude ponyc.exe | Remove-Item
         Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
         break
     }

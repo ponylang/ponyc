@@ -182,6 +182,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   }
 
   reach_type_t* t = reach_type(c->reach, type);
+  ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   int count = LLVMCountStructElementTypes(c_t->primitive);
   size_t buf_size = count * sizeof(LLVMTypeRef);
@@ -498,7 +499,7 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
   LLVMValueRef value = LLVMGetParam(codegen_fun(c), 0);
 
   value = gen_unbox(c, t->ast_cap, value);
-  LLVMBuildRet(c->builder, gen_digestof_value(c, t->ast_cap, value));
+  genfun_build_ret(c, gen_digestof_value(c, t->ast_cap, value));
 
   codegen_finishfun(c);
 }
@@ -521,7 +522,7 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
     return vhigh;
 
   if((c_t->primitive == c->f32) || (c_t->primitive == c->f64))
-    return LLVMConstUIToFP(vhigh, c_t->primitive);
+    return LLVMBuildUIToFP(c->builder, vhigh, c_t->primitive, "");
 
   return LLVMConstTrunc(vhigh, c_t->primitive);
 }

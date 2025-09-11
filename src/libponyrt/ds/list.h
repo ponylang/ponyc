@@ -83,6 +83,16 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
 #define DEFINE_LIST(name, name_t, elem, cmpf, freef) \
   struct name_t {list_t contents;}; \
   \
+  static void name##_freef(void* data) \
+  { \
+    name##_free_fn freefn = freef; \
+    freefn((elem*)data); \
+  } \
+  static bool name##_cmpf(void* a, void* b) \
+  { \
+    name##_cmp_fn cmpfn = cmpf; \
+    return cmpfn((elem*)a, (elem*)b); \
+  } \
   name_t* name##_pop(name_t* list, elem** data) \
   { \
     return (name_t*)ponyint_list_pop((list_t*)list, (void**)data); \
@@ -109,23 +119,19 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   } \
   elem* name##_find(name_t* list, elem* data) \
   { \
-    name##_cmp_fn cmp = cmpf; \
-    return (elem*)ponyint_list_find((list_t*)list, (cmp_fn)cmp, (void*)data); \
+    return (elem*)ponyint_list_find((list_t*)list, name##_cmpf, (void*)data); \
   } \
   ssize_t name##_findindex(name_t* list, elem* data) \
   { \
-    name##_cmp_fn cmp = cmpf; \
-    return ponyint_list_findindex((list_t*)list, (cmp_fn)cmp, (void*)data); \
+    return ponyint_list_findindex((list_t*)list, name##_cmpf, (void*)data); \
   } \
   bool name##_subset(name_t* a, name_t* b) \
   { \
-    name##_cmp_fn cmp = cmpf; \
-    return ponyint_list_subset((list_t*)a, (list_t*)b, (cmp_fn)cmp); \
+    return ponyint_list_subset((list_t*)a, (list_t*)b, name##_cmpf); \
   } \
   bool name##_equals(name_t* a, name_t* b) \
   { \
-    name##_cmp_fn cmp = cmpf; \
-    return ponyint_list_equals((list_t*)a, (list_t*)b, (cmp_fn)cmp); \
+    return ponyint_list_equals((list_t*)a, (list_t*)b, name##_cmpf); \
   } \
   name_t* name##_map(name_t* list, name##_map_fn f, void* arg) \
   { \
@@ -141,9 +147,18 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   } \
   void name##_free(name_t* list) \
   { \
-    name##_free_fn free = freef; \
-    ponyint_list_free((list_t*)list, (free_fn)free); \
+    free_fn free_fn = NULL; \
+    if (freef != NULL) \
+      free_fn = name##_freef; \
+    ponyint_list_free((list_t*)list, free_fn); \
   } \
+
+#if defined(USE_RUNTIME_TRACING)
+#define LIST_TRACING_DESC_FIELDS  NULL, \
+  NULL,
+#else
+#define LIST_TRACING_DESC_FIELDS 
+#endif
 
 #define DEFINE_LIST_SERIALISE(name, name_t, elem, cmpf, freef, elem_type) \
   DEFINE_LIST(name, name_t, elem, cmpf, freef) \
@@ -167,7 +182,9 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     sizeof(name_t), \
     0, \
     0, \
+    0, \
     NULL, \
+    LIST_TRACING_DESC_FIELDS \
     NULL, \
     name##_serialise_trace, \
     name##_serialise, \

@@ -2,7 +2,7 @@ provider pony {
   /**
    * Fired when a actor is being created
    * @param scheduler is the scheduler that created the actor
-   * @actor is the actor that was created
+   * @param actor is the actor that was created
    */
   probe actor__alloc(uintptr_t scheduler, uintptr_t actor);
 
@@ -17,7 +17,7 @@ provider pony {
 
   /**
    * Fired when a message is being run by an actor
-   * @params scheduler is the active scheduler
+   * @param scheduler is the active scheduler
    * @param actor the actor running the message
    * @param id the message id
    */
@@ -36,7 +36,7 @@ provider pony {
    * Fired when a message is being run by an actor
    * @param scheduler_index is the active scheduler's index
    * @param id the message id
-   * @param actor_to is the receiving actor
+   * @param actor is the receiving actor
    */
   probe actor__msg__pop(int32_t scheduler_index, uint32_t id, uintptr_t actor);
 
@@ -135,7 +135,7 @@ provider pony {
   /**
    * Fired when the garbage collector finishes receiving an object
    * @param scheduler is active scheduler
-   * @params actor is the actor that finished receiving an object
+   * @param actor is the actor that finished receiving an object
    */
   probe gc__recv__end(uintptr_t scheduler, uintptr_t actor);
 

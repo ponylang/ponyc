@@ -8,6 +8,9 @@ on:
     types:
       - closed
 
+permissions:
+  pull-requests: write
+
 jobs:
   remove-label:
     runs-on: ubuntu-latest

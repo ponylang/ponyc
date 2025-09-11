@@ -6,6 +6,8 @@ llvm_archs ?= X86;ARM;AArch64;WebAssembly;RISCV
 llvm_config ?= Release
 llc_arch ?= x86-64
 pic_flag ?=
+open_close_stress_connections ?= 10000000
+test_full_program_timeout ?= 60
 
 ifndef version
   version := $(shell cat VERSION)
@@ -76,7 +78,12 @@ endif
 
 srcDir := $(shell dirname '$(subst /Volumes/Macintosh HD/,/,$(realpath $(lastword $(MAKEFILE_LIST))))')
 buildDir := $(srcDir)/build/build_$(config)
-outDir := $(srcDir)/build/$(config)
+
+# get outDir from CMake install file or fall back to default if the file doesn't exist
+outDir := $(subst /libponyrt.tests,,$(shell grep -o -s '$(srcDir)/build/$(config).*/libponyrt.tests' $(buildDir)/cmake_install.cmake))
+ifeq ($(outDir),)
+  outDir := $(srcDir)/build/$(config)
+endif
 
 libsSrcDir := $(srcDir)/lib
 libsBuildDir := $(srcDir)/build/build_libs
@@ -141,6 +148,10 @@ define USE_CHECK
     PONY_USES += -DPONY_USE_RUNTIMESTATS=true
   else ifeq ($1,runtimestats_messages)
     PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
+  else ifeq ($1,pool_memalign)
+    PONY_USES += -DPONY_USE_POOL_MEMALIGN=true
+  else ifeq ($1,runtime_tracing)
+    PONY_USES += -DPONY_USE_RUNTIME_TRACING=true
   else
     $$(error ERROR: Unknown use option specified: $1)
   endif
@@ -156,6 +167,7 @@ endif
 
 ifneq ($(findstring lldb,$(usedebugger)),)
   debuggercmd := $(usedebugger) --batch --one-line "breakpoint set --name main" --one-line run --one-line "process handle SIGINT --pass true --stop false" --one-line "process handle SIGUSR2 --pass true --stop false"  --one-line "thread continue" --one-line-on-crash "frame variable" --one-line-on-crash "register read" --one-line-on-crash "bt all" --one-line-on-crash "quit 1" --
+  testextras := --gtest_throw_on_failure
 else ifneq ($(findstring gdb,$(usedebugger)),)
   debuggercmd := $(usedebugger) --quiet --batch --return-child-result --eval-command="set confirm off" --eval-command="set pagination off" --eval-command="handle SIGINT nostop pass" --eval-command="handle SIGUSR2 nostop pass" --eval-command=run  --eval-command="info args" --eval-command="info locals" --eval-command="info registers" --eval-command="thread apply all bt full" --eval-command=quit --args
 else ifneq ($(strip $(usedebugger)),)
@@ -183,6 +195,9 @@ all: build
 build:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target all -- $(build_flags)
 
+ponyc:
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target ponyc -- $(build_flags)
+
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
 cross-libponyrt:
@@ -196,18 +211,18 @@ test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release 
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: debuggercmd=
-test-cross-ci: test-stdlib-debug test-stdlib-release
+test-cross-ci: test-core test-stdlib-debug test-stdlib-release test-examples
 
 test-check-version: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --version
 
-test-core: all test-libponyrt test-libponyc test-full-programs-release test-full-programs-debug
+test-core: all test-libponyrt test-libponyc test-full-programs-debug test-full-programs-release
 
 test-libponyrt: all
-	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyrt.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyrt.tests --gtest_shuffle $(testextras)
 
 test-libponyc: all
-	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyc.tests --gtest_shuffle
+	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyc.tests --gtest_shuffle $(testextras)
 
 ifeq ($(shell uname -s),FreeBSD)
   num_cores := `sysctl -n hw.ncpu`
@@ -218,18 +233,18 @@ else
 endif
 
 test-full-programs-release: all
-	@mkdir -p $(outDir)/runner-tests/release
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --output=$(outDir)/runner-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	@mkdir -p $(outDir)/full-program-tests/release
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=$(test_full_program_timeout) --max_parallel=1 --compiler=$(outDir)/ponyc --output=$(outDir)/full-program-tests/release --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
 test-full-programs-debug: all
-	@mkdir -p $(outDir)/runner-tests/debug
-	$(SILENT)cd '$(outDir)' && $(buildDir)/test/libponyc-run/runner/runner --debugger='$(debuggercmd)' --timeout_s=120 --max_parallel=$(num_cores) --exclude=runner --ponyc=$(outDir)/ponyc --debug --output=$(outDir)/runner-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/libponyc-run
+	@mkdir -p $(outDir)/full-program-tests/debug
+	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=$(test_full_program_timeout) --max_parallel=1 --compiler=$(outDir)/ponyc --debug --output=$(outDir)/full-program-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
 test-stdlib-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential
 
 test-stdlib-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree --verify $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(debuggercmd) ./stdlib-debug --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(debuggercmd) ./stdlib-debug --sequential
 
 test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}
@@ -237,17 +252,37 @@ test-examples: all
 test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
-test-stress-release: all
+test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-release: debuggercmd=
+test-cross-stress-release: test-stress-release
+test-stress-ubench-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
+test-stress-tcp-open-close-release: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock $(open_close_stress_connections)
 
-test-stress-debug: all
+test-cross-stress-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-debug: debuggercmd=
+test-cross-stress-debug: test-stress-debug
+test-stress-ubench-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoblock --ponynoscale
+test-stress-tcp-open-close-debug: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock $(open_close_stress_connections)
 
-test-stress-with-cd-release: all
+test-cross-stress-with-cd-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-with-cd-release: debuggercmd=
+test-cross-stress-with-cd-release: test-stress-with-cd-release
+test-stress-ubench-with-cd-release: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+test-stress-tcp-open-close-with-cd-release: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close $(open_close_stress_connections)
 
-test-stress-with-cd-debug: all
+test-cross-stress-with-cd-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
+test-cross-stress-with-cd-debug: debuggercmd=
+test-cross-stress-with-cd-debug: test-stress-with-cd-debug
+test-stress-ubench-with-cd-debug: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b ubench --pic $(cross_args) ../../test/rt-stress/string-message-ubench && echo Built `pwd`/ubench && $(cross_runner) $(debuggercmd) ./ubench --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+test-stress-tcp-open-close-with-cd-debug: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close $(open_close_stress_connections)
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true

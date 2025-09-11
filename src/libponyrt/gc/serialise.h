@@ -23,7 +23,8 @@ typedef struct serialise_t serialise_t;
 
 DECLARE_HASHMAP(ponyint_serialise, ponyint_serialise_t, serialise_t);
 
-bool ponyint_serialise_setup(pony_type_t** table, size_t table_size);
+bool ponyint_serialise_setup(pony_type_t** table, size_t table_size,
+  desc_offset_lookup_fn desc_table_offset_lookup);
 
 void ponyint_serialise_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability);

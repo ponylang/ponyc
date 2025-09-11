@@ -30,6 +30,8 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->writeable = false;
   ev->readable = false;
 
+  owner->live_asio_events = owner->live_asio_events + 1;
+
   // The event is effectively being sent to another thread, so mark it here.
   pony_ctx_t* ctx = pony_ctx();
   pony_gc_send(ctx);
@@ -48,6 +50,17 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
     return;
   }
 
+  if(ev->noisy)
+  {
+    uint64_t old_count = ponyint_asio_noisy_remove();
+    // tell scheduler threads that asio has no noisy actors
+    // if the old_count was 1
+    if (old_count == 1)
+      ponyint_sched_unnoisy_asio(pony_scheduler_index());
+
+    ev->noisy = false;
+  }
+
   ev->flags = ASIO_DESTROYED;
 
   // When we let go of an event, we treat it as if we had received it back from
@@ -56,6 +69,9 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
   pony_gc_recv(ctx);
   pony_traceunknown(ctx, ev->owner, PONY_TRACE_OPAQUE);
   pony_recv_done(ctx);
+
+  pony_assert(ev->owner->live_asio_events > 0);
+  ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
 
   POOL_FREE(asio_event_t, ev);
 }
@@ -118,6 +134,9 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
 #ifdef PLATFORM_IS_WINDOWS
   // On Windows, this can be called from an IOCP callback thread, which may
   // not have a pony_ctx() associated with it yet.
+  // Don't call `ponyint_register_asio_thread` because that would overwrite the
+  // scheduler index if this is run on a normal scheduler thread and that would
+  // be not good.
   pony_register_thread();
 #endif
 
@@ -127,11 +146,11 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   m->flags = flags;
   m->arg = arg;
 
-  // ASIO messages technically are application messages, but since they have no
-  // sender they aren't covered by backpressure. We pass false for an early
-  // bailout in the backpressure code.
-  pony_sendv(pony_ctx(), ev->owner, &m->msg, &m->msg, false);
+  // ASIO messages technically are application messages, but they are not
+  // covered by backpressure. We send the message via a mechanism that will put
+  // an unscheduled actor onto the global inject queue for any actor to pick up.
+  ponyint_sendv_inject(ev->owner, &m->msg);
 
   // maybe wake up a scheduler thread if they've all fallen asleep
-  ponyint_sched_maybe_wakeup_if_all_asleep(-1);
+  ponyint_sched_maybe_wakeup_if_all_asleep(pony_scheduler_index());
 }

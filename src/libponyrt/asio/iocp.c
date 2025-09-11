@@ -10,6 +10,7 @@
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
 #include "../sched/systematic_testing.h"
+#include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <signal.h>
@@ -55,7 +56,7 @@ static void send_request(asio_event_t* ev, int req)
 
   ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
 #ifdef USE_DYNAMIC_TRACE
-    , SPECIAL_THREADID_IOCP, SPECIAL_THREADID_IOCP
+    , pony_scheduler_index(), pony_scheduler_index()
 #endif
     );
 
@@ -113,7 +114,7 @@ void ponyint_asio_backend_final(asio_backend_t* b)
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   ponyint_cpu_affinity(ponyint_asio_get_cpu());
-  pony_register_thread();
+  ponyint_register_asio_thread();
   asio_backend_t* b = (asio_backend_t*)arg;
   pony_assert(b != NULL);
   asio_event_t* stdin_event = NULL;
@@ -147,7 +148,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(
           &b->q
 #ifdef USE_DYNAMIC_TRACE
-          , SPECIAL_THREADID_IOCP
+          , pony_scheduler_index()
 #endif
           )) != NULL)
         {
@@ -256,6 +257,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   POOL_FREE(asio_backend_t, b);
 
   SYSTEMATIC_TESTING_STOP_THREAD();
+  TRACING_THREAD_STOP();
 
   pony_unregister_thread();
   return NULL;
@@ -288,7 +290,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // tell scheduler threads that asio has at least one noisy actor
     // if the old_count was 0
     if (old_count == 0)
-      ponyint_sched_noisy_asio(SPECIAL_THREADID_IOCP);
+      ponyint_sched_noisy_asio(pony_scheduler_index());
   }
 
   if((ev->flags & ASIO_TIMER) != 0)
@@ -339,22 +341,6 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
-
-  if(ev->noisy)
-  {
-    uint64_t old_count = ponyint_asio_noisy_remove();
-    // tell scheduler threads that asio has no noisy actors
-    // if the old_count was 1
-    if (old_count == 1)
-    {
-      ponyint_sched_unnoisy_asio(SPECIAL_THREADID_IOCP);
-
-      // maybe wake up a scheduler thread if they've all fallen asleep
-      ponyint_sched_maybe_wakeup_if_all_asleep(-1);
-    }
-
-    ev->noisy = false;
-  }
 
   if((ev->flags & ASIO_TIMER) != 0)
   {

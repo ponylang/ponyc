@@ -19,6 +19,9 @@
 #  include <unistd.h>
 #endif
 
+#define STR(x) STR2(x)
+#define STR2(x) #x
+
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
@@ -49,14 +52,16 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
     boolean = c->i8;
 
   uint32_t desc_table_size = reach_max_type_id(c->reach);
+  LLVMValueRef desc_table_lookup_fn = c->desc_table_offset_lookup_fn;
 
-  LLVMTypeRef f_params[4];
+  LLVMTypeRef f_params[5];
   f_params[0] = boolean;
   f_params[1] = boolean;
   f_params[2] = c->ptr;
   f_params[3] = c->intptr;
+  f_params[4] = c->descriptor_offset_lookup_fn;
 
-  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 4,
+  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 5,
     false);
 
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -85,6 +90,10 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
   field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 3, "");
   LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
     field);
+
+  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 4, "");
+  LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, desc_table_lookup_fn,
+    c->descriptor_offset_lookup_fn, ""), field);
 
   return lfi_object;
 }
@@ -183,6 +192,11 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[4] = LLVMConstInt(c->i1, 1, false);
   gencall_runtime(c, "pony_sendv_single", args, 5, "");
 
+  // unbecome the main actor before starting the runtime to set sched->ctx.current = NULL
+  args[0] = ctx;
+  args[1] = LLVMConstNull(c->ptr);
+  gencall_runtime(c, "ponyint_become", args, 2, "");
+
   // Start the runtime.
   args[0] = LLVMConstInt(c->i1, 0, false);
   args[1] = LLVMConstNull(c->ptr);
@@ -208,9 +222,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     LLVMValueRef final_actor = create_main(c, t_main, ctx);
     LLVMBuildCall2(c->builder, LLVMGlobalGetValueType(c->primitives_final),
       c->primitives_final, NULL, 0, "");
-    args[0] = ctx;
-    args[1] = final_actor;
-    gencall_runtime(c, "ponyint_destroy", args, 2, "");
+    args[0] = final_actor;
+    gencall_runtime(c, "ponyint_destroy", args, 1, "");
   }
 
   args[0] = ctx;
@@ -222,7 +235,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   rc = LLVMBuildSelect(c->builder, start_success, rc, minus_one, "");
 
   // Return the runtime exit code.
-  LLVMBuildRet(c->builder, rc);
+  genfun_build_ret(c, rc);
 
   codegen_finishfun(c);
 
@@ -293,13 +306,9 @@ static bool link_exe(compile_t* c, ast_t* program,
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
-#if defined(PLATFORM_IS_ARM)
     "%s -execute -arch %.*s "
-#else
-    "%s -execute -no_pie -arch %.*s "
-#endif
     "-o %s %s %s %s "
-    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s",
+    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s -platform_version macos '" STR(PONY_OSX_PLATFORM) "' '0.0.0'",
            linker, (int)arch_len, c->opt->triple, file_exe, file_o,
            lib_args, ponyrt, sanitizer_arg
     );
@@ -350,7 +359,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* mcx16_arg = (target_is_lp64(c->opt->triple)
     && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
   const char* fuseldcmd = c->opt->link_ldcmd != NULL ? c->opt->link_ldcmd :
-    (target_is_linux(c->opt->triple) ? "gold" : "");
+    "";
   const char* fuseld = strlen(fuseldcmd) ? "-fuse-ld=" : "";
   const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
   const char* atomic =
@@ -364,8 +373,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "";
 #endif
   const char* lexecinfo =
-#if (defined(PLATFORM_IS_LINUX) && !defined(__GLIBC__)) || \
-    defined(PLATFORM_IS_BSD)
+#if (defined(PLATFORM_IS_BSD))
    "-lexecinfo";
 #else
     "";
@@ -378,7 +386,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "";
 #endif
 
-  const char* arm32_linker_args = target_is_arm32(c->opt->triple)
+  const char* arm_linker_args = target_is_arm(c->opt->triple)
     ? " -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libgnustl_shared.so -Wl,--exclude-libs,libunwind.a"
     : "";
 
@@ -386,7 +394,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
                   + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg) + strlen(arm32_linker_args);
+                  + strlen(sanitizer_arg) + strlen(arm_linker_args);
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -407,13 +415,13 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 #ifdef PLATFORM_IS_OPENBSD
     // On OpenBSD, the unwind symbols are contained within libc++abi.
-    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s"
+    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s "
 #else
-    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s"
+    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s "
 #endif
     "%s",
     linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
-    arm32_linker_args,
+    arm_linker_args,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
     );
 
@@ -459,7 +467,16 @@ static bool link_exe(compile_t* c, ast_t* program,
   else
     ucrt_lib[0] = '\0';
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
+
+#ifdef _M_ARM64
+  const char* arch = "ARM64";
+#elif defined(_M_X64)
+  const char* arch="x64";
+#else
+  const char* arch = "";
+#endif
+
+  size_t ld_len = 253 + strlen(arch) + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -470,13 +487,13 @@ static bool link_exe(compile_t* c, ast_t* program,
   while (true)
   {
     size_t num_written = snprintf(ld_cmd, ld_len,
-      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 /ignore:4099 "
+      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:%s /ignore:4099 "
       "/OUT:%s "
       "%s %s "
       "/LIBPATH:\"%s\" "
       "/LIBPATH:\"%s\" "
       "%s %s %s \"",
-      linker, file_exe, file_o, ucrt_lib, vcvars.kernel32,
+      linker, arch, file_exe, file_o, ucrt_lib, vcvars.kernel32,
       vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
     );
 

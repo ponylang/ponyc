@@ -1,4 +1,5 @@
-FROM alpine:3.16
+FROM alpine:3.20
+
 
 RUN apk update \
   && apk upgrade \
@@ -7,8 +8,6 @@ RUN apk update \
   binutils-gold \
   clang \
   clang-dev \
-  libexecinfo-dev \
-  libexecinfo-static \
   coreutils \
   linux-headers \
   cmake \
@@ -18,9 +17,11 @@ RUN apk update \
   curl \
   py3-pip \
   gdb \
-&& pip install cloudsmith-cli
+  lldb \
+  py3-lldb \
+&& pip install --break-system-packages cloudsmith-cli
 
 # add user pony in order to not run tests as root
-RUN adduser -D -s /bin/sh -h /home/pony -g root pony
+RUN adduser -D -u 1001 -s /bin/sh -h /home/pony -g root pony
 USER pony
 WORKDIR /home/pony

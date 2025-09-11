@@ -543,7 +543,7 @@ static void doc_fields(docgen_t* docgen, docgen_opt_t* docgen_opt,
     }
 
     fprintf(docgen->type_file, "### %s %s: ", ftype, name);
-    doc_type(docgen, docgen_opt, type, true, true);
+    doc_type(docgen, docgen_opt, type, true, false);
     add_source_code_link(docgen, field);
     fprintf(docgen->type_file, "\n");
 

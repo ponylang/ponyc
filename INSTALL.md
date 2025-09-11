@@ -6,20 +6,11 @@ All prebuilt releases are currently AMD64 only. If you want to install on differ
 
 Prebuilt Pony installations will use clang as the default C compiler and clang++ as the default C++ compiler. If you prefer to use different compilers, such as gcc and g++, these defaults can be overridden by setting the `$CC` and `$CXX` environment variables to your compiler of choice.
 
-## FreeBSD 13.0
-
-Prebuilt FreeBSD 13.0 packages are available via [ponyup](https://github.com/ponylang/ponyup).
-
-```bash
-ponyup default freebsd-13.0
-ponyup update ponyc release
-```
-
 ## Linux
 
 Prebuilt Linux packages are available via [ponyup](https://github.com/ponylang/ponyup) for Glibc and musl libc based Linux distribution. You can install nightly builds as well as official releases using ponyup.
 
-If you are running on a support Linux platform, ponyup should correctly select it so long as you have `cc` and `lsb_release` installed. If for some reason, the installation script can't identify your distribution, you can manually select your platform.
+If you are running on a supported Linux platform, ponyup should correctly select it so long as you have `cc` and `lsb_release` installed. If for some reason, the installation script can't identify your distribution, you can manually select your platform.
 
 If we aren't creating packages for your distribution and you would like us to, please stop by the [release stream](https://ponylang.zulipchat.com/#narrow/stream/190364-release) in the [ponylang Zulip](https://ponylang.zulipchat.com) to discuss adding support. Please note, we are almost assuredly going to ask you to help support your distribution.
 
@@ -29,9 +20,14 @@ At the moment, we support all supported LTS Ubuntu versions and any distribution
 
 Currently, we have packages for the following Glibc based distributions:
 
+- Fedora 41
 - Linux Mint 19, 20, 21
-- Pop!_OS 18.04, 20.04, 22.04
-- Ubuntu 18.04, 20.04, 22.04
+- Pop!_OS 22.04, 24.04
+- Ubuntu 22.04, 24.04
+
+### Supported Alpine versions
+
+Starting with Pony version 0.56.0, only Alpine 3.17 and later are supported. Pomyup will happily 0.56.0 on Alpine 3.16, but you won't be able to link programs. By the same token, installing version of Pony prior to 0.56.0 on Alpine 3.17 will also fail to link.
 
 ### Manually selecting your Linux platform
 
@@ -46,15 +42,12 @@ where `PLATFORM` is from the table below
 Distribution | PLATFORM String
 --- | ---
 Alpine | x86_64-linux-musl
-Linux Mint 19.x | x86_64-linux-ubuntu18.04
-Linux Mint 20.x | x86_64-linux-ubuntu20.04
+Fedora 41 | x86_64-linux-fedora41
 Linux Mint 21.x | x86_64-linux-ubuntu22.04
-Pop!_OS 18.04 | x86_64-linux-ubuntu18.04
-Pop!_OS 20.04 | x86_64-linux-ubuntu20.04
 Pop!_OS 22.04 | x86_64-linux-ubuntu22.04
-Ubuntu 18.04 | x86_64-linux-ubuntu18.04
-Ubuntu 20.04 | x86_64-linux-ubuntu20.04
+Pop!_OS 24.04 | x86_64-linux-ubuntu24.04
 Ubuntu 22.04 | x86_64-linux-ubuntu22.04
+Ubuntu 24.04 | x86_64-linux-ubuntu24.04
 
 ### Install the latest release
 
@@ -79,7 +72,7 @@ If you get that error, it means that the Glibc we compiled ponyc with isn't comp
 
 ## macOS
 
-Prebuilt macOS packages for Apple Silicon are available via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
+Prebuilt macOS packages are available for macOS via [ponyup](https://github.com/ponylang/ponyup). You can also install nightly builds using ponyup.
 
 To install the most recent ponyc on macOS:
 

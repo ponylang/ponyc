@@ -147,7 +147,7 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
           ast_id(super_eph)))
           ast_error_frame(errorf, sub_cap,
             "this would be possible if the subcap were more ephemeral. "
-            "Perhaps you meant to consume a variable here");
+            "Perhaps you meant to consume this variable");
       }
 
       return false;
@@ -216,7 +216,11 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b, errorframe_t* errorf,
 
   if(!ret && errorf != NULL)
   {
-    ast_error_frame(errorf, a, "%s has different type arguments than %s",
+    ast_error_frame(errorf, a,
+      "%s has different type arguments than %s (the type arguments must be equivalent, not covariant nor contravariant)",
+      ast_print_type(a), ast_print_type(b));
+    ast_error_frame(errorf, a,
+      "this might be possible if either %s or %s were an interface rather than a concrete type",
       ast_print_type(a), ast_print_type(b));
   }
 

@@ -128,7 +128,7 @@ bool ponyint_actor_messageq_push(messageq_t* q, pony_msg_t* first,
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
     pony_msg_t* m = first;
-    int32_t index = (sched == NULL) ? UNKNOWN_SCHEDULER : sched->index;
+    int32_t index = (sched == NULL) ? PONY_UNKNOWN_SCHEDULER_INDEX : sched->index;
 
     while(m != last)
     {
@@ -186,7 +186,7 @@ bool ponyint_actor_messageq_push_single(messageq_t* q,
   if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
   {
     pony_msg_t* m = first;
-    int32_t index = (sched == NULL) ? UNKNOWN_SCHEDULER : sched->index;
+    int32_t index = (sched == NULL) ? PONY_UNKNOWN_SCHEDULER_INDEX : sched->index;
 
     while(m != last)
     {

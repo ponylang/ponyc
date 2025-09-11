@@ -8,6 +8,58 @@
 #define OPT_ARG_NONE     1 << 2
 #define OPT_ARGS_FINISH {NULL, 0, UINT32_MAX, UINT32_MAX}
 
+#if defined(USE_RUNTIME_TRACING)
+#define PONYRT_TRACING_HELP \
+  "  --ponytracingmode\n" \
+  "                   Mode for tracing. Valid options are:\n" \
+  "                       file - write trace events to file\n" \
+  "                       flight_recorder - save events to a per-thread in memory\n" \
+  "                                         circular buffer in case of program error\n" \
+  "                                         (SIGSEGV, SIGILL, SIGBUS, SIGFPE, etc)\n" \
+  "                                         when they are written out\n" \
+  "                   defaults to: file\n" \
+  "  --ponytracingformat\n" \
+  "                   Output format for tracing in file mode. Valid options are:\n" \
+  "                       json - chromium trace json format\n" \
+  "                   defaults to: json\n" \
+  "  --ponytracingoutput\n" \
+  "                   Output file for tracing in file mode. Valid options are:\n" \
+  "                       - - stdout\n" \
+  "                       ~ - stderr\n" \
+  "                       <STRING> - filename/path to write to\n" \
+  "                   defaults to: ponytrace.json\n" \
+  "  --ponytracingcategories\n" \
+  "                   Tracing categories to enable. Valid categories are:\n" \
+  "                       actor - basic actor events\n" \
+  "                       actor_behavior - actor behavior run events\n" \
+  "                       actor_gc - actor garbage collection events\n" \
+  "                       actor_state_change - actor state change events\n" \
+  "                       scheduler - basic scheduler events\n" \
+  "                       scheduler_messaging - inter-scheduler messaging events\n" \
+  "                       systematic_testing - systematic testing events\n" \
+  "                       systematic_testing_details - detailed systematic testing events\n" \
+  "                   categories can be enabled by comma separated glob patterns\n" \
+  "                   defaults to all categories disabled\n" \
+  "  --ponytracingforceactortracing\n" \
+  "                   Force tracing for actors. Valid options are:\n" \
+  "                       all - force tracing for all actors\n" \
+  "                       cd_only - only force tracing for the cycle detector\n" \
+  "                       none - do not force tracing for any actors\n" \
+  "                   defaults to: none\n" \
+  "  --ponytracingflightrecorderbuffer\n" \
+  "                   Number of events to buffer per-thread in flight recorder mode\n" \
+  "                   (will be rounded up to the nearest power of 2; min allowed is 1)\n" \
+  "                   Defaults to 16384.\n" \
+  "  --ponytracingflightrecorderhandletermint\n" \
+  "                   Also trap on SIGINT (Ctrl-C) and SIGTERM in flight recorder mode.\n" \
+  "  --ponypintracingthread\n" \
+  "                   Pin the tracing thread to a CPU the way scheduler threads\n" \
+  "                   are pinned to CPUs. Requires `--ponypin` to be set to have\n" \
+  "                   any effect.\n"
+#else
+#define PONYRT_TRACING_HELP
+#endif
+
 /* NOTE: if you change any of the argument help details, update the docstrings
  *       in `RuntimeOptions` in the `builtin` package to keep them in sync.
  */
@@ -43,9 +95,14 @@
   "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n" \
   "                   threads are pinned to CPUs. Requires `--ponypin` to\n" \
   "                   be set to have any effect.\n" \
+  "  --ponypinpinnedactorthread\n" \
+  "                   Pin the pinned actor thread to a CPU the way scheduler\n" \
+  "                   threads are pinned to CPUs. Requires `--ponypin` to\n" \
+  "                   be set to have any effect.\n" \
   "  --ponyprintstatsinterval\n" \
   "                   Print actor stats before an actor is destroyed and\n" \
   "                   print scheduler stats every X seconds. Defaults to -1 (never).\n" \
+  PONYRT_TRACING_HELP \
   "  --ponyversion    Print the version of the compiler and exit.\n" \
   "  --ponyhelp       Print the runtime usage options and exit.\n" \
   "\n" \
