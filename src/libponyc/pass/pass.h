@@ -67,7 +67,7 @@ includes default capabilities, method return values and else blocks. There are
 also some code rewrites, such as assignment to update call and for loop to
 while loop.
 
-Not all sugar is perform here since some requires type check information which
+Not all sugar is performed here since some requires type check information which
 is not yet available.
 
 Substantially rewrites the AST.
