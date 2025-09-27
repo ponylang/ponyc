@@ -132,10 +132,10 @@ Building on Windows requires the following:
 
 - [CMake](https://cmake.org/download/) version 3.15.0 or higher needs to be in your PATH.
 - [Python 3](https://www.python.org/downloads/)
-- Visual Studio 2019 or 2017 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2019 or 2017 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
+- Visual Studio 2022 or 2019 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2022 or 2019 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
   - If using Visual Studio, install the `Desktop Development with C++` workload.
   - If using Visual C++ Build Tools, install the `Visual C++ build tools` workload, and the `Visual Studio C++ core features` individual component.
-  - Install the latest `Windows 10 SDK (10.x.x.x) for Desktop` component.
+  - Install the latest `Windows 11 SDK (11.x.x.x) for Desktop` component.
 
 In a PowerShell prompt, run:
 

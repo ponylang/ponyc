@@ -12,7 +12,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 * Linux
 * macOS
-* Windows 10
+* Windows 11
 
 ### CPUs
 
@@ -28,6 +28,7 @@ Best effort platforms mean that there is support for the platform in the codebas
 
 * DragonFlyBSD (x86 only)
 * FreeBSD (x86 only)
+* Windows 10 (x86 only)
 
 ## More Information
 

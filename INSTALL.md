@@ -85,7 +85,7 @@ ponyup update ponyc release
 Windows users will need to install:
 
 - Visual Studio 2022 or 2019 (available [here](https://www.visualstudio.com/vs/community/)) or the Microsoft C++ Build Tools (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
-  - Install the `Desktop Development with C++` workload, along with the latest `Windows 10 SDK (10.x.x.x) for Desktop` individual component.
+  - Install the `Desktop Development with C++` workload, along with the latest `Windows 11 SDK (11.x.x.x) for Desktop` individual component.
 
 Once you have installed the prerequisites, you can get prebuilt release or nightly builds via [ponyup](https://github.com/ponylang/ponyup).  To install the most recent ponyc on Windows:
 
