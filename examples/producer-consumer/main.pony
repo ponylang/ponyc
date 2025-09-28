@@ -8,12 +8,13 @@ actor Main
   """
 
   new create(env: Env) =>
-    let buffer = Buffer(20, env.out)
+    let buffer = Buffer(2, env.out)
 
-    let producer = Producer(2, buffer, env.out)
-    let consumer = Consumer(3, buffer, env.out)
+    let producer = Producer(10, buffer, env.out)
+    let consumer = Consumer(10, buffer, env.out)
 
     consumer.start_consuming()
     producer.start_producing()
 
     env.out.print("**Main** Finished.")
+

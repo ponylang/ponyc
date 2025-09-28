@@ -1,5 +1,3 @@
-use "collections"
-
 actor Producer
   var _quantity_to_produce: U32
   let _buffer: Buffer
@@ -20,3 +18,4 @@ actor Producer
     let prod: Product = Product(_num, "Description of product " + _num.string())
     _buffer.store_product(prod)
     _num = _num + 1
+

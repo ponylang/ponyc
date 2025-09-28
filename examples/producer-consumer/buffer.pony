@@ -19,7 +19,7 @@ actor Buffer
       cons.consuming(_products.delete(0)?) // Fails if products is empty.
       try
         _out.print(debug_string + ": Calling producer to produce")
-        _producers_waiting.delete(0)?.produce()
+        _producers_waiting.delete(0)?.produce() // match!
       end  // If there are no producers in waiting, do nothing.
     else
       _out.print(debug_string + ": Storing consumer in waiting")
@@ -45,6 +45,10 @@ actor Buffer
     try
       _out.print(debug_string + ": Calling consumer to consume")
       _consumers_waiting.delete(0)?.consuming(product)
+      if _producers_waiting.size() > 0 then
+        _out.print(debug_string + ": Calling producer to produce")
+        _producers_waiting.delete(0)?.produce() // match!
+      end
     else
       _out.print(debug_string + ": Storing product")
       _products.push(product)
