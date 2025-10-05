@@ -524,6 +524,13 @@ static bool link_exe(compile_t* c, ast_t* program,
 
 bool genexe(compile_t* c, ast_t* program)
 {
+  printf("genexe top\n");
+
+  // kind of a hack, but I'm
+  // not sure how else to get the whole
+  // program to pass/dartsrc.c
+  c->moduleDart.program = program;
+  
   errors_t* errors = c->opt->check.errors;
 
   // The first package is the main package. It has to have a Main actor.

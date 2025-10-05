@@ -232,6 +232,7 @@ typedef enum pass_id
   PASS_SERIALISER,
   PASS_REACH,
   PASS_PAINT,
+  PASS_DARTSRC,
   PASS_LLVM_IR,
   PASS_BITCODE,
   PASS_ASM,
@@ -258,6 +259,7 @@ typedef enum pass_id
     "    =verify\n" \
     "    =final\n" \
     "    =serialise\n" \
+    "    =dartsrc       Output Dart source code.\n" \
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \

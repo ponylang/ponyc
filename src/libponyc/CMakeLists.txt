@@ -64,6 +64,7 @@ add_library(libponyc STATIC
     pass/refer.c
     pass/scope.c
     pass/serialisers.c
+    pass/dartsrc.c
     pass/sugar.c
     pass/syntax.c
     pass/traits.c

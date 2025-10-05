@@ -14,6 +14,7 @@
 #include "../pass/pass.h"
 #include "../ast/ast.h"
 #include "../ast/printbuf.h"
+#include "../pass/dartsrc.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -104,6 +105,8 @@ typedef struct compile_t
   ffi_decls_t ffi_decls;
   const char* filename;
 
+  DartModule moduleDart;
+  
   const char* str_builtin;
   const char* str_Bool;
   const char* str_I8;

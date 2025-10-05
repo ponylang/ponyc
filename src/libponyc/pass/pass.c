@@ -12,6 +12,7 @@
 #include "verify.h"
 #include "finalisers.h"
 #include "serialisers.h"
+#include "dartsrc.h"
 #include "docgen.h"
 #include "../ast/ast.h"
 #include "../ast/parser.h"
@@ -66,6 +67,7 @@ const char* pass_name(pass_id pass)
     case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
     case PASS_SERIALISER: return "serialise";
+    case PASS_DARTSRC: return "dartsrc";
     case PASS_REACH: return "reach";
     case PASS_PAINT: return "paint";
     case PASS_LLVM_IR: return "ir";
@@ -305,7 +307,7 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_SERIALISER);
-
+  
   if(options->check_tree)
     check_tree(*astp, options);
 
@@ -364,6 +366,9 @@ bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 
 bool generate_passes(ast_t* program, pass_opt_t* options)
 {
+  // called by ponyc/main.c:67 compile_package().
+  printf("top of pass.c generate_passes(); options->limit = '%d' vs PASS_REACH = '%d'\n", options->limit, PASS_REACH);
+    
   if(options->limit < PASS_REACH)
     return true;
 

@@ -326,3 +326,6 @@ uninstall:
 	-$(SILENT)rm -rf $(prefix)/lib/pony ||:
 	-$(SILENT)rm -f $(prefix)/include/pony.h ||:
 	-$(SILENT)rm -rf $(prefix)/include/pony ||:
+
+test-dart: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../test/dartsrc/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --dart -o {} {}

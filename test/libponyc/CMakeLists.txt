@@ -15,6 +15,7 @@ add_executable(libponyc.tests
     codegen_ffi.cc
     codegen_optimisation.cc
     compiler_serialisation.cc
+    dartsrc.cc
     dontcare.cc
     ffi.cc
     finalisers.cc

@@ -5,6 +5,29 @@ const char* genobj(compile_t* c)
 {
   errors_t* errors = c->opt->check.errors;
 
+  printf("genobj top. c->opt->limit = %d ; pass_name = '%s'\n", c->opt->limit, pass_name(c->opt->limit)); // genobj top. c->opt->limit = 22 ; pass_name = 'all'
+  
+  /* Pony source to Dart source transpilation */
+  if(c->opt->limit == PASS_DARTSRC)
+  {
+
+    const char* file_o = suffix_filename(c, c->opt->output, "", c->filename,
+      ".dart");
+    if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+      fprintf(stderr, "Writing %s\n", file_o);
+
+    char* err;
+
+    if(DartPrintModuleToFile(&(c->moduleDart), file_o, &err) != 0)
+    {
+      errorf(errors, NULL, "couldn't write Dart source to %s: %s", file_o, err);
+      DartDisposeMessage(err);
+      return NULL;
+    }
+
+    return file_o;
+  }
+  
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
    * amalgamating the program and the runtime.

@@ -64,7 +64,8 @@ enum
 
   OPT_BNF,
   OPT_ANTLR,
-  OPT_ANTLRRAW
+  OPT_ANTLRRAW,
+  OPT_DART
 };
 
 static opt_arg_t std_args[] =
@@ -114,6 +115,7 @@ static opt_arg_t std_args[] =
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
+  {"dart", '\0', OPT_ARG_NONE, OPT_DART},
   OPT_ARGS_FINISH
 };
 
@@ -194,6 +196,7 @@ static void usage(void)
     "  --files          Print source file names as each is processed.\n"
     "  --bnf            Print out the Pony grammar as human readable BNF.\n"
     "  --antlr          Print out the Pony grammar as an ANTLR file.\n"
+    "  --dart           Translate Pony source into Dart source.\n"
     "  --lint-llvm      Run the LLVM linting pass on generated IR.\n"
     ,
     PONYRT_HELP
@@ -360,6 +363,15 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_BNF: print_grammar(false, true); return EXIT_0;
       case OPT_ANTLR: print_grammar(true, true); return EXIT_0;
       case OPT_ANTLRRAW: print_grammar(true, false); return EXIT_0;
+
+      case OPT_DART:
+        if(!limit_passes(opt, "dartsrc"))
+        {
+          printf("Invalid pass=dartsrc\n");
+          print_passes();
+          exit_code = EXIT_255;
+        }
+        break;
 
       case OPT_VERBOSE:
         {
