@@ -1,0 +1,14 @@
+name: Registry Package Event Dump
+
+on:
+  registry_package:
+    types: [published, updated]
+
+permissions: {}
+jobs:
+  dump-event:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub Event Context
+        run: |
+          echo '${{ toJSON(github.event) }}' | jq '.'
