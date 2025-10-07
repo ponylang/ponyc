@@ -141,7 +141,7 @@ elapsed nanosec = 186000
 
 ## Program Modifications
 
-# basic
+# Basic
 
 1. Read the assertions. Do they assert that the
 consumer never consumes the same product twice?
