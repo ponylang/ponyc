@@ -90,6 +90,7 @@
   "                   point value. Defaults to 2.0.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
+  "                   Turning this on with disable the cycle detector.\n" \
   "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n" \
   "                   can also be pinned if `--ponypinasio` is set.\n" \
   "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n" \

@@ -89,7 +89,7 @@ struct RuntimeOptions
 
   var ponynoblock: Bool = false
     """
-    Do not send block messages to the cycle detector.
+    Do not send block messages to the cycle detector. Setting this to true will disable the cycle detector.
     """
 
   var ponypin: Bool = false
