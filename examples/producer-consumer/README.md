@@ -181,7 +181,7 @@ What is the hazard in a real system if this
 feature is missing? Hint: why does TCP
 have the TIME_WAIT state?
 
-# Advanced
+### Advanced
 
 8. Optimistic batching
 
