@@ -219,6 +219,7 @@ Would there be benefit to trying to "cut out the middle man", and
 directly communicate between only two actors instead of three?
 
 Implement this, and measure if it yields higher throughtput.
+
 ## Questions to think about
 
 What is the optimal buffer size? 
