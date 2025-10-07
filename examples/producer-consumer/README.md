@@ -160,7 +160,7 @@ to the natural numbers.)
 
 4. Try adding more than one producer. How do the invariants change?
 
-# Medium
+### Medium
 
 5. Try sending and reading in batches, rather than one by one.
 
