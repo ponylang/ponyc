@@ -5,6 +5,7 @@ on:
     types: [published, updated]
 
 permissions: {}
+
 jobs:
   dump-event:
     runs-on: ubuntu-latest
