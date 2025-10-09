@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:3.21
 
 ENV PATH="/root/.local/share/ponyup/bin:$PATH"
 
