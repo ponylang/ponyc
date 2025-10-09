@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Drop Ubuntu 20.04 Support ([PR #4693](https://github.com/ponylang/ponyc/pull/4693))
 - Don't set gold as the default ponyc linker on Linux ([PR #4704](https://github.com/ponylang/ponyc/pull/4704))
 - Update to LLVM 18.1.8 ([PR #4701](https://github.com/ponylang/ponyc/pull/4701))
+- Update Pony nightly musl Docker image to Alpine 3.21 ([PR #4745](https://github.com/ponylang/ponyc/pull/4745))
 
 ## [0.59.0] - 2025-04-26
 
@@ -2250,4 +2251,3 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - When using a package without a package identifier (eg. `use "foo"` as opposed to `use f = "foo"`), a `Main` type in the package will not be imported. This allows all packages to include unit tests that are run from their included `Main` actor without causing name conflicts.
 - The `for` sugar now wraps the `next()` call in a try expression that does a `continue` if an error is raised.
-
