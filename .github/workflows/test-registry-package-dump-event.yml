@@ -11,5 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dump GitHub Event Context
-        run: |
-          echo '${{ toJSON(github.event) }}'
+        run: cat $GITHUB_EVENT_PATH
