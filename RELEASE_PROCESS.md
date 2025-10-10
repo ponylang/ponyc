@@ -60,7 +60,7 @@ If not all files are presents after 10 to 15 minutes then either a build job is 
 
 ### Wait on Docker images to be built
 
-As part of every release, 6 Docker images are built:
+As part of every release, 4 Docker images are built:
 
 * Ubuntu images
   * release
@@ -68,9 +68,6 @@ As part of every release, 6 Docker images are built:
 * Alpine images
   * release-alpine
   * 0.3.1-alpine
-* Windows images
-  * release-windows
-  * 0.3.1-windows
 
 The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Cloudsmith package synchronised" workflow](https://github.com/ponylang/ponyc/actions/workflows/cloudsmith-package-sychronised.yml).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
 
