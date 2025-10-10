@@ -25,6 +25,20 @@ jobs:
           VALIDATE_MD: true
           VALIDATE_YAML: true
 
+  validate-nightly-image-builds:
+    name: Validate nightly image builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+      - name: Docker build
+        run: |
+          docker buildx create --name multiplatform --driver docker-container --use --bootstrap
+          docker buildx build --platform linux/amd64,linux/arm64 --pull --file=.dockerfiles/nightly/Dockerfile .
+
   validate-x86_64-musl-docker-latest-image-builds:
     name: Validate x86_64 musl Docker image builds
     runs-on: ubuntu-latest
