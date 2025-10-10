@@ -58,3 +58,7 @@ On arm64-based Linux systems using musl libc, program linking could fail due to 
 ## Update nightly Pony musl Docker image to Alpine 3.21
 
 We've updated our `ponylang/ponyc:alpine` image to be based on Alpine 3.21. Previously, we were using Alpine 3.20 as the base. The release images are still based on Alpine 3.20 for now.
+## Stop building Windows container images
+
+We've stopped building Windows container images as of Pony 0.60.0. As far as we know, the Windows images were not being used. We've simplified our CI by removing them.
+
