@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Update to LLVM 18.1.8 ([PR #4701](https://github.com/ponylang/ponyc/pull/4701))
 - Update Pony nightly musl Docker image to Alpine 3.21 ([PR #4745](https://github.com/ponylang/ponyc/pull/4745))
 - Stop building Windows container images ([PR #4746](https://github.com/ponylang/ponyc/pull/4746))
+- Stop building glibc based ponyc images ([PR #4747](https://github.com/ponylang/ponyc/pull/4747))
 
 ## [0.59.0] - 2025-04-26
 
