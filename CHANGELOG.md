@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add Alpine 3.21 on arm64 as a supported platform ([PR #4716](https://github.com/ponylang/ponyc/pull/4716))
 - Support building ponyc natively on arm64 Windows machines ([PR #4689](https://github.com/ponylang/ponyc/pull/4689))
 - Add arm64 Windows as a supported platform ([PR #4721](https://github.com/ponylang/ponyc/pull/4721))
+- Add Multiplatform Nightly Docker Image ([PR #4731](https://github.com/ponylang/ponyc/pull/4731))
 
 ### Changed
 
