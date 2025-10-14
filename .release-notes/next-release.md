@@ -62,3 +62,13 @@ We've updated our `ponylang/ponyc:alpine` image to be based on Alpine 3.21. Prev
 
 We've stopped building Windows container images as of Pony 0.60.0. As far as we know, the Windows images were not being used. We've simplified our CI by removing them.
 
+## Stop building glibc based ponyc images
+
+We have stopped building nightly and release ponyc Docker images that are based on glibc. The glibc based images that we were building were based on an ever changing version of Ubuntu (most recent LTS release). These images had minimal utility.
+
+They could only be used to link for Linux distros that had the same libraries installed as the build environment. Whereas the musl images could be used to statically link using musl and create binaries that could be used on any Linux.
+
+Given the lack of utility for a wide variety of people, we have stopped building the glibc based images and will only have a single nightly and release image going forward. Those images will be using musl via Alpine Linux.
+
+If you were using the glibc based images, we can point you to the Dockerfiles we were using as they are quite straightfoward and should be easy for anyone to incorporate the creation of into their own CI process. You can find the Dockerfiles in the [pull request that removed them](https://github.com/ponylang/ponyc/pull/4747).
+
