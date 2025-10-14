@@ -12,36 +12,6 @@ permissions:
   packages: write
 
 jobs:
-  build-latest-gnu-docker-image:
-    if: |
-      github.event.client_payload.data.repository == 'nightlies' &&
-      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu24.04.tar.gz'
-
-    name: Build latest GNU Docker image
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Login to GitHub Container Registry
-        # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.PONYLANG_MAIN_WRITE_PACKAGE_TOKEN }}
-      - name: Build and push
-        run: bash .dockerfiles/latest/x86-64-unknown-linux-gnu/build-and-push.bash
-      - name: Alert on failure
-        if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
-        with:
-          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
-          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
-          organization-url: 'https://ponylang.zulipchat.com/'
-          to: notifications
-          type: stream
-          topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
   build-latest-x86_64-musl-docker-image:
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
@@ -107,27 +77,6 @@ jobs:
           type: stream
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
-  build-release-gnu-docker-image:
-    if: |
-      github.event.client_payload.data.repository == 'releases' &&
-      github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-ubuntu24.04.tar.gz'
-
-    name: Build release GNU Docker image
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Login to GitHub Container Registry
-        # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.PONYLANG_MAIN_WRITE_PACKAGE_TOKEN }}
-      - name: Build and push
-        run: bash .dockerfiles/release/x86-64-unknown-linux-gnu/build-and-push.bash
-        env:
-          VERSION: ${{ github.event.client_payload.data.version }}
 
   build-release-musl-docker-image:
     if: |
