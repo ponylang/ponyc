@@ -164,7 +164,7 @@ jobs:
           -e TRIPLE_VENDOR=${{ matrix.triple-vendor }} \
           -e TRIPLE_OS=${{ matrix.triple-os }} \
           ${{ matrix.image }} \
-          bash .ci-scripts/x86-64-release.bash
+          bash .ci-scripts/arm64-release.bash
 
   x86_macos:
     needs:
