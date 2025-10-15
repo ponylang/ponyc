@@ -38,7 +38,7 @@ git push origin release-0.3.1
 
 On each release, we upload ponyc binaries for builds to Cloudsmith. The releases are built on [GitHub Actions](https://github.com/ponylang/ponyc/actions/workflows/release.yml).
 
-You can verify that the release artifacts were successfully built and uploaded by checking the [ponylang Cloudsmith releases repository](https://broadcasts.cloudsmith.com/ponylang/releases) and that all packages exist.
+You can verify that the release artifacts were successfully built and uploaded by checking the [ponylang Cloudsmith releases repository](https://broadcasts.cloudsmith.com/ponylang/releases?page=1&pageSize=20) and that all packages exist.
 
 Package names will be:
 
