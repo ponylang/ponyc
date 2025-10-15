@@ -48,8 +48,3 @@ DOCKERFILE_DIR="$(dirname "$0")"
 DOCKER_TAG="ghcr.io/${GITHUB_REPOSITORY}:${VERSION}-alpine"
 docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
 docker push "${DOCKER_TAG}"
-
-# Build and push "release" tag e.g. ponylang/ponyup:release-alpine
-DOCKER_TAG="ghcr.io/${GITHUB_REPOSITORY}:release-alpine"
-docker build --pull -t "${DOCKER_TAG}" "${DOCKERFILE_DIR}"
-docker push "${DOCKER_TAG}"
