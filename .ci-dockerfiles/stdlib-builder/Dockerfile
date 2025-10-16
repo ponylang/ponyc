@@ -1,4 +1,4 @@
-ARG FROM_TAG=release-alpine
+ARG FROM_TAG=release
 FROM ghcr.io/ponylang/ponyc:${FROM_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"

@@ -1,0 +1,149 @@
+name: Build Release Image
+
+on:
+  repository_dispatch:
+    types:
+      - cloudsmith-package-synchronised
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+  pages: write
+
+jobs:
+  build-release-docker-image:
+    if: |
+      github.event.client_payload.data.repository == 'releases' &&
+      (github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-musl.tar.gz' ||
+       github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-musl.tar.gz')
+
+    concurrency:
+      group: build-release-image
+      cancel-in-progress: true
+
+    name: Build release image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.PONYLANG_MAIN_WRITE_PACKAGE_TOKEN }}
+      - name: Build and push
+        run: bash .dockerfiles/release/build-and-push.bash
+
+  update-playground-image-on-release:
+    needs:
+      - build-release-docker-image
+
+    name: Update https://playground.ponylang.io/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote command
+        uses: ponylang-main/ssh-action@ffff33f8fe0318345a4f00f0e847325954b2a3ed
+        with:
+          host: ${{ secrets.PLAYGROUND_HOST }}
+          username: ${{ secrets.PLAYGROUND_ADMIN_USER }}
+          key: ${{ secrets.PLAYGROUND_KEY }}
+          script: bash update-playground.bash
+
+  update-stdlib-builder-image-on-release:
+    needs:
+      - build-release-docker-image
+
+    name: Update stdlib-builder Docker image with newly released ponyc version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
+        env:
+          MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
+
+  build-and-push-stdlib-documentation:
+    needs:
+      - update-stdlib-builder-image-on-release
+
+    name: Build and Push standard library documentation
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Build
+        run: "bash .ci-scripts/build-stdlib-documentation.bash"
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'stdlib-docs/site/'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  trigger-release-announcement:
+    needs:
+      - build-and-push-stdlib-documentation
+      - update-playground-image-on-release
+
+    name: Trigger release announcement
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: "main"
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - name: Trigger
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
+        with:
+          entrypoint: trigger-release-announcement
+        env:
+          GIT_USER_NAME: "Ponylang Main Bot"
+          GIT_USER_EMAIL: "ponylang.main@gmail.com"
+          CUSTOM_VERSION: ${{ github.event.client_payload.data.version }}
+
+  send-musl-release-event:
+    needs:
+      - build-release-docker-image
+
+    name: Send release event
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - ponylang/library-documentation-action
+          - ponylang/library-documentation-action-v2
+          - ponylang/shared-docker
+    steps:
+      - name: Send
+        # v2.1.1
+        uses: peter-evans/repository-dispatch@8324ecf35877f9b02961dd5aaf43ed7be7db9373
+        with:
+          token: ${{ secrets.PONYLANG_MAIN_API_TOKEN }}
+          repository: ${{ matrix.repo }}
+          event-type: ponyc-release-image-pushed
+          client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
