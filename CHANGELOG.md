@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Add Multiplatform Release Docker Images ([PR #4749](https://github.com/ponylang/ponyc/pull/4749))
 
 ## [0.60.1] - 2025-10-15
 
