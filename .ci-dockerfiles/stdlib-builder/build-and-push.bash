@@ -20,7 +20,7 @@ set -o nounset
 DOCKERFILE_DIR="$(dirname "$0")"
 
 # built from ponyc release tag
-FROM_TAG=release
+FROM_TAG=release-alpine
 TAG_AS=release
 docker build --pull --build-arg FROM_TAG="${FROM_TAG}" \
   --build-arg MATERIAL_INSIDERS_ACCESS="${MIA}" \
