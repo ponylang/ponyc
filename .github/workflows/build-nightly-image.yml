@@ -106,33 +106,6 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  prune-untagged-stdlib-builders:
-    needs:
-      - update-stdlib-builder-image-on-nightly
-
-    name: Prune untagged stdlib builders
-    runs-on: ubuntu-latest
-    steps:
-      - name: Prune
-        # v4.1.1
-        uses: actions/delete-package-versions@0d39a63126868f5eefaa47169615edd3c0f61e20
-        with:
-          package-name: 'ponyc-ci-stdlib-builder'
-          package-type: 'container'
-          min-versions-to-keep: 0
-          delete-only-untagged-versions: 'true'
-      - name: Send alert on failure
-        if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
-        with:
-          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
-          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
-          organization-url: 'https://ponylang.zulipchat.com/'
-          to: notifications
-          type: stream
-          topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
   send-nightly-image-pushed-event:
     needs:
       - build-nightly-docker-image
