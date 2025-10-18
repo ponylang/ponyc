@@ -125,7 +125,7 @@ jobs:
           GIT_USER_EMAIL: "ponylang.main@gmail.com"
           CUSTOM_VERSION: ${{ github.event.client_payload.data.version }}
 
-  send-musl-release-event:
+  send-release-image-pushed-event:
     needs:
       - build-release-docker-image
 

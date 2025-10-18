@@ -133,7 +133,7 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  send-repository-dispatch-event:
+  send-nightly-image-pushed-event:
     needs:
       - build-nightly-docker-image
 
