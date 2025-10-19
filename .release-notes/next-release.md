@@ -8,3 +8,7 @@ We previously created releases for a generic "musl" build of ponyc. This was don
 
 We now provide specific Alpine version builds instead.
 
+## Stop Creating "alpine" Docker Image
+
+We previously were creating Docker images with a musl C standard library Ponyc under the tag `alpine`. We are no longer creating those images. You should switch to our new equivalent images tagged `nightly`.
+
