@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Stop building -alpine versioned container images ([PR #4751](https://github.com/ponylang/ponyc/pull/4751))
 
 ## [0.60.2] - 2025-10-18
 
