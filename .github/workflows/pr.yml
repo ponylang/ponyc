@@ -53,14 +53,6 @@ jobs:
           docker buildx create --name multiplatform --driver docker-container --use --bootstrap
           docker buildx build --platform linux/amd64,linux/arm64 --pull --file=.dockerfiles/release/Dockerfile .
 
-  validate-x86_64-musl-docker-latest-image-builds:
-    name: Validate x86_64 musl Docker image builds
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Docker build
-        run: "docker build --pull --file=.dockerfiles/latest/x86-64-unknown-linux-musl/Dockerfile ."
-
   verify-changelog:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
