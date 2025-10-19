@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Stop building -alpine versioned container images ([PR #4751](https://github.com/ponylang/ponyc/pull/4751))
 - Stop Creating Generic musl Builds ([PR #4752](https://github.com/ponylang/ponyc/pull/4752))
+- Stop Creating "Alpine" Docker Images ([PR #4753](https://github.com/ponylang/ponyc/pull/4753))
 
 ## [0.60.2] - 2025-10-18
 
