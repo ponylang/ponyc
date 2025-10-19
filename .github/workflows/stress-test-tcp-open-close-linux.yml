@@ -38,20 +38,20 @@ jobs:
             name: x86-64-unknown-linux-ubuntu24.04 [cd] [debug]
             target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
-            name: x86-64-unknown-linux-musl [release]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+            name: x86-64-unknown-linux-alpine3.21 [release]
             target: test-stress-tcp-open-close-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
-            name: x86-64-unknown-linux-musl [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+            name: x86-64-unknown-linux-alpine3.21 [debug]
             target: test-stress-tcp-open-close-debug
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
-            name: x86-64-unknown-linux-musl [cd] [release]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+            name: x86-64-unknown-linux-alpine3.21 [cd] [release]
             target: test-stress-tcp-open-close-with-cd-release
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
-            name: x86-64-unknown-linux-musl [cd] [debug]
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+            name: x86-64-unknown-linux-alpine3.21 [cd] [debug]
             target: test-stress-tcp-open-close-with-cd-debug
             debugger: lldb
 

@@ -23,10 +23,6 @@ jobs:
             name: x86-64-unknown-linux-ubuntu22.04
             triple-os: linux-ubuntu22.04
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-musl-builder:20241203
-            name: x86-64-unknown-linux-musl
-            triple-os: linux-musl
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora41-builder:20241201
             name: x86-64-unknown-linux-fedora41
             triple-os: linux-fedora41
