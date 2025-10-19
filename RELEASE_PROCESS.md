@@ -50,7 +50,6 @@ Package names will be:
 * ponyc-x86-64-unknown-linux-alpine3.20.tar.gz
 * ponyc-x86-64-unknown-linux-alpine3.21.tar.gz
 * ponyc-x86-64-unknown-linux-fedora41.tar.gz
-* ponyc-x86-64-unknown-linux-musl.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu22.04.tar.gz
 * ponyc-x86-64-unknown-linux-ubuntu24.04.tar.gz
 
