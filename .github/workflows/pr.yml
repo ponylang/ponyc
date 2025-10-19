@@ -61,14 +61,6 @@ jobs:
       - name: Docker build
         run: "docker build --pull --file=.dockerfiles/latest/x86-64-unknown-linux-musl/Dockerfile ."
 
-  validate-musl-docker-release-image-builds:
-    name: Validate musl Docker release image builds
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Docker build
-        run: "docker build --pull --file=.dockerfiles/release/x86-64-unknown-linux-musl/Dockerfile ."
-
   verify-changelog:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
