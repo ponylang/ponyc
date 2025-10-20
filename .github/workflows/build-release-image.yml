@@ -12,6 +12,7 @@ permissions:
   pages: write
 
 jobs:
+
   build-release-docker-image:
     if: |
       github.event.client_payload.data.repository == 'releases' &&
@@ -104,9 +105,33 @@ jobs:
         env:
           VERSION: ${{ github.event.client_payload.data.version }}
 
-  build-multiplatform-versioned-release-docker-image:
+  build-multiplatform-versioned-release-docker-image-triggered-by-amd64:
     needs:
       - build-versioned-amd64-docker-image
+
+    name: Create multiplatform versioned release image
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: build-multiplatform-versioned-release-docker-image
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge
+        run: bash .dockerfiles/release/combine-versioned-images.bash
+        env:
+          VERSION: ${{ github.event.client_payload.data.version }}
+
+  build-multiplatform-versioned-release-docker-image-triggered-by-arm64:
+    needs:
       - build-versioned-arm64-docker-image
 
     name: Create multiplatform versioned release image
