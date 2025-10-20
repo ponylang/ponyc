@@ -53,5 +53,5 @@ NAME="ghcr.io/ponylang/ponyc:${VERSION}-${ARCH_TAG}"
 echo "Building ${VERSION}-${ARCH_TAG} image"
 docker buildx create --use --name "${BUILDER}"
 docker buildx build --provenance false --sbom false --pull --push \
-  --build-arg -t "${NAME}" "${DOCKERFILE_DIR}"
+  -t "${NAME}" "${DOCKERFILE_DIR}"
 docker buildx rm "${BUILDER}"
