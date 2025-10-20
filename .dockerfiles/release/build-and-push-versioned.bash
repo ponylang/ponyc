@@ -19,15 +19,6 @@ if [[ -z "${VERSION}" ]]; then
   exit 1
 fi
 
-if [[ -z "${GITHUB_REPOSITORY}" ]]; then
-  echo -e "\e[31mName of this repository needs to be set in GITHUB_REPOSITORY."
-  echo -e "\e[31mShould be in the form OWNER/REPO, for example:"
-  echo -e "\e[31m     ponylang/ponyup"
-  echo -e "\e[31mThis will be used as the docker image name."
-  echo -e "\e[31mExiting.\e[0m"
-  exit 1
-fi
-
 # no unset variables allowed from here on out
 # allow above so we can display nice error messages for expected unset variables
 set -o nounset
