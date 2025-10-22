@@ -1,0 +1,230 @@
+name: Build Builder Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      builder-name:
+        description: "Builder"
+        required: true
+        type: choice
+        options:
+          - arm64-unknown-linux-alpine3.21-builder
+          - arm64-unknown-linux-ubuntu24.04-builder
+          - cross-arm
+          - cross-armhf
+          - cross-riscv64
+          - x86-64-unknown-linux-alpine3.20-builder
+          - x86-64-unknown-linux-alpine3.21-builder
+          - x86-64-unknown-linux-ubuntu22.04-builder
+          - x86-64-unknown-linux-ubuntu24.04-builder
+
+permissions:
+  packages: write
+
+jobs:
+  arm64-unknown-linux-alpine3_21-builder:
+    if: ${{ github.event.inputs.builder-name == 'arm64-unknown-linux-alpine3.21-builder' }}
+    runs-on: ubuntu-24.04-arm
+
+    name: arm64-unknown-linux-alpine3.21-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/arm64-unknown-linux-alpine3.21-builder/build-and-push.bash
+
+  arm64-unknown-linux-ubuntu24_04-builder:
+    if: ${{ github.event.inputs.builder-name == 'arm64-unknown-linux-ubuntu24.04-builder' }}
+    runs-on: ubuntu-24.04-arm
+
+    name: arm64-unknown-linux-ubuntu24.04-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/arm64-unknown-linux-ubuntu24.04-builder/build-and-push.bash
+
+  cross-arm:
+    if: ${{ github.event.inputs.builder-name == 'cross-arm' }}
+    runs-on: ubuntu-latest
+
+    name: cross-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/cross-arm/build-and-push.bash
+
+  cross-armhf:
+    if: ${{ github.event.inputs.builder-name == 'cross-armhf' }}
+    runs-on: ubuntu-latest
+
+    name: cross-armhf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/cross-armhf/build-and-push.bash
+
+  cross-riscv64:
+    if: ${{ github.event.inputs.builder-name == 'cross-riscv64' }}
+    runs-on: ubuntu-latest
+
+    name: cross-riscv64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/cross-riscv64/build-and-push.bash
+
+  x86-64-unknown-linux-alpine3_20-builder:
+    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-alpine3.20-builder' }}
+    runs-on: ubuntu-latest
+
+    name: x86-64-unknown-linux-alpine3.20-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/x86-64-unknown-linux-alpine3.20-builder/build-and-push.bash
+
+  x86-64-unknown-linux-alpine3_21-builder:
+    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-alpine3.21-builder' }}
+    runs-on: ubuntu-latest
+
+    name: x86-64-unknown-linux-alpine3.21-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/x86-64-unknown-linux-alpine3.21-builder/build-and-push.bash
+
+  x86-64-unknown-linux-ubuntu22_04-builder:
+    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-ubuntu22.04-builder' }}
+    runs-on: ubuntu-latest
+
+    name: x86-64-unknown-linux-ubuntu22.04-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/x86-64-unknown-linux-ubuntu22.04-builder/build-and-push.bash
+
+  x86-64-unknown-linux-ubuntu24_04-builder:
+    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-ubuntu24.04-builder' }}
+    runs-on: ubuntu-latest
+
+    name: x86-64-unknown-linux-ubuntu24.04-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.23.0
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/x86-64-unknown-linux-ubuntu24.04-builder/build-and-push.bash
