@@ -39,7 +39,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.PONYLANG_MAIN_WRITE_PACKAGE_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/build-and-push.bash
 
@@ -68,7 +68,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.PONYLANG_MAIN_WRITE_PACKAGE_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/build-and-push-versioned.bash
         env:
@@ -99,7 +99,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.PONYLANG_MAIN_WRITE_PACKAGE_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .dockerfiles/release/build-and-push-versioned.bash
         env:
