@@ -164,7 +164,7 @@ make build
 
 ## dtrace
 
-BSD and Linux based versions of Pony support using DTrace and SystemTap for collecting Pony runtime events.
+BSD and Linux based versions of Pony support using DTrace and SystemTap for collecting Pony runtime events. MacOS while being "BSD-like" in places does not support Dtrace due to functionality having been removed by Apple.
 
 DTrace support is enabled by setting `use=dtrace` in the build command line like:
 
