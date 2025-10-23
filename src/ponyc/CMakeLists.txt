@@ -77,12 +77,9 @@ if(NOT PONY_CROSS_LIBPONYRT)
 endif()
 
 target_link_libraries(ponyc PRIVATE
-    lldDriver
-    lldReaderWriter
-    lldCore
     lldCommon
     lldWasm
-    lldYAML
+    lldELF
 )
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")

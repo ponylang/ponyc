@@ -102,13 +102,10 @@ target_compile_definitions(libponyc PRIVATE
     PONY_ALWAYS_ASSERT
 )
 target_link_libraries(libponyc PRIVATE
-    lldDriver
     lldMachO
-    lldReaderWriter
-    lldCore
     lldCommon
+    lldELF
     lldWasm
-    lldYAML
 )
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")

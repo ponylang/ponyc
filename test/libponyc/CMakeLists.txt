@@ -60,12 +60,8 @@ target_compile_definitions(libponyc.tests PRIVATE
 )
 
 target_link_libraries(libponyc.tests PRIVATE
-    lldDriver
-    lldReaderWriter
-    lldCore
     lldCommon
     lldWasm
-    lldYAML
     lldMachO
     lldCOFF
     lldELF

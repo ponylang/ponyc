@@ -359,21 +359,8 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
   CaptureOStream output;
 
   // Invoke the linker.
-  bool link_result = false;
-  if (0 == strcmp(link_flavor, "elf")) {
-    link_result = lld::elf::link(args, output, output, false, false);
-  } else if (0 == strcmp(link_flavor, "mach_o")) {
-    link_result = lld::macho::link(args, output, output, false, false);
-  } else if (0 == strcmp(link_flavor, "mingw")) {
-    link_result = lld::mingw::link(args, output, output, false, false);
-  } else if (0 == strcmp(link_flavor, "coff")) {
-    link_result = lld::coff::link(args, output, output, false, false);
-  } else if (0 == strcmp(link_flavor, "wasm")) {
-    link_result = lld::wasm::link(args, output, output, false, false);
-  } else {
-    errorf(errors, NULL, "Unsupported lld flavor: %s", link_flavor);
-    return false;
-  }
+  lld::Result result = lld::lldMain(args, output, output, {});
+  bool link_result = (result.retCode == 0);
 
   // Show an informative error if linking failed, showing both the args passed
   // as well as the output that we captured from the linker attempt.
