@@ -41,13 +41,18 @@ where `PLATFORM` is from the table below
 
 Distribution | PLATFORM String
 --- | ---
-Alpine | x86_64-linux-musl
+Alpine 3.21 amd64 | x86_64-linux-alpine3.21
+Alpine 3.21 arm64 | arm64-linux-alpine3.21
+Alpine 3.22 amd64 | x86_64-linux-alpine3.22
+Alpine 3.22 arm64 | arm64-linux-alpine3.22
 Fedora 41 | x86_64-linux-fedora41
 Linux Mint 21.x | x86_64-linux-ubuntu22.04
 Pop!_OS 22.04 | x86_64-linux-ubuntu22.04
 Pop!_OS 24.04 | x86_64-linux-ubuntu24.04
+Pop!_OS 24.04 | arm-linux-ubuntu24.04
 Ubuntu 22.04 | x86_64-linux-ubuntu22.04
-Ubuntu 24.04 | x86_64-linux-ubuntu24.04
+Ubuntu 24.04 amd64 | x86_64-linux-ubuntu24.04
+Ubuntu 24.04 arm64 | arm-linux-ubuntu24.04
 
 ### Install the latest release
 
