@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Stop creating Fedora 41 builds ([PR #4763](https://github.com/ponylang/ponyc/pull/4763))
 
 ## [0.60.3] - 2025-10-20
 
