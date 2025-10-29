@@ -96,7 +96,7 @@ jobs:
             make libs build_flags=-j8
 
   x86_64-macos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
 
     name: x86-64 Apple Darwin
     steps:
@@ -107,7 +107,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/libs
-          key: libs-x86-macos-13-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
