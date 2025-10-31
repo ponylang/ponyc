@@ -61,12 +61,12 @@ If not all files are presents after 10 to 15 minutes then either a build job is 
 
 ### Wait on Docker images to be built
 
-As part of every release, 2 Docker images are built:
+As part of every release, 2 Docker images are built. Each image should have an arm64 and x86-64 variant.
 
 * release
 * 0.3.1
 
-The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Cloudsmith package synchronised" workflow](https://github.com/ponylang/ponyc/actions/workflows/cloudsmith-package-sychronised.yml) and the ["Build Release Image" workflow](https://github.com/ponylang/ponyc/actions/workflows/build-release-image.yml).You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
+The images are built via GitHub action after Linux releases have been uploaded to Cloudsmith. Cloudsmith sends an event to GitHub that triggers Docker images builds in the ["Build Release Image" workflow](https://github.com/ponylang/ponyc/actions/workflows/build-release-image.yml). You can track the progress of the builds (including failures) there. You can validate that all the images have been pushed by checking the tags of the [ponylang/ponyc package](https://github.com/ponylang/ponyc/pkgs/container/ponyc).
 
 ### Verify that the Pony Playground updated to the new version
 
