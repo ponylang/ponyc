@@ -273,6 +273,8 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
+LLD_HAS_DRIVER(elf)
+
 static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
@@ -285,18 +287,32 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     suffix_filename(c, c->opt->output, "", c->filename, "");
 
   if (target_is_linux(c->opt->triple) || target_is_bsd(c->opt->triple)) {
-    link_flavor = "elf";
-
     args.push_back("ld.lld");
+
+    // TODO: me specific
+    // not all might be needed. first and last definitely are.
+    args.push_back("-L");
+    args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
+    args.push_back("-L");
+    args.push_back("/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib64");
+    args.push_back("-L");
+    args.push_back("/usr/local/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
 
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
     }
-    if (target_is_linux(c->opt->triple)) {
-      args.push_back("-z");
-      args.push_back("relro");
-    }
+    // TODO: joe had - maybe turn back on
+    // if (target_is_linux(c->opt->triple)) {
+    //   args.push_back("-z");
+    //   args.push_back("relro");
+    // }
     args.push_back("--hash-style=both");
     args.push_back("--eh-frame-hdr");
 
@@ -312,48 +328,66 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
       return false;
     }
 
+    // TODO: this is all very specific
+    args.push_back("-pie");
+    args.push_back("-dynamic-linker");
+
     // works:
     // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
 
-    args.push_back("/usr/lib/x86_64-linux-gnu/crt1.o");            // TODO: args.push_back(find_in_lib_paths(c, "crt1.o"));
-    args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");            // TODO: args.push_back(find_in_lib_paths(c, "crti.o"));
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/11/crtbegin.o"); // TODO: args.push_back(find_in_lib_paths(c, "crtbegin.o"));
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/11/crtend.o");   // TODO: args.push_back(find_in_lib_paths(c, "crtend.o"));
-    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");            // TODO: args.push_back(find_in_lib_paths(c, "crtn.o"));
+    args.push_back("/lib64/ld-linux-x86-64.so.2");
+
+    args.push_back("-o");
+    args.push_back(file_exe);
+
+    args.push_back("/usr/lib64/Scrt1.o");
+    args.push_back("/usr/lib64/crti.o");
+    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o");
+
+    args.push_back(file_o);
+
+
 
     // TODO: should handle cross compilation
     // const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
 
-    args.push_back(
-      target_is_x86(c->opt->triple)
-        ? "-plugin-opt=mcpu=x86-64"
-        : "-plugin-opt=mcpu=aarch64"
-      );
-    args.push_back(
-      c->opt->release
-        ? "-plugin-opt=O3"
-        : "-plugin-opt=O0"
-    );
-    args.push_back("-plugin-opt=thinlto");
+    // TODO: joe had. maybe turn back on
+    // args.push_back(
+    //   target_is_x86(c->opt->triple)
+    //     ? "-plugin-opt=mcpu=x86-64"
+    //     : "-plugin-opt=mcpu=aarch64"
+    //   );
+    // args.push_back(
+    //   c->opt->release
+    //     ? "-plugin-opt=O3"
+    //     : "-plugin-opt=O0"
+    // );
+    // args.push_back("-plugin-opt=thinlto");
 
+    args.push_back("-lpthread");
+    if (!target_is_dragonfly(c->opt->triple)) args.push_back("-lgcc_s");
+    // TODO: not sure we need this
+    //args.push_back("-lrt");
     c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
+    args.push_back("-lm");
+    // TODO: i don't think this is needed for BSD
+    args.push_back("-ldl");
+    // TODO: i think this is needed for dragonfly
+    if (!target_is_bsd(c->opt->triple))
+      args.push_back("-latomic");
+    args.push_back("-lgcc");
+    args.push_back("-lgcc_s");
+    args.push_back("-lc");
 
     // TODO: legacy does
     // program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
     //"-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
     // const char* lib_args = program_lib_args(program);
+    //
+    // clang spits out:
+    // "/usr/bin/ld.lld" "--hash-style=gnu" "--build-id" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./fib" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-L/usr/local/lib" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64" "-L/lib/../lib64" "-L/usr/lib64" "-L/lib" "-L/usr/lib" "./fib.o" "-lpthread" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-rpath" "/usr/local/lib" "--start-group" "-lrt" "--end-group" "-lponyrt-pic" "-lm" "-ldl" "-latomic" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "-lc" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o"
 
-    args.push_back("-lgcc");
-    if (!target_is_dragonfly(c->opt->triple)) args.push_back("-lgcc_s");
-
-    args.push_back("-lc");
-    // TODO: i don't think this is needed for BSD
-    args.push_back("-ldl");
-    args.push_back("-lpthread");
-    args.push_back("-lm");
-    // TODO: i think this is needed for dragonfly
-    if (!target_is_bsd(c->opt->triple))
-      args.push_back("-latomic");
+    /* TODO all this probably needs to go somewhere else */
     if (c->opt->staticbin)
       args.push_back("-static");
     // TODO: does musl need this?
@@ -375,9 +409,10 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
 
     // TODO: link additional FFI libraries
 
-    args.push_back(file_o);
-    args.push_back("-o");
-    args.push_back(file_exe);
+
+    // TODO this should go at the end like it is
+    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o");
+    args.push_back("/usr/lib64/crtn.o");
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
@@ -386,11 +421,11 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     return false;
   }
 
-  // Create an output stream that captures the stdout/stderr info to a string.
+  // Create output streams that capture stdout and stderr info to strings.
   CaptureOStream output;
 
   // Invoke the linker.
-  lld::Result result = lld::lldMain(args, output, output, {});
+  lld::Result result = lld::lldMain(args, output, output, {{lld::Gnu, &lld::elf::link}});
   bool link_result = (result.retCode == 0);
 
   // Show an informative error if linking failed, showing both the args passed
@@ -400,6 +435,7 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     for (auto it = args.begin(); it != args.end(); ++it) {
       output << *it << "\n";
     }
+
     errorf(errors, NULL, "Failed to link with embedded lld: %s",
       output.data.data());
   }
