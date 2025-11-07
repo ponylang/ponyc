@@ -185,7 +185,7 @@ jobs:
           path: build/libs
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Install Cloudsmith
-        run: pip3 install --upgrade cloudsmith-cli
+        run: pip3 install --break-system-packages --upgrade cloudsmith-cli
       - name: Nightly
         run: bash .ci-scripts/x86-64-nightly.bash
         env:
