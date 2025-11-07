@@ -318,11 +318,14 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("/usr/lib/gcc/x86_64-linux-gnu/11/crtend.o");   // TODO: args.push_back(find_in_lib_paths(c, "crtend.o"));
     args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");            // TODO: args.push_back(find_in_lib_paths(c, "crtn.o"));
 
+    // TODO: should handle cross compilation
+    // const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
+
     args.push_back(
       target_is_x86(c->opt->triple)
-        ? "-plugin-opt=mcpu=aarch64"
-        : "-plugin-opt=mcpu=x86-64"
-    );
+        ? "-plugin-opt=mcpu=x86-64"
+        : "-plugin-opt=mcpu=aarch64"
+      );
     args.push_back(
       c->opt->release
         ? "-plugin-opt=O3"
@@ -330,17 +333,42 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     );
     args.push_back("-plugin-opt=thinlto");
 
+    c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
+
+    // TODO: legacy does
+    // program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
+    //"-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
+    // const char* lib_args = program_lib_args(program);
+
     args.push_back("-lgcc");
     if (!target_is_dragonfly(c->opt->triple)) args.push_back("-lgcc_s");
 
     args.push_back("-lc");
+    // TODO: i don't think this is needed for BSD
     args.push_back("-ldl");
     args.push_back("-lpthread");
     args.push_back("-lm");
+    // TODO: i think this is needed for dragonfly
     if (!target_is_bsd(c->opt->triple))
       args.push_back("-latomic");
+    if (c->opt->staticbin)
+      args.push_back("-static");
+    // TODO: does musl need this?
     if (target_is_bsd(c->opt->triple) || target_is_musl(c->opt->triple))
       args.push_back("-lexecinfo");
+
+    // TODO: BSD should be handling dtrace_args here
+
+    // TODO: should handle
+    //#if defined(PONY_SANITIZER)
+    //  "-fsanitize=" PONY_SANITIZER;
+    // #else
+    //  "";
+    // #endif
+
+    // TODO: arm linker args
+
+    // TODO: LTO
 
     // TODO: link additional FFI libraries
 
@@ -348,7 +376,7 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-o");
     args.push_back(file_exe);
 
-  // TODO: MacOS, Windows, etc
+  // TODO: MacOS, Windows, BSD, etc
   } else {
     errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
       c->opt->triple);
