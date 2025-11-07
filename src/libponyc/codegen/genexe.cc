@@ -312,6 +312,9 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
       return false;
     }
 
+    // works:
+    // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
+
     args.push_back("/usr/lib/x86_64-linux-gnu/crt1.o");            // TODO: args.push_back(find_in_lib_paths(c, "crt1.o"));
     args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");            // TODO: args.push_back(find_in_lib_paths(c, "crti.o"));
     args.push_back("/usr/lib/gcc/x86_64-linux-gnu/11/crtbegin.o"); // TODO: args.push_back(find_in_lib_paths(c, "crtbegin.o"));
