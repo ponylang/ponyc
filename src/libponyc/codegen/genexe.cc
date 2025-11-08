@@ -305,6 +305,8 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
 
     // TODO: me specific
     // not all might be needed. last definitely is for now.
+    // args.push_back("-L");
+    // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
     args.push_back("-L");
     args.push_back("/lib");
     args.push_back("-L");
