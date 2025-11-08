@@ -300,6 +300,9 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
 
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
+
   if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
