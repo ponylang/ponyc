@@ -289,7 +289,7 @@ void program_lib_build_args_embedded(
   const char* global_preamble, const char* global_postamble,
   const char* lib_premable, const char* lib_postamble);
 
-static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
+static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
 
@@ -719,6 +719,14 @@ static bool legacy_link_exe(compile_t* c, ast_t* program,
 #endif
 
   return true;
+}
+
+static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
+{
+    if (target_is_linux(c->opt->triple))
+      return new_link_exe(c, program, file_o);
+    else
+      return legacy_link_exe(c, program, file_o);
 }
 
 bool genexe(compile_t* c, ast_t* program)
