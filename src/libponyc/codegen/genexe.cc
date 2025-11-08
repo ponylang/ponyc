@@ -300,7 +300,7 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
 
-  if (target_is_linux(c->opt->triple) || target_is_bsd(c->opt->triple)) {
+  if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
     // TODO: me specific
@@ -380,16 +380,11 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     // args.push_back("-plugin-opt=thinlto");
 
     args.push_back("-lpthread");
-    if (!target_is_dragonfly(c->opt->triple)) args.push_back("-lgcc_s");
-    // TODO: not sure we need this
-    //args.push_back("-lrt");
+    args.push_back("-lgcc_s");
     c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
     args.push_back("-lm");
-    // TODO: i don't think this is needed for BSD
     args.push_back("-ldl");
-    // TODO: i think this is needed for dragonfly
-    if (!target_is_bsd(c->opt->triple))
-      args.push_back("-latomic");
+    args.push_back("-latomic");
     args.push_back("-lgcc");
     args.push_back("-lgcc_s");
     args.push_back("-lc");
@@ -412,7 +407,7 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (c->opt->staticbin)
       args.push_back("-static");
     // TODO: does musl need this?
-    if (target_is_bsd(c->opt->triple) || target_is_musl(c->opt->triple))
+    if (target_is_musl(c->opt->triple))
       args.push_back("-lexecinfo");
 
     // TODO: BSD should be handling dtrace_args here
@@ -427,9 +422,6 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     // TODO: arm linker args
 
     // TODO: LTO
-
-    // TODO: link additional FFI libraries
-
 
     // TODO this should go at the end like it is
     args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o");
