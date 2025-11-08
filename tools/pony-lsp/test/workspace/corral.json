@@ -1,0 +1,12 @@
+{
+  "packages": [],
+  "deps": [],
+  "info": {
+    "description": "The Pony Language Server Test Workspace",
+    "homepage": "",
+    "license": "",
+    "documentation_url": "",
+    "version": "0.2.0",
+    "name": "lsp-test"
+  }
+}
