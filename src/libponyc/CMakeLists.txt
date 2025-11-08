@@ -72,7 +72,7 @@ add_library(libponyc STATIC
     pkg/ifdef.c
     pkg/package.c
     pkg/platformfuns.c
-    pkg/program.c
+    pkg/program.cc
     pkg/use.c
     platform/paths.c
     platform/vcvars.c

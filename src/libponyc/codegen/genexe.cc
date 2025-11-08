@@ -37,6 +37,7 @@ public:
   uint64_t current_pos() const override { return data.size(); }
 };
 
+
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
 {
@@ -275,6 +276,19 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 
 LLD_HAS_DRIVER(elf)
 
+// TODO: this is an awful hack. It is defined in program.cc
+// but to expose in the header, it needs to include vector but that
+// means everything that uses program.h needs to be switched to cpp from c.
+// not something i want to take on at the moment. might be small. might not be.
+// it's unclear.
+// perhaps all that comes out of program anyway.
+void program_lib_build_args_embedded(
+  std::vector<const char *>* args,
+  ast_t* program, pass_opt_t* opt,
+  const char* path_preamble, const char* rpath_preamble,
+  const char* global_preamble, const char* global_postamble,
+  const char* lib_premable, const char* lib_postamble);
+
 static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
@@ -290,17 +304,15 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("ld.lld");
 
     // TODO: me specific
-    // not all might be needed. first and last definitely are.
-    args.push_back("-L");
-    args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
+    // not all might be needed. last definitely is for now.
     args.push_back("-L");
     args.push_back("/lib");
     args.push_back("-L");
     args.push_back("/usr/lib");
     args.push_back("-L");
     args.push_back("/usr/lib64");
-    args.push_back("-L");
-    args.push_back("/usr/local/lib");
+    // args.push_back("-L");
+    // args.push_back("/usr/local/lib");
     args.push_back("-L");
     args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
 
@@ -346,7 +358,8 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
 
     args.push_back(file_o);
 
-
+    program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
+      "--start-group", "--end-group", "-l", "");
 
     // TODO: should handle cross compilation
     // const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
@@ -384,6 +397,12 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
     //"-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
     // const char* lib_args = program_lib_args(program);
     //
+    // For lld that is:
+    // program_lib_build_args(program, c->opt, "-L", "-rpath,",
+    //"--start-group ", "--end-group ", "-l", "");
+    // const char* lib_args = program_lib_args(program);
+    //
+
     // clang spits out:
     // "/usr/bin/ld.lld" "--hash-style=gnu" "--build-id" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./fib" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-L/usr/local/lib" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64" "-L/lib/../lib64" "-L/usr/lib64" "-L/lib" "-L/usr/lib" "./fib.o" "-lpthread" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-rpath" "/usr/local/lib" "--start-group" "-lrt" "--end-group" "-lponyrt-pic" "-lm" "-ldl" "-latomic" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "-lc" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o"
 
@@ -436,7 +455,8 @@ static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
       output << *it << "\n";
     }
 
-    errorf(errors, NULL, "Failed to link with embedded lld: %s",
+    // printf("\n\n\n%s\n", output.data.data());
+    errorf(errors, NULL, "Failed to link with embedded lld: \n\n%s",
       output.data.data());
   }
 
