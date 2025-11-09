@@ -75,3 +75,17 @@ endif (MSVC)
 if(NOT PONY_CROSS_LIBPONYRT)
     target_link_libraries(ponyc PRIVATE ${PONYC_LLVM_LIBS})
 endif()
+
+target_link_libraries(ponyc PRIVATE
+    lldCommon
+    lldWasm
+    lldELF
+)
+
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(ponyc PRIVATE lldMachO)
+elseif(MSVC)
+    target_link_libraries(ponyc PRIVATE lldCOFF)
+else()
+    target_link_libraries(ponyc PRIVATE lldELF)
+endif()

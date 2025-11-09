@@ -1,10 +1,8 @@
 #include "genexe.h"
 #include "gencall.h"
 #include "genfun.h"
-#include "genname.h"
 #include "genobj.h"
 #include "genopt.h"
-#include "genprim.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
@@ -12,15 +10,40 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
-#include "ponyassert.h"
 #include <string.h>
+
+#include <lld/Common/Driver.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
 #endif
 
+#if !defined(PONY_COMPILER)
+  #error PONY_COMPILER must be defined
+  #define PONY_COMPILER ""
+#endif
+
+#if !defined(PONY_ARCH)
+  #error PONY_ARCH must be defined
+  #define PONY_ARCH ""
+#endif
+
 #define STR(x) STR2(x)
 #define STR2(x) #x
+
+class CaptureOStream : public llvm::raw_ostream {
+public:
+  std::string data;
+
+  CaptureOStream() : raw_ostream(/*unbuffered=*/true), data() {}
+
+  void write_impl(const char *ptr, size_t size) override {
+    data.append(ptr, size);
+  }
+
+  uint64_t current_pos() const override { return data.size(); }
+};
+
 
 static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx)
@@ -258,7 +281,193 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
-static bool link_exe(compile_t* c, ast_t* program,
+LLD_HAS_DRIVER(elf)
+
+// TODO: this is an awful hack. It is defined in program.cc
+// but to expose in the header, it needs to include vector but that
+// means everything that uses program.h needs to be switched to cpp from c.
+// not something i want to take on at the moment. might be small. might not be.
+// it's unclear.
+// perhaps all that comes out of program anyway.
+void program_lib_build_args_embedded(
+  std::vector<const char *>* args,
+  ast_t* program, pass_opt_t* opt,
+  const char* path_preamble, const char* rpath_preamble,
+  const char* global_preamble, const char* global_postamble,
+  const char* lib_premable, const char* lib_postamble);
+
+static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  // Collect the arguments and linker flavor we will pass to the linker.
+  std::vector<const char *> args;
+  const char* link_flavor = "unknown";
+
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
+
+  if (target_is_linux(c->opt->triple)) {
+    args.push_back("ld.lld");
+
+    // TODO: me specific
+    // not all might be needed. last definitely is for now.
+    // args.push_back("-L");
+    // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
+    args.push_back("-L");
+    args.push_back("/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib64");
+    // args.push_back("-L");
+    // args.push_back("/usr/local/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
+
+    if (target_is_musl(c->opt->triple)) {
+      args.push_back("-z");
+      args.push_back("now");
+    }
+    // TODO: joe had - maybe turn back on
+    // if (target_is_linux(c->opt->triple)) {
+    //   args.push_back("-z");
+    //   args.push_back("relro");
+    // }
+    args.push_back("--hash-style=both");
+    args.push_back("--eh-frame-hdr");
+
+    if (target_is_x86(c->opt->triple)) {
+      args.push_back("-m");
+      args.push_back("elf_x86_64");
+    } else if (target_is_arm(c->opt->triple)) {
+      args.push_back("-m");
+      args.push_back("aarch64linux");
+    } else {
+      errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
+        c->opt->triple);
+      return false;
+    }
+
+    // TODO: this is all very specific
+    args.push_back("-pie");
+    args.push_back("-dynamic-linker");
+
+    // works:
+    // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
+
+    args.push_back("/lib64/ld-linux-x86-64.so.2");
+
+    args.push_back("-o");
+    args.push_back(file_exe);
+
+    args.push_back("/usr/lib64/Scrt1.o");
+    args.push_back("/usr/lib64/crti.o");
+    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o");
+
+    args.push_back(file_o);
+
+    program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
+      "--start-group", "--end-group", "-l", "");
+
+    // TODO: should handle cross compilation
+    // const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
+
+    // TODO: joe had. maybe turn back on
+    // args.push_back(
+    //   target_is_x86(c->opt->triple)
+    //     ? "-plugin-opt=mcpu=x86-64"
+    //     : "-plugin-opt=mcpu=aarch64"
+    //   );
+    // args.push_back(
+    //   c->opt->release
+    //     ? "-plugin-opt=O3"
+    //     : "-plugin-opt=O0"
+    // );
+    // args.push_back("-plugin-opt=thinlto");
+
+    args.push_back("-lpthread");
+    args.push_back("-lgcc_s");
+    c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
+    args.push_back("-lm");
+    args.push_back("-ldl");
+    args.push_back("-latomic");
+    args.push_back("-lgcc");
+    args.push_back("-lgcc_s");
+    args.push_back("-lc");
+
+    // TODO: legacy does
+    // program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
+    //"-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
+    // const char* lib_args = program_lib_args(program);
+    //
+    // For lld that is:
+    // program_lib_build_args(program, c->opt, "-L", "-rpath,",
+    //"--start-group ", "--end-group ", "-l", "");
+    // const char* lib_args = program_lib_args(program);
+    //
+
+    // clang spits out:
+    // "/usr/bin/ld.lld" "--hash-style=gnu" "--build-id" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./fib" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-L/usr/local/lib" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64" "-L/lib/../lib64" "-L/usr/lib64" "-L/lib" "-L/usr/lib" "./fib.o" "-lpthread" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-rpath" "/usr/local/lib" "--start-group" "-lrt" "--end-group" "-lponyrt-pic" "-lm" "-ldl" "-latomic" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "-lc" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o"
+
+    /* TODO all this probably needs to go somewhere else */
+    if (c->opt->staticbin)
+      args.push_back("-static");
+    // TODO: does musl need this?
+    if (target_is_musl(c->opt->triple))
+      args.push_back("-lexecinfo");
+
+    // TODO: BSD should be handling dtrace_args here
+
+    // TODO: should handle
+    //#if defined(PONY_SANITIZER)
+    //  "-fsanitize=" PONY_SANITIZER;
+    // #else
+    //  "";
+    // #endif
+
+    // TODO: arm linker args
+
+    // TODO: LTO
+
+    // TODO this should go at the end like it is
+    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o");
+    args.push_back("/usr/lib64/crtn.o");
+
+  // TODO: MacOS, Windows, BSD, etc
+  } else {
+    errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
+      c->opt->triple);
+    return false;
+  }
+
+  // Create output streams that capture stdout and stderr info to strings.
+  CaptureOStream output;
+
+  // Invoke the linker.
+  lld::Result result = lld::lldMain(args, output, output, {{lld::Gnu, &lld::elf::link}});
+  bool link_result = (result.retCode == 0);
+
+  // Show an informative error if linking failed, showing both the args passed
+  // as well as the output that we captured from the linker attempt.
+  if (!link_result) {
+    output << "\nLinking was attempted with these linker args:\n";
+    for (auto it = args.begin(); it != args.end(); ++it) {
+      output << *it << "\n";
+    }
+
+    // printf("\n\n\n%s\n", output.data.data());
+    errorf(errors, NULL, "Failed to link with embedded lld: \n\n%s",
+      output.data.data());
+  }
+
+  return link_result;
+}
+
+static bool legacy_link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
@@ -520,6 +729,14 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 
   return true;
+}
+
+static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
+{
+    if (target_is_linux(c->opt->triple))
+      return new_link_exe(c, program, file_o);
+    else
+      return legacy_link_exe(c, program, file_o);
 }
 
 bool genexe(compile_t* c, ast_t* program)
