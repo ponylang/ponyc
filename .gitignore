@@ -32,7 +32,6 @@ _ReSharper.*
 src/common/dtrace_probes.h
 packages/stdlib/stdlib
 /stdlib-docs/
-/compile_commands.json
 
 # Allow these paths
 !src/libponyrt/lang/except_try_catch.ll
