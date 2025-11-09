@@ -5,6 +5,9 @@ actor \nodoc\ Main is TestList
   new create(env: Env) =>
     PonyTest(env, this)
 
+  new make() =>
+    None
+
   fun tag tests(test: PonyTest) =>
     test(_TestFromFile("json", "json_test.json", "json_out.txt"))
 

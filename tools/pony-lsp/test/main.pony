@@ -1,7 +1,11 @@
 use "pony_test"
 use "buffered"
 use "files"
-use "ast"
+use ast = "../ast"
+use ast_test = "../ast-tests"
+use binarysearch = "../binarysearch"
+use immutable_json = "../immutable-json"
+use peg = "../peg"
 use ".."
 
 actor Main is TestList
@@ -14,6 +18,14 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_InitializeTest)
     _WorkspaceTests.make().tests(test)
+    // Some of these fail because they require PONYPATH to be set
+    ast.Main.make().tests(test)
+    ast_test.Main.make().tests(test)
+    binarysearch.Main.make().tests(test)
+    immutable_json.Main.make().tests(test)
+    // These are going to be hard to wire in
+    //peg.Main.make().tests(test)
+
 
 primitive _LspMsg
   fun tag apply(msg: String val): Array[U8] iso^ =>
@@ -42,7 +54,7 @@ class \nodoc\ iso _InitializeTest is UnitTest
       where after_sends = 1, after_logs = USize.max_value()
     )
     let pony_path =
-      match PonyPath(h.env)
+      match ast.PonyPath(h.env)
       | let p: String => p
       | None => ""
       end
@@ -543,7 +555,7 @@ actor TestChannel is Channel
   let sent: Array[Message val] ref = sent.create(8)
   let logs: Array[(String, MessageType)] ref = logs.create(8)
   let h: TestHelper
-  
+
   let _after_sends: USize
   let _after_logs: USize
   let _expect_fun: {(TestHelper, TestChannel ref): Bool} val
