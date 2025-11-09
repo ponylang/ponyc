@@ -10,7 +10,6 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
-#include "ponyassert.h"
 #include <string.h>
 
 #include <lld/Common/Driver.h>
