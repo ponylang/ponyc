@@ -21,6 +21,16 @@
 #  include <unistd.h>
 #endif
 
+#if !defined(PONY_COMPILER)
+  #error PONY_COMPILER must be defined
+  #define PONY_COMPILER ""
+#endif
+
+#if !defined(PONY_ARCH)
+  #error PONY_ARCH must be defined
+  #define PONY_ARCH ""
+#endif
+
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
