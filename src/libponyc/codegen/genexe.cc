@@ -476,6 +476,17 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back(result_pathd);
     };
 
+    char* result_pathe = search_paths(spaths, "libgcc.a", false);
+    if (result_pathe != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathe);
+    };
+
+    char* result_pathf = search_paths(spaths, "libgcc_s.so", false);
+    if (result_pathf != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathf);
+    };
 //    args.push_back("-L");
 //    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13");
 //    args.push_back("-L");
@@ -515,7 +526,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
     // TODO: this is all very specific
     args.push_back("-pie");
-    args.push_back("-dynamic-linker");
+//    args.push_back("-dynamic-linker");
 
     // works:
     // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
