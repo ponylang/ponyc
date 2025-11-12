@@ -525,11 +525,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back("aarch64linux");
       args.push_back("-dynamic-linker");
       args.push_back("/usr/lib/ld-linux-aarch64.so.1");
-    } else if (target_is_riscv(c->opt->triple)) {
-      args.push_back("-m");
-      args.push_back("riscv64");
-      args.push_back("-dynamic-linker");
-      args.push_back("/usr/lib/ld-linux-riscv64-lp64d.so.1");
     } else {
       errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
         c->opt->triple);
