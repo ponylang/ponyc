@@ -36,7 +36,6 @@ namespace fs = std::filesystem;
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
-char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename);
 
 class CaptureOStream : public llvm::raw_ostream {
 public:
@@ -288,6 +287,104 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
+/*
+ * search_path (called from search_paths)
+ *  - A single tuple (path, depth) to search
+ *  - The target filename to find
+ *  - Whether to include the filename or not
+ *
+ * There are two types of searches that we do.  One to find the paths
+ * so we can add them via -L (libpthread, libm, librt, libatomic etc),
+ * the other for identifying the paths to specific object files such
+ * as crtn.o et al).
+ *
+ * I think this should be refactored into two separate functions as
+ * we should probably deduplicate the -L paths before push_backing them
+ * onto args.
+ */
+std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
+                                       std::string targetstring,
+                                       bool include_filename)
+{
+  std::optional<std::string> result = std::nullopt;
+
+  fs::directory_options options =
+    (fs::directory_options::follow_directory_symlink |
+     fs::directory_options::skip_permission_denied);
+
+  /*
+   * Even though we instruct recursive_directory_iterator to just skip directories
+   * that we don't have permission to enter, if we don't have permission for the
+   * initially specified file path, or the filepath doesn't exist - then it will
+   * raise an exception.
+   *
+   * This is expected as we'll almost certainly seach paths that don't exist on
+   * other distributions.
+   */
+  std::error_code ec;
+  for (auto iter = fs::recursive_directory_iterator(std::get<0>(search_path), options, ec);
+       iter != fs::recursive_directory_iterator(); ++iter) {
+    if (iter.depth() == std::get<1>(search_path)) {
+      iter.disable_recursion_pending();
+    };
+
+    // Detection of the simplest form of loop.
+    if (fs::is_symlink(iter->path())) {
+      if (fs::read_symlink(iter->path()) == "..") {
+        iter.disable_recursion_pending();
+      };
+    };
+
+    if (iter->path().filename() == targetstring) {
+      fs::path res = iter->path();
+      if (include_filename) {
+        result = res;
+      } else {
+        result = res.remove_filename();
+      };
+      /*
+       * We do not break here, as in cases where we have multiple entries,
+       * for example:
+       *   /usr/lib/gcc/x86_64-linux-gnu/13/
+       *   /usr/lib/gcc/x86_64-linux-gnu/14/
+       * … we want the latest version.
+       */
+    };
+  };
+  return result;
+}
+
+/*
+ * search_paths
+ *  - A vector of tuples (path, depth) to search through
+ *  - The target filename to find
+ *  - Whether to include the filename or not
+ *
+ * There are two types of searches that we do.  One to find the paths
+ * so we can add them via -L (libpthread, libm, librt, libatomic etc),
+ * the other for identifying the paths to specific object files such
+ * as crtn.o et al).
+ *
+ * I think this should be refactored into two separate functions as
+ * we should probably deduplicate the -L paths before push_backing them
+ * onto args.
+ */
+char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename) {
+  bool found = false;
+  for (const std::tuple<std::string, int>& spath : spaths) {
+    if (found) {
+      break;
+    };
+    std::optional<std::string> opt_result = search_path(spath, wanted, include_filename);
+    if (opt_result) {
+      /* This needs to be allocated using pony_alloc et al */
+      char* result = new char[(*opt_result).size() + 1];
+      std::strcpy(result, (*opt_result).c_str());
+      return result;
+    };
+  };
+  return NULL;
+}
 LLD_HAS_DRIVER(elf)
 
 // TODO: this is an awful hack. It is defined in program.cc
@@ -309,13 +406,25 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
 std::string cxx_triple = c->opt->triple;
 
+/*
+ * We do the known cases first, and set appropriate depths.
+ *
+ * The reason we limit the depth to 1 in the second+third entry
+ * is that in the case of a multilib installation, the search
+ * will find /usr/lib/gcc/<triple>/<gccversion>/32/filename,
+ * when we just want  gcc/<triple>/<gccversion>/filename.
+ *
+ * Including that 32 bit version is going to mean we have a
+ * hard time.
+ *
+ * We should probably also prepend this vector with the PATHs
+ * that are in the environmental variable LIBRARY_PATH.
+ */
 std::vector<std::tuple<std::string, int>> spaths =
   {
-    std::make_tuple("/i_dont_exist/", 0),               // Trying to break iterator
-    std::make_tuple("/root/i_have_no_permissions/", 0), // Trying to break iterator
-    std::make_tuple("/usr/lib/" + cxx_triple, 0),           // Ubuntu, Debian
-    std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),       // Ubuntu, Debian, Arch
-    std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1),     // Ubuntu, Arch
+    std::make_tuple("/usr/lib/" + cxx_triple, 0),       // Ubuntu, Debian
+    std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),   // Ubuntu, Debian, Arch
+    std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1), // Ubuntu, Arch
     std::make_tuple("/usr/lib/", 0),                    // Alpine, Arch
     std::make_tuple("/lib64/", 32),                     // Other
     std::make_tuple("/usr/lib64/", 32),                 // Other
@@ -931,62 +1040,4 @@ bool genexe(compile_t* c, ast_t* program)
 #endif
 
   return true;
-}
-
-std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
-                                       std::string targetstring,
-                                       bool include_filename)
-{
-  std::optional<std::string> result = std::nullopt;
-
-  fs::directory_options options =
-    (fs::directory_options::follow_directory_symlink |
-     fs::directory_options::skip_permission_denied);
-
-  std::error_code ec;
-  for (auto iter = fs::recursive_directory_iterator(std::get<0>(search_path), options, ec);
-       iter != fs::recursive_directory_iterator(); ++iter) {
-    if (iter.depth() == std::get<1>(search_path)) {
-      iter.disable_recursion_pending();
-    };
-
-    if (fs::is_symlink(iter->path())) {
-      if (fs::read_symlink(iter->path()) == "..") {
-        iter.disable_recursion_pending();
-      };
-    };
-
-    if (iter->path().filename() == targetstring) {
-      fs::path res = iter->path();
-      if (include_filename) {
-        result = res;
-      } else {
-        result = res.remove_filename();
-      };
-      /*
-       * We do not break here, as in cases where we have multiple entries,
-       * for example:
-       *   /usr/lib/gcc/x86_64-linux-gnu/13/
-       *   /usr/lib/gcc/x86_64-linux-gnu/14/
-       * … we want the latest version.
-       */
-    };
-  };
-  return result;
-}
-
-char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename) {
-  bool found = false;
-  for (const std::tuple<std::string, int>& spath : spaths) {
-    if (found) {
-      break;
-    };
-    std::optional<std::string> opt_result = search_path(spath, wanted, include_filename);
-    if (opt_result) {
-      char* result = new char[(*opt_result).size() + 1];
-      std::strcpy(result, (*opt_result).c_str());
-      return result;
-    };
-  };
-  return NULL;
 }
