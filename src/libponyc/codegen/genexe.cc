@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include <optional>
+#include <iostream>
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -35,6 +36,7 @@ namespace fs = std::filesystem;
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
+char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename);
 
 class CaptureOStream : public llvm::raw_ostream {
 public:
@@ -307,7 +309,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
 std::string cxx_triple = c->opt->triple;
 
-std::vector<std::tuple<std::string, int>> search_paths =
+std::vector<std::tuple<std::string, int>> spaths =
   {
     std::make_tuple("/i_dont_exist/", 0),               // Trying to break iterator
     std::make_tuple("/root/i_have_no_permissions/", 0), // Trying to break iterator
@@ -340,10 +342,32 @@ std::vector<std::tuple<std::string, int>> search_paths =
     // args.push_back("-L");
     // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
 
-    args.push_back("-L");
-    args.push_back("/usr/lib/x86_64-linux-gnu");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13");
+    char* result_patha = search_paths(spaths, "libpthread.a", false);
+    if (result_patha != NULL) {
+      args.push_back("-L");
+      args.push_back(result_patha);
+    };
+
+    char* result_pathb = search_paths(spaths, "libm.a", false);
+    if (result_pathb != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathb);
+    };
+
+    char* result_pathc = search_paths(spaths, "libatomic.a", false);
+    if (result_pathc != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathc);
+    };
+
+    char* result_pathd = search_paths(spaths, "libc.a", false);
+    if (result_pathd != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathd);
+    };
+
+//    args.push_back("-L");
+//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13");
 //    args.push_back("-L");
 //    args.push_back("/lib");
 //    args.push_back("-L");
@@ -352,8 +376,8 @@ std::vector<std::tuple<std::string, int>> search_paths =
 //    args.push_back("/usr/lib64");
     // args.push_back("-L");
     // args.push_back("/usr/local/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
+//    args.push_back("-L");
+//    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
 
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
@@ -386,14 +410,28 @@ std::vector<std::tuple<std::string, int>> search_paths =
     // works:
     // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
 
-    args.push_back("/lib64/ld-linux-x86-64.so.2");
+//    char* dynamic_linker = 
+//    args.push_back("/lib64/ld-linux-x86-64.so.2");
 
     args.push_back("-o");
     args.push_back(file_exe);
 
-    args.push_back("/usr/lib/x86_64-linux-gnu/Scrt1.o");
-    args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o");
+    char* scrt1 = search_paths(spaths, "Scrt1.o", true);
+    if (scrt1 != NULL) {
+      args.push_back(scrt1);
+    };
+
+    char* crti = search_paths(spaths, "crti.o", true);
+    if (crti != NULL) {
+      args.push_back(crti);
+    };
+
+    char* crtbegins = search_paths(spaths, "crtbeginS.o", true);
+    if (crtbegins != NULL) {
+      args.push_back(crtbegins);
+    };
+//    args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");
+//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o");
 
     args.push_back(file_o);
 
@@ -461,8 +499,16 @@ std::vector<std::tuple<std::string, int>> search_paths =
     // TODO: LTO
 
     // TODO this should go at the end like it is
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o");
-    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");
+    char* crtends = search_paths(spaths, "crtendS.o", true);
+    if (crtends != NULL) {
+      args.push_back(crtends);
+    };
+//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o");
+    char* crtn = search_paths(spaths, "crtn.o", true);
+    if (crtn != NULL) {
+      args.push_back(crtn);
+    };
+//    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
@@ -888,7 +934,8 @@ bool genexe(compile_t* c, ast_t* program)
 }
 
 std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
-                                       std::string targetstring)
+                                       std::string targetstring,
+                                       bool include_filename)
 {
   std::optional<std::string> result = std::nullopt;
 
@@ -911,7 +958,11 @@ std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
 
     if (iter->path().filename() == targetstring) {
       fs::path res = iter->path();
-      result = res.remove_filename();
+      if (include_filename) {
+        result = res;
+      } else {
+        result = res.remove_filename();
+      };
       /*
        * We do not break here, as in cases where we have multiple entries,
        * for example:
@@ -924,3 +975,18 @@ std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
   return result;
 }
 
+char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename) {
+  bool found = false;
+  for (const std::tuple<std::string, int>& spath : spaths) {
+    if (found) {
+      break;
+    };
+    std::optional<std::string> opt_result = search_path(spath, wanted, include_filename);
+    if (opt_result) {
+      char* result = new char[(*opt_result).size() + 1];
+      std::strcpy(result, (*opt_result).c_str());
+      return result;
+    };
+  };
+  return NULL;
+}
