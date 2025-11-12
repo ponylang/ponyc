@@ -445,6 +445,8 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Linking %s\n", file_exe);
 
+  fprintf(stderr, "Triple: %s\n", c->opt->triple);
+
   if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
