@@ -13,7 +13,6 @@
 #include <string.h>
 
 #include <optional>
-#include <iostream>
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -318,7 +317,7 @@ std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
    * initially specified file path, or the filepath doesn't exist - then it will
    * raise an exception.
    *
-   * This is expected as we'll almost certainly seach paths that don't exist on
+   * This is expected as we'll almost certainly search paths that don't exist on
    * other distributions.
    */
   std::error_code ec;
@@ -347,7 +346,8 @@ std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
        * for example:
        *   /usr/lib/gcc/x86_64-linux-gnu/13/
        *   /usr/lib/gcc/x86_64-linux-gnu/14/
-       * … we want the latest version.
+       * … we want the "latest" version if we can (even though semver won't
+       *     guarantee to do that)
        */
     };
   };
@@ -404,7 +404,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
 
-std::string cxx_triple = c->opt->triple;
 
 /*
  * We do the known cases first, and set appropriate depths.
@@ -420,17 +419,18 @@ std::string cxx_triple = c->opt->triple;
  * We should probably also prepend this vector with the PATHs
  * that are in the environmental variable LIBRARY_PATH.
  */
-std::vector<std::tuple<std::string, int>> spaths =
-  {
-    std::make_tuple("/usr/lib/" + cxx_triple, 0),       // Ubuntu, Debian
-    std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),   // Ubuntu, Debian, Arch
-    std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1), // Ubuntu, Arch
-    std::make_tuple("/usr/lib/", 0),                    // Alpine, Arch
-    std::make_tuple("/lib64/", 32),                     // Other
-    std::make_tuple("/usr/lib64/", 32),                 // Other
-    std::make_tuple("/lib/", 32),                       // Other
-    std::make_tuple("/usr/lib/", 32)                    // Other
-  };
+  std::string cxx_triple = c->opt->triple;
+  std::vector<std::tuple<std::string, int>> spaths =
+    {
+      std::make_tuple("/usr/lib/" + cxx_triple, 0),       // Ubuntu, Debian
+      std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),   // Ubuntu, Debian, Arch
+      std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1), // Ubuntu, Arch
+      std::make_tuple("/usr/lib/", 0),                    // Alpine, Arch
+      std::make_tuple("/lib64/", 32),                     // Other
+      std::make_tuple("/usr/lib64/", 32),                 // Other
+      std::make_tuple("/lib/", 32),                       // Other
+      std::make_tuple("/usr/lib/", 32)                    // Other
+    };
 
 
   // Collect the arguments and linker flavor we will pass to the linker.
