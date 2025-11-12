@@ -12,6 +12,10 @@
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
+#include <optional>
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #include <lld/Common/Driver.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -30,6 +34,7 @@
 
 #define STR(x) STR2(x)
 #define STR2(x) #x
+
 
 class CaptureOStream : public llvm::raw_ostream {
 public:
@@ -300,6 +305,23 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
 
+std::string cxx_triple = c->opt->triple;
+
+std::vector<std::tuple<std::string, int>> search_paths =
+  {
+    std::make_tuple("/i_dont_exist/", 0),               // Trying to break iterator
+    std::make_tuple("/root/i_have_no_permissions/", 0), // Trying to break iterator
+    std::make_tuple("/usr/lib/" + cxx_triple, 0),           // Ubuntu, Debian
+    std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),       // Ubuntu, Debian, Arch
+    std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1),     // Ubuntu, Arch
+    std::make_tuple("/usr/lib/", 0),                    // Alpine, Arch
+    std::make_tuple("/lib64/", 32),                     // Other
+    std::make_tuple("/usr/lib64/", 32),                 // Other
+    std::make_tuple("/lib/", 32),                       // Other
+    std::make_tuple("/usr/lib/", 32)                    // Other
+  };
+
+
   // Collect the arguments and linker flavor we will pass to the linker.
   std::vector<const char *> args;
   const char* link_flavor = "unknown";
@@ -317,12 +339,17 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // not all might be needed. last definitely is for now.
     // args.push_back("-L");
     // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
+
     args.push_back("-L");
-    args.push_back("/lib");
+    args.push_back("/usr/lib/x86_64-linux-gnu");
     args.push_back("-L");
-    args.push_back("/usr/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib64");
+    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13");
+//    args.push_back("-L");
+//    args.push_back("/lib");
+//    args.push_back("-L");
+//    args.push_back("/usr/lib");
+//    args.push_back("-L");
+//    args.push_back("/usr/lib64");
     // args.push_back("-L");
     // args.push_back("/usr/local/lib");
     args.push_back("-L");
@@ -364,9 +391,9 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-o");
     args.push_back(file_exe);
 
-    args.push_back("/usr/lib64/Scrt1.o");
-    args.push_back("/usr/lib64/crti.o");
-    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o");
+    args.push_back("/usr/lib/x86_64-linux-gnu/Scrt1.o");
+    args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");
+    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o");
 
     args.push_back(file_o);
 
@@ -434,8 +461,8 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // TODO: LTO
 
     // TODO this should go at the end like it is
-    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o");
-    args.push_back("/usr/lib64/crtn.o");
+    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o");
+    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
@@ -859,3 +886,41 @@ bool genexe(compile_t* c, ast_t* program)
 
   return true;
 }
+
+std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
+                                       std::string targetstring)
+{
+  std::optional<std::string> result = std::nullopt;
+
+  fs::directory_options options =
+    (fs::directory_options::follow_directory_symlink |
+     fs::directory_options::skip_permission_denied);
+
+  std::error_code ec;
+  for (auto iter = fs::recursive_directory_iterator(std::get<0>(search_path), options, ec);
+       iter != fs::recursive_directory_iterator(); ++iter) {
+    if (iter.depth() == std::get<1>(search_path)) {
+      iter.disable_recursion_pending();
+    };
+
+    if (fs::is_symlink(iter->path())) {
+      if (fs::read_symlink(iter->path()) == "..") {
+        iter.disable_recursion_pending();
+      };
+    };
+
+    if (iter->path().filename() == targetstring) {
+      fs::path res = iter->path();
+      result = res.remove_filename();
+      /*
+       * We do not break here, as in cases where we have multiple entries,
+       * for example:
+       *   /usr/lib/gcc/x86_64-linux-gnu/13/
+       *   /usr/lib/gcc/x86_64-linux-gnu/14/
+       * … we want the latest version.
+       */
+    };
+  };
+  return result;
+}
+
