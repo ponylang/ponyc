@@ -515,9 +515,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_x86(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("elf_x86_64");
+      args.push_back("-dynamic-linker");
+      args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
+      args.push_back("-dynamic-linker");
+      args.push_back("/usr/lib/ld-linux-aarch64.so.1");
     } else {
       errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
         c->opt->triple);
@@ -527,6 +531,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // TODO: this is all very specific
     args.push_back("-pie");
 //    args.push_back("-dynamic-linker");
+//    args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
 
     // works:
     // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
