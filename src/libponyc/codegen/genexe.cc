@@ -383,6 +383,7 @@ char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string
       return result;
     };
   };
+  fprintf(stderr, "XXXXX Unable to find %s\n", wanted.c_str());
   return NULL;
 }
 LLD_HAS_DRIVER(elf)
