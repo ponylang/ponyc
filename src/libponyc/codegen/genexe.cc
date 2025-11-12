@@ -426,6 +426,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       std::make_tuple("/usr/lib/" + cxx_triple, 0),       // Ubuntu, Debian
       std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),   // Ubuntu, Debian, Arch
       std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1), // Ubuntu, Arch
+      std::make_tuple("/lib/gcc/" + cxx_triple, 1),       // Ubuntu, Arch
       std::make_tuple("/usr/lib/", 0),                    // Alpine, Arch
       std::make_tuple("/lib64/", 32),                     // Other
       std::make_tuple("/usr/lib64/", 32),                 // Other
