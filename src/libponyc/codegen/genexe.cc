@@ -335,6 +335,7 @@ std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
     };
 
     if (iter->path().filename() == targetstring) {
+      fprintf(stderr, "search_path:FOUND:%s\n", iter->path().c_str());
       fs::path res = iter->path();
       if (include_filename) {
         result = res;
@@ -370,21 +371,23 @@ std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
  * onto args.
  */
 char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename) {
-  bool found = false;
+  char* retme = NULL;
   for (const std::tuple<std::string, int>& spath : spaths) {
-    if (found) {
-      break;
-    };
     std::optional<std::string> opt_result = search_path(spath, wanted, include_filename);
     if (opt_result) {
       /* This needs to be allocated using pony_alloc et al */
-      char* result = new char[(*opt_result).size() + 1];
-      std::strcpy(result, (*opt_result).c_str());
-      return result;
+      retme = new char[(*opt_result).size() + 1];
+      std::strcpy(retme, (*opt_result).c_str());
+//      return result;
     };
   };
-  fprintf(stderr, "XXXXX Unable to find %s\n", wanted.c_str());
-  return NULL;
+  if (retme == NULL) {
+    fprintf(stderr, "XXXXX Unable to find %s\n", wanted.c_str());
+  } else {
+    fprintf(stderr, "Returning: %s\n", retme);
+  };
+
+  return retme;
 }
 LLD_HAS_DRIVER(elf)
 
@@ -423,15 +426,26 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   std::string cxx_triple = c->opt->triple;
   std::vector<std::tuple<std::string, int>> spaths =
     {
-      std::make_tuple("/usr/lib/" + cxx_triple, 0),       // Ubuntu, Debian
-      std::make_tuple("/usr/lib/gcc/" + cxx_triple, 1),   // Ubuntu, Debian, Arch
-      std::make_tuple("/usr/lib64/gcc/" + cxx_triple, 1), // Ubuntu, Arch
-      std::make_tuple("/lib/gcc/" + cxx_triple, 1),       // Ubuntu, Arch
-      std::make_tuple("/usr/lib/", 0),                    // Alpine, Arch
-      std::make_tuple("/lib64/", 32),                     // Other
-      std::make_tuple("/usr/lib64/", 32),                 // Other
-      std::make_tuple("/lib/", 32),                       // Other
-      std::make_tuple("/usr/lib/", 32)                    // Other
+      std::make_tuple("/usr/lib/x86_64-linux-gnu", 0),       // Ubuntu, Debian
+      std::make_tuple("/usr/lib/x86_64-pc-linux-gnu", 0),       // Ubuntu, Debian
+      std::make_tuple("/usr/lib/x86_64-unknown-linux-gnu", 0),       // Ubuntu, Debian
+                                                                     //
+      std::make_tuple("/usr/lib/gcc/x86_64-linux-gnu", 1),   // Ubuntu, Debian, Arch
+      std::make_tuple("/usr/lib/gcc/x86_64-pc-linux-gnu", 1),   // Ubuntu, Debian, Arch
+      std::make_tuple("/usr/lib/gcc/x86_64-unknown-linux-gnu", 1),   // Ubuntu, Debian, Arch
+                                                                     //
+      std::make_tuple("/usr/lib64/gcc/x86_64-linux-gnu", 1), // Ubuntu, Arch
+      std::make_tuple("/usr/lib64/gcc/x86_64-pc-linux-gnu", 1), // Ubuntu, Arch
+      std::make_tuple("/usr/lib64/gcc/x86_64-unknown-linux-gnu", 1), // Ubuntu, Arch
+                                                                     //
+      std::make_tuple("/lib/gcc/x86_64-linux-gnu", 1),       // Ubuntu, Arch
+      std::make_tuple("/lib/gcc/x86_64-pc-linux-gnu", 1),       // Ubuntu, Arch
+      std::make_tuple("/lib/gcc/x86_64-unknown-linux-gnu", 1),       // Ubuntu, Arch
+                                                                     //
+      std::make_tuple("/lib/", 32),                       // Inventory time
+      std::make_tuple("/usr/lib/", 32),                   // Inventory time
+      std::make_tuple("/lib64/", 32),                     // Inventory time
+      std::make_tuple("/usr/lib64/", 32),                 // Inventory time
     };
 
 
