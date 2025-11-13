@@ -12,6 +12,10 @@
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
+#include <optional>
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #include <lld/Common/Driver.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -30,6 +34,7 @@
 
 #define STR(x) STR2(x)
 #define STR2(x) #x
+
 
 class CaptureOStream : public llvm::raw_ostream {
 public:
@@ -281,6 +286,109 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
+/*
+ * search_path (called from search_paths)
+ *  - A single tuple (path, depth) to search
+ *  - The target filename to find
+ *  - Whether to include the filename or not
+ *
+ * There are two types of searches that we do.  One to find the paths
+ * so we can add them via -L (libpthread, libm, librt, libatomic etc),
+ * the other for identifying the paths to specific object files such
+ * as crtn.o et al).
+ *
+ * I think this should be refactored into two separate functions as
+ * we should probably deduplicate the -L paths before push_backing them
+ * onto args.
+ */
+std::optional<std::string> search_path(std::tuple<fs::path, int> search_path,
+                                       std::string targetstring,
+                                       bool include_filename)
+{
+  std::optional<std::string> result = std::nullopt;
+
+  fs::directory_options options =
+    (fs::directory_options::follow_directory_symlink |
+     fs::directory_options::skip_permission_denied);
+
+  /*
+   * Even though we instruct recursive_directory_iterator to just skip directories
+   * that we don't have permission to enter, if we don't have permission for the
+   * initially specified file path, or the filepath doesn't exist - then it will
+   * raise an exception.
+   *
+   * This is expected as we'll almost certainly search paths that don't exist on
+   * other distributions.
+   */
+  std::error_code ec;
+  for (auto iter = fs::recursive_directory_iterator(std::get<0>(search_path), options, ec);
+       iter != fs::recursive_directory_iterator(); ++iter) {
+    if (iter.depth() == std::get<1>(search_path)) {
+      iter.disable_recursion_pending();
+    };
+
+    // Detection of the simplest form of loop.
+    if (fs::is_symlink(iter->path())) {
+      if (fs::read_symlink(iter->path()) == "..") {
+        iter.disable_recursion_pending();
+      };
+    };
+
+    if (iter->path().filename() == targetstring) {
+      fprintf(stderr, "search_path:FOUND:%s\n", iter->path().c_str());
+      fs::path res = iter->path();
+      if (include_filename) {
+        result = res;
+      } else {
+        result = res.remove_filename();
+      };
+      /*
+       * We do not break here, as in cases where we have multiple entries,
+       * for example:
+       *   /usr/lib/gcc/x86_64-linux-gnu/13/
+       *   /usr/lib/gcc/x86_64-linux-gnu/14/
+       * … we want the "latest" version if we can (even though semver won't
+       *     guarantee to do that)
+       */
+    };
+  };
+  return result;
+}
+
+/*
+ * search_paths
+ *  - A vector of tuples (path, depth) to search through
+ *  - The target filename to find
+ *  - Whether to include the filename or not
+ *
+ * There are two types of searches that we do.  One to find the paths
+ * so we can add them via -L (libpthread, libm, librt, libatomic etc),
+ * the other for identifying the paths to specific object files such
+ * as crtn.o et al).
+ *
+ * I think this should be refactored into two separate functions as
+ * we should probably deduplicate the -L paths before push_backing them
+ * onto args.
+ */
+char* search_paths(std::vector<std::tuple<std::string, int>> spaths, std::string wanted, bool include_filename) {
+  char* retme = NULL;
+  for (const std::tuple<std::string, int>& spath : spaths) {
+    std::optional<std::string> opt_result = search_path(spath, wanted, include_filename);
+    if (opt_result) {
+      /* This needs to be allocated using pony_alloc et al */
+      retme = new char[(*opt_result).size() + 1];
+      std::strcpy(retme, (*opt_result).c_str());
+//      return result;
+    };
+  };
+  if (retme == NULL) {
+    fprintf(stderr, "XXXXX Unable to find %s\n", wanted.c_str());
+  } else {
+    fprintf(stderr, "Returning: %s\n", retme);
+  };
+
+  return retme;
+}
 LLD_HAS_DRIVER(elf)
 
 // TODO: this is an awful hack. It is defined in program.cc
@@ -300,6 +408,47 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
 
+
+/*
+ * We do the known cases first, and set appropriate depths.
+ *
+ * The reason we limit the depth to 1 in the second+third entry
+ * is that in the case of a multilib installation, the search
+ * will find /usr/lib/gcc/<triple>/<gccversion>/32/filename,
+ * when we just want  gcc/<triple>/<gccversion>/filename.
+ *
+ * Including that 32 bit version is going to mean we have a
+ * hard time.
+ *
+ * We should probably also prepend this vector with the PATHs
+ * that are in the environmental variable LIBRARY_PATH.
+ */
+  std::string cxx_triple = c->opt->triple;
+  std::vector<std::tuple<std::string, int>> spaths =
+    {
+      std::make_tuple("/usr/lib/x86_64-linux-gnu", 0),       // Ubuntu, Debian
+      std::make_tuple("/usr/lib/x86_64-pc-linux-gnu", 0),       // Ubuntu, Debian
+      std::make_tuple("/usr/lib/x86_64-unknown-linux-gnu", 0),       // Ubuntu, Debian
+                                                                     //
+      std::make_tuple("/usr/lib/gcc/x86_64-linux-gnu", 1),   // Ubuntu, Debian, Arch
+      std::make_tuple("/usr/lib/gcc/x86_64-pc-linux-gnu", 1),   // Ubuntu, Debian, Arch
+      std::make_tuple("/usr/lib/gcc/x86_64-unknown-linux-gnu", 1),   // Ubuntu, Debian, Arch
+                                                                     //
+      std::make_tuple("/usr/lib64/gcc/x86_64-linux-gnu", 1), // Ubuntu, Arch
+      std::make_tuple("/usr/lib64/gcc/x86_64-pc-linux-gnu", 1), // Ubuntu, Arch
+      std::make_tuple("/usr/lib64/gcc/x86_64-unknown-linux-gnu", 1), // Ubuntu, Arch
+                                                                     //
+      std::make_tuple("/lib/gcc/x86_64-linux-gnu", 1),       // Ubuntu, Arch
+      std::make_tuple("/lib/gcc/x86_64-pc-linux-gnu", 1),       // Ubuntu, Arch
+      std::make_tuple("/lib/gcc/x86_64-unknown-linux-gnu", 1),       // Ubuntu, Arch
+                                                                     //
+      std::make_tuple("/lib/", 32),                       // Inventory time
+      std::make_tuple("/usr/lib/", 32),                   // Inventory time
+      std::make_tuple("/lib64/", 32),                     // Inventory time
+      std::make_tuple("/usr/lib64/", 32),                 // Inventory time
+    };
+
+
   // Collect the arguments and linker flavor we will pass to the linker.
   std::vector<const char *> args;
   const char* link_flavor = "unknown";
@@ -310,6 +459,8 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Linking %s\n", file_exe);
 
+  fprintf(stderr, "Triple: %s\n", c->opt->triple);
+
   if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
@@ -317,16 +468,54 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // not all might be needed. last definitely is for now.
     // args.push_back("-L");
     // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
-    args.push_back("-L");
-    args.push_back("/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib64");
+
+    char* result_patha = search_paths(spaths, "libpthread.a", false);
+    if (result_patha != NULL) {
+      args.push_back("-L");
+      args.push_back(result_patha);
+    };
+
+    char* result_pathb = search_paths(spaths, "libm.a", false);
+    if (result_pathb != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathb);
+    };
+
+    char* result_pathc = search_paths(spaths, "libatomic.a", false);
+    if (result_pathc != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathc);
+    };
+
+    char* result_pathd = search_paths(spaths, "libc.a", false);
+    if (result_pathd != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathd);
+    };
+
+    char* result_pathe = search_paths(spaths, "libgcc.a", false);
+    if (result_pathe != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathe);
+    };
+
+    char* result_pathf = search_paths(spaths, "libgcc_s.so", false);
+    if (result_pathf != NULL) {
+      args.push_back("-L");
+      args.push_back(result_pathf);
+    };
+//    args.push_back("-L");
+//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13");
+//    args.push_back("-L");
+//    args.push_back("/lib");
+//    args.push_back("-L");
+//    args.push_back("/usr/lib");
+//    args.push_back("-L");
+//    args.push_back("/usr/lib64");
     // args.push_back("-L");
     // args.push_back("/usr/local/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
+//    args.push_back("-L");
+//    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
 
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
@@ -343,9 +532,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_x86(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("elf_x86_64");
+      args.push_back("-dynamic-linker");
+      args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
+      args.push_back("-dynamic-linker");
+      args.push_back("/usr/lib/ld-linux-aarch64.so.1");
     } else {
       errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
         c->opt->triple);
@@ -354,19 +547,34 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
     // TODO: this is all very specific
     args.push_back("-pie");
-    args.push_back("-dynamic-linker");
+//    args.push_back("-dynamic-linker");
+//    args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
 
     // works:
     // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
 
-    args.push_back("/lib64/ld-linux-x86-64.so.2");
+//    char* dynamic_linker = 
+//    args.push_back("/lib64/ld-linux-x86-64.so.2");
 
     args.push_back("-o");
     args.push_back(file_exe);
 
-    args.push_back("/usr/lib64/Scrt1.o");
-    args.push_back("/usr/lib64/crti.o");
-    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o");
+    char* scrt1 = search_paths(spaths, "Scrt1.o", true);
+    if (scrt1 != NULL) {
+      args.push_back(scrt1);
+    };
+
+    char* crti = search_paths(spaths, "crti.o", true);
+    if (crti != NULL) {
+      args.push_back(crti);
+    };
+
+    char* crtbegins = search_paths(spaths, "crtbeginS.o", true);
+    if (crtbegins != NULL) {
+      args.push_back(crtbegins);
+    };
+//    args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");
+//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o");
 
     args.push_back(file_o);
 
@@ -434,8 +642,16 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // TODO: LTO
 
     // TODO this should go at the end like it is
-    args.push_back("/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o");
-    args.push_back("/usr/lib64/crtn.o");
+    char* crtends = search_paths(spaths, "crtendS.o", true);
+    if (crtends != NULL) {
+      args.push_back(crtends);
+    };
+//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o");
+    char* crtn = search_paths(spaths, "crtn.o", true);
+    if (crtn != NULL) {
+      args.push_back(crtn);
+    };
+//    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
