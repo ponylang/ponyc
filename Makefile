@@ -192,7 +192,7 @@ configure:
 
 all: build
 
-build: libfind
+build:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target all -- $(build_flags)
 
 ponyc:
@@ -206,28 +206,6 @@ cross-libponyrt:
 	$(SILENT)cd '$(crossBuildDir)' && env CC=$(CC) CXX=$(CXX) cmake --build '$(crossBuildDir)' --config $(config) --target libponyrt -- $(build_flags)
 
 test: all test-core test-stdlib-release test-examples
-
-# Identify all the potential locations in our CI environments
-# so we can document the variation and find a clean solution.
-libfind:
-	find /lib /lib64 /usr -name 'ld-linux*so*' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'Scrt1.o' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'crti.o' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'crtbeginS.o' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'crtendS.o' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'crtn.o' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libpthread.a' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libgcc.a' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libm.a' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libdl.a' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libatomic.a' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libc.a' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libpthread.*so*' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libgcc.*so*' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libm.*so*' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libdl.*so*' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libatomic.*so*' -ls 2>/dev/null
-	find /lib /lib64 /usr -name 'libc.*so*' -ls 2>/dev/null
 
 test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-validate-grammar
 
