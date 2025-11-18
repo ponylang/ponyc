@@ -12,6 +12,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
+#include <iostream>
 #include <optional>
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -295,7 +296,7 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 char* search_path(std::string search_path,
   int depth, std::string targetstring, bool include_filename)
 {
-  char* result = NULL;
+  std::vector<std::string> results = {};
 
   fs::directory_options options =
     (fs::directory_options::follow_directory_symlink |
@@ -311,7 +312,6 @@ char* search_path(std::string search_path,
    * exist on other distributions.
    */
   std::error_code ec;
-  std::string foo = NULL;
   for (auto iter = fs::recursive_directory_iterator(search_path, options, ec);
        iter != fs::recursive_directory_iterator(); ++iter) {
     if (iter.depth() == depth)
@@ -329,20 +329,20 @@ char* search_path(std::string search_path,
       if (!include_filename)
         res.remove_filename();
 
-      if (result == NULL) {
-        result = new char[res.string().size() + 1];
-        std::strcpy(result, res.c_str());
-      } else if (strcmp(result, res.c_str()) > 0) {
-        free(result);
-        result = new char[res.string().size() + 1];
-        std::strcpy(result, res.c_str());
-      }
+      results.push_back(res.string());
     }
   };
-  if (result != NULL)
-    fprintf(stderr, "search_path:RETURNED:%s\n", result);
+  if (results.empty())
+    return NULL;
 
-  return result;
+  std::sort(results.begin(), results.end());
+
+  char* result = new char[results.front().size() + 1];
+  std::strcpy(result, results.front().c_str());
+
+  fprintf(stderr, "Returning: %s\n", result);
+
+  return NULL;
 }
 
 /*
@@ -360,14 +360,15 @@ char* search_path(std::string search_path,
  * we should probably deduplicate the -L paths before push_backing them
  * onto args.
  */
-char* search_paths(const char* spaths[], std::string wanted, int depth, bool include_filename)
+char* search_paths(std::vector<std::string> spaths, std::string wanted, int depth, bool include_filename)
 {
-  char* filepath = NULL;
-  for(size_t i = 0; spaths[i] != NULL; i++) {
-    filepath = search_path(spaths[i], depth, wanted, include_filename);
+  for (const std::string& spath : spaths) {
+    std::cout << spath << std::endl;
+    char* filepath = search_path(spath, depth, wanted, include_filename);
     if (filepath != NULL)
       return filepath;
   };
+
   return NULL;
 }
 
@@ -389,41 +390,8 @@ void program_lib_build_args_embedded(
 static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
-  const char** spaths_depth0;
-  const char** spaths_depth1;
-
-  const char *spaths_x86_depth0[] =
-      {
-        "/usr/lib/x86_64-linux-gnu",
-        "/usr/lib/x86_64-pc-linux-gnu",
-        "/usr/lib/x86_64-unknown-linux-gnu",
-        "/usr/lib",
-        NULL
-      };
-
-  const char *spaths_x86_depth1[] =
-    {
-      "/usr/lib/gcc/x86_64-linux-gnu",
-      "/usr/lib/gcc/x86_64-pc-linux-gnu"
-      "/usr/lib/gcc/x86_64-unknown-linux-gnu",
-      "/home/red/projects/ponyc-work/redvers/ponyc/lib/llvm/src/clang/test/Driver/Inputs/",
-      NULL
-    };
-
-  const char *spaths_aarch64_depth0[] =
-      {
-        "/usr/lib/aarch64-linux-gnu",
-        "/usr/lib/aarch64-alpine-linux-musl",
-        "/usr/lib",
-        NULL
-      };
-
-  const char *spaths_aarch64_depth1[] =
-    {
-      "/usr/lib/gcc/aarch64-linux-gnu",
-      "/usr/lib/gcc/aarch64-alpine-linux-musl",
-      NULL
-    };
+  std::vector<std::string> spaths_depth0 = {};
+  std::vector<std::string> spaths_depth1 = {};
 
   // Collect the arguments and linker flavor we will pass to the linker.
   std::vector<const char *> args;
@@ -476,15 +444,27 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back("elf_x86_64");
       args.push_back("-dynamic-linker");
       args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
-      spaths_depth0 = spaths_x86_depth0;
-      spaths_depth1 = spaths_x86_depth1;
+
+      spaths_depth0.push_back("/usr/lib/x86_64-linux-gnu");
+      spaths_depth0.push_back("/usr/lib/x86_64-pc-linux-gnu");
+      spaths_depth0.push_back("/usr/lib/x86_64-unknown-linux-gnu");
+      spaths_depth0.push_back("/usr/lib");
+
+      spaths_depth1.push_back("/usr/lib/gcc/x86_64-linux-gnu");
+      spaths_depth1.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu");
+      spaths_depth1.push_back("/usr/lib/gcc/x86_64-unknown-linux-gnu");
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
       args.push_back("-dynamic-linker");
       args.push_back("/usr/lib/ld-linux-aarch64.so.1");
-      spaths_depth0 = spaths_aarch64_depth0;
-      spaths_depth1 = spaths_aarch64_depth1;
+
+      spaths_depth0.push_back("/usr/lib/aarch64-linux-gnu");
+      spaths_depth0.push_back("/usr/lib/aarch64-alpine-linux-musl");
+      spaths_depth0.push_back("/usr/lib");
+
+      spaths_depth1.push_back("/usr/lib/gcc/aarch64-linux-gnu");
+      spaths_depth1.push_back("/usr/lib/gcc/aarch64-alpine-linux-musl");
     } else {
       errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
         c->opt->triple);
@@ -500,7 +480,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-o");
     args.push_back(file_exe);
 
-    search_paths(spaths_depth1, "crtbeginS.o", 5, true);
     char* scrt1 = search_paths(spaths_depth0, "Scrt1.o", 0, true);
     if (scrt1 != NULL)
       args.push_back(scrt1);
