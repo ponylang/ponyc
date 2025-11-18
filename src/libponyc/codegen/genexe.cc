@@ -311,6 +311,7 @@ char* search_path(std::string search_path,
    * exist on other distributions.
    */
   std::error_code ec;
+  std::string foo = NULL;
   for (auto iter = fs::recursive_directory_iterator(search_path, options, ec);
        iter != fs::recursive_directory_iterator(); ++iter) {
     if (iter.depth() == depth)
@@ -328,12 +329,20 @@ char* search_path(std::string search_path,
       if (!include_filename)
         res.remove_filename();
 
-      result = new char[res.string().size() + 1];
-      std::strcpy(result, res.c_str());
-      return result;
+      if (result == NULL) {
+        result = new char[res.string().size() + 1];
+        std::strcpy(result, res.c_str());
+      } else if (strcmp(result, res.c_str()) > 0) {
+        free(result);
+        result = new char[res.string().size() + 1];
+        std::strcpy(result, res.c_str());
+      }
     }
   };
-  return NULL;
+  if (result != NULL)
+    fprintf(stderr, "search_path:RETURNED:%s\n", result);
+
+  return result;
 }
 
 /*
@@ -397,6 +406,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       "/usr/lib/gcc/x86_64-linux-gnu",
       "/usr/lib/gcc/x86_64-pc-linux-gnu"
       "/usr/lib/gcc/x86_64-unknown-linux-gnu",
+      "/home/red/projects/ponyc-work/redvers/ponyc/lib/llvm/src/clang/test/Driver/Inputs/",
       NULL
     };
 
@@ -490,6 +500,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-o");
     args.push_back(file_exe);
 
+    search_paths(spaths_depth1, "crtbeginS.o", 5, true);
     char* scrt1 = search_paths(spaths_depth0, "Scrt1.o", 0, true);
     if (scrt1 != NULL)
       args.push_back(scrt1);
