@@ -12,8 +12,7 @@
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
-#include <iostream>
-#include <optional>
+#include <regex>
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -286,32 +285,18 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
-/*
- * search_path (called from search_paths)
- *  - The search path
- *  - The requested depth
- *  - The target filename to find
- *  - Whether to include the filename or not in the result
- */
 char* search_path(std::string search_path,
-  int depth, std::string targetstring, bool include_filename)
+  int depth, std::string tregex_str, bool include_filename)
 {
+  std::error_code ec;
+  std::smatch matches;
+  std::regex target_regex(tregex_str);
   std::vector<std::string> results = {};
 
   fs::directory_options options =
     (fs::directory_options::follow_directory_symlink |
      fs::directory_options::skip_permission_denied);
 
-  /*
-   * Even though we instruct recursive_directory_iterator to just skip
-   * directories that we don't have permission to enter, if we don't
-   * have permission for the initially specified file path, or the
-   * filepath doesn't exist - then it will raise an exception.
-   *
-   * This is expected as we'll almost certainly search paths that don't
-   * exist on other distributions.
-   */
-  std::error_code ec;
   for (auto iter = fs::recursive_directory_iterator(search_path, options, ec);
        iter != fs::recursive_directory_iterator(); ++iter) {
     if (iter.depth() == depth)
@@ -323,7 +308,8 @@ char* search_path(std::string search_path,
         iter.disable_recursion_pending();
     }
 
-    if (iter->path().filename() == targetstring) {
+    std::string fn = iter->path().filename().string();
+    if ((iter.depth() == depth) && (std::regex_match(fn, matches, target_regex))) {
       fprintf(stderr, "search_path:FOUND:%s\n", iter->path().c_str());
       fs::path res = iter->path();
       if (!include_filename)
@@ -340,35 +326,29 @@ char* search_path(std::string search_path,
   char* result = new char[results.front().size() + 1];
   std::strcpy(result, results.front().c_str());
 
-  fprintf(stderr, "Returning: %s\n", result);
+  fprintf(stderr, "search_path:RETURNING:%s\n", result);
 
-  return NULL;
+  return result;
 }
 
 /*
  * search_paths
- *  - A vector of tuples (path, depth) to search through
- *  - The target filename to find
+ *  - A vector of paths to search through
+ *  - The target regex to match against
+ *  - The depth to which I may seek
  *  - Whether to include the filename or not
- *
- * There are two types of searches that we do.  One to find the paths
- * so we can add them via -L (libpthread, libm, librt, libatomic etc),
- * the other for identifying the paths to specific object files such
- * as crtn.o et al).
- *
- * I think this should be refactored into two separate functions as
- * we should probably deduplicate the -L paths before push_backing them
- * onto args.
  */
-char* search_paths(std::vector<std::string> spaths, std::string wanted, int depth, bool include_filename)
+char* search_paths(std::vector<std::string> spaths, std::string targetregex, int depth, bool include_filename)
 {
   for (const std::string& spath : spaths) {
-    std::cout << spath << std::endl;
-    char* filepath = search_path(spath, depth, wanted, include_filename);
-    if (filepath != NULL)
+    char* filepath = search_path(spath, depth, targetregex, include_filename);
+    if (filepath != NULL) {
+      fprintf(stderr, "search_paths:returning:%s\n", filepath);
       return filepath;
+    }
   };
 
+  fprintf(stderr, "search_paths:returning:NULL\n");
   return NULL;
 }
 
@@ -427,6 +407,12 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-L");
     args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/");
 
+    // red: arm CI support
+    args.push_back("-L");
+    args.push_back("/usr/lib/aarch64-linux-gnu/");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
+
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
@@ -480,15 +466,15 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-o");
     args.push_back(file_exe);
 
-    char* scrt1 = search_paths(spaths_depth0, "Scrt1.o", 0, true);
+    char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true);
     if (scrt1 != NULL)
       args.push_back(scrt1);
 
-    char* crti = search_paths(spaths_depth0, "crti.o", 0, true);
+    char* crti = search_paths(spaths_depth0, "crti\\.o", 0, true);
     if (crti != NULL)
       args.push_back(crti);
 
-    char* crtbegins = search_paths(spaths_depth1, "crtbeginS.o", 1, true);
+    char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true);
     if (crtbegins != NULL)
       args.push_back(crtbegins);
 
@@ -558,12 +544,12 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // TODO: LTO
 
     // TODO this should go at the end like it is
-    char* crtends = search_paths(spaths_depth1, "crtendS.o", 1, true);
+    char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true);
     if (crtends != NULL)
       args.push_back(crtends);
 
 //    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o");
-    char* crtn = search_paths(spaths_depth0, "crtn.o", 0, true);
+    char* crtn = search_paths(spaths_depth0, "crtn\\.o", 0, true);
     if (crtn != NULL)
       args.push_back(crtn);
 
