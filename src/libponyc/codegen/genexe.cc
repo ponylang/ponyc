@@ -387,6 +387,29 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Linking %s\n", file_exe);
 
+  /*
+   * bool target_is_linux(char* t)
+   * bool target_is_musl(char* t)
+   * bool target_is_bsd(char* t)
+   * bool target_is_freebsd(char* t)
+   * bool target_is_dragonfly(char* t)
+   * bool target_is_openbsd(char* t)
+   * bool target_is_macosx(char* t)
+   * bool target_is_windows(char* t)
+   * bool target_is_posix(char* t)
+   * bool target_is_x86(char* t)
+   * bool target_is_arm(char* t)
+   * bool target_is_arm32(char* t)
+   * bool target_is_riscv(char* t)
+   * bool target_is_ppc(char* t)
+   * bool target_is_lp64(char* t)
+   * bool target_is_llp64(char* t)
+   * bool target_is_ilp32(char* t)
+   * bool target_is_native128(char* t)
+   * bool target_is_bigendian(char* t)
+   * bool target_is_littleendian(char* t)
+   */
+
   if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
@@ -394,6 +417,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // not all might be needed. last definitely is for now.
     // args.push_back("-L");
     // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
+    /*
     args.push_back("-L");
     args.push_back("/lib");
     args.push_back("-L");
@@ -425,6 +449,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-L");
     args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
 
+    */
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
@@ -480,12 +505,64 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       return false;
     }
 
+    /*
+    args.push_back("-L");
+    args.push_back("/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib64");
+    // args.push_back("-L");
+    // args.push_back("/usr/local/lib");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
+
+    // red: My temp local paths
+    args.push_back("-L");
+    args.push_back("/usr/lib/x86_64-linux-gnu");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/");
+
+    // red: arm CI support
+    args.push_back("-L");
+    args.push_back("/usr/lib/aarch64-linux-gnu/");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
+
+    // red: x86-64-musl support
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/x86_64-alpine-linux-musl/14.2.0/");
+
+    // red: arm64-musl support
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
+    */
+
     // Autodetection
     char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false);
     if (lgcc0 != NULL) {
       args.push_back("-L");
       args.push_back(lgcc0);
     }
+
+    char* lpthread = search_paths(spaths_depth0, "libpthread\\.a", 0, false);
+    if (lpthread != NULL) {
+      args.push_back("-L");
+      args.push_back(lpthread);
+    }
+
+    /* "-lpthread"
+ "-lponyrt-pic"
+ "-lm"
+ "-ldl"
+ "-latomic"
+ "-lgcc"
+ "-lgcc_s"
+ "-lc"
+ "-lgcc"
+ "-lgcc_s"
+
+*/
 
     // TODO: this is all very specific
     args.push_back("-pie");
@@ -614,6 +691,14 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     errorf(errors, NULL, "Failed to link with embedded lld: \n\n%s",
       output.data.data());
   }
+
+  // For debugging only
+  char* file_cmd = (char*)ponyint_pool_alloc_size(255);
+  char* ldd_cmd = (char*)ponyint_pool_alloc_size(255);
+  snprintf(file_cmd, 255, "file %s", file_exe);
+  snprintf(ldd_cmd, 255, "ldd %s", file_exe);
+  system(file_cmd);
+  system(ldd_cmd);
 
   return link_result;
 }
