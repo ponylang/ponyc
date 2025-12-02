@@ -439,6 +439,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       spaths_depth1.push_back("/usr/lib/gcc/x86_64-linux-gnu");
       spaths_depth1.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu");
       spaths_depth1.push_back("/usr/lib/gcc/x86_64-unknown-linux-gnu");
+      spaths_depth1.push_back("/usr/lib/gcc/x86_64-alpine-linux-musl");
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
