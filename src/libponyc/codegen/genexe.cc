@@ -480,6 +480,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       return false;
     }
 
+    // Autodetection
+    char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false);
+    if (scrt1 != NULL) {
+      args.push_back("-L");
+      args.push_back(lgcc0);
+    }
+
     // TODO: this is all very specific
     args.push_back("-pie");
 
