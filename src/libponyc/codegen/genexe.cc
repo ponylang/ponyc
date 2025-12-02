@@ -428,8 +428,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_x86(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("elf_x86_64");
-      args.push_back("-dynamic-linker");
-      args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+    /* TODO all this probably needs to go somewhere else */
+      if (c->opt->staticbin) {
+        args.push_back("-static");
+      } else {
+        args.push_back("-dynamic-linker");
+        args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+      }
 
       spaths_depth0.push_back("/usr/lib/x86_64-linux-gnu");
       spaths_depth0.push_back("/usr/lib/x86_64-pc-linux-gnu");
@@ -443,8 +448,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
-      args.push_back("-dynamic-linker");
-      args.push_back("/usr/lib/ld-linux-aarch64.so.1");
+
+      if (c->opt->staticbin) {
+        args.push_back("-static");
+      } else {
+        args.push_back("-dynamic-linker");
+        args.push_back("/usr/lib/ld-linux-aarch64.so.1");
+      }
 
       spaths_depth0.push_back("/usr/lib/aarch64-linux-gnu");
       spaths_depth0.push_back("/usr/lib/aarch64-alpine-linux-musl");
@@ -524,9 +534,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // clang spits out:
     // "/usr/bin/ld.lld" "--hash-style=gnu" "--build-id" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./fib" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-L/usr/local/lib" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64" "-L/lib/../lib64" "-L/usr/lib64" "-L/lib" "-L/usr/lib" "./fib.o" "-lpthread" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-rpath" "/usr/local/lib" "--start-group" "-lrt" "--end-group" "-lponyrt-pic" "-lm" "-ldl" "-latomic" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "-lc" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o"
 
-    /* TODO all this probably needs to go somewhere else */
-    if (c->opt->staticbin)
-      args.push_back("-static");
     // TODO: does musl need this?
     if (target_is_musl(c->opt->triple))
       args.push_back("-lexecinfo");
