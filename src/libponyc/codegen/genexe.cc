@@ -310,7 +310,11 @@ char* search_path(std::string search_path,
 
     std::string fn = iter->path().filename().string();
     if ((iter.depth() == depth) && (std::regex_match(fn, matches, target_regex))) {
+#if defined(PLATFORM_IS_WINDOWS)
+      fprintf(stderr, "search_path:FOUND:%ls\n", iter->path().c_str());
+#else
       fprintf(stderr, "search_path:FOUND:%s\n", iter->path().c_str());
+#endif
       fs::path res = iter->path();
       if (!include_filename)
         res.remove_filename();
@@ -410,6 +414,14 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // red: arm CI support
     args.push_back("-L");
     args.push_back("/usr/lib/aarch64-linux-gnu/");
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
+
+    // red: x86-64-musl support
+    args.push_back("-L");
+    args.push_back("/usr/lib/gcc/x86_64-alpine-linux-musl/14.2.0/");
+
+    // red: arm64-musl support
     args.push_back("-L");
     args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
 
@@ -577,6 +589,11 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   lld::Result result = lld::lldMain(args, output, output, {{lld::Gnu, &lld::elf::link}});
   bool link_result = (result.retCode == 0);
 
+//  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
+    for (auto it = args.begin(); it != args.end(); ++it) {
+      fprintf(stderr, "'%s'\n", *it);
+    }
+//  }
   // Show an informative error if linking failed, showing both the args passed
   // as well as the output that we captured from the linker attempt.
   if (!link_result) {
