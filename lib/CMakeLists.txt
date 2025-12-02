@@ -53,6 +53,7 @@ install(TARGETS blake2
 )
 
 find_package(Git)
+find_package(ZLIB)
 
 set(LLVM_DESIRED_HASH "3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff")
 set(PATCHES_DESIRED_HASH "b272d53fbbf35476362d21b0fd6141d50372f824ef5e3e02e13c83604538eaad")

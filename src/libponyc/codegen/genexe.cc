@@ -538,6 +538,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-lgcc");
     args.push_back("-lgcc_s");
     args.push_back("-lc");
+    args.push_back("-lz");
 
     // TODO: legacy does
     // program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
