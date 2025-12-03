@@ -17,6 +17,7 @@
 namespace fs = std::filesystem;
 
 #include <lld/Common/Driver.h>
+#include "llvm/TargetParser/Triple.h"
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
@@ -379,7 +380,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
   // Collect the arguments and linker flavor we will pass to the linker.
   std::vector<const char *> args;
-  const char* link_flavor = "unknown";
+//  const char* link_flavor = "unknown";
 
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
@@ -390,13 +391,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   /*
    * bool target_is_linux(char* t)
    * bool target_is_musl(char* t)
-   * bool target_is_bsd(char* t)
-   * bool target_is_freebsd(char* t)
-   * bool target_is_dragonfly(char* t)
-   * bool target_is_openbsd(char* t)
-   * bool target_is_macosx(char* t)
-   * bool target_is_windows(char* t)
-   * bool target_is_posix(char* t)
    * bool target_is_x86(char* t)
    * bool target_is_arm(char* t)
    * bool target_is_arm32(char* t)
@@ -413,55 +407,42 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
-    // TODO: me specific
-    // not all might be needed. last definitely is for now.
-    // args.push_back("-L");
-    // args.push_back("/home/sean/code/ponylang/ponyc/build/debug/");
-    /*
-    args.push_back("-L");
-    args.push_back("/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib64");
-    // args.push_back("-L");
-    // args.push_back("/usr/local/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
-
-    // red: My temp local paths
-    args.push_back("-L");
-    args.push_back("/usr/lib/x86_64-linux-gnu");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/");
-
-    // red: arm CI support
-    args.push_back("-L");
-    args.push_back("/usr/lib/aarch64-linux-gnu/");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
-
-    // red: x86-64-musl support
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-alpine-linux-musl/14.2.0/");
-
-    // red: arm64-musl support
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
-
-    */
     fprintf(stderr, "Triple: %s\n", c->opt->triple);
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
     }
-    // TODO: joe had - maybe turn back on
+    // TODO: joe had - maybe turn back on (we should if we can)
     // if (target_is_linux(c->opt->triple)) {
     //   args.push_back("-z");
     //   args.push_back("relro");
     // }
     args.push_back("--hash-style=both");
     args.push_back("--eh-frame-hdr");
+
+    llvm::Triple T(c->opt->triple);
+    std::string arch_os_env = (T.getArchName() + "-" +
+                               T.getOSName() + "-" +
+                               T.getEnvironmentName())
+                               .str();
+
+    std::string arch_vendor_os = (T.getArchName() + "-" +
+                                  T.getVendorName() + "-" +
+                                  T.getOSName())
+                                  .str();
+
+    spaths_depth0.push_back("/usr/lib/" + std::string(c->opt->triple));
+    spaths_depth0.push_back("/usr/lib/" + arch_os_env);
+    spaths_depth0.push_back("/usr/lib/" + arch_vendor_os);
+    spaths_depth0.push_back("/usr/lib");
+    spaths_depth0.push_back("/lib");
+
+    spaths_depth1.push_back("/usr/lib/gcc/" + std::string(c->opt->triple));
+    spaths_depth1.push_back("/usr/lib/gcc/" + arch_os_env);
+    spaths_depth1.push_back("/usr/lib/gcc/" + arch_vendor_os);
+    spaths_depth1.push_back("/lib/gcc/" + std::string(c->opt->triple));
+    spaths_depth1.push_back("/lib/gcc/" + arch_os_env);
+    spaths_depth1.push_back("/lib/gcc/" + arch_vendor_os);
 
     if (target_is_x86(c->opt->triple)) {
       args.push_back("-m");
@@ -470,19 +451,15 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       if (c->opt->staticbin) {
         args.push_back("-static");
       } else {
-        args.push_back("-dynamic-linker");
-        args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+        if (target_is_musl(c->opt->triple)) {
+          args.push_back("-dynamic-linker");
+          args.push_back("/lib/ld-musl-x86_64.so.1");
+        } else {
+          args.push_back("-dynamic-linker");
+          args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+        }
       }
 
-      spaths_depth0.push_back("/usr/lib/x86_64-linux-gnu");
-      spaths_depth0.push_back("/usr/lib/x86_64-pc-linux-gnu");
-      spaths_depth0.push_back("/usr/lib/x86_64-unknown-linux-gnu");
-      spaths_depth0.push_back("/usr/lib");
-
-      spaths_depth1.push_back("/usr/lib/gcc/x86_64-linux-gnu");
-      spaths_depth1.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu");
-      spaths_depth1.push_back("/usr/lib/gcc/x86_64-unknown-linux-gnu");
-      spaths_depth1.push_back("/usr/lib/gcc/x86_64-alpine-linux-musl");
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
@@ -490,54 +467,19 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       if (c->opt->staticbin) {
         args.push_back("-static");
       } else {
-        args.push_back("-dynamic-linker");
-        args.push_back("/usr/lib/ld-linux-aarch64.so.1");
+        if (target_is_musl(c->opt->triple)) {
+          args.push_back("-dynamic-linker");
+          args.push_back("/lib/ld-musl-aarch64.so.1");
+        } else {
+          args.push_back("-dynamic-linker");
+          args.push_back("/usr/lib/ld-linux-aarch64.so.1");
+        }
       }
-
-      spaths_depth0.push_back("/usr/lib/aarch64-linux-gnu");
-      spaths_depth0.push_back("/usr/lib/aarch64-alpine-linux-musl");
-      spaths_depth0.push_back("/usr/lib");
-
-      spaths_depth1.push_back("/usr/lib/gcc/aarch64-linux-gnu");
-      spaths_depth1.push_back("/usr/lib/gcc/aarch64-alpine-linux-musl");
     } else {
       errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
         c->opt->triple);
       return false;
     }
-
-    /*
-    args.push_back("-L");
-    args.push_back("/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib64");
-    // args.push_back("-L");
-    // args.push_back("/usr/local/lib");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/");
-
-    // red: My temp local paths
-    args.push_back("-L");
-    args.push_back("/usr/lib/x86_64-linux-gnu");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/");
-
-    // red: arm CI support
-    args.push_back("-L");
-    args.push_back("/usr/lib/aarch64-linux-gnu/");
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
-
-    // red: x86-64-musl support
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/x86_64-alpine-linux-musl/14.2.0/");
-
-    // red: arm64-musl support
-    args.push_back("-L");
-    args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
-    */
 
     // Autodetection
     char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false);
@@ -552,6 +494,19 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back(lpthread);
     }
 
+    char* lz = search_paths(spaths_depth0, "libz\\.a", 0, false);
+    if (lz != NULL) {
+      args.push_back("-L");
+      args.push_back(lz);
+    }
+
+    char* lzo = search_paths(spaths_depth0, "libz\\.so.*", 0, false);
+    if (lzo != NULL) {
+      args.push_back("-L");
+      args.push_back(lzo);
+    }
+
+
     /* "-lpthread"
  "-lponyrt-pic"
  "-lm"
@@ -562,6 +517,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
  "-lc"
  "-lgcc"
  "-lgcc_s"
+ "-lz"
 
 */
 
@@ -677,7 +633,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
 //  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
     for (auto it = args.begin(); it != args.end(); ++it) {
-      fprintf(stderr, "'%s'\n", *it);
+      fprintf(stderr, "%s ", *it);
     }
 //  }
   // Show an informative error if linking failed, showing both the args passed
