@@ -411,14 +411,25 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
+      args.push_back("-z");
+      args.push_back("relro");
     }
-    // TODO: joe had - maybe turn back on (we should if we can)
-    // if (target_is_linux(c->opt->triple)) {
-    //   args.push_back("-z");
-    //   args.push_back("relro");
-    // }
+
     args.push_back("--hash-style=both");
+    args.push_back("--build-id");
     args.push_back("--eh-frame-hdr");
+
+    if (target_is_x86(c->opt->triple)) {
+      args.push_back("-m");
+      args.push_back("elf_x86_64");
+    } else if (target_is_arm(c->opt->triple)) {
+      args.push_back("-m");
+      args.push_back("aarch64linux");
+    } else {
+      errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
+        c->opt->triple);
+      return false;
+    }
 
     llvm::Triple T(c->opt->triple);
     std::string arch_os_env = (T.getArchName() + "-" +
@@ -444,41 +455,44 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     spaths_depth1.push_back("/lib/gcc/" + arch_os_env);
     spaths_depth1.push_back("/lib/gcc/" + arch_vendor_os);
 
-    if (target_is_x86(c->opt->triple)) {
-      args.push_back("-m");
-      args.push_back("elf_x86_64");
-    /* TODO all this probably needs to go somewhere else */
-      if (c->opt->staticbin) {
-        args.push_back("-static");
-      } else {
-        if (target_is_musl(c->opt->triple)) {
-          args.push_back("-dynamic-linker");
-          args.push_back("/lib/ld-musl-x86_64.so.1");
-        } else {
-          args.push_back("-dynamic-linker");
-          args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
-        }
-      }
+    if (c->opt->staticbin) {
+      args.push_back("-static");
+      args.push_back("-lgcc_eh");
+      char* crtbegint = search_paths(spaths_depth1, "crtbeginT\\.o", 1, true);
+      if (crtbegint != NULL)
+        args.push_back(crtbegint);
 
-    } else if (target_is_arm(c->opt->triple)) {
-      args.push_back("-m");
-      args.push_back("aarch64linux");
+      char* crtend = search_paths(spaths_depth1, "crtend\\.o", 1, true);
+      if (crtend != NULL)
+        args.push_back(crtend);
 
-      if (c->opt->staticbin) {
-        args.push_back("-static");
-      } else {
-        if (target_is_musl(c->opt->triple)) {
-          args.push_back("-dynamic-linker");
-          args.push_back("/lib/ld-musl-aarch64.so.1");
-        } else {
-          args.push_back("-dynamic-linker");
-          args.push_back("/usr/lib/ld-linux-aarch64.so.1");
-        }
-      }
+      char* crt1 = search_paths(spaths_depth0, "crt1\\.o", 0, true);
+      if (crt1 != NULL)
+        args.push_back(crt1);
+
+      args.push_back("-lssp_nonshared");
     } else {
-      errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
-        c->opt->triple);
-      return false;
+      args.push_back("-pie");
+      args.push_back("-lgcc_s");
+      char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true);
+      if (crtbegins != NULL)
+        args.push_back(crtbegins);
+
+      char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true);
+      if (crtends != NULL)
+        args.push_back(crtends);
+
+      char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true);
+      if (scrt1 != NULL)
+        args.push_back(scrt1);
+
+      if (target_is_musl(c->opt->triple)) {
+        args.push_back("-dynamic-linker");
+        args.push_back("/lib/ld-musl-x86_64.so.1");
+      } else {
+        args.push_back("-dynamic-linker");
+        args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+      }
     }
 
     // Autodetection
@@ -505,24 +519,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back("-L");
       args.push_back(lzo);
     }
-
-
-    /* "-lpthread"
- "-lponyrt-pic"
- "-lm"
- "-ldl"
- "-latomic"
- "-lgcc"
- "-lgcc_s"
- "-lc"
- "-lgcc"
- "-lgcc_s"
- "-lz"
-
-*/
-
     // TODO: this is all very specific
-    args.push_back("-pie");
 
     // works:
     // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
@@ -530,17 +527,9 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-o");
     args.push_back(file_exe);
 
-    char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true);
-    if (scrt1 != NULL)
-      args.push_back(scrt1);
-
     char* crti = search_paths(spaths_depth0, "crti\\.o", 0, true);
     if (crti != NULL)
       args.push_back(crti);
-
-    char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true);
-    if (crtbegins != NULL)
-      args.push_back(crtbegins);
 
     args.push_back(file_o);
 
@@ -564,13 +553,11 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // args.push_back("-plugin-opt=thinlto");
 
     args.push_back("-lpthread");
-    args.push_back("-lgcc_s");
     c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
     args.push_back("-lm");
     args.push_back("-ldl");
     args.push_back("-latomic");
     args.push_back("-lgcc");
-    args.push_back("-lgcc_s");
     args.push_back("-lc");
     args.push_back("-lz");
 
@@ -606,16 +593,9 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // TODO: LTO
 
     // TODO this should go at the end like it is
-    char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true);
-    if (crtends != NULL)
-      args.push_back(crtends);
-
-//    args.push_back("/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o");
     char* crtn = search_paths(spaths_depth0, "crtn\\.o", 0, true);
     if (crtn != NULL)
       args.push_back(crtn);
-
-//    args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
@@ -635,6 +615,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     for (auto it = args.begin(); it != args.end(); ++it) {
       fprintf(stderr, "%s ", *it);
     }
+    fprintf(stderr, "\n");
 //  }
   // Show an informative error if linking failed, showing both the args passed
   // as well as the output that we captured from the linker attempt.
