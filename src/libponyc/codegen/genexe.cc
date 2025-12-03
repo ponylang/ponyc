@@ -408,6 +408,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("ld.lld");
 
     fprintf(stderr, "Triple: %s\n", c->opt->triple);
+    fprintf(stderr, "Triple: %s\n", c->opt->link_arch);
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
