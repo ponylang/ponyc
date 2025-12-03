@@ -394,7 +394,7 @@ static bool link_exe(compile_t* c, ast_t* program,
                   + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
                   + strlen(ldl) + strlen(atomic) + strlen(staticbin)
                   + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg) + strlen(arm_linker_args);
+                  + strlen(sanitizer_arg) + strlen(arm_linker_args) + 20;
 
   char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
 
@@ -419,7 +419,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 #else
     "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s "
 #endif
-    "%s",
+    "%s -### -v",
     linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
     arm_linker_args,
     lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
