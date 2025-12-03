@@ -423,9 +423,27 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_x86(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("elf_x86_64");
+      if (!(c->opt->staticbin)) {
+        if (target_is_musl(c->opt->triple)) {
+          args.push_back("-dynamic-linker");
+          args.push_back("/lib/ld-musl-x86_64.so.1");
+        } else {
+          args.push_back("-dynamic-linker");
+          args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+        }
+      }
     } else if (target_is_arm(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("aarch64linux");
+      if (!(c->opt->staticbin)) {
+        if (target_is_musl(c->opt->triple)) {
+          args.push_back("-dynamic-linker");
+          args.push_back("/lib/ld-musl-aarch64.so.1");
+        } else {
+          args.push_back("-dynamic-linker");
+          args.push_back("/usr/lib/ld-linux-aarch64.so.1");
+        }
+      }
     } else {
       errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
         c->opt->triple);
@@ -487,13 +505,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       if (scrt1 != NULL)
         args.push_back(scrt1);
 
-      if (target_is_musl(c->opt->triple)) {
-        args.push_back("-dynamic-linker");
-        args.push_back("/lib/ld-musl-x86_64.so.1");
-      } else {
-        args.push_back("-dynamic-linker");
-        args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
-      }
     }
 
     // Autodetection
