@@ -450,6 +450,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("/usr/lib/gcc/aarch64-linux-gnu/13");
 
     */
+    fprintf(stderr, "Triple: %s\n", c->opt->triple);
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
@@ -631,9 +632,9 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     // clang spits out:
     // "/usr/bin/ld.lld" "--hash-style=gnu" "--build-id" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./fib" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-L/usr/local/lib" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64" "-L/lib/../lib64" "-L/usr/lib64" "-L/lib" "-L/usr/lib" "./fib.o" "-lpthread" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-rpath" "/usr/local/lib" "--start-group" "-lrt" "--end-group" "-lponyrt-pic" "-lm" "-ldl" "-latomic" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "-lc" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o"
 
-    // TODO: does musl need this?
-    if (target_is_musl(c->opt->triple))
-      args.push_back("-lexecinfo");
+    // TODO: does musl need this? (No, it's been removed from Alpine repos)
+    //    if (target_is_musl(c->opt->triple))
+    //      args.push_back("-lexecinfo");
 
     // TODO: BSD should be handling dtrace_args here
 
