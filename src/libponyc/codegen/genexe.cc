@@ -439,10 +439,8 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
      * | crti.o           |  *      |   *      |     *     |      *     |      *          |
      * | crtn.o           |  *      |   *      |     *     |      *     |      *          |
      */
-
     args.push_back("-z");
     args.push_back("relro");
-
     args.push_back("--hash-style=both");
     args.push_back("--build-id");
     args.push_back("--eh-frame-hdr");
@@ -460,7 +458,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
      * |--------|---------|----------|-----------|------------|-----------------|
      * | -z now |         |    *     |           |      *     |       *         |
      */
-
     if (target_is_musl(c->opt->triple))
     {
       args.push_back("-z");
@@ -478,7 +475,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
      * | --exclude-libs libgnustl_shared.a |            |            |       *      |      *       |                    |
      * | --exclude-libs libunwind.a        |            |            |       *      |      *       |                    |
      */
-
     if (target_is_x86(c->opt->triple))
     {
       args.push_back("-m");
@@ -499,7 +495,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     /*
      * Static linking requires --as-needed before any library inclusion
      */
-
     if (c->opt->staticbin)
       args.push_back("--as-needed");
 
@@ -507,7 +502,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
      * Library paths for the system libraries need to be in the argument
      * list before we specify the libraries.
      */
-
     char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false, c->opt->verbosity);
     if (lgcc0 != NULL)
     {
@@ -536,6 +530,9 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back(lzo);
     }
 
+    program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
+      "--start-group", "--end-group", "-l", "");
+
     /*
      * Dynamic Flags and objects:
      *
@@ -550,7 +547,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
      * | -lgcc_s         | as-needed *           |as-needed *          | as-needed *           |           *          |                    | X
      * | crtendS.o       |           *           |          *          |           *           |           *          |                    | X
      */
-
     if (!(c->opt->staticbin))
     {
       args.push_back("-export-dynamic");
@@ -593,7 +589,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back("--as-needed");
       args.push_back("-lgcc_s");
       args.push_back("--no-as-needed");
-      args.push_back("-lgcc_s");
     }
     else
     {
@@ -635,13 +630,10 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_musl(c->opt->triple))
       args.push_back("-lssp_nonshared");
 
-    args.push_back("-lz");
 
     args.push_back("-o");
     args.push_back(file_exe);
     args.push_back(file_o);
-    program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
-      "--start-group", "--end-group", "-l", "");
 
     args.push_back("-lpthread");
     c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
@@ -650,6 +642,8 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-latomic");
     args.push_back("-lgcc");
     args.push_back("-lc");
+    args.push_back("-lz");
+
   // TODO: MacOS, Windows, BSD, etc
   } else {
     errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
