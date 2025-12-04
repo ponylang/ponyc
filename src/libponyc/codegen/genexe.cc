@@ -311,11 +311,6 @@ char* search_path(std::string search_path,
 
     std::string fn = iter->path().filename().string();
     if ((iter.depth() == depth) && (std::regex_match(fn, matches, target_regex))) {
-#if defined(PLATFORM_IS_WINDOWS)
-      fprintf(stderr, "search_path:FOUND:%ls\n", iter->path().c_str());
-#else
-      fprintf(stderr, "search_path:FOUND:%s\n", iter->path().c_str());
-#endif
       fs::path res = iter->path();
       if (!include_filename)
         res.remove_filename();
@@ -331,8 +326,6 @@ char* search_path(std::string search_path,
   char* result = new char[results.front().size() + 1];
   std::strcpy(result, results.front().c_str());
 
-  fprintf(stderr, "search_path:RETURNING:%s\n", result);
-
   return result;
 }
 
@@ -343,17 +336,20 @@ char* search_path(std::string search_path,
  *  - The depth to which I may seek
  *  - Whether to include the filename or not
  */
-char* search_paths(std::vector<std::string> spaths, std::string targetregex, int depth, bool include_filename)
+char* search_paths(std::vector<std::string> spaths, std::string targetregex, int depth, bool include_filename, int verbosity)
 {
   for (const std::string& spath : spaths) {
     char* filepath = search_path(spath, depth, targetregex, include_filename);
     if (filepath != NULL) {
-      fprintf(stderr, "search_paths:returning:%s\n", filepath);
+      if (verbosity >= VERBOSITY_ALL) {
+        fprintf(stderr, "[%s]: %s\n", targetregex.c_str(), filepath);
+      }
       return filepath;
     }
+
   };
 
-  fprintf(stderr, "search_paths:returning:NULL\n");
+  fprintf(stderr, "[%s]: Not Found\n", targetregex.c_str());
   return NULL;
 }
 
@@ -378,9 +374,32 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   std::vector<std::string> spaths_depth0 = {};
   std::vector<std::string> spaths_depth1 = {};
 
+  llvm::Triple T(c->opt->triple);
+  std::string arch_os_env = (T.getArchName() + "-" +
+                             T.getOSName() + "-" +
+                             T.getEnvironmentName())
+                             .str();
+
+  std::string arch_vendor_os = (T.getArchName() + "-" +
+                                T.getVendorName() + "-" +
+                                T.getOSName())
+                                .str();
+
+  spaths_depth0.push_back("/usr/lib/" + std::string(c->opt->triple));
+  spaths_depth0.push_back("/usr/lib/" + arch_os_env);
+  spaths_depth0.push_back("/usr/lib/" + arch_vendor_os);
+  spaths_depth0.push_back("/usr/lib");
+  spaths_depth0.push_back("/lib");
+
+  spaths_depth1.push_back("/usr/lib/gcc/" + std::string(c->opt->triple));
+  spaths_depth1.push_back("/usr/lib/gcc/" + arch_os_env);
+  spaths_depth1.push_back("/usr/lib/gcc/" + arch_vendor_os);
+  spaths_depth1.push_back("/lib/gcc/" + std::string(c->opt->triple));
+  spaths_depth1.push_back("/lib/gcc/" + arch_os_env);
+  spaths_depth1.push_back("/lib/gcc/" + arch_vendor_os);
+
   // Collect the arguments and linker flavor we will pass to the linker.
   std::vector<const char *> args;
-//  const char* link_flavor = "unknown";
 
   const char* file_exe =
     suffix_filename(c, c->opt->output, "", c->filename, "");
@@ -388,47 +407,47 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Linking %s\n", file_exe);
 
-  /*
-   * bool target_is_linux(char* t)
-   * bool target_is_musl(char* t)
-   * bool target_is_x86(char* t)
-   * bool target_is_arm(char* t)
-   * bool target_is_arm32(char* t)
-   * bool target_is_riscv(char* t)
-   * bool target_is_ppc(char* t)
-   * bool target_is_lp64(char* t)
-   * bool target_is_llp64(char* t)
-   * bool target_is_ilp32(char* t)
-   * bool target_is_native128(char* t)
-   * bool target_is_bigendian(char* t)
-   * bool target_is_littleendian(char* t)
-   */
+  if(c->opt->verbosity >= VERBOSITY_ALL) {
+    fprintf(stderr, "Embedded Linker search directories:\n");
+    for (const std::string& spath : spaths_depth0) {
+      fprintf(stderr, "  %s\n", spath.c_str());
+    }
+    for (const std::string& spath : spaths_depth1) {
+      fprintf(stderr, "  %s/*\n", spath.c_str());
+    }
+    fprintf(stderr, "\n");
+  }
 
   if (target_is_linux(c->opt->triple)) {
     args.push_back("ld.lld");
 
-    fprintf(stderr, "Triple: %s\n", c->opt->triple);
-    fprintf(stderr, "Triple: %s\n", c->opt->link_arch);
+    if (target_is_littleendian(c->opt->triple))
+      args.push_back("-EL");
+
+    args.push_back("-z");
+    args.push_back("relro");
+
     if (target_is_musl(c->opt->triple)) {
       args.push_back("-z");
       args.push_back("now");
-      args.push_back("-z");
-      args.push_back("relro");
     }
 
     args.push_back("--hash-style=both");
     args.push_back("--build-id");
     args.push_back("--eh-frame-hdr");
 
+//    args.push_back("-export-dynamic");
+
+    /* Assignment of the -m emulation, and the dynamic linker
+     * if this is not a static compile                        */
     if (target_is_x86(c->opt->triple)) {
       args.push_back("-m");
       args.push_back("elf_x86_64");
       if (!(c->opt->staticbin)) {
+        args.push_back("-dynamic-linker");
         if (target_is_musl(c->opt->triple)) {
-          args.push_back("-dynamic-linker");
           args.push_back("/lib/ld-musl-x86_64.so.1");
         } else {
-          args.push_back("-dynamic-linker");
           args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
         }
       }
@@ -436,11 +455,10 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back("-m");
       args.push_back("aarch64linux");
       if (!(c->opt->staticbin)) {
+        args.push_back("-dynamic-linker");
         if (target_is_musl(c->opt->triple)) {
-          args.push_back("-dynamic-linker");
           args.push_back("/lib/ld-musl-aarch64.so.1");
         } else {
-          args.push_back("-dynamic-linker");
           args.push_back("/usr/lib/ld-linux-aarch64.so.1");
         }
       }
@@ -450,96 +468,88 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       return false;
     }
 
-    llvm::Triple T(c->opt->triple);
-    std::string arch_os_env = (T.getArchName() + "-" +
-                               T.getOSName() + "-" +
-                               T.getEnvironmentName())
-                               .str();
+    // Assignment of flags that are musl specific
+    if (target_is_musl(c->opt->triple)) {
+      args.push_back("-lssp_nonshared");
+      args.push_back("--as-needed");
+    }
 
-    std::string arch_vendor_os = (T.getArchName() + "-" +
-                                  T.getVendorName() + "-" +
-                                  T.getOSName())
-                                  .str();
-
-    spaths_depth0.push_back("/usr/lib/" + std::string(c->opt->triple));
-    spaths_depth0.push_back("/usr/lib/" + arch_os_env);
-    spaths_depth0.push_back("/usr/lib/" + arch_vendor_os);
-    spaths_depth0.push_back("/usr/lib");
-    spaths_depth0.push_back("/lib");
-
-    spaths_depth1.push_back("/usr/lib/gcc/" + std::string(c->opt->triple));
-    spaths_depth1.push_back("/usr/lib/gcc/" + arch_os_env);
-    spaths_depth1.push_back("/usr/lib/gcc/" + arch_vendor_os);
-    spaths_depth1.push_back("/lib/gcc/" + std::string(c->opt->triple));
-    spaths_depth1.push_back("/lib/gcc/" + arch_os_env);
-    spaths_depth1.push_back("/lib/gcc/" + arch_vendor_os);
-
+    /* Assignment of the flags which are common across all targets
+     * for static and dynamic linking                              */
     if (c->opt->staticbin) {
       args.push_back("-static");
       args.push_back("-lgcc_eh");
-      char* crtbegint = search_paths(spaths_depth1, "crtbeginT\\.o", 1, true);
+
+      char* crtbegint = search_paths(spaths_depth1, "crtbeginT\\.o", 1, true, c->opt->verbosity);
       if (crtbegint != NULL)
         args.push_back(crtbegint);
 
-      char* crtend = search_paths(spaths_depth1, "crtend\\.o", 1, true);
+      char* crtend = search_paths(spaths_depth1, "crtend\\.o", 1, true, c->opt->verbosity);
       if (crtend != NULL)
         args.push_back(crtend);
 
-      char* crt1 = search_paths(spaths_depth0, "crt1\\.o", 0, true);
+      char* crt1 = search_paths(spaths_depth0, "crt1\\.o", 0, true, c->opt->verbosity);
       if (crt1 != NULL)
         args.push_back(crt1);
 
-      args.push_back("-lssp_nonshared");
     } else {
       args.push_back("-pie");
+      args.push_back("--as-needed");
       args.push_back("-lgcc_s");
-      char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true);
+      args.push_back("--no-as-needed");
+      char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true, c->opt->verbosity);
       if (crtbegins != NULL)
         args.push_back(crtbegins);
 
-      char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true);
+      char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true, c->opt->verbosity);
       if (crtends != NULL)
         args.push_back(crtends);
 
-      char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true);
+      char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true, c->opt->verbosity);
       if (scrt1 != NULL)
         args.push_back(scrt1);
 
     }
 
-    // Autodetection
-    char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false);
+    // Path Autodetection
+    char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false, c->opt->verbosity);
     if (lgcc0 != NULL) {
       args.push_back("-L");
       args.push_back(lgcc0);
     }
 
-    char* lpthread = search_paths(spaths_depth0, "libpthread\\.a", 0, false);
+    char* lpthread = search_paths(spaths_depth0, "libpthread\\.a", 0, false, c->opt->verbosity);
     if (lpthread != NULL) {
       args.push_back("-L");
       args.push_back(lpthread);
     }
 
-    char* lz = search_paths(spaths_depth0, "libz\\.a", 0, false);
-    if (lz != NULL) {
-      args.push_back("-L");
-      args.push_back(lz);
-    }
+    /* We only directly link -lz when we're on a Linux platform. It is
+     * needed due to some distributions including ZLIB compressed linker
+     * object files.
+     *
+     * Note - there are matching test clauses in lib/CMakeLists.txt to
+     * only require it for Linux distributions.                          */
+    if (target_is_linux(c->opt->triple)) {
+      char* lz = search_paths(spaths_depth0, "libz\\.a", 0, false, c->opt->verbosity);
+      if (lz != NULL) {
+        args.push_back("-L");
+        args.push_back(lz);
+      }
 
-    char* lzo = search_paths(spaths_depth0, "libz\\.so.*", 0, false);
-    if (lzo != NULL) {
-      args.push_back("-L");
-      args.push_back(lzo);
-    }
-    // TODO: this is all very specific
+      char* lzo = search_paths(spaths_depth0, "libz\\.so.*", 0, false, c->opt->verbosity);
+      if (lzo != NULL) {
+        args.push_back("-L");
+        args.push_back(lzo);
+      }
 
-    // works:
-    // ld.lld -L /home/sean/code/ponylang/ponyc/build/debug/ -L /lib -L /usr/lib/ -L /usr/lib64 -L /usr/local/lib -L /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/ --hash-style=both --eh-frame-hdr -m elf_x86_64 -pie -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o fib /usr/lib64/Scrt1.o /usr/lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o fib.o -lpthread -lgcc_s -lrt -lponyrt-pic -lm -ldl -latomic -lgcc -lgcc_s -lc  /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/crtn.o
+      args.push_back("-lz");
+    }
 
     args.push_back("-o");
     args.push_back(file_exe);
 
-    char* crti = search_paths(spaths_depth0, "crti\\.o", 0, true);
+    char* crti = search_paths(spaths_depth0, "crti\\.o", 0, true, c->opt->verbosity);
     if (crti != NULL)
       args.push_back(crti);
 
@@ -548,22 +558,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
       "--start-group", "--end-group", "-l", "");
 
-    // TODO: should handle cross compilation
-    // const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
-
-    // TODO: joe had. maybe turn back on
-    // args.push_back(
-    //   target_is_x86(c->opt->triple)
-    //     ? "-plugin-opt=mcpu=x86-64"
-    //     : "-plugin-opt=mcpu=aarch64"
-    //   );
-    // args.push_back(
-    //   c->opt->release
-    //     ? "-plugin-opt=O3"
-    //     : "-plugin-opt=O0"
-    // );
-    // args.push_back("-plugin-opt=thinlto");
-
     args.push_back("-lpthread");
     c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
     args.push_back("-lm");
@@ -571,43 +565,22 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     args.push_back("-latomic");
     args.push_back("-lgcc");
     args.push_back("-lc");
-    args.push_back("-lz");
 
-    // TODO: legacy does
-    // program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
-    //"-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
-    // const char* lib_args = program_lib_args(program);
-    //
-    // For lld that is:
-    // program_lib_build_args(program, c->opt, "-L", "-rpath,",
-    //"--start-group ", "--end-group ", "-l", "");
-    // const char* lib_args = program_lib_args(program);
-    //
-
-    // clang spits out:
-    // "/usr/bin/ld.lld" "--hash-style=gnu" "--build-id" "--eh-frame-hdr" "-m" "elf_x86_64" "-pie" "-dynamic-linker" "/lib64/ld-linux-x86-64.so.2" "-o" "./fib" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-L/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-L/usr/local/lib" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1" "-L/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64" "-L/lib/../lib64" "-L/usr/lib64" "-L/lib" "-L/usr/lib" "./fib.o" "-lpthread" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../lib/native" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/bin/../packages" "-rpath" "/usr/local/lib/pony/0.58.11-5f1ba5df/packages/" "-rpath" "/usr/local/lib" "--start-group" "-lrt" "--end-group" "-lponyrt-pic" "-lm" "-ldl" "-latomic" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "-lc" "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o" "/usr/bin/../lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o"
-
-    // TODO: does musl need this? (No, it's been removed from Alpine repos)
-    //    if (target_is_musl(c->opt->triple))
-    //      args.push_back("-lexecinfo");
-
-    // TODO: BSD should be handling dtrace_args here
-
-    // TODO: should handle
-    //#if defined(PONY_SANITIZER)
-    //  "-fsanitize=" PONY_SANITIZER;
-    // #else
-    //  "";
-    // #endif
-
-    // TODO: arm linker args
-
-    // TODO: LTO
-
-    // TODO this should go at the end like it is
-    char* crtn = search_paths(spaths_depth0, "crtn\\.o", 0, true);
+    char* crtn = search_paths(spaths_depth0, "crtn\\.o", 0, true, c->opt->verbosity);
     if (crtn != NULL)
       args.push_back(crtn);
+
+    if (target_is_arm(c->opt->triple)) {
+      args.push_back("--exclude-libs");
+      args.push_back("libgcc.a");
+      args.push_back("--exclude-libs");
+      args.push_back("libgcc_real.a");
+      args.push_back("--exclude-libs");
+      args.push_back("libgnustl_shared.a");
+      args.push_back("--exclude-libs");
+      args.push_back("libunwind.a");
+    }
+
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
@@ -623,12 +596,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   lld::Result result = lld::lldMain(args, output, output, {{lld::Gnu, &lld::elf::link}});
   bool link_result = (result.retCode == 0);
 
-//  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
+    fprintf(stderr, "\n");
     for (auto it = args.begin(); it != args.end(); ++it) {
       fprintf(stderr, "%s ", *it);
     }
     fprintf(stderr, "\n");
-//  }
+  }
   // Show an informative error if linking failed, showing both the args passed
   // as well as the output that we captured from the linker attempt.
   if (!link_result) {
@@ -641,14 +615,6 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     errorf(errors, NULL, "Failed to link with embedded lld: \n\n%s",
       output.data.data());
   }
-
-  // For debugging only
-  char* file_cmd = (char*)ponyint_pool_alloc_size(255);
-  char* ldd_cmd = (char*)ponyint_pool_alloc_size(255);
-  snprintf(file_cmd, 255, "file %s", file_exe);
-  snprintf(ldd_cmd, 255, "ldd %s", file_exe);
-  system(file_cmd);
-  system(ldd_cmd);
 
   return link_result;
 }
