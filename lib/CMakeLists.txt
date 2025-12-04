@@ -53,6 +53,9 @@ install(TARGETS blake2
 )
 
 find_package(Git)
+if (LINUX)
+    find_package(ZLIB)
+endif()
 
 set(LLVM_DESIRED_HASH "3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff")
 set(PATCHES_DESIRED_HASH "b272d53fbbf35476362d21b0fd6141d50372f824ef5e3e02e13c83604538eaad")
@@ -135,10 +138,13 @@ set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache 
 set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-set(LLVM_ENABLE_ZLIB OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_ZSTD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_LIBXML2 OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_PROJECTS "lld" CACHE STRING "enable building lld")
+
+if (NOT LINUX)
+    set(LLVM_ENABLE_ZLIB OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmacosx-version-min=10.14 -DUSE_SCHEDULER_SCALING_PTHREADS")
