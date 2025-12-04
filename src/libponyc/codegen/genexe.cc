@@ -891,6 +891,11 @@ static bool legacy_link_exe(compile_t* c, ast_t* program,
 
 static bool link_exe(compile_t* c, ast_t* program, const char* file_o)
 {
+    if (c->opt->link_arch != NULL) {
+      fprintf(stderr, "Cross Compilation Defaulting to legacy linker\n");
+      return legacy_link_exe(c, program, file_o);
+    }
+
     if (target_is_linux(c->opt->triple))
       return new_link_exe(c, program, file_o);
     else
