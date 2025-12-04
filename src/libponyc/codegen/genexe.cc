@@ -349,7 +349,9 @@ char* search_paths(std::vector<std::string> spaths, std::string targetregex, int
 
   };
 
-  fprintf(stderr, "[%s]: Not Found\n", targetregex.c_str());
+  if (verbosity >= VERBOSITY_ALL) 
+    fprintf(stderr, "[%s]: Not Found\n", targetregex.c_str());
+
   return NULL;
 }
 
@@ -512,7 +514,7 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     }
 
 #if defined(PONY_SANITIZER)
-    args,push_back("-fsanitize=" PONY_SANITIZER);
+    args.push_back("-fsanitize=" PONY_SANITIZER);
 #endif
 
     // Path Autodetection
