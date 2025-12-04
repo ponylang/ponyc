@@ -664,13 +664,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   lld::Result result = lld::lldMain(args, output, output, {{lld::Gnu, &lld::elf::link}});
   bool link_result = (result.retCode == 0);
 
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
+//  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
     fprintf(stderr, "\n");
     for (auto it = args.begin(); it != args.end(); ++it) {
       fprintf(stderr, "%s ", *it);
     }
     fprintf(stderr, "\n");
-  }
+//  }
   // Show an informative error if linking failed, showing both the args passed
   // as well as the output that we captured from the linker attempt.
   if (!link_result) {
