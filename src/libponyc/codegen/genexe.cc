@@ -426,157 +426,62 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
     if (target_is_littleendian(c->opt->triple))
       args.push_back("-EL");
 
+    /*
+     * The following flags and object files are common across
+     * all linux platforms. (Yes, I know this is too wide)
+     *
+     * | Flag             | x86/gnu | x86/musl | arm64-gnu | arm64-musl | x86/musl/static |
+     * |------------------|---------|----------|-----------|------------|-----------------|
+     * | -z relro         |  *      |   *      |     *     |      *     |      *          |
+     * | --hash-style=gnu |  *      |   *      |     *     |      *     |      *          |
+     * | --build-id       |  *      |   *      |     *     |      *     |      *          |
+     * | --eh-frame-hdr   |  *      |   *      |     *     |      *     |      *          |
+     * | crti.o           |  *      |   *      |     *     |      *     |      *          |
+     * | crtn.o           |  *      |   *      |     *     |      *     |      *          |
+     */
     args.push_back("-z");
     args.push_back("relro");
-
-    if (target_is_musl(c->opt->triple)) {
-      args.push_back("-z");
-      args.push_back("now");
-    }
-
     args.push_back("--hash-style=both");
     args.push_back("--build-id");
     args.push_back("--eh-frame-hdr");
-
-//    args.push_back("-export-dynamic");
-
-    /* Assignment of the -m emulation, and the dynamic linker
-     * if this is not a static compile                        */
-    if (target_is_x86(c->opt->triple)) {
-      args.push_back("-m");
-      args.push_back("elf_x86_64");
-      if (!(c->opt->staticbin)) {
-        args.push_back("-dynamic-linker");
-        if (target_is_musl(c->opt->triple)) {
-          args.push_back("/lib/ld-musl-x86_64.so.1");
-        } else {
-          args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
-        }
-      }
-    } else if (target_is_arm(c->opt->triple)) {
-      args.push_back("-m");
-      args.push_back("aarch64linux");
-      if (!(c->opt->staticbin)) {
-        args.push_back("-dynamic-linker");
-        if (target_is_musl(c->opt->triple)) {
-          args.push_back("/lib/ld-musl-aarch64.so.1");
-        } else {
-          args.push_back("/usr/lib/ld-linux-aarch64.so.1");
-        }
-      }
-    } else {
-      errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
-        c->opt->triple);
-      return false;
-    }
-
-    // Assignment of flags that are musl specific
-    if (target_is_musl(c->opt->triple)) {
-      args.push_back("-lssp_nonshared");
-      args.push_back("--as-needed");
-    }
-
-    /* Assignment of the flags which are common across all targets
-     * for static and dynamic linking                              */
-    if (c->opt->staticbin) {
-      args.push_back("-static");
-      args.push_back("-lgcc_eh");
-
-      char* crtbegint = search_paths(spaths_depth1, "crtbeginT\\.o", 1, true, c->opt->verbosity);
-      if (crtbegint != NULL)
-        args.push_back(crtbegint);
-
-      char* crtend = search_paths(spaths_depth1, "crtend\\.o", 1, true, c->opt->verbosity);
-      if (crtend != NULL)
-        args.push_back(crtend);
-
-      char* crt1 = search_paths(spaths_depth0, "crt1\\.o", 0, true, c->opt->verbosity);
-      if (crt1 != NULL)
-        args.push_back(crt1);
-
-    } else {
-      args.push_back("-pie");
-      args.push_back("--as-needed");
-      args.push_back("-lgcc_s");
-      args.push_back("--no-as-needed");
-      char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true, c->opt->verbosity);
-      if (crtbegins != NULL)
-        args.push_back(crtbegins);
-
-      char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true, c->opt->verbosity);
-      if (crtends != NULL)
-        args.push_back(crtends);
-
-      char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true, c->opt->verbosity);
-      if (scrt1 != NULL)
-        args.push_back(scrt1);
-
-    }
-
-#if defined(PONY_SANITIZER)
-    args.push_back("-fsanitize=" PONY_SANITIZER);
-#endif
-
-    // Path Autodetection
-    char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false, c->opt->verbosity);
-    if (lgcc0 != NULL) {
-      args.push_back("-L");
-      args.push_back(lgcc0);
-    }
-
-    char* lpthread = search_paths(spaths_depth0, "libpthread\\.a", 0, false, c->opt->verbosity);
-    if (lpthread != NULL) {
-      args.push_back("-L");
-      args.push_back(lpthread);
-    }
-
-    /* We only directly link -lz when we're on a Linux platform. It is
-     * needed due to some distributions including ZLIB compressed linker
-     * object files.
-     *
-     * Note - there are matching test clauses in lib/CMakeLists.txt to
-     * only require it for Linux distributions.                          */
-    if (target_is_linux(c->opt->triple)) {
-      char* lz = search_paths(spaths_depth0, "libz\\.a", 0, false, c->opt->verbosity);
-      if (lz != NULL) {
-        args.push_back("-L");
-        args.push_back(lz);
-      }
-
-      char* lzo = search_paths(spaths_depth0, "libz\\.so.*", 0, false, c->opt->verbosity);
-      if (lzo != NULL) {
-        args.push_back("-L");
-        args.push_back(lzo);
-      }
-
-      args.push_back("-lz");
-    }
-
-    args.push_back("-o");
-    args.push_back(file_exe);
 
     char* crti = search_paths(spaths_depth0, "crti\\.o", 0, true, c->opt->verbosity);
     if (crti != NULL)
       args.push_back(crti);
 
-    args.push_back(file_o);
-
-    program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
-      "--start-group", "--end-group", "-l", "");
-
-    args.push_back("-lpthread");
-    c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
-    args.push_back("-lm");
-    args.push_back("-ldl");
-    args.push_back("-latomic");
-    args.push_back("-lgcc");
-    args.push_back("-lc");
-
     char* crtn = search_paths(spaths_depth0, "crtn\\.o", 0, true, c->opt->verbosity);
     if (crtn != NULL)
       args.push_back(crtn);
 
-    if (target_is_arm(c->opt->triple)) {
+    /*
+     * | Flag   | x86/gnu | x86/musl | arm64-gnu | arm64-musl | x86/musl/static |
+     * |--------|---------|----------|-----------|------------|-----------------|
+     * | -z now |         |    *     |           |      *     |       *         |
+     */
+    if (target_is_musl(c->opt->triple))
+    {
+      args.push_back("-z");
+      args.push_back("now");
+    }
+
+    /*
+     * Differentiate between archs
+     *
+     * | Flag                              | x86/gnu    | x86/musl   | arm64/gnu    | arm64/musl   | x86_64-musl-static |
+     * |-----------------------------------|------------|------------|--------------|--------------|--------------------|
+     * | -m                                | elf_x86_64 | elf_x86_64 | aarch64linux | aarch64linux | elf_x86_64         |
+     * | --exclude-libs libgcc.a           |            |            |       *      |      *       |                    |
+     * | --exclude-libs libgcc_real.a      |            |            |       *      |      *       |                    |
+     * | --exclude-libs libgnustl_shared.a |            |            |       *      |      *       |                    |
+     * | --exclude-libs libunwind.a        |            |            |       *      |      *       |                    |
+     */
+    if (target_is_x86(c->opt->triple))
+    {
+      args.push_back("-m");
+      args.push_back("elf_x86_64");
+    }
+    else if (target_is_arm(c->opt->triple))
+    {
       args.push_back("--exclude-libs");
       args.push_back("libgcc.a");
       args.push_back("--exclude-libs");
@@ -587,6 +492,157 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
       args.push_back("libunwind.a");
     }
 
+    /*
+     * Static linking requires --as-needed before any library inclusion
+     */
+    if (c->opt->staticbin)
+      args.push_back("--as-needed");
+
+    /*
+     * Library paths for the system libraries need to be in the argument
+     * list before we specify the libraries.
+     */
+    char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false, c->opt->verbosity);
+    if (lgcc0 != NULL)
+    {
+      args.push_back("-L");
+      args.push_back(lgcc0);
+    }
+
+    char* lpthread = search_paths(spaths_depth0, "libpthread\\.a", 0, false, c->opt->verbosity);
+    if (lpthread != NULL)
+    {
+      args.push_back("-L");
+      args.push_back(lpthread);
+    }
+
+    char* lz = search_paths(spaths_depth0, "libz\\.a", 0, false, c->opt->verbosity);
+    if (lz != NULL)
+    {
+      args.push_back("-L");
+      args.push_back(lz);
+    }
+
+    char* lzo = search_paths(spaths_depth0, "libz\\.so.*", 0, false, c->opt->verbosity);
+    if (lzo != NULL)
+    {
+      args.push_back("-L");
+      args.push_back(lzo);
+    }
+
+    program_lib_build_args_embedded(&args, program, c->opt, "-L", "-rpath",
+      "--start-group", "--end-group", "-l", "");
+
+    /*
+     * Dynamic Flags and objects:
+     *
+     * | Flag            | x86_64-gnu            | x86_64-musl         | arm64-gnu             | arm64-musl           | x86_64-musl-static |
+     * |-----------------|-----------------------|---------------------|-----------------------|----------------------|--------------------|
+     * | -export-dynamic |           *           |          *          |           *           |           *          |                    | X
+     * | -pie            |           *           |          *          |           *           |           *          |                    | X
+     * | -dynamic-linker | ld-linux-x86-64.so.2  | ld-musl-x86_64.so.1 | ld-linux-aarch64.so.1 | ld-musl-aarch64.so.1 |                    | X
+     * | Scrt1.o         |           *           |          *          |           *           |           *          |                    | X
+     * | crtbeginS.o     |           *           |          *          |           *           |           *          |                    | X
+     * | -lrt            |           *           |          *          |           *           |           *          |                    | X
+     * | -lgcc_s         | as-needed *           |as-needed *          | as-needed *           |           *          |                    | X
+     * | crtendS.o       |           *           |          *          |           *           |           *          |                    | X
+     */
+    if (!(c->opt->staticbin))
+    {
+      args.push_back("-export-dynamic");
+      args.push_back("-pie");
+
+      args.push_back("-dynamic-linker");
+      if (target_is_x86(c->opt->triple))
+      {
+        if (target_is_musl(c->opt->triple))
+          args.push_back("/lib/ld-musl-x86_64.so.1");
+        else
+          args.push_back("/usr/lib64/ld-linux-x86-64.so.2");
+      }
+      else if (target_is_arm(c->opt->triple))
+      {
+        if (target_is_musl(c->opt->triple))
+          args.push_back("/lib/ld-musl-aarch64.so.1");
+        else
+          args.push_back("/usr/lib/ld-linux-aarch64.so.1");
+      }
+      else
+      {
+        errorf(errors, NULL, "Linking with lld isn't yet supported for %s",
+          c->opt->triple);
+        return false;
+      }
+
+      char* scrt1 = search_paths(spaths_depth0, "Scrt1\\.o", 0, true, c->opt->verbosity);
+      if (scrt1 != NULL)
+        args.push_back(scrt1);
+
+      char* crtbegins = search_paths(spaths_depth1, "crtbeginS\\.o", 1, true, c->opt->verbosity);
+      if (crtbegins != NULL)
+        args.push_back(crtbegins);
+
+      char* crtends = search_paths(spaths_depth1, "crtendS\\.o", 1, true, c->opt->verbosity);
+      if (crtends != NULL)
+        args.push_back(crtends);
+
+      args.push_back("--as-needed");
+      args.push_back("-lgcc_s");
+      args.push_back("--no-as-needed");
+    }
+    else
+    {
+    /*
+     * | Flag        | x86_64-gnu | x86_64-musl | arm64-gnu | arm64-musl | x86_64-musl-static |
+     * |-------------|------------|-------------|-----------|------------|--------------------|
+     * | -static     |            |             |           |            |         *          |
+     * | crt1.o      |            |             |           |            |         *          |
+     * | crtbeginT.o |            |             |           |            |         *          |
+     * | -lgcc_eh    |            |             |           |            |         *          |
+     * | crtend.o    |            |             |           |            |         *          |
+     *
+     * NOTE - We also include -lgcc and --lc here as they are required to be in a group.
+     *
+     */
+      args.push_back("-static");
+      args.push_back("-start-group");
+      args.push_back("-lgcc");
+      args.push_back("-lgcc_eh");
+      args.push_back("-lc");
+      args.push_back("-end-group");
+
+      char* crt1 = search_paths(spaths_depth0, "crt1\\.o", 0, true, c->opt->verbosity);
+      if (crt1 != NULL)
+        args.push_back(crt1);
+
+      char* crtbegint = search_paths(spaths_depth1, "crtbeginT\\.o", 1, true, c->opt->verbosity);
+      if (crtbegint != NULL)
+        args.push_back(crtbegint);
+
+      char* crtend = search_paths(spaths_depth1, "crtend\\.o", 1, true, c->opt->verbosity);
+      if (crtend != NULL)
+        args.push_back(crtend);
+    }
+
+    /*
+     * musl specific library
+     */
+    if (target_is_musl(c->opt->triple))
+      args.push_back("-lssp_nonshared");
+
+
+    args.push_back("-o");
+    args.push_back(file_exe);
+    args.push_back(file_o);
+
+    args.push_back("-lpthread");
+    c->opt->pic ? args.push_back("-lponyrt-pic") : args.push_back("-lponyrt");
+    args.push_back("-lm");
+    args.push_back("-ldl");
+    args.push_back("-latomic");
+    args.push_back("-lgcc");
+    args.push_back("-lc");
+    args.push_back("-lz");
 
   // TODO: MacOS, Windows, BSD, etc
   } else {
@@ -602,13 +658,13 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
   lld::Result result = lld::lldMain(args, output, output, {{lld::Gnu, &lld::elf::link}});
   bool link_result = (result.retCode == 0);
 
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
+//  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO) {
     fprintf(stderr, "\n");
     for (auto it = args.begin(); it != args.end(); ++it) {
       fprintf(stderr, "%s ", *it);
     }
     fprintf(stderr, "\n");
-  }
+//  }
   // Show an informative error if linking failed, showing both the args passed
   // as well as the output that we captured from the linker attempt.
   if (!link_result) {
