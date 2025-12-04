@@ -511,6 +511,10 @@ static bool new_link_exe(compile_t* c, ast_t* program, const char* file_o)
 
     }
 
+#if defined(PONY_SANITIZER)
+    args,push_back("-fsanitize=" PONY_SANITIZER);
+#endif
+
     // Path Autodetection
     char* lgcc0 = search_paths(spaths_depth1, "libgcc\\.a", 1, false, c->opt->verbosity);
     if (lgcc0 != NULL) {
