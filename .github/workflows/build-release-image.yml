@@ -187,8 +187,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
-        env:
-          MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
 
   build-and-push-stdlib-documentation:
     needs:

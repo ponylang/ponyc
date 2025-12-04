@@ -3,8 +3,6 @@ FROM ghcr.io/ponylang/ponyc:${FROM_TAG}
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
-ARG MATERIAL_INSIDERS_ACCESS=fail
-
 RUN apk update \
   && apk upgrade \
   && apk add --update --no-cache \
@@ -20,4 +18,4 @@ RUN apk update \
   tar \
   && pip3 install --upgrade --break-system-packages pip \
   && pip3 install --break-system-packages mkdocs \
-  && pip3 install --break-system-packages git+https://${MATERIAL_INSIDERS_ACCESS}@github.com/squidfunk/mkdocs-material-insiders.git
+  && pip3 install --break-system-packages mkdocs-material

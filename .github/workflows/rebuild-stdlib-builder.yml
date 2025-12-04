@@ -26,5 +26,3 @@ jobs:
         uses: actions/checkout@v4.1.1
       - name: Build and push
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
-        env:
-          MATERIAL_INSIDERS_ACCESS: ${{ secrets.MATERIAL_INSIDERS_ACCESS }}
