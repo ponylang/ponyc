@@ -12,7 +12,7 @@ primitive Compiler
   """
   fun compile(
     path: FilePath,
-    package_search_paths: (String box | ReadSeq[String val] box) = [])
+    package_search_paths: (String val | ReadSeq[String val] val) = [])
   : (Program val^ | Array[Error] val^)
   =>
     """
@@ -31,11 +31,15 @@ primitive Compiler
     // avoid calling package_init
     // get the search paths from the arguments
     match package_search_paths
-    | let single: String box =>
-      @package_add_paths(single.cstring(), pass_opt)
-    | let multiple: ReadSeq[String val] box =>
-      for search_path in multiple.values() do
+    | let single: String val =>
+      for search_path in Path.split_list(single).values() do
         @package_add_paths(search_path.cstring(), pass_opt)
+      end
+    | let multiple: ReadSeq[String val] val =>
+      for m_path in multiple.values() do
+        for search_path in Path.split_list(m_path).values() do
+          @package_add_paths(search_path.cstring(), pass_opt)
+        end
       end
     end
 

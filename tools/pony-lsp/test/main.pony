@@ -41,7 +41,7 @@ primitive _LspMsg
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     h.long_test(10_000_000_000)
 
     let channel = TestChannel.create(
@@ -53,11 +53,14 @@ class \nodoc\ iso _InitializeTest is UnitTest
       }
       where after_sends = 1, after_logs = USize.max_value()
     )
+    let stdlib_path = Path.canonical(Path.join(Path.dir(Path.dir(Path.dir(Path.dir(__loc.file())))), "packages"))?
+
     let pony_path =
       match ast.PonyPath(h.env)
-      | let p: String => p
-      | None => ""
+      | let p: String => Path.list_sep().join([stdlib_path; p].values())
+      | None => stdlib_path
       end
+    
     let server = LanguageServer(channel, h.env, pony_path)
 
     let base = BaseProtocol(server)

@@ -9,13 +9,17 @@ actor PonyCompiler
   var _run_id_gen: USize
 
   new create(pony_path': String) =>
-    _pony_path = [pony_path']
+    _pony_path = Path.split_list(pony_path')
     _run_id_gen = 0
 
 
   be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag) =>
-    let package_paths: Array[String val] ref = this._pony_path.clone()
-    package_paths.append(paths)
+    let package_paths: Array[String val] val =
+      recover val
+        let tmp = this._pony_path.clone()
+        tmp.append(paths)
+        tmp
+      end
     let result = Compiler.compile(package, package_paths)
     let run_id = _run_id_gen = _run_id_gen + 1
     notify.done_compiling(package, result, run_id)
