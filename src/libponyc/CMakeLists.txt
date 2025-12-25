@@ -25,7 +25,7 @@ add_library(libponyc STATIC
     codegen/gencall.c
     codegen/gencontrol.c
     codegen/gendesc.c
-    codegen/genexe.c
+    codegen/genexe.cc
     codegen/genexpr.c
     codegen/genfun.c
     codegen/genheader.c
@@ -72,7 +72,7 @@ add_library(libponyc STATIC
     pkg/ifdef.c
     pkg/package.c
     pkg/platformfuns.c
-    pkg/program.c
+    pkg/program.cc
     pkg/use.c
     platform/paths.c
     platform/vcvars.c
@@ -101,6 +101,20 @@ add_library(libponyc STATIC
 target_compile_definitions(libponyc PRIVATE
     PONY_ALWAYS_ASSERT
 )
+target_link_libraries(libponyc PRIVATE
+    lldMachO
+    lldCommon
+    lldELF
+    lldWasm
+)
+
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(libponyc PRIVATE lldMachO)
+elseif(MSVC)
+    target_link_libraries(libponyc PRIVATE lldCOFF)
+else()
+    target_link_libraries(libponyc PRIVATE lldELF)
+endif()
 
 target_include_directories(libponyc
     PUBLIC ../common
@@ -130,12 +144,13 @@ endif (NOT MSVC)
 if (MSVC)
     # this will not include LLVM-C.lib as it contains lots of duplicated definitions
     file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/LLVM[!-]*.lib")
+    file(GLOB_RECURSE LLD_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/lld[!-]*.lib")
 
     set(libponyc_standalone_file "${CMAKE_STATIC_LIBRARY_PREFIX}ponyc-standalone${CMAKE_STATIC_LIBRARY_SUFFIX}")
     set(libponyc_standalone_path "${CMAKE_BINARY_DIR}/${libponyc_standalone_file}")
     add_custom_target(libponyc-standalone ALL
         # CMAKE_AR finds the appropriate version of lib.exe according to desired target and host architecture
-        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
+        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} ${LLD_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
         DEPENDS libponyc)
     add_custom_command(TARGET libponyc-standalone POST_BUILD
         COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/${libponyc_standalone_file}
@@ -148,8 +163,9 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     # so when we want to use this lib
     # we need to additionally link libc++ and libz (for llvm)
     file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/libLLVM*.a")
+    file(GLOB_RECURSE LLD_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/liblld*.a")
     add_custom_target(libponyc-standalone ALL
-        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a ${LLVM_OBJS}
+        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a ${LLVM_OBJS} ${LLD_OBJS}
         DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
     )
     # copy the generated file after it is built
@@ -167,6 +183,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
         COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
+        COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
@@ -215,6 +232,7 @@ else()
         COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libstdcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
+        COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
