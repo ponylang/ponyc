@@ -28,8 +28,11 @@ primitive Compiler
     pass_opt.release = false
 
     @codegen_pass_init(pass_opt)
-    // avoid calling package_init
-    // get the search paths from the arguments
+
+    // assuming the pony-lsp binary is placed next to ponyc
+    @package_init(pass_opt)
+
+    // append the search paths from the arguments
     match package_search_paths
     | let single: String val =>
       for search_path in Path.split_list(single).values() do

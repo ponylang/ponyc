@@ -19,20 +19,19 @@ actor \nodoc\ Main is TestList
     // test(_FindTypes)
 
 primitive _Helper
-  fun pony_path(env: Env): String ? =>
-    let stdlib_path = Path.canonical(Path.join(Path.dir(Path.dir(Path.dir(Path.dir(__loc.file())))), "packages"))?
+  fun pony_path(env: Env): String =>
     try
-      Path.list_sep().join([stdlib_path; PonyPath(env) as String].values())
+      PonyPath(env) as String
     else
-      stdlib_path
+      ""
     end
 
 class \nodoc\ iso _CompileSimple is UnitTest
   fun name(): String => "compile/simple"
 
-  fun apply(h: TestHelper) ? =>
+  fun apply(h: TestHelper) =>
     let source_dir = Path.join(Path.dir(__loc.file()), "simple")
-    let pony_path = _Helper.pony_path(h.env)?
+    let pony_path = _Helper.pony_path(h.env)
     match Compiler.compile(FilePath(FileAuth(h.env.root), source_dir), pony_path)
     | let p: Program =>
       try
@@ -54,9 +53,9 @@ class \nodoc\ iso _CompileSimple is UnitTest
 class \nodoc\ iso _CompileRepeatedly is UnitTest
   fun name(): String => "compile/repeatedly"
 
-  fun apply(h: TestHelper) ? =>
+  fun apply(h: TestHelper) =>
     let source_dir = Path.join(Path.dir(__loc.file()), "simple")
-    let pony_path = _Helper.pony_path(h.env)?
+    let pony_path = _Helper.pony_path(h.env)
 
     var rounds: USize = 3
     while rounds > 0 do
@@ -168,9 +167,9 @@ class iso _PositionIndexFind is UnitTest
 
   fun name(): String => "position-index/find"
 
-  fun apply(h: TestHelper) ? =>
+  fun apply(h: TestHelper) =>
     let source_dir = Path.join(Path.dir(__loc.file()), "constructs")
-    let pony_path = _Helper.pony_path(h.env)?
+    let pony_path = _Helper.pony_path(h.env)
 
     match Compiler.compile(FilePath(FileAuth(h.env.root), source_dir), pony_path)
     | let p: Program =>
@@ -234,9 +233,9 @@ class \nodoc\ _DefinitionTest is UnitTest
   ]
   fun name(): String => "definition/test"
 
-  fun apply(h: TestHelper) ? =>
+  fun apply(h: TestHelper) =>
     let source_dir = Path.join(Path.dir(__loc.file()), "constructs")
-    let pony_path = _Helper.pony_path(h.env)?
+    let pony_path = _Helper.pony_path(h.env)
 
     match Compiler.compile(FilePath(FileAuth(h.env.root), source_dir), pony_path)
     | let p: Program =>
