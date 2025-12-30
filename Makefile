@@ -256,7 +256,7 @@ test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
 test-pony-lsp: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b pony-lsp-tests --pic ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b pony-lsp-tests --pic ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=
