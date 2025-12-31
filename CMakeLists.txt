@@ -300,7 +300,6 @@ else()
         COMMAND ${CMAKE_COMMAND} -E env PONYPATH=.:$ENV{PONYPATH}
             $<TARGET_FILE:ponyc>
             -b pony-lsp
-            --pic
             ${CMAKE_SOURCE_DIR}/tools/pony-lsp
         WORKING_DIRECTORY $<TARGET_FILE_DIR:ponyc>
         DEPENDS ponyc
