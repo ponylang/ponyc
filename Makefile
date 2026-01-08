@@ -175,7 +175,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean pony-lsp test-pony-lsp
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
@@ -198,6 +198,9 @@ build:
 ponyc:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target ponyc -- $(build_flags)
 
+pony-lsp:
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target pony-lsp -- $(build_flags)
+
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
 cross-libponyrt:
@@ -207,7 +210,7 @@ cross-libponyrt:
 
 test: all test-core test-stdlib-release test-examples
 
-test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-validate-grammar
+test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-pony-lsp test-validate-grammar
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: debuggercmd=
@@ -251,6 +254,9 @@ test-examples: all
 
 test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
+
+test-pony-lsp: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=
@@ -302,6 +308,7 @@ install: build
 	$(SILENT)if [ -f $(outDir)/libponyc-standalone.a ]; then cp $(outDir)/libponyc-standalone.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
+	$(SILENT)if [ -f $(outDir)/pony-lsp ]; then cp $(outDir)/pony-lsp $(ponydir)/bin; fi
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
 	$(SILENT)cp -r packages $(ponydir)/
@@ -310,6 +317,7 @@ ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
+	$(SILENT)if [ -f $(ponydir)/bin/pony-lsp ]; then ln -s -f $(ponydir)/bin/pony-lsp $(prefix)/bin/pony-lsp; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc.a $(prefix)/lib/libponyc.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc-standalone.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc-standalone.a $(prefix)/lib/libponyc-standalone.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/libponyrt.a; fi
@@ -321,6 +329,7 @@ endif
 uninstall:
 	-$(SILENT)rm -rf $(ponydir) ||:
 	-$(SILENT)rm -f $(prefix)/bin/ponyc ||:
+	-$(SILENT)rm -f $(prefix)/bin/pony-lsp ||:
 	-$(SILENT)rm -f $(prefix)/lib/libponyc*.a ||:
 	-$(SILENT)rm -f $(prefix)/lib/libponyrt*.a ||:
 	-$(SILENT)rm -rf $(prefix)/lib/pony ||:
