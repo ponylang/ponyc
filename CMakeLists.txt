@@ -316,4 +316,9 @@ else()
         DESTINATION lib)
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
+    install(PROGRAMS
+         $<TARGET_FILE_DIR:ponyc>/pony-lsp
+         DESTINATION bin
+         OPTIONAL
+    )
 endif()
