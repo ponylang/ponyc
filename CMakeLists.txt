@@ -294,18 +294,19 @@ else()
     add_subdirectory(src/libponyrt)
     add_subdirectory(src/ponyc)
 
+    # TODO STA: remove
     # Build pony-lsp using the newly built ponyc compiler
-    add_custom_target(pony-lsp ALL
-        COMMAND ${CMAKE_COMMAND} -E echo "Building pony-lsp..."
-        COMMAND ${CMAKE_COMMAND} -E env PONYPATH=.:$ENV{PONYPATH}
-            $<TARGET_FILE:ponyc>
-            -b pony-lsp
-            ${CMAKE_SOURCE_DIR}/tools/pony-lsp
-        WORKING_DIRECTORY $<TARGET_FILE_DIR:ponyc>
-        DEPENDS ponyc
-        COMMENT "Compiling pony-lsp with ponyc"
-        VERBATIM
-    )
+#     add_custom_target(pony-lsp ALL
+#         COMMAND ${CMAKE_COMMAND} -E echo "Building pony-lsp..."
+#         COMMAND ${CMAKE_COMMAND} -E env PONYPATH=.:$ENV{PONYPATH}
+#             $<TARGET_FILE:ponyc>
+#             -b pony-lsp
+#             ${CMAKE_SOURCE_DIR}/tools/pony-lsp
+#         WORKING_DIRECTORY $<TARGET_FILE_DIR:ponyc>
+#         DEPENDS ponyc
+#         COMMENT "Compiling pony-lsp with ponyc"
+#         VERBATIM
+#     )
 
     add_subdirectory(test/libponyc)
     add_subdirectory(test/libponyrt)
@@ -314,6 +315,8 @@ else()
 
     add_subdirectory(benchmark/libponyc)
     add_subdirectory(benchmark/libponyrt)
+
+    add_subdirectory(tools/pony-lsp)
 
     install(TARGETS
         ponyc
@@ -327,10 +330,11 @@ else()
         DESTINATION lib)
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
+    # TODO STA: i think we remove this
     # Install pony-lsp binary
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-lsp
-        DESTINATION bin
-        OPTIONAL
-    )
+#     install(PROGRAMS
+#         $<TARGET_FILE_DIR:ponyc>/pony-lsp
+#         DESTINATION bin
+#         OPTIONAL
+#    )
 endif()

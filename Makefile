@@ -175,7 +175,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean pony-lsp test-pony-lsp
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
@@ -199,7 +199,7 @@ ponyc:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target ponyc -- $(build_flags)
 
 pony-lsp:
-	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target pony-lsp -- $(build_flags)
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target tools.pony-lsp -- $(build_flags)
 
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
@@ -308,7 +308,7 @@ install: build
 	$(SILENT)if [ -f $(outDir)/libponyc-standalone.a ]; then cp $(outDir)/libponyc-standalone.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
-	$(SILENT)if [ -f $(outDir)/pony-lsp ]; then cp $(outDir)/pony-lsp $(ponydir)/bin; fi
+	$(SILENT)cp $(outDir)/pony-lsp $(ponydir)/bin
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
 	$(SILENT)cp -r packages $(ponydir)/
@@ -317,7 +317,7 @@ ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)if [ -f $(ponydir)/bin/pony-lsp ]; then ln -s -f $(ponydir)/bin/pony-lsp $(prefix)/bin/pony-lsp; fi
+	$(SILENT)ln -s -f $(ponydir)/bin/pony-lsp $(prefix)/bin/pony-lsp
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc.a $(prefix)/lib/libponyc.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc-standalone.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc-standalone.a $(prefix)/lib/libponyc-standalone.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/libponyrt.a; fi
