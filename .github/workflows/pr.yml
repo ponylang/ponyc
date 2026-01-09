@@ -454,6 +454,12 @@ jobs:
           .\make.ps1 -Command build -Config Debug
       - name: Test with Debug Runtime
         run: .\make.ps1 -Command test -Config Debug -Uselldb yes
+      - name: List Debug build directory
+        run: |
+          Write-Host "Listing C:/a/ponyc/ponyc/build/build/../Debug"
+          Get-ChildItem -Path 'C:\a\ponyc\ponyc\build\build\..\Debug' -Force |
+          Select-Object FullName, Mode, Length, LastWriteTime |
+          Format-Table -AutoSize
       - name: Build Release Runtime
         run: |
           .\make.ps1 -Command configure -Config Release
