@@ -255,8 +255,9 @@ test-examples: all
 test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
+# TODO STA: --path entries are temporary until a ponyc bug is fixed.
 test-pony-lsp: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/peg --path ../../tools/lib/mfelsche/pony-ast/ --path ../../tools/lib/mfelsche/pony-binarysearch/ --path ../../tools/lib/mfelsche/pony-immutable-json/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=

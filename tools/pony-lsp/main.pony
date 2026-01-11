@@ -34,6 +34,10 @@ client requests in the [`PackageState`](lsp-workspace-PackageState.md) and
 [`DocumentState`](lsp-workspace-DocumentState.md) classes.
 
 """
+use "path:../lib/ponylang/peg/"
+use "path:../lib/mfelsche/pony-ast/"
+use "path:../lib/mfelsche/pony-binarysearch/"
+use "path:../lib/mfelsche/pony-immutable-json/"
 use "files"
 use "ast"
 

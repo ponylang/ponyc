@@ -3,7 +3,7 @@ use "assert"
 use "collections"
 use "files"
 use "itertools"
-use "../immutable-json"
+use "immutable-json"
 
 class WorkspaceScanner
   let _channel: Channel

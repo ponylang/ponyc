@@ -1,0 +1,78 @@
+module <- STRING? use* class*
+
+use <- -"use" (ID -"=")? (STRING / useffi) (-"if" infix)?
+
+useffi <- "@" (ID / STRING) typeargs -"(" params? -")" "?"?
+
+class <-
+  ("type" / "interface" / "trait" / "primitive" / "class" / "actor")
+  cap?
+  ID
+  typeparams?
+  ("is" type)?
+  STRING?
+  members
+
+members <- field* method*
+
+field <- ("var" / "let" / "embed") ID -":" type (-"=" infix)?
+
+method <-
+  ("new" / "fun" / "be") cap? ID typeparams? -"(" params? -")" (-":" type)? "?"?
+  STRING? (-"if" seq)? (-"=>" seq)?
+
+// TODO: all the clustering stuff
+
+atom <-
+  ("this" !IDCONT) / bool / ID / FLOAT / INT / STRING /
+  -'(' seq -')' / array / object / lambda / "__loc"
+
+bool <- ("true" !IDCONT) / ("false" !IDCONT)
+array <- -'[' (-"as" type -':')? seq -']'
+object <- -"object" cap? (-"is" type)? members -"end"
+lambda <-
+  -'{' cap? ID? typeparams? -'(' params? -')' captures? (-':' type)? '?'?
+    '=>' seq '}' cap?
+ffi <- '@' (ID / STRING) typeargs? -'(' positional? named? -')' '?'?
+
+// TODO: ID should reject keywords, or reject them later on?
+ID <- IDSTART IDCONT*
+IDSTART <- '_' / LETTER
+IDCONT <- IDSTART / DIGIT / '\''
+LETTER <- 'a'..'z' / 'A'..'Z'
+
+DIGIT19 <- '1'..'9'
+DIGIT <- '0'..'9'
+DIGITS <- (DIGIT / '_')+
+HEX <- DIGIT / 'a'..'f' / 'A'..'F'
+BINARY <- '0'..'1'
+
+INT <-
+  (DIGIT19 DIGITS / DIGIT) /
+  ("0x" HEX (HEX / '_')*) /
+  ("0b" BINARY (BINARY / '_')*) /
+  '\'' (ESC / !'\'' !'\\' .)* '\''
+
+FRAC <- '.' DIGITS
+EXP <- ('e' / 'E') ('-' / '+')? DIGITS
+FLOAT <- INT FRAC? EXP?
+
+STRING <-
+  '\"' (ESC / !'\"' !'\\' .)* '\"' /
+  TRIPLE (!TRIPLE .)* TRIPLE '\"'*
+
+TRIPLE <- "\"\"\""
+
+ESC <-
+  '\\'
+    ('a' / 'b' / 'e' / 'f' / 'n' / 'r' / 't' / 'v' / '\\' / '0'/ '\'' / '\"') /
+  "\\x" HEX HEX /
+  "\\u" HEX HEX HEX HEX /
+  "\\U" HEX HEX HEX HEX HEX HEX
+
+whitespace <- (' ' / '\t' / '\r' / '\n')+
+linecomment <- "//" (!'\r' !'\n' .)*
+nestedcomment <- "/*" ((!"/*" !"*/" .) / nestedcomment)* "*/"
+
+start <- module
+hidden <- (whitespace / linecomment / nestedcomment)+

@@ -1,0 +1,29 @@
+version: 2
+jobs:
+  vs-ponyc-release:
+    docker:
+      - image: ponylang/ponyc:release
+    steps:
+      - checkout
+      - run: make clean test
+  vs-ponyc-master:
+    docker:
+      - image: ponylang/ponyc:latest
+    steps:
+      - checkout
+      - run: make clean test
+
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - vs-ponyc-release
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only: master
+    jobs:
+      - vs-ponyc-master

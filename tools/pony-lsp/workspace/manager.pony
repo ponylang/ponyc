@@ -2,8 +2,8 @@ use ".."
 use "collections"
 use "files"
 
-use "../ast"
-use "../immutable-json"
+use "ast"
+use "immutable-json"
 
 actor WorkspaceManager
   """

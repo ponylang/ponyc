@@ -1,0 +1,41 @@
+DIGIT <- '0'..'9'
+HEX <- DIGIT / 'a'..'f' / 'A'..'F'
+ESC <-
+  '\\'
+    ('a' / 'b' / 'e' / 'f' / 'n' / 'r' / 't' / 'v' / '\\' / '0'/ '\'' / '\"') /
+  "\\x" HEX HEX /
+  "\\u" HEX HEX HEX HEX /
+  "\\U" HEX HEX HEX HEX HEX HEX
+
+CHAR <- ESC / !'\"' !'\\' .
+STRING <- '\"' CHAR* '\"'
+CHARLIT <- '\'' CHAR '\''
+DOT <- '.'
+
+ID <- IDSTART IDCONT*
+IDSTART <- '_' / LETTER
+IDCONT <- IDSTART / DIGIT
+LETTER <- 'a'..'z' / 'A'..'Z'
+
+range <- CHARLIT -".." CHARLIT
+primary <- ID !"<-" / -"(" choice -")" / range / STRING / CHARLIT / DOT
+option <- primary -"?"
+many <- primary -"*"
+many1 <- primary -"+"
+sep <- primary -"%" primary
+sep1 <- primary -"%+" primary
+suffix <- option / many / many1 / sep1 / primary
+and <- -"&" suffix
+not <- -"!" suffix
+skip <- -"-" suffix
+prefix <- and / not / skip / suffix
+sequence <- prefix+
+choice <- sequence %+ "/"
+definition <- ID -"<-" choice
+
+whitespace <- (' ' / '\t' / '\r' / '\n')+
+linecomment <- "//" (!'\r' !'\n' .)*
+nestedcomment <- "/*" ((!"/*" !"*/" .) / nestedcomment)* "*/"
+
+start <- definition+
+hidden <- (whitespace / linecomment / nestedcomment)+

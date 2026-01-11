@@ -1,0 +1,54 @@
+(object
+  (pair
+    (STRING "firstName")
+    (STRING "Rack")
+  )
+  (pair
+    (STRING "lastName")
+    (STRING "Jackon")
+  )
+  (pair
+    (STRING "gender")
+    (STRING "man")
+  )
+  (pair
+    (STRING "age")
+    (NUMBER 24)
+  )
+  (pair
+    (STRING "address")
+    (object
+      (pair
+        (STRING "streetAddress")
+        (STRING "126")
+      )
+      (pair
+        (STRING "city")
+        (STRING "San Jone")
+      )
+      (pair
+        (STRING "state")
+        (STRING "CA")
+      )
+      (pair
+        (STRING "postalCode")
+        (STRING "394221")
+      )
+    )
+  )
+  (pair
+    (STRING "phoneNumbers")
+    (array
+      (object
+        (pair
+          (STRING "type")
+          (STRING "home")
+        )
+        (pair
+          (STRING "number")
+          (STRING "7383627627")
+        )
+      )
+    )
+  )
+)

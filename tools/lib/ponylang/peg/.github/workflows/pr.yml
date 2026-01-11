@@ -1,0 +1,43 @@
+name: PR
+
+on: pull_request
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  superlinter:
+    name: Lint bash, docker, markdown, and yaml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Lint codebase
+        uses: docker://github/super-linter:v3.8.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: true
+          VALIDATE_BASH: true
+          VALIDATE_DOCKERFILE: true
+          VALIDATE_MD: true
+          VALIDATE_YAML: true
+
+  verify-changelog:
+    name: Verify CHANGELOG is valid
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ponylang/changelog-tool:release
+    steps:
+      - uses: actions/checkout@v3
+      - name: Verify CHANGELOG
+        run: changelog-tool verify
+
+  vs-ponyc-release:
+    name: Test against recent ponyc release
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ponylang/shared-docker-ci-x86-64-unknown-linux-builder:release
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test
+        run: make test config=debug

@@ -1,11 +1,7 @@
 use "pony_test"
 use "buffered"
 use "files"
-use ast = "../ast"
-use ast_test = "../ast-tests"
-use binarysearch = "../binarysearch"
-use immutable_json = "../immutable-json"
-use peg = "../peg"
+use ast = "ast"
 use ".."
 
 actor Main is TestList
@@ -18,14 +14,6 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_InitializeTest)
     _WorkspaceTests.make().tests(test)
-    // Some of these fail because they require PONYPATH to be set
-    ast.Main.make().tests(test)
-    ast_test.Main.make().tests(test)
-    binarysearch.Main.make().tests(test)
-    immutable_json.Main.make().tests(test)
-    // These are going to be hard to wire in
-    //peg.Main.make().tests(test)
-
 
 primitive _LspMsg
   fun tag apply(msg: String val): Array[U8] iso^ =>
@@ -58,7 +46,7 @@ class \nodoc\ iso _InitializeTest is UnitTest
       | let p: String => p
       | None => ""
       end
-    
+
     let server = LanguageServer(channel, h.env, pony_path)
 
     let base = BaseProtocol(server)

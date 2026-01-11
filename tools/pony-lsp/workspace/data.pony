@@ -1,7 +1,7 @@
 use "collections"
 use "files"
 use "itertools"
-use "../immutable-json"
+use "immutable-json"
 
 class val WorkspaceData
   """

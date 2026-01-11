@@ -1,0 +1,21 @@
+name: PR
+
+on: pull_request
+
+jobs:
+  test-release-ponyc-linux:
+    name: Test against recent ponyc release on Linux
+    runs-on: ubuntu-latest
+    container:
+      image: ponylang/shared-docker-ci-x86-64-unknown-linux-builder-3.5.3:release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: add current ponyc packages dir to PONYPATH
+        run: |
+          PONY_LOCATION=$(ponyup show ponyc -b) | awk '{ print $1 }'
+          echo "PONYPATH=$HOME/.local/share/ponyup/$(ponyup show ponyc -b | awk '{ print $1 }')/packages:$PONYPATH" >> $GITHUB_ENV
+      - name: tests debug
+        run: make test config=debug
+      - name: tests release
+        run: make test config=release
