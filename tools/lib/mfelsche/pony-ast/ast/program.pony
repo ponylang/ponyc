@@ -1,5 +1,4 @@
-use "lib:ponyc-standalone" if posix or osx
-// windows is not supported yet
+use "lib:ponyc-standalone" if not (openbsd or dragonfly)
 use "lib:c++" if osx
 use "files"
 
@@ -58,4 +57,3 @@ class val Program
     if not ast.raw.is_null() then
       @ast_free(ast.raw)
     end
-
