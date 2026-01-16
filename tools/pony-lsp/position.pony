@@ -24,7 +24,7 @@ class val LspPositionRange
 
     fun to_json(): JsonType =>
         Obj("start", this._start.to_json())(
-            "end", this._start.to_json()
+            "end", this._end.to_json()
         ).build()
 
 class val LspPosition
@@ -44,6 +44,15 @@ class val LspPosition
     new val from_ast_pos(position: Position) =>
         _line = (position.line() - 1).max(0)
         _character = (position.column() - 1).max(0)
+
+    new val from_ast_pos_end(position: Position) =>
+        """
+        Convert AST position to LSP position for range end (exclusive).
+        AST positions are inclusive (point to the last character),
+        but LSP range ends are exclusive (point one past the last character).
+        """
+        _line = (position.line() - 1).max(0)
+        _character = position.column().max(0)  // Don't subtract 1 for end position
 
     fun to_json(): JsonType =>
         Obj("line", this._line.i64())(

@@ -14,6 +14,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_InitializeTest)
     _WorkspaceTests.make().tests(test)
+    _HoverTests.make().tests(test)
 
 primitive _LspMsg
   fun tag apply(msg: String val): Array[U8] iso^ =>

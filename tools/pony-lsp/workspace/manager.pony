@@ -215,7 +215,110 @@ actor WorkspaceManager
     Handling the textDocument/hover request
     """
     this._current_request = request
-    _channel.send(ResponseMessage.create(request.id, None))
+
+    // Parse position from request params
+    (let line, let column) = match _parse_hover_position(request)
+    | (let l: I64, let c: I64) => (l, c)
+    | None => return // Error already sent
+    end
+
+    let document_path = Uris.to_path(document_uri)
+
+    // Find AST node at the position
+    match _find_hover_node(document_path, line, column)
+    | let ast: AST box =>
+      this._channel.log("Found AST node: " + ast.debug())
+
+      // Extract hover information and build response
+      match HoverFormatter.create_hover(ast, this._channel)
+      | let hover_text: String =>
+        let hover_response = _build_hover_response(hover_text, ast)
+        this._channel.send(ResponseMessage(request.id, hover_response))
+        return
+      | None =>
+        this._channel.log("No hover info available for node type: " + TokenIds.string(ast.id()))
+      end
+    | None =>
+      this._channel.log("No hover data found for position")
+    end
+
+    // Send null response on failure
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  fun ref _parse_hover_position(request: RequestMessage val): ((I64, I64) | None) =>
+    """
+    Extract line and column from hover request params.
+    Sends error response and returns None if invalid.
+    """
+    try
+      let l = JsonPath("$.position.line", request.params)?(0)? as I64 // 0-based
+      let c = JsonPath("$.position.character", request.params)?(0)? as I64 // 0-based
+      (l, c)
+    else
+      _channel.send(
+        ResponseMessage.create(
+          request.id,
+          None,
+          ResponseError(ErrorCodes.invalid_params(), "Invalid position")
+        )
+      )
+      None
+    end
+
+  fun ref _find_hover_node(document_path: String, line: I64, column: I64): (AST box | None) =>
+    """
+    Find the AST node at the specified position.
+    Returns None if document/package not found or position invalid.
+    """
+    try
+      let package: FilePath = this._find_workspace_package(document_path)?
+
+      match this._get_package(package)
+      | let pkg_state: PackageState =>
+        match pkg_state.get_document(document_path)
+        | let doc: DocumentState =>
+          match doc.position_index
+          | let index: PositionIndex =>
+            // Find AST node at cursor position (convert 0-based to 1-based)
+            index.find_node_at(USize.from[I64](line + 1), USize.from[I64](column + 1))
+          else
+            this._channel.log("No position index available for " + document_path)
+            None
+          end
+        else
+          this._channel.log("No document state available for " + document_path)
+          None
+        end
+      | None =>
+        this._channel.log("No package state available for package: " + package.path)
+        None
+      end
+    else
+      this._channel.log("document not in workspace: " + document_path)
+      None
+    end
+
+  fun _build_hover_response(hover_text: String, ast: AST box): JsonType =>
+    """
+    Build the LSP Hover response JSON from hover text and AST node.
+    """
+    let hover_contents = Obj(
+      "kind", "markdown")(
+      "value", hover_text
+    ).build()
+
+    // Use identifier's span for highlight range if this is a declaration
+    let highlight_node = _get_identifier_for_highlight(ast)
+    (let start_pos, let end_pos) = highlight_node.span()
+    let hover_range = LspPositionRange(
+      LspPosition.from_ast_pos(start_pos),
+      LspPosition.from_ast_pos_end(end_pos)
+    )
+
+    Obj(
+      "contents", hover_contents)(
+      "range", hover_range.to_json()
+    ).build()
 
   be goto_definition(document_uri: String, request: RequestMessage val) =>
     """
@@ -322,7 +425,47 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  fun _get_identifier_for_highlight(ast: AST box): AST box =>
+    """
+    Extract the identifier child from declaration nodes for highlighting.
+    For declarations (class, fun, let, etc.), return the identifier child.
+    Otherwise return the original node.
+    """
+    match ast.id()
+    | TokenIds.tk_class() | TokenIds.tk_actor() | TokenIds.tk_trait()
+    | TokenIds.tk_interface() | TokenIds.tk_primitive() | TokenIds.tk_type()
+    | TokenIds.tk_struct() =>
+      // Entity declarations: identifier is at child(0)
+      try
+        let id = ast(0)?
+        if id.id() == TokenIds.tk_id() then
+          return id
+        end
+      end
+    | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new() =>
+      // Method declarations: identifier is at child(1)
+      try
+        let id = ast(1)?
+        if id.id() == TokenIds.tk_id() then
+          return id
+        end
+      end
+    | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed()
+    | TokenIds.tk_let() | TokenIds.tk_var() =>
+      // Field and local variable declarations: identifier is at child(0)
+      try
+        let id = ast(0)?
+        if id.id() == TokenIds.tk_id() then
+          return id
+        end
+      end
+    end
+    // Default: return original node
+    ast
+
   be dispose() =>
     for package_state in this._packages.values() do
       package_state.dispose()
     end
+
+
