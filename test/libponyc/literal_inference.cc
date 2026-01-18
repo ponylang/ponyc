@@ -878,6 +878,22 @@ TEST_F(LiteralTest, Match_ResultInt)
 }
 
 
+TEST_F(LiteralTest, Match_ResultIntUnreachable)
+{
+  const char* src =
+    "class Foo2c\n"
+    "  fun test(q: Bool): I16 => \n"
+    "    match q\n"
+    "    | true => 1\n"
+    "    | false => 7\n"
+    "    else\n"
+    "      11\n"
+    "    end\n";
+
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+
 TEST_F(LiteralTest, Match_ResultFloat)
 {
   const char* src =

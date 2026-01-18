@@ -880,6 +880,22 @@ TEST_F(SugarExprTest, MatchNonExhaustiveBoolOnlyFalse)
 }
 
 
+TEST_F(SugarExprTest, MatchExhaustiveBoolInUnionElse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: (U32 | Bool)): (U32 | None) =>\n"
+    "    match b\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    else\n"
+    "      None\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(SugarExprTest, MatchExhaustiveBoolInUnion)
 {
   const char* src =
