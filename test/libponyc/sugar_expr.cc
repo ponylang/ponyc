@@ -912,6 +912,21 @@ TEST_F(SugarExprTest, MatchExhaustiveBoolInUnion)
 }
 
 
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolInUnion)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive Foo\n"
+    "  fun apply(x: (Bool | P1)): U32 =>\n"
+    "    match x\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
 TEST_F(SugarExprTest, MatchExhaustiveBoolUnreachableElse)
 {
   const char* src =
