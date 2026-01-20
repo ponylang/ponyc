@@ -302,6 +302,8 @@ else()
     add_subdirectory(benchmark/libponyc)
     add_subdirectory(benchmark/libponyrt)
 
+    add_subdirectory(tools/pony-lsp)
+
     install(TARGETS
         ponyc
         libponyc.tests
@@ -314,4 +316,9 @@ else()
         DESTINATION lib)
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
+    install(PROGRAMS
+         $<TARGET_FILE_DIR:ponyc>/pony-lsp
+         DESTINATION bin
+         OPTIONAL
+    )
 endif()
