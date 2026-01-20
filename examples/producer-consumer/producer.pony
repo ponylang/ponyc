@@ -1,22 +1,33 @@
-use "collections"
+use "pony_test"
 
 actor Producer
-  var _quantity_to_produce: U32
-  let _buffer: Buffer
-  var _num: U32 = 0
   let _out: OutStream
+  let _n: I64
+  let _fifo: Fifo
+  var _next: I64 = 0
+  let _parent: MainFifo
+  let _h: TestHelper
 
-  new create(quantity_to_produce: U32, buffer: Buffer, out: OutStream) =>
-    _quantity_to_produce = quantity_to_produce
-    _buffer = buffer
+  new create(out:OutStream, n:I64, fifo:Fifo, parent:MainFifo, h: TestHelper) =>
     _out = out
+    _out.print("producer: created. will produce " + n.string())
+    _fifo = fifo
+    _n = n
+    _parent = parent
+    _h = h
 
-  be start_producing(count: U32 = 0) =>
-    _buffer.permission_to_produce(this)
-    if count < _quantity_to_produce then start_producing(count + 1) end
+  be start() =>
+    _out.print("producer: started. _next = " + _next.string())
+    _fifo.requestToProduce(this, _next)
 
-  be produce() =>
-    _out.print("**Producer** Producing product " + _num.string())
-    let prod: Product = Product(_num, "Description of product " + _num.string())
-    _buffer.store_product(prod)
-    _num = _num + 1
+  be produce(id:I64) =>
+    let prod:Product iso = Product(id)
+    _fifo.append(this, consume prod) 
+    _out.print("producer: has produced " + id.string())
+    _next = _next + 1
+    if _next < _n then
+        _fifo.requestToProduce(this, _next)
+    else
+      // notify parent
+      _parent.producerDone(_h)
+    end
