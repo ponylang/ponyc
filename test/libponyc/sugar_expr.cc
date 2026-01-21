@@ -826,6 +826,123 @@ TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesMachineWords)
 }
 
 
+TEST_F(SugarExprTest, MatchExhaustiveBoolTrueFalse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool): U32 =>\n"
+    "    match b\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolFalseTrue)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool): U32 =>\n"
+    "    match b\n"
+    "    | false => 0\n"
+    "    | true => 1\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolOnlyTrue)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool): U32 =>\n"
+    "    match b\n"
+    "    | true => 1\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolOnlyFalse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool): U32 =>\n"
+    "    match b\n"
+    "    | false => 0\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInUnionElse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: (U32 | Bool)): (U32 | None) =>\n"
+    "    match b\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    else\n"
+    "      None\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInUnion)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive Foo\n"
+    "  fun apply(x: (Bool | P1)): U32 =>\n"
+    "    match x\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    | P1 => 2\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolInUnion)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive Foo\n"
+    "  fun apply(x: (Bool | P1)): U32 =>\n"
+    "    match x\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolUnreachableElse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(b: Bool): U32 =>\n"
+    "    match b\n"
+    "    | true => 1\n"
+    "    | false => 0\n"
+    "    else\n"
+    "      2\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+
 TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesCustomEqMethod)
 {
   const char* src =

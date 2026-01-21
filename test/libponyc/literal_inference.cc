@@ -867,7 +867,6 @@ TEST_F(LiteralTest, Match_ResultInt)
     "  fun test(q: Bool): I16 => \n"
     "    match q\n"
     "    | true => 1\n"
-    "    | false => 11\n"
     "    else\n"
     "      7\n"
     "    end\n";
@@ -875,8 +874,23 @@ TEST_F(LiteralTest, Match_ResultInt)
   TEST_COMPILE(src);
 
   DO(check_type("I16", TK_NOMINAL, numeric_literal(1)));
-  DO(check_type("I16", TK_NOMINAL, numeric_literal(11)));
   DO(check_type("I16", TK_NOMINAL, numeric_literal(7)));
+}
+
+
+TEST_F(LiteralTest, Match_ResultIntUnreachable)
+{
+  const char* src =
+    "class Foo2c\n"
+    "  fun test(q: Bool): I16 => \n"
+    "    match q\n"
+    "    | true => 1\n"
+    "    | false => 7\n"
+    "    else\n"
+    "      11\n"
+    "    end\n";
+
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
 }
 
 
@@ -887,7 +901,6 @@ TEST_F(LiteralTest, Match_ResultFloat)
     "  fun test(q: Bool): F64 => \n"
     "    match q\n"
     "    | true => 1\n"
-    "    | false => 11\n"
     "    else\n"
     "      7\n"
     "    end\n";
@@ -895,7 +908,6 @@ TEST_F(LiteralTest, Match_ResultFloat)
   TEST_COMPILE(src);
 
   DO(check_type("F64", TK_NOMINAL, numeric_literal(1)));
-  DO(check_type("F64", TK_NOMINAL, numeric_literal(11)));
   DO(check_type("F64", TK_NOMINAL, numeric_literal(7)));
 }
 

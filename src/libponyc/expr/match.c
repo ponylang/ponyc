@@ -89,6 +89,20 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
   return true;
 }
 
+// Returns 1 for true, 0 for false, -1 if not a Bool literal
+static int get_bool_literal_value(ast_t* case_expr)
+{
+  while(ast_id(case_expr) == TK_SEQ && ast_childcount(case_expr) == 1)
+    case_expr = ast_child(case_expr);
+
+  switch(ast_id(case_expr))
+  {
+    case TK_TRUE: return 1;
+    case TK_FALSE: return 0;
+    default: return -1;
+  }
+}
+
 /**
  * return a pointer to the case expr at which the match can be considered
  * exhaustive or NULL if it is not exhaustive.
@@ -107,6 +121,8 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
   // Construct a union of all pattern types that count toward exhaustive match.
   ast_t* cases_union_type = ast_from(cases, TK_UNIONTYPE);
   ast_t* result = NULL;
+  bool seen_true = false;
+  bool seen_false = false;
 
   for(ast_t* c = ast_child(cases); c != NULL; c = ast_sibling(c))
   {
@@ -126,6 +142,13 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
     if(ast_id(guard) != TK_NONE)
       continue;
 
+    // Check for Bool literal patterns (only if no guard).
+    // Bool is a machine word, so case_expr_matches_type_alone will return
+    // false, but we can still track if both true and false are matched.
+    int bool_val = get_bool_literal_value(case_expr);
+    if(bool_val == 1) seen_true = true;
+    else if(bool_val == 0) seen_false = true;
+
     // Only cases that match on type alone can count toward exhaustive match,
     // because matches on structural equality can't be statically evaluated.
     // So, for the purposes of exhaustive match, we ignore those cases.
@@ -142,6 +165,17 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
       result = c;
       break;
     }
+  }
+
+  // If we've seen both true and false literals without guards,
+  // Bool is exhaustively covered. Add Bool to union and recheck.
+  if(result == NULL && seen_true && seen_false)
+  {
+    ast_t* bool_type = type_builtin(opt, cases, "Bool");
+    ast_add(cases_union_type, bool_type);
+
+    if(is_subtype(expr_type, cases_union_type, NULL, opt))
+      result = ast_childlast(cases);  // Point to last case
   }
 
   ast_free_unattached(cases_union_type);
