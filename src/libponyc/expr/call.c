@@ -856,6 +856,44 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           NODE(TK_REFERENCE, ID(recv_name_str))
           TREE(method)));
     }
+  } else if(ast_id(receiver) == TK_TYPEREF) {
+    // Constructor partial application - receiver is a type reference.
+    // Type references don't have runtime values and can't be captured.
+    // Use the type name directly like bare methods do.
+    ast_t* receiver_type = ast_type(receiver);
+    AST_GET_CHILDREN(receiver_type, recv_type_package, recv_type_name);
+
+    const char* recv_package_str = ast_name(recv_type_package);
+    const char* recv_name_str = ast_name(recv_type_name);
+
+    ast_t* module = ast_nearest(ast, TK_MODULE);
+    ast_t* package = ast_parent(module);
+    ast_t* pkg_id = package_id(package);
+    const char* pkg_str = ast_name(pkg_id);
+
+    const char* pkg_alias = NULL;
+
+    if(recv_package_str != pkg_str)
+      pkg_alias = package_alias_from_id(module, recv_package_str);
+
+    ast_free_unattached(pkg_id);
+
+    if(pkg_alias != NULL)
+    {
+      // `package.Type.f`
+      BUILD_NO_DECL(call_receiver, ast,
+        NODE(TK_DOT,
+          NODE(TK_DOT,
+            NODE(TK_REFERENCE, ID(pkg_alias))
+            ID(recv_name_str))
+          TREE(method)));
+    } else {
+      // `Type.f`
+      BUILD_NO_DECL(call_receiver, ast,
+        NODE(TK_DOT,
+          NODE(TK_REFERENCE, ID(recv_name_str))
+          TREE(method)));
+    }
   } else {
     // `$0.f`
     BUILD_NO_DECL(call_receiver, ast,
@@ -868,6 +906,9 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(bare)
   {
     captures = ast_from(receiver, TK_NONE);
+  } else if(ast_id(receiver) == TK_TYPEREF) {
+    // Constructor partial application - no capture needed for the type.
+    captures = ast_from(receiver, TK_LAMBDACAPTURES);
   } else {
     // Build captures. We always have at least one capture, for receiver.
     // Capture: `$0 = recv`
