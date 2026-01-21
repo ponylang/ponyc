@@ -28,3 +28,22 @@ Consequently, you can expect the following to now fail to compile with unreachab
     end
 ```
 
+## Fix ponyc crash when partially applying constructors
+
+We've fixed a compilation assertion error that would result in a compiler crash when utilizing partial constructors.
+
+Previously, this would fail to compile:
+
+```pony
+class A
+  let n: USize
+
+  new create(n': USize) =>
+    n = n'
+
+actor Main
+  new create(env: Env) =>
+    let ctor = A~create(2)
+    let a: A = ctor()
+```
+
