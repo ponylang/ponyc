@@ -317,7 +317,7 @@ else()
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
     install(PROGRAMS
-         pony-lsp
-         DESTINATION bin
-    )
+        ${CMAKE_CURRENT_BINARY_DIR}/pony-lsp
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-lsp 
+        DESTINATION bin)
 endif()
