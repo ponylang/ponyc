@@ -76,7 +76,6 @@ end
 
 Current implementation does not support:
 - **Variable usage**: Hovering over a variable being used (e.g., `x` in `let y = x + 1`) doesn't show the variable's type
-- **Complex type expressions**: Unions, intersections, tuples not fully formatted
 - **Primitive type documentation**: Numeric primitives (U32, I64, etc.) show minimal info (just `primitive U32`) without docstrings, while classes like String and Array show full documentation
 - **Receiver capabilities**: Method signatures don't include the receiver capability (shows `fun method()` instead of `fun box method()`, `fun ref method()`, etc.)
 """
@@ -596,7 +595,7 @@ primitive HoverFormatter
   fun tag _extract_type(type_node: AST box, channel: Channel): String =>
     """
     Extract type information from a type node.
-    This is a simplified version that tries to extract the type name.
+    Handles nominal types, union types, tuple types, intersection types, and arrow types
     """
     let node_id = type_node.id()
     match node_id
@@ -626,10 +625,40 @@ primitive HoverFormatter
       else
         "?"
       end
+    | TokenIds.tk_uniontype() =>
+      // Union type: (Type1 | Type2 | Type3)
+      _extract_composite_type(type_node, " | ", channel)
+    | TokenIds.tk_isecttype() =>
+      // Intersection type: (Type1 & Type2 & Type3)
+      _extract_composite_type(type_node, " & ", channel)
+    | TokenIds.tk_tupletype() =>
+      // Tuple type: (Type1, Type2, Type3)
+      _extract_composite_type(type_node, ", ", channel)
+    | TokenIds.tk_arrow() =>
+      // Arrow type: left->right (viewpoint adaptation)
+      // For display purposes, just show the right side (the actual type)
+      try
+        _extract_type(type_node(1)?, channel)
+      else
+        "?"
+      end
     else
       // For other type node types, return a placeholder
-      // This could be expanded to handle more complex types
       TokenIds.string(node_id)
+    end
+
+  fun tag _extract_composite_type(type_node: AST box, separator: String, channel: Channel): String =>
+    """
+    Extract composite types (union, intersection, tuple) by recursively extracting children.
+    """
+    let type_strs = Array[String]
+    for child in type_node.children() do
+      type_strs.push(_extract_type(child, channel))
+    end
+    if type_strs.size() > 0 then
+      "(" + separator.join(type_strs.values()) + ")"
+    else
+      "?"
     end
 
   fun tag _wrap_code_block(content: String): String =>

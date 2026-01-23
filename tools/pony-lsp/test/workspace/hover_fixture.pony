@@ -115,6 +115,21 @@ class FunctionCallHoverDemo
     """Method with multiple parameters for testing."""
     y
 
+class ComplexTypesDemo
+  """
+  Demonstrates that hover works on complex type expressions.
+  Union types, tuple types, and intersection types are formatted correctly.
+  """
+
+  fun demo_complex_types(): String =>
+    """
+    Hover over the variable names on their declaration lines to see formatted types.
+    Hover shows 'let union_type: (String | U32 | None)' and similar.
+    """
+    let union_type: (String | U32 | None) = "test"
+    let tuple_type: (String, U32, Bool) = ("test", U32(42), true)
+    union_type.string() + tuple_type._1.string()
+
 // ========== Examples of Current Limitations ==========
 
 class LimitationExamples
@@ -138,18 +153,7 @@ class LimitationExamples
     let upper_name = name.upper()
     let sum = count + doubled
 
-  // Limitation 2: Complex type expressions
-  fun demo_complex_types(): String =>
-    """
-    Try hovering over these complex type expressions.
-    EXPECTED: Should show formatted type (e.g., '(String | U32 | None)')
-    ACTUAL: May not format complex types correctly
-    """
-    let union_type: (String | U32 | None) = "test"
-    let tuple_type: (String, U32, Bool) = ("test", U32(42), true)
-    union_type.string() + tuple_type._1.string()
-
-  // Limitation 3: Primitive type documentation
+  // Limitation 2: Primitive type documentation
   fun demo_primitive_types(): USize =>
     """
     Try hovering over primitive numeric types vs classes.
@@ -164,7 +168,7 @@ class LimitationExamples
     let value: U32 = 0              // Hover shows just: primitive U32
     text.size() + numbers.size() + value.usize()
 
-  // Limitation 4: Receiver capabilities not shown in signatures
+  // Limitation 3: Receiver capabilities not shown in signatures
   fun box boxed_method(): String =>
     """
     A boxed method - receiver capability is 'box'.
