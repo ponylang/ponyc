@@ -1345,3 +1345,16 @@ TEST_F(BadPonyTest, MatchIsoLetWithoutConsume)
 
     TEST_ERRORS_1(src, "this capture violates capabilities");
 }
+
+TEST_F(BadPonyTest, AssignToEphemeralCapability)
+{
+  // From issue #4344
+  // Assigning to a variable with an ephemeral capability like iso^ should
+  // produce a clear error message rather than crash the compiler.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: String iso^ = String";
+
+  TEST_ERRORS_1(src, "Invalid type for field of assignment");
+}

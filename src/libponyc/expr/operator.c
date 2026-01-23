@@ -376,7 +376,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
-  if(check_auto_recover_newref(fl_type, right))
+  if((wl_type != NULL) && check_auto_recover_newref(fl_type, right))
   {
     token_id left_cap = ast_id(cap_fetch(wl_type));
     ast_t* recovered_left_type = recover_type(r_type, left_cap);
