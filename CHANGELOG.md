@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add Pony Language Server to the ponyc distribution ([PR #4777](https://github.com/ponylang/ponyc/pull/4777))
 - Handle Bool with exhaustive match ([PR #4782](https://github.com/ponylang/ponyc/pull/4782))
+- Add support for complex type formatting in LSP hover ([PR #4785](https://github.com/ponylang/ponyc/pull/4785))
 
 ### Changed
 
