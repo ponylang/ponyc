@@ -317,8 +317,6 @@ else()
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
     install(PROGRAMS
-         $<TARGET_FILE_DIR:ponyc>/pony-lsp
-         DESTINATION bin
-         OPTIONAL
-    )
+        $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
+        DESTINATION bin)
 endif()
