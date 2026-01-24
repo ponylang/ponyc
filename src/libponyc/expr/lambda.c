@@ -49,7 +49,8 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       return true;
     }
 
-    ast_t* def = ast_get(capture, name, NULL);
+    sym_status_t status;
+    ast_t* def = ast_get(capture, name, &status);
 
     if(def == NULL)
     {
@@ -69,9 +70,17 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       case TK_LET:
       case TK_PARAM:
       case TK_MATCH_CAPTURE:
+        break;
+
       case TK_FVAR:
       case TK_FLET:
       case TK_EMBED:
+        if(status == SYM_UNDEFINED)
+        {
+          ast_error(opt->check.errors, id_node,
+            "can't capture field \"%s\" before it's initialized", name);
+          return false;
+        }
         break;
 
       default:
@@ -480,7 +489,8 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
   if(refdef != NULL)
     return true;
 
-  refdef = ast_get(ctx, name, NULL);
+  sym_status_t status;
+  refdef = ast_get(ctx, name, &status);
 
   if(refdef == NULL)
   {
@@ -498,15 +508,23 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
     case TK_LET:
     case TK_PARAM:
     case TK_MATCH_CAPTURE:
+      break;
+
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:
+      if(status == SYM_UNDEFINED)
+      {
+        ast_error(opt->check.errors, ast,
+          "can't capture field \"%s\" before it's initialized", name);
+        return false;
+      }
       break;
 
     default:
       ast_error(opt->check.errors, ast, "cannot capture \"%s\", can only "
         "capture fields, parameters and local variables", name);
-      return NULL;
+      return false;
   }
 
   // Check if we've already captured it
