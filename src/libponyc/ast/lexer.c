@@ -364,6 +364,21 @@ static token_t* make_token(lexer_t* lexer, token_id id)
 {
   token_t* t = token_new(id);
   token_set_pos(t, lexer->source, lexer->token_line, lexer->token_pos);
+
+  // Set token length based on buffer length or lexer_print() for keywords/symbols
+  if(lexer->buflen > 0)
+  {
+    token_set_length(t, lexer->buflen);
+  }
+  else
+  {
+    const char* print = lexer_print(id);
+    if(print != NULL)
+      token_set_length(t, strlen(print));
+    else
+      token_set_length(t, 0);
+  }
+
   return t;
 }
 
@@ -378,6 +393,17 @@ static token_t* make_token_with_text(lexer_t* lexer, token_id id)
   else
     token_set_string(t, stringtab_len(lexer->buffer, lexer->buflen),
       lexer->buflen);
+
+  // For strings and other text tokens, compute actual source span length
+  // from the difference between current position and token start position.
+  // This correctly handles quotes and escape sequences.
+  if(lexer->line == lexer->token_line)
+  {
+    // Single-line token: simple position difference
+    size_t source_len = lexer->pos - lexer->token_pos;
+    token_set_length(t, source_len);
+  }
+  // For multi-line tokens, the length set by make_token() is a fallback
 
   return t;
 }

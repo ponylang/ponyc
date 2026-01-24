@@ -14,6 +14,7 @@ struct token_t
   source_t* source;
   size_t line;
   size_t pos;
+  size_t length;  // Length in characters (source text span)
   char* printed;
 
   union
@@ -300,6 +301,13 @@ size_t token_line_position(token_t* token)
 }
 
 
+size_t token_length(token_t* token)
+{
+  pony_assert(token != NULL);
+  return token->length;
+}
+
+
 // Write accessors
 
 void token_set_id(token_t* token, token_id id)
@@ -363,6 +371,16 @@ void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 
   token->line = line;
   token->pos = pos;
+}
+
+
+void token_set_length(token_t* token, size_t length)
+{
+  pony_assert(token != NULL);
+#ifndef PONY_NDEBUG
+  pony_assert(!token->frozen);
+#endif
+  token->length = length;
 }
 
 // Serialisation

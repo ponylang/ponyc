@@ -73,6 +73,13 @@ size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 source_t* ast_source(ast_t* ast);
 
+/** Extract the original source text for the given AST subtree.
+ * Returns the source text spanning from the first token to the last token
+ * in the subtree. Falls back to ast_get_print() if source is unavailable.
+ * The returned string is interned and valid indefinitely.
+ */
+const char* ast_extract_source(ast_t* ast);
+
 void* ast_data(ast_t* ast);
 ast_t* ast_setdata(ast_t* ast, void* data);
 bool ast_canerror(ast_t* ast);

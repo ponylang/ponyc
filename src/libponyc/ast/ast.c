@@ -612,6 +612,117 @@ source_t* ast_source(ast_t* ast)
   return token_source(ast->t);
 }
 
+
+// Helper: find the rightmost token in an AST subtree by line/pos
+// For nodes at the same position, prefer the one with greater end position
+// (start pos + length), as this represents the actual extent of the token
+static void find_rightmost_token(ast_t* ast, ast_t** rightmost)
+{
+  if(ast == NULL)
+    return;
+
+  // Check if this AST node has a valid source position
+  source_t* src = token_source(ast->t);
+  if(src != NULL)
+  {
+    size_t line = token_line_number(ast->t);
+    size_t pos = token_line_position(ast->t);
+    size_t len = token_length(ast->t);
+    size_t end = pos + len;
+
+    size_t r_line = token_line_number((*rightmost)->t);
+    size_t r_pos = token_line_position((*rightmost)->t);
+    size_t r_len = token_length((*rightmost)->t);
+    size_t r_end = r_pos + r_len;
+
+    // This node is rightmost if:
+    // - It's on a later line, OR
+    // - Same line but ends later (greater end position)
+    if(line > r_line || (line == r_line && end > r_end))
+      *rightmost = ast;
+  }
+
+  // Recurse into children
+  for(ast_t* child = ast->child; child != NULL; child = child->sibling)
+    find_rightmost_token(child, rightmost);
+}
+
+// Helper: convert line/pos to byte offset in source
+static size_t line_pos_to_offset(source_t* src, size_t line, size_t pos)
+{
+  size_t cur_line = 1;
+  size_t offset = 0;
+
+  while(cur_line < line && offset < src->len)
+  {
+    if(src->m[offset] == '\n')
+      cur_line++;
+    offset++;
+  }
+
+  // pos is 1-based column number
+  return offset + pos - 1;
+}
+
+const char* ast_extract_source(ast_t* ast)
+{
+  pony_assert(ast != NULL);
+
+  source_t* src = token_source(ast->t);
+
+  // Fall back if no source available
+  if(src == NULL || src->m == NULL)
+    return ast_get_print(ast);
+
+  // Find start position
+  size_t start_line = token_line_number(ast->t);
+  size_t start_pos = token_line_position(ast->t);
+
+  // Handle case where token has no valid position
+  if(start_line == 0)
+    return ast_get_print(ast);
+
+  size_t start_off = line_pos_to_offset(src, start_line, start_pos);
+
+  // Find rightmost token in subtree
+  ast_t* rightmost = ast;
+  find_rightmost_token(ast, &rightmost);
+
+  size_t end_line = token_line_number(rightmost->t);
+  size_t end_pos = token_line_position(rightmost->t);
+  size_t end_off = line_pos_to_offset(src, end_line, end_pos);
+
+  // Add the length of the rightmost token
+  size_t token_len = token_length(rightmost->t);
+  if(token_len == 0)
+  {
+    // Fall back to getting length from print representation
+    const char* print = token_print(rightmost->t);
+    if(print != NULL)
+      token_len = strlen(print);
+    else
+      token_len = 1;
+  }
+  end_off += token_len;
+
+  // Validate offsets
+  if(end_off <= start_off || end_off > src->len)
+    return ast_get_print(ast);
+
+  size_t len = end_off - start_off;
+
+  // Allocate buffer, copy text, intern it
+  char* buf = (char*)ponyint_pool_alloc_size(len + 1);
+  memcpy(buf, &src->m[start_off], len);
+  buf[len] = '\0';
+
+  const char* result = stringtab(buf);
+  ponyint_pool_free_size(len + 1, buf);
+
+  return result;
+}
+
+
 void* ast_data(ast_t* ast)
 {
   if(ast == NULL)
