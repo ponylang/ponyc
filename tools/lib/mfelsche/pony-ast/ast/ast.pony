@@ -127,6 +127,9 @@ class val AST
     end
 
   fun box apply(child_idx: USize): AST ? =>
+    """
+    Get the child with `child_idx`, starting from 0.
+    """
     let ci = @ast_childidx(raw, child_idx)
     if ci.is_null() then
       error

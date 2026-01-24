@@ -4,7 +4,20 @@ use "assert"
 
 
 primitive DefinitionResolver
+  """
+  Given some `AST` named `ast`, calling `DefinitionResolver.resolve(ast)`
+  will try to resolve an `Array[AST]` containing the AST-nodes of the definitions of `ast`.
+
+  E.g. if `ast` is a reference to a class field (`TK_LETREF`), we try to resolve
+  the field definition AST.
+  """
   fun _data_ast(ast: AST box): Array[AST] =>
+    """
+    Interpret the data field of the provided `ast` as pointer to another `AST`
+    and return it as an array.
+
+    Returns an empty array if the data pointer of `ast` is `NULL`.
+    """
     let ptr = @ast_data[Pointer[_AST] val](ast.raw)
     if ptr.is_null() then
       [as AST:]
@@ -21,6 +34,9 @@ primitive DefinitionResolver
         Debug("FOUND: " + found.debug())
         result.push(found)
         result
+    | TokenIds.tk_thistype() =>
+        // TODO
+        result
     | TokenIds.tk_uniontype() | TokenIds.tk_isecttype() =>
       // recurse into type members
       var iter_result = result
@@ -34,6 +50,9 @@ primitive DefinitionResolver
 
 
   fun resolve(ast: AST box): Array[AST] =>
+    """
+    Try to resolve the definitions
+    """
     match ast.id()
     // locals
     | TokenIds.tk_varref() | TokenIds.tk_letref() => _data_ast(ast)
@@ -49,11 +68,17 @@ primitive DefinitionResolver
       try
         let receiver = ast.child() as AST
         Debug("RECEIVER " + receiver.debug() )
-        let method = receiver.sibling() as AST
-        let method_name = method.token_value() as String
-        let receiver_type = receiver.ast_type() as AST
-        Debug("RECEIVER TYPE " + receiver_type.debug())
-        _find_in_type(receiver_type, method_name, [])?
+        if receiver.id() == TokenIds.tk_this() then
+          // the definition is set in function refer_this_dot in libponyc file=refer.c line=607
+          _data_ast(ast)
+        else
+          let method = receiver.sibling() as AST
+          Debug("METHOD " + method.debug() )
+          let method_name = method.token_value() as String
+          let receiver_type = receiver.ast_type() as AST
+          Debug("RECEIVER TYPE " + receiver_type.debug())
+          _find_in_type(receiver_type, method_name, [])?
+        end
       else
         []
       end
@@ -78,7 +103,21 @@ primitive DefinitionResolver
           []
         end
       end
-    | TokenIds.tk_typeref() => 
+    | TokenIds.tk_this() =>
+      try
+        // this is a cheap brute force-trick, just iterating upwards
+        // the AST to see what the entity (class etc.) is that we are in.
+        var this_parent = ast.parent() as AST
+        Debug("THIS PARENT: " + this_parent.debug())
+        while not TokenIds.is_entity(this_parent.id()) do
+          this_parent = this_parent.parent() as AST
+          Debug("THIS PARENT: " + this_parent.debug())
+        end
+        [this_parent]
+      else
+        []
+      end
+    | TokenIds.tk_typeref() =>
       // typerefs have their definition set in their data field
       _data_ast(ast)
     | TokenIds.tk_typeparamref() =>
