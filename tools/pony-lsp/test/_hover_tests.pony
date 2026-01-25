@@ -23,6 +23,8 @@ primitive _HoverTests is TestList
     test(_HoverFormatMethodWithCompleteSignatureTest)
     test(_HoverFormatEntityWithTypeParamsAndDocstringTest)
     test(_HoverFormatFieldWithNestedGenericTypeTest)
+    test(_HoverFormatParameterTest)
+    test(_HoverFormatParameterWithTypeTest)
 
 class \nodoc\ iso _HoverFormatEntityTest is UnitTest
   fun name(): String => "hover/format_entity"
@@ -159,3 +161,19 @@ class \nodoc\ iso _HoverFormatFieldWithNestedGenericTypeTest is UnitTest
     let info = FieldInfo("let", "nested", ": Array[Array[String val] ref] ref")
     let result = HoverFormatter.format_field(info)
     h.assert_eq[String]("```pony\nlet nested: Array[Array[String val] ref] ref\n```", result)
+
+class \nodoc\ iso _HoverFormatParameterTest is UnitTest
+  fun name(): String => "hover/format_parameter"
+
+  fun apply(h: TestHelper) =>
+    let info = FieldInfo("param", "value")
+    let result = HoverFormatter.format_field(info)
+    h.assert_eq[String]("```pony\nparam value\n```", result)
+
+class \nodoc\ iso _HoverFormatParameterWithTypeTest is UnitTest
+  fun name(): String => "hover/format_parameter_with_type"
+
+  fun apply(h: TestHelper) =>
+    let info = FieldInfo("param", "name", ": String")
+    let result = HoverFormatter.format_field(info)
+    h.assert_eq[String]("```pony\nparam name: String\n```", result)
