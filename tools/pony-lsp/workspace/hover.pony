@@ -240,17 +240,9 @@ primitive HoverFormatter
         let name = id.token_value() as String
 
         // Extract type parameters
-        var type_params_str: String = ""
-        var idx: USize = 1
-        while idx < ast.num_children() do
-          try
-            let child = ast(idx)?
-            if child.id() == TokenIds.tk_typeparams() then
-              type_params_str = _extract_type_params(child, channel)
-              break
-            end
-          end
-          idx = idx + 1
+        let type_params_str = match _find_child_by_type(ast, TokenIds.tk_typeparams(), 1)
+        | let tp: AST box => _extract_type_params(tp, channel)
+        | None => ""
         end
 
         // Extract docstring from child 6
@@ -631,20 +623,22 @@ primitive HoverFormatter
             _extract_type(type_id, channel)
           end
 
-          // Check for capability and type arguments
+          // Check for type arguments
+          let type_args_str = match _find_child_by_type(type_node, TokenIds.tk_typeargs(), 2)
+          | let ta: AST box => _extract_typeargs(ta, channel)
+          | None => ""
+          end
+
+          // Check for capability
           var capability_str: String = ""
-          var type_args_str: String = ""
           var idx: USize = 2
           while idx < num_children do
             try
               let child = type_node(idx)?
-              if child.id() == TokenIds.tk_typeargs() then
-                type_args_str = _extract_typeargs(child, channel)
-              else
-                let cap = _extract_capability(child.id())
-                if cap != "" then
-                  capability_str = cap
-                end
+              let cap = _extract_capability(child.id())
+              if cap != "" then
+                capability_str = cap
+                break
               end
             end
             idx = idx + 1
@@ -760,3 +754,20 @@ primitive HoverFormatter
     Wrap content in a Pony code block for markdown formatting.
     """
     "```pony\n" + content + "\n```"
+
+  fun tag _find_child_by_type(ast: AST box, token_id: I32, start_index: USize = 0): (AST box | None) =>
+    """
+    Search for a child node with a specific token type.
+    Returns the first matching child found, or None if not found.
+    """
+    var idx = start_index
+    while idx < ast.num_children() do
+      try
+        let child = ast(idx)?
+        if child.id() == token_id then
+          return child
+        end
+      end
+      idx = idx + 1
+    end
+    None
