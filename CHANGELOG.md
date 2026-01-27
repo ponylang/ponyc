@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Handle Bool with exhaustive match ([PR #4782](https://github.com/ponylang/ponyc/pull/4782))
 - Add support for complex type formatting in LSP hover ([PR #4785](https://github.com/ponylang/ponyc/pull/4785))
 - Add hover support for generic types in LSP ([PR #4793](https://github.com/ponylang/ponyc/pull/4793))
+- Add extra hover support to LSP ([PR #4795](https://github.com/ponylang/ponyc/pull/4795))
 
 ### Changed
 
