@@ -268,6 +268,33 @@ class GenericUsageDemo
     let result = numbers.with_generic_param[String]("test")  // Hover shows: let result: (U64 val, String val)
     None
 
+class ReceiverCapabilityDemo
+  """
+  Demonstrates that hover displays receiver capabilities in method signatures.
+  """
+
+  fun box boxed_method(): String =>
+    """
+    A boxed method - receiver capability is 'box'.
+    Hover shows 'fun box boxed_method(): String' with the receiver capability.
+    The receiver capability indicates how 'this' can be accessed in the method.
+    """
+    "box"
+
+  fun val valued_method(): String =>
+    """
+    A val method - receiver capability is 'val'.
+    Hover shows 'fun val valued_method(): String' with the receiver capability.
+    """
+    "val"
+
+  fun ref mutable_method() =>
+    """
+    A ref method - receiver capability is 'ref'.
+    Hover shows 'fun ref mutable_method()' with the receiver capability.
+    """
+    None
+
 // ========== Examples of Current Limitations ==========
 
 class LimitationExamples
@@ -276,7 +303,7 @@ class LimitationExamples
   currently provide information but ideally should.
   """
 
-  // Limitation 1: Primitive type documentation
+  // Limitation: Primitive type documentation
   fun demo_primitive_types(): USize =>
     """
     Try hovering over primitive numeric types vs classes.
@@ -290,33 +317,3 @@ class LimitationExamples
     let numbers: Array[U32] = []    // Hover shows full Array documentation
     let value: U32 = 0              // Hover shows just: primitive U32
     text.size() + numbers.size() + value.usize()
-
-  // Limitation 2: Receiver capabilities not shown in signatures
-  fun box boxed_method(): String =>
-    """
-    A boxed method - receiver capability is 'box'.
-
-    EXPECTED: Hover should show 'fun box boxed_method(): String'
-    ACTUAL: Hover shows 'fun boxed_method(): String' (missing 'box')
-
-    The receiver capability indicates how 'this' can be accessed in the method.
-    """
-    "box"
-
-  fun val valued_method(): String =>
-    """
-    A val method - receiver capability is 'val'.
-
-    EXPECTED: Should show 'fun val valued_method(): String'
-    ACTUAL: Shows 'fun valued_method(): String' (missing 'val')
-    """
-    "val"
-
-  fun ref mutable_method() =>
-    """
-    A ref method - receiver capability is 'ref'.
-
-    EXPECTED: Should show 'fun ref mutable_method()'
-    ACTUAL: Shows 'fun mutable_method()' (missing 'ref')
-    """
-    None
