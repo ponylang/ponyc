@@ -51,13 +51,23 @@ static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
 
 static bool exact_nominal(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
+  (void)opt;
   AST_GET_CHILDREN(a, a_pkg, a_id, a_typeargs, a_cap, a_eph);
   AST_GET_CHILDREN(b, b_pkg, b_id, b_typeargs, b_cap, b_eph);
 
   ast_t* a_def = (ast_t*)ast_data(a);
   ast_t* b_def = (ast_t*)ast_data(b);
 
-  return (a_def == b_def) && is_eq_typeargs(a, b, NULL, opt);
+  if(a_def != b_def)
+    return false;
+
+  // Use string comparison instead of is_eq_typeargs to avoid
+  // infinite recursion through is_eqtype -> is_subtype -> check_assume
+  // when dealing with recursive type parameter constraints.
+  // ast_print_type produces a canonical string representation.
+  const char* a_str = ast_print_type(a);
+  const char* b_str = ast_print_type(b);
+  return strcmp(a_str, b_str) == 0;
 }
 
 static ast_t* push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
