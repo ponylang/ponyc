@@ -166,19 +166,16 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     if(is_typecheck_error(init_type))
       return false;
 
+    ast_t* declared_type = type;
     type = consume_type(type, TK_NONE, false);
     errorframe_t err = NULL;
     errorframe_t err2 = NULL;
 
     if(type == NULL)
     {
-      // This should never happen. We've left this assert here for now because
-      // we're not sure it won't happen. If enough time passes and this hasn't
-      // triggered, we can remove it. -- February 2022
-      pony_assert(0);
-      ast_error_frame(&err2, type,
-        "invalid parameter type: %s",
-        ast_print_type(type));
+      ast_error_frame(&err2, declared_type,
+        "invalid parameter type for a parameter with a default argument: %s",
+        ast_print_type(declared_type));
       errorframe_append(&err2, &err);
       errorframe_report(&err2, opt->check.errors);
       ok = false;
