@@ -436,42 +436,38 @@ actor WorkspaceManager
     match ast.id()
     | TokenIds.tk_class() | TokenIds.tk_actor() | TokenIds.tk_trait()
     | TokenIds.tk_interface() | TokenIds.tk_primitive() | TokenIds.tk_type()
-    | TokenIds.tk_struct() =>
-      // Entity declarations: identifier is at child(0)
+    | TokenIds.tk_struct()
+    | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed()
+    | TokenIds.tk_let() | TokenIds.tk_var()
+    | TokenIds.tk_param() =>
+      // Declarations with identifier at child(0)
       try
         let id = ast(0)?
         if id.id() == TokenIds.tk_id() then
           return id
         end
       end
-    | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new() =>
-      // Method declarations: identifier is at child(1)
+    | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new()
+    | TokenIds.tk_nominal() | TokenIds.tk_typeref() =>
+      // Declarations/types with identifier at child(1)
       try
         let id = ast(1)?
         if id.id() == TokenIds.tk_id() then
           return id
         end
       end
-    | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed()
-    | TokenIds.tk_let() | TokenIds.tk_var() =>
-      // Field and local variable declarations: identifier is at child(0)
-      try
-        let id = ast(0)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    | TokenIds.tk_nominal() | TokenIds.tk_typeref() =>
-      // For nominal types and typerefs (like Array[U32]), try to find the type name identifier
-      try
-        let type_id = ast(1)?
-        if type_id.id() == TokenIds.tk_id() then
-          return type_id
-        end
-      end
-    | TokenIds.tk_reference() | TokenIds.tk_funref() | TokenIds.tk_beref()
+    | TokenIds.tk_funref() | TokenIds.tk_beref()
     | TokenIds.tk_newref() | TokenIds.tk_newberef() | TokenIds.tk_funchain()
     | TokenIds.tk_bechain() =>
+      // For method/function references, get the method name (sibling of receiver)
+      try
+        let receiver = ast.child() as AST
+        let method = receiver.sibling() as AST
+        if method.id() == TokenIds.tk_id() then
+          return method
+        end
+      end
+    | TokenIds.tk_reference() =>
       // For references, try to find the identifier child
       try
         let id = ast(0)?

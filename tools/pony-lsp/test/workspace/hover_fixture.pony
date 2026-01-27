@@ -276,22 +276,7 @@ class LimitationExamples
   currently provide information but ideally should.
   """
 
-  // Limitation 1: Variable usage doesn't show type
-  fun demo_variable_usage() =>
-    """
-    Try hovering over the variable names when they're USED (not declared).
-    EXPECTED: Should show variable type
-    ACTUAL: No hover information (only works on the declaration line)
-    """
-    let count: U32 = 100
-    let name: String = "example"
-
-    // Hover over 'count' or 'name' below - no info shown
-    let doubled = count * 2
-    let upper_name = name.upper()
-    let sum = count + doubled
-
-  // Limitation 2: Primitive type documentation
+  // Limitation 1: Primitive type documentation
   fun demo_primitive_types(): USize =>
     """
     Try hovering over primitive numeric types vs classes.
@@ -306,7 +291,7 @@ class LimitationExamples
     let value: U32 = 0              // Hover shows just: primitive U32
     text.size() + numbers.size() + value.usize()
 
-  // Limitation 3: Receiver capabilities not shown in signatures
+  // Limitation 2: Receiver capabilities not shown in signatures
   fun box boxed_method(): String =>
     """
     A boxed method - receiver capability is 'box'.

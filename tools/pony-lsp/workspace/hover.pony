@@ -75,7 +75,6 @@ end
 ## Limitations
 
 Current implementation does not support:
-- **Variable usage**: Hovering over a variable being used (e.g., `x` in `let y = x + 1`) doesn't show the variable's type
 - **Primitive type documentation**: Numeric primitives (U32, I64, etc.) show minimal info (just `primitive U32`) without docstrings, while classes like String and Array show full documentation
 - **Receiver capabilities**: Method signatures don't include the receiver capability (shows `fun method()` instead of `fun box method()`, `fun ref method()`, etc.)
 """
@@ -198,6 +197,9 @@ primitive HoverFormatter
     | TokenIds.tk_let() => _format_local_var(ast, "let", channel)
     | TokenIds.tk_var() => _format_local_var(ast, "var", channel)
 
+    // Parameter declarations
+    | TokenIds.tk_param() => _format_param(ast, channel)
+
     // Type references - try to follow to definition
     | TokenIds.tk_reference() => _format_reference(ast, channel)
     | TokenIds.tk_typeref() => _format_reference(ast, channel)
@@ -210,6 +212,18 @@ primitive HoverFormatter
     | TokenIds.tk_newberef() => _format_reference(ast, channel)
     | TokenIds.tk_funchain() => _format_reference(ast, channel)
     | TokenIds.tk_bechain() => _format_reference(ast, channel)
+
+    // Field references - follow to definition
+    | TokenIds.tk_fletref() => _format_reference(ast, channel)
+    | TokenIds.tk_fvarref() => _format_reference(ast, channel)
+    | TokenIds.tk_embedref() => _format_reference(ast, channel)
+
+    // Local variable references - follow to definition
+    | TokenIds.tk_letref() => _format_reference(ast, channel)
+    | TokenIds.tk_varref() => _format_reference(ast, channel)
+
+    // Parameter references - follow to definition
+    | TokenIds.tk_paramref() => _format_reference(ast, channel)
 
     // Identifier - try to get info from parent or follow to definition
     | TokenIds.tk_id() => _format_id(ast, channel)
@@ -412,6 +426,45 @@ primitive HoverFormatter
       None
     end
 
+  fun tag _format_param(ast: AST box, channel: Channel): (String | None) =>
+    """
+    Format parameter declarations
+    Parameter structure: child(0) = id, child(1) = type
+    """
+    match _extract_param_info(ast, channel)
+    | let info: FieldInfo => format_field(info)  // Same format as fields
+    | None => None
+    end
+
+  fun tag _extract_param_info(ast: AST box, channel: Channel): (FieldInfo | None) =>
+    """
+    Extract parameter information from AST node.
+    """
+    try
+      let id = ast(0)?
+      if id.id() == TokenIds.tk_id() then
+        let name = id.token_value() as String
+
+        // Extract type annotation
+        let type_str = try
+          let param_type = ast(1)?
+          if param_type.id() != TokenIds.tk_none() then
+            ": " + _extract_type(param_type, channel)
+          else
+            ""
+          end
+        else
+          ""
+        end
+
+        FieldInfo("param", name, type_str)
+      else
+        None
+      end
+    else
+      None
+    end
+
   fun tag _format_id(ast: AST box, channel: Channel): (String | None) =>
     """
     Format identifier nodes - look at parent to get full context, or follow to definition
@@ -439,6 +492,12 @@ primitive HoverFormatter
         | TokenIds.tk_embed() => _format_field(parent, "embed", channel)
         | TokenIds.tk_let() => _format_local_var(parent, "let", channel)
         | TokenIds.tk_var() => _format_local_var(parent, "var", channel)
+        | TokenIds.tk_letref() => _format_reference(parent, channel)
+        | TokenIds.tk_varref() => _format_reference(parent, channel)
+        | TokenIds.tk_fletref() => _format_reference(parent, channel)
+        | TokenIds.tk_fvarref() => _format_reference(parent, channel)
+        | TokenIds.tk_embedref() => _format_reference(parent, channel)
+        | TokenIds.tk_paramref() => _format_reference(parent, channel)
         else
           // Parent is not a declaration - try to follow to definition
           _format_from_definition(ast, channel)
@@ -540,6 +599,7 @@ primitive HoverFormatter
     | TokenIds.tk_embed() => _format_field(definition, "embed", channel)
     | TokenIds.tk_let() => _format_local_var(definition, "let", channel)
     | TokenIds.tk_var() => _format_local_var(definition, "var", channel)
+    | TokenIds.tk_param() => _format_param(definition, channel)
     else
       // Unknown definition type
       None
