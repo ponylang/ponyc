@@ -148,7 +148,7 @@ primitive HoverFormatter
       code_block
     end
 
-  fun tag format_method(info: MethodInfo): String =>
+  fun format_method(info: MethodInfo): String =>
     """
     Format method information into markdown hover text.
     Returns a string with signature in a code block and optional docstring.
