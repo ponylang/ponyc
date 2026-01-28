@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add support for complex type formatting in LSP hover ([PR #4785](https://github.com/ponylang/ponyc/pull/4785))
 - Add hover support for generic types in LSP ([PR #4793](https://github.com/ponylang/ponyc/pull/4793))
 - Add extra hover support to LSP ([PR #4795](https://github.com/ponylang/ponyc/pull/4795))
+- Add hover support for receiver capability to LSP ([PR #4798](https://github.com/ponylang/ponyc/pull/4798))
 
 ### Changed
 
