@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix crash when partially applying constructors ([PR #4783](https://github.com/ponylang/ponyc/pull/4783))
+- Fix crash when using bare integer literals in array match patterns ([PR #4797](https://github.com/ponylang/ponyc/pull/4797))
 
 ### Added
 
