@@ -191,3 +191,9 @@ main.pony:5:7: this pattern element doesn't support structural equality
       ^
 ```
 
+## Add support for go to definition for arrow types in LSP
+
+The LSP server now correctly handles "go to definition" for method calls on arrow types (viewpoint-adapted types like `this->Type`). 
+
+Previously, go-to-definition would fail on method calls where the receiver had an arrow type, such as calling methods on `this` (which has type `this->MyClass` rather than just `MyClass`).
+
