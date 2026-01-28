@@ -519,53 +519,8 @@ primitive HoverFormatter
   fun tag _format_from_definition(ast: AST box, channel: Channel): (String | None) =>
     """
     Follow an identifier or reference to its definition and format that.
-
-    Special handling for function calls: The AST library's DefinitionResolver doesn't
-    handle tk_arrow types (viewpoint-adapted types like 'this->Type'), so we manually
-    extract the underlying nominal type and search for the method in the type's scope.
     """
     try
-      // Workaround for function calls with arrow types (e.g., this.method())
-      match ast.id()
-      | TokenIds.tk_funref() | TokenIds.tk_beref() | TokenIds.tk_newref()
-      | TokenIds.tk_newberef() | TokenIds.tk_funchain() | TokenIds.tk_bechain() =>
-        try
-          let receiver = ast.child() as AST
-          let method = receiver.sibling() as AST
-          let method_name = method.token_value() as String
-          let receiver_type = receiver.ast_type() as AST
-
-          // If receiver type is an arrow type, extract the underlying nominal type
-          let nominal_type = if receiver_type.id() == TokenIds.tk_arrow() then
-            // Arrow type has structure: left -> right, we want the right side
-            try
-              receiver_type(1)?
-            else
-              receiver_type
-            end
-          else
-            receiver_type
-          end
-
-          // Now try to find the method in the nominal type
-          if nominal_type.id() == TokenIds.tk_nominal() then
-            try
-              // Get definitions from the nominal type - this should give us the type definition
-              let type_defs = nominal_type.definitions()
-              if type_defs.size() > 0 then
-                let type_def = type_defs(0)?
-                // Search for the method in the type's scope
-                match type_def.find_in_scope(method_name)
-                | let found: AST =>
-                  // Recursively format the found definition
-                  return _format_from_found_definition(found, channel)
-                end
-              end
-            end
-          end
-        end
-      end
-
       // Use definitions() to find where this is defined
       let defs = ast.definitions()
       if defs.size() > 0 then

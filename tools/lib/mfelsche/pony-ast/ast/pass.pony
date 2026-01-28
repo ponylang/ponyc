@@ -83,6 +83,7 @@ struct _PassOpt
   var abi: Pointer[U8] ref = abi.create()
   var cpu: Pointer[U8] ref = cpu.create()
   var features: Pointer[U8] ref = features.create()
+  var serialise_id_hash_key: Pointer[U8] ref = serialise_id_hash_key.create()
 
   embed check: _Typecheck = check.create()
   var plugins: Pointer[_Plugins] ref = plugins.create()

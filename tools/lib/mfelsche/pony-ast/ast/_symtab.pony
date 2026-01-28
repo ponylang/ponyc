@@ -12,8 +12,7 @@ use @symtab_putindex[None](symtab: Pointer[_Symbol] ref, entry: NullablePointer[
 use @symtab_size[USize](symtab: Pointer[_Symtab] box)
 use @symtab_next[NullablePointer[_Symbol]](symtab: Pointer[_Symtab] box, i: Pointer[USize])
 
-use "debug"
-
+//use "debug"
 
 struct _Symbol
   """

@@ -1,5 +1,5 @@
 use "pony_test"
-use "debug"
+//use "debug"
 
 primitive _Num
   """
@@ -49,7 +49,7 @@ primitive _Num
     """returns the offset of the last character of the float in src at start_offset"""
     // integer base 10
     var offset = int(src, start_offset where only_decimal = true)
-    Debug("integral part end: " + offset.string())
+    //Debug("integral part end: " + offset.string())
 
     offset = offset + 1
     
@@ -58,7 +58,7 @@ primitive _Num
     if c == U8('.') then
       offset = offset + 1
       offset = int(src, offset where only_decimal= true)
-      Debug("significand end: " + offset.string())
+      //Debug("significand end: " + offset.string())
     end
     offset = offset + 1
     // optional exponent
@@ -71,7 +71,7 @@ primitive _Num
         offset = offset + 1
       end
       let exponent_end_offset = int(src, offset where only_decimal = true)
-      Debug("exponent end: " + exponent_end_offset.string())
+      //Debug("exponent end: " + exponent_end_offset.string())
       return exponent_end_offset
     else
       offset - 1
