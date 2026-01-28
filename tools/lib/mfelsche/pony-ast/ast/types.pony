@@ -1,5 +1,3 @@
-use "debug"
-
 primitive Types
   fun get_ast_type(ast: AST box): (String | None) =>
     """

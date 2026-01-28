@@ -7,6 +7,8 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix crash when partially applying constructors ([PR #4783](https://github.com/ponylang/ponyc/pull/4783))
+- Fix crash when using bare integer literals in array match patterns ([PR #4797](https://github.com/ponylang/ponyc/pull/4797))
+- Add support for go to definition for arrow types in LSP ([PR #4792](https://github.com/ponylang/ponyc/pull/4792))
 
 ### Added
 
@@ -14,6 +16,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Handle Bool with exhaustive match ([PR #4782](https://github.com/ponylang/ponyc/pull/4782))
 - Add support for complex type formatting in LSP hover ([PR #4785](https://github.com/ponylang/ponyc/pull/4785))
 - Add hover support for generic types in LSP ([PR #4793](https://github.com/ponylang/ponyc/pull/4793))
+- Add extra hover support to LSP ([PR #4795](https://github.com/ponylang/ponyc/pull/4795))
+- Add hover support for receiver capability to LSP ([PR #4798](https://github.com/ponylang/ponyc/pull/4798))
 
 ### Changed
 

@@ -72,3 +72,157 @@ Hover displays:
 
 When hovering on variable declarations, the full inferred type is now shown including all generic type arguments and capabilities, making it easier to understand the exact types in your code.
 
+## Add extra hover support to LSP
+
+The Pony Language Server Protocol (LSP) implementation now provides improved hover capabilities with the following fixes.
+
+### Hover on field usages
+
+When hovering over a field reference like `field_name` in the expression `field_name.size()`, the LSP now displays:
+
+```pony
+let field_name: String val
+```
+
+```pony
+class Example
+  let field_name: String
+
+  fun get_length(): USize =>
+    field_name.size()  // Hovering over 'field_name' here shows: let field_name: String val
+```
+
+Previously, hovering over field usages did not show any information.
+
+### Hover on local variable usages
+
+When hovering over a local variable reference like `count` in the expression `count + 1`, the LSP now displays:
+
+```pony
+var count: U32 val
+```
+
+```pony
+fun increment(): U32 =>
+  var count: U32 = 0
+  count = count + 1  // Hovering over 'count' here shows: var count: U32 val
+  count
+```
+
+Previously, hovering over variable usages did not show type information.
+
+### Hover on parameter usages
+
+When hovering over a parameter reference like `name` in the expression `name.size()`, the LSP now displays:
+
+```pony
+param name: String val
+```
+
+```pony
+fun get_name_length(name: String): USize =>
+  name.size()  // Hovering over 'name' here shows: param name: String val
+```
+
+Previously, hovering over parameter usages did not show any information.
+
+### Hover on parameter declarations
+
+When hovering over a parameter declaration like `x: U32` in a function signature, the LSP now displays:
+
+```pony
+param x: U32 val
+```
+
+```pony
+fun calculate(x: U32, y: U32): U32 =>
+  // Hovering over 'x' in the signature shows: param x: U32 val
+  x + y
+```
+
+Previously, hovering over parameter declarations provided no information.
+
+### Hover on method calls
+
+When hovering over a method name in a call expression like `my_object.get_value(42)`, the LSP now correctly highlights only the method name and displays:
+
+```pony
+fun get_value(x: U32): String val
+```
+
+```pony
+class MyObject
+  fun get_value(x: U32): String val =>
+    x.string()
+
+actor Main
+  new create(env: Env) =>
+    let my_object = MyObject
+    let result = my_object.get_value(42)  // Hovering over 'get_value' highlights only the method name
+```
+
+Previously, both the method name and receiver name were highlighted.
+
+## Fix crash when using bare integer literals in array match patterns
+
+Array does not implement the Equatable interface, which queries for structural equality.  Previous to this fix, an error in the type inference logic resulted in the code below resulting in a compiler crash instead of the expected helpful error message:
+
+```pony
+actor Main
+  new create(env: Env) =>
+    let arr: Array[U8 val] = [4; 5]
+    match arr
+    | [2; 3] => None
+    else
+      None
+    end
+```
+
+Now, the correct helpful error message is provided:
+
+```quote
+Error:
+main.pony:5:7: couldn't find 'eq' in 'Array'
+    | [2; 3] => None
+      ^
+Error:
+main.pony:5:7: this pattern element doesn't support structural equality
+    | [2; 3] => None
+      ^
+```
+
+## Add support for go to definition for arrow types in LSP
+
+The LSP server now correctly handles "go to definition" for method calls on arrow types (viewpoint-adapted types like `this->Type`). 
+
+Previously, go-to-definition would fail on method calls where the receiver had an arrow type, such as calling methods on `this` (which has type `this->MyClass` rather than just `MyClass`).
+
+## Add hover support for receiver capability to LSP
+
+The Language Server Protocol (LSP) hover feature now displays receiver capabilities in method signatures.
+
+When hovering over a method reference, the hover information will now show the receiver capability (e.g., `box`, `val`, `ref`, `iso`, `trn`, `tag`) in the method signature. This provides more complete type information at a glance.
+
+### Examples
+
+Previously, hovering over a method would show:
+
+```pony
+fun boxed_method(): String
+```
+
+Now, it correctly displays:
+
+```pony
+fun box boxed_method(): String
+```
+
+This applies to all receiver capabilities:
+
+- `fun box method()` - read-only access
+- `fun ref method()` - mutable reference access  
+- `fun val method()` - immutable value access
+- `fun iso method()` - isolated reference access
+- `fun trn method()` - transition reference access
+- `fun tag method()` - opaque reference access
+
