@@ -197,3 +197,32 @@ The LSP server now correctly handles "go to definition" for method calls on arro
 
 Previously, go-to-definition would fail on method calls where the receiver had an arrow type, such as calling methods on `this` (which has type `this->MyClass` rather than just `MyClass`).
 
+## Add hover support for receiver capability to LSP
+
+The Language Server Protocol (LSP) hover feature now displays receiver capabilities in method signatures.
+
+When hovering over a method reference, the hover information will now show the receiver capability (e.g., `box`, `val`, `ref`, `iso`, `trn`, `tag`) in the method signature. This provides more complete type information at a glance.
+
+### Examples
+
+Previously, hovering over a method would show:
+
+```pony
+fun boxed_method(): String
+```
+
+Now, it correctly displays:
+
+```pony
+fun box boxed_method(): String
+```
+
+This applies to all receiver capabilities:
+
+- `fun box method()` - read-only access
+- `fun ref method()` - mutable reference access  
+- `fun val method()` - immutable value access
+- `fun iso method()` - isolated reference access
+- `fun trn method()` - transition reference access
+- `fun tag method()` - opaque reference access
+
