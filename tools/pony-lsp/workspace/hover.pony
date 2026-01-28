@@ -76,7 +76,6 @@ end
 
 Current implementation does not support:
 - **Primitive type documentation**: Numeric primitives (U32, I64, etc.) show minimal info (just `primitive U32`) without docstrings, while classes like String and Array show full documentation
-- **Receiver capabilities**: Method signatures don't include the receiver capability (shows `fun method()` instead of `fun box method()`, `fun ref method()`, etc.)
 """
 use ".."
 use "ast"
@@ -102,14 +101,16 @@ class val MethodInfo
   """
   let keyword: String
   let name: String
+  let receiver_cap: String
   let type_params: String
   let params: String
   let return_type: String
   let docstring: String
 
-  new val create(keyword': String, name': String, type_params': String = "", params': String = "()", return_type': String = "", docstring': String = "") =>
+  new val create(keyword': String, name': String, receiver_cap': String = "", type_params': String = "", params': String = "()", return_type': String = "", docstring': String = "") =>
     keyword = keyword'
     name = name'
+    receiver_cap = receiver_cap'
     type_params = type_params'
     params = params'
     return_type = return_type'
@@ -149,9 +150,11 @@ primitive HoverFormatter
 
   fun format_method(info: MethodInfo): String =>
     """
-    Format method declaration as markdown hover text.
+    Format method information into markdown hover text.
+    Returns a string with signature in a code block and optional docstring.
     """
-    let signature = info.keyword + " " + info.name + info.type_params + info.params + info.return_type
+    let cap_str = if info.receiver_cap.size() > 0 then " " + info.receiver_cap else "" end
+    let signature = info.keyword + cap_str + " " + info.name + info.type_params + info.params + info.return_type
     let code_block = _wrap_code_block(consume signature)
     if info.docstring.size() > 0 then
       code_block + "\n\n" + info.docstring
@@ -295,6 +298,14 @@ primitive HoverFormatter
     Extract method information from AST node.
     """
     try
+      // Extract receiver capability from child(0)
+      let receiver_cap = try
+        let cap = ast(0)?
+        _extract_capability(cap.id())
+      else
+        ""
+      end
+
       let id = ast(1)?
       if id.id() == TokenIds.tk_id() then
         let name = id.token_value() as String
@@ -343,7 +354,7 @@ primitive HoverFormatter
           ""
         end
 
-        MethodInfo(keyword, name, type_params_str, params_str, return_type_str, docstring)
+        MethodInfo(keyword, name, receiver_cap, type_params_str, params_str, return_type_str, docstring)
       else
         None
       end
