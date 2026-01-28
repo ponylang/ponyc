@@ -1345,3 +1345,23 @@ TEST_F(BadPonyTest, MatchIsoLetWithoutConsume)
 
     TEST_ERRORS_1(src, "this capture violates capabilities");
 }
+
+TEST_F(BadPonyTest, MatchArrayPatternWithBareIntegerLiterals)
+{
+  // From issue #4554
+  // Using bare integer literals in array match patterns used to crash
+  // the compiler. Now it should produce a proper error message.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let arr: Array[U8 val] = [4; 5]\n"
+    "    match arr\n"
+    "    | [2; 3] => None\n"
+    "    else\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "couldn't find 'eq' in 'Array'",
+    "this pattern element doesn't support structural equality");
+}
