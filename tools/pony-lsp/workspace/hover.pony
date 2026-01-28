@@ -71,11 +71,6 @@ match hover_text
 | None => // No hover info available
 end
 ```
-
-## Limitations
-
-Current implementation does not support:
-- **Primitive type documentation**: Numeric primitives (U32, I64, etc.) show minimal info (just `primitive U32`) without docstrings, while classes like String and Array show full documentation
 """
 use ".."
 use "ast"
@@ -559,7 +554,19 @@ primitive HoverFormatter
     | TokenIds.tk_struct() => _format_entity(definition, "struct", channel)
     | TokenIds.tk_fun() => _format_method(definition, "fun", channel)
     | TokenIds.tk_be() => _format_method(definition, "be", channel)
-    | TokenIds.tk_new() => _format_method(definition, "new", channel)
+    | TokenIds.tk_new() =>
+      // For primitive constructors, show the primitive instead of the constructor
+      try
+        let parent = definition.parent() as AST
+        // Constructors are inside a TK_MEMBERS node, so check grandparent
+        if parent.id() == TokenIds.tk_members() then
+          let grandparent = parent.parent() as AST
+          if grandparent.id() == TokenIds.tk_primitive() then
+            return _format_entity(grandparent, "primitive", channel)
+          end
+        end
+      end
+      _format_method(definition, "new", channel)
     | TokenIds.tk_flet() => _format_field(definition, "let", channel)
     | TokenIds.tk_fvar() => _format_field(definition, "var", channel)
     | TokenIds.tk_embed() => _format_field(definition, "embed", channel)
