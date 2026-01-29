@@ -294,26 +294,3 @@ class ReceiverCapabilityDemo
     Hover shows 'fun ref mutable_method()' with the receiver capability.
     """
     None
-
-// ========== Examples of Current Limitations ==========
-
-class LimitationExamples
-  """
-  This class demonstrates hover limitations - cases where hover doesn't
-  currently provide information but ideally should.
-  """
-
-  // Limitation: Primitive type documentation
-  fun demo_primitive_types(): USize =>
-    """
-    Try hovering over primitive numeric types vs classes.
-    Classes (String, Array): Show full documentation with docstrings
-    Primitives (U32, I64, etc.): Show minimal info, just 'primitive U32'
-
-    This is because primitives in the stdlib may lack docstrings or they
-    aren't being extracted properly from the builtin package.
-    """
-    let text: String = ""           // Hover shows full String documentation
-    let numbers: Array[U32] = []    // Hover shows full Array documentation
-    let value: U32 = 0              // Hover shows just: primitive U32
-    text.size() + numbers.size() + value.usize()

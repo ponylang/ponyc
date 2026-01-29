@@ -71,11 +71,6 @@ match hover_text
 | None => // No hover info available
 end
 ```
-
-## Limitations
-
-Current implementation does not support:
-- **Primitive type documentation**: Numeric primitives (U32, I64, etc.) show minimal info (just `primitive U32`) without docstrings, while classes like String and Array show full documentation
 """
 use ".."
 use "ast"
