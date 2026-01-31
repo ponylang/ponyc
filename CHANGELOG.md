@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.60.5] - 2026-01-31
 
 ### Fixed
 
@@ -18,9 +18,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add extra hover support to LSP ([PR #4795](https://github.com/ponylang/ponyc/pull/4795))
 - Add hover support for receiver capability to LSP ([PR #4798](https://github.com/ponylang/ponyc/pull/4798))
 - Add support for go to definition for arrow types in LSP ([PR #4792](https://github.com/ponylang/ponyc/pull/4792))
-
-### Changed
-
 
 ## [0.60.4] - 2025-10-31
 
