@@ -44,6 +44,8 @@ Alpine 3.21 amd64 | x86_64-linux-alpine3.21
 Alpine 3.21 arm64 | arm64-linux-alpine3.21
 Alpine 3.22 amd64 | x86_64-linux-alpine3.22
 Alpine 3.22 arm64 | arm64-linux-alpine3.22
+Alpine 3.23 amd64 | x86_64-linux-alpine3.23
+Alpine 3.23 arm64 | arm64-linux-alpine3.23
 Linux Mint 21.x | x86_64-linux-ubuntu22.04
 Pop!_OS 22.04 | x86_64-linux-ubuntu22.04
 Pop!_OS 24.04 | x86_64-linux-ubuntu24.04

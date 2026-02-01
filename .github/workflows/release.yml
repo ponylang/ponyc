@@ -58,6 +58,10 @@ jobs:
             name: x86-64-unknown-linux-alpine3.22
             triple-os: linux-alpine3.22
             triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260101
+            name: x86-64-unknown-linux-alpine3.23
+            triple-os: linux-alpine3.23
+            triple-vendor: unknown
 
     name: ${{ matrix.name }}
     container:
@@ -115,6 +119,10 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
             name: arm64-unknown-linux-alpine3.22
             triple-os: linux-alpine3.22
+            triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260101
+            name: arm64-unknown-linux-alpine3.23
+            triple-os: linux-alpine3.23
             triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
             name: arm64-unknown-linux-ubuntu24.04
