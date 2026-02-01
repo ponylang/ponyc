@@ -58,7 +58,7 @@ jobs:
             name: x86-64-unknown-linux-alpine3.22
             triple-os: linux-alpine3.22
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260101
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: x86-64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
             triple-vendor: unknown
@@ -120,7 +120,7 @@ jobs:
             name: arm64-unknown-linux-alpine3.22
             triple-os: linux-alpine3.22
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260101
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: arm64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
             triple-vendor: unknown
