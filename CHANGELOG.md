@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix crash when ephemeral type used in parameter with default argument ([PR #4796](https://github.com/ponylang/ponyc/pull/4796))
 
 ### Added
 
