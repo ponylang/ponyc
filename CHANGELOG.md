@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add Alpine 3.23 support ([PR #4803](https://github.com/ponylang/ponyc/pull/4803))
 
 ### Changed
 
