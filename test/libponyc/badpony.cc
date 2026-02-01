@@ -1346,6 +1346,21 @@ TEST_F(BadPonyTest, MatchIsoLetWithoutConsume)
     TEST_ERRORS_1(src, "this capture violates capabilities");
 }
 
+TEST_F(BadPonyTest, EphemeralParamWithDefaultArg)
+{
+  // From issue #4089
+  const char* src =
+    "class Foo\n"
+
+    "actor Main\n"
+    "  fun apply(x: Foo iso^ = Foo) => None\n"
+
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src, "invalid parameter type for a parameter with a default argument");
+}
+  
 TEST_F(BadPonyTest, MatchArrayPatternWithBareIntegerLiterals)
 {
   // From issue #4554
