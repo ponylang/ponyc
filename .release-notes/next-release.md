@@ -4,7 +4,7 @@ We've added support for Alpine 3.23. Builds will be available for both arm64 and
 
 ## Fix crash when ephemeral type used in parameter with default argument
 
-Similar to PR4790, this PR addresses another case where attempting to assign an ephemeral type to a variable caused an assertion failure in the compiler.
+We've fixed an error where attempting to assign an ephemeral type to a variable caused an assertion failure in the compiler.
 
 The following code will now cause the pony compiler to emit a helpful error message:
 
