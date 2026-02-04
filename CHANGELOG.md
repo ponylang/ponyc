@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix crash when ephemeral type used in parameter with default argument ([PR #4796](https://github.com/ponylang/ponyc/pull/4796))
 - Fix incorrect array element type inference for union types ([PR #4794](https://github.com/ponylang/ponyc/pull/4794))
+- Fix segfault when lambda captures uninitialized field ([PR #4791](https://github.com/ponylang/ponyc/pull/4791))
 
 ### Added
 
