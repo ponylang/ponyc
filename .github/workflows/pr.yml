@@ -73,7 +73,7 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             name: x86-64 Linux glibc
             debugger: lldb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: x86-64 Linux musl
             debugger: lldb
 
@@ -277,7 +277,7 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
             name: arm64 Linux glibc
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: arm64 Linux musl
 
     name: ${{ matrix.name }}
