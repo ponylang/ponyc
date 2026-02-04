@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Update Docker Image Base to Alpine 3.23 ([PR #4804](https://github.com/ponylang/ponyc/pull/4804))
 
 ## [0.60.5] - 2026-01-31
 
