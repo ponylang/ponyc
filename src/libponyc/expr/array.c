@@ -37,14 +37,22 @@ static ast_t* strip_this_arrow(pass_opt_t* opt, ast_t* ast)
     (ast_id(ast_child(ast)) == TK_THISTYPE))
     return ast_childidx(ast, 1);
 
-  if(ast_id(ast) == TK_TUPLETYPE)
+  switch(ast_id(ast))
   {
-    ast_t* new_ast = ast_from(ast, TK_TUPLETYPE);
+    case TK_TUPLETYPE:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* new_ast = ast_from(ast, ast_id(ast));
 
-    for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
-      ast_append(new_ast, strip_this_arrow(opt, c));
+      for(ast_t* c = ast_child(ast); c != NULL; c = ast_sibling(c))
+        ast_append(new_ast, strip_this_arrow(opt, c));
 
-    return new_ast;
+      return new_ast;
+    }
+
+    default:
+      break;
   }
 
   return ast;
