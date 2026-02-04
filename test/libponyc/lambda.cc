@@ -593,6 +593,20 @@ TEST_F(LambdaTest, LambdaCaptureUndefinedFieldImplicit)
 }
 
 
+TEST_F(LambdaTest, LambdaCaptureUndefinedFieldImplicitNested)
+{
+  const char* src =
+    "class Foo\n"
+    "  let _x: USize\n"
+    "  let _f: {(): USize}\n"
+    "  new create() =>\n"
+    "    _f = {() => _x + 1 }\n"
+    "    _x = 42";
+
+  TEST_ERRORS_1(src, "can't use an undefined variable in an expression");
+}
+
+
 TEST_F(LambdaTest, LambdaCaptureDefinedFieldOk)
 {
   const char* src =
