@@ -28,3 +28,29 @@ main.pony:4:16: invalid parameter type for a parameter with a default argument: 
 
 We've updated the base image for our ponyc images from Alpine 3.21 to Alpine 3.23.
 
+## Fix incorrect array element type inference for union types
+
+Due to a small bug in the type system implementation, the following correct code would fail to compile.  We have fixed this bug so it will now compiler.
+
+```pony
+type Foo is (Bar box | Baz box | Bool)
+
+class Bar
+  embed _items: Array[Foo] = _items.create()
+
+  new create(items: ReadSeq[Foo]) =>
+    for item in items.values() do
+      _items.push(item)
+    end
+
+class Baz
+
+actor Main
+  new create(env: Env) =>
+    let bar = Bar([
+      true
+      Bar([ false ])
+    ])
+    env.out.print("done")
+```
+
