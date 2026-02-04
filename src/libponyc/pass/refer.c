@@ -1779,6 +1779,109 @@ static bool refer_compile_error(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+// Scan an AST subtree for references to undefined fields.
+// The 'lambda' parameter is the lambda AST, used for scope lookups.
+static bool refer_lambda_check_captures(pass_opt_t* opt, ast_t* lambda,
+  ast_t* ast)
+{
+  if(ast == NULL)
+    return true;
+
+  // If this is a reference, check if it's an undefined field
+  if(ast_id(ast) == TK_REFERENCE)
+  {
+    const char* name = ast_name(ast_child(ast));
+
+    if(!is_name_dontcare(name))
+    {
+      sym_status_t status;
+      ast_t* def = ast_get(lambda, name, &status);
+
+      if(def != NULL)
+      {
+        switch(ast_id(def))
+        {
+          case TK_FVAR:
+          case TK_FLET:
+          case TK_EMBED:
+            // For lambda captures, we only check if the field is undefined.
+            // Unlike valid_reference(), we don't need to check is_constructed_from
+            // or is_assigned_to because those don't apply to capture contexts.
+            if(status == SYM_UNDEFINED)
+            {
+              ast_error(opt->check.errors, ast,
+                "can't use an undefined variable in an expression");
+              return false;
+            }
+            break;
+
+          default: {}
+        }
+      }
+    }
+  }
+
+  // Recursively check children
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(!refer_lambda_check_captures(opt, lambda, child))
+      return false;
+  }
+
+  return true;
+}
+
+static bool refer_lambda(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_LAMBDA || ast_id(ast) == TK_BARELAMBDA);
+
+  // Lambda children: cap, name, typeparams, params, captures, ret_type,
+  //                  raises, body, obj_cap
+  ast_t* captures = ast_childidx(ast, 4);
+  ast_t* body = ast_childidx(ast, 7);
+
+  // Check explicit captures for uninitialized fields.
+  for(ast_t* cap = ast_child(captures); cap != NULL; cap = ast_sibling(cap))
+  {
+    // Each capture is TK_LAMBDACAPTURE with children: id, type, value
+    AST_GET_CHILDREN(cap, id_node, type, value);
+    const char* name = ast_name(id_node);
+
+    // Only check simple variable captures (no value expression)
+    if(ast_id(value) != TK_NONE)
+      continue;
+
+    if(is_name_dontcare(name))
+      continue;
+
+    sym_status_t status;
+    ast_t* def = ast_get(ast, name, &status);
+
+    if(def == NULL)
+      continue;
+
+    switch(ast_id(def))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_EMBED:
+        if(!valid_reference(opt, cap, status))
+          return false;
+        break;
+
+      default: {}
+    }
+  }
+
+  // Check the lambda body for implicit captures of uninitialized fields.
+  // The body is marked PRESERVE, so the regular refer pass won't descend into
+  // it. We need to scan it here to catch field references.
+  if(!refer_lambda_check_captures(opt, ast, body))
+    return false;
+
+  return true;
+}
+
 ast_result_t pass_pre_refer(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -1840,6 +1943,9 @@ ast_result_t pass_refer(ast_t** astp, pass_opt_t* options)
     case TK_ERROR:     r = refer_error(options, ast); break;
     case TK_COMPILE_ERROR:
                        r = refer_compile_error(options, ast); break;
+    case TK_LAMBDA:
+    case TK_BARELAMBDA:
+                       r = refer_lambda(options, ast); break;
     default: {}
   }
 
