@@ -497,10 +497,11 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 }
 
 // Infer the types of any literals in the pattern of the given case
-static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type,
+static bool infer_pattern_type(ast_t** astp, ast_t* match_expr_type,
   pass_opt_t* opt)
 {
-  pony_assert(pattern != NULL);
+  pony_assert(astp != NULL);
+  pony_assert(*astp != NULL);
   pony_assert(match_expr_type != NULL);
 
   if(is_type_literal(match_expr_type))
@@ -510,7 +511,7 @@ static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type,
     return false;
   }
 
-  return coerce_literals(&pattern, match_expr_type, opt);
+  return coerce_literals(astp, match_expr_type, opt);
 }
 
 bool expr_case(pass_opt_t* opt, ast_t* ast)
@@ -542,7 +543,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     is_typecheck_error(match_type))
     return false;
 
-  if(!infer_pattern_type(pattern, match_type, opt))
+  if(!infer_pattern_type(&pattern, match_type, opt))
     return false;
 
   ast_t* pattern_type = make_pattern_type(opt, pattern);

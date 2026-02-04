@@ -1,6 +1,6 @@
 use @ponyint_hash_block[USize](ptr: Pointer[None] tag, size: USize)
 use "collections"
-use "debug"
+//use "debug"
 use "binarysearch"
 
 class val Module is (Hashable & Equatable[Module])
@@ -110,7 +110,7 @@ class val PositionIndex
             // take the first entry that contains our position
             (let start_pos, let end_pos) = candidate.span()
 
-            Debug("candidate: " + candidate.debug() + " end_pos: " + end_pos.string())
+            //Debug("candidate: " + candidate.debug() + " end_pos: " + end_pos.string())
             if (start_pos <= needle.start) and (needle.start <= end_pos) then
               // refine to a meaningful node
               return _refine_node(candidate)
@@ -152,8 +152,8 @@ class val PositionIndex
         | TokenIds.tk_var() | TokenIds.tk_let() // local variables
         | TokenIds.tk_packageref() // package reference
         => return parent'
-        else
-          Debug("Parent unknown: " + TokenIds.string(parent'.id()))
+        //else
+          //Debug("Parent unknown: " + TokenIds.string(parent'.id()))
         end
       end
     | TokenIds.tk_seq() | TokenIds.tk_params() =>
@@ -235,14 +235,14 @@ class ref _PositionIndexBuilder is ASTVisitor
         try
           let existing = _index(pos)?
           existing.merge(entry)
-        else
-          Debug("Binarysearch found an invalid existing position")
+        //else
+          //Debug("Binarysearch found an invalid existing position")
         end
       | (let pos: USize, false) =>
         try
           _index.insert(pos, entry)?
-        else
-          Debug("Binarysearch found an invalid insert position")
+        //else
+          //Debug("Binarysearch found an invalid insert position")
         end
       end
     end
@@ -289,7 +289,7 @@ class ref _Entry is Comparable[_Entry]
           s.append(",")
         end
         s.append("]")
-        Debug("CANDIDATES: " + s)
+        //Debug("CANDIDATES: " + s)
       end
       first()?
     else

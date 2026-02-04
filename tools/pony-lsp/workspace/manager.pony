@@ -226,17 +226,18 @@ actor WorkspaceManager
 
     // Find AST node at the position
     match _find_hover_node(document_path, line, column)
-    | let ast: AST box =>
-      this._channel.log("Found AST node: " + ast.debug())
+    | let hover_node: AST box =>
+      this._channel.log("Found AST node: " + hover_node.debug())
 
       // Extract hover information and build response
-      match HoverFormatter.create_hover(ast, this._channel)
+      match HoverFormatter.create_hover(hover_node, this._channel)
       | let hover_text: String =>
-        let hover_response = _build_hover_response(hover_text, ast)
+        // Use the original hover node for highlighting, not any definition it may reference
+        let hover_response = _build_hover_response(hover_text, hover_node)
         this._channel.send(ResponseMessage(request.id, hover_response))
         return
       | None =>
-        this._channel.log("No hover info available for node type: " + TokenIds.string(ast.id()))
+        this._channel.log("No hover info available for node type: " + TokenIds.string(hover_node.id()))
       end
     | None =>
       this._channel.log("No hover data found for position")
@@ -307,8 +308,8 @@ actor WorkspaceManager
       "value", hover_text
     ).build()
 
-    // Use identifier's span for highlight range if this is a declaration
-    let highlight_node = _get_identifier_for_highlight(ast)
+    // For declarations, use identifier span; for references, use the whole node
+    let highlight_node = _get_node_for_highlight(ast)
     (let start_pos, let end_pos) = highlight_node.span()
     let hover_range = LspPositionRange(
       LspPosition.from_ast_pos(start_pos),
@@ -425,34 +426,49 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
-  fun _get_identifier_for_highlight(ast: AST box): AST box =>
+  fun _get_node_for_highlight(ast: AST box): AST box =>
     """
-    Extract the identifier child from declaration nodes for highlighting.
+    Get the appropriate node for hover highlighting.
     For declarations (class, fun, let, etc.), return the identifier child.
+    For references and type nodes, find the identifier within them.
     Otherwise return the original node.
     """
     match ast.id()
     | TokenIds.tk_class() | TokenIds.tk_actor() | TokenIds.tk_trait()
     | TokenIds.tk_interface() | TokenIds.tk_primitive() | TokenIds.tk_type()
-    | TokenIds.tk_struct() =>
-      // Entity declarations: identifier is at child(0)
+    | TokenIds.tk_struct()
+    | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed()
+    | TokenIds.tk_let() | TokenIds.tk_var()
+    | TokenIds.tk_param() =>
+      // Declarations with identifier at child(0)
       try
         let id = ast(0)?
         if id.id() == TokenIds.tk_id() then
           return id
         end
       end
-    | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new() =>
-      // Method declarations: identifier is at child(1)
+    | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new()
+    | TokenIds.tk_nominal() | TokenIds.tk_typeref() =>
+      // Declarations/types with identifier at child(1)
       try
         let id = ast(1)?
         if id.id() == TokenIds.tk_id() then
           return id
         end
       end
-    | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed()
-    | TokenIds.tk_let() | TokenIds.tk_var() =>
-      // Field and local variable declarations: identifier is at child(0)
+    | TokenIds.tk_funref() | TokenIds.tk_beref()
+    | TokenIds.tk_newref() | TokenIds.tk_newberef() | TokenIds.tk_funchain()
+    | TokenIds.tk_bechain() =>
+      // For method/function references, get the method name (sibling of receiver)
+      try
+        let receiver = ast.child() as AST
+        let method = receiver.sibling() as AST
+        if method.id() == TokenIds.tk_id() then
+          return method
+        end
+      end
+    | TokenIds.tk_reference() =>
+      // For references, try to find the identifier child
       try
         let id = ast(0)?
         if id.id() == TokenIds.tk_id() then
@@ -467,5 +483,3 @@ actor WorkspaceManager
     for package_state in this._packages.values() do
       package_state.dispose()
     end
-
-

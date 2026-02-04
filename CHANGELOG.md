@@ -6,15 +6,31 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix crash when ephemeral type used in parameter with default argument ([PR #4796](https://github.com/ponylang/ponyc/pull/4796))
+
+### Added
+
+- Add Alpine 3.23 support ([PR #4803](https://github.com/ponylang/ponyc/pull/4803))
+
+### Changed
+
+
+## [0.60.5] - 2026-01-31
+
+### Fixed
+
 - Fix crash when partially applying constructors ([PR #4783](https://github.com/ponylang/ponyc/pull/4783))
+- Fix crash when using bare integer literals in array match patterns ([PR #4797](https://github.com/ponylang/ponyc/pull/4797))
 
 ### Added
 
 - Add Pony Language Server to the ponyc distribution ([PR #4777](https://github.com/ponylang/ponyc/pull/4777))
 - Handle Bool with exhaustive match ([PR #4782](https://github.com/ponylang/ponyc/pull/4782))
-
-### Changed
-
+- Add support for complex type formatting in LSP hover ([PR #4785](https://github.com/ponylang/ponyc/pull/4785))
+- Add hover support for generic types in LSP ([PR #4793](https://github.com/ponylang/ponyc/pull/4793))
+- Add extra hover support to LSP ([PR #4795](https://github.com/ponylang/ponyc/pull/4795))
+- Add hover support for receiver capability to LSP ([PR #4798](https://github.com/ponylang/ponyc/pull/4798))
+- Add support for go to definition for arrow types in LSP ([PR #4792](https://github.com/ponylang/ponyc/pull/4792))
 
 ## [0.60.4] - 2025-10-31
 

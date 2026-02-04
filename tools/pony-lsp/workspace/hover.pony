@@ -71,14 +71,6 @@ match hover_text
 | None => // No hover info available
 end
 ```
-
-## Limitations
-
-Current implementation does not support:
-- **Variable usage**: Hovering over a variable being used (e.g., `x` in `let y = x + 1`) doesn't show the variable's type
-- **Complex type expressions**: Unions, intersections, tuples not fully formatted
-- **Primitive type documentation**: Numeric primitives (U32, I64, etc.) show minimal info (just `primitive U32`) without docstrings, while classes like String and Array show full documentation
-- **Receiver capabilities**: Method signatures don't include the receiver capability (shows `fun method()` instead of `fun box method()`, `fun ref method()`, etc.)
 """
 use ".."
 use "ast"
@@ -104,13 +96,17 @@ class val MethodInfo
   """
   let keyword: String
   let name: String
+  let receiver_cap: String
+  let type_params: String
   let params: String
   let return_type: String
   let docstring: String
 
-  new val create(keyword': String, name': String, params': String = "()", return_type': String = "", docstring': String = "") =>
+  new val create(keyword': String, name': String, receiver_cap': String = "", type_params': String = "", params': String = "()", return_type': String = "", docstring': String = "") =>
     keyword = keyword'
     name = name'
+    receiver_cap = receiver_cap'
+    type_params = type_params'
     params = params'
     return_type = return_type'
     docstring = docstring'
@@ -149,9 +145,11 @@ primitive HoverFormatter
 
   fun format_method(info: MethodInfo): String =>
     """
-    Format method declaration as markdown hover text.
+    Format method information into markdown hover text.
+    Returns a string with signature in a code block and optional docstring.
     """
-    let signature = info.keyword + " " + info.name + info.params + info.return_type
+    let cap_str = if info.receiver_cap.size() > 0 then " " + info.receiver_cap else "" end
+    let signature = info.keyword + cap_str + " " + info.name + info.type_params + info.params + info.return_type
     let code_block = _wrap_code_block(consume signature)
     if info.docstring.size() > 0 then
       code_block + "\n\n" + info.docstring
@@ -197,8 +195,12 @@ primitive HoverFormatter
     | TokenIds.tk_let() => _format_local_var(ast, "let", channel)
     | TokenIds.tk_var() => _format_local_var(ast, "var", channel)
 
+    // Parameter declarations
+    | TokenIds.tk_param() => _format_param(ast, channel)
+
     // Type references - try to follow to definition
     | TokenIds.tk_reference() => _format_reference(ast, channel)
+    | TokenIds.tk_typeref() => _format_reference(ast, channel)
     | TokenIds.tk_nominal() => _format_reference(ast, channel)
 
     // Function/method/constructor calls - follow to definition
@@ -208,6 +210,18 @@ primitive HoverFormatter
     | TokenIds.tk_newberef() => _format_reference(ast, channel)
     | TokenIds.tk_funchain() => _format_reference(ast, channel)
     | TokenIds.tk_bechain() => _format_reference(ast, channel)
+
+    // Field references - follow to definition
+    | TokenIds.tk_fletref() => _format_reference(ast, channel)
+    | TokenIds.tk_fvarref() => _format_reference(ast, channel)
+    | TokenIds.tk_embedref() => _format_reference(ast, channel)
+
+    // Local variable references - follow to definition
+    | TokenIds.tk_letref() => _format_reference(ast, channel)
+    | TokenIds.tk_varref() => _format_reference(ast, channel)
+
+    // Parameter references - follow to definition
+    | TokenIds.tk_paramref() => _format_reference(ast, channel)
 
     // Identifier - try to get info from parent or follow to definition
     | TokenIds.tk_id() => _format_id(ast, channel)
@@ -237,16 +251,10 @@ primitive HoverFormatter
       if id.id() == TokenIds.tk_id() then
         let name = id.token_value() as String
 
-        // Try to extract type parameters
-        let type_params_str = try
-          let type_params = ast(3)?
-          if type_params.id() == TokenIds.tk_typeparams() then
-            _extract_type_params(type_params, channel)
-          else
-            ""
-          end
-        else
-          ""
+        // Extract type parameters
+        let type_params_str = match _find_child_by_type(ast, TokenIds.tk_typeparams(), 1)
+        | let tp: AST box => _extract_type_params(tp, channel)
+        | None => ""
         end
 
         // Extract docstring from child 6
@@ -285,9 +293,29 @@ primitive HoverFormatter
     Extract method information from AST node.
     """
     try
+      // Extract receiver capability from child(0)
+      let receiver_cap = try
+        let cap = ast(0)?
+        _extract_capability(cap.id())
+      else
+        ""
+      end
+
       let id = ast(1)?
       if id.id() == TokenIds.tk_id() then
         let name = id.token_value() as String
+
+        // Extract type parameters
+        let type_params_str = try
+          let type_params = ast(2)?
+          if type_params.id() == TokenIds.tk_typeparams() then
+            _extract_type_params(type_params, channel)
+          else
+            ""
+          end
+        else
+          ""
+        end
 
         // Extract parameters
         let params_str = try
@@ -321,7 +349,7 @@ primitive HoverFormatter
           ""
         end
 
-        MethodInfo(keyword, name, params_str, return_type_str, docstring)
+        MethodInfo(keyword, name, receiver_cap, type_params_str, params_str, return_type_str, docstring)
       else
         None
       end
@@ -404,6 +432,45 @@ primitive HoverFormatter
       None
     end
 
+  fun tag _format_param(ast: AST box, channel: Channel): (String | None) =>
+    """
+    Format parameter declarations
+    Parameter structure: child(0) = id, child(1) = type
+    """
+    match _extract_param_info(ast, channel)
+    | let info: FieldInfo => format_field(info)  // Same format as fields
+    | None => None
+    end
+
+  fun tag _extract_param_info(ast: AST box, channel: Channel): (FieldInfo | None) =>
+    """
+    Extract parameter information from AST node.
+    """
+    try
+      let id = ast(0)?
+      if id.id() == TokenIds.tk_id() then
+        let name = id.token_value() as String
+
+        // Extract type annotation
+        let type_str = try
+          let param_type = ast(1)?
+          if param_type.id() != TokenIds.tk_none() then
+            ": " + _extract_type(param_type, channel)
+          else
+            ""
+          end
+        else
+          ""
+        end
+
+        FieldInfo("param", name, type_str)
+      else
+        None
+      end
+    else
+      None
+    end
+
   fun tag _format_id(ast: AST box, channel: Channel): (String | None) =>
     """
     Format identifier nodes - look at parent to get full context, or follow to definition
@@ -431,6 +498,12 @@ primitive HoverFormatter
         | TokenIds.tk_embed() => _format_field(parent, "embed", channel)
         | TokenIds.tk_let() => _format_local_var(parent, "let", channel)
         | TokenIds.tk_var() => _format_local_var(parent, "var", channel)
+        | TokenIds.tk_letref() => _format_reference(parent, channel)
+        | TokenIds.tk_varref() => _format_reference(parent, channel)
+        | TokenIds.tk_fletref() => _format_reference(parent, channel)
+        | TokenIds.tk_fvarref() => _format_reference(parent, channel)
+        | TokenIds.tk_embedref() => _format_reference(parent, channel)
+        | TokenIds.tk_paramref() => _format_reference(parent, channel)
         else
           // Parent is not a declaration - try to follow to definition
           _format_from_definition(ast, channel)
@@ -452,53 +525,8 @@ primitive HoverFormatter
   fun tag _format_from_definition(ast: AST box, channel: Channel): (String | None) =>
     """
     Follow an identifier or reference to its definition and format that.
-
-    Special handling for function calls: The AST library's DefinitionResolver doesn't
-    handle tk_arrow types (viewpoint-adapted types like 'this->Type'), so we manually
-    extract the underlying nominal type and search for the method in the type's scope.
     """
     try
-      // Workaround for function calls with arrow types (e.g., this.method())
-      match ast.id()
-      | TokenIds.tk_funref() | TokenIds.tk_beref() | TokenIds.tk_newref()
-      | TokenIds.tk_newberef() | TokenIds.tk_funchain() | TokenIds.tk_bechain() =>
-        try
-          let receiver = ast.child() as AST
-          let method = receiver.sibling() as AST
-          let method_name = method.token_value() as String
-          let receiver_type = receiver.ast_type() as AST
-
-          // If receiver type is an arrow type, extract the underlying nominal type
-          let nominal_type = if receiver_type.id() == TokenIds.tk_arrow() then
-            // Arrow type has structure: left -> right, we want the right side
-            try
-              receiver_type(1)?
-            else
-              receiver_type
-            end
-          else
-            receiver_type
-          end
-
-          // Now try to find the method in the nominal type
-          if nominal_type.id() == TokenIds.tk_nominal() then
-            try
-              // Get definitions from the nominal type - this should give us the type definition
-              let type_defs = nominal_type.definitions()
-              if type_defs.size() > 0 then
-                let type_def = type_defs(0)?
-                // Search for the method in the type's scope
-                match type_def.find_in_scope(method_name)
-                | let found: AST =>
-                  // Recursively format the found definition
-                  return _format_from_found_definition(found, channel)
-                end
-              end
-            end
-          end
-        end
-      end
-
       // Use definitions() to find where this is defined
       let defs = ast.definitions()
       if defs.size() > 0 then
@@ -532,6 +560,7 @@ primitive HoverFormatter
     | TokenIds.tk_embed() => _format_field(definition, "embed", channel)
     | TokenIds.tk_let() => _format_local_var(definition, "let", channel)
     | TokenIds.tk_var() => _format_local_var(definition, "var", channel)
+    | TokenIds.tk_param() => _format_param(definition, channel)
     else
       // Unknown definition type
       None
@@ -596,23 +625,48 @@ primitive HoverFormatter
   fun tag _extract_type(type_node: AST box, channel: Channel): String =>
     """
     Extract type information from a type node.
-    This is a simplified version that tries to extract the type name.
+    Handles nominal types, union types, tuple types, intersection types, and arrow types
     """
     let node_id = type_node.id()
     match node_id
     | TokenIds.tk_nominal() =>
       // Nominal type - try to get the type name
-      // TK_NOMINAL structure: child(0) = package id ($0 for builtin), child(1) = type name
+      // TK_NOMINAL structure: child(0) = package id ($0 for builtin), child(1) = type name,
+      // child(2+) = capability (optional), type args (optional)
       try
         let num_children = type_node.num_children()
         if num_children > 1 then
           let type_id = type_node(1)?
-          if type_id.id() == TokenIds.tk_id() then
+          let base_name = if type_id.id() == TokenIds.tk_id() then
             type_id.token_value() as String
           else
             // Try to recursively extract from child
             _extract_type(type_id, channel)
           end
+
+          // Check for type arguments
+          let type_args_str = match _find_child_by_type(type_node, TokenIds.tk_typeargs(), 2)
+          | let ta: AST box => _extract_typeargs(ta, channel)
+          | None => ""
+          end
+
+          // Check for capability
+          var capability_str: String = ""
+          var idx: USize = 2
+          while idx < num_children do
+            try
+              let child = type_node(idx)?
+              let cap = _extract_capability(child.id())
+              if cap != "" then
+                capability_str = cap
+                break
+              end
+            end
+            idx = idx + 1
+          end
+
+          let cap_str = if capability_str.size() > 0 then " " + capability_str else "" end
+          base_name + type_args_str + cap_str
         else
           "?"
         end
@@ -626,10 +680,94 @@ primitive HoverFormatter
       else
         "?"
       end
+    | TokenIds.tk_typeparamref() =>
+      // Type parameter reference (like T, U in generic types)
+      // Structure: may have child(0) = id or have token value
+      try
+        let child = type_node(0)?
+        if child.id() == TokenIds.tk_id() then
+          child.token_value() as String
+        else
+          type_node.token_value() as String
+        end
+      else
+        try
+          type_node.token_value() as String
+        else
+          "?"
+        end
+      end
+    | TokenIds.tk_uniontype() =>
+      // Union type: (Type1 | Type2 | Type3)
+      _extract_composite_type(type_node, " | ", channel)
+    | TokenIds.tk_isecttype() =>
+      // Intersection type: (Type1 & Type2 & Type3)
+      _extract_composite_type(type_node, " & ", channel)
+    | TokenIds.tk_tupletype() =>
+      // Tuple type: (Type1, Type2, Type3)
+      _extract_composite_type(type_node, ", ", channel)
+    | TokenIds.tk_arrow() =>
+      // Arrow type: left->right (viewpoint adaptation)
+      try
+        let left_child = type_node(0)?
+        let left_cap = _extract_capability(left_child.id())
+        let right = _extract_type(type_node(1)?, channel)
+        if left_cap.size() > 0 then
+          left_cap + "->" + right
+        else
+          right
+        end
+      else
+        "?"
+      end
     else
       // For other type node types, return a placeholder
-      // This could be expanded to handle more complex types
       TokenIds.string(node_id)
+    end
+
+  fun tag _extract_capability(node_id: I32): String =>
+    """
+    Extract capability string from a capability token ID.
+    Returns capability name like "val" or empty string if not a capability.
+    """
+    match node_id
+    | TokenIds.tk_iso() => "iso"
+    | TokenIds.tk_trn() => "trn"
+    | TokenIds.tk_ref() => "ref"
+    | TokenIds.tk_val() => "val"
+    | TokenIds.tk_box() => "box"
+    | TokenIds.tk_tag() => "tag"
+    else
+      ""
+    end
+
+  fun tag _extract_typeargs(typeargs_node: AST box, channel: Channel): String =>
+    """
+    Extract type arguments from a tk_typeargs node.
+    Returns formatted string like "[T1, T2]" or empty string if no args.
+    """
+    let arg_strs = Array[String]
+    for arg in typeargs_node.children() do
+      arg_strs.push(_extract_type(arg, channel))
+    end
+    if arg_strs.size() > 0 then
+      "[" + ", ".join(arg_strs.values()) + "]"
+    else
+      ""
+    end
+
+  fun tag _extract_composite_type(type_node: AST box, separator: String, channel: Channel): String =>
+    """
+    Extract composite types (union, intersection, tuple) by recursively extracting children.
+    """
+    let type_strs = Array[String]
+    for child in type_node.children() do
+      type_strs.push(_extract_type(child, channel))
+    end
+    if type_strs.size() > 0 then
+      "(" + separator.join(type_strs.values()) + ")"
+    else
+      "?"
     end
 
   fun tag _wrap_code_block(content: String): String =>
@@ -637,3 +775,20 @@ primitive HoverFormatter
     Wrap content in a Pony code block for markdown formatting.
     """
     "```pony\n" + content + "\n```"
+
+  fun tag _find_child_by_type(ast: AST box, token_id: I32, start_index: USize = 0): (AST box | None) =>
+    """
+    Search for a child node with a specific token type.
+    Returns the first matching child found, or None if not found.
+    """
+    var idx = start_index
+    while idx < ast.num_children() do
+      try
+        let child = ast(idx)?
+        if child.id() == token_id then
+          return child
+        end
+      end
+      idx = idx + 1
+    end
+    None

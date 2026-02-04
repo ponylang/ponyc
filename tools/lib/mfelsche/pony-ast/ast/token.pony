@@ -524,4 +524,18 @@ primitive TokenIds
       "TK_UNKNOWN"
     end
 
+  fun is_entity(token_id: I32): Bool =>
+    """
+    Something like a class, actor, primitive, trait etc.
+
+    Lambdas are not included. Maybe they should.
+    """
+    (token_id == this.tk_class())
+      or (token_id == this.tk_actor())
+      or (token_id == this.tk_primitive())
+      or (token_id == this.tk_struct())
+      or (token_id == this.tk_interface())
+      or (token_id == this.tk_trait())
+      or (token_id == this.tk_object())
+
 

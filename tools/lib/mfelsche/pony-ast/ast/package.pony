@@ -1,4 +1,4 @@
-use "debug"
+//use "debug"
 use @package_init[Bool](opt: _PassOpt)
 use @package_add_paths[None](paths: Pointer[U8] tag, opy: _PassOpt)
 use @package_init_lib[Bool](opt: _PassOpt, pony_installation: Pointer[U8] tag)
@@ -43,11 +43,11 @@ class val Package
     """
     Find a module in this package by package directory path
     """
-    Debug("trying to find module from: " + file)
+    //Debug("trying to find module from: " + file)
     for mod in modules() do
-      Debug("checking: " +  mod.file)
+      //Debug("checking: " +  mod.file)
       if mod.file == file then
-        Debug("found module: " + file)
+        //Debug("found module: " + file)
         return mod
       end
     end

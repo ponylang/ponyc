@@ -115,63 +115,168 @@ class FunctionCallHoverDemo
     """Method with multiple parameters for testing."""
     y
 
-// ========== Examples of Current Limitations ==========
-
-class LimitationExamples
+class ComplexTypesDemo
   """
-  This class demonstrates hover limitations - cases where hover doesn't
-  currently provide information but ideally should.
+  Demonstrates that hover works on complex type expressions.
+  Union types, tuple types, and intersection types are formatted correctly.
   """
 
-  // Limitation 1: Variable usage doesn't show type
-  fun demo_variable_usage() =>
-    """
-    Try hovering over the variable names when they're USED (not declared).
-    EXPECTED: Should show variable type
-    ACTUAL: No hover information (only works on the declaration line)
-    """
-    let count: U32 = 100
-    let name: String = "example"
-
-    // Hover over 'count' or 'name' below - no info shown
-    let doubled = count * 2
-    let upper_name = name.upper()
-    let sum = count + doubled
-
-  // Limitation 2: Complex type expressions
   fun demo_complex_types(): String =>
     """
-    Try hovering over these complex type expressions.
-    EXPECTED: Should show formatted type (e.g., '(String | U32 | None)')
-    ACTUAL: May not format complex types correctly
+    Hover over the variable names on their declaration lines to see formatted types.
+    Hover shows 'let union_type: (String | U32 | None)' and similar.
     """
     let union_type: (String | U32 | None) = "test"
     let tuple_type: (String, U32, Bool) = ("test", U32(42), true)
     union_type.string() + tuple_type._1.string()
 
-  // Limitation 3: Primitive type documentation
-  fun demo_primitive_types(): USize =>
-    """
-    Try hovering over primitive numeric types vs classes.
-    Classes (String, Array): Show full documentation with docstrings
-    Primitives (U32, I64, etc.): Show minimal info, just 'primitive U32'
+class GenericsDemo[T: Any val]
+  """
+  Demonstrates hover on generic classes with type parameters.
+  Hover over the class name shows the full signature with type parameters.
+  """
+  let _value: T
 
-    This is because primitives in the stdlib may lack docstrings or they
-    aren't being extracted properly from the builtin package.
-    """
-    let text: String = ""           // Hover shows full String documentation
-    let numbers: Array[U32] = []    // Hover shows full Array documentation
-    let value: U32 = 0              // Hover shows just: primitive U32
-    text.size() + numbers.size() + value.usize()
+  new create(value: T) =>
+    _value = value
 
-  // Limitation 4: Receiver capabilities not shown in signatures
+  fun get(): T =>
+    """Returns the stored value."""
+    _value
+
+  fun with_generic_param[U: Any val](other: U): (T, U) =>
+    """
+    A generic method with its own type parameter.
+    Hover shows both the class type parameter T and method type parameter U.
+    """
+    (_value, other)
+
+class GenericPair[A: Any val, B: Any val]
+  """
+  Demonstrates multiple type parameters.
+  Hover shows 'class GenericPair[A: Any val, B: Any val]'
+  """
+  let first: A
+  let second: B
+
+  new create(a: A, b: B) =>
+    first = a
+    second = b
+
+  fun get_first(): A =>
+    """Returns the first element."""
+    first
+
+  fun get_second(): B =>
+    """Returns the second element."""
+    second
+
+trait MyComparable[T: MyComparable[T] box]
+  """
+  A trait demonstrating recursive type constraints.
+  Used for testing hover on constrained generics.
+  """
+  fun compare(that: box->T): I32
+
+class GenericContainer[T: Stringable val]
+  """
+  Demonstrates type constraints on generic parameters.
+  Hover shows 'class GenericContainer[T: Stringable val]'
+  """
+  let _items: Array[T]
+
+  new create() =>
+    _items = Array[T]
+
+  fun ref add(item: T) =>
+    """Add an item to the container."""
+    _items.push(item)
+
+  fun get_strings(): Array[String] =>
+    """
+    Returns string representations of all items.
+    Works because T is constrained to Stringable.
+    """
+    let result = Array[String]
+    for item in _items.values() do
+      result.push(item.string())
+    end
+    result
+
+actor GenericActor[T: Any val]
+  """
+  Demonstrates generic actors.
+  Hover shows 'actor GenericActor[T: Any val]'
+  """
+  var _state: T
+
+  new create(initial: T) =>
+    _state = initial
+
+  be update(new_state: T) =>
+    """Updates the actor's state."""
+    _state = new_state
+
+  be process[U: Any val](data: U) =>
+    """
+    A generic behavior with its own type parameter.
+    Demonstrates that behaviors can be generic too.
+    """
+    None
+
+primitive GenericHelper
+  """
+  Demonstrates generic methods in primitives.
+  """
+  fun identity[T: Any val](value: T): T =>
+    """
+    A generic identity function.
+    Hover shows 'fun identity[T: Any val](value: T): T'
+    """
+    value
+
+  fun create_pair[A: Any val, B: Any val](a: A, b: B): (A, B) =>
+    """Creates a tuple from two values of different types."""
+    (a, b)
+
+  fun apply[T: Any val](): Array[T] =>
+    """
+    Creates an empty array of any type.
+    Hover shows the generic return type Array[T].
+    """
+    Array[T]
+
+class GenericUsageDemo
+  """
+  Demonstrates hover on instantiated generic types.
+  """
+  fun demo_generic_instantiation() =>
+    """
+    Try hovering over the variable names (pair, container, numbers).
+    Hover shows the variable declaration with fully instantiated generic types
+    like 'let pair: GenericPair[String val, U32 val]'.
+
+    Note: Hovering on the type names themselves (GenericPair, GenericsDemo) will
+    follow to the class definition and show the type parameters instead.
+    """
+    let pair: GenericPair[String, U32] = GenericPair[String, U32]("hello", 42)
+    let container: GenericContainer[String] = GenericContainer[String]
+    let numbers: GenericsDemo[U64] = GenericsDemo[U64](100)
+
+    // Hover over method calls with generic types
+    let first = pair.get_first()  // Hover shows: let first: String val
+    let result = numbers.with_generic_param[String]("test")  // Hover shows: let result: (U64 val, String val)
+    None
+
+class ReceiverCapabilityDemo
+  """
+  Demonstrates that hover displays receiver capabilities in method signatures.
+  """
+
   fun box boxed_method(): String =>
     """
     A boxed method - receiver capability is 'box'.
-
-    EXPECTED: Hover should show 'fun box boxed_method(): String'
-    ACTUAL: Hover shows 'fun boxed_method(): String' (missing 'box')
-
+    Hover shows 'fun box boxed_method(): String' with the receiver capability.
     The receiver capability indicates how 'this' can be accessed in the method.
     """
     "box"
@@ -179,17 +284,13 @@ class LimitationExamples
   fun val valued_method(): String =>
     """
     A val method - receiver capability is 'val'.
-
-    EXPECTED: Should show 'fun val valued_method(): String'
-    ACTUAL: Shows 'fun valued_method(): String' (missing 'val')
+    Hover shows 'fun val valued_method(): String' with the receiver capability.
     """
     "val"
 
   fun ref mutable_method() =>
     """
     A ref method - receiver capability is 'ref'.
-
-    EXPECTED: Should show 'fun ref mutable_method()'
-    ACTUAL: Shows 'fun mutable_method()' (missing 'ref')
+    Hover shows 'fun ref mutable_method()' with the receiver capability.
     """
     None
