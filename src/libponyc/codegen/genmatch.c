@@ -405,9 +405,12 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   if((pattern_id == TK_UNIONTYPE) || (pattern_id == TK_ISECTTYPE))
   {
     // Box the unboxed primitive using runtime descriptor information.
-    // Get size from descriptor.
+    // Get size and value offset from descriptor.
     LLVMValueRef size = gendesc_size(c, desc);
     size = LLVMBuildZExt(c->builder, size, c->intptr, "");
+
+    LLVMValueRef value_offset = gendesc_value_offset(c, desc);
+    value_offset = LLVMBuildZExt(c->builder, value_offset, c->intptr, "");
 
     // Allocate box.
     LLVMValueRef args[2];
@@ -420,34 +423,11 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
       box, 0, "");
     LLVMBuildStore(c->builder, desc, desc_ptr);
 
-    // Calculate value offset and size based on boxed structure layout.
-    // For boxed primitives, the structure is { descriptor, [padding], value }.
-    // For types with alignment > ptr_size (like I128/U128 with 16-byte align),
-    // there is padding between the descriptor and the value.
-    // For 128-bit types: size = 32, value is at offset 16, value_size = 16
-    // For other types: size <= 16, value is at offset 8, value_size = size - 8
-    LLVMValueRef ptr_size = LLVMConstInt(c->intptr,
-      LLVMABISizeOfType(c->target_data, c->ptr), false);
-    LLVMValueRef double_ptr = LLVMConstInt(c->intptr,
-      2 * LLVMABISizeOfType(c->target_data, c->ptr), false);
-
-    // Check if this is a 128-bit type (size > 2 * ptr_size)
-    LLVMValueRef is_128bit = LLVMBuildICmp(c->builder, LLVMIntUGT, size,
-      double_ptr, "");
-
-    // For 128-bit types: offset = size / 2, value_size = size / 2
-    // For other types: offset = ptr_size, value_size = size - ptr_size
-    LLVMValueRef half_size = LLVMBuildLShr(c->builder, size,
-      LLVMConstInt(c->intptr, 1, false), "");
-    LLVMValueRef value_offset = LLVMBuildSelect(c->builder, is_128bit,
-      half_size, ptr_size, "");
-    LLVMValueRef value_size = LLVMBuildSelect(c->builder, is_128bit,
-      half_size, LLVMBuildSub(c->builder, size, ptr_size, ""), "");
-
+    // Copy the value to the box at the correct offset.
+    // value_size = total_size - value_offset
+    LLVMValueRef value_size = LLVMBuildSub(c->builder, size, value_offset, "");
     LLVMValueRef dest = LLVMBuildInBoundsGEP2(c->builder, c->i8, box,
       &value_offset, 1, "");
-
-    // Copy the value bytes.
     LLVMBuildMemCpy(c->builder, dest, 1, ptr, 1, value_size);
 
     value = box;

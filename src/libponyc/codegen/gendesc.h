@@ -51,7 +51,7 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type);
 
 LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc);
 
-LLVMValueRef gendesc_fieldoffset(compile_t* c, LLVMValueRef desc);
+LLVMValueRef gendesc_value_offset(compile_t* c, LLVMValueRef desc);
 
 PONY_EXTERN_C_END
 

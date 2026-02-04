@@ -415,6 +415,7 @@ static pony_type_t token_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -474,6 +475,7 @@ static pony_type_t token_docstring_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -567,6 +569,7 @@ static pony_type_t token_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,

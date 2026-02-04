@@ -144,6 +144,7 @@ typedef const struct _pony_type_t
   size_t serialise_id;
   uint32_t field_count;
   uint32_t field_offset;
+  uint32_t value_offset;
   void* instance;
   #if defined(USE_RUNTIME_TRACING)
   char* name;

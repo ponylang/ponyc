@@ -16,46 +16,48 @@
 #define DESC_SERIALISEID 2
 #define DESC_FIELD_COUNT 3
 #define DESC_FIELD_OFFSET 4
-#define DESC_INSTANCE 5
-#define DESC_NAME 6
-#define DESC_GET_BEHAVIOR_NAME 7
-#define DESC_TRACE 8
-#define DESC_SERIALISE_TRACE 9
-#define DESC_SERIALISE 10
-#define DESC_DESERIALISE 11
-#define DESC_CUSTOM_SERIALISE_SPACE 12
-#define DESC_CUSTOM_DESERIALISE 13
-#define DESC_DISPATCH 14
-#define DESC_FINALISE 15
-#define DESC_EVENT_NOTIFY 16
-#define DESC_MIGHT_REFERENCE_ACTOR 17
-#define DESC_TRAITS 18
-#define DESC_FIELDS 19
-#define DESC_VTABLE 20
+#define DESC_VALUE_OFFSET 5
+#define DESC_INSTANCE 6
+#define DESC_NAME 7
+#define DESC_GET_BEHAVIOR_NAME 8
+#define DESC_TRACE 9
+#define DESC_SERIALISE_TRACE 10
+#define DESC_SERIALISE 11
+#define DESC_DESERIALISE 12
+#define DESC_CUSTOM_SERIALISE_SPACE 13
+#define DESC_CUSTOM_DESERIALISE 14
+#define DESC_DISPATCH 15
+#define DESC_FINALISE 16
+#define DESC_EVENT_NOTIFY 17
+#define DESC_MIGHT_REFERENCE_ACTOR 18
+#define DESC_TRAITS 19
+#define DESC_FIELDS 20
+#define DESC_VTABLE 21
 
-#define DESC_LENGTH 21
+#define DESC_LENGTH 22
 #else
 #define DESC_ID 0
 #define DESC_SIZE 1
 #define DESC_SERIALISEID 2
 #define DESC_FIELD_COUNT 3
 #define DESC_FIELD_OFFSET 4
-#define DESC_INSTANCE 5
-#define DESC_TRACE 6
-#define DESC_SERIALISE_TRACE 7
-#define DESC_SERIALISE 8
-#define DESC_DESERIALISE 9
-#define DESC_CUSTOM_SERIALISE_SPACE 10
-#define DESC_CUSTOM_DESERIALISE 11
-#define DESC_DISPATCH 12
-#define DESC_FINALISE 13
-#define DESC_EVENT_NOTIFY 14
-#define DESC_MIGHT_REFERENCE_ACTOR 15
-#define DESC_TRAITS 16
-#define DESC_FIELDS 17
-#define DESC_VTABLE 18
+#define DESC_VALUE_OFFSET 5
+#define DESC_INSTANCE 6
+#define DESC_TRACE 7
+#define DESC_SERIALISE_TRACE 8
+#define DESC_SERIALISE 9
+#define DESC_DESERIALISE 10
+#define DESC_CUSTOM_SERIALISE_SPACE 11
+#define DESC_CUSTOM_DESERIALISE 12
+#define DESC_DISPATCH 13
+#define DESC_FINALISE 14
+#define DESC_EVENT_NOTIFY 15
+#define DESC_MIGHT_REFERENCE_ACTOR 16
+#define DESC_TRAITS 17
+#define DESC_FIELDS 18
+#define DESC_VTABLE 19
 
-#define DESC_LENGTH 19
+#define DESC_LENGTH 20
 #endif
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
@@ -254,6 +256,21 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
     LLVMOffsetOfElement(c->target_data, c_t->structure, index), false);
 }
 
+static LLVMValueRef make_value_offset(compile_t* c, reach_type_t* t)
+{
+  // For primitives, the value is at index 1 in the boxed structure.
+  // For non-primitives, this field is unused (set to 0).
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  if((t->underlying == TK_PRIMITIVE) && (c_t->primitive != NULL))
+  {
+    return LLVMConstInt(c->i32,
+      LLVMOffsetOfElement(c->target_data, c_t->structure, 1), false);
+  }
+
+  return LLVMConstInt(c->i32, 0, false);
+}
+
 static LLVMValueRef make_might_reference_actor(compile_t* c, reach_type_t* t)
 {
   (void)t;
@@ -367,6 +384,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_SERIALISEID] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
+  params[DESC_VALUE_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->ptr;
 #if defined(USE_RUNTIME_TRACING)
   params[DESC_NAME] = c->ptr;
@@ -419,6 +437,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_SERIALISEID] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
   params[DESC_FIELD_COUNT] = c->i32;
   params[DESC_FIELD_OFFSET] = c->i32;
+  params[DESC_VALUE_OFFSET] = c->i32;
   params[DESC_INSTANCE] = c->ptr;
 #if defined(USE_RUNTIME_TRACING)
   params[DESC_NAME] = c->ptr;
@@ -461,6 +480,7 @@ void gendesc_init(compile_t* c, reach_type_t* t)
   args[DESC_SERIALISEID] = LLVMConstInt(target_is_ilp32(c->opt->triple) ? c->i32 : c->i64, t->serialise_id, false);
   args[DESC_FIELD_COUNT] = make_field_count(c, t);
   args[DESC_FIELD_OFFSET] = make_field_offset(c, t);
+  args[DESC_VALUE_OFFSET] = make_value_offset(c, t);
   args[DESC_INSTANCE] = make_desc_ptr(c, c_t->instance);
 #if defined(USE_RUNTIME_TRACING)
   args[DESC_NAME] = make_name(c, t);
@@ -764,7 +784,7 @@ LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc)
   return desc_field(c, desc, DESC_SIZE);
 }
 
-LLVMValueRef gendesc_fieldoffset(compile_t* c, LLVMValueRef desc)
+LLVMValueRef gendesc_value_offset(compile_t* c, LLVMValueRef desc)
 {
-  return desc_field(c, desc, DESC_FIELD_OFFSET);
+  return desc_field(c, desc, DESC_VALUE_OFFSET);
 }

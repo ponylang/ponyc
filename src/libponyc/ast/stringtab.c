@@ -135,6 +135,7 @@ static __pony_thread_local struct _pony_type_t string_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -226,6 +227,7 @@ static pony_type_t strlist_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,

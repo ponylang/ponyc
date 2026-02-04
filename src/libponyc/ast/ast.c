@@ -2098,6 +2098,7 @@ static pony_type_t ast_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -2182,6 +2183,7 @@ static pony_type_t ast_nominal_pkg_id_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -2450,6 +2452,7 @@ static pony_type_t ast_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,

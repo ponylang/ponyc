@@ -183,6 +183,7 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     0, \
     0, \
     0, \
+    0, /* value_offset */ \
     NULL, \
     LIST_TRACING_DESC_FIELDS \
     NULL, \

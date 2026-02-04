@@ -1431,6 +1431,7 @@ static pony_type_t package_dep_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1465,6 +1466,7 @@ static pony_type_t package_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1548,6 +1550,7 @@ static pony_type_t package_group_dep_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1582,6 +1585,7 @@ static pony_type_t package_group_signature_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1736,6 +1740,7 @@ static pony_type_t package_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1814,6 +1819,7 @@ static pony_type_t package_group_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,

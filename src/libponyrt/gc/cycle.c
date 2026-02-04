@@ -1191,6 +1191,7 @@ static pony_type_t cycle_type =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   "cycle detector",

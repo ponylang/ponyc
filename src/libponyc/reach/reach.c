@@ -1599,6 +1599,7 @@ static pony_type_t reach_param_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1739,6 +1740,7 @@ static pony_type_t reach_method_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1807,6 +1809,7 @@ static pony_type_t reach_method_name_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -1870,6 +1873,7 @@ static pony_type_t reach_field_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -2000,6 +2004,7 @@ static pony_type_t reach_type_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,
@@ -2064,6 +2069,7 @@ static pony_type_t reach_pony =
   0,
   0,
   0,
+  0,  // value_offset
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   NULL,

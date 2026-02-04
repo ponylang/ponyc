@@ -266,6 +266,7 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
     0, \
     0, \
     0, \
+    0, /* value_offset */ \
     NULL, \
     HASH_TRACING_DESC_FIELDS \
     NULL, \
