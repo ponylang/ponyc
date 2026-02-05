@@ -249,7 +249,7 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
   // use by the signals package when not using signals for scheduler scaling
-  define_build_flag("scheduler_scaling_pthreads");
+  define_userflag(opt->user_flags, "scheduler_scaling_pthreads");
 #endif
 
 #ifndef NDEBUG
@@ -297,7 +297,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         wants_help = true; break;
       case OPT_DEBUG: opt->release = false; break;
       case OPT_BUILDFLAG:
-        define_build_flag(s->arg_val);
+        define_userflag(opt->user_flags, s->arg_val);
         break;
       case OPT_STRIP: opt->strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s->arg_val, opt); break;

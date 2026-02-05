@@ -574,23 +574,36 @@ const char* buildflagset_print(buildflagset_t* set)
   return set->text_buffer;
 }
 
+// just a thin wrapper around the private flagtab_t
+typedef struct userflags_t {
+  flagtab_t inner;
+} userflags_t;
 
-static flagtab_t* _user_flags = NULL;
-
-bool define_build_flag(const char* name)
+userflags_t* userflags_create()
 {
-  pony_assert(name != NULL);
+  userflags_t* u = POOL_ALLOC(userflags_t);
+  pony_assert(u != NULL);
+  flagtab_init(&(u->inner), 4);
+  return u;
+}
 
-  if(_user_flags == NULL)
+void userflags_free(userflags_t *flags)
+{
+  if(flags != NULL)
   {
-    // Initialise flags table.
-    _user_flags = POOL_ALLOC(flagtab_t);
-    flagtab_init(_user_flags, 8);
+    flagtab_destroy(&flags->inner);
+    POOL_FREE(flagtab_t, flags);
   }
+}
+
+bool define_userflag(userflags_t* flags, const char* name)
+{
+  pony_assert(flags != NULL);
+  pony_assert(name != NULL);
 
   flag_t f1 = {stringtab(name), false};
   size_t index = HASHMAP_UNKNOWN;
-  flag_t* f2 = flagtab_get(_user_flags, &f1, &index);
+  flag_t* f2 = flagtab_get(&(flags->inner), &f1, &index);
 
   if(f2 != NULL)  // Flag already in our table.
     return false;
@@ -598,27 +611,21 @@ bool define_build_flag(const char* name)
   // Add flag to our table.
   // didn't find it in the map but index is where we can put the
   // new one without another search
-  flagtab_putindex(_user_flags, flag_dup(&f1), index);
+  flagtab_putindex(&(flags->inner), flag_dup(&f1), index);
   return true;
 }
 
 
-bool remove_build_flags(const char* flags[])
+bool remove_userflags(userflags_t* flags, const char* flags_to_remove[])
 {
   pony_assert(flags != NULL);
-
-  if(_user_flags == NULL)
-  {
-    // Initialise flags table.
-    _user_flags = POOL_ALLOC(flagtab_t);
-    flagtab_init(_user_flags, 8);
-  }
+  pony_assert(flags_to_remove != NULL);
 
   size_t removed = 0;
-  for(const char** next = flags; *next != NULL; next += 1)
+  for(const char** next = flags_to_remove; *next != NULL; next += 1)
   {
     flag_t f1 = {stringtab(*next), false};
-    flag_t* found = flagtab_remove(_user_flags, &f1);
+    flag_t* found = flagtab_remove(&(flags->inner), &f1);
     if(found != NULL)
     {
       flag_free(found);
@@ -630,27 +637,20 @@ bool remove_build_flags(const char* flags[])
 }
 
 
-bool is_build_flag_defined(const char* name)
+bool is_userflag_defined(userflags_t* flags, const char* name)
 {
+  pony_assert(flags != NULL);
   pony_assert(name != NULL);
-
-  if(_user_flags == NULL)
-    // Table is not initialised, so no flags are defined.
-    return false;
 
   flag_t f1 = { stringtab(name), false };
   size_t index = HASHMAP_UNKNOWN;
-  flag_t* f2 = flagtab_get(_user_flags, &f1, &index);
+  flag_t* f2 = flagtab_get(&(flags->inner), &f1, &index);
 
   return f2 != NULL;
 }
 
-void clear_build_flags()
+void clear_userflags(userflags_t* flags)
 {
-  if(_user_flags != NULL)
-  {
-    flagtab_destroy(_user_flags);
-    POOL_FREE(flagtab_t, _user_flags);
-    _user_flags = NULL;
-  }
+  pony_assert(flags != NULL);
+  flagtab_destroy(&(flags->inner));
 }

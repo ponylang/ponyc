@@ -5,6 +5,7 @@
 #include "../ast/ast.h"
 #include "../ast/frame.h"
 #include "../ast/source.h"
+#include "../pkg/buildflagset.h"
 
 
 PONY_EXTERN_C_BEGIN
@@ -318,6 +319,9 @@ typedef struct pass_opt_t
   typecheck_t check;
 
   plugins_t* plugins;
+
+  // user flags added via command line -D
+  userflags_t* user_flags;
 
   void* data; // User-defined data for unit test callbacks.
 } pass_opt_t;

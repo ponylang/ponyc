@@ -18,6 +18,7 @@
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
 #include "../pkg/program.h"
+#include "../pkg/buildflagset.h"
 #include "../plugin/plugin.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -104,6 +105,7 @@ void pass_opt_init(pass_opt_t* options)
   options->verbosity = VERBOSITY_INFO;
   options->check.errors = errors_alloc();
   options->ast_print_width = 80;
+  options->user_flags = userflags_create();
   frame_push(&options->check, NULL);
 }
 
@@ -111,6 +113,10 @@ void pass_opt_init(pass_opt_t* options)
 void pass_opt_done(pass_opt_t* options)
 {
   plugin_unload(options);
+
+  // free userflags if any
+  userflags_free(options->user_flags);
+  options->user_flags = NULL;
 
   // Free the error collection.
   errors_free(options->check.errors);
