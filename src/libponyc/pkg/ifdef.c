@@ -155,7 +155,7 @@ static bool cond_eval(ast_t* ast, buildflagset_t* config, bool release,
       }
 
       // Not a platform flag, must be a user flag.
-      return is_build_flag_defined(name);
+      return is_userflag_defined(opt->user_flags, name);
     }
 
     default:

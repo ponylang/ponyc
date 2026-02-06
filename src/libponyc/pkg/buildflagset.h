@@ -78,20 +78,25 @@ const char* buildflagset_print(buildflagset_t* set);
 
 // User build flags are defined on the ponyc command line and used to select
 // code options with ifdef expressions.
+typedef struct userflags_t userflags_t;
+
+userflags_t* userflags_create();
+
+void userflags_free(userflags_t* flags);
 
 // Define the given user build flag.
 // Returns: true on success, false on duplicate flag.
-bool define_build_flag(const char* name);
+bool define_userflag(userflags_t* flags, const char* name);
 
 // Report whether the given user build flag is defined.
-bool is_build_flag_defined(const char* name);
+bool is_userflag_defined(userflags_t* flags, const char* name);
 
 // Remove all flags in the null terminated list
 // Returns: true if one or more of the flags were removed
-bool remove_build_flags(const char* flags[]);
+bool remove_userflags(userflags_t* flags, const char* flags_to_remove[]);
 
 // Remove all flags.
-void clear_build_flags();
+void clear_userflags(userflags_t* flags);
 
 PONY_EXTERN_C_END
 
