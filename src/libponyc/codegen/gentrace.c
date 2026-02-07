@@ -528,6 +528,14 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
 
   token_id orig_cap = ast_id(cap);
 
+  // Strip ephemeral for matchtype checks - the ephemeral indicates how the
+  // reference was obtained (consumed/recovered) but doesn't affect how
+  // the GC should trace the actual runtime object.
+  ast_t* eph = ast_sibling(cap);
+  token_id orig_eph = ast_id(eph);
+  if(orig_eph == TK_EPHEMERAL)
+    ast_setid(eph, TK_NONE);
+
   // We can have a non-sendable rcap if we're tracing a field in a type's trace
   // function. In this case we must always recurse and we have to trace the
   // field as mutable.
@@ -536,6 +544,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     case TK_TRN:
     case TK_REF:
     case TK_BOX:
+      ast_setid(eph, orig_eph);
       return PONY_TRACE_MUTABLE;
 
     default: {}
@@ -548,6 +557,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
   {
     if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
     {
+      ast_setid(eph, orig_eph);
       return PONY_TRACE_MUTABLE;
     } else {
       ast_setid(cap, TK_VAL);
@@ -559,6 +569,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
     {
       ast_setid(cap, orig_cap);
+      ast_setid(eph, orig_eph);
       return PONY_TRACE_IMMUTABLE;
     } else {
       ast_setid(cap, TK_TAG);
@@ -572,6 +583,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     ret = PONY_TRACE_OPAQUE;
 
   ast_setid(cap, orig_cap);
+  ast_setid(eph, orig_eph);
   return ret;
 }
 
