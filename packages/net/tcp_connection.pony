@@ -932,9 +932,6 @@ actor TCPConnection is AsioEventNotify
     Unless this connection is currently muted, read while data is available,
     guessing the next packet length as we go. If we read 5 kb of data, send
     ourself a resume message and stop reading, to avoid starving other actors.
-    Currently we can handle a varying value of _expect (greater than 0) and
-    constant _expect of 0 but we cannot handle switching between these two
-    cases.
     """
     ifdef not windows then
       try
