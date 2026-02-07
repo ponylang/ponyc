@@ -1,0 +1,15 @@
+---
+AlignAfterOpenBracket: DontAlign
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBraces: Allman
+ColumnLimit: 80
+ContinuationIndentWidth: 2
+IndentWidth: 2
+MaxEmptyLinesToKeep: 2
+PointerAlignment: Left
+SpaceBeforeParens: Never
+UseTab: Never
+...
