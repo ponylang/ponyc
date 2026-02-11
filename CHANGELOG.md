@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix pony-lsp inability to find the standard library ([PR #4829](https://github.com/ponylang/ponyc/pull/4829))
 
 ### Added
 
