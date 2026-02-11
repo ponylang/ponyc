@@ -6,8 +6,8 @@ use "files"
 use @get_compiler_exe_directory[Bool](
   output_path: Pointer[U8] tag,
   argv0: Pointer[U8] tag)
-use @malloc[Pointer[U8] val](size: USize)
-use @free[None](ptr: Pointer[U8] tag)
+use @ponyint_pool_alloc_size[Pointer[U8] val](size: USize)
+use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 
 actor PonyCompiler
   """
@@ -54,13 +54,14 @@ actor PonyCompiler
     same platform-specific mechanism as ponyc (readlink /proc/self/exe on
     Linux, _NSGetExecutablePath on macOS, etc.).
     """
-    let buf = @malloc(USize(4096))
+    let buf_size: USize = 4096
+    let buf = @ponyint_pool_alloc_size(buf_size)
     if @get_compiler_exe_directory(buf, "pony-lsp".cstring()) then
       let result = recover val String.copy_cstring(buf) end
-      @free(buf)
+      @ponyint_pool_free_size(buf_size, buf)
       result
     else
-      @free(buf)
+      @ponyint_pool_free_size(buf_size, buf)
       None
     end
 
