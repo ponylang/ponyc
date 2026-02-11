@@ -29,6 +29,8 @@ typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
 #endif
 
+PONY_EXTERN_C_BEGIN
+
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err);
 
 char* pony_realpath(const char* path, char* resolved);
@@ -49,5 +51,7 @@ char* remove_ext(const char* path, char dot, char sep, size_t* allocated_size);
 bool get_compiler_exe_path(char* output_path, const char* argv0);
 
 bool get_compiler_exe_directory(char* output_path, const char* argv0);
+
+PONY_EXTERN_C_END
 
 #endif
