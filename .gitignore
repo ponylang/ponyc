@@ -32,6 +32,7 @@ _ReSharper.*
 src/common/dtrace_probes.h
 packages/stdlib/stdlib
 /stdlib-docs/
+tools/pony-lsp/version.pony
 
 # Allow these paths
 !src/libponyrt/lang/except_try_catch.ll
