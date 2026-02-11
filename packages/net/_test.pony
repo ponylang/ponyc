@@ -19,6 +19,7 @@ actor \nodoc\ Main is TestList
     test(_TestTCPConnectionFailed)
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
+    test(_TestTCPExpectSetToZero)
     test(_TestTCPMute)
     test(_TestTCPProxy)
     test(_TestTCPUnmute)
@@ -349,6 +350,84 @@ class \nodoc\ _TestTCPExpectOverBufferSizeNotify is TCPConnectionNotify
     else
       _h.complete_action("connected")
     end
+
+class \nodoc\ iso _TestTCPExpectSetToZero is UnitTest
+  """
+  Test that after reading with a non-zero expect, setting expect to 0
+  results in all remaining data being delivered.
+  """
+  fun name(): String => "net/TCP.expectsettozero"
+  fun label(): String => "unreliable-osx"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("client connect")
+    h.expect_action("client receive")
+
+    _TestTCP(h)(
+      _TestTCPExpectSetToZeroClientNotify(h),
+      _TestTCPExpectSetToZeroServerNotify(h))
+
+class \nodoc\ _TestTCPExpectSetToZeroServerNotify is TCPConnectionNotify
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    conn.set_nodelay(true)
+    conn.write("hello world")
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("server connect failed")
+
+class \nodoc\ _TestTCPExpectSetToZeroClientNotify is TCPConnectionNotify
+  let _h: TestHelper
+  var _first: Bool = true
+  var _accumulated: Array[U8] iso = recover Array[U8] end
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("client connect")
+    conn.set_nodelay(true)
+    try
+      conn.expect(5)?
+    else
+      _h.fail("expect threw an error")
+    end
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("client connect failed")
+
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
+  =>
+    if _first then
+      _first = false
+      _h.assert_eq[String](String.from_array(data), "hello")
+
+      // Switch to expect(0) — this is the scenario under test
+      try
+        conn.expect(0)?
+      else
+        _h.fail("expect(0) threw an error")
+      end
+    else
+      // Accumulate data delivered with expect(0)
+      _accumulated.append(data)
+      if _accumulated.size() >= 6 then
+        let s = String.from_array(
+          _accumulated = recover Array[U8] end)
+        _h.assert_eq[String](s, " world")
+        _h.complete_action("client receive")
+      end
+    end
+    true
 
 class \nodoc\ iso _TestTCPWritev is UnitTest
   """
