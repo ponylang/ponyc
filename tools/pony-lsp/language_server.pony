@@ -253,7 +253,7 @@ actor LanguageServer is Notifier
           )(
             "serverInfo", Obj(
               "name", "Pony Language Server")(
-              "version", "0.2.1"
+              "version", PonyLspVersion.version_string()
             ).build()
           ).build()
         )
