@@ -1,0 +1,29 @@
+{
+  "packages": [
+    "pony-lsp",
+    "pony-lsp/workspace",
+    "pony-lsp/test"
+  ],
+  "deps": [
+    {
+      "locator": "./lib/mfelsche/pony-immutable-json"
+    },
+    {
+      "locator": "./lib/mfelsche/pony-ast"
+    },
+    {
+      "locator": "./lib/mfelsche/pony-binarysearch"
+    },
+    {
+      "locator": "./lib/ponylang/peg"
+    }
+  ],
+  "info": {
+    "description": "The Pony Language Server",
+    "homepage": "",
+    "license": "",
+    "documentation_url": "",
+    "version": "0.2.2",
+    "name": "pony-lsp"
+  }
+}
