@@ -1,0 +1,12 @@
+// version.pony is generated from version.pony.in by CMake's configure_file().
+// CMake variables (like PONYC_VERSION enclosed in @ symbols) are replaced at configure time.
+// To modify version.pony, edit version.pony.in instead.
+
+primitive PonyLspVersion
+  """
+  Provides version information for the Pony Language Server.
+  The version matches the ponyc compiler version.
+  """
+  fun version_string(): String =>
+    """Returns the ponyc compiler version string."""
+    "@PONYC_VERSION@"
