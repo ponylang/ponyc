@@ -24,7 +24,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 ## Best effort platforms
 
-Best effort platforms mean that there is support for the platform in the codebase but, we don't have any testing for the platform. We won't intentionally break a best-effort platform or remove support for it from the codebase, at the same time, we do make no effort to maintain it. When you go build a "best effort platform" from source, you might find it doesn't build. We welcome thoughtful pull requests to bring the platform up-to-date.
+Best-effort platforms are operating systems where Pony _should_ work, but with low confidence. We don't have automated testing or continuous integration for these platforms to ensure they remain functional. We won't intentionally break a best-effort platform. However, we make no effort to maintain compatibility with them. When building ponyc from source on a best-effort platform, you may encounter failures. We welcome thoughtful pull requests to restore Pony compatibility with the platform.
 
 * DragonFlyBSD (x86 only)
 * FreeBSD (x86 only)
