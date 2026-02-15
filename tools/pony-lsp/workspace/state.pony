@@ -51,11 +51,10 @@ class PackageState
   fun has_document(document_path: String): Bool =>
     this.documents.contains(document_path)
 
-  fun ref insert_new(document_path: String): (DocumentState, Bool) =>
+  fun ref insert_new(document_path: String): DocumentState =>
     """
     Insert a new module by the given `document_path` into this package
     """
-    var has_module = false
     let doc_state = DocumentState.create(document_path, this._channel)
 
     try
@@ -63,24 +62,20 @@ class PackageState
       let pkg = this.package() as Package
       let module = pkg.find_module(document_path) as Module
       doc_state.update(this._compiler_run_id, module)
-      has_module = true
     end
-    (
-      this.documents.insert(
-        document_path,
-        doc_state
-      ),
-      has_module
+    this.documents.insert(
+      document_path,
+      doc_state
     )
 
-  fun ref ensure_document(document_path: String): (DocumentState, Bool) =>
+  fun ref ensure_document(document_path: String): DocumentState =>
     """
     Returns the document state in a tuple together with a boolean, denoting
     whether this documents needs compilation
     """
     match this.get_document(document_path)
     | let d: DocumentState =>
-      (d, (d.module() is None) and (d.diagnostics() is None))
+      d
     | None =>
       this.insert_new(document_path)
     end
@@ -153,8 +148,8 @@ class DocumentState
   fun ref add_diagnostic(run_id: USize, diagnostic: Diagnostic) =>
     // also accept diagnostics from the last/current run, as they trickle in one
     // after the other
-    if run_id >= this.compiler_run_id then
-      this.compiler_run_id = run_id
+    if run_id == this.compiler_run_id then
+      // same run, update diagnostics
       this._diagnostics.update_with(
         run_id,
         {
@@ -167,7 +162,13 @@ class DocumentState
               [diagnostic]
             end
         })
+    elseif run_id > this.compiler_run_id then
+      // new run, discard old diagnostics
+      this._diagnostics.update(run_id, [diagnostic])
     end
+
+  fun box needs_compilation(): Bool =>
+    (this.module() is None) and (this.diagnostics() is None)
 
   fun box module(): (Module val | None) =>
     this._module.get(compiler_run_id)

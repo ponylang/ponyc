@@ -140,7 +140,7 @@ actor WorkspaceManager
             try
               let package: FilePath = this._find_workspace_package(err_file)?
               let package_state = this._ensure_package(package)
-              (let document_state, let needs_compilation) = package_state.ensure_document(err_file)
+              let document_state = package_state.ensure_document(err_file)
               document_state.add_diagnostic(run, diagnostic)
             end
 
@@ -227,8 +227,8 @@ actor WorkspaceManager
       end
     this._channel.log("did_open in pony package @ " + package.path)
     let package_state = this._ensure_package(package)
-    (let inserted_doc_state, let needs_compilation) = package_state.ensure_document(document_path)
-    if needs_compilation and (not this._awaiting_compilation) then
+    let doc_state = package_state.ensure_document(document_path)
+    if doc_state.needs_compilation() and (not this._awaiting_compilation) then
       _channel.log("No module found for document " + document_path + ". Need to compile.")
       _compiler.compile(package, workspace.dependency_paths, this)
       _awaiting_compilation = true
