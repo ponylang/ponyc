@@ -7,6 +7,10 @@ set -o nounset
 # *** You should already be logged in to GitHub Container Registry when you run
 #     this ***
 #
+# The tag name used here (nightly) must stay in sync with the
+# prune-untagged-nightly-images job in build-nightly-image.yml, which inspects
+# this tag's manifest to collect child SHAs for skip-shas protection.
+#
 
 DOCKERFILE_DIR="$(dirname "$0")"
 NAME="ghcr.io/ponylang/ponyc:nightly"

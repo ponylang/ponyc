@@ -4,6 +4,10 @@
 # ** You should already be logged in to GitHub Container Registry when you run
 #    this **
 #
+# The tag name used here (release) must stay in sync with the
+# prune-untagged-nightly-images job in build-nightly-image.yml, which inspects
+# this tag's manifest to collect child SHAs for skip-shas protection.
+#
 
 set -o errexit
 set -o nounset
