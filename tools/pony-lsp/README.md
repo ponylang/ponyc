@@ -45,7 +45,7 @@ Checkout the [Ponyc installation instructions](/INSTALL.md) on how to install `p
 First checkout [the ponyc build documentation](/BUILD.md) and make sure you have
 everything necessary available to build `ponyc`. Then building `pony-lsp` should be as simple as:
 
-```
+```bash
 make pony-lsp
 ```
 
