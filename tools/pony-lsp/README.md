@@ -15,6 +15,25 @@ This language server is communicating with LSP-clients (editors) via stdout/stdi
 
 We are constantly working on adding new features, but also welcome all contributions and offer help and guidance for implementing any feature.
 
+## Settings
+
+`pony-lsp` supports settings via `workspace/configuration` request and `workspace/didChangeConfiguration`.
+It expects the following optional settings:
+
+| **Name** | **Type** | **Example** | **Description** |
+| ---- | ---- | ------- | ----------- |
+| **defines** | `Array[String]` | `["FOO", "BAR"]` | Defines active during compilation. These are usually set when using `ponyc` using `-D` |
+| **ponypath** | `String` | `"/path/to/pony/package:/another/path"` | A path list (usually `:`-separated) which is added to the package search paths of `pony-lsp` |
+
+Example settings in JSON:
+
+```json
+{
+  "defines": ["FOO", "BAR"],
+  "ponypath": "/path/to/pony/package:/another/path"
+}
+```
+
 ## Getting pony-lsp
 
 `pony-lsp` is distributed via `ponyup` alongside ponyc, so installing a recent `ponyc` will also give you `pony-lsp`.
