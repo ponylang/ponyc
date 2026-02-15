@@ -9,7 +9,7 @@ class val WorkspaceData
   """
   let name: String
   let folder: FilePath
-  // dependency names, relative to <folder>/_corral/
+  // dependencies, either full paths or repo names
   let dependencies: Array[String] val
   // absolute paths (derived from folder and dependencies)
   let dependency_paths: Array[String] val
@@ -35,7 +35,7 @@ class val WorkspaceData
     dependency_paths =
       recover val
         Iter[String](dependencies.values())
-          .map[String]({(dep): String? => folder.join("_corral")?.join(dep)?.path})
+          .map[String]({(dep): String? => if dep.contains(Path.sep()) then dep else folder.join("_corral")?.join(dep)?.path end})
           .collect(Array[String].create(dependencies.size()))
       end
     package_paths = package_paths'

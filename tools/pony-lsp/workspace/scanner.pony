@@ -47,14 +47,20 @@ class WorkspaceScanner
     // extract dependencies, also transitive ones
     let locators = JsonPathParser.compile("$.deps.*.locator")?.query(corral_json)
     let dependencies = recover trn Set[String].create(4) end
-    for locator in locators.values() do
+    for maybe_locator in locators.values() do
       try
-        let locator_flat_name = Locator(locator as String).flat_name()
-        let locator_dir = dir.join("_corral")?.join(locator_flat_name)?
+        let locator = Locator(maybe_locator as String)
+        let locator_dir =
+          if locator.is_local_direct() then
+            dir.join(locator.path())?
+          else
+            let locator_flat_name = locator.flat_name()
+            dir.join("_corral")?.join(locator_flat_name)?
+          end
 
         let already_in = visited.contains(locator_dir.path)
         if not already_in then
-          dependencies.set(locator_flat_name)
+          dependencies.set(locator_dir.path)
           visited.set(locator_dir.path)
           try
             // scan for transitive dependencies

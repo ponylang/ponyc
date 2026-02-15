@@ -1,29 +1,38 @@
 use "json"
 use "pony_compiler"
 
-class ref Diagnostic
+class val Diagnostic
     """
     See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic
     """
-    let range: LspPositionRange
+    // only the range is serialized, but useful to keep the actual file around for expanding related inormation
+    let location: LspLocation
     let severity: I64
     // left out intentionally
     // let code: (I64 | String | None)
     // let code_description: (CodeDescription | None)
-    let message: String
-    let related_information: Array[DiagnosticRelatedInformation]
+    let message: String val
+    let related_information: Array[DiagnosticRelatedInformation] val
 
-    new ref create(range': LspPositionRange, severity': I64, message': String) =>
-        range = range'
+    new val create(location': LspLocation, severity': I64, message': String, related_information': Array[DiagnosticRelatedInformation] val = []) =>
+        location = location'
         severity = severity'
         message = message'
-        related_information = Array[DiagnosticRelatedInformation].create(0)
+        related_information = related_information'
 
     new val from_error(err: Error) =>
-        this.range = LspPositionRange.from_single_pos(LspPosition.from_ast_pos(err.position))
+        this.location = LspLocation(
+          Uris.from_path(
+            try
+              err.file as String
+            else
+              ""
+            end),
+            LspPositionRange.from_single_pos(LspPosition.from_ast_pos(err.position))
+        )
         this.severity = DiagnosticSeverities.err()
         this.message = err.msg
-        this.related_information = Array[DiagnosticRelatedInformation].create(err.infos.size())
+        let relinfos = recover trn Array[DiagnosticRelatedInformation].create(err.infos.size()) end
         for info in err.infos.values() do
             let file_path =
                 try
@@ -36,20 +45,48 @@ class ref Diagnostic
                     end
                 end
             let file = Uris.from_path(file_path)
-            let location = LspLocation.create(
+            let rel_loc = LspLocation.create(
                 file,
                 LspPositionRange.from_single_pos(
                     LspPosition.from_ast_pos(info.position)
                 )
             )
-            this.related_information.push(
-                DiagnosticRelatedInformation.create(location, info.msg)
+            relinfos.push(
+                DiagnosticRelatedInformation.create(rel_loc, info.msg)
             )
         end
+        this.related_information = consume relinfos
+
+    fun val file_uri(): String val =>
+      this.location.uri
+
+    fun val expand_related(): Array[Diagnostic] val =>
+      """
+      Turn all related informations in to their own Diagnostic items
+      pointing at the same place as the root diagnostic.
+
+      This is necessary for some clients (e.g. neovim), as they otherwise
+      wouldn't show related information
+      """
+      let expanded = recover trn Array[Diagnostic].create(this.related_information.size() + 1) end
+      expanded.push(this)
+      for related_info in this.related_information.values() do
+        expanded.push(
+          Diagnostic(
+            related_info.location,
+            DiagnosticSeverities.hint(),
+            related_info.message,
+            [
+              DiagnosticRelatedInformation(this.location, "original diagnostic")
+            ]
+          )
+        )
+      end
+      consume expanded
 
     fun to_json(): JsonValue =>
         var obj = JsonObject
-          .update("range", this.range.to_json())
+          .update("range", this.location.range.to_json())
           .update("severity", this.severity)
           .update("source", "pony-lsp")
           .update("message", this.message)
@@ -63,17 +100,18 @@ class ref Diagnostic
         obj
 
 
+
 primitive DiagnosticSeverities
     fun tag err(): I64 => 1
     fun tag warning(): I64 => 2
-    fun tag information(): I64 => 2
-    fun tag hint(): I64 => 2
+    fun tag information(): I64 => 3
+    fun tag hint(): I64 => 4
 
 class val DiagnosticRelatedInformation
     let location: LspLocation
     let message: String
 
-    new create(location': LspLocation, message': String) =>
+    new val create(location': LspLocation, message': String) =>
         location = location'
         message = message'
 

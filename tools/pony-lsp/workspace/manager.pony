@@ -1,6 +1,8 @@
 use ".."
 use "collections"
+use pc = "collections/persistent"
 use "files"
+use "itertools"
 
 use "pony_compiler"
 use "json"
@@ -21,23 +23,33 @@ actor WorkspaceManager
   """
   let workspace: WorkspaceData
   let _file_auth: FileAuth
+  let _client: Client
   let _channel: Channel
+  let _language_server: LanguageServer
   let _compiler: PonyCompiler
   let _packages: Map[String, PackageState]
+  let _global_errors: Array[Diagnostic val]
 
+  var _compile_run: USize = 0
   var _current_request: (RequestMessage val | None) = None
+  var _awaiting_compilation: Bool = false
 
   new create(
     workspace': WorkspaceData,
     file_auth': FileAuth,
     channel': Channel,
+    language_server': LanguageServer,
+    client': Client,
     compiler': PonyCompiler)
   =>
     workspace = workspace'
     _file_auth = file_auth'
+    _client = client'
     _channel = channel'
+    _language_server = language_server'
     _compiler = compiler'
     _packages = _packages.create()
+    _global_errors = Array[Diagnostic val].create(4)
 
   fun ref _ensure_package(package_path: FilePath): PackageState =>
     try
@@ -54,6 +66,13 @@ actor WorkspaceManager
     end
 
   fun box _find_workspace_package(document_path: String): FilePath ? =>
+    """
+    Try to find the package in the workspace from the given `document_path`
+    by iterating up the directory tree to see if any dir belongs to
+    one of the packages of the workspace.
+
+    Errors if no package could be found.
+    """
     var dir_path = Path.dir(document_path)
     while (dir_path != ".") do
       if this._packages.contains(dir_path) then
@@ -70,62 +89,111 @@ actor WorkspaceManager
     error
 
   be done_compiling(program_dir: FilePath, result: (Program val | Array[Error val] val), run: USize) =>
-    this._channel.log("done compiling " + program_dir.path)
-    // group errors by file
-    let errors_by_file = Map[String, Array[JsonValue] iso].create(4)
-    // pre-fill with opened files
-    // if we have no errors for them, they will get their errors cleared
-    for pkg in this._packages.values() do
-      for doc in pkg.documents.keys() do
-        errors_by_file(doc) = []
-      end
-    end
+    this._awaiting_compilation = false
+    this._channel.log("done compilation run " + run.string() + " of " + program_dir.path)
 
-    match result
-    | let program: Program val =>
-      this._channel.log("Successfully compiled " + program_dir.path)
-      // create/update package states for every package being part of the program
-      for package in program.packages() do
-        let package_path = FilePath(this._file_auth, package.path)
-        let package_state = this._ensure_package(package_path)
-        package_state.update(package, run)
-      end
-    | let errors: Array[Error val] val =>
+    // ignore older compile runs
+    if run > this._compile_run then
+      this._compile_run = run
+      // group errors by file
+      let errors_by_file = Map[String, pc.Vec[JsonValue]].create(4)
 
-      this._channel.log("Compilation failed with " + errors.size().string() + " errors")
-
-      for err in errors.values() do
-        this._channel.log("ERROR: " + err.msg + " in file " + err.file.string())
-        let diagnostic = Diagnostic.from_error(err)
-        errors_by_file.upsert(
-          err.file.string(),
-          recover iso
-            [as JsonValue: diagnostic.to_json()]
-          end,
-          {(current: Array[JsonValue] iso, provided: Array[JsonValue] iso) =>
-            current.append(consume provided)
-            consume current
-          }
-        )
-      end
-
-    end
-    // notify client about errors if any
-    // create (or clear) error diagnostics message for each open file
-    for file in errors_by_file.keys() do
-      try
-        let file_errors = recover val errors_by_file.remove(file)?._2 end
-        var diagnostics_arr = JsonArray
-        for err_json in file_errors.values() do
-          diagnostics_arr = diagnostics_arr.push(err_json)
+      if this._client.supports_publish_diagnostics() then
+        // pre-fill with errors by file for all currently opened files
+        // if we have no errors for them, they will get their errors cleared
+        for pkg in this._packages.values() do
+          for doc in pkg.documents.keys() do
+            errors_by_file(doc) = pc.Vec[JsonValue]
+          end
         end
-        let msg = Notification.create(
-          "textDocument/publishDiagnostics",
-          JsonObject
-            .update("uri", Uris.from_path(file))
-            .update("diagnostics", diagnostics_arr)
-        )
-        this._channel.send(msg)
+      end
+
+      // clear out global errors
+      this._global_errors.clear()
+
+      match result
+      | let program: Program val =>
+        this._channel.log("Successfully compiled " + program_dir.path)
+        // create/update package states for every package being part of the program
+        for package in program.packages() do
+          let package_path = FilePath(this._file_auth, package.path)
+          let package_state = this._ensure_package(package_path)
+          package_state.update(package, run)
+        end
+      | let errors: Array[Error val] val =>
+        this._channel.log("Compilation failed with " + errors.size().string() + " errors")
+
+        let diag_iter = Iter[Error](errors.values())
+          .map[Diagnostic]({(err): Diagnostic => Diagnostic.from_error(err)})
+          .flat_map[Diagnostic]({(diag): Iterator[Diagnostic] => diag.expand_related().values()})
+        for diagnostic in diag_iter do
+          this._channel.log("ERROR: " + diagnostic.message + " in file " + diagnostic.file_uri())
+          match diagnostic.file_uri()
+          | "" =>
+            // collect global errors
+            this._global_errors.push(diagnostic)
+
+          | let err_file_uri: String val =>
+            let err_file = Uris.to_path(err_file_uri)
+
+            // store the error in the document-state
+            try
+              let package: FilePath = this._find_workspace_package(err_file)?
+              let package_state = this._ensure_package(package)
+              (let document_state, let needs_compilation) = package_state.ensure_document(err_file)
+              document_state.add_diagnostic(run, diagnostic)
+            end
+
+            if this._client.supports_publish_diagnostics() then
+              // collect errors by file
+              errors_by_file.upsert(
+                err_file,
+                pc.Vec[JsonValue].push(diagnostic.to_json()),
+                {(current: pc.Vec[JsonValue], provided: pc.Vec[JsonValue]) =>
+                  current.concat(provided.values())
+                }
+              )
+            end
+          end
+        end
+      end
+
+      // notify client about errors, if any
+      // create (or clear) error diagnostics message for each open file
+      if this._client.supports_publish_diagnostics() then
+        for file in errors_by_file.keys() do
+          try
+            let file_errors: pc.Vec[JsonValue] = recover val errors_by_file.remove(file)?._2 end
+            let msg = Notification.create(
+              Methods.text_document().publish_diagnostics(),
+              JsonObject
+                .update("uri", Uris.from_path(file))
+                .update("diagnostics", JsonArray(consume file_errors))
+            )
+            this._channel.send(msg)
+          end
+        end
+
+        // publish global diagnostics if we have any
+        let num_global_errs = this._global_errors.size()
+        if (num_global_errs > 0) then
+          let json_global_diagnostics = pc.Vec[JsonValue].concat(Iter[Diagnostic](this._global_errors.values()).map[JsonValue]({(diagnostic) => diagnostic.to_json()}))
+          let global_notifications = Notification.create(
+            Methods.text_document().publish_diagnostics(),
+            JsonObject
+              // TODO: any better value to put here?
+              .update("uri", "global")
+              .update("diagnostics", JsonArray(json_global_diagnostics))
+          )
+          this._channel.send(global_notifications)
+        end
+      elseif this._client.supports_workspace_diagnostic_refresh() then
+        // we only need to issue a refresh if the client doesn't support
+        // publish diagnostics
+
+        // tell the client to refresh all diagnostics for us
+        // to make sure we don't see any old diagnostics anymore
+        this._language_server.send_request(Methods.workspace().diagnostic().refresh(), None)
       end
     end
 
@@ -159,12 +227,11 @@ actor WorkspaceManager
       end
     this._channel.log("did_open in pony package @ " + package.path)
     let package_state = this._ensure_package(package)
-    if not package_state.has_document(document_path) then
-      (let inserted_doc_state, let has_module) = package_state.insert_new(document_path)
-      if not has_module then
-        _channel.log("No module found for document " + document_path + ". Need to compile.")
-        _compiler.compile(package, workspace.dependency_paths, this)
-      end
+    (let inserted_doc_state, let needs_compilation) = package_state.ensure_document(document_path)
+    if needs_compilation and (not this._awaiting_compilation) then
+      _channel.log("No module found for document " + document_path + ". Need to compile.")
+      _compiler.compile(package, workspace.dependency_paths, this)
+      _awaiting_compilation = true
     end
 
   be did_close(document_uri: String, notification: Notification val) =>
@@ -212,6 +279,7 @@ actor WorkspaceManager
       // re-compile changed program - continuing in `done_compiling`
       _channel.log("Compiling package " + package.path + " with dependency-paths: " + ", ".join(workspace.dependency_paths.values()))
       _compiler.compile(package, workspace.dependency_paths, this)
+      _awaiting_compilation = true
     else
       _channel.log("document not in workspace: " + document_path)
     end
@@ -285,7 +353,7 @@ actor WorkspaceManager
       | let pkg_state: PackageState =>
         match pkg_state.get_document(document_path)
         | let doc: DocumentState =>
-          match doc.position_index
+          match doc.position_index()
           | let index: PositionIndex =>
             // Find AST node at cursor position (convert 0-based to 1-based)
             index.find_node_at(USize.from[I64](line + 1), USize.from[I64](column + 1))
@@ -358,7 +426,7 @@ actor WorkspaceManager
           //this._channel.log(pkg_state.debug())
           match pkg_state.get_document(document_path)
           | let doc: DocumentState =>
-            match doc.position_index
+            match doc.position_index()
             | let index: PositionIndex =>
               match index.find_node_at(USize.from[I64](line + 1), USize.from[I64](column + 1)) // pony lines and characters are 1-based, lsp are 0-based
               | let ast: AST box =>
@@ -426,11 +494,46 @@ actor WorkspaceManager
       | None =>
         this._channel.log("No package state available for package: " + package.path)
       end
-      // send a null-response in every failure case
     else
       this._channel.log("document not in workspace: " + document_path)
     end
+    // send a null-response in every failure case
     this._channel.send(ResponseMessage.create(request.id, None))
+
+  be document_diagnostic(document_uri: String, request: RequestMessage val) =>
+    this._channel.log("Handling textDocument/diagnostic")
+    let document_path = Uris.to_path(document_uri)
+    var diagnostics = pc.Vec[JsonValue]
+    try
+      let package: FilePath = this._find_workspace_package(document_path)?
+      match this._get_package(package)
+      | let pkg_state: PackageState =>
+          match pkg_state.get_document(document_path)
+          | let doc: DocumentState =>
+            try
+              diagnostics = diagnostics.concat(
+                Iter[Diagnostic]((doc.diagnostics() as Array[Diagnostic] box).values()).map[JsonValue]({(diagnostic) => diagnostic.to_json()})
+              )
+            end
+          | None =>
+            this._channel.log("[textDocument/diagnostic] No document state available for " + document_path)
+          end
+      | None =>
+        this._channel.log("[textDocument/diagnostic] No package state available for package: " + package.path)
+      end
+    else
+      this._channel.log("[textDocument/diagnostic] Unable to find workspace package for: " + document_uri)
+    end
+    this._channel.send(
+      ResponseMessage.create(
+        request.id,
+        JsonObject
+          .update("kind", "full")
+          .update("resultId", this._compile_run.string())
+          .update("items", JsonArray(diagnostics))
+      )
+    )
+
 
   fun _get_node_for_highlight(ast: AST box): AST box =>
     """
