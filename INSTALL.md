@@ -2,8 +2,6 @@
 
 Prebuilt Pony binaries are available on a number of platforms. They are built using a very generic CPU instruction set and as such, will not provide maximum performance. If you need to get the best performance possible from your Pony program, we strongly recommend [building from source](BUILD.md).
 
-All prebuilt releases are currently AMD64 only. If you want to install on different CPU architecture, you'll need to [build from source](BUILD.md).
-
 Prebuilt Pony installations will use clang as the default C compiler and clang++ as the default C++ compiler. If you prefer to use different compilers, such as gcc and g++, these defaults can be overridden by setting the `$CC` and `$CXX` environment variables to your compiler of choice.
 
 ## Linux
