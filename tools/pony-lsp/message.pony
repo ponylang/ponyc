@@ -204,3 +204,12 @@ primitive ErrorCodes
 	  the cancel.
     """
     -32800
+
+
+trait tag RequestSender
+  """
+  Describes some entity that supports sending LSP requests.
+
+  It needs to keep track of outgoing request ids.
+  """
+  be send_request(method: String val, params: (JsonObject | JsonArray | None))

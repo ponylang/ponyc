@@ -25,7 +25,7 @@ actor WorkspaceManager
   let _file_auth: FileAuth
   let _client: Client
   let _channel: Channel
-  let _language_server: LanguageServer
+  let _request_sender: RequestSender
   let _compiler: PonyCompiler
   let _packages: Map[String, PackageState]
   let _global_errors: Array[Diagnostic val]
@@ -38,7 +38,7 @@ actor WorkspaceManager
     workspace': WorkspaceData,
     file_auth': FileAuth,
     channel': Channel,
-    language_server': LanguageServer,
+    request_sender': RequestSender,
     client': Client,
     compiler': PonyCompiler)
   =>
@@ -46,7 +46,7 @@ actor WorkspaceManager
     _file_auth = file_auth'
     _client = client'
     _channel = channel'
-    _language_server = language_server'
+    _request_sender = request_sender'
     _compiler = compiler'
     _packages = _packages.create()
     _global_errors = Array[Diagnostic val].create(4)
@@ -193,7 +193,7 @@ actor WorkspaceManager
 
         // tell the client to refresh all diagnostics for us
         // to make sure we don't see any old diagnostics anymore
-        this._language_server.send_request(Methods.workspace().diagnostic().refresh(), None)
+        this._request_sender.send_request(Methods.workspace().diagnostic().refresh(), None)
       end
     end
 

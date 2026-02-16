@@ -1,4 +1,5 @@
 use "pony_test"
+use "immutable-json"
 use "files"
 use ".."
 use "../workspace"
@@ -31,14 +32,19 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     // corral workspace
     workspace = workspaces(1)?
     h.assert_eq[String](folder.join("workspace")?.path, workspace.folder.path)
-    
+
     let router = WorkspaceRouter.create()
     let compiler = PonyCompiler("") // dummy, not actually in use
-    
-    let mgr = WorkspaceManager(workspace, file_auth, channel, compiler)
+    let request_sender = FakeRequestSender
+    let client = Client.from(Obj.build())
+
+    let mgr = WorkspaceManager(workspace, file_auth, channel, request_sender, client, compiler)
     router.add_workspace(folder, mgr)?
 
     let file_path = folder.join("main.pony")?
     let found = router.find_workspace(file_path.path)
     h.assert_isnt[(WorkspaceManager | None)](None, found)
 
+class tag FakeRequestSender is RequestSender
+  new tag create() => None
+  fun tag send_request(method: String val, params: (JsonObject | JsonArray | None)) => None

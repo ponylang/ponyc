@@ -23,7 +23,7 @@ primitive _ShuttingDown is Equatable[_LspState]
 
 type _LspState is (_Uninitialized | _Initialized | _ShuttingDown)
 
-actor LanguageServer is Notifier
+actor LanguageServer is (Notifier & RequestSender)
   let _channel: Channel
   let _compiler: PonyCompiler
   let _router: WorkspaceRouter
