@@ -1,7 +1,5 @@
 # pony-lsp - the Pony Language Server
 
-This language server
-
 This language server is communicating with LSP-clients (editors) via stdout/stdin.
 
 ## Feature Support
