@@ -6,7 +6,7 @@ pony-lsp now automatically discovers the standard library by finding its own exe
 
 ## Fix persistent HashMap returning incorrect results for None values
 
-The persistent `HashMap` used `None` as an internal sentinel to signal "key not found" in its lookup methods. This collided with user value types that include `None` (e.g., `Map[String, (String | None)]`), causing `apply` to raise instead of returning the stored `None`, `contains` to return `false` for keys mapped to `None`, and `get_or_else` to return the alternate value instead of the stored `None`.
+The persistent `HashMap` used `None` as an internal sentinel to signal "key not found" in its lookup methods. This collided with user value types that include `None` (e.g., `Map[String, (String | None)]`). Using `HashMap` with a `None` value could lead to errors in user code as "it was none" and "it wasn't present" were impossible to distinguish.
 
 The internal lookup methods now use `error` instead of `None` to signal a missing key, so all value types work correctly.
 

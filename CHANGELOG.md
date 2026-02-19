@@ -15,7 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
-- Fix persistent HashMap returning incorrect results for None values ([PR #4839](https://github.com/ponylang/ponyc/pull/4839))
+- Changed persistent hash map apply signature ([PR #4839](https://github.com/ponylang/ponyc/pull/4839))
 
 
 ## [0.60.6] - 2026-02-06
