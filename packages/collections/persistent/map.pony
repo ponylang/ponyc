@@ -82,8 +82,10 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     Get the value associated with provided key if present. Otherwise,
     return the provided alternate value.
     """
-    try _root(0, H.hash(k).u32(), k)?
-    else alt
+    try
+      _root(0, H.hash(k).u32(), k)?
+    else
+      alt
     end
 
   fun val contains(k: K): Bool =>
