@@ -4,3 +4,11 @@ Previously, pony-lsp was unable to locate the Pony standard library on its own. 
 
 pony-lsp now automatically discovers the standard library by finding its own executable directory and searching for packages relative to it — the same approach that ponyc uses. Since pony-lsp is installed alongside ponyc, the standard library is found without any manual configuration, making pony-lsp work out of the box with any editor.
 
+## Fix persistent HashMap returning incorrect results for None values
+
+The persistent `HashMap` used `None` as an internal sentinel to signal "key not found" in its lookup methods. This collided with user value types that include `None` (e.g., `Map[String, (String | None)]`), causing `apply` to raise instead of returning the stored `None`, `contains` to return `false` for keys mapped to `None`, and `get_or_else` to return the alternate value instead of the stored `None`.
+
+The internal lookup methods now use `error` instead of `None` to signal a missing key, so all value types work correctly.
+
+This is a breaking change for any code that was depending on the previous (incorrect) behavior. For example, code that expected `apply` to raise for keys mapped to `None`, or that relied on `contains` returning `false` for `None`-valued entries, will now see correct results instead.
+
