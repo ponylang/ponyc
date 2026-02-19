@@ -28,6 +28,7 @@ actor \nodoc\ Main is TestList
     test(_TestListTakeWhile)
     test(_TestListValues)
     test(_TestMap)
+    test(_TestMapNoneValue)
     test(_TestMapVsMap)
     test(_TestSet)
     test(_TestVec)
@@ -285,8 +286,7 @@ class \nodoc\ iso _TestMap is UnitTest
     for n in mut.Range(0, 100) do
       try
         map(USize.max_value())?
-      else
-        h.fail()
+        h.fail("expected error for nonexistent key")
         return
       end
       map = map.update(rand.int[USize](USize.max_value() - 1), None)
@@ -374,6 +374,49 @@ class \nodoc\ val _OpMapRemove
 
   fun str(): String =>
     "".join(["Remove("; k; ")"].values())
+
+class \nodoc\ iso _TestMapNoneValue is UnitTest
+  fun name(): String => "collections/persistent/Map (None values)"
+
+  fun apply(h: TestHelper) ? =>
+    // Verify that maps with value types including None work correctly.
+    // This is the exact scenario from issue #4833.
+    var m = Map[String, (String | None)]
+    m = m("a") = "hello"
+    m = m("b") = None
+    m = m("c") = "world"
+
+    // apply returns non-None values correctly
+    h.assert_eq[String](m("a")? as String, "hello")
+    h.assert_eq[String](m("c")? as String, "world")
+
+    // apply returns the stored None for keys mapped to None
+    h.assert_true(m("b")? is None)
+
+    // apply raises for nonexistent keys
+    h.assert_error({() ? => m("missing")? })
+
+    // contains returns true for keys mapped to None
+    h.assert_true(m.contains("b"))
+
+    // contains returns true for keys mapped to non-None
+    h.assert_true(m.contains("a"))
+
+    // contains returns false for missing keys
+    h.assert_false(m.contains("missing"))
+
+    // get_or_else returns the stored None, not the alt value
+    h.assert_true(m.get_or_else("b", "alt") is None)
+
+    // get_or_else returns the alt for genuinely missing keys
+    h.assert_eq[String](
+      m.get_or_else("missing", "alt") as String, "alt")
+
+    // remove works on keys mapped to None
+    let m2 = m.remove("b")?
+    h.assert_false(m2.contains("b"))
+    h.assert_error({() ? => m2("b")? })
+    h.assert_eq[USize](m2.size(), 2)
 
 class \nodoc\ iso _TestMapVsMap is UnitTest
   fun name(): String => "collections/persistent/Map (persistent vs mutable)"

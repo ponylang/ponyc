@@ -50,7 +50,7 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     """
     Attempt to get the value corresponding to k.
     """
-    _root(0, H.hash(k).u32(), k)? as V
+    _root(0, H.hash(k).u32(), k)?
 
   fun val size(): USize =>
     """
@@ -82,21 +82,19 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     Get the value associated with provided key if present. Otherwise,
     return the provided alternate value.
     """
-    try
-      match _root(0, H.hash(k).u32(), k)?
-      | let v: V => v
-      else alt
-      end
-    else
-      alt // should not occur
+    try _root(0, H.hash(k).u32(), k)?
+    else alt
     end
 
   fun val contains(k: K): Bool =>
     """
-    Check whether the node contains the provided key.
+    Check whether the map contains the provided key.
     """
-    try _root(0, H.hash(k).u32(), k)? isnt None
-    else false // should not occur
+    try
+      _root(0, H.hash(k).u32(), k)?
+      true
+    else
+      false
     end
 
   fun val concat(iter: Iterator[(val->K, val->V)]): HashMap[K, V, H] =>

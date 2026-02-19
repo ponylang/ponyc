@@ -8,8 +8,8 @@ class val _MapEntry[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     key = k
     value = v
 
-  fun apply(k: K): (V | None) =>
-    if H.eq(k, key) then value end
+  fun apply(k: K): V ? =>
+    if H.eq(k, key) then value else error end
 
 class val _MapCollisions[
   K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
@@ -31,12 +31,13 @@ class val _MapCollisions[
     end
     cs
 
-  fun val apply(hash: U32, k: K): (V | None) ? =>
+  fun val apply(hash: U32, k: K): V ? =>
     let idx = _Bits.mask32(hash, _Bits.collision_depth())
     let bin = bins(idx.usize_unsafe())?
     for node in bin.values() do
       if H.eq(k, node.key) then return node.value end
     end
+    error
 
   fun val remove(hash: U32, k: K): _MapCollisions[K, V, H] ? =>
     let idx = _Bits.mask32(hash, _Bits.collision_depth())
@@ -118,12 +119,12 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     end
     data_map.popcount() + (node_map and msk).popcount()
 
-  fun val apply(depth: U32, hash: U32, k: K): (V | None) ? =>
+  fun val apply(depth: U32, hash: U32, k: K): V ? =>
     let idx = _Bits.mask32(hash, depth)
     let c_idx = compressed_idx(idx)
-    if c_idx == -1 then return None end
+    if c_idx == -1 then error end
     match nodes(c_idx.usize_unsafe())?
-    | let entry: _MapEntry[K, V, H] => entry(k)
+    | let entry: _MapEntry[K, V, H] => entry(k)?
     | let sns: _MapSubNodes[K, V, H] => sns(depth + 1, hash, k)?
     | let cs: _MapCollisions[K, V, H] => cs(hash, k)?
     end
