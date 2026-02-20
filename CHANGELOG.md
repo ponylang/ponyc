@@ -8,11 +8,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix pony-lsp inability to find the standard library ([PR #4829](https://github.com/ponylang/ponyc/pull/4829))
 - Make pony-lsp version dynamic to match ponyc version ([PR #4830](https://github.com/ponylang/ponyc/pull/4830))
+- Fix persistent HashMap returning incorrect results for None values ([PR #4839](https://github.com/ponylang/ponyc/pull/4839))
 
 ### Added
 
 
 ### Changed
+
+- Changed persistent hash map apply signature ([PR #4839](https://github.com/ponylang/ponyc/pull/4839))
 
 
 ## [0.60.6] - 2026-02-06
