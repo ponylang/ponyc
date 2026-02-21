@@ -6,7 +6,7 @@
 #include "ponyassert.h"
 #include <blake2.h>
 #include <string.h>
-
+#include <vector>
 
 // Per program state.
 typedef struct program_t
@@ -173,6 +173,89 @@ bool use_path(ast_t* use, const char* locator, ast_t* name,
   return true;
 }
 
+// TODO: this is a hack while we support both embedded lld that
+// requires no quotes and the legacy means that goes through the
+// compiler and needs to be quoted
+static const char* unquote_locator(const char* locator)
+{
+  size_t len = strlen(locator);
+  char* unquoted = (char*)ponyint_pool_alloc_size(len -  1);
+  memcpy(unquoted, locator + 1 , len - 2);
+  unquoted[len - 2] = '\0';
+
+  return stringtab_consume(unquoted, len - 1);
+}
+
+void program_lib_build_args_embedded(
+  std::vector<const char *>* args,
+  ast_t* program, pass_opt_t* opt,
+  const char* path_preamble, const char* rpath_preamble,
+  const char* global_preamble, const char* global_postamble,
+  const char* lib_premable, const char* lib_postamble)
+{
+  pony_assert(args != NULL);
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+  pony_assert(global_preamble != NULL);
+  pony_assert(global_postamble != NULL);
+  pony_assert(lib_premable != NULL);
+  pony_assert(lib_postamble != NULL);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  // Library paths defined in the source code.
+  for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
+  {
+    const char* libpath = unquote_locator(strlist_data(p));
+    args->push_back(path_preamble);
+    args->push_back(libpath);
+
+    if(rpath_preamble != NULL)
+    {
+      args->push_back(rpath_preamble);
+      args->push_back(libpath);
+    }
+  }
+
+  // Library paths from the command line and environment variable.
+  for(strlist_t* p = opt->package_search_paths; p != NULL; p = strlist_next(p))
+  {
+    const char* libpath = strlist_data(p);
+
+    if(libpath == NULL)
+      continue;
+
+    args->push_back(path_preamble);
+    args->push_back(libpath);
+
+    if(rpath_preamble != NULL)
+    {
+      args->push_back(rpath_preamble);
+      args->push_back(libpath);
+    }
+  }
+
+  // Library names.
+  args->push_back(global_preamble);
+
+  for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
+  {
+    const char* lib = unquote_locator(strlist_data(p));
+
+    bool amble = !is_path_absolute(&lib[1]);
+
+    if(amble)
+      args->push_back(lib_premable);
+
+    args->push_back(lib);
+
+    if(amble)
+      args->push_back(lib_postamble);
+  }
+
+  args->push_back(global_postamble);
+}
 
 void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   const char* path_preamble, const char* rpath_preamble,

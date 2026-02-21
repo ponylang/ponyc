@@ -60,6 +60,14 @@ target_compile_definitions(libponyc.tests PRIVATE
     PONY_ALWAYS_ASSERT
 )
 
+target_link_libraries(libponyc.tests PRIVATE
+    lldCommon
+    lldWasm
+    lldMachO
+    lldCOFF
+    lldELF
+)
+
 target_include_directories(libponyc.tests
     PRIVATE ../../src/common
     PRIVATE ../../src/libponyc
