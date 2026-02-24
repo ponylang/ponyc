@@ -503,6 +503,39 @@ jobs:
       - name: Build examples
         run: .\make.ps1 -Command build-examples
 
+  lint-pony-lint:
+    runs-on: ubuntu-latest
+    needs: x86_64-linux
+
+    name: Lint pony-lint
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Save Libs Cache
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/libs
+          key: libs-ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build
+        run: |
+          make configure arch=x86-64 config=debug
+          make build config=debug
+      - name: Lint pony-lint
+        run: make lint-pony-lint config=debug
+
   use_directives:
     runs-on: ubuntu-latest
     needs: x86_64-linux

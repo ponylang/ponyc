@@ -213,7 +213,7 @@ cross-libponyrt:
 
 test: all test-core test-stdlib-release test-examples
 
-test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-pony-lsp test-pony-lint lint-pony-lint test-validate-grammar
+test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-pony-lsp test-pony-lint test-validate-grammar
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: debuggercmd=
@@ -266,7 +266,7 @@ test-pony-lint: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/mfelsche/pony-ast/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
 lint-pony-lint: all
-	$(SILENT)'$(outDir)'/pony-lint tools/pony-lint/
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/mfelsche/pony-ast/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && ./pony-lint-ci ../../tools/pony-lint/
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=
