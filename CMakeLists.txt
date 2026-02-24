@@ -303,6 +303,7 @@ else()
     add_subdirectory(benchmark/libponyrt)
 
     add_subdirectory(tools/pony-lsp)
+    add_subdirectory(tools/pony-lint)
 
     install(TARGETS
         ponyc
@@ -318,5 +319,8 @@ else()
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
     install(PROGRAMS
         $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
+        DESTINATION bin)
+    install(PROGRAMS
+        $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION bin)
 endif()
