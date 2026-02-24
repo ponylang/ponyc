@@ -296,7 +296,8 @@ actor LanguageServer is (Notifier & RequestSender)
                 .update("change", I64(0))
                 .update("openClose", true)
                 .update("save", JsonObject
-                  .update("includeText", false)))
+                // we need the document contents upon save to determine changes since the previous state compilation picked up
+                .update("includeText", true)))
               .update("definitionProvider", true)
               .update("diagnosticProvider", JsonObject
                 .update("identifier", "pony-lsp")

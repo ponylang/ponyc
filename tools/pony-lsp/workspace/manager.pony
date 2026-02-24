@@ -32,7 +32,11 @@ actor WorkspaceManager
 
   var _compile_run: USize = 0
   var _current_request: (RequestMessage val | None) = None
-  var _awaiting_compilation: Bool = false
+  var _compiling: Bool = false
+  var _awaiting_compilation_for: Map[String, (USize| None)] = _awaiting_compilation_for.create()
+    """
+    mapping of file_path to its hash (if any) that got saved while a compilation was still running
+    """
 
   new create(
     workspace': WorkspaceData,
@@ -89,7 +93,9 @@ actor WorkspaceManager
     error
 
   be done_compiling(program_dir: FilePath, result: (Program val | Array[Error val] val), run: USize) =>
-    this._awaiting_compilation = false
+    this._compiling = false
+    // TODO: check if we are awaiting compilation for some files
+    //       and compare their hash against the current document hashes
     this._channel.log("done compilation run " + run.string() + " of " + program_dir.path)
 
     // ignore older compile runs
@@ -119,6 +125,42 @@ actor WorkspaceManager
           let package_path = FilePath(this._file_auth, package.path)
           let package_state = this._ensure_package(package_path)
           package_state.update(package, run)
+
+          // TODO: for each entry in _awaiting_compilation_for: try to find it
+          // in this package and get the new module and compare its hash
+          var requires_another_compilation = false
+          for (await_comp_file, await_comp_hash) in this._awaiting_compilation_for.pairs() do
+            let await_pkg_path = Path.base(await_comp_file)
+            if package_state.path.path == await_pkg_path then
+              try
+                // get the hash of the module file ponyc considered for compilation
+                let new_mod_hash =
+                  (package_state.get_document(await_comp_file) as DocumentState).module_hash()
+                this._awaiting_compilation_for.remove(await_comp_file)?
+                requires_another_compilation =
+                  requires_another_compilation or
+                    match (await_comp_hash, new_mod_hash)
+                    |  (None, None) =>
+                        // no change, module not there???
+                        false
+                    | (None, let h: USize) | (let h: USize, None) =>
+                        // module didn't have a hash (probably errored), but now is available, we need to recompile to check
+                        // or module was valid when awaiting compilation, but isn't anymore
+                        true
+                    | (let old_hash: USize, let new_hash: USize) if old_hash != new_hash =>
+                        // contents differ, we need another round of compilation
+                        old_hash != new_hash
+                    else
+                      false
+                    end
+              end
+            end
+          end
+          if requires_another_compilation then
+            this._channel.log(program_dir.path + " needs another compilation...")
+            this._compiler.compile(program_dir, workspace.dependency_paths, this)
+            this._compiling = true
+          end
         end
       | let errors: Array[Error val] val =>
         this._channel.log("Compilation failed with " + errors.size().string() + " errors")
@@ -202,7 +244,7 @@ actor WorkspaceManager
     """
     Handling the textDocument/didOpen notification
     """
-    var document_path = Uris.to_path(document_uri)
+    let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_open of " + document_path)
 
     // check if we have a package for this document
@@ -228,10 +270,15 @@ actor WorkspaceManager
     this._channel.log("did_open in pony package @ " + package.path)
     let package_state = this._ensure_package(package)
     let doc_state = package_state.ensure_document(document_path)
-    if doc_state.needs_compilation() and (not this._awaiting_compilation) then
-      _channel.log("No module found for document " + document_path + ". Need to compile.")
-      _compiler.compile(package, workspace.dependency_paths, this)
-      _awaiting_compilation = true
+    if doc_state.needs_compilation() then
+      if this._compiling then
+        let current_hash = doc_state.module_hash()
+        this._awaiting_compilation_for.insert(document_path, current_hash)
+      else
+        _channel.log("No module found for document " + document_path + ". Need to compile.")
+        _compiler.compile(package, workspace.dependency_paths, this)
+        _compiling = true
+      end
     end
 
   be did_close(document_uri: String, notification: Notification val) =>
@@ -262,24 +309,15 @@ actor WorkspaceManager
     try
       let package: FilePath = this._find_workspace_package(document_path)?
       let package_state = this._ensure_package(package)
-      match package_state.get_document(document_path)
-      | let doc_state: DocumentState =>
-          None
-          // TODO: check for differences to decide if we need to compile
-          //let old_state_hash =
-          //  match doc_state.module
-          //  | let module: Module => module.hash()
-          //  else
-          //    0 // no module
-          //  end
-      | None =>
-          // no document state found - wtf are we gonna do here?
-          this._channel.log("No document state found for " + document_path + ". Dunno what to do!")
+      if this._compiling then
+        // put the hash of the doc at the time of saving
+        let text_content_hash = try (JsonPathParser.compile("$.text")?.query_one(notification.params) as String).hash() end
+        this._awaiting_compilation_for.insert(document_path, text_content_hash)
+      else
+        this._channel.log("Compiling package " + package.path + " with dependency-paths: " + ", ".join(workspace.dependency_paths.values()))
+        this._compiler.compile(package, workspace.dependency_paths, this)
+        this._compiling = true
       end
-      // re-compile changed program - continuing in `done_compiling`
-      _channel.log("Compiling package " + package.path + " with dependency-paths: " + ", ".join(workspace.dependency_paths.values()))
-      _compiler.compile(package, workspace.dependency_paths, this)
-      _awaiting_compilation = true
     else
       _channel.log("document not in workspace: " + document_path)
     end

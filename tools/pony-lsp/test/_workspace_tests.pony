@@ -1,5 +1,5 @@
 use "pony_test"
-use "immutable-json"
+use "json"
 use "files"
 use ".."
 use "../workspace"
@@ -36,7 +36,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     let router = WorkspaceRouter.create()
     let compiler = PonyCompiler("") // dummy, not actually in use
     let request_sender = FakeRequestSender
-    let client = Client.from(Obj.build())
+    let client = Client.from(JsonObject)
 
     let mgr = WorkspaceManager(workspace, file_auth, channel, request_sender, client, compiler)
     router.add_workspace(folder, mgr)?
