@@ -12,7 +12,11 @@ primitive Compiler
   """
   fun compile(
     path: FilePath,
-    package_search_paths: (String box | ReadSeq[String val] box) = [])
+    package_search_paths: (String box | ReadSeq[String val] box) = [],
+    user_flags: ReadSeq[String val] box = [],
+    release: Bool = false,
+    limit: PassId = PassAll,
+    verbosity: VerbosityLevel = VerbosityQuiet)
   : (Program val^ | Array[Error] val^)
   =>
     """
@@ -23,9 +27,13 @@ primitive Compiler
     """
     let pass_opt = _PassOpt.create()
     @pass_opt_init(pass_opt)
-    pass_opt.verbosity = VerbosityLevels.quiet()
-    pass_opt.limit = PassIds.finaliser()
-    pass_opt.release = false
+    pass_opt.verbosity = verbosity()
+    pass_opt.limit = limit()
+    pass_opt.release = release
+    for user_flag in user_flags.values() do
+      @define_userflag(pass_opt.userflags, user_flag.cstring())
+    end
+
 
     @codegen_pass_init(pass_opt)
     // avoid calling package_init

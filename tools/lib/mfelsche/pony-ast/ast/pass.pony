@@ -2,7 +2,36 @@ use @pass_opt_init[None](options: _PassOpt)
 use @pass_opt_done[None](options: _PassOpt)
 use @ast_passes_program[Bool](program: Pointer[_AST], options: _PassOpt)
 
-type PassId is I32
+type PassId is (
+  PassParse      | PassSyntax         | PassSugar        | PassScope  |
+  PassImport     | PassNameResolution | PassFlatten      | PassTraits | PassDocs |
+  PassRefer      | PassExpr           | PassCompleteness | PassVerify | PassFinaliser |
+  PassSerialiser | PassReach          | PassPaint        | PassLLVMIR | PassBitcode |
+  PassASM        | PassObj            | PassAll
+)
+
+primitive PassParse fun apply(): I32 => 0
+primitive PassSyntax fun apply(): I32 => 1
+primitive PassSugar fun apply(): I32 => 2
+primitive PassScope fun apply(): I32 => 3
+primitive PassImport fun apply(): I32 => 4
+primitive PassNameResolution fun apply(): I32 => 5
+primitive PassFlatten fun apply(): I32 => 6
+primitive PassTraits fun apply(): I32 => 7
+primitive PassDocs fun apply(): I32 => 8
+primitive PassRefer fun apply(): I32 => 9
+primitive PassExpr fun apply(): I32 => 10
+primitive PassCompleteness fun apply(): I32 => 11
+primitive PassVerify fun apply(): I32 => 12
+primitive PassFinaliser fun apply(): I32 => 13
+primitive PassSerialiser fun apply(): I32 => 14
+primitive PassReach fun apply(): I32 => 15
+primitive PassPaint fun apply(): I32 => 16
+primitive PassLLVMIR fun apply(): I32 => 17
+primitive PassBitcode fun apply(): I32 => 18
+primitive PassASM fun apply(): I32 => 19
+primitive PassObj fun apply(): I32 => 20
+primitive PassAll fun apply(): I32 => 21
 
 primitive _StrList
   """STUB"""
@@ -14,34 +43,9 @@ primitive _MagicPackage
 primitive _Plugins
   """STUB"""
 
-
-primitive PassIds
-  fun parse(): I32 => 0
-  fun syntax(): I32 => 1
-  fun sugar(): I32 => 2
-  fun scope(): I32 => 3
-  fun import(): I32 => 4
-  fun name_resolution(): I32 => 5
-  fun flatten(): I32 => 6
-  fun traits(): I32 => 7
-  fun docs(): I32 => 8
-  fun refer(): I32 => 9
-  fun expr(): I32 => 10
-  fun completeness(): I32 => 11
-  fun verify(): I32 => 12
-  fun finaliser(): I32 => 13
-  fun serialiser(): I32 => 14
-  fun reach(): I32 => 15
-  fun paint(): I32 => 16
-  fun llvm_ir(): I32 => 17
-  fun bitcode(): I32 => 18
-  fun asm(): I32 => 19
-  fun obj(): I32 => 20
-  fun all(): I32 => 21
-
 struct _PassOpt
-  var limit: PassId = PassIds.parse()
-  var programm_pass: PassId = PassIds.parse()
+  var limit: I32 = PassParse()
+  var programm_pass: I32 = PassParse()
   var release: Bool = false
   var library: Bool = false
   var runtimebc: Bool = false
@@ -57,7 +61,7 @@ struct _PassOpt
   var docs: Bool = false
   var docs_private: Bool = false
 
-  var verbosity: VerbosityLevel = VerbosityLevels.quiet()
+  var verbosity: I32 = VerbosityQuiet()
 
   var ast_print_width: USize = 0
   var allow_test_symbols: Bool = false
@@ -87,7 +91,8 @@ struct _PassOpt
 
   embed check: _Typecheck = check.create()
   var plugins: Pointer[_Plugins] ref = plugins.create()
+  var userflags: Pointer[_UserFlags] ref = userflags.create()
+    """user-provided defines"""
   var data: Pointer[None] ref = data.create() // user-defined data for unit test callbacks
 
   new ref create() => None
-

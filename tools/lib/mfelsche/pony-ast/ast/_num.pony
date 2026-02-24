@@ -44,7 +44,7 @@ primitive _Num
       c = try src(offset)? else return offset - 1 end
     end
     offset - 1
-  
+
   fun float(src: String box, start_offset: USize): USize =>
     """returns the offset of the last character of the float in src at start_offset"""
     // integer base 10
@@ -52,7 +52,7 @@ primitive _Num
     //Debug("integral part end: " + offset.string())
 
     offset = offset + 1
-    
+
     // optional point + significand
     var c = try src(offset)? else return offset - 1 end
     if c == U8('.') then
@@ -77,23 +77,23 @@ primitive _Num
       offset - 1
     end
 
-class _NumTests is TestList
+class \nodoc\ _NumTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
     test(_FloatTest)
     test(_IntTest)
 
-class iso _FloatTest is UnitTest
+class \nodoc\ iso _FloatTest is UnitTest
   fun name(): String => "num/float"
   fun apply(h: TestHelper) =>
     var res = _Num.float("12345", 0)
     h.assert_eq[USize](4, res)
-    
+
     res = _Num.float("12345.67890e+12345", 0)
     h.assert_eq[USize](17, res)
-    
-class iso _IntTest is UnitTest
+
+class \nodoc\ iso _IntTest is UnitTest
   fun name(): String => "num/int"
   fun apply(h: TestHelper) =>
     let res = _Num.int("0", 0)

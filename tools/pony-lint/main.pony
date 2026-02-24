@@ -2,6 +2,14 @@ use "cli"
 use "collections"
 use "files"
 use "path:../lib/ponylang/json-ng/"
+use "path:../lib/mfelsche/pony-ast/"
+
+use @get_compiler_exe_directory[Bool](
+  output_path: Pointer[U8] tag,
+  argv0: Pointer[U8] tag)
+use @ponyint_pool_alloc_size[Pointer[U8] val](size: USize)
+use @ponyint_pool_free_size[None](
+  size: USize, p: Pointer[U8] tag)
 
 actor Main
   """
@@ -97,11 +105,25 @@ actor Main
       r.push(CommentSpacing)
       r
     end
-    let registry = RuleRegistry(all_rules, config)
+    let all_ast_rules: Array[ASTRule val] val = recover val
+      let r = Array[ASTRule val]
+      r.push(TypeNaming)
+      r.push(MemberNaming)
+      r.push(AcronymCasing)
+      r.push(FileNaming)
+      r.push(PackageNaming)
+      r
+    end
+    let registry = RuleRegistry(all_rules, all_ast_rules, config)
+
+    // Build package search paths: installation paths first (prevents
+    // PONYPATH from overriding builtin, per ponylang/ponyc#3779),
+    // then PONYPATH.
+    let package_paths = _build_package_paths(env.vars)
 
     // Run linter
     let cwd = Path.cwd()
-    let linter = Linter(registry, file_auth, cwd)
+    let linter = Linter(registry, file_auth, cwd, package_paths)
     (let diags, let exit_code) = linter.run(targets)
 
     // Output diagnostics to stdout
@@ -110,3 +132,70 @@ actor Main
     end
 
     env.exitcode(exit_code())
+
+  fun _build_package_paths(
+    vars: (Array[String val] val | None))
+    : Array[String val] val
+  =>
+    """
+    Build the package search path list for AST compilation.
+
+    Installation paths come first (pony-lint is co-installed with
+    ponyc, so the standard library is at `../packages` or
+    `../../packages` relative to the executable). PONYPATH entries
+    follow.
+    """
+    // Extract PONYPATH entries before the recover block
+    let pony_paths = _get_ponypath_entries(vars)
+
+    recover val
+      let paths = Array[String val]
+      // Installation paths first
+      match _find_exe_directory()
+      | let dir: String val =>
+        paths.push(Path.join(dir, "../packages"))
+        paths.push(
+          Path.join(dir, "../../packages"))
+      end
+      // Then PONYPATH
+      for p in pony_paths.values() do
+        paths.push(p)
+      end
+      paths
+    end
+
+  fun _get_ponypath_entries(
+    vars: (Array[String val] val | None))
+    : Array[String val] val
+  =>
+    """Extract PONYPATH entries as an array of paths."""
+    match vars
+    | let env_vars: Array[String val] val =>
+      for pair in env_vars.values() do
+        if pair.at("PONYPATH=") then
+          let pony_path: String val =
+            pair.substring(ISize(9))
+          return Path.split_list(pony_path)
+        end
+      end
+    end
+    recover val Array[String val] end
+
+  fun _find_exe_directory(): (String val | None) =>
+    """
+    Find the directory containing the currently running executable
+    using the same platform-specific mechanism as ponyc.
+    """
+    let buf_size: USize = 4096
+    let buf = @ponyint_pool_alloc_size(buf_size)
+    if @get_compiler_exe_directory(buf, "pony-lint".cstring())
+    then
+      let result = recover val
+        String.copy_cstring(buf)
+      end
+      @ponyint_pool_free_size(buf_size, buf)
+      result
+    else
+      @ponyint_pool_free_size(buf_size, buf)
+      None
+    end

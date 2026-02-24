@@ -3,6 +3,11 @@ use "collections"
 use "files"
 use lint = ".."
 
+primitive \nodoc\ _NoASTRules
+  """Empty AST rules array for text-only linter tests."""
+  fun apply(): Array[lint.ASTRule val] val =>
+    recover val Array[lint.ASTRule val] end
+
 class \nodoc\ _TestLinterSingleFile is UnitTest
   """Linting a single file with a violation produces diagnostics."""
   fun name(): String => "Linter: single file with violation"
@@ -21,7 +26,8 @@ class \nodoc\ _TestLinterSingleFile is UnitTest
       let rules: Array[lint.TextRule val] val = recover val
         [as lint.TextRule val: lint.LineLength]
       end
-      let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
       let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, let exit_code) = linter.run(targets)
@@ -62,7 +68,8 @@ class \nodoc\ _TestLinterCleanFile is UnitTest
         r.push(lint.CommentSpacing)
         r
       end
-      let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
       let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, let exit_code) = linter.run(targets)
@@ -100,7 +107,8 @@ class \nodoc\ _TestLinterSkipsCorral is UnitTest
       let rules: Array[lint.TextRule val] val = recover val
         [as lint.TextRule val: lint.LineLength]
       end
-      let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
       let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
@@ -133,7 +141,8 @@ class \nodoc\ _TestLinterSuppressedDiagnosticsFiltered is UnitTest
       let rules: Array[lint.TextRule val] val = recover val
         [as lint.TextRule val: lint.LineLength]
       end
-      let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
       let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
@@ -170,7 +179,8 @@ class \nodoc\ _TestLinterDiagnosticsSorted is UnitTest
       let rules: Array[lint.TextRule val] val = recover val
         [as lint.TextRule val: lint.LineLength]
       end
-      let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
       let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
@@ -198,7 +208,8 @@ class \nodoc\ _TestLinterNonExistentTarget is UnitTest
     let rules: Array[lint.TextRule val] val = recover val
       [as lint.TextRule val: lint.LineLength]
     end
-    let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+    let registry = lint.RuleRegistry(
+      rules, _NoASTRules(), lint.LintConfig.default())
     let cwd = Path.cwd()
     let linter = lint.Linter(registry, FileAuth(auth), cwd)
     let targets = recover val

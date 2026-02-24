@@ -1,7 +1,6 @@
 use @ponyint_hash_block[USize](ptr: Pointer[None] tag, size: USize)
 use "collections"
 //use "debug"
-use "binarysearch"
 
 class val Module is (Hashable & Equatable[Module])
   let ast: AST val
@@ -29,14 +28,14 @@ class val Module is (Hashable & Equatable[Module])
     file = recover val String.copy_cstring(f_ptr) end
     len = source.len
     _hash = @ponyint_hash_block(source.m, len)
-  
+
   fun val create_position_index(): PositionIndex val =>
     PositionIndex.create(this)
 
   fun box hash(): USize =>
     """Return a hash of the file contents"""
     _hash
-    
+
   fun eq(that: box->Module): Bool =>
     """
     Two modules are considered equal if they are from the same file
@@ -93,7 +92,7 @@ class val PositionIndex
 
   fun find_node_at(line: USize, pos: USize): (AST box | None) =>
     let needle = _Entry.empty(line, pos)
-    match BinarySearch.apply[_Entry](needle, _index)
+    match _BinarySearch.apply[_Entry](needle, _index)
     | (let found_pos: USize, true) =>
       // exact match, return the first item
       try
@@ -230,7 +229,7 @@ class ref _PositionIndexBuilder is ASTVisitor
         end
       end
       let entry = _Entry(ast)
-      match BinarySearch.apply[_Entry](entry, _index)
+      match _BinarySearch.apply[_Entry](entry, _index)
       | (let pos: USize, true) =>
         try
           let existing = _index(pos)?
@@ -311,4 +310,3 @@ class ref _Entry is Comparable[_Entry]
     delegated to Position
     """
     start < other.start
-

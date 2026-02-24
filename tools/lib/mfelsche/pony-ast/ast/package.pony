@@ -109,4 +109,3 @@ struct _Package
 
   fun filename(): String val =>
     recover val String.copy_cstring(this._filename) end
-

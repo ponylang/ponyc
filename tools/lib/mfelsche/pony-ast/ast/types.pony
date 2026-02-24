@@ -29,4 +29,3 @@ primitive Types
         ast.ast_type_string()
       end
     end
-

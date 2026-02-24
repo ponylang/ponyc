@@ -26,7 +26,8 @@ class \nodoc\ _TestRegistryDefaultAllEnabled is UnitTest
     let rules: Array[lint.TextRule val] val = recover val
       [as lint.TextRule val: _DummyRule; _DummyRule2]
     end
-    let registry = lint.RuleRegistry(rules, lint.LintConfig.default())
+    let no_ast = recover val Array[lint.ASTRule val] end
+    let registry = lint.RuleRegistry(rules, no_ast, lint.LintConfig.default())
     h.assert_eq[USize](2, registry.enabled_text_rules().size())
     h.assert_eq[USize](2, registry.all_text_rules().size())
 
@@ -38,6 +39,7 @@ class \nodoc\ _TestRegistryDisableRule is UnitTest
     let rules: Array[lint.TextRule val] val = recover val
       [as lint.TextRule val: _DummyRule; _DummyRule2]
     end
+    let no_ast = recover val Array[lint.ASTRule val] end
     let disabled = recover val
       let s = Set[String]
       s.set("test/dummy")
@@ -45,7 +47,7 @@ class \nodoc\ _TestRegistryDisableRule is UnitTest
     end
     let config = lint.LintConfig(disabled,
       recover val Map[String, lint.RuleStatus] end)
-    let registry = lint.RuleRegistry(rules, config)
+    let registry = lint.RuleRegistry(rules, no_ast, config)
     h.assert_eq[USize](1, registry.enabled_text_rules().size())
     h.assert_eq[USize](2, registry.all_text_rules().size())
 
@@ -57,6 +59,7 @@ class \nodoc\ _TestRegistryDisableCategory is UnitTest
     let rules: Array[lint.TextRule val] val = recover val
       [as lint.TextRule val: _DummyRule; _DummyRule2]
     end
+    let no_ast = recover val Array[lint.ASTRule val] end
     let disabled = recover val
       let s = Set[String]
       s.set("test")
@@ -64,7 +67,7 @@ class \nodoc\ _TestRegistryDisableCategory is UnitTest
     end
     let config = lint.LintConfig(disabled,
       recover val Map[String, lint.RuleStatus] end)
-    let registry = lint.RuleRegistry(rules, config)
+    let registry = lint.RuleRegistry(rules, no_ast, config)
     h.assert_eq[USize](0, registry.enabled_text_rules().size())
     h.assert_eq[USize](2, registry.all_text_rules().size())
 
@@ -76,6 +79,7 @@ class \nodoc\ _TestRegistryAllAlwaysComplete is UnitTest
     let rules: Array[lint.TextRule val] val = recover val
       [as lint.TextRule val: _DummyRule; _DummyRule2]
     end
+    let no_ast = recover val Array[lint.ASTRule val] end
     let disabled = recover val
       let s = Set[String]
       s.set("test/dummy")
@@ -84,6 +88,32 @@ class \nodoc\ _TestRegistryAllAlwaysComplete is UnitTest
     end
     let config = lint.LintConfig(disabled,
       recover val Map[String, lint.RuleStatus] end)
-    let registry = lint.RuleRegistry(rules, config)
+    let registry = lint.RuleRegistry(rules, no_ast, config)
     h.assert_eq[USize](0, registry.enabled_text_rules().size())
     h.assert_eq[USize](2, registry.all_text_rules().size())
+
+class \nodoc\ _TestRegistryASTRules is UnitTest
+  """AST rules are filtered by configuration like text rules."""
+  fun name(): String => "Registry: AST rules filtered by config"
+
+  fun apply(h: TestHelper) =>
+    let no_text = recover val Array[lint.TextRule val] end
+    let ast_rules: Array[lint.ASTRule val] val = recover val
+      [as lint.ASTRule val: lint.TypeNaming; lint.MemberNaming]
+    end
+    let no_ast_disabled = lint.LintConfig.default()
+    let registry = lint.RuleRegistry(no_text, ast_rules, no_ast_disabled)
+    h.assert_eq[USize](2, registry.enabled_ast_rules().size())
+    h.assert_eq[USize](2, registry.all_ast_rules().size())
+
+    // Disable one rule
+    let disabled = recover val
+      let s = Set[String]
+      s.set("style/type-naming")
+      s
+    end
+    let config = lint.LintConfig(disabled,
+      recover val Map[String, lint.RuleStatus] end)
+    let registry2 = lint.RuleRegistry(no_text, ast_rules, config)
+    h.assert_eq[USize](1, registry2.enabled_ast_rules().size())
+    h.assert_eq[USize](2, registry2.all_ast_rules().size())

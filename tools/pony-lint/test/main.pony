@@ -1,4 +1,5 @@
 use "pony_test"
+use "pony_check"
 use lint = ".."
 
 actor \nodoc\ Main is TestList
@@ -60,6 +61,7 @@ actor \nodoc\ Main is TestList
     test(_TestRegistryDisableRule)
     test(_TestRegistryDisableCategory)
     test(_TestRegistryAllAlwaysComplete)
+    test(_TestRegistryASTRules)
 
     // LineLength tests
     test(_TestLineLengthExactly80)
@@ -101,3 +103,49 @@ actor \nodoc\ Main is TestList
     test(_TestLinterSuppressedDiagnosticsFiltered)
     test(_TestLinterDiagnosticsSorted)
     test(_TestLinterNonExistentTarget)
+
+    // NamingHelpers tests
+    test(_TestIsCamelCaseValid)
+    test(_TestIsCamelCaseInvalid)
+    test(_TestIsSnakeCaseValid)
+    test(_TestIsSnakeCaseInvalid)
+    test(_TestHasLoweredAcronym)
+    test(_TestToSnakeCase)
+    test(Property1UnitTest[String](
+      _TestCamelCaseValidProperty))
+    test(Property1UnitTest[String](
+      _TestCamelCaseInvalidProperty))
+    test(Property1UnitTest[String](
+      _TestSnakeCaseValidProperty))
+    test(Property1UnitTest[String](
+      _TestSnakeCaseInvalidProperty))
+
+    // TypeNaming tests
+    test(_TestTypeNamingClean)
+    test(_TestTypeNamingViolation)
+    test(_TestTypeNamingPrivate)
+    test(_TestTypeNamingAllEntityTypes)
+
+    // MemberNaming tests
+    test(_TestMemberNamingClean)
+    test(_TestMemberNamingMethodViolation)
+    test(_TestMemberNamingFieldViolation)
+    test(_TestMemberNamingDontcareSkipped)
+    test(_TestMemberNamingParamViolation)
+
+    // AcronymCasing tests
+    test(_TestAcronymCasingClean)
+    test(_TestAcronymCasingViolation)
+    test(_TestAcronymCasingHTTP)
+
+    // FileNaming tests
+    test(_TestFileNamingSingleEntity)
+    test(_TestFileNamingMatchingName)
+    test(_TestFileNamingTraitPrincipal)
+    test(_TestFileNamingMultipleEntitiesSkipped)
+    test(_TestFileNamingPrivateType)
+
+    // PackageNaming tests
+    test(_TestPackageNamingClean)
+    test(_TestPackageNamingViolation)
+    test(_TestPackageNamingSimpleName)

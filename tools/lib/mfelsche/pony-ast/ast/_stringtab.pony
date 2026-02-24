@@ -28,7 +28,5 @@ primitive StringTab
     let str_ptr = string.cpointer()
     recover
       let ptr = @stringtab_len(str_ptr, len)
-      String.from_cpointer(ptr, len) 
+      String.from_cpointer(ptr, len)
     end
-
-

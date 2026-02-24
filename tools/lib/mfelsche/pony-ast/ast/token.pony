@@ -537,5 +537,3 @@ primitive TokenIds
       or (token_id == this.tk_interface())
       or (token_id == this.tk_trait())
       or (token_id == this.tk_object())
-
-
