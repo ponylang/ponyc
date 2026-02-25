@@ -91,6 +91,8 @@ actor \nodoc\ Main is TestList
     test(_TestCommentSpacingNoSpace)
     test(_TestCommentSpacingTwoSpaces)
     test(_TestCommentSpacingInsideString)
+    test(_TestCommentSpacingDocstringURL)
+    test(_TestCommentSpacingAfterDocstring)
     test(_TestCommentSpacingAfterCode)
     test(_TestCommentSpacingAfterCodeBadSpacing)
     test(_TestCommentSpacingNoComment)
