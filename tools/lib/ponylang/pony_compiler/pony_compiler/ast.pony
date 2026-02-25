@@ -37,6 +37,8 @@ use @ast_childidx[Pointer[_AST] val](ast: Pointer[_AST] box, idx: USize)
 use @ast_childcount[USize](ast: Pointer[_AST] box)
 use @ast_data[Pointer[None]](ast: Pointer[_AST] box)
 use @ast_index[USize](ast: Pointer[_AST] box)
+use @ast_has_annotation[Bool](ast: Pointer[_AST] box, name: Pointer[U8] tag)
+use @ast_get_print[Pointer[U8] val](ast: Pointer[_AST] box)
 
 
 primitive _AST
@@ -165,6 +167,30 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       recover val String.copy_cpointer(ptr, len) end
     end
 
+  fun box has_annotation(name: String): Bool =>
+    """
+    Returns true if this AST node has the given annotation.
+    Used for checking `\nodoc\` and similar annotations.
+    """
+    @ast_has_annotation(raw, name.cstring())
+
+  fun box get_print(): String val =>
+    """
+    Returns the "print" representation of this AST node's token.
+    For keywords, returns the keyword string (e.g., "class", "iso").
+    For literals, returns the literal value.
+    For ephemeral/aliased tokens, returns "^" or "!".
+    """
+    recover val String.copy_cstring(@ast_get_print(raw)) end
+
+  fun box nice_name(): String val =>
+    """
+    Returns a human-readable name for TK_ID nodes. Uses the `data`
+    field (a human-readable alias) when available, otherwise falls
+    back to `ast_name`. Handles compiler-generated hygienic names.
+    """
+    recover val String.copy_cstring(@ast_nice_name(raw)) end
+
   fun box children(): Iterator[AST] =>
     // see ponyc/src/libponyc/ast/parser.c for the REORDER instructions
     match id()
@@ -213,7 +239,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
   fun box source_contents(): (String box | None) =>
     try
       let s = source()()?
-      String.from_cpointer(s.m, s.len)
+      // source_t.len includes the null terminator; exclude it.
+      String.from_cpointer(s.m, s.len - 1)
     end
 
   fun box package(): NullablePointer[_Package] =>
