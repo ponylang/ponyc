@@ -1,5 +1,6 @@
 // version.pony is generated from version.pony.in by CMake's configure_file().
-// CMake variables (like PONYC_VERSION enclosed in @ symbols) are replaced at configure time.
+// CMake variables (like PONYC_VERSION enclosed in @ symbols) are replaced
+// at configure time.
 // To modify version.pony, edit version.pony.in instead.
 
 primitive Version

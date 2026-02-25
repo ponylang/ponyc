@@ -40,7 +40,7 @@ struct SymStatus
   new ref create() => None
 
   fun box string(): String iso^ =>
-    recover iso 
+    recover iso
       String.create() .> append(match status
       | SymStati.none() => "NONE"
       | SymStati.nocase() => "NO_CASE"
@@ -87,7 +87,7 @@ class ref SymbolTable
     else
       AST(ptr')
     end
-    
+
   fun box size(): USize =>
     @symtab_size(ptr)
 
@@ -132,5 +132,3 @@ class _SymbolTableIter[S: SymbolTable #read] is Iterator[(String, AST)]
         String.copy_cstring(symbol.name)
       end
     (symbol_name, AST(symbol.def))
-
-

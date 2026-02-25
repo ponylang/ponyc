@@ -60,7 +60,7 @@ primitive DefinitionResolver
     | TokenIds.tk_paramref() => _data_ast(ast)
     // functions, behaviours and constructors
     // these don't have a reference to the definition
-    // in their data field - but we can look them up 
+    // in their data field - but we can look them up
     // via their types symbol table
     | TokenIds.tk_funref() | TokenIds.tk_beref()
     | TokenIds.tk_newref() | TokenIds.tk_newberef()

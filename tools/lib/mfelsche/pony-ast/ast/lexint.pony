@@ -6,7 +6,7 @@ struct _LexIntT
   Compiler internal struct used for parsing numbers from literals in the source code.
   Both for floats, integers.
   For formats hexadecimal, binary and decimal
-  """  
+  """
   let low: U64 = 0
   let high: U64 = 0
 
@@ -33,4 +33,3 @@ struct _LexIntT
 
   fun ref f64(): F64 =>
     @lexint_double(this)
-

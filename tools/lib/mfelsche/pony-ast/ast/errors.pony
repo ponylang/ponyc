@@ -155,4 +155,3 @@ struct _Typecheck
     frame = NullablePointer[_TypecheckFrame].none()
     stats = _TypecheckStats.create()
     errors = NullablePointer[_Errors].none()
-
