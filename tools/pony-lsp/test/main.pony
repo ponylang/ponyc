@@ -1,7 +1,7 @@
 use "pony_test"
 use "buffered"
 use "files"
-use ast = "ast"
+use ast = "pony_compiler"
 use ".."
 
 actor Main is TestList

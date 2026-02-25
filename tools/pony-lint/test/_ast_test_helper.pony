@@ -1,6 +1,6 @@
 use "files"
 use "pony_test"
-use ast = "ast"
+use ast = "pony_compiler"
 use lint = ".."
 
 primitive \nodoc\ _ASTTestHelper

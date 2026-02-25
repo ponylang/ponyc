@@ -1,4 +1,4 @@
-use ast = "ast"
+use ast = "pony_compiler"
 
 primitive TypeNaming is ASTRule
   """

@@ -73,7 +73,7 @@ end
 ```
 """
 use ".."
-use "ast"
+use "pony_compiler"
 
 class val EntityInfo
   """

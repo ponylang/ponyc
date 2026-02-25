@@ -5,9 +5,9 @@ This package implements the (Language Server Protocol Spec
 v3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/)
 for Pony.
 
-It is using the `ast` library to parse and type-check pony projects opened in
-the editor, using the same code as the official compiler `ponyc`, so the
-diagnostics and code analysis provided will always be in sync with what the
+It is using the `pony_compiler` library to parse and type-check pony projects
+opened in the editor, using the same code as the official compiler `ponyc`, so
+the diagnostics and code analysis provided will always be in sync with what the
 `ponyc` compiler provides.
 
 ## Package Contents
@@ -21,7 +21,7 @@ actor handling the workspace for the given request.
 
 - [`Channel`](lsp-Channel.md) defining the necessary channel behaviours and [`Stdio`](lsp-Stdio.md) being the implementation for Standard-IO based communication.
 - [`PonyCompiler`](lsp-PonyCompiler.md) as an actor whose main job is to expose
-  the `ast` lib functionality of parsing and typechecking a pony project and to
+  the `pony_compiler` library functionality of parsing and typechecking a pony project and to
   linearize all requests as the underlying libponyc is not 100% thread-safe.
 
 ### `lsp/workspace`
@@ -35,11 +35,10 @@ client requests in the [`PackageState`](lsp-workspace-PackageState.md) and
 
 """
 use "path:../lib/ponylang/peg/"
-use "path:../lib/mfelsche/pony-ast/"
-use "path:../lib/mfelsche/pony-binarysearch/"
+use "path:../lib/ponylang/pony_compiler/"
 use "path:../lib/mfelsche/pony-immutable-json/"
 use "files"
-use "ast"
+use "pony_compiler"
 
 actor Main
   new create(env: Env) =>

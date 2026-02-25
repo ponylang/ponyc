@@ -6,7 +6,7 @@ use "backpressure"
 use "process"
 use "random"
 use "debug"
-use "ast"
+use "pony_compiler"
 
 
 actor DocumentProtocol

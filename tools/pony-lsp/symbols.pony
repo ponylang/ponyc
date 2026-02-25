@@ -1,6 +1,6 @@
 use "assert"
 
-use "ast"
+use "pony_compiler"
 use "immutable-json"
 
 primitive SymbolKinds

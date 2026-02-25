@@ -5,7 +5,7 @@ use "files"
 use "backpressure"
 use "process"
 use "debug"
-use "ast"
+use "pony_compiler"
 
 
 actor LanguageProtocol

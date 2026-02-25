@@ -1,5 +1,5 @@
 use "collections"
-use ast = "ast"
+use ast = "pony_compiler"
 
 class ref _ASTDispatcher is ast.ASTVisitor
   """

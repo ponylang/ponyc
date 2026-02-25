@@ -2,7 +2,7 @@ use "cli"
 use "collections"
 use "files"
 use "path:../lib/ponylang/json-ng/"
-use "path:../lib/mfelsche/pony-ast/"
+use "path:../lib/ponylang/pony_compiler/"
 
 use @get_compiler_exe_directory[Bool](
   output_path: Pointer[U8] tag,

@@ -21,8 +21,8 @@ sorted diagnostics. The processing pipeline is:
 **AST phase:**
 
 6. Package grouping -- group discovered files by directory.
-7. AST compilation -- compile each package at `PassParse` via pony-ast to
-   obtain the parsed syntax tree.
+7. AST compilation -- compile each package at `PassParse` via pony_compiler
+   to obtain the parsed syntax tree.
 8. AST dispatch -- walk each module's AST, dispatching nodes to matching
    `ASTRule` implementations via `_ASTDispatcher`.
 9. Module-level rules -- run file-naming checks using entity info collected
