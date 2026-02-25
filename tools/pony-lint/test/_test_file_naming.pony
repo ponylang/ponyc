@@ -1,5 +1,5 @@
 use "pony_test"
-use ast = "ast"
+use ast = "pony_compiler"
 use lint = ".."
 
 class \nodoc\ _TestFileNamingSingleEntity is UnitTest

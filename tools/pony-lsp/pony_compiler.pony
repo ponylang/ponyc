@@ -1,4 +1,4 @@
-use "ast"
+use "pony_compiler"
 use "term"
 use "cli"
 use "files"
@@ -11,7 +11,7 @@ use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 
 actor PonyCompiler
   """
-  Actor wrapping the pony-ast `Compiler` primitive to serialize compilation
+  Actor wrapping the pony_compiler `Compiler` primitive to serialize compilation
   requests (libponyc is not fully thread-safe).
 
   Determines the ponyc standard library location automatically by finding the

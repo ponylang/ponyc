@@ -1,12 +1,12 @@
-use ast = "ast"
+use ast = "pony_compiler"
 
 trait val ASTRule
   """
   An AST-based lint rule that checks parsed syntax tree nodes.
 
   Unlike `TextRule` which examines raw source text, AST rules operate on the
-  parsed syntax tree produced by pony-ast. Each rule declares which token types
-  it is interested in via `node_filter()`, and the dispatcher only calls
+  parsed syntax tree produced by pony_compiler. Each rule declares which token
+  types it is interested in via `node_filter()`, and the dispatcher only calls
   `check()` for matching nodes.
 
   Rules are stateless primitives. Each receives a single AST node and the

@@ -260,13 +260,13 @@ test-validate-grammar: all
 
 # TODO STA: --path entries are temporary until a ponyc bug is fixed.
 test-pony-lsp: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/peg --path ../../tools/lib/mfelsche/pony-ast/ --path ../../tools/lib/mfelsche/pony-binarysearch/ --path ../../tools/lib/mfelsche/pony-immutable-json/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/peg --path ../../tools/lib/ponylang/pony_compiler/ --path ../../tools/lib/mfelsche/pony-immutable-json/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
 
 test-pony-lint: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/mfelsche/pony-ast/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
 lint-pony-lint: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/mfelsche/pony-ast/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && ./pony-lint-ci ../../tools/pony-lint/
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && ./pony-lint-ci ../../tools/pony-lint/
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=

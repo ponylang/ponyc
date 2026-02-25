@@ -2,7 +2,7 @@ use "collections"
 use "files"
 use "itertools"
 
-use "ast"
+use "pony_compiler"
 
 use ".."
 

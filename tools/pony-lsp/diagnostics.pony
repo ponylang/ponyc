@@ -1,5 +1,5 @@
 use "immutable-json"
-use "ast"
+use "pony_compiler"
 
 class ref Diagnostic
     """

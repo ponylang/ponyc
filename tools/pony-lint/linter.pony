@@ -1,6 +1,6 @@
 use "collections"
 use "files"
-use ast = "ast"
+use ast = "pony_compiler"
 
 class val Linter
   """
@@ -12,7 +12,7 @@ class val Linter
   1. **Text phase** — for each discovered .pony file, load the source, parse
      suppressions, and run enabled text rules with suppression filtering.
   2. **AST phase** — group files by directory (package), compile each package
-     at PassParse via pony-ast, then dispatch enabled AST rules against the
+     at PassParse via pony_compiler, then dispatch enabled AST rules against the
      parsed syntax tree. Module-level and package-level rules (file-naming,
      package-naming) run after the per-node dispatch.
 

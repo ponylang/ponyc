@@ -2,7 +2,7 @@ use ".."
 use "collections"
 use "files"
 
-use "ast"
+use "pony_compiler"
 use "immutable-json"
 
 actor WorkspaceManager
