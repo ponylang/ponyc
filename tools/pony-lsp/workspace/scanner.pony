@@ -3,7 +3,7 @@ use "assert"
 use "collections"
 use "files"
 use "itertools"
-use "immutable-json"
+use "json"
 
 class WorkspaceScanner
   let _channel: Channel
@@ -23,10 +23,14 @@ class WorkspaceScanner
     _channel.log("corral.json @ " + corral_json_path.path)
     let corral_json_file = OpenFile(corral_json_path) as File
     let corral_json_str = corral_json_file.read_string(corral_json_file.size())
-    let corral_json = JsonDoc .> parse(consume corral_json_str)?.data as JsonObject
+    let corral_json =
+      match JsonParser.parse(consume corral_json_str)
+      | let obj: JsonObject => obj
+      else error
+      end
 
     // extract packages
-    let packages = JsonPath("$.packages.*", corral_json)?
+    let packages = JsonPathParser.compile("$.packages.*")?.query(corral_json)
     let package_paths = recover trn Set[String].create(2) end
     for package in packages.values() do
       let pp =
@@ -41,7 +45,7 @@ class WorkspaceScanner
     end
 
     // extract dependencies, also transitive ones
-    let locators = JsonPath("$.deps.*.locator", corral_json)?
+    let locators = JsonPathParser.compile("$.deps.*.locator")?.query(corral_json)
     let dependencies = recover trn Set[String].create(4) end
     for locator in locators.values() do
       try

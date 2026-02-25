@@ -1,4 +1,4 @@
-use "immutable-json"
+use "json"
 use "pony_compiler"
 
 class ref Diagnostic
@@ -25,8 +25,8 @@ class ref Diagnostic
         this.message = err.msg
         this.related_information = Array[DiagnosticRelatedInformation].create(err.infos.size())
         for info in err.infos.values() do
-            let file_path = 
-                try 
+            let file_path =
+                try
                     info.file as String
                 else
                     try
@@ -37,7 +37,7 @@ class ref Diagnostic
                 end
             let file = Uris.from_path(file_path)
             let location = LspLocation.create(
-                file, 
+                file,
                 LspPositionRange.from_single_pos(
                     LspPosition.from_ast_pos(info.position)
                 )
@@ -47,21 +47,21 @@ class ref Diagnostic
             )
         end
 
-    fun to_json(): JsonType =>
-        var builder = Obj("range", this.range.to_json())(
-            "severity", this.severity)(
-            "source", "pony-lsp")(
-            "message", this.message)
+    fun to_json(): JsonValue =>
+        var obj = JsonObject
+          .update("range", this.range.to_json())
+          .update("severity", this.severity)
+          .update("source", "pony-lsp")
+          .update("message", this.message)
         if this.related_information.size() > 0 then
-            var arr = Arr
+            var arr = JsonArray
             for rel_info in this.related_information.values() do
-                arr = arr(rel_info.to_json())
+                arr = arr.push(rel_info.to_json())
             end
-            builder = builder("relatedInformation", arr)
+            obj = obj.update("relatedInformation", arr)
         end
-        builder.build()
-            
-            
+        obj
+
 
 primitive DiagnosticSeverities
     fun tag err(): I64 => 1
@@ -72,11 +72,12 @@ primitive DiagnosticSeverities
 class val DiagnosticRelatedInformation
     let location: LspLocation
     let message: String
-    
+
     new create(location': LspLocation, message': String) =>
         location = location'
         message = message'
 
-    fun to_json(): JsonType =>
-        Obj("location", this.location.to_json())(
-            "message", this.message).build()
+    fun to_json(): JsonValue =>
+        JsonObject
+          .update("location", this.location.to_json())
+          .update("message", this.message)

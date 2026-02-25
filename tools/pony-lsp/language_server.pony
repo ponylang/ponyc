@@ -1,6 +1,6 @@
 use "collections"
 use "files"
-use "immutable-json"
+use "json"
 use "workspace"
 
 primitive _Uninitialized is Equatable[_LspState]
@@ -44,10 +44,9 @@ actor LanguageServer is Notifier
     _channel.log("PonyLSP Server ready")
 
   fun tag _get_document_uri(
-    params: (JsonObject | JsonArray | None),
-    query: String = "$.textDocument.uri"): String ?
+    params: (JsonObject | JsonArray | None)): String ?
   =>
-    JsonPath(query, params)?(0)? as String
+    JsonNav(params)("textDocument")("uri").as_string()?
 
   be handle_parse_error(err: ParseError val) =>
     this._channel.log("Parse Error: " + err.string(), Warning)
@@ -197,12 +196,12 @@ actor LanguageServer is Notifier
       // extract server_options from "initializationOptions"
       let server_options =
         try
-          ServerOptions.from_json(params.data("initializationOptions")? as JsonObject)
+          ServerOptions.from_json(params("initializationOptions")? as JsonObject)
         end
       // extract workspace folders, rootUri, rootPath in that order:
-      let found_workspace: JsonType =
+      let found_workspace: JsonValue =
         try
-          JsonPath("$['workspaceFolders', 'rootUri', 'rootPath']", params)?(0)?
+          JsonPathParser.compile("$['workspaceFolders','rootUri','rootPath']")?.query(params)(0)?
         else
           None
         end
@@ -219,10 +218,11 @@ actor LanguageServer is Notifier
             end
           end
       | let workspace_arr: JsonArray =>
-        for workspace_obj in workspace_arr.data.values() do
+        for workspace_obj in workspace_arr.values() do
           try
-            let name = JsonPath("$.name", workspace_obj)?(0)? as String
-            let uri = JsonPath("$.uri", workspace_obj)?(0)? as String
+            let obj = workspace_obj as JsonObject
+            let name = obj("name")? as String
+            let uri = obj("uri")? as String
             this._channel.log("Scanning workspace " + uri)
             for pony_workspace in scanner.scan(this._file_auth, Uris.to_path(uri), name).values() do
               let mgr = WorkspaceManager.create(pony_workspace, this._file_auth, this._channel, this._compiler)
@@ -236,26 +236,22 @@ actor LanguageServer is Notifier
       this._channel.send(
         ResponseMessage.create(
           msg.id,
-          Obj(
-            "capabilities", Obj(
+          JsonObject
+            .update("capabilities", JsonObject
               // vscode only supports UTF-16, but pony positions are only counting bytes
-              // "positionEncoding", "utf-8")(
+              // .update("positionEncoding", "utf-8")
               // we can handle hover requests
-              "hoverProvider", true)(
-              "textDocumentSync", Obj(
-                "change", I64(0))(
-                "openClose", true)(
-                "save", Obj("includeText", false))
-              )(
-              "definitionProvider", true)(
-              "documentSymbolProvider", true
-              ).build()
-          )(
-            "serverInfo", Obj(
-              "name", "Pony Language Server")(
-              "version", PonyLspVersion.version_string()
-            ).build()
-          ).build()
+              .update("hoverProvider", true)
+              .update("textDocumentSync", JsonObject
+                .update("change", I64(0))
+                .update("openClose", true)
+                .update("save", JsonObject
+                  .update("includeText", false)))
+              .update("definitionProvider", true)
+              .update("documentSymbolProvider", true))
+            .update("serverInfo", JsonObject
+              .update("name", "Pony Language Server")
+              .update("version", PonyLspVersion.version_string()))
         )
       )
     end

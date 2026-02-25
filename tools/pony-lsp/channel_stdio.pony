@@ -1,4 +1,4 @@
-use "immutable-json"
+use "json"
 
 
 class InputNotifier is InputNotify
@@ -49,7 +49,9 @@ actor Stdio is Channel
     send(
       Notification(
         "window/logMessage",
-        Obj("type", message_type.apply())("message", data).build()
+        JsonObject
+          .update("type", message_type.apply())
+          .update("message", data)
       )
     )
   be dispose() =>

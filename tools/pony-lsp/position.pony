@@ -1,4 +1,4 @@
-use "immutable-json"
+use "json"
 use "pony_compiler"
 
 class val LspPositionRange
@@ -22,10 +22,10 @@ class val LspPositionRange
         _start = start_pos
         _end = end_pos
 
-    fun to_json(): JsonType =>
-        Obj("start", this._start.to_json())(
-            "end", this._end.to_json()
-        ).build()
+    fun to_json(): JsonValue =>
+        JsonObject
+          .update("start", this._start.to_json())
+          .update("end", this._end.to_json())
 
 class val LspPosition
     """
@@ -54,9 +54,10 @@ class val LspPosition
         _line = (position.line() - 1).max(0)
         _character = position.column().max(0)  // Don't subtract 1 for end position
 
-    fun to_json(): JsonType =>
-        Obj("line", this._line.i64())(
-            "character", this._character.i64()).build()
+    fun to_json(): JsonValue =>
+        JsonObject
+          .update("line", this._line.i64())
+          .update("character", this._character.i64())
 
 class val LspLocation
     """
@@ -69,5 +70,7 @@ class val LspLocation
         uri = uri'
         range = range'
 
-    fun to_json(): JsonType =>
-        Obj("uri", uri)("range", this.range.to_json()).build()
+    fun to_json(): JsonValue =>
+        JsonObject
+          .update("uri", uri)
+          .update("range", this.range.to_json())

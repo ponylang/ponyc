@@ -1,7 +1,7 @@
 use "collections"
 use "files"
 use "itertools"
-use "immutable-json"
+use "json"
 
 class val WorkspaceData
   """
@@ -46,21 +46,20 @@ class val WorkspaceData
     _min_package_paths_len = min
 
   fun debug(): String =>
-    var dp_arr = Arr.create()
+    var dp_arr = JsonArray
     for dp in dependencies.values() do
-      dp_arr = dp_arr(dp)
+      dp_arr = dp_arr.push(dp)
     end
-    var pp_arr = Arr.create()
+    var pp_arr = JsonArray
     for pp in package_paths.values() do
-      pp_arr = pp_arr(pp)
+      pp_arr = pp_arr.push(pp)
     end
-    Obj("name", name)(
-      "folder", folder.path
-    )(
-      "dependencies", dp_arr
-    )(
-      "packages", pp_arr
-    ).build().string()
+    JsonObject
+      .update("name", name)
+      .update("folder", folder.path)
+      .update("dependencies", dp_arr)
+      .update("packages", pp_arr)
+      .string()
 
   fun find_package(document_path: String): (FilePath | None) =>
     var doc_path: String val = document_path

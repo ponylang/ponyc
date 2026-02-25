@@ -5,7 +5,7 @@
 // be the same as the one passed in the initialize parameters. The command line argument to use 
 // is --clientProcessId.
 
-use "immutable-json"
+use "json"
 use "collections"
 use "buffered"
 
@@ -107,8 +107,8 @@ class ref BaseProtocol
         return NeedMore
       end
     let message_json: JsonObject =
-      try
-        JsonDoc.>parse(String.from_array(content))?.data as JsonObject
+      match JsonParser.parse(String.from_array(content))
+      | let obj: JsonObject => obj
       else
         // syntactically invalid json or not an object
         return InvalidJson
@@ -117,10 +117,10 @@ class ref BaseProtocol
 
 
   fun ref parse_message(json: JsonObject): (Message val | ParseError) =>
-    if json.data.contains("method") then
+    if json.contains("method") then
       let method: String =
         try
-          match json.data("method")?
+          match json("method")?
           | let s: String => s
           else
             return InvalidMessage("Invalid method. Not a string.")
@@ -131,7 +131,7 @@ class ref BaseProtocol
       // params are optional, but if present must be object or array
       let params: (JsonObject | JsonArray | None) =
         try
-          match json.data("params")?
+          match json("params")?
           | let obj: JsonObject => obj
           | let arr: JsonArray => arr
           else
@@ -140,11 +140,11 @@ class ref BaseProtocol
         else
           None
         end
-      if json.data.contains("id") then
+      if json.contains("id") then
         // request
         let id: RequestId =
           try
-            match json.data("id")?
+            match json("id")?
             | let id: String => id
             | let id: I64 => id
             else
@@ -160,13 +160,13 @@ class ref BaseProtocol
       end
     else
       // response
-      let result: JsonType =
+      let result: JsonValue =
         try
-          json.data("result")?
+          json("result")?
         end
       let id: (RequestId | None) =
         try
-          match json.data("id")?
+          match json("id")?
           | let id: String => id
           | let id: I64 => id
           else
@@ -177,7 +177,7 @@ class ref BaseProtocol
         end
       let response_error: (ResponseError val | None) =
         try
-          match json.data("error")?
+          match json("error")?
           | let err: JsonObject =>
             // parse ResponseError object
             match parse_response_error(err)
@@ -197,7 +197,7 @@ class ref BaseProtocol
   fun parse_response_error(json: JsonObject): (ResponseError val | ParseError) =>
       let code: I64 =
         try
-          match json.data("code")?
+          match json("code")?
           | let c: I64 => c
           else
             return InvalidMessage("Invalid ResponseError code. Not an integer.")
@@ -207,7 +207,7 @@ class ref BaseProtocol
         end
       let message: String =
         try
-          match json.data("message")?
+          match json("message")?
           | let m: String => m
           else
             return InvalidMessage("Invalid ResponseError message. Not a string.")
@@ -215,5 +215,5 @@ class ref BaseProtocol
         else
           return InvalidMessage("Missing ResponseError message")
         end
-      let data: JsonType = try json.data("data")? end
+      let data: JsonValue = try json("data")? end
       ResponseError(code, message, data)

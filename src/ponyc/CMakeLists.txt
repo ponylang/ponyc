@@ -15,6 +15,11 @@ target_link_directories(ponyc
 )
 
 if (MSVC)
+    # Match the default Linux stack size (8MB). The reachability pass in
+    # libponyc walks AST trees recursively and can exceed the Windows
+    # default of 1MB on large programs.
+    target_link_options(ponyc PRIVATE "/STACK:8388608")
+
     target_link_libraries(ponyc
         PRIVATE libponyc
         PRIVATE libponyrt
