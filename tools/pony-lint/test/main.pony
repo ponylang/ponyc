@@ -143,6 +143,7 @@ actor \nodoc\ Main is TestList
     test(_TestFileNamingMatchingName)
     test(_TestFileNamingTraitPrincipal)
     test(_TestFileNamingMultipleEntitiesSkipped)
+    test(_TestFileNamingTestPonyMain)
     test(_TestFileNamingPrivateType)
 
     // PackageNaming tests
