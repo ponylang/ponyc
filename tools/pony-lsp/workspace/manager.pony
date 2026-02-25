@@ -3,7 +3,7 @@ use "collections"
 use "files"
 
 use "pony_compiler"
-use "immutable-json"
+use "json"
 
 actor WorkspaceManager
   """
@@ -72,7 +72,7 @@ actor WorkspaceManager
   be done_compiling(program_dir: FilePath, result: (Program val | Array[Error val] val), run: USize) =>
     this._channel.log("done compiling " + program_dir.path)
     // group errors by file
-    let errors_by_file = Map[String, Array[JsonType] iso].create(4)
+    let errors_by_file = Map[String, Array[JsonValue] iso].create(4)
     // pre-fill with opened files
     // if we have no errors for them, they will get their errors cleared
     for pkg in this._packages.values() do
@@ -100,9 +100,9 @@ actor WorkspaceManager
         errors_by_file.upsert(
           err.file.string(),
           recover iso
-            [as JsonType: diagnostic.to_json()]
+            [as JsonValue: diagnostic.to_json()]
           end,
-          {(current: Array[JsonType] iso, provided: Array[JsonType] iso) =>
+          {(current: Array[JsonValue] iso, provided: Array[JsonValue] iso) =>
             current.append(consume provided)
             consume current
           }
@@ -115,9 +115,15 @@ actor WorkspaceManager
     for file in errors_by_file.keys() do
       try
         let file_errors = recover val errors_by_file.remove(file)?._2 end
+        var diagnostics_arr = JsonArray
+        for err_json in file_errors.values() do
+          diagnostics_arr = diagnostics_arr.push(err_json)
+        end
         let msg = Notification.create(
           "textDocument/publishDiagnostics",
-          Obj("uri", Uris.from_path(file))("diagnostics", JsonArray(file_errors)).build()
+          JsonObject
+            .update("uri", Uris.from_path(file))
+            .update("diagnostics", diagnostics_arr)
         )
         this._channel.send(msg)
       end
@@ -252,8 +258,9 @@ actor WorkspaceManager
     Sends error response and returns None if invalid.
     """
     try
-      let l = JsonPath("$.position.line", request.params)?(0)? as I64 // 0-based
-      let c = JsonPath("$.position.character", request.params)?(0)? as I64 // 0-based
+      let nav = JsonNav(request.params)("position")
+      let l = nav("line").as_i64()? // 0-based
+      let c = nav("character").as_i64()? // 0-based
       (l, c)
     else
       _channel.send(
@@ -299,14 +306,13 @@ actor WorkspaceManager
       None
     end
 
-  fun _build_hover_response(hover_text: String, ast: AST box): JsonType =>
+  fun _build_hover_response(hover_text: String, ast: AST box): JsonValue =>
     """
     Build the LSP Hover response JSON from hover text and AST node.
     """
-    let hover_contents = Obj(
-      "kind", "markdown")(
-      "value", hover_text
-    ).build()
+    let hover_contents = JsonObject
+      .update("kind", "markdown")
+      .update("value", hover_text)
 
     // For declarations, use identifier span; for references, use the whole node
     let highlight_node = _get_node_for_highlight(ast)
@@ -316,10 +322,9 @@ actor WorkspaceManager
       LspPosition.from_ast_pos_end(end_pos)
     )
 
-    Obj(
-      "contents", hover_contents)(
-      "range", hover_range.to_json()
-    ).build()
+    JsonObject
+      .update("contents", hover_contents)
+      .update("range", hover_range.to_json())
 
   be goto_definition(document_uri: String, request: RequestMessage val) =>
     """
@@ -330,8 +335,9 @@ actor WorkspaceManager
     // extract the source code position
     (let line, let column) =
       try
-        let l = JsonPath("$.position.line", request.params)?(0)? as I64 // 0-based
-        let c = JsonPath("$.position.character", request.params)?(0)? as I64 // 0-based
+        let nav = JsonNav(request.params)("position")
+        let l = nav("line").as_i64()? // 0-based
+        let c = nav("character").as_i64()? // 0-based
         (l, c)
       else
         _channel.send(
@@ -357,14 +363,14 @@ actor WorkspaceManager
               match index.find_node_at(USize.from[I64](line + 1), USize.from[I64](column + 1)) // pony lines and characters are 1-based, lsp are 0-based
               | let ast: AST box =>
                 this._channel.log(ast.debug())
-                var json_builder = Arr.create()
+                var json_arr = JsonArray
                 // iterate through all found definitions
                 for ast_definition in ast.definitions().values() do
                   // get position of the found definition
                   (let start_pos, let end_pos) = ast_definition.span()
                   try
                     // append new location
-                    json_builder = json_builder(
+                    json_arr = json_arr.push(
                       LspLocation(
                         Uris.from_path(ast_definition.source_file() as String val),
                         LspPositionRange(
@@ -377,7 +383,7 @@ actor WorkspaceManager
                     this._channel.log("No source file found for definition: " + ast_definition.debug())
                   end
                 end
-                this._channel.send(ResponseMessage(request.id, json_builder.build()))
+                this._channel.send(ResponseMessage(request.id, json_arr))
                 return // exit, otherwise we send a null resul
               | None =>
                 this._channel.log("No AST node found @ " + line.string() + ":" + column.string())
@@ -408,11 +414,11 @@ actor WorkspaceManager
           match pkg_state.get_document(document_path)
           | let doc: DocumentState =>
             let symbols = doc.document_symbols()
-            var json_builder = Arr
+            var json_arr = JsonArray
             for symbol in symbols.values() do
-              json_builder = json_builder(symbol.to_json())
+              json_arr = json_arr.push(symbol.to_json())
             end
-            this._channel.send((ResponseMessage(request.id, json_builder.build())))
+            this._channel.send(ResponseMessage(request.id, json_arr))
             return
           | None =>
             this._channel.log("No document state available for " + document_path)

@@ -1,4 +1,4 @@
-use "immutable-json"
+use "json"
 use "files"
 
 class val ServerOptions
@@ -8,12 +8,12 @@ class val ServerOptions
   let pony_path: (Array[String] val | None)
 
   new val from_json(json: JsonObject) =>
-    pony_path = 
+    pony_path =
       try
         recover val
-          Path.split_list(json.data("PONYPATH")? as String val)
+          Path.split_list(json("PONYPATH")? as String val)
         end
       end
-    
+
   new val default() =>
     pony_path = None

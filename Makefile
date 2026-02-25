@@ -260,7 +260,7 @@ test-validate-grammar: all
 
 # TODO STA: --path entries are temporary until a ponyc bug is fixed.
 test-pony-lsp: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/peg --path ../../tools/lib/ponylang/pony_compiler/ --path ../../tools/lib/mfelsche/pony-immutable-json/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/peg --path ../../tools/lib/ponylang/pony_compiler/ --path ../../tools/lib/ponylang/json-ng/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
 
 test-pony-lint: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential

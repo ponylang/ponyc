@@ -1,11 +1,10 @@
-use "immutable-json"
-use "collections"
+use "json"
 
 trait Message is Stringable
   fun json(): JsonObject
 
   fun string(): String iso^ =>
-    let content = this.json().string()
+    let content: String val = this.json().string()
     let size_str: String val = content.size().string()
       recover iso
         String.create(content.size() + size_str.size() + 20)
@@ -54,21 +53,16 @@ class val RequestMessage is Message
 
 
   fun json(): JsonObject =>
-    JsonObject(
-      recover val
-        let m = Map[String, JsonType](4)
-          .>update("jsonrpc", "2.0")
-          .>update("id", id)
-          .>update("method", method)
-        match this.params
-        | let obj: JsonObject =>
-          m.update("params", obj)
-        | let arr: JsonArray =>
-          m.update("params", arr)
-        end
-        consume m
-      end
-    )
+    let obj = JsonObject
+      .update("jsonrpc", "2.0")
+      .update("id", id)
+      .update("method", method)
+    match this.params
+    | let p: (JsonObject | JsonArray) =>
+      obj.update("params", p)
+    else
+      obj
+    end
 
 class val Notification is Message
 
@@ -83,18 +77,19 @@ class val Notification is Message
     params = params'
 
   fun json(): JsonObject =>
-    Obj("jsonrpc", "2.0")(
-        "method", method)(
-        "params", this.params).build()
+    JsonObject
+      .update("jsonrpc", "2.0")
+      .update("method", method)
+      .update("params", this.params)
 
 class val ResponseMessage is Message
   let id: (RequestId | None)
-  let result: JsonType
+  let result: JsonValue
   let _error: (ResponseError val | None)
 
   new val create(
     id': (RequestId | None),
-    result': JsonType,
+    result': JsonValue,
     error': (ResponseError val | None) = None)
   =>
     """
@@ -105,45 +100,36 @@ class val ResponseMessage is Message
     _error = error'
 
   fun json(): JsonObject =>
-    JsonObject(
-      recover val
-        let m = Map[String, JsonType](3)
-          .>update("jsonrpc", "2.0")
-          .>update("id", id)
-        match this._error
-        | let r: ResponseError val =>
-          m.update("error", r.json())
-        | None =>
-          m.update("result", result)
-        end
-        m
-      end
-    )
+    let obj = JsonObject
+      .update("jsonrpc", "2.0")
+      .update("id", id)
+    match this._error
+    | let r: ResponseError val =>
+      obj.update("error", r.json())
+    | None =>
+      obj.update("result", result)
+    end
 
 
 class val ResponseError
   let code: I64
   let message: String
-  let data: JsonType
+  let data: JsonValue
 
   new val create(
     code': I64,
     message': String,
-    data': JsonType = None)
+    data': JsonValue = None)
   =>
     code = code'
     message = message'
     data = data'
 
   fun json(): JsonObject =>
-    JsonObject(
-      recover val
-        Map[String, JsonType](3)
-          .>update("code", code)
-          .>update("message", message)
-          .>update("data", data)
-      end
-    )
+    JsonObject
+      .update("code", code)
+      .update("message", message)
+      .update("data", data)
 
 
 primitive ErrorCodes

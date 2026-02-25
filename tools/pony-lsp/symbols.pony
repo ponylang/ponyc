@@ -1,7 +1,7 @@
 use "assert"
 
 use "pony_compiler"
-use "immutable-json"
+use "json"
 
 primitive SymbolKinds
   fun tag file(): I64 => 1
@@ -83,31 +83,31 @@ class DocumentSymbol
   fun ref push_child(child: DocumentSymbol) =>
     this.children.push(child)
 
-  fun to_json(): JsonType =>
-    var builder = Obj(
-        "name", this.name)(
-        "kind", this.kind)(
-        "range", this.range.to_json())(
-        "selectionRange", this.range.to_json())
+  fun to_json(): JsonValue =>
+    var obj = JsonObject
+      .update("name", this.name)
+      .update("kind", this.kind)
+      .update("range", this.range.to_json())
+      .update("selectionRange", this.range.to_json())
     if this.detail isnt None then
-        builder = builder("detail", detail)
+        obj = obj.update("detail", detail)
     end
     try
-        var json_tags = Arr
+        var json_tags = JsonArray
         for tagg in (this.tags as this->Array[I64]).values() do
-            json_tags = json_tags(tagg)
+            json_tags = json_tags.push(tagg)
         end
-        builder = builder("tags", json_tags)
+        obj = obj.update("tags", json_tags)
     end
     if this.children.size() > 0 then
-      var json_children = Arr
+      var json_children = JsonArray
       for child in this.children.values() do
-        json_children = json_children(child.to_json())
+        json_children = json_children.push(child.to_json())
       end
-      builder = builder("children", json_children)
+      obj = obj.update("children", json_children)
     end
 
-    builder.build()
+    obj
 
 primitive DocumentSymbols
   fun tag from_module(module: Module, channel: Channel): Array[DocumentSymbol] ref =>
