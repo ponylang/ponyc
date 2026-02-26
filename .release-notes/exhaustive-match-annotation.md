@@ -17,4 +17,4 @@ primitive Foo
 
 The above produces: `match marked \exhaustive\ is not exhaustive`
 
-Adding the missing case or an explicit else clause resolves the error. The annotation also serves as a future-proofing assertion on already-exhaustive matches -- if a new member is added to the union type later, the compiler will flag the match as no longer covering all cases.
+Adding the missing case or an explicit else clause resolves the error. The annotation is also useful on matches that are already exhaustive as a future-proofing measure. Without it, if a new member is later added to the union type and the match isn't updated, the compiler silently injects `else None`. You'll only get an error if the match result is assigned to a variable whose type doesn't include `None` -- otherwise the bug is completely silent. With `\exhaustive\`, the compiler catches the missing case immediately.
