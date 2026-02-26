@@ -304,6 +304,7 @@ else()
 
     add_subdirectory(tools/pony-lsp)
     add_subdirectory(tools/pony-lint)
+    add_subdirectory(tools/pony-doc)
 
     install(TARGETS
         ponyc
@@ -322,5 +323,8 @@ else()
         DESTINATION bin)
     install(PROGRAMS
         $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
+        DESTINATION bin)
+    install(PROGRAMS
+        $<TARGET_FILE_DIR:ponyc>/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION bin)
 endif()
