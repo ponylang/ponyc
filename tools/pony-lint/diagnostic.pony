@@ -57,15 +57,15 @@ class val Diagnostic is (Comparable[Diagnostic] & Stringable)
     Format as `<file>:<line>:<column>: error[<rule-id>]: <message>`.
     """
     recover iso
-      String.>append(file)
-        .>push(':')
-        .>append(line.string())
-        .>push(':')
-        .>append(column.string())
-        .>append(": error[")
-        .>append(rule_id)
-        .>append("]: ")
-        .>append(message)
+      String .> append(file)
+        .> push(':')
+        .> append(line.string())
+        .> push(':')
+        .> append(column.string())
+        .> append(": error[")
+        .> append(rule_id)
+        .> append("]: ")
+        .> append(message)
     end
 
   fun eq(that: box->Diagnostic): Bool =>

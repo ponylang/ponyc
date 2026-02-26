@@ -24,8 +24,10 @@ primitive FileNaming is ASTRule
   """
   fun id(): String val => "style/file-naming"
   fun category(): String val => "style"
+
   fun description(): String val =>
     "file name should match principal type"
+
   fun default_status(): RuleStatus => RuleOn
 
   fun node_filter(): Array[ast.TokenId] val =>
@@ -39,14 +41,14 @@ primitive FileNaming is ASTRule
     recover val Array[Diagnostic val] end
 
   fun check_module(
-    entities: Array[(String val, ast.TokenId, USize)] val,
+    entities: Array[(String val, ast.TokenId, USize, USize)] val,
     source: SourceFile val)
     : Array[Diagnostic val] val
   =>
     """
     Check that the filename matches the principal type in the module.
-    `entities` is an array of (name, token_id, line_count) tuples collected
-    during AST traversal.
+    `entities` is an array of (name, token_id, start_line, end_line) tuples
+    collected during AST traversal.
     """
     if entities.size() == 0 then
       return recover val Array[Diagnostic val] end
@@ -80,7 +82,7 @@ primitive FileNaming is ASTRule
     end
 
   fun _find_principal(
-    entities: Array[(String val, ast.TokenId, USize)] val)
+    entities: Array[(String val, ast.TokenId, USize, USize)] val)
     : (String val | None)
   =>
     """
@@ -96,7 +98,7 @@ primitive FileNaming is ASTRule
     // 2. Trait/interface with subordinates
     var trait_name: (String val | None) = None
     var non_trait_count: USize = 0
-    for (name, token_id, _) in entities.values() do
+    for (name, token_id, _, _) in entities.values() do
       if (token_id == ast.TokenIds.tk_trait())
         or (token_id == ast.TokenIds.tk_interface())
       then

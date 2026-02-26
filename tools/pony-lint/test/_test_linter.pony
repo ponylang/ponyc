@@ -19,7 +19,7 @@ class \nodoc\ _TestLinterSingleFile is UnitTest
       let pony_file = FilePath(FileAuth(auth),
         Path.join(tmp.path, "test.pony"))
       let file = File(pony_file)
-      let long_line = recover val String.>append("a".mul(100)) end
+      let long_line = recover val String .> append("a".mul(100)) end
       file.print(long_line)
       file.dispose()
 
@@ -100,7 +100,7 @@ class \nodoc\ _TestLinterSkipsCorral is UnitTest
       let corral_file = FilePath(FileAuth(auth),
         Path.join(corral_dir.path, "dep.pony"))
       let file = File(corral_file)
-      let long_line = recover val String.>append("a".mul(100)) end
+      let long_line = recover val String .> append("a".mul(100)) end
       file.print(long_line)
       file.dispose()
 
@@ -132,7 +132,7 @@ class \nodoc\ _TestLinterSuppressedDiagnosticsFiltered is UnitTest
       let pony_file = FilePath(FileAuth(auth),
         Path.join(tmp.path, "test.pony"))
       let file = File(pony_file)
-      let long_line = recover val String.>append("a".mul(100)) end
+      let long_line = recover val String .> append("a".mul(100)) end
       let content: String val =
         "// pony-lint: allow style/line-length\n" + long_line + "\n"
       file.write(content)
@@ -166,7 +166,7 @@ class \nodoc\ _TestLinterDiagnosticsSorted is UnitTest
       let file_b = FilePath(FileAuth(auth),
         Path.join(tmp.path, "b.pony"))
       let fb = File(file_b)
-      let long_line = recover val String.>append("a".mul(100)) end
+      let long_line = recover val String .> append("a".mul(100)) end
       fb.print(long_line)
       fb.dispose()
 

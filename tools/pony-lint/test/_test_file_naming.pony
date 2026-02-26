@@ -10,8 +10,8 @@ class \nodoc\ _TestFileNamingSingleEntity is UnitTest
     // File named "test.pony" but principal type is "Foo" -> expects "foo.pony"
     let sf = lint.SourceFile("test.pony", "class Foo\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 1))
+      let a = Array[(String val, ast.TokenId, USize, USize)]
+      a.push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       a
     end
     let diags = lint.FileNaming.check_module(entities, sf)
@@ -30,8 +30,8 @@ class \nodoc\ _TestFileNamingMatchingName is UnitTest
     // File named "foo.pony" with class Foo -> matches
     let sf = lint.SourceFile("foo.pony", "class Foo\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 1))
+      let a = Array[(String val, ast.TokenId, USize, USize)]
+      a.push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       a
     end
     let diags = lint.FileNaming.check_module(entities, sf)
@@ -45,9 +45,9 @@ class \nodoc\ _TestFileNamingTraitPrincipal is UnitTest
     let sf = lint.SourceFile(
       "runnable.pony", "trait Runnable\nclass Runner\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize)]
-      a.push(("Runnable", ast.TokenIds.tk_trait(), 1))
-      a.push(("Runner", ast.TokenIds.tk_class(), 1))
+      let a = Array[(String val, ast.TokenId, USize, USize)]
+      a.push(("Runnable", ast.TokenIds.tk_trait(), 0, 0))
+      a.push(("Runner", ast.TokenIds.tk_class(), 0, 0))
       a
     end
     let diags = lint.FileNaming.check_module(entities, sf)
@@ -62,9 +62,9 @@ class \nodoc\ _TestFileNamingMultipleEntitiesSkipped is UnitTest
     let sf = lint.SourceFile(
       "helpers.pony", "class Foo\nclass Bar\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 1))
-      a.push(("Bar", ast.TokenIds.tk_class(), 1))
+      let a = Array[(String val, ast.TokenId, USize, USize)]
+      a.push(("Foo", ast.TokenIds.tk_class(), 0, 0))
+      a.push(("Bar", ast.TokenIds.tk_class(), 0, 0))
       a
     end
     let diags = lint.FileNaming.check_module(entities, sf)
@@ -78,8 +78,8 @@ class \nodoc\ _TestFileNamingTestPonyMain is UnitTest
     let sf = lint.SourceFile(
       "_test.pony", "actor Main is TestList\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize)]
-      a.push(("Main", ast.TokenIds.tk_actor(), 1))
+      let a = Array[(String val, ast.TokenId, USize, USize)]
+      a.push(("Main", ast.TokenIds.tk_actor(), 0, 0))
       a
     end
     let diags = lint.FileNaming.check_module(entities, sf)
@@ -93,8 +93,8 @@ class \nodoc\ _TestFileNamingPrivateType is UnitTest
     let sf = lint.SourceFile(
       "_my_helper.pony", "primitive _MyHelper\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize)]
-      a.push(("_MyHelper", ast.TokenIds.tk_primitive(), 1))
+      let a = Array[(String val, ast.TokenId, USize, USize)]
+      a.push(("_MyHelper", ast.TokenIds.tk_primitive(), 0, 0))
       a
     end
     let diags = lint.FileNaming.check_module(entities, sf)

@@ -11,8 +11,10 @@ primitive AcronymCasing is ASTRule
   """
   fun id(): String val => "style/acronym-casing"
   fun category(): String val => "style"
+
   fun description(): String val =>
     "acronym in type name should be fully uppercased"
+
   fun default_status(): RuleStatus => RuleOn
 
   fun node_filter(): Array[ast.TokenId] val =>

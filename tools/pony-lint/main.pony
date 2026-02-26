@@ -113,6 +113,12 @@ actor Main
       r.push(FileNaming)
       r.push(PackageNaming)
       r.push(PublicDocstring)
+      r.push(MatchSingleLine)
+      r.push(MatchCaseIndent)
+      r.push(PartialSpacing)
+      r.push(PartialCallSpacing)
+      r.push(DotSpacing)
+      r.push(BlankLines)
       r
     end
     let registry = RuleRegistry(all_rules, all_ast_rules, config)

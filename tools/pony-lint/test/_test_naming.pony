@@ -36,7 +36,6 @@ class \nodoc\ _TestIsCamelCaseInvalid is UnitTest
     h.assert_false(lint.NamingHelpers.is_camel_case("'"))
 
 // --- is_snake_case ---
-
 class \nodoc\ _TestIsSnakeCaseValid is UnitTest
   """Valid snake_case names pass."""
   fun name(): String => "NamingHelpers: is_snake_case valid examples"
@@ -71,7 +70,6 @@ class \nodoc\ _TestIsSnakeCaseInvalid is UnitTest
     h.assert_false(lint.NamingHelpers.is_snake_case("'"))
 
 // --- has_lowered_acronym ---
-
 class \nodoc\ _TestHasLoweredAcronym is UnitTest
   """Detects lowered acronyms in CamelCase names."""
   fun name(): String => "NamingHelpers: has_lowered_acronym"
@@ -99,7 +97,6 @@ class \nodoc\ _TestHasLoweredAcronym is UnitTest
       lint.NamingHelpers.has_lowered_acronym("MyClass") is None)
 
 // --- to_snake_case ---
-
 class \nodoc\ _TestToSnakeCase is UnitTest
   """CamelCase to snake_case conversion, including initialisms."""
   fun name(): String => "NamingHelpers: to_snake_case"
@@ -127,7 +124,6 @@ class \nodoc\ _TestToSnakeCase is UnitTest
       lint.NamingHelpers.to_snake_case("_A"))
 
 // --- Property tests ---
-
 class \nodoc\ _TestCamelCaseValidProperty is Property1[String]
   """Property: generated valid CamelCase always passes is_camel_case."""
 

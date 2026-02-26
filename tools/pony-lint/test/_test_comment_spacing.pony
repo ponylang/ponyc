@@ -50,7 +50,7 @@ class \nodoc\ _TestCommentSpacingInsideString is UnitTest
   fun apply(h: TestHelper) =>
     // pony-lint: off style/comment-spacing
     let sf = lint.SourceFile("/tmp/t.pony",
-      """let x = "http://example.com" """.clone().>strip(), "/tmp")
+      """let x = "http://example.com" """.clone() .> strip(), "/tmp")
     // pony-lint: on style/comment-spacing
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](0, diags.size())

@@ -23,8 +23,10 @@ primitive PublicDocstring is ASTRule
   """
   fun id(): String val => "style/public-docstring"
   fun category(): String val => "style"
+
   fun description(): String val =>
     "public type or method should have a docstring"
+
   fun default_status(): RuleStatus => RuleOn
 
   fun node_filter(): Array[ast.TokenId] val =>

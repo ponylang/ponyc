@@ -1,6 +1,31 @@
 use "collections"
 use ast = "pony_compiler"
 
+class ref _MaxLineVisitor is ast.ASTVisitor
+  """
+  Walks AST descendants to find the maximum line number reached.
+
+  `AST.visit()` visits children, not the node itself, so callers must seed
+  `max_line` with `node.line()` before calling `node.visit(visitor)`.
+  """
+  var max_line: USize
+
+  new ref create(seed: USize) =>
+    max_line = seed
+
+  fun ref visit(node: ast.AST box): ast.VisitResult =>
+    // Empty TK_MEMBERS has a parser-assigned position beyond the entity's
+    // actual content (at the start of the next entity). Skip it so it
+    // doesn't inflate end_line.
+    if (node.id() == ast.TokenIds.tk_members())
+      and (node.num_children() == 0)
+    then
+      return ast.Continue
+    end
+    let l = node.line()
+    if l > max_line then max_line = l end
+    ast.Continue
+
 class ref _ASTDispatcher is ast.ASTVisitor
   """
   Visitor that dispatches AST nodes to matching `ASTRule` implementations.
@@ -9,15 +34,15 @@ class ref _ASTDispatcher is ast.ASTVisitor
   each node, it looks up matching rules, calls their `check()` method, and
   filters results through suppressions and magic comment lines.
 
-  Also collects entity information (name, token ID, line span) for use by
-  module-level rules like file-naming.
+  Also collects entity information (name, token ID, start/end line) for use by
+  module-level rules like file-naming and blank-lines.
   """
   let _dispatch: Map[ast.TokenId, Array[ASTRule val] val] val
   let _source: SourceFile val
   let _magic_lines: Set[USize] val
   let _suppressions: Suppressions val
   let _diagnostics: Array[Diagnostic val]
-  let _entities: Array[(String val, ast.TokenId, USize)]
+  let _entities: Array[(String val, ast.TokenId, USize, USize)]
 
   new ref create(
     rules: Array[ASTRule val] val,
@@ -29,7 +54,7 @@ class ref _ASTDispatcher is ast.ASTVisitor
     _magic_lines = magic_lines
     _suppressions = suppressions
     _diagnostics = Array[Diagnostic val]
-    _entities = Array[(String val, ast.TokenId, USize)]
+    _entities = Array[(String val, ast.TokenId, USize, USize)]
     _dispatch = _build_dispatch(rules)
 
   fun tag _build_dispatch(rules: Array[ASTRule val] val)
@@ -65,7 +90,7 @@ class ref _ASTDispatcher is ast.ASTVisitor
   fun ref visit(node: ast.AST box): ast.VisitResult =>
     let token_id = node.id()
 
-    // Collect entity info for file-naming
+    // Collect entity info for file-naming and blank-lines
     if ast.TokenIds.is_entity(token_id)
       or (token_id == ast.TokenIds.tk_type())
     then
@@ -73,14 +98,10 @@ class ref _ASTDispatcher is ast.ASTVisitor
         let name_node = node(0)?
         match name_node.token_value()
         | let name: String val =>
-          (let start_pos, let end_pos) = node.span()
-          let line_count =
-            if end_pos.line() >= start_pos.line() then
-              (end_pos.line() - start_pos.line()) + 1
-            else
-              1
-            end
-          _entities.push((name, token_id, line_count))
+          let start_line = node.line()
+          let mlv = _MaxLineVisitor(start_line)
+          node.visit(mlv)
+          _entities.push((name, token_id, start_line, mlv.max_line))
         end
       end
     end
@@ -109,12 +130,13 @@ class ref _ASTDispatcher is ast.ASTVisitor
     end
     consume result
 
-  fun entities(): Array[(String val, ast.TokenId, USize)] val =>
+  fun entities(): Array[(String val, ast.TokenId, USize, USize)] val =>
     """
     Returns entity info collected during traversal:
-    (name, token_id, line_count).
+    (name, token_id, start_line, end_line).
     """
-    let result = recover iso Array[(String val, ast.TokenId, USize)] end
+    let result =
+      recover iso Array[(String val, ast.TokenId, USize, USize)] end
     for e in _entities.values() do
       result.push(e)
     end
