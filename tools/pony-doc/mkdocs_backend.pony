@@ -27,7 +27,7 @@ primitive MkDocsBackend is Backend
     // Accumulate content for mkdocs.yml nav and index.md
     let nav = recover iso String(4096) end
     let home_links = recover iso String(1024) end
-    let source_nav = recover iso String(1024) end
+    let source_entries = Array[String]
 
     // Track already-written source files to avoid duplicates
     let written_sources = Array[String]
@@ -121,20 +121,20 @@ primitive MkDocsBackend is Backend
           pkg_src_dir.mkdir()
           _write_source_page(src_dir, sanitized_pkg, sf)?
 
-          source_nav.append("  - ")
-          source_nav.append(sf.filename)
-          source_nav.append(" : \"")
-          source_nav.append(_source_doc_path(sanitized_pkg, sf.filename))
-          source_nav.append("\" \n")
+          source_entries.push(
+            "  - " + sf.filename + " : \""
+              + _source_doc_path(sanitized_pkg, sf.filename) + "\" \n")
         end
       end
     end
 
-    // Append source nav entries if any
-    let source_nav_val: String val = consume source_nav
-    if source_nav_val.size() > 0 then
+    // Sort source nav entries alphabetically and append
+    if source_entries.size() > 0 then
+      _sort_strings(source_entries)
       nav.append("- source:\n")
-      nav.append(source_nav_val)
+      for entry in source_entries.values() do
+        nav.append(entry)
+      end
     end
 
     // Write mkdocs.yml
@@ -568,6 +568,24 @@ primitive MkDocsBackend is Backend
       end
     else
       "\n\n"
+    end
+
+  fun _sort_strings(entries: Array[String]) =>
+    """Sort strings alphabetically using insertion sort."""
+    var i: USize = 1
+    while i < entries.size() do
+      try
+        var j = i
+        while (j > 0) and
+          (entries(j)?.compare(entries(j - 1)?) is Less)
+        do
+          let tmp = entries(j)?
+          entries(j)? = entries(j - 1)?
+          entries(j - 1)? = tmp
+          j = j - 1
+        end
+      end
+      i = i + 1
     end
 
   fun _source_doc_path(sanitized_pkg: String, filename: String): String val =>
