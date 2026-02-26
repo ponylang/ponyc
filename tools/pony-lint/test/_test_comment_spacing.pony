@@ -60,7 +60,7 @@ class \nodoc\ _TestCommentSpacingDocstringURL is UnitTest
   fun name(): String => "CommentSpacing: // in docstring URL"
 
   fun apply(h: TestHelper) =>
-    let src = "\"\"\"\nA library built on\n[lori](https://github.com/ponylang/lori).\n\"\"\""
+    let src = "\"\"\"\nSee https://example.com/foo for details.\n\"\"\""
     let sf = lint.SourceFile("/tmp/t.pony", src, "/tmp")
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](0, diags.size())
