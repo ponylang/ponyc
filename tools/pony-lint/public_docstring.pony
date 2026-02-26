@@ -4,10 +4,13 @@ primitive PublicDocstring is ASTRule
   """
   Flags public types and methods that lack a docstring.
 
-  "Public" means the name does not start with `_`. Type aliases are excluded
-  because Pony does not support docstrings on them. Methods inside private
-  types (whose name starts with `_`) are also skipped — they are not part of
-  the public API regardless of their own name.
+  "Public" means the name does not start with `_`. Several categories are
+  excluded from checking:
+  - Types and methods annotated with `\nodoc\` (excluded from documentation)
+  - Methods inside `\nodoc\`-annotated types
+  - Type aliases (Pony does not support docstrings on them)
+  - Methods inside private types (not part of the public API)
+  - `Main` actors (universally understood as the program entry point)
 
   Methods are exempt when either gate passes:
   1. The method name is a commonly-known convention (e.g. `create`, `string`,
@@ -36,15 +39,21 @@ primitive PublicDocstring is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Check an entity or method node for a missing docstring. Skips private
-    names, methods inside private types, exempt method names, and methods
-    with simple bodies (≤ 3 top-level expressions).
+    Check an entity or method node for a missing docstring. Skips `\nodoc\`
+    annotations, private names, Main actors, methods inside private or
+    `\nodoc\` types, exempt method names, and methods with simple bodies
+    (≤ 3 top-level expressions).
     """
     let token_id = node.id()
     let is_method =
       (token_id == ast.TokenIds.tk_fun())
         or (token_id == ast.TokenIds.tk_new())
         or (token_id == ast.TokenIds.tk_be())
+
+    // Skip \nodoc\-annotated nodes — excluded from documentation
+    if node.has_annotation("nodoc") then
+      return recover val Array[Diagnostic val] end
+    end
 
     // Name: child 0 for entities, child 1 for methods
     let name_idx: USize = if is_method then 1 else 0 end
@@ -61,12 +70,16 @@ primitive PublicDocstring is ASTRule
         end
 
         if is_method then
-          // Skip methods inside private types and anonymous objects
+          // Skip methods inside private, \nodoc\, or anonymous types
           try
             let entity =
               (node.parent() as ast.AST).parent() as ast.AST
             // Anonymous objects are local — not public API
             if entity.id() == ast.TokenIds.tk_object() then
+              return recover val Array[Diagnostic val] end
+            end
+            // \nodoc\ entity — not documented API
+            if entity.has_annotation("nodoc") then
               return recover val Array[Diagnostic val] end
             end
             match entity(0)?.token_value()
@@ -90,6 +103,13 @@ primitive PublicDocstring is ASTRule
                 return recover val Array[Diagnostic val] end
               end
             end
+          end
+        else
+          // Entity types: skip Main actors
+          if (token_id == ast.TokenIds.tk_actor())
+            and (name == "Main")
+          then
+            return recover val Array[Diagnostic val] end
           end
         end
 

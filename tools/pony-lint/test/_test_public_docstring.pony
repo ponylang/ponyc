@@ -439,3 +439,112 @@ class \nodoc\ _TestPublicDocstringNonExemptConstructor is UnitTest
     else
       h.fail("compilation failed")
     end
+
+class \nodoc\ _TestPublicDocstringNodocTypeSkipped is UnitTest
+  """Type with \\nodoc\\ annotation and no docstring produces 0."""
+  fun name(): String => "PublicDocstring: \\nodoc\\ type skipped"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class \\nodoc\\ Foo\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
+          h.assert_eq[USize](0, diags.size())
+        else h.fail("no module")
+        end
+      else h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestPublicDocstringNodocMethodSkipped is UnitTest
+  """Method with \\nodoc\\ annotation and no docstring produces 0."""
+  fun name(): String => "PublicDocstring: \\nodoc\\ method skipped"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  \"\"\"Foo docstring.\"\"\"\n" +
+      "  fun \\nodoc\\ apply(): None =>\n" +
+      "    let _a = U32(1)\n" +
+      "    let _b = U32(2)\n" +
+      "    let _c = U32(3)\n" +
+      "    let _d = U32(4)\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
+          h.assert_eq[USize](0, diags.size())
+        else h.fail("no module")
+        end
+      else h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestPublicDocstringNodocEntityMethodsSkipped is UnitTest
+  """Methods inside a \\nodoc\\ entity produce 0 even without docstrings."""
+  fun name(): String =>
+    "PublicDocstring: methods in \\nodoc\\ entity skipped"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class \\nodoc\\ Foo\n" +
+      "  fun apply(): None =>\n" +
+      "    let _a = U32(1)\n" +
+      "    let _b = U32(2)\n" +
+      "    let _c = U32(3)\n" +
+      "    let _d = U32(4)\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
+          h.assert_eq[USize](0, diags.size())
+        else h.fail("no module")
+        end
+      else h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestPublicDocstringMainActorSkipped is UnitTest
+  """Actor named Main without docstring produces 0."""
+  fun name(): String => "PublicDocstring: Main actor skipped"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "actor Main\n" +
+      "  new create(env: Env) => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
+          h.assert_eq[USize](0, diags.size())
+        else h.fail("no module")
+        end
+      else h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
