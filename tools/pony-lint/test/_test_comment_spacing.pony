@@ -55,6 +55,26 @@ class \nodoc\ _TestCommentSpacingInsideString is UnitTest
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](0, diags.size())
 
+class \nodoc\ _TestCommentSpacingDocstringURL is UnitTest
+  """// in a URL inside a triple-quoted docstring is not flagged."""
+  fun name(): String => "CommentSpacing: // in docstring URL"
+
+  fun apply(h: TestHelper) =>
+    let src = "\"\"\"\nA library built on\n[lori](https://github.com/ponylang/lori).\n\"\"\""
+    let sf = lint.SourceFile("/tmp/t.pony", src, "/tmp")
+    let diags = lint.CommentSpacing.check(sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestCommentSpacingAfterDocstring is UnitTest
+  """A // comment after a docstring is still checked."""
+  fun name(): String => "CommentSpacing: comment after docstring"
+
+  fun apply(h: TestHelper) =>
+    let src = "\"\"\"\nSome docstring.\n\"\"\"\n//bad"
+    let sf = lint.SourceFile("/tmp/t.pony", src, "/tmp")
+    let diags = lint.CommentSpacing.check(sf)
+    h.assert_eq[USize](1, diags.size())
+
 class \nodoc\ _TestCommentSpacingAfterCode is UnitTest
   """Comment after code with proper spacing is OK."""
   fun name(): String => "CommentSpacing: after code with proper spacing"
