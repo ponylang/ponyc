@@ -112,6 +112,7 @@ actor Main
       r.push(AcronymCasing)
       r.push(FileNaming)
       r.push(PackageNaming)
+      r.push(PublicDocstring)
       r
     end
     let registry = RuleRegistry(all_rules, all_ast_rules, config)

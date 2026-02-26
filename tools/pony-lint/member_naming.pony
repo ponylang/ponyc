@@ -29,6 +29,10 @@ primitive MemberNaming is ASTRule
   fun check(node: ast.AST box, source: SourceFile val)
     : Array[Diagnostic val] val
   =>
+    """
+    Check a field, method, parameter, or local variable node for snake_case
+    naming. Dontcare locals (`_`) are skipped.
+    """
     let token_id = node.id()
 
     // Methods: name is child 1

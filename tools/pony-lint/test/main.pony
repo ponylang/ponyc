@@ -3,10 +3,12 @@ use "pony_check"
 use lint = ".."
 
 actor \nodoc\ Main is TestList
+  """Test runner for pony-lint."""
   new create(env: Env) => PonyTest(env, this)
   new make() => None
 
   fun tag tests(test: PonyTest) =>
+    """Register all pony-lint tests."""
     // Diagnostic tests
     test(_TestDiagnosticString)
     test(_TestDiagnosticStringSpecialChars)
@@ -152,3 +154,17 @@ actor \nodoc\ Main is TestList
     test(_TestPackageNamingClean)
     test(_TestPackageNamingViolation)
     test(_TestPackageNamingSimpleName)
+
+    // PublicDocstring tests
+    test(_TestPublicDocstringTypeClean)
+    test(_TestPublicDocstringTypeViolation)
+    test(_TestPublicDocstringMethodClean)
+    test(_TestPublicDocstringMethodViolation)
+    test(_TestPublicDocstringPrivateSkipped)
+    test(_TestPublicDocstringExemptMethods)
+    test(_TestPublicDocstringAllEntityTypes)
+    test(_TestPublicDocstringBehavior)
+    test(_TestPublicDocstringTypeAlias)
+    test(_TestPublicDocstringSimpleBody)
+    test(_TestPublicDocstringAbstractMethod)
+    test(_TestPublicDocstringNonExemptConstructor)
