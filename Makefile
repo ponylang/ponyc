@@ -175,7 +175,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint pony-doc
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint pony-doc test-pony-doc
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
@@ -207,6 +207,9 @@ pony-lint:
 pony-doc:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target tools.pony-doc -- $(build_flags)
 
+test-pony-doc: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-doc-tests ../../tools/pony-doc/test && echo Built `pwd`/pony-doc-tests && ./pony-doc-tests --sequential
+
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
 cross-libponyrt:
@@ -216,7 +219,7 @@ cross-libponyrt:
 
 test: all test-core test-stdlib-release test-examples
 
-test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-pony-lsp test-pony-lint test-validate-grammar
+test-ci: all test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-pony-lsp test-pony-lint test-pony-doc test-validate-grammar
 
 test-cross-ci: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) --linker='$(cross_linker)' $(cross_ponyc_args)
 test-cross-ci: debuggercmd=
