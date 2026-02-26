@@ -1363,6 +1363,13 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
           "declaration");
         return false;
     }
+  } else if(strcmp(str, "exhaustive") == 0) {
+    if(ast_id(ast_parent(ast)) != TK_MATCH)
+    {
+      ast_error(opt->check.errors, loc,
+        "an 'exhaustive' annotation can only appear on a match expression");
+      return false;
+    }
   } else if(strcmp(str, "nodoc") == 0) {
     switch(ast_id(ast_parent(ast)))
     {
