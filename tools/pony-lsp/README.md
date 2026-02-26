@@ -21,14 +21,14 @@ It expects the following optional settings:
 | **Name** | **Type** | **Example** | **Description** |
 | ---- | ---- | ------- | ----------- |
 | **defines** | `Array[String]` | `["FOO", "BAR"]` | Defines active during compilation. These are usually set when using `ponyc` using `-D` |
-| **ponypath** | `String` | `"/path/to/pony/package:/another/path"` | A path list (usually `:`-separated) which is added to the package search paths of `pony-lsp` |
+| **ponypath** | `Array[String]` | `["/path/to/pony/package", "/another/path"]` | An array of paths which are added to the package search paths of `pony-lsp` |
 
 Example settings in JSON:
 
 ```json
 {
   "defines": ["FOO", "BAR"],
-  "ponypath": "/path/to/pony/package:/another/path"
+  "ponypath": ["/path/to/pony/package", "/another/path"]
 }
 ```
 

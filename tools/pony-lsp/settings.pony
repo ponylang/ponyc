@@ -1,4 +1,5 @@
 use "json"
+use pc = "collections/persistent"
 
 class val Settings
   """
@@ -9,7 +10,7 @@ class val Settings
   ```json
   {
     "defines": ["DEFINE1", "DEFINE2"],
-    "ponypath": "/foo/bar:/baz"
+    "ponypath": ["/foo/bar", "/baz"]
   }
   ```
   """
@@ -18,7 +19,7 @@ class val Settings
     Userflags, usually defined by `-D` when calling ponyc.
     """
 
-  let _ponypath: (String | None)
+  let _ponypath: Array[String] val
     """
     Additional ponypath entries, that will be added to the
     entries that pony-lsp adds on its own:
@@ -43,7 +44,23 @@ class val Settings
 
     this._ponypath =
       try
-        JsonPathParser.compile("$.ponypath")?.query_one(data) as String
+        let pony_path_json = JsonPathParser.compile("$.ponypath")?.query_one(data)
+        match pony_path_json
+        | let arr: JsonArray =>
+          let pony_path_array = recover trn Array[String].create(arr.size()) end
+          for json_entry in arr.values() do
+            try
+              pony_path_array.push(json_entry as String)
+            end
+          end
+          consume pony_path_array
+        | let pony_path_str: String =>
+          [pony_path_str]
+        else
+          []
+        end
+      else
+        []
       end
 
   fun val to_json(): JsonObject =>
@@ -51,15 +68,13 @@ class val Settings
     for def in this._defines.values() do
       defs = defs.push(def)
     end
+    var pp = JsonArray(pc.Vec[JsonValue].concat(defs.values()))
     JsonObject
       .update("defines", defs)
-      .update("ponypath", this._ponypath)
+      .update("ponypath", pp)
 
   fun val defines(): Array[String] val =>
     this._defines
 
-  fun val ponypath(): String =>
-    match this._ponypath
-    | let s: String => s
-    | None => ""
-    end
+  fun val ponypath(): Array[String] val =>
+    this._ponypath

@@ -25,7 +25,7 @@ type _LspState is (_Uninitialized | _Initialized | _ShuttingDown)
 
 actor LanguageServer is (Notifier & RequestSender)
   let _channel: Channel
-  let _compiler: PonyCompiler
+  let _compiler: LspCompiler
   let _router: WorkspaceRouter
   let _env: Env
   let _file_auth: FileAuth
@@ -36,11 +36,10 @@ actor LanguageServer is (Notifier & RequestSender)
   var _request_id_gen: I64
   var _client: (Client | None)
 
-  new create(channel': Channel, env': Env, pony_path: String = "") =>
+  new create(channel': Channel, env': Env, compiler': LspCompiler) =>
     channel'.set_notifier(this)
     _channel = channel'
-    _channel.log("initial PONYPATH: " + pony_path)
-    _compiler = PonyCompiler(pony_path)
+    _compiler = compiler'
     _router = WorkspaceRouter.create()
     _env = env'
     _file_auth = FileAuth(env'.root)
@@ -179,6 +178,8 @@ actor LanguageServer is (Notifier & RequestSender)
             this._channel.log("Unhandled response\n" + r.json().string())
           end
         end
+      else
+        this._channel.log("Not expecting any response")
       end
     | _ShuttingDown =>
       // ignore
@@ -283,6 +284,12 @@ actor LanguageServer is (Notifier & RequestSender)
           end
         end
       end
+      // update our request-id-gen to the first message we received so we won't
+      // repeat it
+      match msg.id
+      | let msg_id: I64 =>
+        this._request_id_gen = msg_id + 1
+      end
       this._channel.send(
         ResponseMessage.create(
           msg.id,
@@ -353,7 +360,7 @@ actor LanguageServer is (Notifier & RequestSender)
       // LSPAny[]
       let json_settings = (r.result as JsonArray)(0)? as JsonObject
       this._channel.log("Received workspace/configuration response = " + json_settings.string())
-      
+
       this._compiler.apply_settings(Settings.from_json(json_settings))
     end
 

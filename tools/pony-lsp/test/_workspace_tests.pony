@@ -18,10 +18,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     let file_auth = FileAuth(h.env.root)
     let this_dir_path = Path.dir(__loc.file())
     let folder = FilePath(file_auth, this_dir_path)
-    let channel = TestChannel(h,
-      {(h: TestHelper, channel: TestChannel ref): Bool =>
-        true
-      })
+    let channel = FakeChannel
     let scanner = WorkspaceScanner.create(channel)
     let workspaces = scanner.scan(file_auth, this_dir_path)
     h.assert_eq[USize](2, workspaces.size())
@@ -48,3 +45,9 @@ class \nodoc\ iso _RouterFindTest is UnitTest
 class tag FakeRequestSender is RequestSender
   new tag create() => None
   fun tag send_request(method: String val, params: (JsonObject | JsonArray | None)) => None
+
+actor FakeChannel is Channel
+  be send(msg: Message val) => None
+  be log(data: String val, message_type: MessageType = Debug) => None
+  be set_notifier(notifier: Notifier tag) => None
+  be dispose() => None

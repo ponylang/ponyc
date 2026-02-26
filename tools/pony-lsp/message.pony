@@ -14,6 +14,9 @@ trait Message is Stringable
           .>append(content)
       end
 
+  fun into_bytes(): Array[U8] iso^ =>
+    string().iso_array()
+
 
 primitive Err
   fun tag apply(): I64 => 1

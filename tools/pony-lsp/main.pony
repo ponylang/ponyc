@@ -48,5 +48,5 @@ actor Main
       | let p: String => p
       | None => ""
       end
-    let language_server = LanguageServer(channel, env, pony_path)
+    let language_server = LanguageServer(channel, env, PonyCompiler(pony_path))
     // at this point the server should listen to incoming messages via stdin

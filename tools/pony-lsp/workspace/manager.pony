@@ -26,7 +26,7 @@ actor WorkspaceManager
   let _client: Client
   let _channel: Channel
   let _request_sender: RequestSender
-  let _compiler: PonyCompiler
+  let _compiler: LspCompiler
   let _packages: Map[String, PackageState]
   let _global_errors: Array[Diagnostic val]
 
@@ -44,7 +44,7 @@ actor WorkspaceManager
     channel': Channel,
     request_sender': RequestSender,
     client': Client,
-    compiler': PonyCompiler)
+    compiler': LspCompiler)
   =>
     workspace = workspace'
     _file_auth = file_auth'

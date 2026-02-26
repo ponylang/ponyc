@@ -9,7 +9,8 @@ use @get_compiler_exe_directory[Bool](
 use @ponyint_pool_alloc_size[Pointer[U8] val](size: USize)
 use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 
-actor PonyCompiler
+
+actor PonyCompiler is LspCompiler
   """
   Actor wrapping the pony_compiler `Compiler` primitive to serialize compilation
   requests (libponyc is not fully thread-safe).
@@ -73,9 +74,8 @@ actor PonyCompiler
       None
     end
 
-
   be apply_settings(settings: Settings) =>
-    _pony_path_from_settings = recover val Path.split_list(settings.ponypath()) end
+    _pony_path_from_settings = settings.ponypath()
     _defines = settings.defines()
 
   be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag) =>
@@ -104,6 +104,9 @@ actor PonyCompiler
     let run_id = _run_id_gen = _run_id_gen + 1
     notify.done_compiling(package, result, run_id)
 
+trait tag LspCompiler
+  be apply_settings(settings: Settings)
+  be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag)
 
 interface CompilerNotify
   """
