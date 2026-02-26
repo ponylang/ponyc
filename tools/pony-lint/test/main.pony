@@ -170,3 +170,53 @@ actor \nodoc\ Main is TestList
     test(_TestPublicDocstringNodocMethodSkipped)
     test(_TestPublicDocstringNodocEntityMethodsSkipped)
     test(_TestPublicDocstringMainActorSkipped)
+
+    // MatchSingleLine tests
+    test(_TestMatchSingleLineClean)
+    test(_TestMatchSingleLineViolation)
+    test(_TestMatchSingleLineMultiLineBody)
+    test(_TestMatchSingleLineElseSeparateLine)
+
+    // MatchCaseIndent tests
+    test(_TestMatchCaseIndentClean)
+    test(_TestMatchCaseIndentViolation)
+    test(_TestMatchCaseIndentNestedClean)
+
+    // PartialSpacing tests
+    test(_TestPartialSpacingClean)
+    test(_TestPartialSpacingReturnTypeClean)
+    test(_TestPartialSpacingNoSpaceBefore)
+    test(_TestPartialSpacingNonPartialClean)
+
+    // PartialCallSpacing tests
+    test(_TestPartialCallSpacingClean)
+    test(_TestPartialCallSpacingViolation)
+    test(_TestPartialCallSpacingNonPartialClean)
+
+    // DotSpacing tests
+    test(_TestDotSpacingClean)
+    test(_TestDotSpacingSpaceBeforeViolation)
+    test(_TestDotSpacingChainNoSpaceViolation)
+    test(_TestDotSpacingChainSpacedClean)
+    test(_TestDotSpacingContinuationLineClean)
+    test(_TestDotSpacingChainContinuationClean)
+
+    // BlankLines tests (within-entity)
+    test(_TestBlankLinesNoBlankBeforeFirstField)
+    test(_TestBlankLinesBlankBeforeFirstField)
+    test(_TestBlankLinesDocstringNoBlank)
+    test(_TestBlankLinesMultiLineHeaderClean)
+    test(_TestBlankLinesConsecutiveFieldsClean)
+    test(_TestBlankLinesConsecutiveFieldsBlank)
+    test(_TestBlankLinesFieldToMethodOneBlank)
+    test(_TestBlankLinesFieldToMethodNoBlank)
+    test(_TestBlankLinesMultiLineMethodsOneBlank)
+    test(_TestBlankLinesMultiLineMethodsNoBlank)
+    test(_TestBlankLinesOneLineMethodsNoBlank)
+
+    // BlankLines tests (between-entity)
+    test(_TestBlankLinesBetweenEntitiesOneBlank)
+    test(_TestBlankLinesBetweenEntitiesNoBlank)
+    test(_TestBlankLinesBetweenEntitiesTooMany)
+    test(_TestBlankLinesOneLinerEntitiesNoBlank)
+    test(_TestBlankLinesBetweenDocstringEntities)

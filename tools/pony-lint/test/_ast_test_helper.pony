@@ -18,7 +18,7 @@ primitive \nodoc\ _ASTTestHelper
   """
   fun compile(h: TestHelper, source: String val,
     filename: String val = "test.pony")
-    : (ast.Program val, lint.SourceFile val)?
+    : (ast.Program val, lint.SourceFile val) ?
   =>
     let auth = h.env.root
     let tmp = FilePath.mkdtemp(

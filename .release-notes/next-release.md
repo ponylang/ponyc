@@ -14,7 +14,7 @@ This is a breaking change for any code that was depending on the previous (incor
 
 ## Add pony-lint to the ponyc distribution
 
-pony-lint is a text-based linter for Pony source files that checks for style guide violations. It was previously a standalone project and is now distributed with ponyc. This means the linter will track changes in ponyc and will always be up-to-date with the compiler's version of the standard library. pony-lint currently checks for line length, trailing whitespace, hard tabs, and comment spacing violations.
+pony-lint is a linter for Pony source files that checks for style guide violations. It was previously a standalone project and is now distributed with ponyc. This means the linter will track changes in ponyc and will always be up-to-date with the compiler's version of the standard library. pony-lint checks for text formatting (line length, whitespace, tabs, comment spacing), naming conventions (types, members, acronyms, files, packages), documentation (public docstrings), and structural formatting (blank lines, match layout, partial spacing, dot spacing).
 
 ## Fix stack overflow in reachability pass on deeply nested ASTs
 

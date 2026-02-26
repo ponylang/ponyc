@@ -161,6 +161,21 @@ class val Linter
                     all_diags.push(d)
                   end
                 end
+
+                // Blank-lines between-entity check (module-level)
+                if _registry.is_enabled(BlankLines.id(),
+                  BlankLines.category(), BlankLines.default_status())
+                then
+                  let bl_diags = BlankLines.check_module(
+                    dispatcher.entities(), info.source)
+                  for d in bl_diags.values() do
+                    if info.magic_lines.contains(d.line) then continue end
+                    if info.suppressions.is_suppressed(d.line, d.rule_id) then
+                      continue
+                    end
+                    all_diags.push(d)
+                  end
+                end
               end
             end
 
@@ -190,12 +205,13 @@ class val Linter
           has_error = true
           let rel_dir = try Path.rel(_cwd, pkg_dir)? else pkg_dir end
           for err in errors.values() do
-            let err_file = match err.file
-            | let f: String val =>
-              try Path.rel(_cwd, f)? else f end
-            else
-              rel_dir
-            end
+            let err_file =
+              match err.file
+              | let f: String val =>
+                try Path.rel(_cwd, f)? else f end
+              else
+                rel_dir
+              end
             all_diags.push(Diagnostic("lint/ast-error",
               err.msg, err_file, err.position.line(), err.position.column()))
           end

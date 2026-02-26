@@ -7,7 +7,7 @@ class \nodoc\ _TestLineLengthExactly80 is UnitTest
   fun name(): String => "LineLength: exactly 80 chars -> no diagnostic"
 
   fun apply(h: TestHelper) =>
-    let line = recover val String.>append("a".mul(80)) end
+    let line = recover val String .> append("a".mul(80)) end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check(sf)
     h.assert_eq[USize](0, diags.size())
@@ -17,7 +17,7 @@ class \nodoc\ _TestLineLengthOver80 is UnitTest
   fun name(): String => "LineLength: over 80 chars -> diagnostic"
 
   fun apply(h: TestHelper) =>
-    let line = recover val String.>append("a".mul(95)) end
+    let line = recover val String .> append("a".mul(95)) end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check(sf)
     h.assert_eq[USize](1, diags.size())
@@ -36,7 +36,7 @@ class \nodoc\ _TestLineLengthMultiByteUTF8 is UnitTest
     // 80 characters where some are multi-byte (e.g., é = 2 bytes)
     // "é" is 2 bytes but 1 codepoint
     let line: String val = recover val
-      String.>append("a".mul(79)).>append("é")
+      String .> append("a".mul(79)) .> append("é")
     end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check(sf)

@@ -7,6 +7,7 @@ primitive \nodoc\ _DummyRule is lint.TextRule
   fun category(): String val => "test"
   fun description(): String val => "a dummy rule"
   fun default_status(): lint.RuleStatus => lint.RuleOn
+
   fun check(source: lint.SourceFile val): Array[lint.Diagnostic val] val =>
     recover val Array[lint.Diagnostic val] end
 
@@ -15,6 +16,7 @@ primitive \nodoc\ _DummyRule2 is lint.TextRule
   fun category(): String val => "test"
   fun description(): String val => "another dummy rule"
   fun default_status(): lint.RuleStatus => lint.RuleOn
+
   fun check(source: lint.SourceFile val): Array[lint.Diagnostic val] val =>
     recover val Array[lint.Diagnostic val] end
 

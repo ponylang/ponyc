@@ -408,6 +408,7 @@ class \nodoc\ _TestPublicDocstringNonExemptConstructor is UnitTest
   """Non-`create` constructor without docstring (4+ expressions) is flagged."""
   fun name(): String =>
     "PublicDocstring: non-exempt constructor flagged"
+
   fun exclusion_group(): String => "ast-compile"
 
   fun apply(h: TestHelper) =>
@@ -498,6 +499,7 @@ class \nodoc\ _TestPublicDocstringNodocEntityMethodsSkipped is UnitTest
   """Methods inside a \\nodoc\\ entity produce 0 even without docstrings."""
   fun name(): String =>
     "PublicDocstring: methods in \\nodoc\\ entity skipped"
+
   fun exclusion_group(): String => "ast-compile"
 
   fun apply(h: TestHelper) =>

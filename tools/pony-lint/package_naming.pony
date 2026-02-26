@@ -15,8 +15,10 @@ primitive PackageNaming is ASTRule
   """
   fun id(): String val => "style/package-naming"
   fun category(): String val => "style"
+
   fun description(): String val =>
     "package directory name should be snake_case"
+
   fun default_status(): RuleStatus => RuleOff
 
   fun node_filter(): Array[ast.TokenId] val =>
