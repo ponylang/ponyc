@@ -15,6 +15,6 @@ primitive Foo
     end
 ```
 
-The above produces: `match is not exhaustive and does not have an else clause`
+The above produces: `match marked \exhaustive\ is not exhaustive`
 
 Adding the missing case or an explicit else clause resolves the error. The annotation also serves as a future-proofing assertion on already-exhaustive matches -- if a new member is added to the union type later, the compiler will flag the match as no longer covering all cases.

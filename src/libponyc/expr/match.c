@@ -245,7 +245,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         if(ast_has_annotation(ast, "exhaustive"))
         {
           ast_error(opt->check.errors, ast,
-            "match is not exhaustive and does not have an else clause");
+            "match marked \\exhaustive\\ is not exhaustive");
           return false;
         }
 

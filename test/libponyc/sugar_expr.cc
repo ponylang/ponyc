@@ -1156,7 +1156,7 @@ TEST_F(SugarExprTest, MatchExhaustiveAnnotationNonExhaustiveNoElse)
     "    | T2 => \"t2\"\n"
     "    end";
   TEST_ERRORS_1(src,
-    "match is not exhaustive and does not have an else clause");
+    "match marked \\exhaustive\\ is not exhaustive");
 }
 
 TEST_F(SugarExprTest, MatchExhaustiveAnnotationNonExhaustiveWithElse)
