@@ -70,6 +70,21 @@ class \nodoc\ _TestFileNamingMultipleEntitiesSkipped is UnitTest
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
+class \nodoc\ _TestFileNamingTestPonyMain is UnitTest
+  """_test.pony with a Main actor is the standard test runner convention."""
+  fun name(): String => "FileNaming: _test.pony with Main is clean"
+
+  fun apply(h: TestHelper) =>
+    let sf = lint.SourceFile(
+      "_test.pony", "actor Main is TestList\n", ".")
+    let entities = recover val
+      let a = Array[(String val, ast.TokenId, USize)]
+      a.push(("Main", ast.TokenIds.tk_actor(), 1))
+      a
+    end
+    let diags = lint.FileNaming.check_module(entities, sf)
+    h.assert_eq[USize](0, diags.size())
+
 class \nodoc\ _TestFileNamingPrivateType is UnitTest
   """Private type preserves leading underscore in filename."""
   fun name(): String => "FileNaming: private type -> _snake_case filename"

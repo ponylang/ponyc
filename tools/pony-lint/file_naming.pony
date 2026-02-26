@@ -11,6 +11,9 @@ primitive FileNaming is ASTRule
      trait/interface is the principal type.
   3. Otherwise — no principal type; the rule does not flag the file.
 
+  Exception: `_test.pony` files with a `Main` actor are never flagged. This is
+  the standard Pony convention for library test runner packages.
+
   The expected filename is the principal type name converted to snake_case,
   plus `.pony`. Private types (leading `_`) produce filenames with the leading
   underscore preserved: `_MyType` becomes `_my_type.pony`.
@@ -58,6 +61,12 @@ primitive FileNaming is ASTRule
 
     let expected = NamingHelpers.to_snake_case(principal)
     let actual = _filename_stem(source.path)
+
+    // _test.pony with a Main actor is the standard Pony test runner
+    // convention — not a naming violation.
+    if (actual == "_test") and (principal == "Main") then
+      return recover val Array[Diagnostic val] end
+    end
 
     if expected != actual then
       recover val
