@@ -63,28 +63,26 @@ actor Main
 
     // Build rule arrays (needed by --explain and normal linting)
     let all_rules: Array[TextRule val] val = recover val
-      let r = Array[TextRule val]
-      r.push(LineLength)
-      r.push(TrailingWhitespace)
-      r.push(HardTabs)
-      r.push(CommentSpacing)
-      r
+      Array[TextRule val]
+        .> push(LineLength)
+        .> push(TrailingWhitespace)
+        .> push(HardTabs)
+        .> push(CommentSpacing)
     end
     let all_ast_rules: Array[ASTRule val] val = recover val
-      let r = Array[ASTRule val]
-      r.push(TypeNaming)
-      r.push(MemberNaming)
-      r.push(AcronymCasing)
-      r.push(FileNaming)
-      r.push(PackageNaming)
-      r.push(PublicDocstring)
-      r.push(MatchSingleLine)
-      r.push(MatchCaseIndent)
-      r.push(PartialSpacing)
-      r.push(PartialCallSpacing)
-      r.push(DotSpacing)
-      r.push(BlankLines)
-      r
+      Array[ASTRule val]
+        .> push(TypeNaming)
+        .> push(MemberNaming)
+        .> push(AcronymCasing)
+        .> push(FileNaming)
+        .> push(PackageNaming)
+        .> push(PublicDocstring)
+        .> push(MatchSingleLine)
+        .> push(MatchCaseIndent)
+        .> push(PartialSpacing)
+        .> push(PartialCallSpacing)
+        .> push(DotSpacing)
+        .> push(BlankLines)
     end
 
     // Handle --explain
