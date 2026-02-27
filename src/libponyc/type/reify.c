@@ -19,8 +19,24 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   // We can't compare ref_def and typeparam, as they could be a copy or
   // a iftype shadowing. However, their data points back to the original
   // typeparam definition, which can be compared.
-  ref_def = (ast_t*)ast_data(ref_def);
-  typeparam = (ast_t*)ast_data(typeparam);
+  // Follow the data chain to the root for both, since there may be multiple
+  // levels of copying (e.g. a lambda inside an object literal inside a
+  // generic method creates two levels of type parameter copies).
+  ast_t* next;
+
+  next = (ast_t*)ast_data(ref_def);
+  while((next != NULL) && (next != ref_def))
+  {
+    ref_def = next;
+    next = (ast_t*)ast_data(ref_def);
+  }
+
+  next = (ast_t*)ast_data(typeparam);
+  while((next != NULL) && (next != typeparam))
+  {
+    typeparam = next;
+    next = (ast_t*)ast_data(typeparam);
+  }
 
   pony_assert(ref_def != NULL);
   pony_assert(typeparam != NULL);
