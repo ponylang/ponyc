@@ -505,7 +505,6 @@ jobs:
 
   lint-pony-lint:
     runs-on: ubuntu-latest
-    needs: x86_64-linux
 
     name: Lint pony-lint
     container:
