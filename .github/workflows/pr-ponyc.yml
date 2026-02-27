@@ -1,69 +1,27 @@
-name: PR
+name: ponyc
 
-on: pull_request
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '**'
+      - '!tools/**'
+      - '!**/*.md'
+      - '!**/*.yml'
+      - '!.dockerfiles/**'
+      - '!.ci-dockerfiles/**'
+      - '.github/workflows/pr-ponyc.yml'
 
 concurrency:
-  group: pr-${{ github.ref }}
+  group: pr-ponyc-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   packages: read
 
 jobs:
-  superlinter:
-    name: Lint bash, docker, markdown, and yaml
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Lint codebase
-        uses: docker://github/super-linter:v3.8.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_BASH: true
-          VALIDATE_DOCKERFILE: true
-          VALIDATE_MD: true
-          VALIDATE_YAML: true
-
-  validate-nightly-image-builds:
-    name: Validate nightly image builds
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Set up Docker Buildx
-        # v3.10.0
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
-      - name: Docker build
-        run: |
-          docker buildx create --name multiplatform --driver docker-container --use --bootstrap
-          docker buildx build --platform linux/amd64,linux/arm64 --pull --file=.dockerfiles/nightly/Dockerfile .
-
-  validate-release-image-builds:
-    name: Validate release image builds
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Set up Docker Buildx
-        # v3.10.0
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
-      - name: Docker build
-        run: |
-          docker buildx create --name multiplatform --driver docker-container --use --bootstrap
-          docker buildx build --platform linux/amd64,linux/arm64 --pull --file=.dockerfiles/release/Dockerfile .
-
-  verify-changelog:
-    name: Verify CHANGELOG is valid
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Verify CHANGELOG
-        uses: docker://ghcr.io/ponylang/changelog-tool:release
-        with:
-          args: changelog-tool verify
-
   x86_64-linux:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     strategy:
@@ -98,15 +56,16 @@ jobs:
           make configure arch=x86-64 config=debug
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
+        run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}'
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release usedebugger='${{ matrix.debugger }}'
+        run: make test-ci-core config=release usedebugger='${{ matrix.debugger }}'
 
   riscv64-linux:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     strategy:
@@ -150,6 +109,7 @@ jobs:
         run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_linker=riscv64-linux-gnu-gcc-10 cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c --link-ldcmd=bfd' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
 
   arm-linux:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     strategy:
@@ -193,6 +153,7 @@ jobs:
         run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_linker=arm-linux-gnueabi-gcc cross_ponyc_args='--link-ldcmd=gold' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
 
   armhf-linux:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     strategy:
@@ -245,6 +206,7 @@ jobs:
   # container" but is required to work around the GitHub actions limitation
   # documented above.
   arm64-linux:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04-arm
 
     strategy:
@@ -300,7 +262,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-ci config=debug
+            make test-ci-core config=debug
       - name: Build Release Runtime
         run: |
           docker run --rm \
@@ -318,9 +280,10 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-ci config=release
+            make test-ci-core config=release
 
   x86_64-macos:
+    if: github.event.pull_request.draft == false
     runs-on: macos-15-intel
 
     name: x86-64 Apple Darwin
@@ -341,15 +304,16 @@ jobs:
           make configure arch=x86-64 config=debug
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug test_full_program_timeout=180
+        run: make test-ci-core config=debug test_full_program_timeout=180
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release test_full_program_timeout=180
+        run: make test-ci-core config=release test_full_program_timeout=180
 
   arm64-macos:
+    if: github.event.pull_request.draft == false
     runs-on: macos-15
 
     name: arm64 Apple Darwin
@@ -370,15 +334,16 @@ jobs:
           make configure arch=armv8  config=debug
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug
+        run: make test-ci-core config=debug
       - name: Build Release Runtime
         run: |
           make configure arch=armv8  config=release
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release
+        run: make test-ci-core config=release
 
   x86_64-windows:
+    if: github.event.pull_request.draft == false
     runs-on: windows-2025
     defaults:
       run:
@@ -416,6 +381,7 @@ jobs:
         run: .\make.ps1 -Command build-examples
 
   arm64-windows:
+    if: github.event.pull_request.draft == false
     runs-on: windows-11-arm
     defaults:
       run:
@@ -449,33 +415,8 @@ jobs:
       - name: Build examples
         run: .\make.ps1 -Command build-examples
 
-  lint-pony-lint:
-    runs-on: ubuntu-latest
-
-    name: Lint pony-lint
-    container:
-      image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-      options: --user pony
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: build/libs
-          key: libs-ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Build
-        run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
-      - name: Lint pony-lint
-        run: make lint-pony-lint config=debug
-
   use_directives:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     needs: x86_64-linux
 
@@ -517,15 +458,16 @@ jobs:
           make configure arch=x86-64 config=debug use=${{ matrix.directives }}
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci config=debug usedebugger='${{ matrix.debugger }}'
+        run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}'
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release use=${{ matrix.directives }}
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci config=release usedebugger='${{ matrix.debugger }}'
+        run: make test-ci-core config=release usedebugger='${{ matrix.debugger }}'
 
   with_sanitizers:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     needs: x86_64-linux
 
@@ -558,10 +500,10 @@ jobs:
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=debug
       - name: Test with Debug Runtime
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=debug test_full_program_timeout=300
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci-core config=debug test_full_program_timeout=300
       - name: Build Release Runtime
         run: |
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=release use=${{ matrix.directives }}
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=release
       - name: Test with Release Runtime
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci config=release test_full_program_timeout=300
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci-core config=release test_full_program_timeout=300
