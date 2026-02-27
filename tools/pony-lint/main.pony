@@ -87,6 +87,8 @@ actor Main
         .> push(DocstringFormat)
         .> push(PackageDocstring)
         .> push(PreferChaining)
+        .> push(OperatorSpacing)
+        .> push(LambdaSpacing)
     end
 
     // Handle --explain
