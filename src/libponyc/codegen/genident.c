@@ -798,9 +798,9 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
     }
   }
 
-  LLVMTypeRef type = LLVMArrayType(c->i32, len);
+  LLVMTypeRef type = LLVMArrayType2(c->i32, len);
   LLVMValueRef table = LLVMAddGlobal(c->module, type, "__NumSizeTable");
-  LLVMValueRef value = LLVMConstArray(c->i32, args, len);
+  LLVMValueRef value = LLVMConstArray2(c->i32, args, len);
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
   LLVMSetAlignment(table, 4);

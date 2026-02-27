@@ -170,7 +170,7 @@ public:
       (*iter)->setTailCall(false);
 
     // TODO: for variable size alloca, don't insert at the beginning.
-    Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
+    BasicBlock::iterator begin = call.getCaller()->getEntryBlock().begin();
 
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
       inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
@@ -887,7 +887,7 @@ public:
           is_single = true;
 
         auto chain_call = CallInst::Create(msg_chain_fn, {prev_msg, next_msg},
-          "", *iter);
+          "", (*iter)->getIterator());
         chain_call->setTailCall();
         (*iter)->eraseFromParent();
 

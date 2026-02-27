@@ -292,7 +292,7 @@ static void deserialise_bare_interface(compile_t* c, LLVMValueRef ptr)
   args[1] = LLVMBuildLoad2(c->builder, c->intptr, ptr, "");
 
   LLVMValueRef desc = LLVMBuildInBoundsGEP2(c->builder,
-    LLVMArrayType(c->ptr, 0), c->desc_table, args, 2, "");
+    LLVMArrayType2(c->ptr, 0), c->desc_table, args, 2, "");
   desc = LLVMBuildLoad2(c->builder, c->ptr, desc, "");
   LLVMValueRef func = gendesc_instance(c, desc);
   LLVMBuildStore(c->builder, func, ptr);

@@ -194,7 +194,7 @@ static LLVMValueRef* trait_bitmap64(compile_t* c, reach_type_t* t)
 
 static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
 {
-  LLVMTypeRef map_type = LLVMArrayType(c->intptr, c->trait_bitmap_size);
+  LLVMTypeRef map_type = LLVMArrayType2(c->intptr, c->trait_bitmap_size);
 
   if(t->bare_method != NULL)
     return LLVMConstNull(c->ptr);
@@ -205,7 +205,7 @@ static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
   else
     bitmap = trait_bitmap64(c, t);
 
-  LLVMValueRef bitmap_array = LLVMConstArray(c->intptr, bitmap,
+  LLVMValueRef bitmap_array = LLVMConstArray2(c->intptr, bitmap,
     c->trait_bitmap_size);
 
   ponyint_pool_free_size(c->trait_bitmap_size * sizeof(LLVMValueRef), bitmap);
@@ -271,7 +271,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
   else
     count = 0;
 
-  LLVMTypeRef field_type = LLVMArrayType(c->field_descriptor, count);
+  LLVMTypeRef field_type = LLVMArrayType2(c->field_descriptor, count);
 
   // If we aren't a tuple, return a null pointer to a list.
   if(count == 0)
@@ -301,7 +301,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
     list[i] = LLVMConstStructInContext(c->context, fdesc, 2, false);
   }
 
-  LLVMValueRef field_array = LLVMConstArray(c->field_descriptor, list, count);
+  LLVMValueRef field_array = LLVMConstArray2(c->field_descriptor, list, count);
 
   // Create a global to hold the array.
   const char* name = genname_fieldlist(t->name);
@@ -318,7 +318,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
 static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
 {
   if(t->vtable_size == 0)
-    return LLVMConstArray(c->ptr, NULL, 0);
+    return LLVMConstArray2(c->ptr, NULL, 0);
 
   size_t buf_size = t->vtable_size * sizeof(LLVMValueRef);
   LLVMValueRef* vtable = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
@@ -353,7 +353,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       vtable[i] = LLVMConstNull(c->ptr);
   }
 
-  LLVMValueRef r = LLVMConstArray(c->ptr, vtable, t->vtable_size);
+  LLVMValueRef r = LLVMConstArray2(c->ptr, vtable, t->vtable_size);
   ponyint_pool_free_size(buf_size, vtable);
   return r;
 }
@@ -384,7 +384,7 @@ void gendesc_basetype(compile_t* c, LLVMTypeRef desc_type)
   params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
-  params[DESC_VTABLE] = LLVMArrayType(c->ptr, 0);
+  params[DESC_VTABLE] = LLVMArrayType2(c->ptr, 0);
 
   LLVMStructSetBody(desc_type, params, DESC_LENGTH, false);
 }
@@ -436,7 +436,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   params[DESC_MIGHT_REFERENCE_ACTOR] = c->i1;
   params[DESC_TRAITS] = c->ptr;
   params[DESC_FIELDS] = c->ptr;
-  params[DESC_VTABLE] = LLVMArrayType(c->ptr, vtable_size);
+  params[DESC_VTABLE] = LLVMArrayType2(c->ptr, vtable_size);
 
   LLVMStructSetBody(c_t->desc_type, params, DESC_LENGTH, false);
 
@@ -516,9 +516,9 @@ void gendesc_table(compile_t* c)
     args[t->type_id] = desc;
   }
 
-  LLVMTypeRef type = LLVMArrayType(c->ptr, len);
+  LLVMTypeRef type = LLVMArrayType2(c->ptr, len);
   LLVMValueRef table = LLVMAddGlobal(c->module, type, "__DescTable");
-  LLVMValueRef value = LLVMConstArray(c->ptr, args, len);
+  LLVMValueRef value = LLVMConstArray2(c->ptr, args, len);
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
   LLVMSetLinkage(table, LLVMPrivateLinkage);
@@ -626,7 +626,7 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef desc, size_t colour)
   gep[1] = LLVMConstInt(c->i32, colour, false);
 
   LLVMValueRef func_ptr = LLVMBuildInBoundsGEP2(c->builder,
-    LLVMArrayType(c->ptr, 0), vtable, gep, 2, "");
+    LLVMArrayType2(c->ptr, 0), vtable, gep, 2, "");
   LLVMValueRef fun = LLVMBuildLoad2(c->builder, c->ptr, func_ptr, "");
   return fun;
 }
@@ -655,7 +655,7 @@ LLVMValueRef gendesc_fieldinfo(compile_t* c, LLVMValueRef desc, size_t index)
   gep[1] = LLVMConstInt(c->i32, index, false);
 
   LLVMValueRef field_desc = LLVMBuildInBoundsGEP2(c->builder,
-    LLVMArrayType(c->field_descriptor, 0), fields, gep, 2, "");
+    LLVMArrayType2(c->field_descriptor, 0), fields, gep, 2, "");
   LLVMValueRef field_info = LLVMBuildLoad2(c->builder, c->field_descriptor,
     field_desc, "");
   return field_info;
@@ -738,7 +738,7 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
   args[1] = shift;
 
   LLVMValueRef index = LLVMBuildInBoundsGEP2(c->builder,
-    LLVMArrayType(c->intptr, 0), bitmap, args, 2, "");
+    LLVMArrayType2(c->intptr, 0), bitmap, args, 2, "");
   index = LLVMBuildLoad2(c->builder, c->intptr, index, "");
 
   LLVMValueRef has_trait = LLVMBuildAnd(c->builder, index, mask, "");

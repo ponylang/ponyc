@@ -11,6 +11,7 @@
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Target/TargetOptions.h>
+#include <llvm/TargetParser/Triple.h>
 
 #include "llvm_config_end.h"
 
@@ -51,7 +52,7 @@ LLVMTargetMachineRef codegen_machine(LLVMTargetRef target, pass_opt_t* opt)
 
   Target* t = reinterpret_cast<Target*>(target);
 
-  TargetMachine* m = t->createTargetMachine(opt->triple, opt->cpu,
+  TargetMachine* m = t->createTargetMachine(Triple(opt->triple), opt->cpu,
     opt->features, options, reloc, std::nullopt, opt_level, false);
 
   return reinterpret_cast<LLVMTargetMachineRef>(m);
