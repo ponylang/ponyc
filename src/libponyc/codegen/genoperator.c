@@ -635,14 +635,14 @@ LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, LLVMConstMul, LLVMBuildFMul,
+    return make_binop(c, left, right, NULL, NULL, LLVMBuildFMul,
       LLVMBuildMul);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, LLVMConstMul, make_unsafe_fmul,
+  return make_binop(c, left, right, NULL, NULL, make_unsafe_fmul,
     sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
 }
 

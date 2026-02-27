@@ -937,7 +937,8 @@ public:
 
     fn->addFnAttr(Attribute::NoUnwind);
     fn->setOnlyAccessesArgMemory();
-    fn->addParamAttr(1, Attribute::NoCapture);
+    fn->addParamAttr(1,
+      Attribute::getWithCaptureInfo(m.getContext(), CaptureInfo::none()));
     fn->addParamAttr(2, Attribute::ReadNone);
     return fn;
   }
@@ -979,7 +980,7 @@ static void optimise(compile_t* c, bool pony_specific)
     PB.registerOptimizerEarlyEPCallback(
       [&](ModulePassManager &mpm, OptimizationLevel level,
           ThinOrFullLTOPhase phase) {
-        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass()));
+        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass(false)));
       }
     );
   }
