@@ -14,7 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add pony-lint to the ponyc distribution ([PR #4842](https://github.com/ponylang/ponyc/pull/4842))
-- [pony-lsp] Add configuration from lsp-client and improve diagnostics handling ([PR #4837](https://github.com/ponylang/ponyc/pull/4837))
+- Add configuration from lsp-client and improve diagnostics handling ([PR #4837](https://github.com/ponylang/ponyc/pull/4837))
 
 ### Changed
 
