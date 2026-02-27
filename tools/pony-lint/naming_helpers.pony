@@ -161,7 +161,9 @@ primitive NamingHelpers
     consume result
 
   fun _acronyms(): Array[String val] val =>
-    """Known acronyms that should be fully uppercased in CamelCase names."""
+    """
+    Known acronyms that should be fully uppercased in CamelCase names.
+    """
     [
       "HTTP"; "JSON"; "XML"; "URL"; "TCP"; "UDP"; "SSL"; "TLS"
       "FFI"; "AST"; "API"; "HTML"; "CSS"; "DNS"; "SSH"; "URI"
@@ -189,7 +191,9 @@ primitive NamingHelpers
     end
 
   fun _contains_substring(haystack: String val, needle: String val): Bool =>
-    """Check if haystack contains needle as a substring."""
+    """
+    Check if haystack contains needle as a substring.
+    """
     if needle.size() > haystack.size() then return false end
     var i: USize = 0
     let limit = (haystack.size() - needle.size()) + 1
@@ -202,7 +206,9 @@ primitive NamingHelpers
     false
 
   fun _strip_prime(name: String val): String val =>
-    """Strip a trailing prime character from the name."""
+    """
+    Strip a trailing prime character from the name.
+    """
     if name.size() == 0 then return name end
     try
       if name(name.size() - 1)? == '\'' then
@@ -215,15 +221,21 @@ primitive NamingHelpers
     end
 
   fun is_upper(ch: U8): Bool =>
-    """True if `ch` is an ASCII uppercase letter."""
+    """
+    True if `ch` is an ASCII uppercase letter.
+    """
     (ch >= 'A') and (ch <= 'Z')
 
   fun is_lower(ch: U8): Bool =>
-    """True if `ch` is an ASCII lowercase letter."""
+    """
+    True if `ch` is an ASCII lowercase letter.
+    """
     (ch >= 'a') and (ch <= 'z')
 
   fun is_digit(ch: U8): Bool =>
-    """True if `ch` is an ASCII digit."""
+    """
+    True if `ch` is an ASCII digit.
+    """
     (ch >= '0') and (ch <= '9')
 
   fun _to_lower_ch(ch: U8): U8 =>

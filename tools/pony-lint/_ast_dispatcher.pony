@@ -123,7 +123,9 @@ class ref _ASTDispatcher is ast.ASTVisitor
     ast.Continue
 
   fun diagnostics(): Array[Diagnostic val] val =>
-    """Returns collected diagnostics after AST traversal."""
+    """
+    Returns collected diagnostics after AST traversal.
+    """
     let result = recover iso Array[Diagnostic val] end
     for d in _diagnostics.values() do
       result.push(d)

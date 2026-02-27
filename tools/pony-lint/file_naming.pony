@@ -115,7 +115,9 @@ primitive FileNaming is ASTRule
     None
 
   fun _filename_stem(path: String val): String val =>
-    """Extract filename without .pony extension from a full path."""
+    """
+    Extract filename without .pony extension from a full path.
+    """
     var base = path
     // Find last path separator
     var i = path.size()

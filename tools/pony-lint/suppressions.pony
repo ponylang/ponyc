@@ -218,7 +218,9 @@ class val Suppressions
     end
 
   fun magic_comment_lines(): Set[USize] val =>
-    """Returns the set of line numbers that contain pony-lint directives."""
+    """
+    Returns the set of line numbers that contain pony-lint directives.
+    """
     _magic_lines
 
   fun errors(): Array[Diagnostic val] val =>

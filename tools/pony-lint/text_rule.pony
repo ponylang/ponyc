@@ -7,16 +7,24 @@ trait val TextRule
   form `category/rule-name` (e.g., `style/line-length`).
   """
   fun id(): String val
-    """Unique rule identifier in `category/rule-name` form."""
+    """
+    Unique rule identifier in `category/rule-name` form.
+    """
 
   fun category(): String val
-    """Category prefix of `id()` (e.g., `style`)."""
+    """
+    Category prefix of `id()` (e.g., `style`).
+    """
 
   fun description(): String val
-    """Short human-readable description of what the rule checks."""
+    """
+    Short human-readable description of what the rule checks.
+    """
 
   fun default_status(): RuleStatus
-    """Whether the rule is enabled or disabled when no config overrides it."""
+    """
+    Whether the rule is enabled or disabled when no config overrides it.
+    """
 
   fun check(source: SourceFile val): Array[Diagnostic val] val
     """

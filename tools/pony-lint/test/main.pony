@@ -225,3 +225,27 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesBetweenEntitiesTooMany)
     test(_TestBlankLinesOneLinerEntitiesNoBlank)
     test(_TestBlankLinesBetweenDocstringEntities)
+
+    // IndentationSize tests
+    test(_TestIndentationSizeClean)
+    test(_TestIndentationSizeOddViolation)
+    test(_TestIndentationSizeOneSpace)
+    test(_TestIndentationSizeDocstringSkipped)
+    test(_TestIndentationSizeBlankSkipped)
+    test(_TestIndentationSizeZeroIndent)
+    test(_TestIndentationSizeTabSkipped)
+
+    // DocstringFormat tests
+    test(_TestDocstringFormatEntityClean)
+    test(_TestDocstringFormatMethodClean)
+    test(_TestDocstringFormatSingleLine)
+    test(_TestDocstringFormatClosingContent)
+    test(_TestDocstringFormatNoDocstring)
+    test(_TestDocstringFormatNodocEntityExempt)
+    test(_TestDocstringFormatNodocEntityMethodExempt)
+
+    // PackageDocstring tests
+    test(_TestPackageDocstringClean)
+    test(_TestPackageDocstringNoFile)
+    test(_TestPackageDocstringNoDocstring)
+    test(_TestPackageDocstringHyphenated)
