@@ -238,7 +238,7 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
     "kernel32.lib "
     "msvcrt.lib "
     "Ws2_32.lib advapi32.lib vcruntime.lib "
-    "legacy_stdio_definitions.lib dbghelp.lib");
+    "legacy_stdio_definitions.lib dbghelp.lib ntdll.lib");
 
   strcpy(vcvars->kernel32, sdk.path);
   strcat(vcvars->kernel32, "Lib\\");
