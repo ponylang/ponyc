@@ -1,0 +1,48 @@
+name: Tools
+
+on: pull_request
+
+concurrency:
+  group: pr-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Lint pony-lint
+            target: lint-pony-lint
+          - name: Test pony-lsp
+            target: test-pony-lsp
+          - name: Test pony-doc
+            target: test-pony-doc
+          - name: Test pony-lint
+            target: test-pony-lint
+    name: ${{ matrix.name }}
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: build/libs
+          key: libs-ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Build
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: ${{ matrix.name }}
+        run: make ${{ matrix.target }} config=debug
