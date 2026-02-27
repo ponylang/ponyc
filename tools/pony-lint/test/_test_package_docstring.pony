@@ -6,8 +6,9 @@ class \nodoc\ _TestPackageDocstringClean is UnitTest
   fun name(): String => "PackageDocstring: has file and docstring"
 
   fun apply(h: TestHelper) =>
-    let diags = lint.PackageDocstring.check_package(
-      "my_package", true, true, "my_package/foo.pony")
+    let diags =
+      lint.PackageDocstring.check_package(
+        "my_package", true, true, "my_package/foo.pony")
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestPackageDocstringNoFile is UnitTest
@@ -15,8 +16,9 @@ class \nodoc\ _TestPackageDocstringNoFile is UnitTest
   fun name(): String => "PackageDocstring: no package file flagged"
 
   fun apply(h: TestHelper) =>
-    let diags = lint.PackageDocstring.check_package(
-      "my_package", false, false, "my_package/foo.pony")
+    let diags =
+      lint.PackageDocstring.check_package(
+        "my_package", false, false, "my_package/foo.pony")
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[String](
@@ -32,8 +34,9 @@ class \nodoc\ _TestPackageDocstringNoDocstring is UnitTest
   fun name(): String => "PackageDocstring: no docstring flagged"
 
   fun apply(h: TestHelper) =>
-    let diags = lint.PackageDocstring.check_package(
-      "my_package", true, false, "my_package/foo.pony")
+    let diags =
+      lint.PackageDocstring.check_package(
+        "my_package", true, false, "my_package/foo.pony")
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[String](
@@ -51,6 +54,7 @@ class \nodoc\ _TestPackageDocstringHyphenated is UnitTest
   fun apply(h: TestHelper) =>
     // The linter normalizes hyphens to underscores before calling
     // check_package, so we test with the already-normalized name
-    let diags = lint.PackageDocstring.check_package(
-      "pony_lint", true, true, "pony-lint/foo.pony")
+    let diags =
+      lint.PackageDocstring.check_package(
+        "pony_lint", true, true, "pony-lint/foo.pony")
     h.assert_eq[USize](0, diags.size())

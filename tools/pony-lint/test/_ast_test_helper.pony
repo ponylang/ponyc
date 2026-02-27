@@ -21,16 +21,18 @@ primitive \nodoc\ _ASTTestHelper
     : (ast.Program val, lint.SourceFile val) ?
   =>
     let auth = h.env.root
-    let tmp = FilePath.mkdtemp(
-      FileAuth(auth), "pony-lint-ast-test")?
-    let pony_file = FilePath(
-      FileAuth(auth), Path.join(tmp.path, filename))
+    let tmp =
+      FilePath.mkdtemp(
+        FileAuth(auth), "pony-lint-ast-test")?
+    let pony_file =
+      FilePath(
+        FileAuth(auth), Path.join(tmp.path, filename))
     let file = File(pony_file)
     file.write(source)
     file.dispose()
 
-    let sf = lint.SourceFile(
-      pony_file.path, source, tmp.path)
+    let sf =
+      lint.SourceFile(pony_file.path, source, tmp.path)
 
     let pony_path = _get_ponypath(h.env.vars)
 
@@ -40,15 +42,16 @@ primitive \nodoc\ _ASTTestHelper
     | let program: ast.Program val =>
       (program, sf)
     | let errors: Array[ast.Error] val =>
-      let msg = recover val
-        let s = String
-        s.append("AST compilation failed:")
-        for err in errors.values() do
-          s.append("\n  ")
-          s.append(err.msg)
+      let msg =
+        recover val
+          let s = String
+          s.append("AST compilation failed:")
+          for err in errors.values() do
+            s.append("\n  ")
+            s.append(err.msg)
+          end
+          s
         end
-        s
-      end
       h.fail(msg)
       error
     end

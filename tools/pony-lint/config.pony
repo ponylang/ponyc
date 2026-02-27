@@ -79,13 +79,14 @@ primitive ConfigLoader
     Build a `LintConfig` from CLI disable flags and an optional config file.
     If `config_path` is None, auto-discovers the config file.
     """
-    let disabled = recover val
-      let s = Set[String]
-      for item in cli_disabled.values() do
-        s.set(item)
+    let disabled =
+      recover val
+        let s = Set[String]
+        for item in cli_disabled.values() do
+          s.set(item)
+        end
+        s
       end
-      s
-    end
     let file_rules =
       match config_path
       | let path: String =>

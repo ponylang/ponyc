@@ -130,8 +130,11 @@ class \nodoc\ _TestSuppressionMalformed is UnitTest
   fun name(): String => "Suppression: malformed directive error"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/t.pony",
-      "// pony-lint: bogus style/line-length\n", "/tmp")
+    let sf =
+      lint.SourceFile(
+        "/tmp/t.pony",
+        "// pony-lint: bogus style/line-length\n",
+        "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_eq[USize](1, sup.errors().size())
     try
@@ -183,8 +186,9 @@ class \nodoc\ _TestSuppressionEmptyDirective is UnitTest
   fun name(): String => "Suppression: empty directive error"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/t.pony",
-      "// pony-lint:\n", "/tmp")
+    let sf =
+      lint.SourceFile(
+        "/tmp/t.pony", "// pony-lint:\n", "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_eq[USize](1, sup.errors().size())
     try
@@ -263,8 +267,9 @@ class \nodoc\ _TestSuppressionNoSpaceAfterSlashes is UnitTest
     "Suppression: no space after // is malformed"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/t.pony",
-      "//pony-lint: off style\n", "/tmp")
+    let sf =
+      lint.SourceFile(
+        "/tmp/t.pony", "//pony-lint: off style\n", "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_eq[USize](1, sup.errors().size())
     try

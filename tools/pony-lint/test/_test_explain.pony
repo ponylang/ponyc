@@ -6,10 +6,11 @@ class \nodoc\ _TestExplainFormatEnabled is UnitTest
   fun name(): String => "ExplainHelpers: format enabled rule"
 
   fun apply(h: TestHelper) =>
-    let output = lint.ExplainHelpers.format(
-      "style/dot-spacing",
-      "no spaces around '.'; '.>' spaced as infix operator",
-      lint.RuleOn)
+    let output =
+      lint.ExplainHelpers.format(
+        "style/dot-spacing",
+        "no spaces around '.'; '.>' spaced as infix operator",
+        lint.RuleOn)
 
     h.assert_true(output.contains("style/dot-spacing"))
     h.assert_true(output.contains("enabled by default"))
@@ -26,10 +27,11 @@ class \nodoc\ _TestExplainFormatDisabled is UnitTest
   fun name(): String => "ExplainHelpers: format disabled rule"
 
   fun apply(h: TestHelper) =>
-    let output = lint.ExplainHelpers.format(
-      "style/some-rule",
-      "checks something",
-      lint.RuleOff)
+    let output =
+      lint.ExplainHelpers.format(
+        "style/some-rule",
+        "checks something",
+        lint.RuleOff)
 
     h.assert_true(output.contains("style/some-rule"))
     h.assert_true(output.contains("disabled by default"))

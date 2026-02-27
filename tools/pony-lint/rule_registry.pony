@@ -20,26 +20,28 @@ class val RuleRegistry
     _all = rules
     _all_ast = ast_rules
     _config = config
-    _enabled = recover val
-      let result = Array[TextRule val]
-      for rule in rules.values() do
-        match config.rule_status(rule.id(), rule.category(),
-          rule.default_status())
-        | RuleOn => result.push(rule)
+    _enabled =
+      recover val
+        let result = Array[TextRule val]
+        for rule in rules.values() do
+          match config.rule_status(rule.id(), rule.category(),
+            rule.default_status())
+          | RuleOn => result.push(rule)
+          end
         end
+        result
       end
-      result
-    end
-    _enabled_ast = recover val
-      let result = Array[ASTRule val]
-      for rule in ast_rules.values() do
-        match config.rule_status(rule.id(), rule.category(),
-          rule.default_status())
-        | RuleOn => result.push(rule)
+    _enabled_ast =
+      recover val
+        let result = Array[ASTRule val]
+        for rule in ast_rules.values() do
+          match config.rule_status(rule.id(), rule.category(),
+            rule.default_status())
+          | RuleOn => result.push(rule)
+          end
         end
+        result
       end
-      result
-    end
 
   fun enabled_text_rules(): Array[TextRule val] val =>
     """
