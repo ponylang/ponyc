@@ -87,8 +87,9 @@ class \nodoc\ _TestSourceFileCRLF is UnitTest
   fun name(): String => "SourceFile: CRLF normalization"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/test.pony",
-      "line1\r\nline2\r\nline3", "/tmp")
+    let sf =
+      lint.SourceFile("/tmp/test.pony",
+        "line1\r\nline2\r\nline3", "/tmp")
     h.assert_eq[USize](3, sf.lines.size())
     try
       h.assert_eq[String]("line1", sf.lines(0)?)

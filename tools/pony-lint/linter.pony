@@ -142,9 +142,9 @@ class val Linter
               let mod_file = mod.file
               try
                 let info = file_info(mod_file)?
-                let dispatcher = _ASTDispatcher(
-                  _registry.enabled_ast_rules(),
-                  info.source, info.magic_lines, info.suppressions)
+                let dispatcher =
+                  _ASTDispatcher(_registry.enabled_ast_rules(),
+                    info.source, info.magic_lines, info.suppressions)
                 mod.ast.visit(dispatcher)
 
                 for d in dispatcher.diagnostics().values() do
@@ -155,8 +155,9 @@ class val Linter
                 if _registry.is_enabled(FileNaming.id(), FileNaming.category(),
                   FileNaming.default_status())
                 then
-                  let file_diags = FileNaming.check_module(
-                    dispatcher.entities(), info.source)
+                  let file_diags =
+                    FileNaming.check_module(
+                      dispatcher.entities(), info.source)
                   for d in file_diags.values() do
                     if info.magic_lines.contains(d.line) then continue end
                     if info.suppressions.is_suppressed(d.line, d.rule_id) then
@@ -170,8 +171,9 @@ class val Linter
                 if _registry.is_enabled(BlankLines.id(),
                   BlankLines.category(), BlankLines.default_status())
                 then
-                  let bl_diags = BlankLines.check_module(
-                    dispatcher.entities(), info.source)
+                  let bl_diags =
+                    BlankLines.check_module(
+                      dispatcher.entities(), info.source)
                   for d in bl_diags.values() do
                     if info.magic_lines.contains(d.line) then continue end
                     if info.suppressions.is_suppressed(d.line, d.rule_id) then
@@ -198,8 +200,9 @@ class val Linter
             if _registry.is_enabled(PackageNaming.id(),
               PackageNaming.category(), PackageNaming.default_status())
             then
-              let pkg_diags = PackageNaming.check_package(
-                Path.base(pkg.path), first_rel)
+              let pkg_diags =
+                PackageNaming.check_package(
+                  Path.base(pkg.path), first_rel)
               for d in pkg_diags.values() do
                 all_diags.push(d)
               end
@@ -212,13 +215,14 @@ class val Linter
             then
               let pkg_base = Path.base(pkg.path)
               // Normalize hyphens to underscores for Pony identifiers
-              let norm_name = recover val
-                let s = String(pkg_base.size())
-                for ch in pkg_base.values() do
-                  if ch == '-' then s.push('_') else s.push(ch) end
+              let norm_name =
+                recover val
+                  let s = String(pkg_base.size())
+                  for ch in pkg_base.values() do
+                    if ch == '-' then s.push('_') else s.push(ch) end
+                  end
+                  s
                 end
-                s
-              end
               let expected_file: String val = norm_name + ".pony"
               var has_pkg_file = false
               var has_docstring = false
@@ -236,8 +240,9 @@ class val Linter
                   break
                 end
               end
-              let pd_diags = PackageDocstring.check_package(
-                norm_name, has_pkg_file, has_docstring, first_rel)
+              let pd_diags =
+                PackageDocstring.check_package(
+                  norm_name, has_pkg_file, has_docstring, first_rel)
               for d in pd_diags.values() do
                 all_diags.push(d)
               end

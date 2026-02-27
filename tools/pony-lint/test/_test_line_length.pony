@@ -35,9 +35,10 @@ class \nodoc\ _TestLineLengthMultiByteUTF8 is UnitTest
   fun apply(h: TestHelper) =>
     // 80 characters where some are multi-byte (e.g., é = 2 bytes)
     // "é" is 2 bytes but 1 codepoint
-    let line: String val = recover val
-      String .> append("a".mul(79)) .> append("é")
-    end
+    let line: String val =
+      recover val
+        String .> append("a".mul(79)) .> append("é")
+      end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check(sf)
     h.assert_eq[USize](0, diags.size())
@@ -80,8 +81,8 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         // ASCIILetters has no whitespace, so no newlines or \r
-        let sf = lint.SourceFile(
-          "/tmp/t.pony", content, "/tmp")
+        let sf =
+          lint.SourceFile("/tmp/t.pony", content, "/tmp")
         let diags = lint.LineLength.check(sf)
         ph.assert_eq[USize](1, diags.size())
       })?

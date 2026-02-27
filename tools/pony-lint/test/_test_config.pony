@@ -18,11 +18,12 @@ class \nodoc\ _TestConfigCLIDisableRule is UnitTest
   fun name(): String => "Config: CLI disable overrides everything"
 
   fun apply(h: TestHelper) =>
-    let disabled = recover val
-      let s = Set[String]
-      s.set("style/line-length")
-      s
-    end
+    let disabled =
+      recover val
+        let s = Set[String]
+        s.set("style/line-length")
+        s
+      end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
@@ -35,11 +36,12 @@ class \nodoc\ _TestConfigCLIDisableCategory is UnitTest
   fun name(): String => "Config: CLI disable category"
 
   fun apply(h: TestHelper) =>
-    let disabled = recover val
-      let s = Set[String]
-      s.set("style")
-      s
-    end
+    let disabled =
+      recover val
+        let s = Set[String]
+        s.set("style")
+        s
+      end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
@@ -53,11 +55,12 @@ class \nodoc\ _TestConfigFileRuleOverride is UnitTest
 
   fun apply(h: TestHelper) =>
     let disabled = recover val Set[String] end
-    let file_rules = recover val
-      let m = Map[String, lint.RuleStatus]
-      m("style/line-length") = lint.RuleOff
-      m
-    end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("style/line-length") = lint.RuleOff
+        m
+      end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
@@ -70,11 +73,12 @@ class \nodoc\ _TestConfigFileCategoryDefault is UnitTest
 
   fun apply(h: TestHelper) =>
     let disabled = recover val Set[String] end
-    let file_rules = recover val
-      let m = Map[String, lint.RuleStatus]
-      m("style") = lint.RuleOff
-      m
-    end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("style") = lint.RuleOff
+        m
+      end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
@@ -86,16 +90,18 @@ class \nodoc\ _TestConfigCLIOverridesFile is UnitTest
   fun name(): String => "Config: CLI overrides file config"
 
   fun apply(h: TestHelper) =>
-    let disabled = recover val
-      let s = Set[String]
-      s.set("style/line-length")
-      s
-    end
-    let file_rules = recover val
-      let m = Map[String, lint.RuleStatus]
-      m("style/line-length") = lint.RuleOn
-      m
-    end
+    let disabled =
+      recover val
+        let s = Set[String]
+        s.set("style/line-length")
+        s
+      end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("style/line-length") = lint.RuleOn
+        m
+      end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)

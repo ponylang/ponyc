@@ -45,15 +45,16 @@ primitive ExplainHelpers
     the heading anchor format used by the website (e.g., `style/dot-spacing`
     becomes `#styledot-spacing`).
     """
-    let anchor = recover val
-      let s = String(id.size())
-      for ch in id.values() do
-        if ch != '/' then
-          s.push(ch)
+    let anchor =
+      recover val
+        let s = String(id.size())
+        for ch in id.values() do
+          if ch != '/' then
+            s.push(ch)
+          end
         end
+        s
       end
-      s
-    end
 
     recover val
       String

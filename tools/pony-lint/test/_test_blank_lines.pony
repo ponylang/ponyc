@@ -354,19 +354,21 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesOneBlank is UnitTest
   fun name(): String => "BlankLines: 1 blank between entities is clean"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile(
-      "test.pony",
-      "class Foo\n" +
-      "  fun apply(): None => None\n" +
-      "\n" +
-      "class Bar\n" +
-      "  fun apply(): None => None\n",
-      ".")
-    let entities = recover val
-      Array[(String val, ast.TokenId, USize, USize)]
-        .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
-        .> push(("Bar", ast.TokenIds.tk_class(), 4, 5))
-    end
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +
+        "  fun apply(): None => None\n" +
+        "\n" +
+        "class Bar\n" +
+        "  fun apply(): None => None\n",
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_class(), 4, 5))
+      end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
 
@@ -375,18 +377,20 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesNoBlank is UnitTest
   fun name(): String => "BlankLines: 0 blanks between entities flagged"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile(
-      "test.pony",
-      "class Foo\n" +
-      "  fun apply(): None => None\n" +
-      "class Bar\n" +
-      "  fun apply(): None => None\n",
-      ".")
-    let entities = recover val
-      Array[(String val, ast.TokenId, USize, USize)]
-        .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
-        .> push(("Bar", ast.TokenIds.tk_class(), 3, 4))
-    end
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +
+        "  fun apply(): None => None\n" +
+        "class Bar\n" +
+        "  fun apply(): None => None\n",
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_class(), 3, 4))
+      end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](1, diags.size())
     try
@@ -400,20 +404,22 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesTooMany is UnitTest
   fun name(): String => "BlankLines: 2+ blanks between entities flagged"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile(
-      "test.pony",
-      "class Foo\n" +
-      "  fun apply(): None => None\n" +
-      "\n" +
-      "\n" +
-      "class Bar\n" +
-      "  fun apply(): None => None\n",
-      ".")
-    let entities = recover val
-      Array[(String val, ast.TokenId, USize, USize)]
-        .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
-        .> push(("Bar", ast.TokenIds.tk_class(), 5, 6))
-    end
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +
+        "  fun apply(): None => None\n" +
+        "\n" +
+        "\n" +
+        "class Bar\n" +
+        "  fun apply(): None => None\n",
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_class(), 5, 6))
+      end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](1, diags.size())
 
@@ -422,18 +428,20 @@ class \nodoc\ _TestBlankLinesOneLinerEntitiesNoBlank is UnitTest
   fun name(): String => "BlankLines: one-liner entities 0 blanks is clean"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile(
-      "test.pony",
-      "primitive Red\n" +
-      "primitive Green\n" +
-      "primitive Blue\n",
-      ".")
-    let entities = recover val
-      Array[(String val, ast.TokenId, USize, USize)]
-        .> push(("Red", ast.TokenIds.tk_primitive(), 1, 1))
-        .> push(("Green", ast.TokenIds.tk_primitive(), 2, 2))
-        .> push(("Blue", ast.TokenIds.tk_primitive(), 3, 3))
-    end
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "primitive Red\n" +
+        "primitive Green\n" +
+        "primitive Blue\n",
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Red", ast.TokenIds.tk_primitive(), 1, 1))
+          .> push(("Green", ast.TokenIds.tk_primitive(), 2, 2))
+          .> push(("Blue", ast.TokenIds.tk_primitive(), 3, 3))
+      end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
 

@@ -62,16 +62,16 @@ actor Main
     end
 
     // Build rule arrays (needed by --explain and normal linting)
-    let all_rules: Array[TextRule val] val = recover val
-      Array[TextRule val]
+    let all_rules: Array[TextRule val] val =
+      recover val Array[TextRule val]
         .> push(LineLength)
         .> push(TrailingWhitespace)
         .> push(HardTabs)
         .> push(CommentSpacing)
         .> push(IndentationSize)
     end
-    let all_ast_rules: Array[ASTRule val] val = recover val
-      Array[ASTRule val]
+    let all_ast_rules: Array[ASTRule val] val =
+      recover val Array[ASTRule val]
         .> push(TypeNaming)
         .> push(MemberNaming)
         .> push(AcronymCasing)
@@ -89,6 +89,7 @@ actor Main
         .> push(PreferChaining)
         .> push(OperatorSpacing)
         .> push(LambdaSpacing)
+        .> push(AssignmentIndent)
     end
 
     // Handle --explain
@@ -230,9 +231,8 @@ actor Main
     let buf = @ponyint_pool_alloc_size(buf_size)
     if @get_compiler_exe_directory(buf, "pony-lint".cstring())
     then
-      let result = recover val
-        String.copy_cstring(buf)
-      end
+      let result =
+        recover val String.copy_cstring(buf) end
       @ponyint_pool_free_size(buf_size, buf)
       result
     else

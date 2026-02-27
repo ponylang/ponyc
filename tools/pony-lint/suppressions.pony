@@ -80,8 +80,8 @@ class val Suppressions
             source.rel_path, line_num, 1))
         elseif trimmed.at("// pony-lint:") then
           magic.set(line_num)
-          let directive = trimmed.substring(
-            "// pony-lint:".size().isize())
+          let directive =
+            trimmed.substring("// pony-lint:".size().isize())
           let directive_str: String val = consume directive
           let directive_trimmed = directive_str.clone()
           directive_trimmed.strip()

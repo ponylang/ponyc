@@ -49,8 +49,11 @@ class \nodoc\ _TestCommentSpacingInsideString is UnitTest
 
   fun apply(h: TestHelper) =>
     // pony-lint: off style/comment-spacing
-    let sf = lint.SourceFile("/tmp/t.pony",
-      """let x = "http://example.com" """.clone() .> strip(), "/tmp")
+    let sf =
+      lint.SourceFile(
+        "/tmp/t.pony",
+        """let x = "http://example.com" """.clone() .> strip(),
+        "/tmp")
     // pony-lint: on style/comment-spacing
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](0, diags.size())
@@ -80,8 +83,9 @@ class \nodoc\ _TestCommentSpacingAfterCode is UnitTest
   fun name(): String => "CommentSpacing: after code with proper spacing"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/t.pony",
-      "let x = 1 // a number", "/tmp")
+    let sf =
+      lint.SourceFile(
+        "/tmp/t.pony", "let x = 1 // a number", "/tmp")
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](0, diags.size())
 
@@ -90,8 +94,9 @@ class \nodoc\ _TestCommentSpacingAfterCodeBadSpacing is UnitTest
   fun name(): String => "CommentSpacing: after code bad spacing"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/t.pony",
-      "let x = 1 //a number", "/tmp")
+    let sf =
+      lint.SourceFile(
+        "/tmp/t.pony", "let x = 1 //a number", "/tmp")
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](1, diags.size())
     try
@@ -105,8 +110,8 @@ class \nodoc\ _TestCommentSpacingNoComment is UnitTest
   fun name(): String => "CommentSpacing: no comment"
 
   fun apply(h: TestHelper) =>
-    let sf = lint.SourceFile("/tmp/t.pony",
-      "let x = 1 / 2", "/tmp")
+    let sf =
+      lint.SourceFile("/tmp/t.pony", "let x = 1 / 2", "/tmp")
     let diags = lint.CommentSpacing.check(sf)
     h.assert_eq[USize](0, diags.size())
 

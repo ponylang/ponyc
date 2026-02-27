@@ -322,6 +322,15 @@ actor \nodoc\ Main is TestList
     test(_TestLambdaSpacingBareLambdaSpaceAfterOpen)
     test(_TestLambdaSpacingBareLambdaTypeClean)
 
+    // AssignmentIndent tests
+    test(_TestAssignmentIndentSingleLine)
+    test(_TestAssignmentIndentRHSNextLine)
+    test(_TestAssignmentIndentMultiLineNextLine)
+    test(_TestAssignmentIndentViolation)
+    test(_TestAssignmentIndentRecoverViolation)
+    test(_TestAssignmentIndentReassignment)
+    test(_TestAssignmentIndentMultipleViolations)
+
     // PreferChaining tests
     test(_TestPreferChainingViolation)
     test(_TestPreferChainingVarViolation)

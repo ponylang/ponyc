@@ -46,9 +46,10 @@ primitive BlankLines is ASTRule
 
     // Find first body content line — docstring (child 6) or first member
     let docstring_line = _docstring_line(node)
-    let members_node = try node(4)? else
-      return recover val Array[Diagnostic val] end
-    end
+    let members_node =
+      try node(4)?
+      else return recover val Array[Diagnostic val] end
+      end
     if members_node.id() != ast.TokenIds.tk_members() then
       return recover val Array[Diagnostic val] end
     end
