@@ -61,3 +61,7 @@ Example settings as JSON:
 
 `pony-lsp` only relayed the main message from errors provided by ponyc. Now, it also passes the additional information to help explain the error.
 
+## Make pony-lsp version dynamic to match ponyc version
+
+Previously, the version of pony-lsp was hardcoded in the source code. Now it is dynamically generated from the ponyc version.
+
