@@ -106,6 +106,11 @@ actor \nodoc\ Main is TestList
     test(_TestLinterDiagnosticsSorted)
     test(_TestLinterNonExistentTarget)
 
+    // ExplainHelpers tests
+    test(_TestExplainFormatEnabled)
+    test(_TestExplainFormatDisabled)
+    test(_TestExplainURLConstruction)
+
     // NamingHelpers tests
     test(_TestIsCamelCaseValid)
     test(_TestIsCamelCaseInvalid)

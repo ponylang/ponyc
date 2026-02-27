@@ -30,6 +30,9 @@ actor Main
               "Path to config file" where short' = 'c', default' = "")
             OptionSpec.bool("version",
               "Print version and exit" where short' = 'V', default' = false)
+            OptionSpec.string("explain",
+              "Print rule description and documentation URL"
+              where default' = "")
           ],
           [
             ArgSpec.string_seq("paths", "Paths to lint (default: CWD)")
@@ -55,6 +58,52 @@ actor Main
     // Handle --version
     if cmd.option("version").bool() then
       env.out.print("pony-lint " + Version())
+      return
+    end
+
+    // Build rule arrays (needed by --explain and normal linting)
+    let all_rules: Array[TextRule val] val = recover val
+      Array[TextRule val]
+        .> push(LineLength)
+        .> push(TrailingWhitespace)
+        .> push(HardTabs)
+        .> push(CommentSpacing)
+    end
+    let all_ast_rules: Array[ASTRule val] val = recover val
+      Array[ASTRule val]
+        .> push(TypeNaming)
+        .> push(MemberNaming)
+        .> push(AcronymCasing)
+        .> push(FileNaming)
+        .> push(PackageNaming)
+        .> push(PublicDocstring)
+        .> push(MatchSingleLine)
+        .> push(MatchCaseIndent)
+        .> push(PartialSpacing)
+        .> push(PartialCallSpacing)
+        .> push(DotSpacing)
+        .> push(BlankLines)
+    end
+
+    // Handle --explain
+    let explain_id = cmd.option("explain").string()
+    if explain_id.size() > 0 then
+      for rule in all_rules.values() do
+        if rule.id() == explain_id then
+          env.out.print(ExplainHelpers.format(
+            rule.id(), rule.description(), rule.default_status()))
+          return
+        end
+      end
+      for rule in all_ast_rules.values() do
+        if rule.id() == explain_id then
+          env.out.print(ExplainHelpers.format(
+            rule.id(), rule.description(), rule.default_status()))
+          return
+        end
+      end
+      env.err.print("error: unknown rule '" + explain_id + "'")
+      env.exitcode(ExitError())
       return
     end
 
@@ -96,31 +145,7 @@ actor Main
         return
       end
 
-    // Build rule registry with all rules
-    let all_rules: Array[TextRule val] val = recover val
-      let r = Array[TextRule val]
-      r.push(LineLength)
-      r.push(TrailingWhitespace)
-      r.push(HardTabs)
-      r.push(CommentSpacing)
-      r
-    end
-    let all_ast_rules: Array[ASTRule val] val = recover val
-      let r = Array[ASTRule val]
-      r.push(TypeNaming)
-      r.push(MemberNaming)
-      r.push(AcronymCasing)
-      r.push(FileNaming)
-      r.push(PackageNaming)
-      r.push(PublicDocstring)
-      r.push(MatchSingleLine)
-      r.push(MatchCaseIndent)
-      r.push(PartialSpacing)
-      r.push(PartialCallSpacing)
-      r.push(DotSpacing)
-      r.push(BlankLines)
-      r
-    end
+    // Build rule registry
     let registry = RuleRegistry(all_rules, all_ast_rules, config)
 
     // Build package search paths: installation paths first (prevents
