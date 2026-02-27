@@ -8,7 +8,11 @@ sorted diagnostics. The processing pipeline is:
 **Text phase:**
 
 1. File discovery -- recursively find `.pony` files, skipping `_corral/`,
-   `_repos/`, and dot-directories.
+   `_repos/`, and dot-directories. Additionally, when inside a git
+   repository, `.gitignore` patterns are respected; `.ignore` files are
+   always respected regardless of git context. Ignore files are loaded
+   per-directory from the repository root through the target directory,
+   with child directory rules overriding parent rules.
 2. Source loading -- read each file into a `SourceFile`, normalizing line
    endings.
 3. Suppression parsing -- scan for `// pony-lint:` directives that suppress
