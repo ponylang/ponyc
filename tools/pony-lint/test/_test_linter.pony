@@ -62,12 +62,11 @@ class \nodoc\ _TestLinterCleanFile is UnitTest
       file.dispose()
 
       let rules: Array[lint.TextRule val] val = recover val
-        let r = Array[lint.TextRule val]
-        r.push(lint.LineLength)
-        r.push(lint.TrailingWhitespace)
-        r.push(lint.HardTabs)
-        r.push(lint.CommentSpacing)
-        r
+        Array[lint.TextRule val]
+          .> push(lint.LineLength)
+          .> push(lint.TrailingWhitespace)
+          .> push(lint.HardTabs)
+          .> push(lint.CommentSpacing)
       end
       let registry = lint.RuleRegistry(
         rules, _NoASTRules(), lint.LintConfig.default())

@@ -46,10 +46,9 @@ class \nodoc\ _TestFileNamingTraitPrincipal is UnitTest
     let sf = lint.SourceFile(
       "runnable.pony", "trait Runnable\nclass Runner\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize, USize)]
-      a.push(("Runnable", ast.TokenIds.tk_trait(), 0, 0))
-      a.push(("Runner", ast.TokenIds.tk_class(), 0, 0))
-      a
+      Array[(String val, ast.TokenId, USize, USize)]
+        .> push(("Runnable", ast.TokenIds.tk_trait(), 0, 0))
+        .> push(("Runner", ast.TokenIds.tk_class(), 0, 0))
     end
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
@@ -63,10 +62,9 @@ class \nodoc\ _TestFileNamingMultipleEntitiesSkipped is UnitTest
     let sf = lint.SourceFile(
       "helpers.pony", "class Foo\nclass Bar\n", ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 0, 0))
-      a.push(("Bar", ast.TokenIds.tk_class(), 0, 0))
-      a
+      Array[(String val, ast.TokenId, USize, USize)]
+        .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
+        .> push(("Bar", ast.TokenIds.tk_class(), 0, 0))
     end
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())

@@ -83,10 +83,9 @@ class \nodoc\ _TestRegistryAllAlwaysComplete is UnitTest
     end
     let no_ast = recover val Array[lint.ASTRule val] end
     let disabled = recover val
-      let s = Set[String]
-      s.set("test/dummy")
-      s.set("test/dummy2")
-      s
+      Set[String]
+        .> set("test/dummy")
+        .> set("test/dummy2")
     end
     let config = lint.LintConfig(disabled,
       recover val Map[String, lint.RuleStatus] end)
