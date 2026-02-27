@@ -93,12 +93,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -138,12 +132,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -187,12 +175,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -236,12 +218,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -307,12 +283,6 @@ jobs:
             -w /home/pony/project \
             ${{ matrix.image }} \
             make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           docker run --rm \
@@ -366,12 +336,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -401,12 +365,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure arch=armv8  config=debug
@@ -442,12 +400,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug
@@ -482,12 +434,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs -Arch ARM64
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug -Arch ARM64
@@ -522,12 +468,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build
         run: |
           make configure arch=x86-64 config=debug
@@ -572,12 +512,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug use=${{ matrix.directives }}
@@ -619,12 +553,6 @@ jobs:
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: build/libs
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
