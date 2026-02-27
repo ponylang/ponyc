@@ -229,3 +229,187 @@ class \nodoc\ _TestLinterNonExistentTarget is UnitTest
     else
       h.fail("expected ExitError")
     end
+
+class \nodoc\ _TestLinterRespectsGitignore is UnitTest
+  """Files matching .gitignore patterns are excluded from linting."""
+  fun name(): String => "Linter: respects .gitignore"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+      // Create .git dir to simulate a git repo
+      let git_dir = FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".git"))
+      git_dir.mkdir()
+      // Create .gitignore that ignores the "generated" directory
+      let gitignore = File(FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".gitignore")))
+      gitignore.print("generated/")
+      gitignore.dispose()
+      // Create a "generated" directory with a .pony file containing a
+      // violation
+      let gen_dir = FilePath(FileAuth(auth),
+        Path.join(tmp.path, "generated"))
+      gen_dir.mkdir()
+      let gen_file = FilePath(FileAuth(auth),
+        Path.join(gen_dir.path, "gen.pony"))
+      let gf = File(gen_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      gf.print(long_line)
+      gf.dispose()
+      // Create a non-ignored .pony file that is clean
+      let clean_file = FilePath(FileAuth(auth),
+        Path.join(tmp.path, "clean.pony"))
+      let cf = File(clean_file)
+      cf.print("actor Main")
+      cf.dispose()
+
+      let rules: Array[lint.TextRule val] val = recover val
+        [as lint.TextRule val: lint.LineLength]
+      end
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
+      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+      let targets = recover val [as String val: tmp.path] end
+      (let diags, let exit_code) = linter.run(targets)
+      // The generated/ file should be ignored, only clean.pony is linted
+      h.assert_eq[USize](0, diags.size())
+      match exit_code
+      | lint.ExitSuccess => h.assert_true(true)
+      else
+        h.fail("expected ExitSuccess")
+      end
+
+      // Cleanup
+      gen_file.remove()
+      gen_dir.remove()
+      clean_file.remove()
+      FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".gitignore")).remove()
+      git_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterExplicitFileBypassesIgnore is UnitTest
+  """Explicit file targets are linted even when matching .gitignore."""
+  fun name(): String =>
+    "Linter: explicit file target bypasses .gitignore"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+      // Create .git dir to simulate a git repo
+      let git_dir = FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".git"))
+      git_dir.mkdir()
+      // Create .gitignore that ignores *.pony
+      let gitignore = File(FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".gitignore")))
+      gitignore.print("*.pony")
+      gitignore.dispose()
+      // Create a .pony file with a violation
+      let pony_file = FilePath(FileAuth(auth),
+        Path.join(tmp.path, "test.pony"))
+      let f = File(pony_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      f.print(long_line)
+      f.dispose()
+
+      let rules: Array[lint.TextRule val] val = recover val
+        [as lint.TextRule val: lint.LineLength]
+      end
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
+      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+      // Target the file directly, not the directory
+      let targets = recover val
+        [as String val: Path.join(tmp.path, "test.pony")]
+      end
+      (let diags, _) = linter.run(targets)
+      // File should be linted despite matching .gitignore
+      h.assert_true(diags.size() > 0)
+
+      // Cleanup
+      pony_file.remove()
+      FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".gitignore")).remove()
+      git_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterRespectsGitignoreFromParent is UnitTest
+  """Parent .gitignore applies when the target is a subdirectory."""
+  fun name(): String =>
+    "Linter: parent .gitignore applies to subdirectory target"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+      // Create .git dir at root
+      let git_dir = FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".git"))
+      git_dir.mkdir()
+      // .gitignore at root ignores "generated/" directory
+      let gitignore = File(FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".gitignore")))
+      gitignore.print("generated/")
+      gitignore.dispose()
+      // Create src/ subdirectory as the lint target
+      let src_dir = FilePath(FileAuth(auth),
+        Path.join(tmp.path, "src"))
+      src_dir.mkdir()
+      // Create generated/ under src/ with a violation
+      let gen_dir = FilePath(FileAuth(auth),
+        Path.join(src_dir.path, "generated"))
+      gen_dir.mkdir()
+      let gen_file = FilePath(FileAuth(auth),
+        Path.join(gen_dir.path, "gen.pony"))
+      let gf = File(gen_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      gf.print(long_line)
+      gf.dispose()
+      // Create a clean file in src/
+      let clean_file = FilePath(FileAuth(auth),
+        Path.join(src_dir.path, "clean.pony"))
+      let cf = File(clean_file)
+      cf.print("actor Main")
+      cf.dispose()
+
+      let rules: Array[lint.TextRule val] val = recover val
+        [as lint.TextRule val: lint.LineLength]
+      end
+      let registry = lint.RuleRegistry(
+        rules, _NoASTRules(), lint.LintConfig.default())
+      // Target is src/, not the repo root — tests that _GitRepoFinder
+      // walks up to find .git and that _load_intermediate_ignores loads
+      // root's .gitignore for the subdirectory target
+      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+      let targets = recover val [as String val: src_dir.path] end
+      (let diags, let exit_code) = linter.run(targets)
+      // generated/ should be ignored via parent .gitignore
+      h.assert_eq[USize](0, diags.size())
+      match exit_code
+      | lint.ExitSuccess => h.assert_true(true)
+      else
+        h.fail("expected ExitSuccess")
+      end
+
+      // Cleanup
+      gen_file.remove()
+      gen_dir.remove()
+      clean_file.remove()
+      src_dir.remove()
+      FilePath(FileAuth(auth),
+        Path.join(tmp.path, ".gitignore")).remove()
+      git_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end

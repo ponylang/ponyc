@@ -98,6 +98,43 @@ actor \nodoc\ Main is TestList
     test(_TestCommentSpacingNoComment)
     test(_TestCommentSpacingProperty)
 
+    // GlobMatch tests
+    test(_TestGlobMatchLiteral)
+    test(_TestGlobMatchStar)
+    test(_TestGlobMatchDoubleStarLeading)
+    test(_TestGlobMatchDoubleStarTrailing)
+    test(_TestGlobMatchDoubleStarMiddle)
+    test(_TestGlobMatchDoubleStarNotComponent)
+    test(_TestGlobMatchDoubleStarAlone)
+    test(_TestGlobMatchEdgeCases)
+    test(Property1UnitTest[String](
+      _TestGlobMatchLiteralSelfMatchProperty))
+    test(Property1UnitTest[String](
+      _TestGlobMatchStarNoCrossSlashProperty))
+    test(Property1UnitTest[String](
+      _TestGlobMatchDoubleStarMatchesAllProperty))
+
+    // PatternParser tests
+    test(_TestPatternParserBlankLine)
+    test(_TestPatternParserComment)
+    test(_TestPatternParserNegation)
+    test(_TestPatternParserTrailingSlash)
+    test(_TestPatternParserLeadingSlash)
+    test(_TestPatternParserAnchoring)
+    test(_TestPatternParserEscapes)
+    test(_TestPatternParserTrailingWhitespace)
+    test(_TestPatternParserSimpleWildcard)
+    test(_TestPatternParserDoubleStarAnchored)
+
+    // IgnoreMatcher tests
+    test(_TestIgnoreMatcherGitignore)
+    test(_TestIgnoreMatcherIgnoreFile)
+    test(_TestIgnoreMatcherIgnoreOverridesGitignore)
+    test(_TestIgnoreMatcherNegation)
+    test(_TestIgnoreMatcherNonGitIgnoresGitignore)
+    test(_TestIgnoreMatcherHierarchical)
+    test(_TestIgnoreMatcherAnchoredPattern)
+
     // Linter tests
     test(_TestLinterSingleFile)
     test(_TestLinterCleanFile)
@@ -105,6 +142,9 @@ actor \nodoc\ Main is TestList
     test(_TestLinterSuppressedDiagnosticsFiltered)
     test(_TestLinterDiagnosticsSorted)
     test(_TestLinterNonExistentTarget)
+    test(_TestLinterRespectsGitignore)
+    test(_TestLinterExplicitFileBypassesIgnore)
+    test(_TestLinterRespectsGitignoreFromParent)
 
     // ExplainHelpers tests
     test(_TestExplainFormatEnabled)

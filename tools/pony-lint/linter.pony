@@ -17,7 +17,11 @@ class val Linter
      package-naming) run after the per-node dispatch.
 
   File discovery recursively finds .pony files in given targets, skipping
-  _corral/, _repos/, and directories starting with a dot.
+  _corral/, _repos/, and directories starting with a dot. When inside a git
+  repository, `.gitignore` patterns are also respected; `.ignore` files are
+  always respected regardless of git context. Hardcoded skips (`_corral/`,
+  `_repos/`, dot-prefix) are unconditional and cannot be overridden by
+  negation patterns in ignore files.
   """
   let _registry: RuleRegistry
   let _file_auth: FileAuth
@@ -276,9 +280,59 @@ class val Linter
   fun _discover(targets: Array[String val] val): Array[String val] val =>
     """
     Find all .pony files in the given targets. If a target is a file, include
-    it directly. If a directory, walk it recursively.
+    it directly. If a directory, walk it recursively. Respects `.gitignore`
+    (when inside a git repo) and `.ignore` files for path exclusion.
     """
-    let collector = _FileCollector(_file_auth, _cwd)
+    // Find git repo root from first target's directory
+    let root: (String val | None) =
+      try
+        let first_target = targets(0)?
+        let abs_first =
+          if Path.is_abs(first_target) then
+            first_target
+          else
+            Path.join(_cwd, first_target)
+          end
+        let start_dir =
+          try
+            let fp' = FilePath(_file_auth, abs_first)
+            let fi = FileInfo(fp')?
+            if fi.directory then abs_first else Path.dir(abs_first) end
+          else
+            abs_first
+          end
+        _GitRepoFinder.find_root(_file_auth, start_dir)
+      else
+        None
+      end
+
+    let matcher = IgnoreMatcher(_file_auth, root)
+
+    // Pre-load ignore files from repo root through intermediate directories
+    // down to (but not including) each target directory. The target directory
+    // itself is loaded during the walk via _FileCollector.apply.
+    match root
+    | let r: String val =>
+      for target in targets.values() do
+        let abs_target =
+          if Path.is_abs(target) then
+            target
+          else
+            Path.join(_cwd, target)
+          end
+        let target_dir =
+          try
+            let fp' = FilePath(_file_auth, abs_target)
+            let fi = FileInfo(fp')?
+            if fi.directory then abs_target else Path.dir(abs_target) end
+          else
+            abs_target
+          end
+        _load_intermediate_ignores(matcher, r, target_dir)
+      end
+    end
+
+    let collector = _FileCollector(_file_auth, _cwd, matcher)
     for target in targets.values() do
       let abs_target =
         if Path.is_abs(target) then
@@ -299,6 +353,33 @@ class val Linter
     end
     collector.files()
 
+  fun _load_intermediate_ignores(
+    matcher: IgnoreMatcher ref,
+    root: String val,
+    target_dir: String val)
+  =>
+    """
+    Load ignore files for directories from the repo root through intermediate
+    directories down to (but not including) the target directory. When root
+    equals target_dir, nothing is loaded here because the walk's first
+    `apply` call handles it.
+    """
+    if root == target_dir then return end
+    matcher.load_directory(root)
+    let rel =
+      try
+        Path.rel(root, target_dir)?
+      else
+        return
+      end
+    let parts = rel.split_by("/")
+    var current: String val = root
+    for part in (consume parts).values() do
+      current = Path.join(current, part)
+      if current == target_dir then break end
+      matcher.load_directory(current)
+    end
+
 class val _FileInfo
   """
   Per-file metadata stored during text phase for reuse in AST phase.
@@ -318,21 +399,31 @@ class val _FileInfo
 
 class ref _FileCollector is WalkHandler
   """
-  Collects .pony file paths during directory walking.
+  Collects .pony file paths during directory walking, respecting hardcoded
+  skip rules and `.gitignore`/`.ignore` patterns.
   """
   let _file_auth: FileAuth
   let _cwd: String val
+  let _matcher: IgnoreMatcher ref
   let _files: Array[String val]
 
-  new ref create(file_auth: FileAuth, cwd: String val) =>
+  new ref create(
+    file_auth: FileAuth,
+    cwd: String val,
+    matcher: IgnoreMatcher ref)
+  =>
     _file_auth = file_auth
     _cwd = cwd
+    _matcher = matcher
     _files = Array[String val]
 
   fun ref add(path: String val) =>
     _files.push(path)
 
   fun ref apply(dir_path: FilePath, dir_entries: Array[String] ref) =>
+    // Load ignore files for this directory
+    _matcher.load_directory(dir_path.path)
+
     // Filter out entries we should skip
     var i: USize = 0
     while i < dir_entries.size() do
@@ -341,16 +432,23 @@ class ref _FileCollector is WalkHandler
         if _should_skip(entry) then
           dir_entries.delete(i)?
         else
-          // Check if entry is a .pony file
           let full = Path.join(dir_path.path, entry)
           let fp = FilePath(_file_auth, full)
           try
             let info = FileInfo(fp)?
-            if info.file and entry.at(".pony", entry.size().isize() - 5) then
-              _files.push(full)
+            if _matcher.is_ignored(full, entry, info.directory) then
+              dir_entries.delete(i)?
+            else
+              if info.file
+                and entry.at(".pony", entry.size().isize() - 5)
+              then
+                _files.push(full)
+              end
+              i = i + 1
             end
+          else
+            i = i + 1
           end
-          i = i + 1
         end
       else
         i = i + 1
