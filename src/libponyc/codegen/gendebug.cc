@@ -135,7 +135,7 @@ LLVMMetadataRef LLVMDIBuilderCreateArrayType(LLVMDIBuilderRef d,
     unwrap<DIType>(elem_type), DINodeArray(unwrap<MDTuple>(subscripts))));
 }
 
-LLVMValueRef LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
+void LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
   LLVMValueRef value, LLVMMetadataRef info, LLVMMetadataRef expr,
   unsigned line, unsigned col, LLVMMetadataRef scope, LLVMBasicBlockRef block)
 {
@@ -147,15 +147,9 @@ LLVMValueRef LLVMDIBuilderInsertDeclare(LLVMDIBuilderRef d,
     DILocation* loc = DILocation::get(sc->getContext(), line, col, sc,
       nullptr);
 
-    Instruction* inst = pd->insertDeclare(unwrap(value),
-      unwrap <DILocalVariable>(info), unwrap<DIExpression>(expr), loc,
+    pd->insertDeclare(unwrap(value),
+      unwrap<DILocalVariable>(info), unwrap<DIExpression>(expr), loc,
       unwrap(block));
-
-    return wrap(inst);
-  }
-  else
-  {
-    return nullptr;
   }
 }
 
