@@ -21,9 +21,11 @@ class \nodoc\ _TestDocstringFormatEntityClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -53,9 +55,11 @@ class \nodoc\ _TestDocstringFormatMethodClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -83,11 +87,14 @@ class \nodoc\ _TestDocstringFormatSingleLine is UnitTest
               "style/docstring-format", diags(0)?.rule_id)
             h.assert_true(
               diags(0)?.message.contains("opening"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -115,11 +122,14 @@ class \nodoc\ _TestDocstringFormatClosingContent is UnitTest
           try
             h.assert_true(
               diags(0)?.message.contains("closing"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -140,9 +150,11 @@ class \nodoc\ _TestDocstringFormatNoDocstring is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -165,9 +177,11 @@ class \nodoc\ _TestDocstringFormatNodocEntityExempt is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -195,9 +209,11 @@ class \nodoc\ _TestDocstringFormatNodocEntityMethodExempt is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.DocstringFormat)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")

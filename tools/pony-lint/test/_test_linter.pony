@@ -34,7 +34,8 @@ class \nodoc\ _TestLinterSingleFile is UnitTest
       h.assert_true(diags.size() > 0)
       match exit_code
       | lint.ExitViolations => h.assert_true(true)
-      else h.fail("expected ExitViolations")
+      else
+        h.fail("expected ExitViolations")
       end
 
       // Cleanup
@@ -76,7 +77,8 @@ class \nodoc\ _TestLinterCleanFile is UnitTest
       h.assert_eq[USize](0, diags.size())
       match exit_code
       | lint.ExitSuccess => h.assert_true(true)
-      else h.fail("expected ExitSuccess")
+      else
+        h.fail("expected ExitSuccess")
       end
 
       pony_file.remove()
@@ -225,5 +227,6 @@ class \nodoc\ _TestLinterNonExistentTarget is UnitTest
     end
     match exit_code
     | lint.ExitError => h.assert_true(true)
-    else h.fail("expected ExitError")
+    else
+      h.fail("expected ExitError")
     end

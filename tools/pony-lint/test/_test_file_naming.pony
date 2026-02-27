@@ -19,7 +19,8 @@ class \nodoc\ _TestFileNamingSingleEntity is UnitTest
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_true(diags(0)?.message.contains("foo.pony"))
-    else h.fail("could not access diagnostic")
+    else
+      h.fail("could not access diagnostic")
     end
 
 class \nodoc\ _TestFileNamingMatchingName is UnitTest

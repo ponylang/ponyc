@@ -21,9 +21,11 @@ class \nodoc\ _TestBlankLinesNoBlankBeforeFirstField is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -50,11 +52,14 @@ class \nodoc\ _TestBlankLinesBlankBeforeFirstField is UnitTest
           try
             h.assert_true(
               diags(0)?.message.contains("first body content"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -80,9 +85,11 @@ class \nodoc\ _TestBlankLinesDocstringNoBlank is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -109,9 +116,11 @@ class \nodoc\ _TestBlankLinesMultiLineHeaderClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -136,9 +145,11 @@ class \nodoc\ _TestBlankLinesConsecutiveFieldsClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -166,11 +177,14 @@ class \nodoc\ _TestBlankLinesConsecutiveFieldsBlank is UnitTest
           try
             h.assert_true(
               diags(0)?.message.contains("between fields"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -195,9 +209,11 @@ class \nodoc\ _TestBlankLinesFieldToMethodOneBlank is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -224,11 +240,14 @@ class \nodoc\ _TestBlankLinesFieldToMethodNoBlank is UnitTest
           try
             h.assert_true(
               diags(0)?.message.contains("1 blank line"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -255,9 +274,11 @@ class \nodoc\ _TestBlankLinesMultiLineMethodsOneBlank is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -286,11 +307,14 @@ class \nodoc\ _TestBlankLinesMultiLineMethodsNoBlank is UnitTest
           try
             h.assert_true(
               diags(0)?.message.contains("1 blank line"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -314,9 +338,11 @@ class \nodoc\ _TestBlankLinesOneLineMethodsNoBlank is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -367,7 +393,8 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesNoBlank is UnitTest
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_true(diags(0)?.message.contains("between entities"))
-    else h.fail("could not access diagnostic")
+    else
+      h.fail("could not access diagnostic")
     end
 
 class \nodoc\ _TestBlankLinesBetweenEntitiesTooMany is UnitTest
@@ -486,9 +513,11 @@ class \nodoc\ _TestBlankLinesBetweenDocstringEntities is UnitTest
           let entities = collector.entities()
           let diags = lint.BlankLines.check_module(entities, sf)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")

@@ -21,9 +21,11 @@ class \nodoc\ _TestMemberNamingClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.MemberNaming)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -49,11 +51,14 @@ class \nodoc\ _TestMemberNamingMethodViolation is UnitTest
           try
             h.assert_eq[String]("style/member-naming", diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("MyFun"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -78,11 +83,14 @@ class \nodoc\ _TestMemberNamingFieldViolation is UnitTest
           h.assert_eq[USize](1, diags.size())
           try
             h.assert_true(diags(0)?.message.contains("CamelField"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -106,9 +114,11 @@ class \nodoc\ _TestMemberNamingDontcareSkipped is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.MemberNaming)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -133,11 +143,14 @@ class \nodoc\ _TestMemberNamingParamViolation is UnitTest
           h.assert_eq[USize](1, diags.size())
           try
             h.assert_true(diags(0)?.message.contains("BadParam"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")

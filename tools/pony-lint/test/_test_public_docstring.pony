@@ -19,9 +19,11 @@ class \nodoc\ _TestPublicDocstringTypeClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -47,11 +49,14 @@ class \nodoc\ _TestPublicDocstringTypeViolation is UnitTest
               "style/public-docstring", diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("Foo"))
             h.assert_true(diags(0)?.message.contains("type"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -77,9 +82,11 @@ class \nodoc\ _TestPublicDocstringMethodClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -112,11 +119,14 @@ class \nodoc\ _TestPublicDocstringMethodViolation is UnitTest
               "style/public-docstring", diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("apply"))
             h.assert_true(diags(0)?.message.contains("method"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -139,9 +149,11 @@ class \nodoc\ _TestPublicDocstringPrivateSkipped is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -246,9 +258,11 @@ class \nodoc\ _TestPublicDocstringExemptMethods is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -275,9 +289,11 @@ class \nodoc\ _TestPublicDocstringAllEntityTypes is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](6, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -308,11 +324,14 @@ class \nodoc\ _TestPublicDocstringBehavior is UnitTest
           try
             h.assert_true(diags(0)?.message.contains("apply"))
             h.assert_true(diags(0)?.message.contains("method"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -337,9 +356,11 @@ class \nodoc\ _TestPublicDocstringTypeAlias is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -366,9 +387,11 @@ class \nodoc\ _TestPublicDocstringSimpleBody is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -394,11 +417,14 @@ class \nodoc\ _TestPublicDocstringAbstractMethod is UnitTest
           h.assert_eq[USize](1, diags.size())
           try
             h.assert_true(diags(0)?.message.contains("apply"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -431,11 +457,14 @@ class \nodoc\ _TestPublicDocstringNonExemptConstructor is UnitTest
           try
             h.assert_true(
               diags(0)?.message.contains("from_string"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -457,9 +486,11 @@ class \nodoc\ _TestPublicDocstringNodocTypeSkipped is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -487,9 +518,11 @@ class \nodoc\ _TestPublicDocstringNodocMethodSkipped is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -518,9 +551,11 @@ class \nodoc\ _TestPublicDocstringNodocEntityMethodsSkipped is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -543,9 +578,11 @@ class \nodoc\ _TestPublicDocstringMainActorSkipped is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.PublicDocstring)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
