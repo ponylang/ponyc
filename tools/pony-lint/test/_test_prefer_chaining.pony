@@ -137,8 +137,8 @@ class \nodoc\ _TestPreferChainingSingleCall is UnitTest
     end
 
 class \nodoc\ _TestPreferChainingNoTrailingRef is UnitTest
-  """Calls without trailing variable reference produces no diagnostics."""
-  fun name(): String => "PreferChaining: no trailing ref is clean"
+  """Calls without trailing variable reference are flagged."""
+  fun name(): String => "PreferChaining: no trailing ref flagged"
   fun exclusion_group(): String => "ast-compile"
 
   fun apply(h: TestHelper) =>
@@ -148,6 +148,44 @@ class \nodoc\ _TestPreferChainingNoTrailingRef is UnitTest
       "    let x = Bar\n" +
       "    x.baz(U32(1))\n" +
       "    x.qux(U32(2))\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.PreferChaining)
+          h.assert_eq[USize](1, diags.size())
+          try
+            h.assert_eq[String]("style/prefer-chaining",
+              diags(0)?.rule_id)
+            h.assert_true(diags(0)?.message.contains("x"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestPreferChainingUsedAfterCalls is UnitTest
+  """Calls followed by an unrelated statement are not flagged."""
+  fun name(): String => "PreferChaining: used after calls is clean"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(): None =>\n" +
+      "    let x = Bar\n" +
+      "    x.baz(U32(1))\n" +
+      "    x.qux(U32(2))\n" +
+      "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
       match program.package()
