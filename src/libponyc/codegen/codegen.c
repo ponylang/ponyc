@@ -194,7 +194,7 @@ static void init_runtime(compile_t* c)
   c->object_type = LLVMStructCreateNamed(c->context, "__object");
 
   // padding required in an actor between the descriptor and fields
-  c->actor_pad = LLVMArrayType(c->i8, PONY_ACTOR_PAD_SIZE);
+  c->actor_pad = LLVMArrayType2(c->i8, PONY_ACTOR_PAD_SIZE);
 
   // message
   params[0] = c->i32; // size
@@ -1292,7 +1292,7 @@ LLVMValueRef codegen_call(compile_t* c, LLVMTypeRef fun_type, LLVMValueRef fun,
 
 LLVMValueRef codegen_string(compile_t* c, const char* str, size_t len)
 {
-  LLVMValueRef str_val = LLVMConstStringInContext(c->context, str, (int)len,
+  LLVMValueRef str_val = LLVMConstStringInContext2(c->context, str, len,
     false);
   LLVMTypeRef str_ty = LLVMTypeOf(str_val);
   LLVMValueRef g_str = LLVMAddGlobal(c->module, str_ty, "");

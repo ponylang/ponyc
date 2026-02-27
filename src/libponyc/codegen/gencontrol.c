@@ -944,7 +944,7 @@ void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
 
   LLVMValueRef metadata = LLVMMDNodeInContext(ctx, params, count + 1);
   const char id[] = "prof";
-  LLVMSetMetadata(branch, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  LLVMSetMetadata(branch, LLVMGetMDKindIDInContext(ctx, id, sizeof(id) - 1), metadata);
 
   ponyint_pool_free(alloc_index, params);
 }

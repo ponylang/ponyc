@@ -1967,7 +1967,7 @@ static LLVMValueRef make_signature_array(compile_t* c, compile_type_t* c_t,
   for(size_t i = 0; i < SIGNATURE_LENGTH; i++)
     args[i] = LLVMConstInt(c->i8, signature[i], false);
 
-  LLVMValueRef sig = LLVMConstArray(c->i8, args, SIGNATURE_LENGTH);
+  LLVMValueRef sig = LLVMConstArray2(c->i8, args, SIGNATURE_LENGTH);
   LLVMValueRef g_sig = LLVMAddGlobal(c->module, LLVMTypeOf(sig), "");
   LLVMSetLinkage(g_sig, LLVMPrivateLinkage);
   LLVMSetInitializer(g_sig, sig);
