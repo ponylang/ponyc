@@ -290,6 +290,38 @@ actor \nodoc\ Main is TestList
     test(_TestPackageDocstringNoDocstring)
     test(_TestPackageDocstringHyphenated)
 
+    // OperatorSpacing tests
+    test(_TestOperatorSpacingCleanBinary)
+    test(_TestOperatorSpacingNoSpaces)
+    test(_TestOperatorSpacingSpaceOnlyBefore)
+    test(_TestOperatorSpacingSpaceOnlyAfter)
+    test(_TestOperatorSpacingUnaryMinusClean)
+    test(_TestOperatorSpacingUnaryMinusSpaceViolation)
+    test(_TestOperatorSpacingNotClean)
+    test(_TestOperatorSpacingNotAfterParenClean)
+    test(_TestOperatorSpacingNotNoSpaceAfter)
+    test(_TestOperatorSpacingAssignClean)
+    test(_TestOperatorSpacingAssignViolation)
+    test(_TestOperatorSpacingMultipleViolations)
+    test(_TestOperatorSpacingKeywordBinaryClean)
+    test(_TestOperatorSpacingIdentityClean)
+    test(_TestOperatorSpacingSaturatingClean)
+    test(_TestOperatorSpacingStyleGuideExample)
+    test(_TestOperatorSpacingContinuationLineClean)
+
+    // LambdaSpacing tests
+    test(_TestLambdaSpacingSingleLineClean)
+    test(_TestLambdaSpacingSingleLineMissingSpaceBefore)
+    test(_TestLambdaSpacingSpaceAfterOpen)
+    test(_TestLambdaSpacingMultiLineClean)
+    test(_TestLambdaSpacingMultiLineSpaceBeforeClose)
+    test(_TestLambdaSpacingTypeClean)
+    test(_TestLambdaSpacingTypeSpaceAfterOpen)
+    test(_TestLambdaSpacingTypeSpaceBeforeClose)
+    test(_TestLambdaSpacingBareLambdaClean)
+    test(_TestLambdaSpacingBareLambdaSpaceAfterOpen)
+    test(_TestLambdaSpacingBareLambdaTypeClean)
+
     // PreferChaining tests
     test(_TestPreferChainingViolation)
     test(_TestPreferChainingVarViolation)
