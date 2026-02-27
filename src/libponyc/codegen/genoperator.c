@@ -607,28 +607,28 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, LLVMConstAdd, LLVMBuildFAdd,
+    return make_binop(c, left, right, NULL, NULL, LLVMBuildFAdd,
       LLVMBuildAdd);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, LLVMConstAdd, make_unsafe_fadd,
+  return make_binop(c, left, right, NULL, NULL, make_unsafe_fadd,
     sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
 }
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, LLVMConstSub, LLVMBuildFSub,
+    return make_binop(c, left, right, NULL, NULL, LLVMBuildFSub,
       LLVMBuildSub);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, LLVMConstSub, make_unsafe_fsub,
+  return make_binop(c, left, right, NULL, NULL, make_unsafe_fsub,
     sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
 }
 
