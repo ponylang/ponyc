@@ -109,7 +109,8 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
       uint64_t width = LLVMGetIntTypeWidth(r_type);
       LLVMValueRef v_min = LLVMConstInt(r_type, 0, false);
       v_min = LLVMConstNot(v_min);
-      v_min = LLVMConstShl(v_min, LLVMConstInt(r_type, width - 1, false));
+      v_min = LLVMBuildShl(c->builder, v_min,
+        LLVMConstInt(r_type, width - 1, false), "");
       long long min = LLVMConstIntGetSExtValue(v_min);
       if(LLVMConstIntGetSExtValue(l_value) == min)
       {
@@ -168,7 +169,8 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
       v_min = LLVMConstNot(v_min);
       LLVMValueRef denom_good = LLVMBuildICmp(c->builder, LLVMIntNE, r_value,
         v_min, "");
-      v_min = LLVMConstShl(v_min, LLVMConstInt(r_type, width - 1, false));
+      v_min = LLVMBuildShl(c->builder, v_min,
+        LLVMConstInt(r_type, width - 1, false), "");
       LLVMValueRef numer_good = LLVMBuildICmp(c->builder, LLVMIntNE, l_value,
         v_min, "");
       LLVMValueRef no_overflow = LLVMBuildOr(c->builder, numer_good, denom_good,
@@ -219,12 +221,12 @@ static LLVMValueRef make_cmp_value(compile_t* c, bool sign,
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
-      return LLVMConstFCmp(cmp_f, l_value, r_value);
+      return LLVMBuildFCmp(c->builder, cmp_f, l_value, r_value, "");
 
     if(sign)
-      return LLVMConstICmp(cmp_si, l_value, r_value);
+      return LLVMBuildICmp(c->builder, cmp_si, l_value, r_value, "");
 
-    return LLVMConstICmp(cmp_ui, l_value, r_value);
+    return LLVMBuildICmp(c->builder, cmp_ui, l_value, r_value, "");
   }
 
   if(is_fp(l_value))
@@ -605,42 +607,42 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, LLVMConstAdd, LLVMBuildFAdd,
+    return make_binop(c, left, right, NULL, NULL, LLVMBuildFAdd,
       LLVMBuildAdd);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, LLVMConstAdd, make_unsafe_fadd,
+  return make_binop(c, left, right, NULL, NULL, make_unsafe_fadd,
     sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
 }
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, LLVMConstSub, LLVMBuildFSub,
+    return make_binop(c, left, right, NULL, NULL, LLVMBuildFSub,
       LLVMBuildSub);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, LLVMConstSub, make_unsafe_fsub,
+  return make_binop(c, left, right, NULL, NULL, make_unsafe_fsub,
     sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
 }
 
 LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, LLVMConstMul, LLVMBuildFMul,
+    return make_binop(c, left, right, NULL, NULL, LLVMBuildFMul,
       LLVMBuildMul);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, LLVMConstMul, make_unsafe_fmul,
+  return make_binop(c, left, right, NULL, NULL, make_unsafe_fmul,
     sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
 }
 
@@ -681,9 +683,12 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
+  LLVMValueRef result = LLVMBuildNeg(c->builder, value, "");
   if(sign)
-    return LLVMBuildNSWNeg(c->builder, value, "");
-  return LLVMBuildNUWNeg(c->builder, value, "");
+    LLVMSetNoSignedWrap(result);
+  else
+    LLVMSetNoUnsignedWrap(result);
+  return result;
 }
 
 LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
@@ -708,7 +713,7 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right, bool safe)
     }
 
     if(LLVMIsConstant(l_value))
-      return LLVMConstShl(l_value, r_value);
+      return LLVMBuildShl(c->builder, l_value, r_value, "");
   }
 
   if(safe)
