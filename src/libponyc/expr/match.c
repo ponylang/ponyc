@@ -242,6 +242,13 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
       // match might not be exhaustive
       if ((ast_id(else_clause) == TK_NONE))
       {
+        if(ast_has_annotation(ast, "exhaustive"))
+        {
+          ast_error(opt->check.errors, ast,
+            "match marked \\exhaustive\\ is not exhaustive");
+          return false;
+        }
+
         // If we have no else clause, and the match is not found to be exhaustive,
         // we must generate an implicit else clause that returns None as the value.
         ast_scope(else_clause);

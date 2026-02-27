@@ -1138,6 +1138,94 @@ TEST_F(SugarExprTest, MatchNonExhaustiveSubsetOfEquatableOfSubType)
 
 }
 
+TEST_F(SugarExprTest, MatchExhaustiveAnnotationNonExhaustiveNoElse)
+{
+  const char* src =
+    "interface Equatable[T]\n"
+    "  fun eq(that: T): Bool => this is that\n"
+    "primitive T1 is Equatable[Choices]\n"
+    "primitive T2 is Equatable[Choices]\n"
+    "primitive T3 is Equatable[Choices]\n"
+    "\n"
+    "type Choices is ( T1 | T2 | T3 )\n"
+    "\n"
+    "primitive Foo\n"
+    "  fun apply(p: Choices): String =>\n"
+    "    match \\exhaustive\\ p\n"
+    "    | T1 => \"t1\"\n"
+    "    | T2 => \"t2\"\n"
+    "    end";
+  TEST_ERRORS_1(src,
+    "match marked \\exhaustive\\ is not exhaustive");
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveAnnotationNonExhaustiveWithElse)
+{
+  const char* src =
+    "interface Equatable[T]\n"
+    "  fun eq(that: T): Bool => this is that\n"
+    "primitive T1 is Equatable[Choices]\n"
+    "primitive T2 is Equatable[Choices]\n"
+    "primitive T3 is Equatable[Choices]\n"
+    "\n"
+    "type Choices is ( T1 | T2 | T3 )\n"
+    "\n"
+    "primitive Foo\n"
+    "  fun apply(p: Choices): String =>\n"
+    "    match \\exhaustive\\ p\n"
+    "    | T1 => \"t1\"\n"
+    "    | T2 => \"t2\"\n"
+    "    else\n"
+    "      \"other\"\n"
+    "    end";
+  TEST_COMPILE(src);
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveAnnotationExhaustive)
+{
+  const char* src =
+    "interface Equatable[T]\n"
+    "  fun eq(that: T): Bool => this is that\n"
+    "primitive T1 is Equatable[Choices]\n"
+    "primitive T2 is Equatable[Choices]\n"
+    "primitive T3 is Equatable[Choices]\n"
+    "\n"
+    "type Choices is ( T1 | T2 | T3 )\n"
+    "\n"
+    "primitive Foo\n"
+    "  fun apply(p: Choices): String =>\n"
+    "    match \\exhaustive\\ p\n"
+    "    | T1 => \"t1\"\n"
+    "    | T2 => \"t2\"\n"
+    "    | T3 => \"t3\"\n"
+    "    end";
+  TEST_COMPILE(src);
+}
+
+TEST_F(SugarExprTest, MatchExhaustiveAnnotationExhaustiveWithElse)
+{
+  const char* src =
+    "interface Equatable[T]\n"
+    "  fun eq(that: T): Bool => this is that\n"
+    "primitive T1 is Equatable[Choices]\n"
+    "primitive T2 is Equatable[Choices]\n"
+    "primitive T3 is Equatable[Choices]\n"
+    "\n"
+    "type Choices is ( T1 | T2 | T3 )\n"
+    "\n"
+    "primitive Foo\n"
+    "  fun apply(p: Choices): String =>\n"
+    "    match \\exhaustive\\ p\n"
+    "    | T1 => \"t1\"\n"
+    "    | T2 => \"t2\"\n"
+    "    | T3 => \"t3\"\n"
+    "    else\n"
+    "      \"other\"\n"
+    "    end";
+  TEST_ERRORS_1(src,
+    "match is exhaustive, the else clause is unreachable");
+}
+
 TEST_F(SugarExprTest, MatchStructuralEqualityOnIncompatibleUnion)
 {
   // From issue #2110
