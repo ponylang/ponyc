@@ -178,7 +178,9 @@ primitive BlankLines is ASTRule
     consume result
 
   fun _docstring_line(node: ast.AST box): (USize | None) =>
-    """Get the line of the entity docstring (child 6), or None if absent."""
+    """
+    Get the line of the entity docstring (child 6), or None if absent.
+    """
     try
       let doc = node(6)?
       if doc.id() != ast.TokenIds.tk_none() then
@@ -198,13 +200,17 @@ primitive BlankLines is ASTRule
       or (token_id == ast.TokenIds.tk_be())
 
   fun _max_line(node: ast.AST box): USize =>
-    """Find the maximum line number reached by a node and its descendants."""
+    """
+    Find the maximum line number reached by a node and its descendants.
+    """
     let mlv = _MaxLineVisitor(node.line())
     node.visit(mlv)
     mlv.max_line
 
   fun _is_one_liner(node: ast.AST box): Bool =>
-    """A member is a one-liner if all descendants are on the same line."""
+    """
+    A member is a one-liner if all descendants are on the same line.
+    """
     _max_line(node) == node.line()
 
   fun _count_blank_lines(
@@ -231,7 +237,9 @@ primitive BlankLines is ASTRule
     count
 
   fun _is_blank(line: String val): Bool =>
-    """Check if a line is blank (empty or all whitespace)."""
+    """
+    Check if a line is blank (empty or all whitespace).
+    """
     var i: USize = 0
     while i < line.size() do
       try
@@ -245,7 +253,9 @@ primitive BlankLines is ASTRule
   fun _sort_by_start_line(
     arr: Array[(String val, ast.TokenId, USize, USize)])
   =>
-    """Simple insertion sort by start_line (element _3)."""
+    """
+    Simple insertion sort by start_line (element _3).
+    """
     var i: USize = 1
     while i < arr.size() do
       try

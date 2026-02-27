@@ -42,19 +42,27 @@ class val RuleRegistry
     end
 
   fun enabled_text_rules(): Array[TextRule val] val =>
-    """Returns only the text rules that are enabled by configuration."""
+    """
+    Returns only the text rules that are enabled by configuration.
+    """
     _enabled
 
   fun all_text_rules(): Array[TextRule val] val =>
-    """Returns all registered text rules regardless of configuration."""
+    """
+    Returns all registered text rules regardless of configuration.
+    """
     _all
 
   fun enabled_ast_rules(): Array[ASTRule val] val =>
-    """Returns only the AST rules that are enabled by configuration."""
+    """
+    Returns only the AST rules that are enabled by configuration.
+    """
     _enabled_ast
 
   fun all_ast_rules(): Array[ASTRule val] val =>
-    """Returns all registered AST rules regardless of configuration."""
+    """
+    Returns all registered AST rules regardless of configuration.
+    """
     _all_ast
 
   fun is_enabled(rule_id: String, category: String, default: RuleStatus)

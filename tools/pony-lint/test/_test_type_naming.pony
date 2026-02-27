@@ -17,9 +17,11 @@ class \nodoc\ _TestTypeNamingClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -43,11 +45,14 @@ class \nodoc\ _TestTypeNamingViolation is UnitTest
           try
             h.assert_eq[String]("style/type-naming", diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("foo_bar"))
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -68,9 +73,11 @@ class \nodoc\ _TestTypeNamingPrivate is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -98,9 +105,11 @@ class \nodoc\ _TestTypeNamingAllEntityTypes is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.TypeNaming)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")

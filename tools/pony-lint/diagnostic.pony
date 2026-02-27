@@ -1,18 +1,26 @@
 primitive RuleOn
-  """A rule status indicating the rule is enabled."""
+  """
+  A rule status indicating the rule is enabled.
+  """
 
 primitive RuleOff
-  """A rule status indicating the rule is disabled."""
+  """
+  A rule status indicating the rule is disabled.
+  """
 
 type RuleStatus is (RuleOn | RuleOff)
   // Whether a lint rule is enabled (RuleOn) or disabled (RuleOff).
 
 primitive ExitSuccess
-  """Exit code for a successful run with no violations."""
+  """
+  Exit code for a successful run with no violations.
+  """
   fun apply(): I32 => 0
 
 primitive ExitViolations
-  """Exit code when lint violations were found."""
+  """
+  Exit code when lint violations were found.
+  """
   fun apply(): I32 => 1
 
 primitive ExitError

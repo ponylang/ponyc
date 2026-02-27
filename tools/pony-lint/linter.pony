@@ -179,23 +179,62 @@ class val Linter
               end
             end
 
+            // Use first file in the package for diagnostic location
+            let first_rel =
+              try
+                let first_path = pkg_file_paths(0)?
+                try file_info(first_path)?.source.rel_path
+                else first_path
+                end
+              else
+                pkg_dir
+              end
+
             // Package-naming check (once per package)
             if _registry.is_enabled(PackageNaming.id(),
               PackageNaming.category(), PackageNaming.default_status())
             then
-              // Use first file in the package for diagnostic location
-              let first_rel =
-                try
-                  let first_path = pkg_file_paths(0)?
-                  try file_info(first_path)?.source.rel_path
-                  else first_path
-                  end
-                else
-                  pkg_dir
-                end
               let pkg_diags = PackageNaming.check_package(
                 Path.base(pkg.path), first_rel)
               for d in pkg_diags.values() do
+                all_diags.push(d)
+              end
+            end
+
+            // Package-docstring check (once per package)
+            if _registry.is_enabled(PackageDocstring.id(),
+              PackageDocstring.category(),
+              PackageDocstring.default_status())
+            then
+              let pkg_base = Path.base(pkg.path)
+              // Normalize hyphens to underscores for Pony identifiers
+              let norm_name = recover val
+                let s = String(pkg_base.size())
+                for ch in pkg_base.values() do
+                  if ch == '-' then s.push('_') else s.push(ch) end
+                end
+                s
+              end
+              let expected_file: String val = norm_name + ".pony"
+              var has_pkg_file = false
+              var has_docstring = false
+              for mod in pkg.modules() do
+                let mod_basename = Path.base(mod.file)
+                if mod_basename == expected_file then
+                  has_pkg_file = true
+                  // Check if module AST child 0 is TK_STRING
+                  match mod.ast.child()
+                  | let first_child: ast.AST =>
+                    if first_child.id() == ast.TokenIds.tk_string() then
+                      has_docstring = true
+                    end
+                  end
+                  break
+                end
+              end
+              let pd_diags = PackageDocstring.check_package(
+                norm_name, has_pkg_file, has_docstring, first_rel)
+              for d in pd_diags.values() do
                 all_diags.push(d)
               end
             end
@@ -261,7 +300,9 @@ class val Linter
     collector.files()
 
 class val _FileInfo
-  """Per-file metadata stored during text phase for reuse in AST phase."""
+  """
+  Per-file metadata stored during text phase for reuse in AST phase.
+  """
   let source: SourceFile val
   let suppressions: Suppressions val
   let magic_lines: Set[USize] val
@@ -276,7 +317,9 @@ class val _FileInfo
     magic_lines = magic_lines'
 
 class ref _FileCollector is WalkHandler
-  """Collects .pony file paths during directory walking."""
+  """
+  Collects .pony file paths during directory walking.
+  """
   let _file_auth: FileAuth
   let _cwd: String val
   let _files: Array[String val]

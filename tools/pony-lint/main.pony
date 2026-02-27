@@ -68,6 +68,7 @@ actor Main
         .> push(TrailingWhitespace)
         .> push(HardTabs)
         .> push(CommentSpacing)
+        .> push(IndentationSize)
     end
     let all_ast_rules: Array[ASTRule val] val = recover val
       Array[ASTRule val]
@@ -83,6 +84,8 @@ actor Main
         .> push(PartialCallSpacing)
         .> push(DotSpacing)
         .> push(BlankLines)
+        .> push(DocstringFormat)
+        .> push(PackageDocstring)
     end
 
     // Handle --explain
@@ -200,7 +203,9 @@ actor Main
     vars: (Array[String val] val | None))
     : Array[String val] val
   =>
-    """Extract PONYPATH entries as an array of paths."""
+    """
+    Extract PONYPATH entries as an array of paths.
+    """
     match vars
     | let env_vars: Array[String val] val =>
       for pair in env_vars.values() do

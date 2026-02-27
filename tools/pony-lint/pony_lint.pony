@@ -25,9 +25,10 @@ sorted diagnostics. The processing pipeline is:
    to obtain the parsed syntax tree.
 8. AST dispatch -- walk each module's AST, dispatching nodes to matching
    `ASTRule` implementations via `_ASTDispatcher`.
-9. Module-level rules -- run file-naming checks using entity info collected
-   during the AST walk.
-10. Package-level rules -- run package-naming checks once per package.
+9. Module-level rules -- run file-naming and blank-lines checks using entity
+   info collected during the AST walk.
+10. Package-level rules -- run package-naming and package-docstring checks
+    once per package.
 
 **Output:**
 

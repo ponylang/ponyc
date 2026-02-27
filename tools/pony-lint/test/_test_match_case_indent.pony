@@ -24,9 +24,11 @@ class \nodoc\ _TestMatchCaseIndentClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.MatchCaseIndent)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -57,11 +59,14 @@ class \nodoc\ _TestMatchCaseIndentViolation is UnitTest
           try
             h.assert_eq[String](
               "style/match-case-indent", diags(0)?.rule_id)
-          else h.fail("could not access diagnostic")
+          else
+            h.fail("could not access diagnostic")
           end
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")
@@ -91,9 +96,11 @@ class \nodoc\ _TestMatchCaseIndentNestedClean is UnitTest
         | let mod: ast.Module val =>
           let diags = _CollectRuleDiags(mod, sf, lint.MatchCaseIndent)
           h.assert_eq[USize](0, diags.size())
-        else h.fail("no module")
+        else
+          h.fail("no module")
         end
-      else h.fail("no package")
+      else
+        h.fail("no package")
       end
     else
       h.fail("compilation failed")

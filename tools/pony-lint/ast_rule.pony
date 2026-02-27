@@ -13,16 +13,24 @@ trait val ASTRule
   corresponding `SourceFile`, returning diagnostics without side effects.
   """
   fun id(): String val
-    """Unique rule identifier in `category/rule-name` form."""
+    """
+    Unique rule identifier in `category/rule-name` form.
+    """
 
   fun category(): String val
-    """Category prefix of `id()` (e.g., `style`)."""
+    """
+    Category prefix of `id()` (e.g., `style`).
+    """
 
   fun description(): String val
-    """Short human-readable description of what the rule checks."""
+    """
+    Short human-readable description of what the rule checks.
+    """
 
   fun default_status(): RuleStatus
-    """Whether the rule is enabled or disabled when no config overrides it."""
+    """
+    Whether the rule is enabled or disabled when no config overrides it.
+    """
 
   fun node_filter(): Array[ast.TokenId] val
     """

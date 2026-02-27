@@ -3,7 +3,9 @@ use "files"
 use json = "json"
 
 class val ConfigError
-  """Describes why configuration loading failed."""
+  """
+  Describes why configuration loading failed.
+  """
   let message: String val
 
   new val create(message': String val) =>
@@ -32,7 +34,9 @@ class val LintConfig
     _file_rules = file_rules
 
   new val default() =>
-    """Create a config with no overrides — all rules use their defaults."""
+    """
+    Create a config with no overrides — all rules use their defaults.
+    """
     _cli_disabled = recover val Set[String] end
     _file_rules = recover val Map[String, RuleStatus] end
 
@@ -140,7 +144,9 @@ primitive ConfigLoader
     None
 
   fun _load_file(fp: FilePath): (Map[String, RuleStatus] val | ConfigError) =>
-    """Parse a `.pony-lint.json` file into rule status overrides."""
+    """
+    Parse a `.pony-lint.json` file into rule status overrides.
+    """
     let file = File.open(fp)
     if not file.valid() then
       return ConfigError("could not open config file: " + fp.path)
@@ -152,7 +158,9 @@ primitive ConfigLoader
   fun parse(content: String val)
     : (Map[String, RuleStatus] val | ConfigError)
   =>
-    """Parse JSON content into rule status overrides."""
+    """
+    Parse JSON content into rule status overrides.
+    """
     match json.JsonParser.parse(content)
     | let value: json.JsonValue =>
       match value
