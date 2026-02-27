@@ -757,7 +757,7 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
   fun ref apply(h: TestHelper) =>
     h.expect_action("connection failed")
 
-    let host = "127.0.0.1"
+    let host = ifdef linux then "127.0.0.2" else "127.0.0.1" end
     let port = "7669"
 
     let connection = TCPConnection(
