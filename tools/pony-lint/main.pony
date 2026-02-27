@@ -86,6 +86,7 @@ actor Main
         .> push(BlankLines)
         .> push(DocstringFormat)
         .> push(PackageDocstring)
+        .> push(PreferChaining)
     end
 
     // Handle --explain

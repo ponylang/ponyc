@@ -249,3 +249,12 @@ actor \nodoc\ Main is TestList
     test(_TestPackageDocstringNoFile)
     test(_TestPackageDocstringNoDocstring)
     test(_TestPackageDocstringHyphenated)
+
+    // PreferChaining tests
+    test(_TestPreferChainingViolation)
+    test(_TestPreferChainingVarViolation)
+    test(_TestPreferChainingAlreadyChaining)
+    test(_TestPreferChainingSingleCall)
+    test(_TestPreferChainingNoTrailingRef)
+    test(_TestPreferChainingInterspersed)
+    test(_TestPreferChainingNormalLet)

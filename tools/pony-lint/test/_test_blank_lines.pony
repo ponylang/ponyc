@@ -363,10 +363,9 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesOneBlank is UnitTest
       "  fun apply(): None => None\n",
       ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 1, 2))
-      a.push(("Bar", ast.TokenIds.tk_class(), 4, 5))
-      a
+      Array[(String val, ast.TokenId, USize, USize)]
+        .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+        .> push(("Bar", ast.TokenIds.tk_class(), 4, 5))
     end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
@@ -384,10 +383,9 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesNoBlank is UnitTest
       "  fun apply(): None => None\n",
       ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 1, 2))
-      a.push(("Bar", ast.TokenIds.tk_class(), 3, 4))
-      a
+      Array[(String val, ast.TokenId, USize, USize)]
+        .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+        .> push(("Bar", ast.TokenIds.tk_class(), 3, 4))
     end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](1, diags.size())
@@ -412,10 +410,9 @@ class \nodoc\ _TestBlankLinesBetweenEntitiesTooMany is UnitTest
       "  fun apply(): None => None\n",
       ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize, USize)]
-      a.push(("Foo", ast.TokenIds.tk_class(), 1, 2))
-      a.push(("Bar", ast.TokenIds.tk_class(), 5, 6))
-      a
+      Array[(String val, ast.TokenId, USize, USize)]
+        .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+        .> push(("Bar", ast.TokenIds.tk_class(), 5, 6))
     end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](1, diags.size())
@@ -432,11 +429,10 @@ class \nodoc\ _TestBlankLinesOneLinerEntitiesNoBlank is UnitTest
       "primitive Blue\n",
       ".")
     let entities = recover val
-      let a = Array[(String val, ast.TokenId, USize, USize)]
-      a.push(("Red", ast.TokenIds.tk_primitive(), 1, 1))
-      a.push(("Green", ast.TokenIds.tk_primitive(), 2, 2))
-      a.push(("Blue", ast.TokenIds.tk_primitive(), 3, 3))
-      a
+      Array[(String val, ast.TokenId, USize, USize)]
+        .> push(("Red", ast.TokenIds.tk_primitive(), 1, 1))
+        .> push(("Green", ast.TokenIds.tk_primitive(), 2, 2))
+        .> push(("Blue", ast.TokenIds.tk_primitive(), 3, 3))
     end
     let diags = lint.BlankLines.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
