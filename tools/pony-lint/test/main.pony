@@ -256,5 +256,6 @@ actor \nodoc\ Main is TestList
     test(_TestPreferChainingAlreadyChaining)
     test(_TestPreferChainingSingleCall)
     test(_TestPreferChainingNoTrailingRef)
+    test(_TestPreferChainingUsedAfterCalls)
     test(_TestPreferChainingInterspersed)
     test(_TestPreferChainingNormalLet)

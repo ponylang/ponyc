@@ -2,16 +2,23 @@ use ast = "pony_compiler"
 
 primitive PreferChaining is ASTRule
   """
-  Flags patterns where a value is bound to a local variable, methods are
-  called on it repeatedly, and it is returned — when `.>` chaining would
-  be cleaner.
+  Flags patterns where a value is bound to a local variable and methods are
+  called on it repeatedly — when `.>` chaining would be cleaner. Fires
+  whether or not the variable is returned after the calls.
 
-  Anti-pattern:
+  Anti-pattern (with trailing reference):
   ```pony
   let r = Array[U32]
   r.push(1)
   r.push(2)
   r
+  ```
+
+  Anti-pattern (without trailing reference):
+  ```pony
+  let x = Bar
+  x.baz(1)
+  x.qux(2)
   ```
 
   Preferred:
@@ -36,8 +43,8 @@ primitive PreferChaining is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Check whether a `let` or `var` binding is only used to call methods
-    and then returned, which `.>` chaining can express more concisely.
+    Check whether a `let` or `var` binding is only used to call methods,
+    which `.>` chaining can express more concisely.
     """
     // Extract variable name from child 0 (TK_ID)
     let var_name: String val =
@@ -80,18 +87,25 @@ primitive PreferChaining is ASTRule
       return recover val Array[Diagnostic val] end
     end
 
-    // Next sibling must be a bare reference to the variable with no
-    // further siblings (i.e. it is the return value of the sequence)
-    match current
-    | let ref_node: ast.AST box
-      if _is_bare_reference(ref_node, var_name)
-    =>
-      match ref_node.sibling()
-      | let _: ast.AST box =>
-        // There are more statements after the reference — not a
-        // simple return pattern
-        return recover val Array[Diagnostic val] end
+    // Fire when calls are the final expressions (no trailing ref needed)
+    // or when followed by a bare reference with no further siblings
+    let should_flag: Bool =
+      match current
+      | None =>
+        true
+      | let ref_node: ast.AST box
+        if _is_bare_reference(ref_node, var_name)
+      =>
+        match ref_node.sibling()
+        | let _: ast.AST box => false
+        else
+          true
+        end
+      else
+        false
       end
+
+    if should_flag then
       return recover val
         [Diagnostic(id(),
           "'" + var_name + "' can be replaced with .> chaining",
