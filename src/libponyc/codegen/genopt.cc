@@ -182,7 +182,7 @@ public:
     auto invoke = dyn_cast<InvokeInst>(static_cast<Instruction*>(&call));
     if (invoke)
     {
-      BranchInst::Create(invoke->getNormalDest(), invoke);
+      BranchInst::Create(invoke->getNormalDest(), invoke->getIterator());
       invoke->getUnwindDest()->removePredecessor(call.getParent());
     }
 
@@ -760,7 +760,7 @@ public:
       while(1)
       {
         auto prev = std::prev(src);
-        src->moveBefore(&(*dst));
+        src->moveBefore(dst);
 
         if(prev->getMetadata("pony.msgsend") == NULL)
           break;
@@ -785,7 +785,7 @@ public:
       while(iter != first.trace)
       {
         auto& inst = (*iter++);
-        inst.moveBefore(&(*next.alloc));
+        inst.moveBefore(next.alloc);
       }
 
       if(next_kind == MsgNoTrace)
@@ -796,7 +796,7 @@ public:
         {
           auto& inst = *(iter++);
           if(inst.getOpcode() == Instruction::Call)
-            inst.moveBefore(&(*next.send));
+            inst.moveBefore(next.send);
         }
 
         next.trace = first.trace;
@@ -807,7 +807,7 @@ public:
         {
           auto& inst = *(iter++);
           if(inst.getOpcode() == Instruction::Call)
-            inst.moveBefore(&(*next.trace));
+            inst.moveBefore(next.trace);
         }
 
         iter++;
@@ -825,7 +825,7 @@ public:
         {
           auto& inst = *(iter++);
           if(inst.getOpcode() == Instruction::Call)
-            inst.moveBefore(&(*next_done_post));
+            inst.moveBefore(next_done_post);
         }
 
         next.trace = first.trace;
