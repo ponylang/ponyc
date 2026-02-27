@@ -1,0 +1,20 @@
+{
+  "locks": [
+    {
+      "locator": "lib/ponylang/peg",
+      "revision": "main"
+    },
+    {
+      "locator": "lib/mfelsche/pony-ast",
+      "revision": "main"
+    },
+    {
+      "locator": "lib/mfelsche/pony-immutable-json",
+      "revision": "main"
+    },
+    {
+      "locator": "lib/mfelsche/pony-binarysearch",
+      "revision": "main"
+    }
+  ]
+}

@@ -14,6 +14,9 @@ trait Message is Stringable
           .>append(content)
       end
 
+  fun into_bytes(): Array[U8] iso^ =>
+    string().iso_array()
+
 
 primitive Err
   fun tag apply(): I64 => 1
@@ -35,6 +38,15 @@ type MessageType is (Err | Warning | Info | Log | Debug)
 
 
 type RequestId is (I64 | String)
+
+primitive RequestIds
+  fun eq(x: RequestId, y: RequestId): Bool =>
+    match (x, y)
+    | (let this_i: I64, let that_i: I64) => this_i == that_i
+    | (let this_s: String, let that_s: String) => this_s == that_s
+    else
+      false
+    end
 
 class val RequestMessage is Message
 
@@ -85,7 +97,7 @@ class val Notification is Message
 class val ResponseMessage is Message
   let id: (RequestId | None)
   let result: JsonValue
-  let _error: (ResponseError val | None)
+  let err: (ResponseError val | None)
 
   new val create(
     id': (RequestId | None),
@@ -97,13 +109,26 @@ class val ResponseMessage is Message
     """
     id = id'
     result = result'
-    _error = error'
+    err = error'
+
+  fun is_err(): Bool =>
+    """
+    Returns `true` if this response denotes an error.
+    """
+    this.err isnt None
+
+  fun is_result(): Bool =>
+    """
+    Returns `true` if we have a result, that is: A response denoting success for
+    the provided `id`.
+    """
+    this.err is None
 
   fun json(): JsonObject =>
     let obj = JsonObject
       .update("jsonrpc", "2.0")
       .update("id", id)
-    match this._error
+    match this.err
     | let r: ResponseError val =>
       obj.update("error", r.json())
     | None =>
@@ -182,3 +207,12 @@ primitive ErrorCodes
 	  the cancel.
     """
     -32800
+
+
+trait tag RequestSender
+  """
+  Describes some entity that supports sending LSP requests.
+
+  It needs to keep track of outgoing request ids.
+  """
+  be send_request(method: String val, params: (JsonObject | JsonArray | None))

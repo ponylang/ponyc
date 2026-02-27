@@ -1,4 +1,4 @@
-project(tools.pony-lsp)
+project(tools.pony-lsp VERSION ${PONYC_PROJECT_VERSION})
 
 set(PONY_LSP_EXECUTABLE "pony-lsp${CMAKE_EXECUTABLE_SUFFIX}")
 

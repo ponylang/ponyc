@@ -46,7 +46,7 @@ class DocumentSymbol
     """
     Tags for this document symbol.
 
-	since 3.16.0
+	  since 3.16.0
     """
   let range: LspPositionRange
     """

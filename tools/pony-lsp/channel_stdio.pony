@@ -48,7 +48,7 @@ actor Stdio is Channel
     """
     send(
       Notification(
-        "window/logMessage",
+        Methods.window().log_message(),
         JsonObject
           .update("type", message_type.apply())
           .update("message", data)

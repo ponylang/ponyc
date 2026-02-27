@@ -1,6 +1,7 @@
 use "pony_test"
 use "buffered"
 use "files"
+use "json"
 use ast = "pony_compiler"
 use ".."
 
@@ -13,6 +14,8 @@ actor Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_InitializeTest)
+    test(_WorkspaceConfigurationTest)
+    test(_DidChangeConfigurationTest)
     _WorkspaceTests.make().tests(test)
     _HoverTests.make().tests(test)
 
@@ -27,31 +30,21 @@ primitive _LspMsg
       end
     (consume s).iso_array()
 
-class \nodoc\ iso _InitializeTest is UnitTest
-  fun name(): String => "initialize"
+  fun tag initialized(): Array[U8] iso^ =>
+    this.apply("""
+    {
+      "jsonrpc": "2.0",
+      "method": "initialized",
+      "params": {}
+    }
+    """)
 
-  fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
-
-    let channel = TestChannel.create(
-      h,
-      {(h: TestHelper, channel: TestChannel ref): Bool =>
-        let res = h.assert_eq[USize](1, channel.sent.size())
-        h.complete(true)
-        res
-      }
-      where after_sends = 1, after_logs = USize.max_value()
-    )
-    let pony_path =
-      match ast.PonyPath(h.env)
-      | let p: String => p
-      | None => ""
-      end
-
-    let server = LanguageServer(channel, h.env, pony_path)
-
-    let base = BaseProtocol(server)
-    base(_LspMsg("""
+  fun tag initialize(
+    dir: String,
+    did_change_configuration_dynamic_registration: Bool = true,
+    supports_configuration: Bool = true
+  ): Array[U8] iso^ =>
+    this.apply("""
     {
       "jsonrpc": "2.0",
       "id": 0,
@@ -63,8 +56,10 @@ class \nodoc\ iso _InitializeTest is UnitTest
               "version": "1.88.0"
           },
           "locale": "en",
-          "rootPath": "/home/mat/dev/pony/valbytes",
-          "rootUri": "file:///home/mat/dev/pony/valbytes",
+          "rootPath": """" + dir + """
+",
+          "rootUri": "file://""" + dir + """
+",
           "capabilities": {
               "workspace": {
                   "applyEdit": true,
@@ -81,7 +76,8 @@ class \nodoc\ iso _InitializeTest is UnitTest
                           "groupsOnLabel": true
                       }
                   },
-                  "configuration": true,
+                  "configuration": """ + supports_configuration.string() + """
+,
                   "didChangeWatchedFiles": {
                       "dynamicRegistration": true,
                       "relativePatternSupport": true
@@ -136,7 +132,7 @@ class \nodoc\ iso _InitializeTest is UnitTest
                       "dynamicRegistration": true
                   },
                   "didChangeConfiguration": {
-                      "dynamicRegistration": true
+                      "dynamicRegistration": """ + did_change_configuration_dynamic_registration.string() + """
                   },
                   "workspaceFolders": true,
                   "foldingRange": {
@@ -533,37 +529,243 @@ class \nodoc\ iso _InitializeTest is UnitTest
           "trace": "verbose",
           "workspaceFolders": [
               {
-                  "uri": "file:///home/mat/dev/pony/valbytes",
-                  "name": "valbytes"
+                  "uri": "file://""" + dir + """
+",
+                  "name": "workspace"
               }
           ]
       }
     }
-    """))
+    """)
 
-actor TestChannel is Channel
+
+class \nodoc\ iso _InitializeTest is UnitTest
+  fun name(): String => "initialize"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(10_000_000_000)
+
+    let harness = TestHarness.create(
+      h,
+      TestCompiler(h),
+      object iso is MessageHandler
+        fun handle_request(h: TestHelper, req: RequestMessage val, server: BaseProtocol) =>
+          h.assert_eq[String](Methods.initialize(), req.method)
+      end,
+      {(h: TestHelper, harness: TestHarness ref): Bool =>
+        let res = h.assert_eq[USize](1, harness.sent.size())
+        h.complete(true)
+        res
+      }
+      where after_sends = 1, after_logs = USize.max_value()
+    )
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    harness.send_to_server(
+      _LspMsg.initialize(workspace_dir)
+    )
+
+
+class \nodoc\ iso _WorkspaceConfigurationTest is UnitTest
+  fun name(): String => Methods.workspace().configuration()
+
+  fun apply(h: TestHelper) =>
+    h.long_test(10_000_000_000)
+
+    // ensure compiler got settings applied
+    let compiler = TestCompiler(
+      h
+      where
+        expected_defines = ["FOO"; "BAR"],
+        expected_ponypath = ["/pony/path"; "/foo/bar"]
+      )
+    let harness = TestHarness.create(
+      h,
+      compiler,
+      object iso is MessageHandler
+        fun handle_response(h: TestHelper, res: ResponseMessage val, server: BaseProtocol) =>
+          try
+            h.assert_true(RequestIds.eq(res.id as RequestId , 0))
+          end
+          // send initialized notification
+          server(_LspMsg.initialized())
+
+        fun handle_request(h: TestHelper, req: RequestMessage val, server: BaseProtocol) =>
+          // we expect a configuration request here
+          h.assert_eq[String](
+            Methods.workspace().configuration(),
+            req.method
+          )
+          // send response
+          server(
+            ResponseMessage(
+              req.id,
+              JsonArray.push(
+                JsonObject
+                  .update("defines", JsonArray.push("FOO").push("BAR"))
+                  .update("ponypath", JsonArray.push("/pony/path").push("/foo/bar"))
+              )
+            ).string().iso_array()
+          )
+      end,
+      {(h: TestHelper, harness: TestHarness ref): Bool =>
+        true
+      }
+    )
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let init_msg = _LspMsg.initialize(
+      workspace_dir
+      where
+        did_change_configuration_dynamic_registration = false,
+        supports_configuration = true
+    )
+    harness.send_to_server(consume init_msg)
+
+
+class \nodoc\ iso _DidChangeConfigurationTest is UnitTest
+  fun name(): String =>
+    Methods.workspace().did_change_configuration()
+
+  fun apply(h: TestHelper) =>
+    h.long_test(10_000_000_000)
+
+    // ensure compiler got settings applied
+    let compiler = TestCompiler(
+      h
+      where
+        expected_defines = ["FOO"; "BAR"],
+        expected_ponypath = ["/pony/path"; "/foo/bar"]
+      )
+    let harness = TestHarness.create(
+      h,
+      compiler,
+      object iso is MessageHandler
+        fun handle_response(h: TestHelper, res: ResponseMessage val, server: BaseProtocol) =>
+          // this should be the initialize response with server capabilities as result
+          try
+            h.assert_true(RequestIds.eq(res.id as RequestId, 0))
+          end
+          // send initialized notification
+          server(_LspMsg.initialized())
+
+        fun handle_request(h: TestHelper, req: RequestMessage val, server: BaseProtocol) =>
+          // 1.) expect register capability
+          h.assert_eq[String](Methods.client().register_capability(), req.method)
+          // 2.) send response with null result
+          server(ResponseMessage(req.id, None).into_bytes())
+          // 3.) send didChangeConfiguration notification
+          server(
+            Notification(
+              Methods.workspace().did_change_configuration(),
+              JsonObject
+                .update("settings", JsonObject
+                  .update("pony-lsp", JsonObject
+                    .update("defines", JsonArray.push("FOO").push("BAR"))
+                    .update("ponypath", JsonArray.push("/pony/path").push("/foo/bar"))
+                  )
+                )
+            ).into_bytes()
+          )
+          None
+      end,
+      {(h: TestHelper, harness: TestHarness ref): Bool =>
+        true
+      }
+    )
+
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    harness.send_to_server(
+      _LspMsg.initialize(
+        workspace_dir
+        where
+          did_change_configuration_dynamic_registration = true,
+          supports_configuration = false
+      )
+    )
+
+actor TestCompiler is LspCompiler
+  let _h: TestHelper
+  let _expected_defines: Array[String] val
+  let _expected_ponypath: Array[String] val
+  new create(
+    h: TestHelper,
+    expected_defines: Array[String] val = [],
+    expected_ponypath: Array[String] val = []
+  ) =>
+    _h = h
+    _expected_defines = expected_defines
+    _expected_ponypath = expected_ponypath
+
+  be apply_settings(settings: Settings) =>
+    _h.assert_array_eq[String](
+      _expected_defines,
+      settings.defines()
+    )
+    _h.assert_array_eq[String](
+      _expected_ponypath,
+      settings.ponypath()
+    )
+    _h.complete(true)
+
+  be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag) =>
+    """Most efficient compiler ever"""
+    None
+
+interface MessageHandler
+  fun ref handle_message(h: TestHelper, m: Message val, server: BaseProtocol) =>
+    match m
+    | let req: RequestMessage val =>
+      this.handle_request(h, req, server)
+    | let res: ResponseMessage val =>
+      this.handle_response(h, res, server)
+    | let n: Notification val =>
+      this.handle_notification(h, n, server)
+    end
+
+  fun ref handle_request(h: TestHelper, req: RequestMessage, server: BaseProtocol) => 
+    None
+
+  fun ref handle_response(h: TestHelper, req: ResponseMessage, server: BaseProtocol) => 
+    None
+
+  fun ref handle_notification(h: TestHelper, notification: Notification, server: BaseProtocol) => 
+    None
+
+actor TestHarness is Channel
   let sent: Array[Message val] ref = sent.create(8)
   let logs: Array[(String, MessageType)] ref = logs.create(8)
   let h: TestHelper
+  let _handler: MessageHandler ref
+  let _server: BaseProtocol
 
   let _after_sends: USize
   let _after_logs: USize
-  let _expect_fun: {(TestHelper, TestChannel ref): Bool} val
+  let _expect_fun: {(TestHelper, TestHarness ref): Bool} val
 
   new create(
     h': TestHelper,
-    expect_fun: {(TestHelper, TestChannel ref): Bool} val,
+    compiler: LspCompiler,
+    message_handler: MessageHandler iso,
+    expect_fun: {(TestHelper, TestHarness ref): Bool} val,
     after_sends: USize = 1,
     after_logs: USize = 1)
   =>
     this.h = h'
+    this._handler = recover ref consume message_handler end
+    this._server = BaseProtocol(
+      LanguageServer(this, h.env, compiler)
+    )
     this._expect_fun = expect_fun
     this._after_sends = after_sends
     this._after_logs = after_logs
 
+  be send_to_server(msg: Array[U8] iso) =>
+    this._server(consume msg)
+
   be send(msg: Message val) =>
-    h.log(msg.string())
+    """here we basically receive from the server"""
     sent.push(msg)
+    // make it possible to directly respond to messages from the server
+    this._handler.handle_message(this.h, msg, this._server)
     do_expect()
 
   be log(data: String val, message_type: MessageType = Debug) =>
@@ -593,3 +795,5 @@ actor TestChannel is Channel
   be dispose() =>
     h.log("CHANNEL dispose")
     do_expect(where force = true)
+
+
