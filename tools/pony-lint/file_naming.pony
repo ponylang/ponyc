@@ -72,10 +72,13 @@ primitive FileNaming is ASTRule
 
     if expected != actual then
       recover val
-        [ Diagnostic(id(),
+        [ Diagnostic(
+          id(),
           "file '" + _filename_stem(source.path) + ".pony' should be named '"
             + expected + ".pony' (principal type: " + principal + ")",
-          source.rel_path, 1, 1)]
+          source.rel_path,
+          1,
+          1)]
       end
     else
       recover val Array[Diagnostic val] end

@@ -58,9 +58,12 @@ primitive PartialSpacing is ASTRule
           end
         if (not before_ok) or (not after_ok) then
           return recover val
-            [ Diagnostic(id(),
+            [ Diagnostic(
+              id(),
               "'?' in method declaration should have surrounding spaces",
-              source.rel_path, q_line, q_col)]
+              source.rel_path,
+              q_line,
+              q_col)]
           end
         end
       end

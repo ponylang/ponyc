@@ -51,9 +51,12 @@ primitive AssignmentIndent is ASTRule
     if mlv.max_line > assign_line then
       // Multiline RHS starting on the `=` line — violation
       recover val
-        [ Diagnostic(id(),
+        [ Diagnostic(
+          id(),
           "multiline assignment RHS should start on the line after '='",
-          source.rel_path, assign_line, node.pos())]
+          source.rel_path,
+          assign_line,
+          node.pos())]
       end
     else
       // Single-line RHS — clean

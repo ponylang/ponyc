@@ -140,9 +140,12 @@ primitive DocstringFormat is ASTRule
         // content on the opening line of a multi-line string, so
         // this is the only reachable case.
         recover val
-          [ Diagnostic(id(),
+          [ Diagnostic(
+            id(),
             "opening \"\"\" should be on its own line",
-            source.rel_path, start_line, 1)]
+            source.rel_path,
+            start_line,
+            1)]
         end
       else
         // Opening """ is on its own line — check closing
@@ -152,9 +155,12 @@ primitive DocstringFormat is ASTRule
             let close_line = source.lines(close_line_idx)?
             if not _is_only_triple_quote(close_line) then
               return recover val
-                [ Diagnostic(id(),
+                [ Diagnostic(
+                  id(),
                   "closing \"\"\" should be on its own line",
-                  source.rel_path, close_line_idx + 1, 1)]
+                  source.rel_path,
+                  close_line_idx + 1,
+                  1)]
               end
             end
           end

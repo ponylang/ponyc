@@ -33,8 +33,12 @@ primitive CommentSpacing is TextRule
         else
           match _find_comment(line)
           | let col: USize =>
-            result.push(Diagnostic(id(), "expected one space after //",
-              source.rel_path, idx + 1, col))
+            result.push(Diagnostic(
+              id(),
+              "expected one space after //",
+              source.rel_path,
+              idx + 1,
+              col))
           end
         end
       end

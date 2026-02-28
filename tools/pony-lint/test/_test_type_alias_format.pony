@@ -195,7 +195,9 @@ class \nodoc\ _TestTypeAliasFormatHangingIndent is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeAliasFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for hanging indent")
           try
             h.assert_true(
@@ -233,7 +235,9 @@ class \nodoc\ _TestTypeAliasFormatNoSpaceAfterOpen is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeAliasFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for missing space after '('")
           try
             h.assert_true(
@@ -271,7 +275,9 @@ class \nodoc\ _TestTypeAliasFormatNoSpaceAfterPipe is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeAliasFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for missing space after '|'")
           try
             h.assert_true(
@@ -309,7 +315,9 @@ class \nodoc\ _TestTypeAliasFormatNoSpaceBeforeClose is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeAliasFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for missing space before ')'")
           try
             h.assert_true(

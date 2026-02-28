@@ -24,7 +24,9 @@ class val RuleRegistry
       recover val
         let result = Array[TextRule val]
         for rule in rules.values() do
-          match config.rule_status(rule.id(), rule.category(),
+          match config.rule_status(
+            rule.id(),
+            rule.category(),
             rule.default_status())
           | RuleOn => result.push(rule)
           end
@@ -35,7 +37,9 @@ class val RuleRegistry
       recover val
         let result = Array[ASTRule val]
         for rule in ast_rules.values() do
-          match config.rule_status(rule.id(), rule.category(),
+          match config.rule_status(
+            rule.id(),
+            rule.category(),
             rule.default_status())
           | RuleOn => result.push(rule)
           end

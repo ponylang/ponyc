@@ -62,10 +62,13 @@ primitive MethodDeclarationFormat is ASTRule
                 let param_node = params(i)?
                 let param_l = _param_line(param_node)
                 if param_l == prev_line then
-                  diags.push(Diagnostic(id(),
+                  diags.push(Diagnostic(
+                    id(),
                     "each parameter should be on its own line"
                       + " in a multiline declaration",
-                    source.rel_path, param_l, param_node.pos()))
+                    source.rel_path,
+                    param_l,
+                    param_node.pos()))
                 end
                 prev_line = param_l
                 i = i + 1
@@ -89,11 +92,14 @@ primitive MethodDeclarationFormat is ASTRule
               let expected_col = keyword_col + 2
               let actual_col = first_col + 1 // convert 0-based to 1-based
               if actual_col != expected_col then
-                diags.push(Diagnostic(id(),
+                diags.push(Diagnostic(
+                  id(),
                   "':' should align at column "
                     + expected_col.string()
                     + " (indented from '" + keyword_name + "')",
-                  source.rel_path, ret_line, actual_col))
+                  source.rel_path,
+                  ret_line,
+                  actual_col))
               end
             end
           end
@@ -117,11 +123,14 @@ primitive MethodDeclarationFormat is ASTRule
               if word == "=>" then
                 let actual_col = word_col
                 if actual_col != keyword_col then
-                  diags.push(Diagnostic(id(),
+                  diags.push(Diagnostic(
+                    id(),
                     "'=>' should align with '" + keyword_name
                       + "' keyword (column "
                       + keyword_col.string() + ")",
-                    source.rel_path, scan_line, actual_col))
+                    source.rel_path,
+                    scan_line,
+                    actual_col))
                 end
                 break
               end
@@ -219,5 +228,6 @@ primitive MethodDeclarationFormat is ASTRule
       i = i + 1
     end
 
-    (recover val line.substring(ISize.from[USize](start),
+    (recover val line.substring(
+      ISize.from[USize](start),
       ISize.from[USize](i)) end, col)

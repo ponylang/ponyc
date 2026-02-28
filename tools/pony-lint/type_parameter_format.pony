@@ -72,9 +72,12 @@ primitive TypeParameterFormat is ASTRule
     let tp_line = _typeparams_line(typeparams)
     let name_line = name_node.line()
     if (tp_line > 0) and (tp_line != name_line) then
-      diags.push(Diagnostic(id(),
+      diags.push(Diagnostic(
+        id(),
         "'[' should be on the same line as the name",
-        source.rel_path, tp_line, typeparams.pos()))
+        source.rel_path,
+        tp_line,
+        typeparams.pos()))
       // Further checks are meaningless if '[' is misplaced
       return consume diags
     end
@@ -94,10 +97,13 @@ primitive TypeParameterFormat is ASTRule
             let tp_node = typeparams(i)?
             let tp_l = _typeparam_line(tp_node)
             if tp_l == prev_line then
-              diags.push(Diagnostic(id(),
+              diags.push(Diagnostic(
+                id(),
                 "each type parameter should be on its own line"
                   + " in a multiline declaration",
-                source.rel_path, tp_l, tp_node.pos()))
+                source.rel_path,
+                tp_l,
+                tp_node.pos()))
             end
             prev_line = tp_l
             i = i + 1
@@ -132,12 +138,15 @@ primitive TypeParameterFormat is ASTRule
               if word == "is" then
                 let expected_col = keyword_col + 2
                 if word_col != expected_col then
-                  diags.push(Diagnostic(id(),
+                  diags.push(Diagnostic(
+                    id(),
                     "'is' should align at column "
                       + expected_col.string()
                       + " (indented from '"
                       + _keyword_name(token_id) + "')",
-                    source.rel_path, prov_line, word_col))
+                    source.rel_path,
+                    prov_line,
+                    word_col))
                 end
               end
             end
@@ -242,5 +251,6 @@ primitive TypeParameterFormat is ASTRule
       i = i + 1
     end
 
-    (recover val line.substring(ISize.from[USize](start),
+    (recover val line.substring(
+      ISize.from[USize](start),
       ISize.from[USize](i)) end, col)

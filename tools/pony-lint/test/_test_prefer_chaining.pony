@@ -24,7 +24,8 @@ class \nodoc\ _TestPreferChainingViolation is UnitTest
           let diags = _CollectRuleDiags(mod, sf, lint.PreferChaining)
           h.assert_eq[USize](1, diags.size())
           try
-            h.assert_eq[String]("style/prefer-chaining",
+            h.assert_eq[String](
+              "style/prefer-chaining",
               diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("x"))
           else
@@ -62,7 +63,8 @@ class \nodoc\ _TestPreferChainingVarViolation is UnitTest
           let diags = _CollectRuleDiags(mod, sf, lint.PreferChaining)
           h.assert_eq[USize](1, diags.size())
           try
-            h.assert_eq[String]("style/prefer-chaining",
+            h.assert_eq[String](
+              "style/prefer-chaining",
               diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("x"))
           else
@@ -130,7 +132,8 @@ class \nodoc\ _TestPreferChainingSingleCallTrailingRef is UnitTest
           let diags = _CollectRuleDiags(mod, sf, lint.PreferChaining)
           h.assert_eq[USize](1, diags.size())
           try
-            h.assert_eq[String]("style/prefer-chaining",
+            h.assert_eq[String](
+              "style/prefer-chaining",
               diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("x"))
           else
@@ -201,7 +204,8 @@ class \nodoc\ _TestPreferChainingNoTrailingRef is UnitTest
           let diags = _CollectRuleDiags(mod, sf, lint.PreferChaining)
           h.assert_eq[USize](1, diags.size())
           try
-            h.assert_eq[String]("style/prefer-chaining",
+            h.assert_eq[String](
+              "style/prefer-chaining",
               diags(0)?.rule_id)
             h.assert_true(diags(0)?.message.contains("x"))
           else

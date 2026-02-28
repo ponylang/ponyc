@@ -73,9 +73,12 @@ primitive BlankLines is ASTRule
       try
         let prev_line = source.lines(first_content_line - 2)?
         if _is_blank(prev_line) then
-          result.push(Diagnostic(id(),
+          result.push(Diagnostic(
+            id(),
             "no blank line before first body content",
-            source.rel_path, first_content_line - 1, 1))
+            source.rel_path,
+            first_content_line - 1,
+            1))
         end
       end
     end
@@ -101,9 +104,12 @@ primitive BlankLines is ASTRule
         if prev_is_field and curr_is_field then
           // No blank lines between consecutive fields
           if blanks > 0 then
-            result.push(Diagnostic(id(),
+            result.push(Diagnostic(
+              id(),
               "no blank lines between fields",
-              source.rel_path, curr_start, curr_member.pos()))
+              source.rel_path,
+              curr_start,
+              curr_member.pos()))
           end
         elseif curr_is_method then
           // One blank line before methods
@@ -113,15 +119,21 @@ primitive BlankLines is ASTRule
           if prev_is_method and prev_one_liner and curr_one_liner then
             // One-liner exception: both methods are one-liners
             if blanks > 1 then
-              result.push(Diagnostic(id(),
+              result.push(Diagnostic(
+                id(),
                 "at most 1 blank line before method",
-                source.rel_path, curr_start, curr_member.pos()))
+                source.rel_path,
+                curr_start,
+                curr_member.pos()))
             end
           else
             if blanks != 1 then
-              result.push(Diagnostic(id(),
+              result.push(Diagnostic(
+                id(),
                 "exactly 1 blank line before method",
-                source.rel_path, curr_start, curr_member.pos()))
+                source.rel_path,
+                curr_start,
+                curr_member.pos()))
             end
           end
         end
@@ -162,15 +174,21 @@ primitive BlankLines is ASTRule
         if a_one_liner and b_one_liner then
           // Both one-liners — 0 or 1 blank lines allowed
           if blanks > 1 then
-            result.push(Diagnostic(id(),
+            result.push(Diagnostic(
+              id(),
               "at most 1 blank line between entities",
-              source.rel_path, b_start, 1))
+              source.rel_path,
+              b_start,
+              1))
           end
         else
           if blanks != 1 then
-            result.push(Diagnostic(id(),
+            result.push(Diagnostic(
+              id(),
               "exactly 1 blank line between entities",
-              source.rel_path, b_start, 1))
+              source.rel_path,
+              b_start,
+              1))
           end
         end
       end

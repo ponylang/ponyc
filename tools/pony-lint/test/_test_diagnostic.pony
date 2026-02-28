@@ -6,8 +6,12 @@ class \nodoc\ _TestDiagnosticString is UnitTest
 
   fun apply(h: TestHelper) =>
     let d =
-      lint.Diagnostic("style/line-length",
-        "line exceeds 80 columns (95)", "src/main.pony", 10, 81)
+      lint.Diagnostic(
+        "style/line-length",
+        "line exceeds 80 columns (95)",
+        "src/main.pony",
+        10,
+        81)
     let expected: String val =
       "src/main.pony:10:81: error[style/line-length]: "
         + "line exceeds 80 columns (95)"
@@ -18,8 +22,12 @@ class \nodoc\ _TestDiagnosticStringSpecialChars is UnitTest
 
   fun apply(h: TestHelper) =>
     let d =
-      lint.Diagnostic("style/hard-tabs", "use spaces",
-        "path with spaces/file.pony", 1, 1)
+      lint.Diagnostic(
+        "style/hard-tabs",
+        "use spaces",
+        "path with spaces/file.pony",
+        1,
+        1)
     h.assert_eq[String](
       "path with spaces/file.pony:1:1: error[style/hard-tabs]: use spaces",
       d.string())

@@ -76,16 +76,20 @@ class \nodoc\ _TestHasLoweredAcronym is UnitTest
 
   fun apply(h: TestHelper) =>
     // Lowered form should be detected
-    h.assert_eq[String]("JSON",
+    h.assert_eq[String](
+      "JSON",
       try lint.NamingHelpers.has_lowered_acronym("JsonDoc") as String
       else "" end)
-    h.assert_eq[String]("HTTP",
+    h.assert_eq[String](
+      "HTTP",
       try lint.NamingHelpers.has_lowered_acronym("HttpClient") as String
       else "" end)
-    h.assert_eq[String]("URL",
+    h.assert_eq[String](
+      "URL",
       try lint.NamingHelpers.has_lowered_acronym("UrlParser") as String
       else "" end)
-    h.assert_eq[String]("TCP",
+    h.assert_eq[String](
+      "TCP",
       try lint.NamingHelpers.has_lowered_acronym("TcpConnection") as String
       else "" end)
     // Properly uppercased should NOT be detected
@@ -102,25 +106,35 @@ class \nodoc\ _TestToSnakeCase is UnitTest
   fun name(): String => "NamingHelpers: to_snake_case"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String]("ssl_context",
+    h.assert_eq[String](
+      "ssl_context",
       lint.NamingHelpers.to_snake_case("SSLContext"))
-    h.assert_eq[String]("url_encode",
+    h.assert_eq[String](
+      "url_encode",
       lint.NamingHelpers.to_snake_case("URLEncode"))
-    h.assert_eq[String]("contents_log",
+    h.assert_eq[String](
+      "contents_log",
       lint.NamingHelpers.to_snake_case("ContentsLog"))
-    h.assert_eq[String]("_client_connection",
+    h.assert_eq[String](
+      "_client_connection",
       lint.NamingHelpers.to_snake_case("_ClientConnection"))
-    h.assert_eq[String]("foo",
+    h.assert_eq[String](
+      "foo",
       lint.NamingHelpers.to_snake_case("Foo"))
-    h.assert_eq[String]("foo_bar",
+    h.assert_eq[String](
+      "foo_bar",
       lint.NamingHelpers.to_snake_case("FooBar"))
-    h.assert_eq[String]("http_client",
+    h.assert_eq[String](
+      "http_client",
       lint.NamingHelpers.to_snake_case("HTTPClient"))
-    h.assert_eq[String]("json_parser",
+    h.assert_eq[String](
+      "json_parser",
       lint.NamingHelpers.to_snake_case("JSONParser"))
-    h.assert_eq[String]("a",
+    h.assert_eq[String](
+      "a",
       lint.NamingHelpers.to_snake_case("A"))
-    h.assert_eq[String]("_a",
+    h.assert_eq[String](
+      "_a",
       lint.NamingHelpers.to_snake_case("_A"))
 
 // --- Property tests ---

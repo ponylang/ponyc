@@ -75,9 +75,12 @@ class val Suppressions
         trimmed.lstrip()
         if trimmed.at("//pony-lint:") then
           magic.set(line_num)
-          errs.push(Diagnostic("lint/malformed-suppression",
+          errs.push(Diagnostic(
+            "lint/malformed-suppression",
             "missing space after '//'",
-            source.rel_path, line_num, 1))
+            source.rel_path,
+            line_num,
+            1))
         elseif trimmed.at("// pony-lint:") then
           magic.set(line_num)
           let directive =
@@ -114,9 +117,12 @@ class val Suppressions
                 end
               end
               if active_offs.contains(target) then
-                errs.push(Diagnostic("lint/malformed-suppression",
+                errs.push(Diagnostic(
+                  "lint/malformed-suppression",
                   "duplicate 'off' for '" + target + "'",
-                  source.rel_path, line_num, 1))
+                  source.rel_path,
+                  line_num,
+                  1))
               else
                 active_offs(target) = line_num
               end
@@ -146,24 +152,33 @@ class val Suppressions
                 _Unreachable()
               end
             else
-              errs.push(Diagnostic("lint/malformed-suppression",
+              errs.push(Diagnostic(
+                "lint/malformed-suppression",
                 "unknown directive '" + action + "'",
-                source.rel_path, line_num, 1))
+                source.rel_path,
+                line_num,
+                1))
             end
           else
-            errs.push(Diagnostic("lint/malformed-suppression",
+            errs.push(Diagnostic(
+              "lint/malformed-suppression",
               "empty directive",
-              source.rel_path, line_num, 1))
+              source.rel_path,
+              line_num,
+              1))
           end
         end
       end
 
       // Report unclosed regions
       for (target, start_line) in active_offs.pairs() do
-        errs.push(Diagnostic("lint/unclosed-suppression",
+        errs.push(Diagnostic(
+          "lint/unclosed-suppression",
           "suppression for '" + target + "' opened at line "
             + start_line.string() + " was never closed",
-          source.rel_path, start_line, 1))
+          source.rel_path,
+          start_line,
+          1))
       end
 
       (suppressed, overrides, magic, errs)

@@ -122,9 +122,12 @@ primitive PublicDocstring is ASTRule
           // - Concrete methods: first expression of body (child 6)
           if not _method_has_docstring(node) then
             return recover val
-              [ Diagnostic(id(),
+              [ Diagnostic(
+                id(),
                 "public method '" + name + "' should have a docstring",
-                source.rel_path, name_node.line(), name_node.pos())]
+                source.rel_path,
+                name_node.line(),
+                name_node.pos())]
             end
           end
         else
@@ -133,9 +136,12 @@ primitive PublicDocstring is ASTRule
             let doc_node = node(6)?
             if doc_node.id() == ast.TokenIds.tk_none() then
               return recover val
-                [ Diagnostic(id(),
+                [ Diagnostic(
+                  id(),
                   "public type '" + name + "' should have a docstring",
-                  source.rel_path, name_node.line(), name_node.pos())]
+                  source.rel_path,
+                  name_node.line(),
+                  name_node.pos())]
               end
             end
           end

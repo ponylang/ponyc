@@ -49,15 +49,21 @@ primitive PackageDocstring is ASTRule
     """
     if not has_pkg_file then
       recover val
-        [ Diagnostic(id(),
+        [ Diagnostic(
+          id(),
           "package has no '" + pkg_name + ".pony' file",
-          first_file_rel, 0, 0)]
+          first_file_rel,
+          0,
+          0)]
       end
     elseif not has_docstring then
       recover val
-        [ Diagnostic(id(),
+        [ Diagnostic(
+          id(),
           "'" + pkg_name + ".pony' should have a package docstring",
-          first_file_rel, 0, 0)]
+          first_file_rel,
+          0,
+          0)]
       end
     else
       recover val Array[Diagnostic val] end

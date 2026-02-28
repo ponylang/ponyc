@@ -46,10 +46,13 @@ primitive MatchCaseIndent is ASTRule
               let line_text = source.lines(case_node.line() - 1)?
               if _is_first_nonws(line_text, case_col) then
                 if case_col != match_col then
-                  result.push(Diagnostic(id(),
+                  result.push(Diagnostic(
+                    id(),
                     "'|' should align with 'match' keyword (column "
                       + match_col.string() + ")",
-                    source.rel_path, case_node.line(), case_col))
+                    source.rel_path,
+                    case_node.line(),
+                    case_col))
                 end
               end
             end

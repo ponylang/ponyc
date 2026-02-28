@@ -192,7 +192,8 @@ class \nodoc\ _TestSuppressionEmptyDirective is UnitTest
     let sup = lint.Suppressions(sf)
     h.assert_eq[USize](1, sup.errors().size())
     try
-      h.assert_eq[String]("lint/malformed-suppression",
+      h.assert_eq[String](
+        "lint/malformed-suppression",
         sup.errors()(0)?.rule_id)
     else
       h.fail("could not access error")

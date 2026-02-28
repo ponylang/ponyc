@@ -29,9 +29,12 @@ primitive IndentationSize is TextRule
         else
           let spaces = _count_leading_spaces(line)
           if (spaces > 0) and ((spaces % 2) != 0) then
-            result.push(Diagnostic(id(),
+            result.push(Diagnostic(
+              id(),
               "indentation should be a multiple of 2 spaces",
-              source.rel_path, idx + 1, 1))
+              source.rel_path,
+              idx + 1,
+              1))
           end
         end
       end

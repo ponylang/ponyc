@@ -18,9 +18,12 @@ primitive LineLength is TextRule
       for (idx, line) in source.lines.pairs() do
         let cp_count = line.codepoints()
         if cp_count > 80 then
-          result.push(Diagnostic(id(), "line exceeds 80 columns ("
-            + cp_count.string() + ")",
-            source.rel_path, idx + 1, 81))
+          result.push(Diagnostic(
+            id(),
+            "line exceeds 80 columns (" + cp_count.string() + ")",
+            source.rel_path,
+            idx + 1,
+            81))
         end
       end
       result

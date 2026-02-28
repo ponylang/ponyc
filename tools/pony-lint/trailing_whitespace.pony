@@ -28,8 +28,12 @@ primitive TrailingWhitespace is TextRule
         // If last_non_ws < size-1, there's trailing whitespace
         if last_non_ws < (line.size() - 1).isize() then
           let col = (last_non_ws + 2).usize()
-          result.push(Diagnostic(id(), "trailing whitespace",
-            source.rel_path, idx + 1, col))
+          result.push(Diagnostic(
+            id(),
+            "trailing whitespace",
+            source.rel_path,
+            idx + 1,
+            col))
         end
       end
       result

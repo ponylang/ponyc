@@ -184,7 +184,9 @@ class \nodoc\ _TestMethodDeclFormatParamsSharingLine is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for params sharing a line")
           try
             h.assert_true(
@@ -226,7 +228,9 @@ class \nodoc\ _TestMethodDeclFormatColonMisaligned is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for ':' misalignment")
           try
             h.assert_true(
@@ -267,7 +271,9 @@ class \nodoc\ _TestMethodDeclFormatArrowMisaligned is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for '=>' misalignment")
           try
             h.assert_true(
@@ -309,7 +315,9 @@ class \nodoc\ _TestMethodDeclFormatMultipleViolations is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.MethodDeclarationFormat)
-          h.assert_eq[USize](2, diags.size(),
+          h.assert_eq[USize](
+            2,
+            diags.size(),
             "expected 2 diagnostics for ':' and '=>' misalignment")
         else
           h.fail("no module")

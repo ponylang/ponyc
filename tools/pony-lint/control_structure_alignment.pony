@@ -139,15 +139,24 @@ primitive ControlStructureAlignment is ASTRule
         if else_clause.id() == ast.TokenIds.tk_if() then
           let actual_col = else_clause.pos()
           if actual_col != expected_col then
-            result.push(_misalignment_diag("elseif", opening,
-              expected_col, source.rel_path, else_clause.line(),
+            result.push(_misalignment_diag(
+              "elseif",
+              opening,
+              expected_col,
+              source.rel_path,
+              else_clause.line(),
               actual_col))
           end
           current = else_clause
         elseif else_clause.id() != ast.TokenIds.tk_none() then
           let d =
-            _find_keyword_above(source, else_clause.line(), "else",
-              current.line(), expected_col, opening)
+            _find_keyword_above(
+              source,
+              else_clause.line(),
+              "else",
+              current.line(),
+              expected_col,
+              opening)
           match d
           | let diag: Diagnostic val => result.push(diag)
           end
@@ -190,15 +199,24 @@ primitive ControlStructureAlignment is ASTRule
         if else_clause.id() == ast.TokenIds.tk_ifdef() then
           let actual_col = else_clause.pos()
           if actual_col != expected_col then
-            result.push(_misalignment_diag("elseif", opening,
-              expected_col, source.rel_path, else_clause.line(),
+            result.push(_misalignment_diag(
+              "elseif",
+              opening,
+              expected_col,
+              source.rel_path,
+              else_clause.line(),
               actual_col))
           end
           current = else_clause
         elseif else_clause.id() != ast.TokenIds.tk_none() then
           let d =
-            _find_keyword_above(source, else_clause.line(), "else",
-              current.line(), expected_col, opening)
+            _find_keyword_above(
+              source,
+              else_clause.line(),
+              "else",
+              current.line(),
+              expected_col,
+              opening)
           match d
           | let diag: Diagnostic val => result.push(diag)
           end
@@ -236,8 +254,13 @@ primitive ControlStructureAlignment is ASTRule
       let else_clause = node(2)?
       if else_clause.id() != ast.TokenIds.tk_none() then
         let d =
-          _find_keyword_above(source, else_clause.line(), "else",
-            node.line(), expected_col, opening)
+          _find_keyword_above(
+            source,
+            else_clause.line(),
+            "else",
+            node.line(),
+            expected_col,
+            opening)
         match d
         | let diag: Diagnostic val => result.push(diag)
         end
@@ -269,8 +292,13 @@ primitive ControlStructureAlignment is ASTRule
       let else_clause = node(3)?
       if else_clause.id() != ast.TokenIds.tk_none() then
         let d =
-          _find_keyword_above(source, else_clause.line(), "else",
-            node.line(), expected_col, opening)
+          _find_keyword_above(
+            source,
+            else_clause.line(),
+            "else",
+            node.line(),
+            expected_col,
+            opening)
         match d
         | let diag: Diagnostic val => result.push(diag)
         end
@@ -302,8 +330,13 @@ primitive ControlStructureAlignment is ASTRule
       let until_cond = node(1)?
       if until_cond.id() != ast.TokenIds.tk_none() then
         let d =
-          _find_keyword_above(source, until_cond.line(), "until",
-            node.line(), expected_col, opening)
+          _find_keyword_above(
+            source,
+            until_cond.line(),
+            "until",
+            node.line(),
+            expected_col,
+            opening)
         match d
         | let diag: Diagnostic val => result.push(diag)
         end
@@ -316,8 +349,13 @@ primitive ControlStructureAlignment is ASTRule
         try
           let until_cond = node(1)?
           let d =
-            _find_keyword_above(source, else_clause.line(), "else",
-              until_cond.line(), expected_col, opening)
+            _find_keyword_above(
+              source,
+              else_clause.line(),
+              "else",
+              until_cond.line(),
+              expected_col,
+              opening)
           match d
           | let diag: Diagnostic val => result.push(diag)
           end
@@ -350,8 +388,13 @@ primitive ControlStructureAlignment is ASTRule
       let else_clause = node(1)?
       if else_clause.id() != ast.TokenIds.tk_none() then
         let d =
-          _find_keyword_above(source, else_clause.line(), "else",
-            node.line(), expected_col, opening)
+          _find_keyword_above(
+            source,
+            else_clause.line(),
+            "else",
+            node.line(),
+            expected_col,
+            opening)
         match d
         | let diag: Diagnostic val => result.push(diag)
         end
@@ -365,15 +408,25 @@ primitive ControlStructureAlignment is ASTRule
           let else_clause = node(1)?
           if else_clause.id() != ast.TokenIds.tk_none() then
             let d =
-              _find_keyword_above(source, then_clause.line(), "then",
-                else_clause.line(), expected_col, opening)
+              _find_keyword_above(
+                source,
+                then_clause.line(),
+                "then",
+                else_clause.line(),
+                expected_col,
+                opening)
             match d
             | let diag: Diagnostic val => result.push(diag)
             end
           else
             let d =
-              _find_keyword_above(source, then_clause.line(), "then",
-                node.line(), expected_col, opening)
+              _find_keyword_above(
+                source,
+                then_clause.line(),
+                "then",
+                node.line(),
+                expected_col,
+                opening)
             match d
             | let diag: Diagnostic val => result.push(diag)
             end
@@ -401,10 +454,13 @@ primitive ControlStructureAlignment is ASTRule
     """
     Create a diagnostic for a misaligned keyword.
     """
-    Diagnostic(id(),
+    Diagnostic(
+      id(),
       "'" + keyword + "' should align with '" + opening
         + "' keyword (column " + expected_col.string() + ")",
-      file, line, actual_col)
+      file,
+      line,
+      actual_col)
 
   fun _find_keyword_above(
     source: SourceFile val,
@@ -427,8 +483,13 @@ primitive ControlStructureAlignment is ASTRule
         (let word, let col) = _first_nonws_word(line_text)
         if word == keyword then
           if col != expected_col then
-            return _misalignment_diag(keyword, opening, expected_col,
-              source.rel_path, line_num, col)
+            return _misalignment_diag(
+              keyword,
+              opening,
+              expected_col,
+              source.rel_path,
+              line_num,
+              col)
           end
           return None
         end
@@ -481,8 +542,13 @@ primitive ControlStructureAlignment is ASTRule
             // The matching end is on this line
             if word == "end" then
               if col != expected_col then
-                return _misalignment_diag("end", opening, expected_col,
-                  source.rel_path, line_num, col)
+                return _misalignment_diag(
+                  "end",
+                  opening,
+                  expected_col,
+                  source.rel_path,
+                  line_num,
+                  col)
               end
             end
             return None
@@ -544,7 +610,8 @@ primitive ControlStructureAlignment is ASTRule
       i = i + 1
     end
 
-    (recover val line.substring(ISize.from[USize](start),
+    (recover val line.substring(
+      ISize.from[USize](start),
       ISize.from[USize](i)) end, col)
 
   fun _line_depth_delta(line: String val): ISize =>
@@ -591,7 +658,8 @@ primitive ControlStructureAlignment is ASTRule
           end
           let word =
             recover val
-              line.substring(ISize.from[USize](word_start),
+              line.substring(
+                ISize.from[USize](word_start),
                 ISize.from[USize](i))
             end
           if _is_block_opener(word) then delta = delta + 1 end
