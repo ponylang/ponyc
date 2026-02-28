@@ -1,18 +1,11 @@
 {
-  "packages": [
-    "pony-lsp",
-    "pony-lsp/workspace",
-    "pony-lsp/test"
-  ],
+  "packages": ["pony-lsp", "pony-lsp/workspace", "pony-lsp/test"],
   "deps": [
     {
-      "locator": "./lib/mfelsche/pony-immutable-json"
+      "locator": "./lib/ponylang/json-ng"
     },
     {
-      "locator": "./lib/mfelsche/pony-ast"
-    },
-    {
-      "locator": "./lib/mfelsche/pony-binarysearch"
+      "locator": "./lib/ponylang/pony_compiler"
     },
     {
       "locator": "./lib/ponylang/peg"
