@@ -11,9 +11,8 @@ class \nodoc\ _TestFileNamingSingleEntity is UnitTest
     let sf = lint.SourceFile("test.pony", "class Foo\n", ".")
     let entities =
       recover val
-        let a = Array[(String val, ast.TokenId, USize, USize)]
-        a.push(("Foo", ast.TokenIds.tk_class(), 0, 0))
-        a
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       end
     let diags = lint.FileNaming.check_module(entities, sf)
     // test.pony != foo.pony
@@ -33,9 +32,8 @@ class \nodoc\ _TestFileNamingMatchingName is UnitTest
     let sf = lint.SourceFile("foo.pony", "class Foo\n", ".")
     let entities =
       recover val
-        let a = Array[(String val, ast.TokenId, USize, USize)]
-        a.push(("Foo", ast.TokenIds.tk_class(), 0, 0))
-        a
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
       end
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
@@ -85,9 +83,8 @@ class \nodoc\ _TestFileNamingTestPonyMain is UnitTest
         "_test.pony", "actor Main is TestList\n", ".")
     let entities =
       recover val
-        let a = Array[(String val, ast.TokenId, USize, USize)]
-        a.push(("Main", ast.TokenIds.tk_actor(), 0, 0))
-        a
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Main", ast.TokenIds.tk_actor(), 0, 0))
       end
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
@@ -102,9 +99,8 @@ class \nodoc\ _TestFileNamingPrivateType is UnitTest
         "_my_helper.pony", "primitive _MyHelper\n", ".")
     let entities =
       recover val
-        let a = Array[(String val, ast.TokenId, USize, USize)]
-        a.push(("_MyHelper", ast.TokenIds.tk_primitive(), 0, 0))
-        a
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("_MyHelper", ast.TokenIds.tk_primitive(), 0, 0))
       end
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())

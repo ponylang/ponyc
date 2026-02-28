@@ -41,11 +41,7 @@ class \nodoc\ _TestRegistryDisableRule is UnitTest
       recover val [as lint.TextRule val: _DummyRule; _DummyRule2] end
     let no_ast = recover val Array[lint.ASTRule val] end
     let disabled =
-      recover val
-        let s = Set[String]
-        s.set("test/dummy")
-        s
-      end
+      recover val Set[String] .> set("test/dummy") end
     let config =
       lint.LintConfig(
         disabled,
@@ -63,11 +59,7 @@ class \nodoc\ _TestRegistryDisableCategory is UnitTest
       recover val [as lint.TextRule val: _DummyRule; _DummyRule2] end
     let no_ast = recover val Array[lint.ASTRule val] end
     let disabled =
-      recover val
-        let s = Set[String]
-        s.set("test")
-        s
-      end
+      recover val Set[String] .> set("test") end
     let config =
       lint.LintConfig(
         disabled,
@@ -115,11 +107,7 @@ class \nodoc\ _TestRegistryASTRules is UnitTest
 
     // Disable one rule
     let disabled =
-      recover val
-        let s = Set[String]
-        s.set("style/type-naming")
-        s
-      end
+      recover val Set[String] .> set("style/type-naming") end
     let config =
       lint.LintConfig(
         disabled,
