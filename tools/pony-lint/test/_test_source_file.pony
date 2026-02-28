@@ -33,7 +33,8 @@ class \nodoc\ _TestSourceFileNoCR is UnitTest
       {(content: String, ph: PropertyHelper) =>
         let sf = lint.SourceFile("/tmp/test.pony", content, "/tmp")
         for line in sf.lines.values() do
-          ph.assert_false(line.contains("\r"),
+          ph.assert_false(
+            line.contains("\r"),
             "line should not contain \\r: " + line)
         end
       })?
@@ -88,8 +89,10 @@ class \nodoc\ _TestSourceFileCRLF is UnitTest
 
   fun apply(h: TestHelper) =>
     let sf =
-      lint.SourceFile("/tmp/test.pony",
-        "line1\r\nline2\r\nline3", "/tmp")
+      lint.SourceFile(
+        "/tmp/test.pony",
+        "line1\r\nline2\r\nline3",
+        "/tmp")
     h.assert_eq[USize](3, sf.lines.size())
     try
       h.assert_eq[String]("line1", sf.lines(0)?)

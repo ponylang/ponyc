@@ -138,7 +138,9 @@ class \nodoc\ _TestTypeParamFormatBracketWrongLine is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeParameterFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for '[' on wrong line")
           try
             h.assert_true(
@@ -176,7 +178,9 @@ class \nodoc\ _TestTypeParamFormatSharingLine is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeParameterFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for type params sharing a line")
           try
             h.assert_true(
@@ -216,7 +220,9 @@ class \nodoc\ _TestTypeParamFormatIsMisaligned is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeParameterFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for 'is' misalignment")
           try
             h.assert_true(
@@ -256,7 +262,9 @@ class \nodoc\ _TestTypeParamFormatMultipleViolations is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.TypeParameterFormat)
-          h.assert_eq[USize](2, diags.size(),
+          h.assert_eq[USize](
+            2,
+            diags.size(),
             "expected 2 diagnostics for sharing + misaligned 'is'")
         else
           h.fail("no module")

@@ -328,7 +328,9 @@ class \nodoc\ _TestCtrlAlignElseMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned else")
           try
             h.assert_eq[String](
@@ -373,7 +375,9 @@ class \nodoc\ _TestCtrlAlignElseifMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned elseif")
           try
             h.assert_true(
@@ -413,7 +417,9 @@ class \nodoc\ _TestCtrlAlignEndMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned end")
           try
             h.assert_true(
@@ -453,7 +459,9 @@ class \nodoc\ _TestCtrlAlignForEndMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned for end")
           try
             h.assert_true(
@@ -498,7 +506,9 @@ class \nodoc\ _TestCtrlAlignTryElseMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned try else")
           try
             h.assert_true(
@@ -541,7 +551,9 @@ class \nodoc\ _TestCtrlAlignRepeatUntilMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned until")
           try
             h.assert_true(
@@ -582,7 +594,9 @@ class \nodoc\ _TestCtrlAlignWithEndMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned with end")
           try
             h.assert_true(
@@ -627,7 +641,9 @@ class \nodoc\ _TestCtrlAlignIfdefElseMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned ifdef else")
           try
             h.assert_true(
@@ -672,7 +688,9 @@ class \nodoc\ _TestCtrlAlignMultipleMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](2, diags.size(),
+          h.assert_eq[USize](
+            2,
+            diags.size(),
             "expected 2 diagnostics for else + end misaligned")
         else
           h.fail("no module")
@@ -707,7 +725,9 @@ class \nodoc\ _TestCtrlAlignWhileElseMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned while else")
           try
             h.assert_true(
@@ -752,7 +772,9 @@ class \nodoc\ _TestCtrlAlignForElseMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned for else")
           try
             h.assert_true(
@@ -798,7 +820,9 @@ class \nodoc\ _TestCtrlAlignRepeatElseMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned repeat else")
           try
             h.assert_true(
@@ -842,7 +866,9 @@ class \nodoc\ _TestCtrlAlignTryThenMisaligned is UnitTest
           let diags =
             _CollectRuleDiags(
               mod, sf, lint.ControlStructureAlignment)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for misaligned try then")
           try
             h.assert_true(

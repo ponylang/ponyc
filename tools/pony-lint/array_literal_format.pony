@@ -49,10 +49,13 @@ primitive ArrayLiteralFormat is ASTRule
       // If it's a hanging indent, report only that and skip spacing checks
       // since the user needs to restructure the line anyway.
       if not _is_first_nonws(line_text, open_col) then
-        diags.push(Diagnostic(id(),
+        diags.push(Diagnostic(
+          id(),
           "opening '[' of multiline array must be the first"
             + " non-whitespace on its line",
-          source.rel_path, open_line, open_col))
+          source.rel_path,
+          open_line,
+          open_col))
         return consume diags
       end
 
@@ -60,9 +63,12 @@ primitive ArrayLiteralFormat is ASTRule
       let after_idx = open_col.usize() // 0-based index after `[`
       if after_idx < line_text.size() then
         if line_text(after_idx)? != ' ' then
-          diags.push(Diagnostic(id(),
+          diags.push(Diagnostic(
+            id(),
             "space required after '[' in multiline array",
-            source.rel_path, open_line, open_col))
+            source.rel_path,
+            open_line,
+            open_col))
         end
       end
     end

@@ -60,9 +60,12 @@ class val Linter
         end
       let fp = FilePath(_file_auth, abs_target)
       if not fp.exists() then
-        all_diags.push(Diagnostic("lint/io-error",
+        all_diags.push(Diagnostic(
+          "lint/io-error",
           "target not found: " + target,
-          target, 0, 0))
+          target,
+          0,
+          0))
         has_error = true
       end
     end
@@ -77,9 +80,12 @@ class val Linter
       let fp = FilePath(_file_auth, path)
       let file = File.open(fp)
       if not file.valid() then
-        all_diags.push(Diagnostic("lint/io-error",
+        all_diags.push(Diagnostic(
+          "lint/io-error",
           "could not read file: " + path,
-          try Path.rel(_cwd, path)? else path end, 0, 0))
+          try Path.rel(_cwd, path)? else path end,
+          0,
+          0))
         has_error = true
         continue
       end
@@ -143,8 +149,11 @@ class val Linter
               try
                 let info = file_info(mod_file)?
                 let dispatcher =
-                  _ASTDispatcher(_registry.enabled_ast_rules(),
-                    info.source, info.magic_lines, info.suppressions)
+                  _ASTDispatcher(
+                    _registry.enabled_ast_rules(),
+                    info.source,
+                    info.magic_lines,
+                    info.suppressions)
                 mod.ast.visit(dispatcher)
 
                 for d in dispatcher.diagnostics().values() do
@@ -152,7 +161,9 @@ class val Linter
                 end
 
                 // File-naming check (module-level)
-                if _registry.is_enabled(FileNaming.id(), FileNaming.category(),
+                if _registry.is_enabled(
+                  FileNaming.id(),
+                  FileNaming.category(),
                   FileNaming.default_status())
                 then
                   let file_diags =
@@ -168,8 +179,10 @@ class val Linter
                 end
 
                 // Blank-lines between-entity check (module-level)
-                if _registry.is_enabled(BlankLines.id(),
-                  BlankLines.category(), BlankLines.default_status())
+                if _registry.is_enabled(
+                  BlankLines.id(),
+                  BlankLines.category(),
+                  BlankLines.default_status())
                 then
                   let bl_diags =
                     BlankLines.check_module(
@@ -197,8 +210,10 @@ class val Linter
               end
 
             // Package-naming check (once per package)
-            if _registry.is_enabled(PackageNaming.id(),
-              PackageNaming.category(), PackageNaming.default_status())
+            if _registry.is_enabled(
+              PackageNaming.id(),
+              PackageNaming.category(),
+              PackageNaming.default_status())
             then
               let pkg_diags =
                 PackageNaming.check_package(
@@ -209,7 +224,8 @@ class val Linter
             end
 
             // Package-docstring check (once per package)
-            if _registry.is_enabled(PackageDocstring.id(),
+            if _registry.is_enabled(
+              PackageDocstring.id(),
               PackageDocstring.category(),
               PackageDocstring.default_status())
             then
@@ -260,8 +276,12 @@ class val Linter
               else
                 rel_dir
               end
-            all_diags.push(Diagnostic("lint/ast-error",
-              err.msg, err_file, err.position.line(), err.position.column()))
+            all_diags.push(Diagnostic(
+              "lint/ast-error",
+              err.msg,
+              err_file,
+              err.position.line(),
+              err.position.column()))
           end
         end
       end

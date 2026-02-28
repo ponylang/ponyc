@@ -120,9 +120,12 @@ primitive PreferChaining is ASTRule
 
     if should_flag then
       return recover val
-        [ Diagnostic(id(),
+        [ Diagnostic(
+          id(),
           "'" + var_name + "' can be replaced with .> chaining",
-          source.rel_path, node.line(), node.pos())]
+          source.rel_path,
+          node.line(),
+          node.pos())]
       end
     end
 

@@ -17,9 +17,12 @@ primitive HardTabs is TextRule
         var col: USize = 1
         for byte in line.values() do
           if byte == '\t' then
-            result.push(Diagnostic(id(),
+            result.push(Diagnostic(
+              id(),
               "use spaces for indentation, not tabs",
-              source.rel_path, idx + 1, col))
+              source.rel_path,
+              idx + 1,
+              col))
           end
           col = col + 1
         end

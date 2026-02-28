@@ -51,9 +51,12 @@ primitive LambdaSpacing is ASTRule
       try
         if line_text(after_brace_idx)? == ' ' then
           return recover val
-            [ Diagnostic(id(),
+            [ Diagnostic(
+              id(),
               "no space after '{' in lambda",
-              source.rel_path, op_line, brace_col)]
+              source.rel_path,
+              op_line,
+              brace_col)]
           end
         end
       end
@@ -64,7 +67,9 @@ primitive LambdaSpacing is ASTRule
         if is_type then
           // Lambda types: no space before `}`
           _check_no_space_before_brace(
-            source, close_line, close_col,
+            source,
+            close_line,
+            close_col,
             "no space before '}' in lambda type")
         else
           // Lambda expressions: space before `}` only on single-line
@@ -75,7 +80,9 @@ primitive LambdaSpacing is ASTRule
           if single_line then
             // Single-line: must have space before `}`
             _check_space_before_brace(
-              source, close_line, close_col)
+              source,
+              close_line,
+              close_col)
           else
             // Multi-line: no space before `}`, unless `}` is first on its
             // line (indented on its own line is fine)
@@ -83,7 +90,9 @@ primitive LambdaSpacing is ASTRule
               let close_text = source.lines(close_line - 1)?
               if not _is_first_nonws(close_text, close_col) then
                 _check_no_space_before_brace(
-                  source, close_line, close_col,
+                  source,
+                  close_line,
+                  close_col,
                   "no space before '}' in multi-line lambda")
               else
                 recover val Array[Diagnostic val] end
@@ -115,9 +124,12 @@ primitive LambdaSpacing is ASTRule
         try
           if close_text((close_col - 2).usize())? != ' ' then
             return recover val
-              [ Diagnostic(id(),
+              [ Diagnostic(
+                id(),
                 "space required before '}' in single-line lambda",
-                source.rel_path, close_line, close_col)]
+                source.rel_path,
+                close_line,
+                close_col)]
             end
           end
         end
@@ -141,8 +153,12 @@ primitive LambdaSpacing is ASTRule
         try
           if close_text((close_col - 2).usize())? == ' ' then
             return recover val
-              [ Diagnostic(id(), msg,
-                source.rel_path, close_line, close_col)]
+              [ Diagnostic(
+                id(),
+                msg,
+                source.rel_path,
+                close_line,
+                close_col)]
             end
           end
         end

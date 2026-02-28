@@ -406,3 +406,16 @@ actor \nodoc\ Main is TestList
     test(_TestTypeParamFormatSharingLine)
     test(_TestTypeParamFormatIsMisaligned)
     test(_TestTypeParamFormatMultipleViolations)
+
+    // CallArgumentFormat tests
+    test(_TestCallArgFmtSingleLine)
+    test(_TestCallArgFmtAllOnNextLine)
+    test(_TestCallArgFmtEachOnOwnLine)
+    test(_TestCallArgFmtWhereClauseOwnLine)
+    test(_TestCallArgFmtSingleArgMultiline)
+    test(_TestCallArgFmtNoArgs)
+    test(_TestCallArgFmtPartialSplit)
+    test(_TestCallArgFmtMixedLayout)
+    test(_TestCallArgFmtBothViolations)
+    test(_TestCallArgFmtFFIClean)
+    test(_TestCallArgFmtFFIPartialSplit)

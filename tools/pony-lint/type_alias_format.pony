@@ -93,9 +93,12 @@ primitive TypeAliasFormat is ASTRule
     try
       let open_text = source.lines(open_line - 1)?
       if not _is_first_nonws(open_text, open_col) then
-        diags.push(Diagnostic(id(),
+        diags.push(Diagnostic(
+          id(),
           "opening '(' of multiline type must not be on the 'type ... is' line",
-          source.rel_path, open_line, open_col))
+          source.rel_path,
+          open_line,
+          open_col))
         return consume diags
       end
     end
@@ -106,9 +109,12 @@ primitive TypeAliasFormat is ASTRule
       let after_idx = open_col.usize() // 0-based index after `(`
       if after_idx < open_text.size() then
         if open_text(after_idx)? != ' ' then
-          diags.push(Diagnostic(id(),
+          diags.push(Diagnostic(
+            id(),
             "space required after '(' in multiline type",
-            source.rel_path, open_line, open_col))
+            source.rel_path,
+            open_line,
+            open_col))
         end
       end
     end
@@ -129,9 +135,12 @@ primitive TypeAliasFormat is ASTRule
           let after_sep = first_col + 1
           if after_sep < line_text.size() then
             if line_text(after_sep)? != ' ' then
-              diags.push(Diagnostic(id(),
+              diags.push(Diagnostic(
+                id(),
                 "space required after '" + sep_str + "' in multiline type",
-                source.rel_path, line_idx + 1, (first_col + 1).usize()))
+                source.rel_path,
+                line_idx + 1,
+                (first_col + 1).usize()))
             end
           end
         end
@@ -145,9 +154,12 @@ primitive TypeAliasFormat is ASTRule
       if close_col > 1 then
         let before_idx = (close_col - 2).usize()
         if close_text(before_idx)? != ' ' then
-          diags.push(Diagnostic(id(),
+          diags.push(Diagnostic(
+            id(),
             "space required before ')' in multiline type",
-            source.rel_path, close_line, close_col))
+            source.rel_path,
+            close_line,
+            close_col))
         end
       end
     end

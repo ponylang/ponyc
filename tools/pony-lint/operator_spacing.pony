@@ -90,9 +90,12 @@ primitive OperatorSpacing is ASTRule
         try
           if line_text((op_col - 2).usize())? != ' ' then
             return recover val
-              [ Diagnostic(id(),
+              [ Diagnostic(
+                id(),
                 "space required before '" + symbol + "'",
-                source.rel_path, op_line, op_col)]
+                source.rel_path,
+                op_line,
+                op_col)]
             end
           end
         end
@@ -103,9 +106,12 @@ primitive OperatorSpacing is ASTRule
       try
         if line_text(after_idx)? != ' ' then
           return recover val
-            [ Diagnostic(id(),
+            [ Diagnostic(
+              id(),
               "space required after '" + symbol + "'",
-              source.rel_path, op_line, op_col)]
+              source.rel_path,
+              op_line,
+              op_col)]
           end
         end
       end
@@ -133,9 +139,12 @@ primitive OperatorSpacing is ASTRule
       try
         if line_text(after_idx)? == ' ' then
           return recover val
-            [ Diagnostic(id(),
+            [ Diagnostic(
+              id(),
               "no space after unary '" + symbol + "'",
-              source.rel_path, op_line, op_col)]
+              source.rel_path,
+              op_line,
+              op_col)]
           end
         end
       end
@@ -163,9 +172,12 @@ primitive OperatorSpacing is ASTRule
           let before = line_text((op_col - 2).usize())?
           if (before != ' ') and _is_alphanum(before) then
             return recover val
-              [ Diagnostic(id(),
+              [ Diagnostic(
+                id(),
                 "space required before 'not'",
-                source.rel_path, op_line, op_col)]
+                source.rel_path,
+                op_line,
+                op_col)]
             end
           end
         end
@@ -176,9 +188,12 @@ primitive OperatorSpacing is ASTRule
       try
         if line_text(after_idx)? != ' ' then
           return recover val
-            [ Diagnostic(id(),
+            [ Diagnostic(
+              id(),
               "space required after 'not'",
-              source.rel_path, op_line, op_col)]
+              source.rel_path,
+              op_line,
+              op_col)]
           end
         end
       end

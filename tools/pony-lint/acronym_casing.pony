@@ -35,10 +35,13 @@ primitive AcronymCasing is ASTRule
         match NamingHelpers.has_lowered_acronym(name)
         | let acronym: String val =>
           return recover val
-            [ Diagnostic(id(),
+            [ Diagnostic(
+              id(),
               "acronym '" + acronym + "' in '" + name
                 + "' should be fully uppercased",
-              source.rel_path, name_node.line(), name_node.pos())]
+              source.rel_path,
+              name_node.line(),
+              name_node.pos())]
           end
         end
       end

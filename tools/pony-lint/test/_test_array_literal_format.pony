@@ -148,7 +148,9 @@ class \nodoc\ _TestArrayLiteralFormatHangingIndent is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for hanging indent")
           try
             h.assert_true(
@@ -189,7 +191,9 @@ class \nodoc\ _TestArrayLiteralFormatNoSpaceAfterOpen is UnitTest
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(mod, sf, lint.ArrayLiteralFormat)
-          h.assert_eq[USize](1, diags.size(),
+          h.assert_eq[USize](
+            1,
+            diags.size(),
             "expected 1 diagnostic for missing space after '['")
           try
             h.assert_true(

@@ -23,14 +23,18 @@ actor Main
           "pony-lint",
           "A linter for Pony source files",
           [
-            OptionSpec.string_seq("disable",
+            OptionSpec.string_seq(
+              "disable",
               "Disable a rule or category (repeatable)"
               where short' = 'd')
-            OptionSpec.string("config",
+            OptionSpec.string(
+              "config",
               "Path to config file" where short' = 'c', default' = "")
-            OptionSpec.bool("version",
+            OptionSpec.bool(
+              "version",
               "Print version and exit" where short' = 'V', default' = false)
-            OptionSpec.string("explain",
+            OptionSpec.string(
+              "explain",
               "Print rule description and documentation URL"
               where default' = "")
           ],
@@ -95,6 +99,7 @@ actor Main
         .> push(ArrayLiteralFormat)
         .> push(MethodDeclarationFormat)
         .> push(TypeParameterFormat)
+        .> push(CallArgumentFormat)
     end
 
     // Handle --explain

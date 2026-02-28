@@ -165,8 +165,10 @@ class \nodoc\ _TestIgnoreMatcherGitignore is UnitTest
       git_dir.mkdir()
       // Create .gitignore
       let gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".gitignore")))
       gitignore.print("build/")
       gitignore.print("*.o")
       gitignore.dispose()
@@ -175,20 +177,25 @@ class \nodoc\ _TestIgnoreMatcherGitignore is UnitTest
       matcher.load_directory(tmp.path)
 
       // Directory "build" should be ignored (dir_only pattern)
-      h.assert_true(matcher.is_ignored(
-        Path.join(tmp.path, "build"), "build", true))
+      h.assert_true(
+        matcher.is_ignored(
+          Path.join(tmp.path, "build"), "build", true))
       // File "build" should NOT be ignored (dir_only pattern)
-      h.assert_false(matcher.is_ignored(
-        Path.join(tmp.path, "build"), "build", false))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "build"), "build", false))
       // .o file should be ignored
-      h.assert_true(matcher.is_ignored(
-        Path.join(tmp.path, "foo.o"), "foo.o", false))
+      h.assert_true(
+        matcher.is_ignored(
+          Path.join(tmp.path, "foo.o"), "foo.o", false))
       // .pony file should not be ignored
-      h.assert_false(matcher.is_ignored(
-        Path.join(tmp.path, "foo.pony"), "foo.pony", false))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "foo.pony"), "foo.pony", false))
 
       // Cleanup
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".gitignore")).remove()
       git_dir.remove()
       tmp.remove()
@@ -207,8 +214,10 @@ class \nodoc\ _TestIgnoreMatcherIgnoreFile is UnitTest
       // No .git dir — not a git repo
       // Create .ignore
       let ignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".ignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".ignore")))
       ignore.print("build/")
       ignore.dispose()
 
@@ -217,13 +226,16 @@ class \nodoc\ _TestIgnoreMatcherIgnoreFile is UnitTest
       matcher.load_directory(tmp.path)
 
       // Directory "build" should be ignored via .ignore
-      h.assert_true(matcher.is_ignored(
-        Path.join(tmp.path, "build"), "build", true))
+      h.assert_true(
+        matcher.is_ignored(
+          Path.join(tmp.path, "build"), "build", true))
       // File should not be ignored
-      h.assert_false(matcher.is_ignored(
-        Path.join(tmp.path, "foo.pony"), "foo.pony", false))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "foo.pony"), "foo.pony", false))
 
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".ignore")).remove()
       tmp.remove()
     else
@@ -243,14 +255,18 @@ class \nodoc\ _TestIgnoreMatcherIgnoreOverridesGitignore is UnitTest
       git_dir.mkdir()
       // .gitignore ignores build/
       let gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".gitignore")))
       gitignore.print("build/")
       gitignore.dispose()
       // .ignore negates build/
       let ignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".ignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".ignore")))
       ignore.print("!build/")
       ignore.dispose()
 
@@ -258,12 +274,15 @@ class \nodoc\ _TestIgnoreMatcherIgnoreOverridesGitignore is UnitTest
       matcher.load_directory(tmp.path)
 
       // build/ should NOT be ignored because .ignore negates it
-      h.assert_false(matcher.is_ignored(
-        Path.join(tmp.path, "build"), "build", true))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "build"), "build", true))
 
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".gitignore")).remove()
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".ignore")).remove()
       git_dir.remove()
       tmp.remove()
@@ -284,8 +303,10 @@ class \nodoc\ _TestIgnoreMatcherNegation is UnitTest
       git_dir.mkdir()
       // .gitignore: ignore all .o, but keep important.o
       let gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".gitignore")))
       gitignore.print("*.o")
       gitignore.print("!important.o")
       gitignore.dispose()
@@ -294,13 +315,16 @@ class \nodoc\ _TestIgnoreMatcherNegation is UnitTest
       matcher.load_directory(tmp.path)
 
       // Regular .o file should be ignored
-      h.assert_true(matcher.is_ignored(
-        Path.join(tmp.path, "foo.o"), "foo.o", false))
+      h.assert_true(
+        matcher.is_ignored(
+          Path.join(tmp.path, "foo.o"), "foo.o", false))
       // important.o should NOT be ignored (negated)
-      h.assert_false(matcher.is_ignored(
-        Path.join(tmp.path, "important.o"), "important.o", false))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "important.o"), "important.o", false))
 
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".gitignore")).remove()
       git_dir.remove()
       tmp.remove()
@@ -319,8 +343,10 @@ class \nodoc\ _TestIgnoreMatcherNonGitIgnoresGitignore is UnitTest
       // No .git dir
       // Create .gitignore (should be ignored since not in git repo)
       let gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".gitignore")))
       gitignore.print("*.o")
       gitignore.dispose()
 
@@ -329,10 +355,12 @@ class \nodoc\ _TestIgnoreMatcherNonGitIgnoresGitignore is UnitTest
       matcher.load_directory(tmp.path)
 
       // .o file should NOT be ignored (no git repo, .gitignore not loaded)
-      h.assert_false(matcher.is_ignored(
-        Path.join(tmp.path, "foo.o"), "foo.o", false))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "foo.o"), "foo.o", false))
 
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".gitignore")).remove()
       tmp.remove()
     else
@@ -352,8 +380,10 @@ class \nodoc\ _TestIgnoreMatcherHierarchical is UnitTest
       git_dir.mkdir()
       // Root .gitignore ignores all .o files
       let gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".gitignore")))
       gitignore.print("*.o")
       gitignore.dispose()
       // Subdirectory .gitignore un-ignores .o files
@@ -361,8 +391,10 @@ class \nodoc\ _TestIgnoreMatcherHierarchical is UnitTest
         FilePath(FileAuth(auth), Path.join(tmp.path, "src"))
       sub_dir.mkdir()
       let sub_gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(sub_dir.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(sub_dir.path, ".gitignore")))
       sub_gitignore.print("!*.o")
       sub_gitignore.dispose()
 
@@ -371,16 +403,20 @@ class \nodoc\ _TestIgnoreMatcherHierarchical is UnitTest
       matcher.load_directory(sub_dir.path)
 
       // .o file at root should be ignored
-      h.assert_true(matcher.is_ignored(
-        Path.join(tmp.path, "foo.o"), "foo.o", false))
+      h.assert_true(
+        matcher.is_ignored(
+          Path.join(tmp.path, "foo.o"), "foo.o", false))
       // .o file in src/ should NOT be ignored (subdirectory negation)
-      h.assert_false(matcher.is_ignored(
-        Path.join(sub_dir.path, "foo.o"), "foo.o", false))
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(sub_dir.path, "foo.o"), "foo.o", false))
 
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(sub_dir.path, ".gitignore")).remove()
       sub_dir.remove()
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".gitignore")).remove()
       git_dir.remove()
       tmp.remove()
@@ -401,8 +437,10 @@ class \nodoc\ _TestIgnoreMatcherAnchoredPattern is UnitTest
       git_dir.mkdir()
       // Anchored pattern: src/build (contains /)
       let gitignore =
-        File(FilePath(FileAuth(auth),
-          Path.join(tmp.path, ".gitignore")))
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".gitignore")))
       gitignore.print("src/build/")
       gitignore.dispose()
       // Create directory structure
@@ -420,7 +458,8 @@ class \nodoc\ _TestIgnoreMatcherAnchoredPattern is UnitTest
       let other_build = Path.join(Path.join(tmp.path, "other"), "build")
       h.assert_false(matcher.is_ignored(other_build, "build", true))
 
-      FilePath(FileAuth(auth),
+      FilePath(
+        FileAuth(auth),
         Path.join(tmp.path, ".gitignore")).remove()
       src_dir.remove()
       git_dir.remove()
