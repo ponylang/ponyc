@@ -1,4 +1,4 @@
-FROM alpine:3.21
+FROM alpine:3.23
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
