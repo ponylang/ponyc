@@ -51,7 +51,7 @@ primitive DotSpacing is ASTRule
         try
           if line_text((dot_col - 2).usize())? == ' ' then
             return recover val
-              [Diagnostic(id(),
+              [ Diagnostic(id(),
                 "no space before '.'",
                 source.rel_path, dot_line, dot_col)]
             end
@@ -64,7 +64,7 @@ primitive DotSpacing is ASTRule
         let after = line_text(dot_col.usize())?
         if after == ' ' then
           return recover val
-            [Diagnostic(id(),
+            [ Diagnostic(id(),
               "no space after '.'",
               source.rel_path, dot_line, dot_col)]
           end
@@ -91,7 +91,7 @@ primitive DotSpacing is ASTRule
         try
           if line_text((chain_col - 2).usize())? != ' ' then
             return recover val
-              [Diagnostic(id(),
+              [ Diagnostic(id(),
                 "space required before '.>'",
                 source.rel_path, chain_line, chain_col)]
             end
@@ -105,7 +105,7 @@ primitive DotSpacing is ASTRule
         let after = line_text(after_idx)?
         if after != ' ' then
           return recover val
-            [Diagnostic(id(),
+            [ Diagnostic(id(),
               "space required after '.>'",
               source.rel_path, chain_line, chain_col)]
           end
