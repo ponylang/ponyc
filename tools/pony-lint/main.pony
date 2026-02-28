@@ -90,6 +90,7 @@ actor Main
         .> push(OperatorSpacing)
         .> push(LambdaSpacing)
         .> push(AssignmentIndent)
+        .> push(ControlStructureAlignment)
     end
 
     // Handle --explain
