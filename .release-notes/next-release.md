@@ -86,3 +86,7 @@ The above produces: `match marked \exhaustive\ is not exhaustive`
 
 Adding the missing case or an explicit else clause resolves the error. The annotation is also useful on matches that are already exhaustive as a future-proofing measure. Without it, if a new member is later added to the union type and the match isn't updated, the compiler silently injects `else None`. You'll only get an error if the match result is assigned to a variable whose type doesn't include `None` -- otherwise the bug is completely silent. With `\exhaustive\`, the compiler catches the missing case immediately.
 
+## Update Docker image base to Alpine 3.23
+
+The `ponylang/ponyc:nightly` and `ponylang/ponyc:release` Docker images now use Alpine 3.23 as their base image, updated from Alpine 3.21.
+
