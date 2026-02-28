@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Changed persistent hash map apply signature ([PR #4839](https://github.com/ponylang/ponyc/pull/4839))
+- Update Docker image base to Alpine 3.23 ([PR #4887](https://github.com/ponylang/ponyc/pull/4887))
 
 ## [0.60.6] - 2026-02-06
 
