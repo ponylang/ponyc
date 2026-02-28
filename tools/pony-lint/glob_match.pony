@@ -18,8 +18,12 @@ primitive GlobMatch
     _matches(pattern, 0, pattern.size(), text, 0, text.size())
 
   fun _matches(
-    p: String val, ps: USize, pe: USize,
-    t: String val, ts: USize, te: USize)
+    p: String val,
+    ps: USize,
+    pe: USize,
+    t: String val,
+    ts: USize,
+    te: USize)
     : Bool
   =>
     """
@@ -100,8 +104,12 @@ primitive GlobMatch
     _match_segment(p, ps, pe, t, ts, te)
 
   fun _match_leading_star(
-    p: String val, ps: USize, pe: USize,
-    t: String val, ts: USize, te: USize)
+    p: String val,
+    ps: USize,
+    pe: USize,
+    t: String val,
+    ts: USize,
+    te: USize)
     : Bool
   =>
     """
@@ -119,8 +127,12 @@ primitive GlobMatch
     false
 
   fun _match_segment(
-    p: String val, ps: USize, pe: USize,
-    t: String val, ts: USize, te: USize)
+    p: String val,
+    ps: USize,
+    pe: USize,
+    t: String val,
+    ts: USize,
+    te: USize)
     : Bool
   =>
     """

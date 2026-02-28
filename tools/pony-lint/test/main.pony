@@ -385,3 +385,24 @@ actor \nodoc\ Main is TestList
     test(_TestArrayLiteralFormatEmpty)
     test(_TestArrayLiteralFormatHangingIndent)
     test(_TestArrayLiteralFormatNoSpaceAfterOpen)
+
+    // MethodDeclarationFormat tests
+    test(_TestMethodDeclFormatSingleLine)
+    test(_TestMethodDeclFormatMultiLineFunClean)
+    test(_TestMethodDeclFormatMultiLineNoReturnClean)
+    test(_TestMethodDeclFormatNewClean)
+    test(_TestMethodDeclFormatBeClean)
+    test(_TestMethodDeclFormatParamsSharingLine)
+    test(_TestMethodDeclFormatColonMisaligned)
+    test(_TestMethodDeclFormatArrowMisaligned)
+    test(_TestMethodDeclFormatMultipleViolations)
+
+    // TypeParameterFormat tests
+    test(_TestTypeParamFormatSingleLine)
+    test(_TestTypeParamFormatMultiLineClassClean)
+    test(_TestTypeParamFormatTraitIsClean)
+    test(_TestTypeParamFormatMethodClean)
+    test(_TestTypeParamFormatBracketWrongLine)
+    test(_TestTypeParamFormatSharingLine)
+    test(_TestTypeParamFormatIsMisaligned)
+    test(_TestTypeParamFormatMultipleViolations)

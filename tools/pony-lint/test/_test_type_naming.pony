@@ -117,8 +117,11 @@ class \nodoc\ _TestTypeNamingAllEntityTypes is UnitTest
 
 primitive \nodoc\ _CollectRuleDiags
   """Helper: walk a module's AST and collect diagnostics from a single rule."""
-  fun apply(mod: ast.Module val, sf: lint.SourceFile val,
-    rule: lint.ASTRule val): Array[lint.Diagnostic val] val
+  fun apply(
+    mod: ast.Module val,
+    sf: lint.SourceFile val,
+    rule: lint.ASTRule val)
+    : Array[lint.Diagnostic val] val
   =>
     let collector = _RuleCollector(rule, sf)
     mod.ast.visit(collector)
