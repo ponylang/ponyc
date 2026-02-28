@@ -57,7 +57,7 @@ primitive MemberNaming is ASTRule
         end
         if not NamingHelpers.is_snake_case(name) then
           return recover val
-            [Diagnostic(id(),
+            [ Diagnostic(id(),
               "member name '" + name + "' should be snake_case",
               source.rel_path, name_node.line(), name_node.pos())]
           end

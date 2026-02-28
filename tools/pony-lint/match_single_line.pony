@@ -31,7 +31,7 @@ primitive MatchSingleLine is ASTRule
     node.visit(mlv)
     if mlv.max_line == match_line then
       recover val
-        [Diagnostic(id(),
+        [ Diagnostic(id(),
           "match expression should span multiple lines",
           source.rel_path, match_line, node.pos())]
       end

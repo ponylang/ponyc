@@ -365,3 +365,23 @@ actor \nodoc\ Main is TestList
     test(_TestCtrlAlignForElseMisaligned)
     test(_TestCtrlAlignRepeatElseMisaligned)
     test(_TestCtrlAlignTryThenMisaligned)
+
+    // TypeAliasFormat tests
+    test(_TestTypeAliasFormatSingleLineUnion)
+    test(_TestTypeAliasFormatMultiLineClean)
+    test(_TestTypeAliasFormatMultiLineCloseOwnLine)
+    test(_TestTypeAliasFormatSimpleAlias)
+    test(_TestTypeAliasFormatMultiLineIsectClean)
+    test(_TestTypeAliasFormatTypeParamsClean)
+    test(_TestTypeAliasFormatHangingIndent)
+    test(_TestTypeAliasFormatNoSpaceAfterOpen)
+    test(_TestTypeAliasFormatNoSpaceAfterPipe)
+    test(_TestTypeAliasFormatNoSpaceBeforeClose)
+
+    // ArrayLiteralFormat tests
+    test(_TestArrayLiteralFormatSingleLine)
+    test(_TestArrayLiteralFormatMultiLineClean)
+    test(_TestArrayLiteralFormatMultiLineCloseOwnLine)
+    test(_TestArrayLiteralFormatEmpty)
+    test(_TestArrayLiteralFormatHangingIndent)
+    test(_TestArrayLiteralFormatNoSpaceAfterOpen)

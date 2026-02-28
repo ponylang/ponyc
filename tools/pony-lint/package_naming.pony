@@ -41,7 +41,7 @@ primitive PackageNaming is ASTRule
     """
     if not NamingHelpers.is_snake_case(dir_name) then
       recover val
-        [Diagnostic(id(),
+        [ Diagnostic(id(),
           "package directory '" + dir_name + "' should be snake_case",
           first_file_rel, 0, 0)]
       end

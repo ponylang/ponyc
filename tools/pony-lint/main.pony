@@ -91,6 +91,8 @@ actor Main
         .> push(LambdaSpacing)
         .> push(AssignmentIndent)
         .> push(ControlStructureAlignment)
+        .> push(TypeAliasFormat)
+        .> push(ArrayLiteralFormat)
     end
 
     // Handle --explain

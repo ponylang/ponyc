@@ -40,7 +40,7 @@ primitive PartialCallSpacing is ASTRule
           try
             if line_text((q_col - 2).usize())? == ' ' then
               return recover val
-                [Diagnostic(id(),
+                [ Diagnostic(id(),
                   "'?' at call site should immediately follow ')'",
                   source.rel_path, q_line, q_col)]
               end

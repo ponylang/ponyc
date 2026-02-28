@@ -31,7 +31,7 @@ primitive TypeNaming is ASTRule
       | let name: String val =>
         if not NamingHelpers.is_camel_case(name) then
           return recover val
-            [Diagnostic(id(),
+            [ Diagnostic(id(),
               "type name '" + name + "' should be CamelCase",
               source.rel_path, name_node.line(), name_node.pos())]
           end
