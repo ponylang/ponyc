@@ -205,7 +205,7 @@ actor WorkspaceManager
       if this._client.supports_publish_diagnostics() then
         for file in errors_by_file.keys() do
           try
-            let file_errors: pc.Vec[JsonValue] = recover val errors_by_file.remove(file)?._2 end
+            let file_errors: pc.Vec[JsonValue] = errors_by_file(file)?
             let msg = Notification.create(
               Methods.text_document().publish_diagnostics(),
               JsonObject
@@ -237,6 +237,9 @@ actor WorkspaceManager
         // to make sure we don't see any old diagnostics anymore
         this._request_sender.send_request(Methods.workspace().diagnostic().refresh(), None)
       end
+    else
+      this._channel.log("Received compilation result for run " + run.string() +
+      " but already received results for run " + this._compile_run.string())
     end
 
 
