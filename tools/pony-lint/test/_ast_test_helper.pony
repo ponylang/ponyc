@@ -16,7 +16,9 @@ primitive \nodoc\ _ASTTestHelper
   directory, not an installed location, so executable-relative discovery
   is not used here.
   """
-  fun compile(h: TestHelper, source: String val,
+  fun compile(
+    h: TestHelper,
+    source: String val,
     filename: String val = "test.pony")
     : (ast.Program val, lint.SourceFile val) ?
   =>

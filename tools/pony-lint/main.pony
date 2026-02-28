@@ -93,6 +93,8 @@ actor Main
         .> push(ControlStructureAlignment)
         .> push(TypeAliasFormat)
         .> push(ArrayLiteralFormat)
+        .> push(MethodDeclarationFormat)
+        .> push(TypeParameterFormat)
     end
 
     // Handle --explain
