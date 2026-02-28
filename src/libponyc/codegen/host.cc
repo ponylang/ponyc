@@ -158,7 +158,7 @@ LLVMValueRef LLVMMemcpy(LLVMModuleRef module, bool ilp32)
   params[1] = params[0];
   params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
 
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::memcpy, {params, 3}));
+  return wrap(Intrinsic::getOrInsertDeclaration(m, Intrinsic::memcpy, {params, 3}));
 }
 
 LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
@@ -170,7 +170,7 @@ LLVMValueRef LLVMMemmove(LLVMModuleRef module, bool ilp32)
   params[1] = params[0];
   params[2] = Type::getIntNTy(m->getContext(), ilp32 ? 32 : 64);
 
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::memmove, {params, 3}));
+  return wrap(Intrinsic::getOrInsertDeclaration(m, Intrinsic::memmove, {params, 3}));
 }
 
 LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type)
@@ -178,7 +178,7 @@ LLVMValueRef LLVMLifetimeStart(LLVMModuleRef module, LLVMTypeRef type)
   Module* m = unwrap(module);
 
   Type* t[1] = { unwrap(type) };
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_start, t));
+  return wrap(Intrinsic::getOrInsertDeclaration(m, Intrinsic::lifetime_start, t));
 }
 
 LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
@@ -186,7 +186,7 @@ LLVMValueRef LLVMLifetimeEnd(LLVMModuleRef module, LLVMTypeRef type)
   Module* m = unwrap(module);
 
   Type* t[1] = { unwrap(type) };
-  return wrap(Intrinsic::getDeclaration(m, Intrinsic::lifetime_end, t));
+  return wrap(Intrinsic::getOrInsertDeclaration(m, Intrinsic::lifetime_end, t));
 }
 
 LLVMValueRef LLVMBuildAlignedLoad(LLVMBuilderRef b, LLVMTypeRef t, LLVMValueRef p, uint64_t align, const char* name)
