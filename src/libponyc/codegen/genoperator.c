@@ -8,8 +8,6 @@
 #include "../type/subtype.h"
 #include "ponyassert.h"
 
-typedef LLVMValueRef (*const_binop)(LLVMValueRef left, LLVMValueRef right);
-
 typedef LLVMValueRef (*build_binop)(LLVMBuilderRef builder, LLVMValueRef left,
   LLVMValueRef right, const char *name);
 
@@ -50,7 +48,6 @@ static bool is_fp(LLVMValueRef val)
 }
 
 static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
-  const_binop const_f, const_binop const_i,
   build_binop build_f, build_binop build_i)
 {
   LLVMValueRef l_value = gen_expr(c, left);
@@ -59,17 +56,6 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value)) {
-      if (const_f)
-        return const_f(l_value, r_value);
-    } else {
-      if (const_i)
-        return const_i(l_value, r_value);
-    }
-  }
-
   if(is_fp(l_value))
     return build_f(c->builder, l_value, r_value, "");
 
@@ -77,7 +63,6 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
 }
 
 static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
-  const_binop const_f, const_binop const_ui, const_binop const_si,
   build_binop build_f, build_binop build_ui, build_binop build_si,
   bool safe)
 {
@@ -118,20 +103,6 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
           "constant divide or rem overflow");
         return NULL;
       }
-    }
-  }
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value)) {
-      if (const_f)
-        return const_f(l_value, r_value);
-    } else if(sign) {
-      if (const_si)
-        return const_si(l_value, r_value);
-    } else {
-      if (const_ui)
-        return const_ui(l_value, r_value);
     }
   }
 
@@ -607,55 +578,52 @@ static LLVMValueRef make_unsafe_fneg(LLVMBuilderRef builder, LLVMValueRef op,
 LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, NULL, LLVMBuildFAdd,
-      LLVMBuildAdd);
+    return make_binop(c, left, right, LLVMBuildFAdd, LLVMBuildAdd);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, NULL, make_unsafe_fadd,
+  return make_binop(c, left, right, make_unsafe_fadd,
     sign ? LLVMBuildNSWAdd : LLVMBuildNUWAdd);
 }
 
 LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, NULL, LLVMBuildFSub,
-      LLVMBuildSub);
+    return make_binop(c, left, right, LLVMBuildFSub, LLVMBuildSub);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, NULL, make_unsafe_fsub,
+  return make_binop(c, left, right, make_unsafe_fsub,
     sign ? LLVMBuildNSWSub : LLVMBuildNUWSub);
 }
 
 LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   if(safe)
-    return make_binop(c, left, right, NULL, NULL, LLVMBuildFMul,
-      LLVMBuildMul);
+    return make_binop(c, left, right, LLVMBuildFMul, LLVMBuildMul);
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
   ast_free_unattached(type);
 
-  return make_binop(c, left, right, NULL, NULL, make_unsafe_fmul,
+  return make_binop(c, left, right, make_unsafe_fmul,
     sign ? LLVMBuildNSWMul : LLVMBuildNUWMul);
 }
 
 LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divrem(c, left, right, NULL, NULL, NULL,
+  return make_divrem(c, left, right,
     safe ? LLVMBuildFDiv : make_unsafe_fdiv, LLVMBuildUDiv, LLVMBuildSDiv,
     safe);
 }
 
 LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
-  return make_divrem(c, left, right, NULL, NULL, NULL,
+  return make_divrem(c, left, right,
     safe ? LLVMBuildFRem : make_unsafe_frem, LLVMBuildURem, LLVMBuildSRem,
     safe);
 }
