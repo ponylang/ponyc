@@ -19,11 +19,7 @@ class \nodoc\ _TestConfigCLIDisableRule is UnitTest
 
   fun apply(h: TestHelper) =>
     let disabled =
-      recover val
-        let s = Set[String]
-        s.set("style/line-length")
-        s
-      end
+      recover val Set[String] .> set("style/line-length") end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
@@ -37,11 +33,7 @@ class \nodoc\ _TestConfigCLIDisableCategory is UnitTest
 
   fun apply(h: TestHelper) =>
     let disabled =
-      recover val
-        let s = Set[String]
-        s.set("style")
-        s
-      end
+      recover val Set[String] .> set("style") end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
     match config.rule_status("style/line-length", "style", lint.RuleOn)
@@ -91,11 +83,7 @@ class \nodoc\ _TestConfigCLIOverridesFile is UnitTest
 
   fun apply(h: TestHelper) =>
     let disabled =
-      recover val
-        let s = Set[String]
-        s.set("style/line-length")
-        s
-      end
+      recover val Set[String] .> set("style/line-length") end
     let file_rules =
       recover val
         let m = Map[String, lint.RuleStatus]

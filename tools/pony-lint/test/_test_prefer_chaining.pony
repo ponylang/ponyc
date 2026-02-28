@@ -106,9 +106,12 @@ class \nodoc\ _TestPreferChainingAlreadyChaining is UnitTest
       h.fail("compilation failed")
     end
 
-class \nodoc\ _TestPreferChainingSingleCall is UnitTest
-  """Single call below threshold produces no diagnostics."""
-  fun name(): String => "PreferChaining: single call is clean"
+class \nodoc\ _TestPreferChainingSingleCallTrailingRef is UnitTest
+  """
+  Single call with trailing reference is flagged — .> eliminates the
+  intermediate variable.
+  """
+  fun name(): String => "PreferChaining: single call trailing ref"
   fun exclusion_group(): String => "ast-compile"
 
   fun apply(h: TestHelper) =>
@@ -118,6 +121,47 @@ class \nodoc\ _TestPreferChainingSingleCall is UnitTest
       "    let x = Bar\n" +
       "    x.baz(U32(1))\n" +
       "    x\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.PreferChaining)
+          h.assert_eq[USize](1, diags.size())
+          try
+            h.assert_eq[String]("style/prefer-chaining",
+              diags(0)?.rule_id)
+            h.assert_true(diags(0)?.message.contains("x"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestPreferChainingSingleCallRefNotLast is UnitTest
+  """
+  Single call with trailing reference followed by another sibling is not
+  flagged — the variable is used beyond just building and returning.
+  """
+  fun name(): String => "PreferChaining: single call ref not last"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(): None =>\n" +
+      "    let x = Bar\n" +
+      "    x.baz(U32(1))\n" +
+      "    x\n" +
+      "    None\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
       match program.package()

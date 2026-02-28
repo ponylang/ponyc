@@ -3,10 +3,11 @@ use ast = "pony_compiler"
 primitive PreferChaining is ASTRule
   """
   Flags patterns where a value is bound to a local variable and methods are
-  called on it repeatedly — when `.>` chaining would be cleaner. Fires
-  whether or not the variable is returned after the calls.
+  called on it repeatedly — when `.>` chaining would be cleaner. Also flags
+  a single call followed by a trailing reference, since `.>` returns the
+  receiver and eliminates the need for the intermediate variable.
 
-  Anti-pattern (with trailing reference):
+  Anti-pattern (multiple calls with trailing reference):
   ```pony
   let r = Array[U32]
   r.push(1)
@@ -14,7 +15,14 @@ primitive PreferChaining is ASTRule
   r
   ```
 
-  Anti-pattern (without trailing reference):
+  Anti-pattern (single call with trailing reference):
+  ```pony
+  let s = Set[String]
+  s.set("foo")
+  s
+  ```
+
+  Anti-pattern (multiple calls without trailing reference):
   ```pony
   let x = Bar
   x.baz(1)
@@ -26,6 +34,10 @@ primitive PreferChaining is ASTRule
   Array[U32]
     .> push(1)
     .> push(2)
+  ```
+
+  ```pony
+  Set[String] .> set("foo")
   ```
   """
   fun id(): String val => "style/prefer-chaining"
@@ -82,17 +94,18 @@ primitive PreferChaining is ASTRule
       end
     end
 
-    // Need at least 2 consecutive calls
-    if call_count < 2 then
+    // Need at least 1 consecutive call
+    if call_count == 0 then
       return recover val Array[Diagnostic val] end
     end
 
-    // Fire when calls are the final expressions (no trailing ref needed)
-    // or when followed by a bare reference with no further siblings
+    // Fire when calls end the scope (2+ needed) or when followed by a
+    // bare reference with no further siblings (1+ call suffices since .>
+    // returns the receiver, eliminating the intermediate variable).
     let should_flag: Bool =
       match current
       | None =>
-        true
+        call_count >= 2
       | let ref_node: ast.AST box
         if _is_bare_reference(ref_node, var_name)
       =>
