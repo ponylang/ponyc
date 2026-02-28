@@ -50,7 +50,7 @@ class ListReverseProperty is Property1[List[USize]]
     Generators.list_of[USize](Generators.usize())
 
   fun property(arg1: List[USize], ph: PropertyHelper) =>
-    ph.array_eq[USize](arg1, arg1.reverse().reverse())
+    ph.assert_array_eq[USize](arg1, arg1.reverse().reverse())
 ```
 
 ## Integration into PonyTest
@@ -84,7 +84,7 @@ There are two ways of integrating a [Property](pony_check-Property1.md) into
       let gen = recover val Generators.list_of[USize](Generators.usize()) end
       PonyCheck.for_all[List[USize]](gen, h)(
         {(sample, ph) =>
-          ph.array_eq[Usize](arg1, arg1.reverse().reverse())
+          ph.assert_array_eq[USize](sample, sample.reverse().reverse())
         })
       // ... possibly more properties, using `PonyCheck.for_all`
 ```
