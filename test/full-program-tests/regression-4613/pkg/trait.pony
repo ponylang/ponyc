@@ -7,7 +7,7 @@ trait T
     compiled IFF a class from outside this package implements this trait
     and inherits this default method
     """
-    match _override()
+    match \exhaustive\ _override()
     | let t: T =>
       t._with_default()
     | None =>

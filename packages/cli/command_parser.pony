@@ -68,7 +68,7 @@ class CommandParser
         opt_stop = true
 
       elseif not opt_stop and (token.compare_sub("--", 2, 0) == Equal) then
-        match _parse_long_option(token.substring(2), tokens)
+        match \exhaustive\ _parse_long_option(token.substring(2), tokens)
         | let o: Option =>
           if o.spec()._typ_p().is_seq() then
             options.upsert(o.spec().name(), o, {(x, n) => x._append(n) })
@@ -80,7 +80,7 @@ class CommandParser
 
       elseif not opt_stop and
         ((token.compare_sub("-", 1, 0) == Equal) and (token.size() > 1)) then
-        match _parse_short_options(token.substring(1), tokens)
+        match \exhaustive\ _parse_short_options(token.substring(1), tokens)
         | let os: Array[Option] =>
           for o in os.values() do
             if o.spec()._typ_p().is_seq() then
@@ -111,7 +111,7 @@ class CommandParser
             return SyntaxError(token, "unknown command")
           end
         else
-          match _parse_arg(token, arg_pos)
+          match \exhaustive\ _parse_arg(token, arg_pos)
           | let a: Arg =>
             if a.spec()._typ_p().is_seq() then
               args.upsert(a.spec().name(), a, {(x, n) => x._append(n) })
@@ -184,7 +184,7 @@ class CommandParser
               ""
             end
           let v: _Value =
-            match _ValueParser.parse(os._typ_p(), vs)
+            match \exhaustive\ _ValueParser.parse(os._typ_p(), vs)
             | let v: _Value => v
             | let se: SyntaxError => return se
             end
@@ -235,7 +235,7 @@ class CommandParser
     let parts = token.split("=", 2)
     let name = try parts(0)? else "???" end
     let targ = try parts(1)? else None end
-    match _option_with_name(name)
+    match \exhaustive\ _option_with_name(name)
     | let os: OptionSpec => _OptionParser.parse(os, targ, args)
     | None => SyntaxError(name, "unknown long option")
     end
@@ -269,7 +269,7 @@ class CommandParser
         else
           0  // TODO(cq) Should never error since checked
         end
-      match _option_with_short(c)
+      match \exhaustive\ _option_with_short(c)
       | let os: OptionSpec =>
         if os._requires_arg() and (shorts.size() > 0) then
           // opt needs an arg, so consume the remainder of the shorts for targ
@@ -281,7 +281,7 @@ class CommandParser
           end
         end
         let arg = if shorts.size() == 0 then targ else None end
-        match _OptionParser.parse(os, arg, args)
+        match \exhaustive\ _OptionParser.parse(os, arg, args)
         | let o: Option => options.push(o)
         | let se: SyntaxError => return se
         end
@@ -334,7 +334,7 @@ primitive _OptionParser
     : (Option | SyntaxError)
   =>
     // Grab the token-arg if provided, else consume an arg if one is required.
-    let arg = match targ
+    let arg = match \exhaustive\ targ
       | (let fn: None) if spec._requires_arg() =>
         try args.shift()? else None end
       else
@@ -343,7 +343,7 @@ primitive _OptionParser
     // Now convert the arg to Type, detecting missing or mis-typed args
     match arg
     | let a: String =>
-      match _ValueParser.parse(spec._typ_p(), a)
+      match \exhaustive\ _ValueParser.parse(spec._typ_p(), a)
       | let v: _Value => Option(spec, v)
       | let se: SyntaxError => se
       end
@@ -357,7 +357,7 @@ primitive _OptionParser
 
 primitive _ArgParser
   fun parse(spec: ArgSpec, arg: String): (Arg | SyntaxError) =>
-    match _ValueParser.parse(spec._typ_p(), arg)
+    match \exhaustive\ _ValueParser.parse(spec._typ_p(), arg)
     | let v: _Value => Arg(spec, v)
     | let se: SyntaxError => se
     end

@@ -42,7 +42,7 @@ class iso Property1UnitTest[T] is UnitTest
     If not, use the property's `name()`.
     """
     _name =
-      match name'
+      match \exhaustive\ name'
       | None => p1.name()
       | let s: String => s
       end
@@ -73,7 +73,7 @@ class iso Property2UnitTest[T1, T2] is UnitTest
 
   new iso create(p2: Property2[T1, T2] iso, name': (String | None) = None) =>
     _name =
-      match name'
+      match \exhaustive\ name'
       | None => p2.name()
       | let s: String => s
       end
@@ -103,7 +103,7 @@ class iso Property3UnitTest[T1, T2, T3] is UnitTest
 
   new iso create(p3: Property3[T1, T2, T3] iso, name': (String | None) = None) =>
     _name =
-      match name'
+      match \exhaustive\ name'
       | None => p3.name()
       | let s: String => s
       end
@@ -133,7 +133,7 @@ class iso Property4UnitTest[T1, T2, T3, T4] is UnitTest
 
   new iso create(p4: Property4[T1, T2, T3, T4] iso, name': (String | None) = None) =>
     _name =
-      match name'
+      match \exhaustive\ name'
       | None => p4.name()
       | let s: String => s
       end

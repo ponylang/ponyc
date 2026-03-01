@@ -367,7 +367,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     Create a printable debug representation of the current node.
     """
     let value =
-      match token_value()
+      match \exhaustive\ token_value()
       | let s: String val =>
         " " + match id()
         | TokenIds.tk_string() => "\"" + s + "\""
@@ -734,7 +734,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
         fun ref visit(ast: AST box): VisitResult =>
           let cur_min = ast.position()
-          let cur_max = match ast.end_pos()
+          let cur_max = match \exhaustive\ ast.end_pos()
           | let pos: Position => pos
           | None => cur_min
           end

@@ -38,7 +38,7 @@ primitive Compiler
     @codegen_pass_init(pass_opt)
     // avoid calling package_init
     // get the search paths from the arguments
-    match package_search_paths
+    match \exhaustive\ package_search_paths
     | let single: String box =>
       @package_add_paths(single.cstring(), pass_opt)
     | let multiple: ReadSeq[String val] box =>

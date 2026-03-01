@@ -325,7 +325,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       for i in Range(0, _array.size()) do
         let entry = _array(idx)?
 
-        match entry
+        match \exhaustive\ entry
         | (let k: this->K!, _) =>
           if H.eq(k, key) then
             return (idx, true)

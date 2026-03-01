@@ -42,7 +42,7 @@ primitive Debug
     output stream is stdout.
     """
     ifdef debug then
-      match msg
+      match \exhaustive\ msg
       | let m: Stringable =>
         _print(m.string(), stream)
       | let m: ReadSeq[Stringable] =>
@@ -68,7 +68,7 @@ primitive Debug
     end
 
   fun _stream(stream: DebugStream): Pointer[U8] =>
-    match stream
+    match \exhaustive\ stream
     | DebugOut => @pony_os_stdout()
     | DebugErr => @pony_os_stderr()
     end

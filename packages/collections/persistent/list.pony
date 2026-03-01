@@ -405,7 +405,7 @@ class val Cons[A] is ReadSeq[val->A]
   fun _filter(l: List[A], f: {(val->A): Bool} box, acc: List[A]): List[A] =>
     """
     Private helper for filter, recursively working on elements, keeping those
-    that match the predicate and discarding those that don't.
+    that match \exhaustive\ the predicate and discarding those that don't.
     """
     match l
     | let cons: Cons[A] =>

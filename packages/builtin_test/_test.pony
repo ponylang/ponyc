@@ -1276,7 +1276,7 @@ class \nodoc\ iso _TestStringUnchop is UnitTest
       return consume x
     end
 
-    let sp = match split_point
+    let sp = match \exhaustive\ split_point
              | None => x.size()/2
              | let z: USize => z
              end
@@ -1726,7 +1726,7 @@ class \nodoc\ iso _TestArrayUnchop is UnitTest
     split_point: (USize | None)): Array[U8] iso^ ?
   =>
     let sp =
-      match split_point
+      match \exhaustive\ split_point
       | None => x.size()/2
         if x.size() < 4 then
           return consume x

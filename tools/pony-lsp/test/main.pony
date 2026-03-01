@@ -712,7 +712,7 @@ actor TestCompiler is LspCompiler
 
 interface MessageHandler
   fun ref handle_message(h: TestHelper, m: Message val, server: BaseProtocol) =>
-    match m
+    match \exhaustive\ m
     | let req: RequestMessage val =>
       this.handle_request(h, req, server)
     | let res: ResponseMessage val =>

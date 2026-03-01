@@ -110,7 +110,7 @@ class ref IgnoreMatcher
     """
     Return true if the entry at `abs_path` should be ignored based on
     accumulated rules. Evaluates rules last-to-first; the first matching rule
-    wins. A negated match means the entry is NOT ignored.
+    wins. A negated match \exhaustive\ means the entry is NOT ignored.
     """
     var i = _rules.size()
     while i > 0 do

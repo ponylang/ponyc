@@ -5,7 +5,7 @@ JSON library for Pony. All JSON values are `val` — construction
 uses chained method calls that return new values with structural sharing
 via persistent collections. Three access patterns are available for
 reading and modifying JSON structures, from simple one-shot lookups to
-composable paths to string-based multi-match queries.
+composable paths to string-based multi-match \exhaustive\ queries.
 
 ## Building JSON
 
@@ -36,10 +36,10 @@ JSON null is Pony's `None`.
 `JsonParser.parse()` returns errors as data — no exceptions to catch:
 
 ```pony
-match json.JsonParser.parse(source)
+match \exhaustive\ json.JsonParser.parse(source)
 | let j: json.JsonValue =>
   // j is the parsed document (object, array, or scalar)
-  match j
+  match \exhaustive\ j
   | let obj: json.JsonObject =>
     env.out.print("Root is object with " + obj.size().string() + " keys")
   end
@@ -74,7 +74,7 @@ end
 
 Terminal extractors — `as_string()`, `as_i64()`, `as_f64()`,
 `as_bool()`, `as_null()`, `as_object()`, `as_array()` — unwrap the
-value or raise if the type doesn't match or the nav holds JsonNotFound.
+value or raise if the type doesn't match \exhaustive\ or the nav holds JsonNotFound.
 
 ## Composable Paths: JsonLens
 
@@ -88,13 +88,13 @@ back to an alternative:
 let host_lens = json.JsonLens("config")("database")("host")
 
 // Read
-match host_lens.get(doc)
+match \exhaustive\ host_lens.get(doc)
 | let host: json.JsonValue => env.out.print("Host: " + host.string())
 | json.JsonNotFound => env.out.print("no host configured")
 end
 
 // Update — returns a new document with the value changed
-match host_lens.set(doc, "prod.example.com")
+match \exhaustive\ host_lens.set(doc, "prod.example.com")
 | let updated: json.JsonValue =>
   // updated is a new doc; original doc is unchanged
   None
@@ -103,7 +103,7 @@ end
 
 // Remove a key
 let debug_lens = json.JsonLens("config")("debug")
-match debug_lens.remove(doc)
+match \exhaustive\ debug_lens.remove(doc)
 | let updated: json.JsonValue => None // debug key removed
 | json.JsonNotFound => None // path didn't exist
 end
@@ -120,13 +120,13 @@ let fallback = json.JsonLens("primary_host")
 ## String-Based Queries: JsonPath
 
 `JsonPath` implements a subset of RFC 9535 — string-based query
-expressions that can match multiple values via wildcards, recursive
+expressions that can match \exhaustive\ multiple values via wildcards, recursive
 descent, and slicing. Parse a path string once, then apply it to any
 number of documents:
 
 ```pony
 // Parse returns errors as data (consistent with JsonParser)
-match json.JsonPathParser.parse("$.store.book[*].author")
+match \exhaustive\ json.JsonPathParser.parse("$.store.book[*].author")
 | let path: json.JsonPath =>
   let authors = path.query(doc) // Array[JsonValue] val
   for author in authors.values() do
@@ -156,9 +156,9 @@ Supported JSONPath syntax:
 * `$[?@.author]` — filter by existence (member present)
 * `$[?@.a > 1 && @.b < 2]` — logical AND, OR (`||`), NOT (`!`)
 * `$[?@.type == $.default]` — absolute query (`$`) in filters
-* `$[?match(@.name, "[A-Z].*")]` — function extensions (`length`, `count`,
-  `match`, `search`, `value`)
-* `query_one()` — convenience returning first match or `JsonNotFound`
+* `$[?match \exhaustive\(@.name, "[A-Z].*")]` — function extensions (`length`, `count`,
+  `match \exhaustive\`, `search`, `value`)
+* `query_one()` — convenience returning first match \exhaustive\ or `JsonNotFound`
 
 ## Serialization
 
@@ -203,7 +203,7 @@ env.out.print(obj.pretty_string("\t"))
 
 Start with `JsonNav` for simple reads. Move to `JsonLens` when you
 need to modify values or reuse paths. Use `JsonPath` when you need
-multi-match queries, wildcard selection, or user-provided path strings.
+multi-match \exhaustive\ queries, wildcard selection, or user-provided path strings.
 
 ## Token Parser
 
@@ -217,11 +217,11 @@ processing logic:
 let parser = json.JsonTokenParser(
   object is json.JsonTokenNotify
     fun ref apply(parser': json.JsonTokenParser, token: json.JsonToken) =>
-      match token
+      match \exhaustive\ token
       | json.JsonTokenKey => env.out.print("Key: " + parser'.last_string)
       | json.JsonTokenString => env.out.print("String: " + parser'.last_string)
       | json.JsonTokenNumber =>
-        match parser'.last_number
+        match \exhaustive\ parser'.last_number
         | let n: I64 => env.out.print("Int: " + n.string())
         | let f: F64 => env.out.print("Float: " + f.string())
         end

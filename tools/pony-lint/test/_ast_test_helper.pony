@@ -38,7 +38,7 @@ primitive \nodoc\ _ASTTestHelper
 
     let pony_path = _get_ponypath(h.env.vars)
 
-    match ast.Compiler.compile(
+    match \exhaustive\ ast.Compiler.compile(
       tmp where package_search_paths = pony_path,
       limit = ast.PassParse)
     | let program: ast.Program val =>
@@ -63,7 +63,7 @@ primitive \nodoc\ _ASTTestHelper
     : String val
   =>
     """Extract PONYPATH from environment variables."""
-    match vars
+    match \exhaustive\ vars
     | let env_vars: Array[String val] val =>
       for pair in env_vars.values() do
         if pair.at("PONYPATH=") then

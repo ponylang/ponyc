@@ -79,19 +79,19 @@ class val _SliceSelector
     match node
     | let arr: JsonArray =>
       let len = arr.size().i64()
-      let step = match _step | let n: I64 => n else I64(1) end
+      let step = match \exhaustive\ _step | let n: I64 => n else I64(1) end
 
       if step == 0 then return end
 
       let s = if step >= 0 then
         match _start | let n: I64 => n else I64(0) end
       else
-        match _start | let n: I64 => n else len - 1 end
+        match \exhaustive\ _start | let n: I64 => n else len - 1 end
       end
       let e = if step >= 0 then
         match _end | let n: I64 => n else len end
       else
-        match _end | let n: I64 => n else (-len) - 1 end
+        match \exhaustive\ _end | let n: I64 => n else (-len) - 1 end
       end
 
       let n_start = _normalize(s, len)
@@ -129,7 +129,7 @@ class val _FilterSelector
 
   Unlike other selectors, `select` takes an additional `root` parameter
   for resolving absolute queries (`$`) within filter expressions. This
-  difference is handled by explicit match dispatch in `_JsonPathEval._select_all`.
+  difference is handled by explicit match \exhaustive\ dispatch in `_JsonPathEval._select_all`.
   """
   let _expr: _LogicalExpr
 

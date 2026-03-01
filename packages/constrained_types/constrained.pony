@@ -9,7 +9,7 @@ class val ValidationFailure
   let _errors: Array[String val] = _errors.create()
 
   new create(e: (String val | None) = None) =>
-    match e
+    match \exhaustive\ e
     | let s: String val => _errors.push(s)
     end
 
@@ -63,7 +63,7 @@ primitive MakeConstrained[T: Any val, F: Validator[T] val]
   Builder of `Constrained` instances.
   """
   fun apply(value: T): (Constrained[T, F] | ValidationFailure) =>
-    match F(value)
+    match \exhaustive\ F(value)
     | ValidationSuccess => Constrained[T, F]._create(value)
     | let e: ValidationFailure => e
     end

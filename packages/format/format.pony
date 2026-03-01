@@ -66,7 +66,7 @@ primitive Format
     recover
       let s = String(len)
 
-      match align
+      match \exhaustive\ align
       | AlignLeft =>
         s.append(str)
         for i in Range(s.size(), s.space()) do

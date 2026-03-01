@@ -57,7 +57,7 @@ class ProcessClient is ProcessNotify
     _env.out.print(err.string())
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
-    match child_exit_status
+    match \exhaustive\ child_exit_status
     | let exited: Exited =>
       _env.out.print("Child exit code: " + exited.exit_code().string())
     | let signaled: Signaled =>

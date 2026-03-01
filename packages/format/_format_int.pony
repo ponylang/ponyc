@@ -41,7 +41,7 @@ primitive _FormatInt
       let rem = width - s.size()
       let fills = String.from_utf32(fill)
 
-      match align
+      match \exhaustive\ align
       | AlignLeft => post = rem
       | AlignRight => pre = rem
       | AlignCenter => pre = rem / 2; post = rem - pre
@@ -149,7 +149,7 @@ primitive _FormatInt
     fill: U32)
     : String iso^
   =>
-    match fmt
+    match \exhaustive\ fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
@@ -191,7 +191,7 @@ primitive _FormatInt
     fill: U32)
     : String iso^
   =>
-    match fmt
+    match \exhaustive\ fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
@@ -233,7 +233,7 @@ primitive _FormatInt
     fill: U32 = ' ')
     : String iso^
   =>
-    match fmt
+    match \exhaustive\ fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 

@@ -27,7 +27,7 @@ primitive AssignmentIndent is ASTRule
 
     Gets the RHS (child 1) and compares its start line to the `=` line. If
     they differ, the RHS already starts on the next line — clean. If they
-    match, uses `_MaxLineVisitor` to determine whether the RHS is multiline.
+    match \exhaustive\, uses `_MaxLineVisitor` to determine whether the RHS is multiline.
     A multiline RHS on the `=` line is a violation.
     """
     let assign_line = node.line()

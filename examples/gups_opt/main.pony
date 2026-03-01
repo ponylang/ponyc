@@ -17,7 +17,7 @@ class val Config
       OptionSpec.i64("actors", "Log2 of the actor count." where default' = 2)
     ])?.>add_help()?
     let cmd =
-      match CommandParser(cs).parse(env.args, env.vars)
+      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)

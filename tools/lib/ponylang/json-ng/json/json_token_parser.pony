@@ -261,7 +261,7 @@ class ref JsonTokenParser
     _token_start = _offset
     var buf = recover String end
     while true do
-      match _next()?
+      match \exhaustive\ _next()?
       | '"' => break
       | '\\' =>
         match _next()?

@@ -68,7 +68,7 @@ primitive ANSI
     `EraseRight` to erase everything from the cursor to the end of the line.
     The default direction is `EraseRight`.
     """
-    match direction
+    match \exhaustive\ direction
     | EraseRight => "\x1B[0K"
     | EraseLeft => "\x1B[1K"
     | EraseLine => "\x1B[2K"

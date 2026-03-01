@@ -60,7 +60,7 @@ primitive _IRegexpCompiler
     Convenience wrapper around parse() for call sites that don't need
     the error details — discards the _IRegexpParseError and raises instead.
     """
-    match parse(pattern)
+    match \exhaustive\ parse(pattern)
     | let r: _IRegexp => r
     | let e: _IRegexpParseError => error
     end

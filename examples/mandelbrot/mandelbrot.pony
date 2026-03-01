@@ -99,7 +99,7 @@ class val Config
         where short' = 'o', default' = "")
     ])?.>add_help()?
     let cmd =
-      match CommandParser(cs).parse(env.args, env.vars)
+      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)
@@ -161,7 +161,7 @@ actor Main
     c = Config.none()
 
   be draw(offset: USize, pixels: Array[U8] val) =>
-    match outfile
+    match \exhaustive\ outfile
     | let out: File =>
       out.seek_start(header + offset)
       out.write(pixels)
@@ -171,7 +171,7 @@ actor Main
     end
 
   fun ref create_outfile() =>
-    match outfile
+    match \exhaustive\ outfile
     | let f: File =>
       f.print("P4\n " + c.width.string() + " " + c.width.string() + "\n")
       header = f.size()

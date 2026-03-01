@@ -8,13 +8,13 @@ class val JsonLens
   let host_lens = JsonLens("config")("database")("host")
 
   // Read
-  match host_lens.get(doc)
+  match \exhaustive\ host_lens.get(doc)
   | let host: String => env.out.print(host)
   | JsonNotFound => env.out.print("no host configured")
   end
 
   // Modify (returns new document with the change applied)
-  match host_lens.set(doc, "newhost.example.com")
+  match \exhaustive\ host_lens.set(doc, "newhost.example.com")
   | let updated: JsonValue => // updated doc
   | JsonNotFound => // path didn't exist
   end
@@ -32,7 +32,7 @@ class val JsonLens
 
   fun apply(key_or_index: (String | USize)): JsonLens =>
     """Compose a navigation step onto this lens."""
-    let step: _JsonTraversal = match key_or_index
+    let step: _JsonTraversal = match \exhaustive\ key_or_index
     | let k: String => _TravObjKey(k)
     | let i: USize => _TravArrayIndex(i)
     end

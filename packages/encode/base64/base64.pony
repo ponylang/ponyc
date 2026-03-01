@@ -151,7 +151,7 @@ primitive Base64
       input = data(i)?
 
       let value =
-        match input
+        match \exhaustive\ input
         | ' ' | '\t' | '\r' | '\n' => continue
         | pad => break
         | at62 => 62
@@ -189,7 +189,7 @@ primitive Base64
     if output != 0 then
       Fact(input != pad)?
 
-      match state
+      match \exhaustive\ state
       | 1 | 2 => out.push(output)
       end
     end
@@ -200,7 +200,7 @@ primitive Base64
     """
     Encode a single byte.
     """
-    match i
+    match \exhaustive\ i
     | 62 => at62
     | 63 => at63
     | if i < 26 => 'A' + i

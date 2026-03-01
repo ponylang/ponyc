@@ -28,7 +28,7 @@ class iso _BuildProcessNotify is ProcessNotify
   fun ref dispose(p: ProcessMonitor, status: ProcessExitStatus) =>
     if not _done then
       _done = true
-      match status
+      match \exhaustive\ status
       | let exited: Exited =>
         if exited.exit_code() == 0 then
           _tester.building_succeeded()

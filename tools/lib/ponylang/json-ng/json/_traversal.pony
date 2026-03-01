@@ -35,7 +35,7 @@ class val _TravObjKey is _JsonTraversal
   fun update(input: JsonValue, value: (JsonValue | _Delete)): (JsonValue | JsonNotFound) =>
     try
       let obj = input as JsonObject
-      match value
+      match \exhaustive\ value
       | let j: JsonValue => obj.update(_key, j)
       | _Delete => obj.remove(_key)
       end

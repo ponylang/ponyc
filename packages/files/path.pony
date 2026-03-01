@@ -135,7 +135,7 @@ primitive Path
           end
           state = _PathSep
         elseif c == '.' then
-          match state
+          match \exhaustive\ state
           | _PathSep =>
             state = _PathDot
           | _PathDot =>

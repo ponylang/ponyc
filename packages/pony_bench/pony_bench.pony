@@ -127,7 +127,7 @@ actor PonyBench
     list.benchmarks(this)
 
   be apply(bench: Benchmark) =>
-    match consume bench
+    match \exhaustive\ consume bench
     | let b: MicroBenchmark =>
       _bench_q.push((b.overhead(), true))
       _bench_q.push((consume b, false))
@@ -144,7 +144,7 @@ actor PonyBench
   be _next_benchmark() =>
     if _bench_q.size() > 0 then
       try
-        match _bench_q.shift()?
+        match \exhaustive\ _bench_q.shift()?
         | (let b: MicroBenchmark, let overhead: Bool) =>
           _RunSync(this, consume b, overhead)
         | (let b: AsyncMicroBenchmark, let overhead: Bool) =>

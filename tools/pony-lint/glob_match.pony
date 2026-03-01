@@ -27,7 +27,7 @@ primitive GlobMatch
     : Bool
   =>
     """
-    Recursive glob match with index ranges. Handles `**` decomposition, then
+    Recursive glob match \exhaustive\ with index ranges. Handles `**` decomposition, then
     delegates to `_match_segment` for `*`-only matching.
     """
     let plen = pe - ps

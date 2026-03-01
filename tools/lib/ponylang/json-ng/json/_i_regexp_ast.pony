@@ -23,7 +23,7 @@ primitive _Dot
 
 class val _CharClass
   """
-  Character class match against sorted, non-overlapping (start, end) codepoint
+  Character class match \exhaustive\ against sorted, non-overlapping (start, end) codepoint
   ranges (inclusive). When negated, matches any codepoint NOT in the ranges.
   """
   let ranges: Array[(U32, U32)] val

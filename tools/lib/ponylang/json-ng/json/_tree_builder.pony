@@ -30,7 +30,7 @@ class ref _TreeBuilder is JsonTokenNotify
     _result = _NoResult
 
   fun ref apply(parser: JsonTokenParser, token: JsonToken) =>
-    match token
+    match \exhaustive\ token
     | JsonTokenObjectStart =>
       _stack.push(_ObjectInProgress)
     | JsonTokenArrayStart =>
@@ -45,7 +45,7 @@ class ref _TreeBuilder is JsonTokenNotify
     | JsonTokenString =>
       _add_value(parser.last_string)
     | JsonTokenNumber =>
-      match parser.last_number
+      match \exhaustive\ parser.last_number
       | let n: I64 => _add_value(n)
       | let n: F64 => _add_value(n)
       end
@@ -72,7 +72,7 @@ class ref _TreeBuilder is JsonTokenNotify
       _result = value
     else
       try
-        match _stack(_stack.size() - 1)?
+        match \exhaustive\ _stack(_stack.size() - 1)?
         | let obj: _ObjectInProgress =>
           match obj.pending_key
           | let key: String =>

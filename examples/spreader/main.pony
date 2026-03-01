@@ -36,7 +36,7 @@ actor Spreader
     _result = _result + i
 
     if _received == 2 then
-      match (_parent, _env)
+      match \exhaustive\ (_parent, _env)
       | (let p: Spreader, _) =>
         p.result(_result + 1)
       | (None, let e: Env) =>

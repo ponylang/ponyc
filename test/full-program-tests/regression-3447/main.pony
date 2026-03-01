@@ -4,7 +4,7 @@ actor Main
 
 class Dealer
   new from[U: (U8 | Dealer val)](u: U val) =>
-    match u
+    match \exhaustive\ u
     | let u': U8 => None
     | let u': Dealer val => None
     end

@@ -683,7 +683,7 @@ class ref _JsonPathParser
     end
     let name: String val =
       _source.substring(start.isize(), _offset.isize())
-    match name
+    match \exhaustive\ name
     | "length" | "count" | "match" | "search" | "value" => name
     else
       _fail("Unknown function: " + name)
@@ -702,7 +702,7 @@ class ref _JsonPathParser
     let name = _parse_function_name()?
     _eat('(')?
     _skip_whitespace()
-    let result = match name
+    let result = match \exhaustive\ name
     | "length" =>
       let arg = _parse_comparable()?
       let r: (_MatchExpr | _SearchExpr | _LengthExpr

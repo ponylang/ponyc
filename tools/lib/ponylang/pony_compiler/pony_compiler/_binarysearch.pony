@@ -20,7 +20,7 @@ primitive _BinarySearch
       while l < r do
         i = (l + r).fld(2)
         let elem = haystack(i)?
-        match needle.compare(elem)
+        match \exhaustive\ needle.compare(elem)
         | Less =>
           idx_adjustment = 0
           r = i

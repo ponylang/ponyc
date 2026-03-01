@@ -3,7 +3,7 @@ primitive JsonParser
   High-level JSON parser. Returns a structured result rather than raising.
 
   ```pony
-  match JsonParser.parse(source)
+  match \exhaustive\ JsonParser.parse(source)
   | let json: JsonValue => // use json
   | let err: JsonParseError => env.err.print(err.string())
   end
@@ -25,7 +25,7 @@ primitive JsonParser
         tokenizer.token_end(),
         tokenizer.line())
     end
-    match builder.result()
+    match \exhaustive\ builder.result()
     | let json: JsonValue => json
     | _NoResult => JsonParseError("Empty input", 0, 1)
     end

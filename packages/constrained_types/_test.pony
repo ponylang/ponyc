@@ -20,7 +20,7 @@ class \nodoc\ iso _TestSuccessPlumbingWorks is UnitTest
   fun ref apply(h: TestHelper) =>
     let less: USize = 9
 
-    match MakeConstrained[USize, _LessThan10Validator](less)
+    match \exhaustive\ MakeConstrained[USize, _LessThan10Validator](less)
     | let s: Constrained[USize, _LessThan10Validator] =>
       h.assert_true(true)
     | let f: ValidationFailure =>
@@ -37,7 +37,7 @@ class \nodoc\ iso _TestFailurePlumbingWorks is UnitTest
   fun ref apply(h: TestHelper) =>
     let more: USize = 11
 
-    match MakeConstrained[USize, _LessThan10Validator](more)
+    match \exhaustive\ MakeConstrained[USize, _LessThan10Validator](more)
     | let s: Constrained[USize, _LessThan10Validator] =>
       h.assert_true(false)
     | let f: ValidationFailure =>
@@ -55,7 +55,7 @@ class \nodoc\ iso _TestMultipleMessagesSanity is UnitTest
   fun ref apply(h: TestHelper) =>
     let string = "magenta"
 
-    match MakeConstrained[String, _MultipleErrorsValidator](string)
+    match \exhaustive\ MakeConstrained[String, _MultipleErrorsValidator](string)
     | let s: Constrained[String, _MultipleErrorsValidator] =>
       h.assert_true(true)
     | let f: ValidationFailure =>
@@ -71,7 +71,7 @@ class \nodoc\ iso _TestFailureMultipleMessages is UnitTest
   fun ref apply(h: TestHelper) =>
     let string = "A1"
 
-    match MakeConstrained[String, _MultipleErrorsValidator](string)
+    match \exhaustive\ MakeConstrained[String, _MultipleErrorsValidator](string)
     | let s: Constrained[String, _MultipleErrorsValidator] =>
       h.assert_true(false)
     | let f: ValidationFailure =>

@@ -6,7 +6,7 @@ class C3 fun three(): I32 => 3
 
 primitive Foo
   fun apply(c': (C1 | C2 | C3)): I32 =>
-    match c'
+    match \exhaustive\ c'
     | let c: C1 => c.one()
     | let c: C2 => c.two()
     | let c: C3 => c.three()

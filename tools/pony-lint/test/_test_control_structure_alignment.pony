@@ -412,7 +412,7 @@ class \nodoc\ _TestCtrlAlignEndMisaligned is UnitTest
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
       match program.package()
       | let pkg: ast.Package val =>
-        match pkg.module()
+        match \exhaustive\ pkg.module()
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(
@@ -499,9 +499,9 @@ class \nodoc\ _TestCtrlAlignTryElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
-        match pkg.module()
+        match \exhaustive\ pkg.module()
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(
@@ -634,7 +634,7 @@ class \nodoc\ _TestCtrlAlignIfdefElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
         match pkg.module()
         | let mod: ast.Module val =>
@@ -718,9 +718,9 @@ class \nodoc\ _TestCtrlAlignWhileElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
-        match pkg.module()
+        match \exhaustive\ pkg.module()
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(
@@ -765,9 +765,9 @@ class \nodoc\ _TestCtrlAlignForElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
-        match pkg.module()
+        match \exhaustive\ pkg.module()
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(
@@ -813,7 +813,7 @@ class \nodoc\ _TestCtrlAlignRepeatElseMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
         match pkg.module()
         | let mod: ast.Module val =>
@@ -859,9 +859,9 @@ class \nodoc\ _TestCtrlAlignTryThenMisaligned is UnitTest
       "    end\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
-        match pkg.module()
+        match \exhaustive\ pkg.module()
         | let mod: ast.Module val =>
           let diags =
             _CollectRuleDiags(

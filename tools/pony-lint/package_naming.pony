@@ -11,7 +11,7 @@ primitive PackageNaming is ASTRule
 
   Disabled by default: there is no reliable way to distinguish library packages
   (where snake_case is a meaningful convention) from application directories
-  (which often use hyphens to match CLI naming). See Discussion #4846.
+  (which often use hyphens to match \exhaustive\ CLI naming). See Discussion #4846.
   """
   fun id(): String val => "style/package-naming"
   fun category(): String val => "style"

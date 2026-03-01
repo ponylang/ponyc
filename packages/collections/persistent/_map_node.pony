@@ -123,7 +123,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     let idx = _Bits.mask32(hash, depth)
     let c_idx = compressed_idx(idx)
     if c_idx == -1 then error end
-    match nodes(c_idx.usize_unsafe())?
+    match \exhaustive\ nodes(c_idx.usize_unsafe())?
     | let entry: _MapEntry[K, V, H] => entry(k)?
     | let sns: _MapSubNodes[K, V, H] => sns(depth + 1, hash, k)?
     | let cs: _MapCollisions[K, V, H] => cs(hash, k)?
@@ -206,7 +206,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
       ns.data_map = _Bits.clear_bit(data_map, idx)
       ns.nodes.delete(c_idx.usize_unsafe())?
     else
-      match nodes(c_idx.usize_unsafe())?
+      match \exhaustive\ nodes(c_idx.usize_unsafe())?
       | let entry: _MapEntry[K, V, H] val => error
       | let sns: _MapSubNodes[K, V, H] val =>
         let sn = sns.remove(depth + 1, hash, k)?
@@ -247,7 +247,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
         _idx < node.nodes.size()
 
       fun ref next(): (_MapEntry[K, V, H] | _MapIter[K, V, H]) ? =>
-        match node.nodes(_idx = _idx + 1)?
+        match \exhaustive\ node.nodes(_idx = _idx + 1)?
         | let e: _MapEntry[K, V, H] => e
         | let ns: _MapSubNodes[K, V, H] => ns.iter()
         | let cs: _MapCollisions[K, V, H] => cs.iter()

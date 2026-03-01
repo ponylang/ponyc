@@ -2,11 +2,11 @@ use ast = "pony_compiler"
 
 primitive MatchCaseIndent is ASTRule
   """
-  Flags `match` cases whose `|` is not aligned with the `match` keyword.
+  Flags `match \exhaustive\` cases whose `|` is not aligned with the `match` keyword.
 
-  The `|` introducing each case should start at the same column as the `match`
-  keyword, regardless of how deeply nested the match is. This makes the
-  match structure visually clear.
+  The `|` introducing each case should start at the same column as the `match \exhaustive\`
+  keyword, regardless of how deeply nested the match \exhaustive\ is. This makes the
+  match \exhaustive\ structure visually clear.
   """
   fun id(): String val => "style/match-case-indent"
   fun category(): String val => "style"
@@ -23,8 +23,8 @@ primitive MatchCaseIndent is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    For each TK_CASE child of the match's TK_CASES node, verify that the
-    `|` column matches the `match` keyword column.
+    For each TK_CASE child of the match \exhaustive\'s TK_CASES node, verify that the
+    `|` column matches the `match \exhaustive\` keyword column.
     """
     let match_col = node.pos()
     let result = recover iso Array[Diagnostic val] end

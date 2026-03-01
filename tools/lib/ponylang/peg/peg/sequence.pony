@@ -32,7 +32,7 @@ class Sequence is Parser
     let ast = AST(_label)
 
     for p in _seq.values() do
-      match p.parse(source, offset + length, true, hidden)
+      match \exhaustive\ p.parse(source, offset + length, true, hidden)
       | (let advance: USize, Skipped) =>
         length = length + advance
       | (let advance: USize, let r: (Token | NotPresent)) =>
@@ -55,7 +55,7 @@ class Sequence is Parser
       end
     end
 
-    match ast.size()
+    match \exhaustive\ ast.size()
     | 0 if _label is NoLabel => (length, Skipped)
     | 1 if _label is NoLabel => (length, ast.extract())
     else
