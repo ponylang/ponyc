@@ -2,12 +2,15 @@ use ast = "pony_compiler"
 
 trait val ASTRule
   """
-  An AST-based lint rule that checks parsed syntax tree nodes.
+  An AST-based lint rule that checks syntax tree nodes.
 
   Unlike `TextRule` which examines raw source text, AST rules operate on the
-  parsed syntax tree produced by pony_compiler. Each rule declares which token
-  types it is interested in via `node_filter()`, and the dispatcher only calls
-  `check()` for matching nodes.
+  syntax tree produced by pony_compiler. Each rule declares which token types
+  it is interested in via `node_filter()`, and the dispatcher only calls
+  `check()` for matching nodes. Rules also declare their `required_pass()`
+  — the minimum compilation pass needed for the AST to have the information
+  the rule depends on (e.g., `PassParse` for syntax-only rules, `PassExpr`
+  for rules that need type information).
 
   Rules are stateless primitives. Each receives a single AST node and the
   corresponding `SourceFile`, returning diagnostics without side effects.
@@ -37,6 +40,15 @@ trait val ASTRule
     Token types this rule wants to inspect. The dispatcher only calls `check()`
     for nodes whose `id()` appears in this list.
     """
+
+  fun required_pass(): ast.PassId =>
+    """
+    The minimum compilation pass level needed for this rule to operate
+    correctly. Rules that only need the parsed syntax tree return
+    `PassParse` (the default). Rules that need type information return
+    a later pass such as `PassExpr`.
+    """
+    ast.PassParse
 
   fun check(node: ast.AST box, source: SourceFile val)
     : Array[Diagnostic val] val

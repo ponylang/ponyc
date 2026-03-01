@@ -272,7 +272,7 @@ test-pony-lint: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
 lint-pony-lint: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && ./pony-lint-ci ../../tools/pony-lint/
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/json-ng/ --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && PONYPATH=../../tools/lib/ponylang/pony_compiler:../../tools/lib/ponylang/json-ng:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lint/
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=
