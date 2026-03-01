@@ -407,6 +407,13 @@ actor \nodoc\ Main is TestList
     test(_TestTypeParamFormatIsMisaligned)
     test(_TestTypeParamFormatMultipleViolations)
 
+    // ExhaustiveMatch tests
+    test(_TestExhaustiveMatchFlagged)
+    test(_TestExhaustiveMatchAnnotated)
+    test(_TestExhaustiveMatchNonExhaustive)
+    test(_TestExhaustiveMatchExplicitElse)
+    test(_TestExhaustiveMatchMetadata)
+
     // CallArgumentFormat tests
     test(_TestCallArgFmtSingleLine)
     test(_TestCallArgFmtAllOnNextLine)

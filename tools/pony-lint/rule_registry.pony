@@ -1,3 +1,5 @@
+use ast = "pony_compiler"
+
 class val RuleRegistry
   """
   Registry of all lint rules, filtered by configuration.
@@ -10,6 +12,8 @@ class val RuleRegistry
   let _all: Array[TextRule val] val
   let _enabled_ast: Array[ASTRule val] val
   let _all_ast: Array[ASTRule val] val
+  let _enabled_parse_ast: Array[ASTRule val] val
+  let _enabled_expr_ast: Array[ASTRule val] val
   let _config: LintConfig
 
   new val create(
@@ -46,6 +50,27 @@ class val RuleRegistry
         end
         result
       end
+    _enabled_parse_ast =
+      recover val
+        let result = Array[ASTRule val]
+        for rule in _enabled_ast.values() do
+          match rule.required_pass()
+          | ast.PassParse => result.push(rule)
+          end
+        end
+        result
+      end
+    _enabled_expr_ast =
+      recover val
+        let result = Array[ASTRule val]
+        for rule in _enabled_ast.values() do
+          match rule.required_pass()
+          | ast.PassParse => None
+          else result.push(rule)
+          end
+        end
+        result
+      end
 
   fun enabled_text_rules(): Array[TextRule val] val =>
     """
@@ -70,6 +95,18 @@ class val RuleRegistry
     Returns all registered AST rules regardless of configuration.
     """
     _all_ast
+
+  fun enabled_parse_ast_rules(): Array[ASTRule val] val =>
+    """
+    Returns enabled AST rules that operate at `PassParse`.
+    """
+    _enabled_parse_ast
+
+  fun enabled_expr_ast_rules(): Array[ASTRule val] val =>
+    """
+    Returns enabled AST rules that require a pass beyond `PassParse`.
+    """
+    _enabled_expr_ast
 
   fun is_enabled(rule_id: String, category: String, default: RuleStatus)
     : Bool

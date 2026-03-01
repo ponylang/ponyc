@@ -88,20 +88,20 @@ primitive ConfigLoader
         s
       end
     let file_rules =
-      match config_path
+      match \exhaustive\ config_path
       | let path: String =>
         let fp = FilePath(file_auth, path)
         if not fp.exists() then
           return ConfigError("config file not found: " + path)
         end
-        match _load_file(fp)
+        match \exhaustive\ _load_file(fp)
         | let rules: Map[String, RuleStatus] val => rules
         | let err: ConfigError => return err
         end
       | None =>
-        match _discover(file_auth)
+        match \exhaustive\ _discover(file_auth)
         | let fp: FilePath =>
-          match _load_file(fp)
+          match \exhaustive\ _load_file(fp)
           | let rules: Map[String, RuleStatus] val => rules
           | let err: ConfigError => return err
           end
@@ -162,7 +162,7 @@ primitive ConfigLoader
     """
     Parse JSON content into rule status overrides.
     """
-    match json.JsonParser.parse(content)
+    match \exhaustive\ json.JsonParser.parse(content)
     | let value: json.JsonValue =>
       match value
       | let obj: json.JsonObject =>
