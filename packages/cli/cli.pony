@@ -71,7 +71,7 @@ parsed command, a command help, or a syntax error object.
 
 ### Commands
 
-Programs then match \exhaustive\ the object returned by the parser to determine what kind
+Programs then match the object returned by the parser to determine what kind
 it is. Errors and help requests typically print messages and exit. For
 commands, the fullname can be matched and the effective values for the
 command's options and arguments can be retrieved.
@@ -100,7 +100,7 @@ actor Main
       end
 
     let cmd =
-      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
+      match CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
           ch.print_help(env.out)

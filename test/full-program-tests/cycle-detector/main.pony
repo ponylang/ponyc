@@ -16,7 +16,7 @@ actor Ring
 
   be pass(i: USize) =>
     if i > 0 then
-      match \exhaustive\ _next
+      match _next
       | let n: Ring =>
         n.pass(i - 1)
       end

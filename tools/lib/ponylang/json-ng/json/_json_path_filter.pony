@@ -156,7 +156,7 @@ class val _ExistenceExpr
 
 class val _MatchExpr
   """
-  Full-string I-Regexp match \exhaustive\ (RFC 9535 Section 2.4.6).
+  Full-string I-Regexp match (RFC 9535 Section 2.4.6).
 
   Returns LogicalType: true if the entire input string matches the
   pattern. Returns false if either argument is not a string or if the

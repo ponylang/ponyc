@@ -19,7 +19,7 @@ Note that serialised data can be used between binaries compiled with the same
 version of the pony compiler. Cross binary serialisation will only work for
 binaries of the same bit width (32 bit vs 64 bit), data model (ilp32, lp64, or
 llp64), and endianness (big endian or little endian) but is not limited to a
-single platform (for example: one can mix and match \exhaustive\ x86_64 linux and aarch64
+single platform (for example: one can mix and match x86_64 linux and aarch64
 linux because they have the same bitwidth, data model, and endianness).
 
 The [Serialise.signature](serialise-Serialise.md#signature) method is provided

@@ -2,10 +2,10 @@ use ast = "pony_compiler"
 
 primitive MatchSingleLine is ASTRule
   """
-  Flags `match \exhaustive\` expressions that fit entirely on a single line.
+  Flags `match` expressions that fit entirely on a single line.
 
   Match expressions should always span multiple lines for readability. A
-  single-line match \exhaustive\ is harder to scan and usually indicates the expression
+  single-line match is harder to scan and usually indicates the expression
   would be clearer as an `if`/`else` chain.
   """
   fun id(): String val => "style/match-no-single-line"
@@ -23,8 +23,8 @@ primitive MatchSingleLine is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Check whether all descendants of the match \exhaustive\ node are on the same line as
-    the `match \exhaustive\` keyword. If so, the entire match is single-line — flag it.
+    Check whether all descendants of the match node are on the same line as
+    the `match` keyword. If so, the entire match is single-line — flag it.
     """
     let match_line = node.line()
     let mlv = _MaxLineVisitor(match_line)

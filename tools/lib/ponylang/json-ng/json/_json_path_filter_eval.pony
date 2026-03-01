@@ -105,7 +105,7 @@ primitive _FilterEval
     : Bool
   =>
     """
-    Evaluate match \exhaustive\(): full-string I-Regexp match.
+    Evaluate match(): full-string I-Regexp match.
     Returns false if either argument is not a string or if the pattern
     is not a valid I-Regexp.
     """

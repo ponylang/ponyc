@@ -8,7 +8,8 @@ class \nodoc\ _TestConfigDefaultAllEnabled is UnitTest
 
   fun apply(h: TestHelper) =>
     let config = lint.LintConfig.default()
-    match \exhaustive\ config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOn => h.assert_true(true)
     | lint.RuleOff => h.fail("expected RuleOn")
     end
@@ -22,7 +23,8 @@ class \nodoc\ _TestConfigCLIDisableRule is UnitTest
       recover val Set[String] .> set("style/line-length") end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
-    match \exhaustive\ config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -36,7 +38,8 @@ class \nodoc\ _TestConfigCLIDisableCategory is UnitTest
       recover val Set[String] .> set("style") end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
-    match \exhaustive\ config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -54,7 +57,8 @@ class \nodoc\ _TestConfigFileRuleOverride is UnitTest
         m
       end
     let config = lint.LintConfig(disabled, file_rules)
-    match \exhaustive\ config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -72,7 +76,8 @@ class \nodoc\ _TestConfigFileCategoryDefault is UnitTest
         m
       end
     let config = lint.LintConfig(disabled, file_rules)
-    match \exhaustive\ config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -91,7 +96,8 @@ class \nodoc\ _TestConfigCLIOverridesFile is UnitTest
         m
       end
     let config = lint.LintConfig(disabled, file_rules)
-    match \exhaustive\ config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end

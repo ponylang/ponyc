@@ -5,7 +5,7 @@ struct \packed\ Foo
     if \likely\ bar then None end
     while \unlikely\ bar do None end
     repeat None until \likely\ bar end
-    match \exhaustive\ bar | \unlikely\ bar => None end
+    match bar | \unlikely\ bar => None end
 
 actor Main
   new create(env: Env) =>

@@ -7,7 +7,7 @@ class val JsonPath
   it to any number of documents with `query()`:
 
   ```pony
-  match \exhaustive\ JsonPathParser.parse("$.store.book[*].author")
+  match JsonPathParser.parse("$.store.book[*].author")
   | let path: JsonPath =>
     let authors = path.query(doc)
   | let err: JsonPathParseError =>
@@ -18,11 +18,11 @@ class val JsonPath
   Evaluation follows RFC 9535 semantics: missing keys, out-of-bounds
   indices, and type mismatches produce empty results, never errors.
   Only malformed path strings produce errors (at parse time). Filter
-  expressions support function extensions (`length`, `count`, `match \exhaustive\`,
+  expressions support function extensions (`length`, `count`, `match`,
   `search`, `value`) per RFC 9535 Section 2.4.
 
   For simple single-value extraction, `query_one()` returns the first
-  match \exhaustive\ or JsonNotFound.
+  match or JsonNotFound.
   """
 
   let _segments: Array[_Segment] val
@@ -35,14 +35,14 @@ class val JsonPath
     Execute this query against a JSON document.
 
     Returns all matching values. Returns an empty array if no values
-    match \exhaustive\. Evaluation never errors.
+    match. Evaluation never errors.
     """
     _JsonPathEval(root, root, _segments)
 
   fun query_one(root: JsonValue): (JsonValue | JsonNotFound) =>
     """
     Execute this query and return the first matching value, or
-    JsonNotFound if no values match \exhaustive\.
+    JsonNotFound if no values match.
 
     Convenience for paths known to select at most one value.
     """

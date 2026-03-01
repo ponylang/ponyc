@@ -40,7 +40,7 @@ class List[A] is Seq[A]
         Second BOOM!
         Third BOOM!
       The size of our first partitioned list (matches predicate): 1
-      The size of our second partitioned list (doesn't match \exhaustive\ predicate): 1
+      The size of our second partitioned list (doesn't match predicate): 1
       Our matching partition elements are:
         Second BOOM!
 

@@ -8,13 +8,13 @@ class val JsonLens
   let host_lens = JsonLens("config")("database")("host")
 
   // Read
-  match \exhaustive\ host_lens.get(doc)
+  match host_lens.get(doc)
   | let host: String => env.out.print(host)
   | JsonNotFound => env.out.print("no host configured")
   end
 
   // Modify (returns new document with the change applied)
-  match \exhaustive\ host_lens.set(doc, "newhost.example.com")
+  match host_lens.set(doc, "newhost.example.com")
   | let updated: JsonValue => // updated doc
   | JsonNotFound => // path didn't exist
   end

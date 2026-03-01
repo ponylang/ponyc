@@ -62,7 +62,7 @@ class _NFABuildCtx
   build_node() and _build_quantified() are partial: they raise when the NFA
   exceeds _max_states (10,000). Using partiality rather than a union return
   type keeps the recursive Thompson construction code concise — every recursive
-  call simply propagates with `?` instead of requiring match \exhaustive\/unwrap at each
+  call simply propagates with `?` instead of requiring match/unwrap at each
   step. The caller (_NFABuilder.build) propagates the error to _IRegexpCompiler,
   which converts it to an _IRegexpParseError.
   """

@@ -1159,7 +1159,7 @@ actor TCPConnection is AsioEventNotify
     ```pony
     // connected() is a callback function for class TCPConnectionNotify
     fun ref connected(conn: TCPConnection ref) =>
-      match \exhaustive\ conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
+      match conn.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
         | (0, let gbytes: Array[U8] iso) =>
           try
             let br = Reader.create().>append(consume gbytes)
@@ -1215,7 +1215,7 @@ actor TCPConnection is AsioEventNotify
       for bs in sb.done().values() do
         sbytes.append(bs)
       end
-      match \exhaustive\ conn.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+      match conn.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
         | 0 =>
           // System call was successful
         | let errno: U32 =>

@@ -154,7 +154,8 @@ actor Main
       if cp.size() > 0 then cp else None end
 
     let config =
-      match \exhaustive\ ConfigLoader.from_cli(cli_disabled, config_path, file_auth)
+      match \exhaustive\
+        ConfigLoader.from_cli(cli_disabled, config_path, file_auth)
       | let c: LintConfig => c
       | let err: ConfigError =>
         env.err.print("error: " + err.message)

@@ -2,7 +2,7 @@ use ast = "pony_compiler"
 
 primitive FileNaming is ASTRule
   """
-  Flags source files whose name does not match \exhaustive\ the principal type defined
+  Flags source files whose name does not match the principal type defined
   within.
 
   The principal type is determined by heuristic:

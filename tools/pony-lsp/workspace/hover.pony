@@ -66,7 +66,7 @@ This is a sample class that demonstrates hover functionality.
 
 ```pony
 let hover_text = HoverFormatter.create_hover(ast_node, channel)
-match \exhaustive\ hover_text
+match hover_text
 | let text: String => // Display in hover tooltip
 | None => // No hover info available
 end

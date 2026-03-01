@@ -440,7 +440,7 @@ actor UDPSocket is AsioEventNotify
     ```pony
     // listening() is a callback function for class UDPNotify
     fun ref listening(sock: UDPSocket ref) =>
-      match \exhaustive\ sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
+      match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
         | (0, let gbytes: Array[U8] iso) =>
           try
             let br = Reader.create().>append(consume gbytes)
@@ -496,7 +496,7 @@ actor UDPSocket is AsioEventNotify
       for bs in sb.done().values() do
         sbytes.append(bs)
       end
-      match \exhaustive\ sock.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+      match sock.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
         | 0 =>
           // System call was successful
         | let errno: U32 =>

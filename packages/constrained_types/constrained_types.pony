@@ -23,7 +23,7 @@ actor Main
     try
       let arg1 = env.args(1)?
       let username = MakeUsername(arg1)
-      match \exhaustive\ username
+      match username
       | let u: Username =>
         print_username(u)
       | let e: ValidationFailure =>
@@ -94,7 +94,7 @@ On our usage side we have:
 
 ```pony
     let username = MakeUsername(arg1)
-    match \exhaustive\ username
+    match username
     | let u: Username =>
       print_username(u)
     | let e: ValidationFailure =>

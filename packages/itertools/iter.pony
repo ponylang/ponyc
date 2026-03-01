@@ -232,7 +232,7 @@ class Iter[A] is Iterator[A]
 
   fun ref all(f: {(A!): Bool ?} box): Bool =>
     """
-    Return false if at least one value of the iterator fails to match \exhaustive\ the
+    Return false if at least one value of the iterator fails to match the
     predicate `f`. This method short-circuits at the first value where the
     predicate returns false, otherwise true is returned.
 
@@ -425,7 +425,7 @@ class Iter[A] is Iterator[A]
 
   fun ref filter(f: {(A!): Bool ?} box): Iter[A!]^ =>
     """
-    Return an iterator that only returns items that match \exhaustive\ the predicate `f`.
+    Return an iterator that only returns items that match the predicate `f`.
 
     #### Example
 

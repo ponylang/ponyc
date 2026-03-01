@@ -129,7 +129,7 @@ class val _FilterSelector
 
   Unlike other selectors, `select` takes an additional `root` parameter
   for resolving absolute queries (`$`) within filter expressions. This
-  difference is handled by explicit match \exhaustive\ dispatch in `_JsonPathEval._select_all`.
+  difference is handled by explicit match dispatch in `_JsonPathEval._select_all`.
   """
   let _expr: _LogicalExpr
 
