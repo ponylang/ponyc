@@ -475,7 +475,7 @@ class \nodoc\ _TestEntityCollector is ast.ASTVisitor
     then
       try
         let name_node = node(0)?
-        match \exhaustive\ name_node.token_value()
+        match name_node.token_value()
         | let name: String val =>
           let start_line = node.line()
           let mlv = _TestMaxLineVisitor(start_line)

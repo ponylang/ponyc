@@ -63,7 +63,7 @@ primitive \nodoc\ _ASTTestHelper
     : String val
   =>
     """Extract PONYPATH from environment variables."""
-    match \exhaustive\ vars
+    match vars
     | let env_vars: Array[String val] val =>
       for pair in env_vars.values() do
         if pair.at("PONYPATH=") then

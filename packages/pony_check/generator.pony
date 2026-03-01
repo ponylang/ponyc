@@ -202,7 +202,7 @@ class box Generator[T] is GenObj[T]
           Iter[T^](shrunken)
             .filter_map[T^]({
               (t: T): (T^| None) =>
-                match \exhaustive\ predicate(consume t)
+                match predicate(consume t)
                 | (let matching: T, true) => consume matching
                 end
             })
