@@ -20,6 +20,8 @@ ast_t* expand_location(ast_t* location);
 
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options);
 
+ast_result_t pass_sugar_post(ast_t** astp, pass_opt_t* options);
+
 PONY_EXTERN_C_END
 
 #endif

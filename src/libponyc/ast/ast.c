@@ -787,6 +787,15 @@ void ast_set_name(ast_t* ast, const char* name)
   token_set_string(ast->t, name, 0);
 }
 
+void ast_set_name_len(ast_t* ast, const char* name, size_t len)
+{
+  pony_assert(ast != NULL);
+#ifndef PONY_NDEBUG
+  pony_assert(!ast->frozen);
+#endif
+  token_set_string(ast->t, name, len);
+}
+
 double ast_float(ast_t* ast)
 {
   pony_assert(ast != NULL);

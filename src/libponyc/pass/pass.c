@@ -222,7 +222,8 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_SYNTAX);
 
-  if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar, NULL))
+  if(!visit_pass(astp, options, last, &r, PASS_SUGAR, pass_sugar,
+    pass_sugar_post))
     return r;
 
   if(is_program)

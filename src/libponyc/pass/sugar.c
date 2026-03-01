@@ -1225,6 +1225,104 @@ static ast_result_t sugar_location(pass_opt_t* opt, ast_t** astp)
 }
 
 
+// If the given AST is a desugared .add() call with a single TK_STRING
+// positional argument, return that argument node. Otherwise return NULL.
+static ast_t* get_add_string_arg(ast_t* call)
+{
+  pony_assert(ast_id(call) == TK_CALL);
+
+  ast_t* dot = ast_child(call);
+  if((dot == NULL) || (ast_id(dot) != TK_DOT))
+    return NULL;
+
+  ast_t* method = ast_childidx(dot, 1);
+  if((method == NULL) || (ast_id(method) != TK_ID))
+    return NULL;
+
+  const char* name = ast_name(method);
+  if((name != stringtab("add")) && (name != stringtab("add_partial")))
+    return NULL;
+
+  ast_t* pos_args = ast_childidx(call, 1);
+  if((pos_args == NULL) || (ast_id(pos_args) != TK_POSITIONALARGS))
+    return NULL;
+
+  ast_t* arg_seq = ast_child(pos_args);
+  if((arg_seq == NULL) || (ast_id(arg_seq) != TK_SEQ) ||
+    (ast_sibling(arg_seq) != NULL))
+    return NULL;
+
+  ast_t* arg = ast_child(arg_seq);
+  if((arg == NULL) || (ast_id(arg) != TK_STRING) ||
+    (ast_sibling(arg) != NULL))
+    return NULL;
+
+  return arg;
+}
+
+
+static bool fold_string_concat(ast_t** astp)
+{
+  AST_GET_CHILDREN(*astp, left, right, question);
+
+  // Case 1: Both operands are string literals — fold directly.
+  if((ast_id(left) == TK_STRING) && (ast_id(right) == TK_STRING))
+  {
+    const char* left_str = ast_name(left);
+    size_t left_len = ast_name_len(left);
+    const char* right_str = ast_name(right);
+    size_t right_len = ast_name_len(right);
+    size_t total_len = left_len + right_len;
+
+    char* buf = (char*)ponyint_pool_alloc_size(total_len + 1);
+    memcpy(buf, left_str, left_len);
+    memcpy(buf + left_len, right_str, right_len);
+    buf[total_len] = '\0';
+
+    const char* interned = stringtab_len(buf, total_len);
+    ponyint_pool_free_size(total_len + 1, buf);
+
+    ast_t* result = ast_from(*astp, TK_STRING);
+    ast_set_name_len(result, interned, total_len);
+    ast_replace(astp, result);
+    return true;
+  }
+
+  // Case 2: Left is a desugared .add(string_literal), right is a string
+  // literal. Fold the two string args together to handle chains like
+  // x + "a" + "b" becoming x.add("ab") instead of x.add("a").add("b").
+  if((ast_id(right) == TK_STRING) && (ast_id(left) == TK_CALL))
+  {
+    ast_t* call_arg = get_add_string_arg(left);
+    if(call_arg == NULL)
+      return false;
+
+    const char* call_str = ast_name(call_arg);
+    size_t call_len = ast_name_len(call_arg);
+    const char* right_str = ast_name(right);
+    size_t right_len = ast_name_len(right);
+    size_t total_len = call_len + right_len;
+
+    char* buf = (char*)ponyint_pool_alloc_size(total_len + 1);
+    memcpy(buf, call_str, call_len);
+    memcpy(buf + call_len, right_str, right_len);
+    buf[total_len] = '\0';
+
+    const char* interned = stringtab_len(buf, total_len);
+    ponyint_pool_free_size(total_len + 1, buf);
+
+    ast_t* new_arg = ast_from(call_arg, TK_STRING);
+    ast_set_name_len(new_arg, interned, total_len);
+    ast_swap(call_arg, new_arg);
+    ast_free(call_arg);
+    ast_replace(astp, left);
+    return true;
+  }
+
+  return false;
+}
+
+
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -1254,7 +1352,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_CASE:                return sugar_case(options, ast);
     case TK_ASSIGN:              return sugar_update(astp);
     case TK_AS:                  return sugar_as(options, astp);
-    case TK_PLUS:                return sugar_binop(astp, "add", "add_partial");
+    // TK_PLUS handled in pass_sugar_post for compile-time string folding
     case TK_MINUS:               return sugar_binop(astp, "sub", "sub_partial");
     case TK_MULTIPLY:            return sugar_binop(astp, "mul", "mul_partial");
     case TK_DIVIDE:              return sugar_binop(astp, "div", "div_partial");
@@ -1298,5 +1396,22 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_BARELAMBDA:          return sugar_barelambda(options, ast);
     case TK_LOCATION:            return sugar_location(options, astp);
     default:                     return AST_OK;
+  }
+}
+
+
+ast_result_t pass_sugar_post(ast_t** astp, pass_opt_t* options)
+{
+  (void)options;
+
+  switch(ast_id(*astp))
+  {
+    case TK_PLUS:
+      if(!fold_string_concat(astp))
+        return sugar_binop(astp, "add", "add_partial");
+      return AST_OK;
+
+    default:
+      return AST_OK;
   }
 }
