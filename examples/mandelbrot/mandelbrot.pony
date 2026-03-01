@@ -161,7 +161,7 @@ actor Main
     c = Config.none()
 
   be draw(offset: USize, pixels: Array[U8] val) =>
-    match \exhaustive\ outfile
+    match outfile
     | let out: File =>
       out.seek_start(header + offset)
       out.write(pixels)
@@ -171,7 +171,7 @@ actor Main
     end
 
   fun ref create_outfile() =>
-    match \exhaustive\ outfile
+    match outfile
     | let f: File =>
       f.print("P4\n " + c.width.string() + " " + c.width.string() + "\n")
       header = f.size()

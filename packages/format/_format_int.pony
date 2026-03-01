@@ -149,7 +149,7 @@ primitive _FormatInt
     fill: U32)
     : String iso^
   =>
-    match \exhaustive\ fmt
+    match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
@@ -191,7 +191,7 @@ primitive _FormatInt
     fill: U32)
     : String iso^
   =>
-    match \exhaustive\ fmt
+    match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
@@ -233,7 +233,7 @@ primitive _FormatInt
     fill: U32 = ' ')
     : String iso^
   =>
-    match \exhaustive\ fmt
+    match fmt
     | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 

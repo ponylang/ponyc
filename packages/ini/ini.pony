@@ -124,7 +124,7 @@ primitive Ini
                 value.find("#")?
               end
 
-              match \exhaustive\ value(comment.usize() - 1)?
+              match value(comment.usize() - 1)?
               | ' ' | '\t' =>
                 value.delete(comment, -1)
                 value.rstrip()

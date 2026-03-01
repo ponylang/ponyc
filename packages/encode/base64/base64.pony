@@ -189,7 +189,7 @@ primitive Base64
     if output != 0 then
       Fact(input != pad)?
 
-      match \exhaustive\ state
+      match state
       | 1 | 2 => out.push(output)
       end
     end

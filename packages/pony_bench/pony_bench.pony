@@ -144,7 +144,7 @@ actor PonyBench
   be _next_benchmark() =>
     if _bench_q.size() > 0 then
       try
-        match \exhaustive\ _bench_q.shift()?
+        match _bench_q.shift()?
         | (let b: MicroBenchmark, let overhead: Bool) =>
           _RunSync(this, consume b, overhead)
         | (let b: AsyncMicroBenchmark, let overhead: Bool) =>

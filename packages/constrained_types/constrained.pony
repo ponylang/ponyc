@@ -9,7 +9,7 @@ class val ValidationFailure
   let _errors: Array[String val] = _errors.create()
 
   new create(e: (String val | None) = None) =>
-    match \exhaustive\ e
+    match e
     | let s: String val => _errors.push(s)
     end
 
