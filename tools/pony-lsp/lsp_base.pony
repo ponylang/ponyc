@@ -61,7 +61,7 @@ class ref BaseProtocol
 
 
   fun ref parse(): (Message val | ParseError | NeedMore) =>
-    match receiving_mode
+    match \exhaustive\ receiving_mode
     | ReceivingModeHeader => receive_headers()
     | ReceivingModeContent => receive_content()
     end
@@ -180,7 +180,7 @@ class ref BaseProtocol
           match json("error")?
           | let err: JsonObject =>
             // parse ResponseError object
-            match parse_response_error(err)
+            match \exhaustive\ parse_response_error(err)
             | let pe: ParseError =>
               return pe
             | let re: ResponseError => re

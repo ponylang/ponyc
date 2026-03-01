@@ -41,7 +41,7 @@ actor Main
       end
 
     let cmd =
-      match CommandParser(cs).parse(env.args, env.vars)
+      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)
@@ -74,7 +74,7 @@ actor Main
     let file_auth = FileAuth(env.root)
     let target_fp = FilePath(file_auth, target_dir)
 
-    match ast.Compiler.compile(
+    match \exhaustive\ ast.Compiler.compile(
       target_fp where package_search_paths = package_paths,
       limit = ast.PassTraits)
     | let program: ast.Program val =>

@@ -38,7 +38,7 @@ primitive \nodoc\ _ASTTestHelper
 
     let pony_path = _get_ponypath(h.env.vars)
 
-    match ast.Compiler.compile(
+    match \exhaustive\ ast.Compiler.compile(
       tmp where package_search_paths = pony_path,
       limit = ast.PassParse)
     | let program: ast.Program val =>

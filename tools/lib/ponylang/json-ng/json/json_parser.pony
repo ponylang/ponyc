@@ -25,7 +25,7 @@ primitive JsonParser
         tokenizer.token_end(),
         tokenizer.line())
     end
-    match builder.result()
+    match \exhaustive\ builder.result()
     | let json: JsonValue => json
     | _NoResult => JsonParseError("Empty input", 0, 1)
     end

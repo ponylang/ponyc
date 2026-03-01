@@ -167,7 +167,7 @@ class MapPairs[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
     let iter = _stack(_stack.size() - 1)?
     let x = iter.next()?
     if not iter.has_next() then _stack.pop()? end
-    match x
+    match \exhaustive\ x
     | let e: _MapEntry[K, V, H] => (e.key, e.value)
     | let i: _MapIter[K, V, H] =>
       _stack.push(i)

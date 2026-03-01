@@ -13,7 +13,7 @@ primitive _FilterEval
     root: JsonValue)
     : Bool
   =>
-    match expr
+    match \exhaustive\ expr
     | let e: _OrExpr =>
       apply(e.left, current, root) or apply(e.right, current, root)
     | let e: _AndExpr =>
@@ -37,7 +37,7 @@ primitive _FilterEval
     : Bool
   =>
     """True if the query selects at least one node."""
-    let results = match query
+    let results = match \exhaustive\ query
     | let q: _RelFilterQuery =>
       _JsonPathEval(current, root, q.segments)
     | let q: _AbsFilterQuery =>
@@ -55,18 +55,18 @@ primitive _FilterEval
     Evaluate a singular query, returning the single value or `_Nothing`
     if no value exists at that path.
     """
-    var node: _QueryResult = match query
+    var node: _QueryResult = match \exhaustive\ query
     | let q: _RelSingularQuery => current
     | let q: _AbsSingularQuery => root
     end
-    let segs = match query
+    let segs = match \exhaustive\ query
     | let q: _RelSingularQuery => q.segments
     | let q: _AbsSingularQuery => q.segments
     end
     for seg in segs.values() do
-      match node
+      match \exhaustive\ node
       | let j: JsonValue =>
-        node = match seg
+        node = match \exhaustive\ seg
         | let ns: _SingularNameSegment =>
           match j
           | let obj: JsonObject =>
@@ -113,7 +113,7 @@ primitive _FilterEval
     let pattern_val = _FilterCompare._resolve(expr.pattern, current, root)
     match (input_val, pattern_val)
     | (let input_str: String, let pattern_str: String) =>
-      match _IRegexpCompiler.parse(pattern_str)
+      match \exhaustive\ _IRegexpCompiler.parse(pattern_str)
       | let re: _IRegexp => re.is_match(input_str)
       | let _: _IRegexpParseError => false
       end
@@ -136,7 +136,7 @@ primitive _FilterEval
     let pattern_val = _FilterCompare._resolve(expr.pattern, current, root)
     match (input_val, pattern_val)
     | (let input_str: String, let pattern_str: String) =>
-      match _IRegexpCompiler.parse(pattern_str)
+      match \exhaustive\ _IRegexpCompiler.parse(pattern_str)
       | let re: _IRegexp => re.search(input_str)
       | let _: _IRegexpParseError => false
       end
@@ -164,7 +164,7 @@ primitive _FilterCompare
   =>
     let lval = _resolve(left, current, root)
     let rval = _resolve(right, current, root)
-    match op
+    match \exhaustive\ op
     | _CmpEq  => _eq(lval, rval)
     | _CmpNeq => not _eq(lval, rval)
     | _CmpLt  => _lt(lval, rval)
@@ -180,7 +180,7 @@ primitive _FilterCompare
     : _QueryResult
   =>
     """Resolve a comparable to a concrete value or Nothing."""
-    match c
+    match \exhaustive\ c
     | let s: String => s
     | let n: I64 => n
     | let n: F64 => n
@@ -234,7 +234,7 @@ primitive _FilterCompare
     : _QueryResult
   =>
     """Evaluate count(): cardinality of the nodelist from a query."""
-    let results = match query
+    let results = match \exhaustive\ query
     | let q: _RelFilterQuery =>
       _JsonPathEval(current, root, q.segments)
     | let q: _AbsFilterQuery =>
@@ -252,7 +252,7 @@ primitive _FilterCompare
     Evaluate value(): extract a single value from a nodelist.
     Returns the value if exactly one node, Nothing otherwise.
     """
-    let results = match query
+    let results = match \exhaustive\ query
     | let q: _RelFilterQuery =>
       _JsonPathEval(current, root, q.segments)
     | let q: _AbsFilterQuery =>

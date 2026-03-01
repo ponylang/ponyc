@@ -63,7 +63,7 @@ primitive MakeConstrained[T: Any val, F: Validator[T] val]
   Builder of `Constrained` instances.
   """
   fun apply(value: T): (Constrained[T, F] | ValidationFailure) =>
-    match F(value)
+    match \exhaustive\ F(value)
     | ValidationSuccess => Constrained[T, F]._create(value)
     | let e: ValidationFailure => e
     end

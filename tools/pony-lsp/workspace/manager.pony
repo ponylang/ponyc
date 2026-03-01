@@ -117,7 +117,7 @@ actor WorkspaceManager
       // clear out global errors
       this._global_errors.clear()
 
-      match result
+      match \exhaustive\ result
       | let program: Program val =>
         this._channel.log("Successfully compiled " + program_dir.path)
         // create/update package states for every package being part of the program
@@ -139,7 +139,7 @@ actor WorkspaceManager
                 this._awaiting_compilation_for.remove(await_comp_file)?
                 requires_another_compilation =
                   requires_another_compilation or
-                    match (await_comp_hash, new_mod_hash)
+                    match \exhaustive\ (await_comp_hash, new_mod_hash)
                     |  (None, None) =>
                         // no change, module not there???
                         false
@@ -170,7 +170,7 @@ actor WorkspaceManager
           .flat_map[Diagnostic]({(diag): Iterator[Diagnostic] => diag.expand_related().values()})
         for diagnostic in diag_iter do
           this._channel.log("ERROR: " + diagnostic.message + " in file " + diagnostic.file_uri())
-          match diagnostic.file_uri()
+          match \exhaustive\ diagnostic.file_uri()
           | "" =>
             // collect global errors
             this._global_errors.push(diagnostic)
@@ -332,7 +332,7 @@ actor WorkspaceManager
     this._current_request = request
 
     // Parse position from request params
-    (let line, let column) = match _parse_hover_position(request)
+    (let line, let column) = match \exhaustive\ _parse_hover_position(request)
     | (let l: I64, let c: I64) => (l, c)
     | None => return // Error already sent
     end
@@ -340,12 +340,12 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
 
     // Find AST node at the position
-    match _find_hover_node(document_path, line, column)
+    match \exhaustive\ _find_hover_node(document_path, line, column)
     | let hover_node: AST box =>
       this._channel.log("Found AST node: " + hover_node.debug())
 
       // Extract hover information and build response
-      match HoverFormatter.create_hover(hover_node, this._channel)
+      match \exhaustive\ HoverFormatter.create_hover(hover_node, this._channel)
       | let hover_text: String =>
         // Use the original hover node for highlighting, not any definition it may reference
         let hover_response = _build_hover_response(hover_text, hover_node)
@@ -390,9 +390,9 @@ actor WorkspaceManager
     try
       let package: FilePath = this._find_workspace_package(document_path)?
 
-      match this._get_package(package)
+      match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
           match doc.position_index()
           | let index: PositionIndex =>
@@ -462,12 +462,12 @@ actor WorkspaceManager
     try
       let package: FilePath = this._find_workspace_package(document_path)?
 
-      match this._get_package(package)
+      match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
           //this._channel.log(pkg_state.debug())
-          match pkg_state.get_document(document_path)
+          match \exhaustive\ pkg_state.get_document(document_path)
           | let doc: DocumentState =>
-            match doc.position_index()
+            match \exhaustive\ doc.position_index()
             | let index: PositionIndex =>
               match index.find_node_at(USize.from[I64](line + 1), USize.from[I64](column + 1)) // pony lines and characters are 1-based, lsp are 0-based
               | let ast: AST box =>
@@ -517,7 +517,7 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     try
       let package: FilePath = this._find_workspace_package(document_path)?
-      match this._get_package(package)
+      match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
           //this._channel.log(pkg_state.debug())
           match pkg_state.get_document(document_path)
@@ -547,7 +547,7 @@ actor WorkspaceManager
     var diagnostics = pc.Vec[JsonValue]
     try
       let package: FilePath = this._find_workspace_package(document_path)?
-      match this._get_package(package)
+      match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
           match pkg_state.get_document(document_path)
           | let doc: DocumentState =>

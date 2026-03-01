@@ -44,7 +44,7 @@ actor Main
   new create(env: Env) =>
     let channel = Stdio(env.out, env.input)
     let pony_path =
-      match PonyPath(env)
+      match \exhaustive\ PonyPath(env)
       | let p: String => p
       | None => ""
       end

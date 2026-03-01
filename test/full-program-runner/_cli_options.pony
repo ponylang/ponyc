@@ -96,7 +96,7 @@ primitive _CliOptions
 
     let options =
       recover val
-        match CommandParser(spec).parse(env.args, env.vars)
+        match \exhaustive\ CommandParser(spec).parse(env.args, env.vars)
         | let command: Command =>
           _Options(command)
         | let help: CommandHelp =>

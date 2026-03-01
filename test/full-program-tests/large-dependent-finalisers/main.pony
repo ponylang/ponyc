@@ -79,7 +79,7 @@ class _Final
     num = n
 
   fun _final() =>
-    match other
+    match \exhaustive\ other
     | None => None
     | let o: this->_Final => 
       if 1025 == (num + o.num) then

@@ -1050,7 +1050,7 @@ trait \nodoc\ _ShrinkTest is UnitTest
       Iter[T^](shrinks2)
         .all(
           {(u: T): Bool =>
-            match x.compare(min)
+            match \exhaustive\ x.compare(min)
             | Less =>
               (u <= min) and (u > x)
             | Equal => true

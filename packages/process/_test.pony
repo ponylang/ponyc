@@ -839,7 +839,7 @@ class \nodoc\ _ProcessClient is ProcessNotify
     We receive the exit code of the child process from ProcessMonitor.
     """
     let last_data: U64 = Time.nanos()
-    match child_exit_status
+    match \exhaustive\ child_exit_status
     | let e: Exited =>
       _h.log("dispose: child exit code: " + e.exit_code().string())
       _h.assert_eq[I32](_exit_code, e.exit_code())

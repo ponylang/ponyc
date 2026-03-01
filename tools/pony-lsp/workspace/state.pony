@@ -73,7 +73,7 @@ class PackageState
     Returns the document state in a tuple together with a boolean, denoting
     whether this documents needs compilation
     """
-    match this.get_document(document_path)
+    match \exhaustive\ this.get_document(document_path)
     | let d: DocumentState =>
       d
     | None =>
@@ -93,7 +93,7 @@ class PackageState
       // for each open document, update the document state if we have a module for it
       for (doc_path, doc_state) in this.documents.pairs() do
         // TODO: ensure both module and package-state paths are normalized
-        match result.find_module(doc_path)
+        match \exhaustive\ result.find_module(doc_path)
         | let m: Module val =>
           // update each document state
           doc_state.update(run_id, m)
@@ -154,7 +154,7 @@ class DocumentState
         run_id,
         {
           (diags: (Array[Diagnostic] | None)): Array[Diagnostic] =>
-            match diags
+            match \exhaustive\ diags
             | let arr: Array[Diagnostic] =>
               arr.push(diagnostic)
               consume arr

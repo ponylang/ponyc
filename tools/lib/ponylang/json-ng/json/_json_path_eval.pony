@@ -38,7 +38,7 @@ primitive _JsonPathEval
     : Array[JsonValue] ref
   =>
     """Apply a segment to produce a new nodelist."""
-    match segment
+    match \exhaustive\ segment
     | let cs: _ChildSegment =>
       _apply_child(cs.selectors(), input, root)
     | let ds: _DescendantSegment =>
@@ -100,7 +100,7 @@ primitive _JsonPathEval
   =>
     """Apply all selectors to a single node."""
     for selector in selectors.values() do
-      match selector
+      match \exhaustive\ selector
       | let s: _NameSelector => s.select(node, out)
       | let s: _IndexSelector => s.select(node, out)
       | _WildcardSelector => _WildcardSelector.select(node, out)

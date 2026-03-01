@@ -120,7 +120,7 @@ actor InterruptiblePony
     _alive = false
 
   be forever() =>
-    match _alive
+    match \exhaustive\ _alive
     | true =>
       Debug.err("Beep boop!")
       this.forever()
@@ -175,7 +175,7 @@ actor PunkDemo
     _alive = false
 
   be loop() =>
-    match _alive
+    match \exhaustive\ _alive
     | true => this.loop()
     | false => _env.out.print("Done! ") ; None
     end
@@ -211,7 +211,7 @@ actor Main
     end
 
     let cmd =
-      match CommandParser(cs).parse(_env.args, _env.vars)
+      match \exhaustive\ CommandParser(cs).parse(_env.args, _env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(_env.out)
@@ -242,7 +242,7 @@ actor Main
         InterruptiblePony(env,debug,perf).perf()
         LonelyPony(env,debug,perf).perf()
       else
-        match lonely
+        match \exhaustive\ lonely
         | false => InterruptiblePony(env,debug).>forever().>kill()
         | true => LonelyPony(env,debug).>forever().>kill()
         end

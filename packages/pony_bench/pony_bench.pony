@@ -127,7 +127,7 @@ actor PonyBench
     list.benchmarks(this)
 
   be apply(bench: Benchmark) =>
-    match consume bench
+    match \exhaustive\ consume bench
     | let b: MicroBenchmark =>
       _bench_q.push((b.overhead(), true))
       _bench_q.push((consume b, false))

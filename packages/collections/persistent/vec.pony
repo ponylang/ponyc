@@ -118,7 +118,7 @@ class val Vec[A: Any #share]
       // push tail into root
       let depth' = _depth + 1
       let root' =
-        match _root
+        match \exhaustive\ _root
         | let r: _VecNode[A] =>
           try r.grow_root().push(depth', _tail_offset(), tail)?
           else r

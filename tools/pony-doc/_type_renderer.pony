@@ -15,7 +15,7 @@ primitive TypeRenderer
     : String
   =>
     """Render a DocType to a markdown string."""
-    match doc_type
+    match \exhaustive\ doc_type
     | let n: DocNominal => _nominal(n, generate_links, break_lines,
         include_private)
     | let t: DocTypeParamRef => _type_param_ref(t)

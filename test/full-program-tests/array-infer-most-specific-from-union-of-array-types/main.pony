@@ -13,7 +13,7 @@ primitive Foo
 
 actor Main
   new create(env: Env) =>
-    match Foo()
+    match \exhaustive\ Foo()
     | let a: Array[T1] => @pony_exitcode(1)
     | let a: Array[T2] => @pony_exitcode(2)
     | let a: Array[T3] => @pony_exitcode(3)

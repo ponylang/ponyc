@@ -128,7 +128,7 @@ class val ResponseMessage is Message
     let obj = JsonObject
       .update("jsonrpc", "2.0")
       .update("id", id)
-    match this.err
+    match \exhaustive\ this.err
     | let r: ResponseError val =>
       obj.update("error", r.json())
     | None =>

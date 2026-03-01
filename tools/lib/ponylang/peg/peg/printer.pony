@@ -8,7 +8,7 @@ primitive Printer
     s.append("(")
     s.append(p.label().text())
 
-    match p
+    match \exhaustive\ p
     | let ast: AST =>
       s.append("\n")
       for child in ast.children.values() do

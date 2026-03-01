@@ -82,7 +82,7 @@ class Reader
     Add a chunk of data.
     """
     let data_array =
-      match data
+      match \exhaustive\ data
       | let data': Array[U8] val => data'
       | let data': String => data'.array()
       end

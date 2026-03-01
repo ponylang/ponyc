@@ -237,7 +237,7 @@ primitive HoverFormatter
     Entity structure: child(0) = id, child(1) = cap, child(2) = cap, child(3) = provides,
                       child(4) = members, child(5) = at, child(6) = docstring
     """
-    match extract_entity_info(ast, keyword, channel)
+    match \exhaustive\ extract_entity_info(ast, keyword, channel)
     | let info: EntityInfo => format_entity(info)
     | None => None
     end
@@ -252,7 +252,7 @@ primitive HoverFormatter
         let name = id.token_value() as String
 
         // Extract type parameters
-        let type_params_str = match _find_child_by_type(ast, TokenIds.tk_typeparams(), 1)
+        let type_params_str = match \exhaustive\ _find_child_by_type(ast, TokenIds.tk_typeparams(), 1)
         | let tp: AST box => _extract_type_params(tp, channel)
         | None => ""
         end
@@ -283,7 +283,7 @@ primitive HoverFormatter
     Method structure: child(0) = cap, child(1) = id, child(2) = typeparams, child(3) = params,
                       child(4) = return_type, child(5) = error, child(6) = body, child(7) = docstring
     """
-    match extract_method_info(ast, keyword, channel)
+    match \exhaustive\ extract_method_info(ast, keyword, channel)
     | let info: MethodInfo => format_method(info)
     | None => None
     end
@@ -363,7 +363,7 @@ primitive HoverFormatter
     Field structure: child(0) = id, child(1) = type, child(2) = initializer
     Note: Fields don't support docstrings in Pony syntax
     """
-    match _extract_field_info(ast, keyword, channel)
+    match \exhaustive\ _extract_field_info(ast, keyword, channel)
     | let info: FieldInfo => format_field(info)
     | None => None
     end
@@ -398,7 +398,7 @@ primitive HoverFormatter
     Format local variable declarations (let, var)
     Local var structure: child(0) = id, child(1) = type
     """
-    match _extract_local_var_info(ast, keyword, channel)
+    match \exhaustive\ _extract_local_var_info(ast, keyword, channel)
     | let info: FieldInfo => format_field(info)  // Same format as fields
     | None => None
     end
@@ -437,7 +437,7 @@ primitive HoverFormatter
     Format parameter declarations
     Parameter structure: child(0) = id, child(1) = type
     """
-    match _extract_param_info(ast, channel)
+    match \exhaustive\ _extract_param_info(ast, channel)
     | let info: FieldInfo => format_field(info)  // Same format as fields
     | None => None
     end
@@ -645,7 +645,7 @@ primitive HoverFormatter
           end
 
           // Check for type arguments
-          let type_args_str = match _find_child_by_type(type_node, TokenIds.tk_typeargs(), 2)
+          let type_args_str = match \exhaustive\ _find_child_by_type(type_node, TokenIds.tk_typeargs(), 2)
           | let ta: AST box => _extract_typeargs(ta, channel)
           | None => ""
           end

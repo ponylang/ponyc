@@ -48,7 +48,7 @@ actor Main
       end
 
     let cmd =
-      match CommandParser(cs).parse(env.args, env.vars)
+      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)
@@ -154,7 +154,8 @@ actor Main
       if cp.size() > 0 then cp else None end
 
     let config =
-      match ConfigLoader.from_cli(cli_disabled, config_path, file_auth)
+      match \exhaustive\
+        ConfigLoader.from_cli(cli_disabled, config_path, file_auth)
       | let c: LintConfig => c
       | let err: ConfigError =>
         env.err.print("error: " + err.message)

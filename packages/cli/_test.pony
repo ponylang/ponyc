@@ -282,7 +282,7 @@ class \nodoc\ iso _TestShortsAdj is UnitTest
       "ignored"; "-swords=with=signs"
     ]
     let cmdSyntax = CommandParser(cs).parse(ambiguous_args)
-    match cmdSyntax
+    match \exhaustive\ cmdSyntax
     | let se: SyntaxError =>
       h.assert_eq[String](
         "Error: ambiguous args for short option at: 's'", se.string())
@@ -562,7 +562,7 @@ class \nodoc\ iso _TestHelpFalse is UnitTest
        "--help=false"
     ]
     let cmd = CommandParser(cs).parse(args)
-    match cmd
+    match \exhaustive\ cmd
     | let c: Command =>
       h.assert_false(c.option("help").bool())
       h.assert_eq[String]("John", c.option("name").string())

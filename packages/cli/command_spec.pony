@@ -175,7 +175,7 @@ class val OptionSpec
   fun tag _init(typ': _ValueType, default': (_Value | None))
     : (_ValueType, _Value, Bool)
   =>
-    match default'
+    match \exhaustive\ default'
     | None => (typ', false, true)
     | let d: _Value => (typ', d, false)
     end
@@ -358,7 +358,7 @@ class val ArgSpec
   fun tag _init(typ': _ValueType, default': (_Value | None))
     : (_ValueType, _Value, Bool)
   =>
-    match default'
+    match \exhaustive\ default'
     | None => (typ', false, true)
     | let d: _Value => (typ', d, false)
     end

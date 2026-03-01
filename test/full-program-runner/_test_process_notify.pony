@@ -28,7 +28,7 @@ class iso _TestProcessNotify is ProcessNotify
   fun ref dispose(p: ProcessMonitor, status: ProcessExitStatus) =>
     if not _done then
       _done = true
-      match status
+      match \exhaustive\ status
       | let exited: Exited =>
         _tester.testing_exited(exited.exit_code())
       | let signaled: Signaled =>

@@ -165,7 +165,7 @@ primitive PegCompiler
 
       for rune in token.substring(1, -1).runes() do
         if escape then
-          match rune
+          match \exhaustive\ rune
           | '0' => out.append("\0")
           | '"' => out.append("\"")
           | '\\' => out.append("\\")
@@ -184,7 +184,7 @@ primitive PegCompiler
         elseif rune == '\\' then
           escape = true
         elseif hex > 0 then
-          hexrune = (hexrune << 8) or match rune
+          hexrune = (hexrune << 8) or match \exhaustive\ rune
           | if (rune >= '0') and (rune <= '9') => rune - '0'
           | if (rune >= 'a') and (rune <= 'f') => (rune - 'a') + 10
           else (rune - 'A') + 10 end

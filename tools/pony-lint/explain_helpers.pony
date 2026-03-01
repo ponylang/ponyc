@@ -19,7 +19,7 @@ primitive ExplainHelpers
     default, the description, and a URL to the rule reference documentation.
     """
     let status_text: String val =
-      match default_status
+      match \exhaustive\ default_status
       | RuleOn => "enabled by default"
       | RuleOff => "disabled by default"
       end

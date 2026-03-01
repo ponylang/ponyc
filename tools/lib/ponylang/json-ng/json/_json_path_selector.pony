@@ -79,19 +79,19 @@ class val _SliceSelector
     match node
     | let arr: JsonArray =>
       let len = arr.size().i64()
-      let step = match _step | let n: I64 => n else I64(1) end
+      let step = match \exhaustive\ _step | let n: I64 => n else I64(1) end
 
       if step == 0 then return end
 
       let s = if step >= 0 then
         match _start | let n: I64 => n else I64(0) end
       else
-        match _start | let n: I64 => n else len - 1 end
+        match \exhaustive\ _start | let n: I64 => n else len - 1 end
       end
       let e = if step >= 0 then
         match _end | let n: I64 => n else len end
       else
-        match _end | let n: I64 => n else (-len) - 1 end
+        match \exhaustive\ _end | let n: I64 => n else (-len) - 1 end
       end
 
       let n_start = _normalize(s, len)

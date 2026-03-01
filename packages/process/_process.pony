@@ -230,7 +230,7 @@ class _ProcessPosix is _Process
 
     var step: U8 = _StepChdir()
 
-    match wdir
+    match \exhaustive\ wdir
     | let d: FilePath =>
       let dir: Pointer[U8] tag = d.path.cstring()
       if 0 > @chdir(dir) then
@@ -287,7 +287,7 @@ class _ProcessPosix is _Process
       var wstatus: I32 = 0
       let options: I32 = 0 or _WNOHANG()
       // poll, do not block
-      match @waitpid(pid, addressof wstatus, options)
+      match \exhaustive\ @waitpid(pid, addressof wstatus, options)
       | let err: I32 if err < 0 =>
         // one could possibly do at some point:
         //let wpe = WaitPidError(@pony_os_errno())
@@ -360,7 +360,7 @@ class _ProcessWindows is _Process
   =>
     ifdef windows then
       let wdir_ptr =
-        match wdir
+        match \exhaustive\ wdir
         | let wdir_fp: FilePath => wdir_fp.path.cstring()
         | None => Pointer[U8] // NULL -> use parent directory
         end
@@ -379,7 +379,7 @@ class _ProcessWindows is _Process
           | _ERRORBADEXEFORMAT() => ProcessError(ExecveError)
           | _ERRORDIRECTORY() =>
             let wdirpath =
-              match wdir
+              match \exhaustive\ wdir
               | let wdir_fp: FilePath => wdir_fp.path
               | None => "?"
               end
@@ -437,7 +437,7 @@ class _ProcessWindows is _Process
       var wr: _WaitResult = WaitpidError
       if h_process != 0 then
         var exit_code: I32 = 0
-        match @ponyint_win_process_wait(h_process, addressof exit_code)
+        match \exhaustive\ @ponyint_win_process_wait(h_process, addressof exit_code)
         | 0 =>
           wr = Exited(exit_code)
           final_wait_result = wr

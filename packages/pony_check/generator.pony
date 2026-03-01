@@ -52,7 +52,7 @@ trait box GenObj[T]
     shrink values.
     """
     let g = this
-    match g.generate(rnd)?
+    match \exhaustive\ g.generate(rnd)?
     | let t: T => consume t
     | (let t: T, _) => consume t
     end
@@ -63,7 +63,7 @@ trait box GenObj[T]
     even if the generator does not return any when calling `generate`.
     """
     let g = this
-    match g.generate(rnd)?
+    match \exhaustive\ g.generate(rnd)?
     | let t: T => g.shrink(consume t)
     | (let t: T, let shrinks: Iterator[T^])=> (consume t, shrinks)
     end
@@ -82,7 +82,7 @@ trait box GenObj[T]
     object is Iterator[T^]
       fun ref has_next(): Bool => true
       fun ref next(): T^ ? =>
-        match that.generate(rnd)?
+        match \exhaustive\ that.generate(rnd)?
         | let value_only: T => consume value_only
         | (let v: T, _) => consume v
         end
@@ -94,7 +94,7 @@ trait box GenObj[T]
     object is Iterator[ValueAndShrink[T]]
       fun ref has_next(): Bool => true
       fun ref next(): ValueAndShrink[T] ? =>
-        match that.generate(rnd)?
+        match \exhaustive\ that.generate(rnd)?
         | let value_only: T => that.shrink(consume value_only)
         | (let v: T, let shrinks: Iterator[T^]) => (consume v, consume shrinks)
         end
@@ -284,7 +284,7 @@ class box Generator[T] is GenObj[T]
           end
 
         fun shrink(t: (T | U)): ValueAndShrink[(T | U)] =>
-          match consume t
+          match \exhaustive\ consume t
           | let tt: T => _gen.shrink(consume tt)
           | let tu: U => other.shrink(consume tu)
           end
@@ -723,7 +723,7 @@ primitive Generators
               running_sum = new_sum
             end
           end
-          match chosen
+          match \exhaustive\ chosen
           | let x: Generator[T] box => x.generate(rnd)?
           | None =>
             Debug("chosen is None, desired_sum: " + desired_sum.string() +
@@ -915,14 +915,14 @@ primitive Generators
           T.from[F64](_subtract = _subtract + (0.03125 * _subtract * _subtract))
 
         fun ref has_next(): Bool =>
-          match relation
+          match \exhaustive\ relation
           | Less => (_cur < min) and not _overflow
           | Equal => false
           | Greater => (_cur > min) and not _overflow
           end
 
         fun ref next(): T^ ? =>
-          match relation
+          match \exhaustive\ relation
           | Less =>
             let minuend: T = _next_minuend()
             let old = _cur
@@ -944,7 +944,7 @@ primitive Generators
       end
 
     let min_iter =
-      match relation
+      match \exhaustive\ relation
       | let _: (Less | Greater) => Poperator[T]([min])
       | Equal => Poperator[T].empty()
       end

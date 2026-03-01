@@ -32,7 +32,7 @@ class val JsonLens
 
   fun apply(key_or_index: (String | USize)): JsonLens =>
     """Compose a navigation step onto this lens."""
-    let step: _JsonTraversal = match key_or_index
+    let step: _JsonTraversal = match \exhaustive\ key_or_index
     | let k: String => _TravObjKey(k)
     | let i: USize => _TravArrayIndex(i)
     end

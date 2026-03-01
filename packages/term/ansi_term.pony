@@ -83,7 +83,7 @@ actor ANSITerm
     end
 
     for c in (consume data).values() do
-      match _escape
+      match \exhaustive\ _escape
       | _EscapeNone =>
         if c == 0x1B then
           _escape = _EscapeStart
@@ -126,7 +126,7 @@ actor ANSITerm
           _esc_flush()
         end
       | _EscapeCSI =>
-        match c
+        match \exhaustive\ c
         | 'A' => _up()
         | 'B' => _down()
         | 'C' => _right()
@@ -144,7 +144,7 @@ actor ANSITerm
           _esc_flush()
         end
       | _EscapeMod =>
-        match c
+        match \exhaustive\ c
         | 'A' => _up()
         | 'B' => _down()
         | 'C' => _right()

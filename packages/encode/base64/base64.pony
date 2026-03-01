@@ -151,7 +151,7 @@ primitive Base64
       input = data(i)?
 
       let value =
-        match input
+        match \exhaustive\ input
         | ' ' | '\t' | '\r' | '\n' => continue
         | pad => break
         | at62 => 62
@@ -200,7 +200,7 @@ primitive Base64
     """
     Encode a single byte.
     """
-    match i
+    match \exhaustive\ i
     | 62 => at62
     | 63 => at63
     | if i < 26 => 'A' + i

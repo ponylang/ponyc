@@ -8,7 +8,8 @@ class \nodoc\ _TestConfigDefaultAllEnabled is UnitTest
 
   fun apply(h: TestHelper) =>
     let config = lint.LintConfig.default()
-    match config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOn => h.assert_true(true)
     | lint.RuleOff => h.fail("expected RuleOn")
     end
@@ -22,7 +23,8 @@ class \nodoc\ _TestConfigCLIDisableRule is UnitTest
       recover val Set[String] .> set("style/line-length") end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
-    match config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -36,7 +38,8 @@ class \nodoc\ _TestConfigCLIDisableCategory is UnitTest
       recover val Set[String] .> set("style") end
     let file_rules = recover val Map[String, lint.RuleStatus] end
     let config = lint.LintConfig(disabled, file_rules)
-    match config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -54,7 +57,8 @@ class \nodoc\ _TestConfigFileRuleOverride is UnitTest
         m
       end
     let config = lint.LintConfig(disabled, file_rules)
-    match config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -72,7 +76,8 @@ class \nodoc\ _TestConfigFileCategoryDefault is UnitTest
         m
       end
     let config = lint.LintConfig(disabled, file_rules)
-    match config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -91,7 +96,8 @@ class \nodoc\ _TestConfigCLIOverridesFile is UnitTest
         m
       end
     let config = lint.LintConfig(disabled, file_rules)
-    match config.rule_status("style/line-length", "style", lint.RuleOn)
+    match \exhaustive\
+      config.rule_status("style/line-length", "style", lint.RuleOn)
     | lint.RuleOff => h.assert_true(true)
     | lint.RuleOn => h.fail("expected RuleOff")
     end
@@ -101,7 +107,7 @@ class \nodoc\ _TestConfigParseValidJSON is UnitTest
   fun name(): String => "Config: parse valid JSON"
 
   fun apply(h: TestHelper) =>
-    match lint.ConfigLoader.parse(
+    match \exhaustive\ lint.ConfigLoader.parse(
       """{"rules": {"style/line-length": "off", "style": "on"}}""")
     | let rules: Map[String, lint.RuleStatus] val =>
       h.assert_eq[USize](2, rules.size())
@@ -114,7 +120,7 @@ class \nodoc\ _TestConfigParseMalformedJSON is UnitTest
   fun name(): String => "Config: malformed JSON -> error"
 
   fun apply(h: TestHelper) =>
-    match lint.ConfigLoader.parse("{not valid json}")
+    match \exhaustive\ lint.ConfigLoader.parse("{not valid json}")
     | let rules: Map[String, lint.RuleStatus] val =>
       h.fail("expected ConfigError")
     | let err: lint.ConfigError =>
@@ -126,7 +132,7 @@ class \nodoc\ _TestConfigParseInvalidStatus is UnitTest
   fun name(): String => "Config: invalid status value -> error"
 
   fun apply(h: TestHelper) =>
-    match lint.ConfigLoader.parse(
+    match \exhaustive\ lint.ConfigLoader.parse(
       """{"rules": {"style/line-length": "maybe"}}""")
     | let rules: Map[String, lint.RuleStatus] val =>
       h.fail("expected ConfigError")
@@ -139,7 +145,7 @@ class \nodoc\ _TestConfigParseNoRules is UnitTest
   fun name(): String => "Config: no rules key -> empty"
 
   fun apply(h: TestHelper) =>
-    match lint.ConfigLoader.parse("{}")
+    match \exhaustive\ lint.ConfigLoader.parse("{}")
     | let rules: Map[String, lint.RuleStatus] val =>
       h.assert_eq[USize](0, rules.size())
     | let err: lint.ConfigError =>

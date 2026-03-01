@@ -124,7 +124,7 @@ primitive _JsonPrint
     var b = consume buf
     b.push('"')
     for byte in s.values() do
-      match byte
+      match \exhaustive\ byte
       | '"'  => b.append("\\\"")
       | '\\' => b.append("\\\\")
       | 0x08 => b.append("\\b")

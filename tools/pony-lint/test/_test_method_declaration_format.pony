@@ -265,7 +265,7 @@ class \nodoc\ _TestMethodDeclFormatArrowMisaligned is UnitTest
       "    offset\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
-      match program.package()
+      match \exhaustive\ program.package()
       | let pkg: ast.Package val =>
         match pkg.module()
         | let mod: ast.Module val =>

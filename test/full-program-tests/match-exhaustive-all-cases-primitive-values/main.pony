@@ -6,7 +6,7 @@ primitive P3 fun three(): I32 => 3
 
 primitive Foo
   fun apply(p': (P1 | P2 | P3)): I32 =>
-    match p'
+    match \exhaustive\ p'
     | let p: P1 => p.one()
     | let p: P2 => p.two()
     | let p: P3 => p.three()

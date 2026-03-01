@@ -137,7 +137,7 @@ class _NFABuildCtx
   fun ref build_node(node: _RegexNode): _NFAFragment ? =>
     """Compile an AST node to an NFA fragment via Thompson construction."""
     if _kinds.size() > _max_states then error end
-    match node
+    match \exhaustive\ node
     | let lit: _Literal =>
       let ranges' = recover val [(lit.codepoint, lit.codepoint)] end
       let s = _add_char(ranges', false)
@@ -172,7 +172,7 @@ class _NFABuildCtx
   fun ref _build_quantified(q: _Quantified): _NFAFragment ? =>
     """Build NFA for quantified expression."""
     let min_count = q.min_count
-    match q.max_count
+    match \exhaustive\ q.max_count
     | None =>
       // Unbounded: {min,}
       if min_count == 0 then
@@ -221,7 +221,7 @@ class _NFABuildCtx
         // Build n required copies
         while i < min_count do
           let e = build_node(q.expr)?
-          match result
+          match \exhaustive\ result
           | let prev: _NFAFragment =>
             patch(prev.outs, e.start)
             result = _NFAFragment(prev.start, e.outs)
@@ -237,7 +237,7 @@ class _NFABuildCtx
           let e = build_node(q.expr)?
           let s = _add_split(e.start, _none)
           let exit_outs: Array[(USize, Bool)] ref = [(s, true)]
-          match result
+          match \exhaustive\ result
           | let prev: _NFAFragment =>
             patch(prev.outs, s)
             result = _NFAFragment(prev.start, _merge_outs(e.outs, exit_outs))

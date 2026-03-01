@@ -79,7 +79,7 @@ class WorkspaceScanner
   fun scan(auth: FileAuth, folder: String, workspace_name: (String | None) = None): Array[WorkspaceData] val =>
     let path = FilePath(auth, folder)
     let name =
-      match workspace_name
+      match \exhaustive\ workspace_name
       | let n: String => n
       | None => Path.base(folder)
       end

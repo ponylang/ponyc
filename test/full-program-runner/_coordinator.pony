@@ -90,7 +90,7 @@ actor _Coordinator is _TesterNotify
 
   fun ref _finalize_outputs(name: String) =>
     let pick_new =
-      match _cur_output_name
+      match \exhaustive\ _cur_output_name
       | let cur_name: String if cur_name == name =>
         true
       | None =>

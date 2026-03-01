@@ -72,7 +72,7 @@ actor LanguageServer is (Notifier & RequestSender)
       end
     | _Initialized =>
       this._channel.log("\n\n<-\n" + r.json().string())
-      match r.method
+      match \exhaustive\ r.method
       | Methods.text_document().definition() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -166,7 +166,7 @@ actor LanguageServer is (Notifier & RequestSender)
             // we got a matching response
             this._expect_responses_for.delete(i)?
             // handle the response
-            match expected_method
+            match \exhaustive\ expected_method
             | Methods.workspace().configuration() =>
               this.handle_configuration(r)
             | Methods.client().register_capability() =>

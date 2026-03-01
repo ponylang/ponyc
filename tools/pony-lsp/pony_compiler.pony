@@ -45,7 +45,7 @@ actor PonyCompiler is LspCompiler
     at `../packages` (installed layout) or `../../packages` (source build
     layout) relative to the executable.
     """
-    match _find_exe_directory()
+    match \exhaustive\ _find_exe_directory()
     | let dir: String val =>
       recover val
         let paths = Array[String val](2)

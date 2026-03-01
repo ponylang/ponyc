@@ -195,7 +195,7 @@ class Iter[A] is Iterator[A]
             match _next
             | _None =>
               if _iter.has_next() then
-                match f(_iter.next()?)?
+                match \exhaustive\ f(_iter.next()?)?
                 | let b: B => _next = consume b
                 | None => _find_next()
                 end
@@ -384,7 +384,7 @@ class Iter[A] is Iterator[A]
         fun ref next(): A! ? =>
           let cur_value: A! = _iter.next()?
           let cur_hash: USize = H.hash(cur_value)
-          match _prev_value
+          match \exhaustive\ _prev_value
           | let prev_value: A! =>
             if (_prev_hash == cur_hash) and H.eq(prev_value, cur_value) then
               this.next()?

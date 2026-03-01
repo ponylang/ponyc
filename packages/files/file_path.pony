@@ -113,7 +113,7 @@ class val FilePath
     of the supplied capabilities and the capabilities on the base.
     """
     (let dir, let pre) = Path.split(prefix)
-    let parent: FilePath = match base
+    let parent: FilePath = match \exhaustive\ base
       | let base': FileAuth => FilePath(base', dir)
       | let base': FilePath => FilePath.from(base', dir)?
     end

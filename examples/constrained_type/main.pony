@@ -40,7 +40,7 @@ actor Main
     try
       let arg1 = env.args(1)?
       let username = MakeUsername(arg1)
-      match username
+      match \exhaustive\ username
       | let u: Username =>
         print_username(u)
       | let e: ValidationFailure =>

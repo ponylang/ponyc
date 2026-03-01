@@ -20,7 +20,7 @@ class val _VecNode[A: Any #share]
 
   fun apply(depth: USize, i: USize): A ? =>
     let idx = _Bits.mask(i, depth)
-    match _entries
+    match \exhaustive\ _entries
     | let ls: Array[A] box => ls(idx)?
     | let ns: _VecSubNodes[A] box => ns(idx)?(depth - 1, i)?
     end
@@ -42,7 +42,7 @@ class val _VecNode[A: Any #share]
     end
 
   fun val pop(depth: USize, i: USize): (_VecNode[A], Array[A] val) ? =>
-    match _entries
+    match \exhaustive\ _entries
     | let ls: Array[A] val => (this, ls)
     | let ns: _VecSubNodes[A] val =>
       let idx = _Bits.mask(i, depth)
@@ -57,7 +57,7 @@ class val _VecNode[A: Any #share]
 
   fun val update(depth: USize, i: USize, v: A): _VecNode[A] ? =>
     let idx = _Bits.mask(i, depth)
-    match _entries
+    match \exhaustive\ _entries
     | let ls: Array[A] val =>
       create(recover ls.clone() .> update(idx, v)? end)
     | let ns: _VecSubNodes[A] val =>
@@ -66,7 +66,7 @@ class val _VecNode[A: Any #share]
     end
 
   fun val leaf_nodes(lns: Array[Array[A] val]): Array[Array[A] val]^ =>
-    match _entries
+    match \exhaustive\ _entries
     | let lns': Array[A] val =>
       lns.push(lns')
     | let ns: _VecSubNodes[A] val =>

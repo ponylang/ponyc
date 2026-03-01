@@ -84,7 +84,7 @@ primitive JsonPathParser
     literal). For user-provided paths, prefer `parse()` which returns
     errors as data.
     """
-    match JsonPathParser.parse(path)
+    match \exhaustive\ JsonPathParser.parse(path)
     | let jp: JsonPath => jp
     | let _: JsonPathParseError => error
     end

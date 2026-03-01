@@ -42,7 +42,7 @@ class Readline is ANSINotify
     """
     Receives input.
     """
-    match input
+    match \exhaustive\ input
     | 0x01 => home() // ctrl-a
     | 0x02 => left() // ctrl-b
     | 0x04 =>

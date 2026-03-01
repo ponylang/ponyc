@@ -275,7 +275,7 @@ actor ProcessMonitor is AsioEventNotify
     | let wr: _WaitResult =>
       None
     else
-      match _child.wait()
+      match \exhaustive\ _child.wait()
       | let sr: _StillRunning =>
         if not _polling_child then
           _polling_child = true
@@ -303,7 +303,7 @@ actor ProcessMonitor is AsioEventNotify
     end
 
   fun ref _ensure_timers(): Timers tag =>
-    match _timers
+    match \exhaustive\ _timers
     | None =>
       let ts = Timers
       _timers = ts

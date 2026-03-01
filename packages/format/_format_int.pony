@@ -41,7 +41,7 @@ primitive _FormatInt
       let rem = width - s.size()
       let fills = String.from_utf32(fill)
 
-      match align
+      match \exhaustive\ align
       | AlignLeft => post = rem
       | AlignRight => pre = rem
       | AlignCenter => pre = rem / 2; post = rem - pre

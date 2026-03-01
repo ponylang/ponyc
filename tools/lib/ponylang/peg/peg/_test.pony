@@ -24,7 +24,7 @@ class \nodoc\ iso _TestFromFile is UnitTest
     let peg_file = FilePath(auth, "examples/" + _example + ".peg")
     let test_file = FilePath(auth, "test/" + _test)
     let expect_file = FilePath(auth, "test/" + _expect)
-    match recover val PegCompiler(Source(peg_file)?) end
+    match \exhaustive\ recover val PegCompiler(Source(peg_file)?) end
     | let p: Parser val =>
       let out = peg_run(h, p, Source(test_file)?)?
       with file = OpenFile(expect_file) as File do

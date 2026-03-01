@@ -1244,7 +1244,7 @@ actor Main
 
       repeat
         try
-          match utf32(i.isize())?
+          match \exhaustive\ utf32(i.isize())?
           | (0xFFFD, 1) => None
           | (let c: U32, _) =>
             if not chars.contains(c) then

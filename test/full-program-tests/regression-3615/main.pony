@@ -7,7 +7,7 @@ actor Main
   let bar : Bar
 
   new create(env : Env) =>
-      match Foo()
+      match \exhaustive\ Foo()
       | let result : U32 =>
           bar = result
       | None =>

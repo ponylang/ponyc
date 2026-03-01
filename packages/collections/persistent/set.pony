@@ -53,7 +53,7 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
     Return a set with the elements of both this and that.
     """
     let iter =
-      match that
+      match \exhaustive\ that
       | let s: HashSet[A, H] => s.values()
       | let i: Iterator[A] => i
       end
@@ -68,7 +68,7 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
     Return a set with the elements that are in both this and that.
     """
     let iter =
-      match that
+      match \exhaustive\ that
       | let s: HashSet[A, H] => s.values()
       | let i: Iterator[A] => i
       end
@@ -85,7 +85,7 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
     Return a set with elements that are in either this or that, but not both.
     """
     let iter =
-      match that
+      match \exhaustive\ that
       | let s: HashSet[A, H] => s.values()
       | let i: Iterator[A] => i
       end
@@ -104,7 +104,7 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
     Return a set with the elements of this that are not in that.
     """
     let iter =
-      match that
+      match \exhaustive\ that
       | let s: HashSet[A, H] => s.values()
       | let i: Iterator[A] => i
       end

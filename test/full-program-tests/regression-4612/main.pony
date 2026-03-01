@@ -13,7 +13,7 @@ trait A
   fun union(): (Prim | None)
 
   fun match_it(): Bool =>
-    match union()
+    match \exhaustive\ union()
     | let p: Prim =>
       p.ignore()
       true

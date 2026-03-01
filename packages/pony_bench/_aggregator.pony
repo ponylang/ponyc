@@ -22,7 +22,7 @@ class ref _Aggregator
 
   fun ref complete(name: String, t: U64) =>
     if _warmup then
-      match _calc_iterations(t)
+      match \exhaustive\ _calc_iterations(t)
       | let n: U64 => iterations = n
       | None => _warmup = false
       end

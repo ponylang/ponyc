@@ -23,7 +23,7 @@ class Choice is Parser
     var fail: (USize, Parser) = (0, this)
 
     for p in _seq.values() do
-      match p.parse(source, offset, tree, hidden)
+      match \exhaustive\ p.parse(source, offset, tree, hidden)
       | (let advance: USize, let r: ParseOK) => return (advance, r)
       | (let advance: USize, let r: Parser) =>
         if advance > fail._1 then

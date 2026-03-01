@@ -73,7 +73,7 @@ primitive PreferChaining is ASTRule
 
     // Navigate to parent — must be TK_ASSIGN
     let assign_node: ast.AST box =
-      match node.parent()
+      match \exhaustive\ node.parent()
       | let p: ast.AST box if p.id() == ast.TokenIds.tk_assign() => p
       else
         return recover val Array[Diagnostic val] end
@@ -85,7 +85,7 @@ primitive PreferChaining is ASTRule
     var current: (ast.AST box | None) = assign_node.sibling()
 
     while true do
-      match current
+      match \exhaustive\ current
       | let sib: ast.AST box if _is_dot_call_on(sib, var_name) =>
         call_count = call_count + 1
         current = sib.sibling()
@@ -103,7 +103,7 @@ primitive PreferChaining is ASTRule
     // bare reference with no further siblings (1+ call suffices since .>
     // returns the receiver, eliminating the intermediate variable).
     let should_flag: Bool =
-      match current
+      match \exhaustive\ current
       | None =>
         call_count >= 2
       | let ref_node: ast.AST box

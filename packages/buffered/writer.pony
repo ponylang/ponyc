@@ -260,7 +260,7 @@ class Writer
     // to coalesce multiple tiny arrays
     // into a single bigger array
     if data.size() <= 64 then
-      match data
+      match \exhaustive\ data
       | let d: String =>
          let a = d.array()
          _current.copy_from(a, 0, _current.size(), a.size())
