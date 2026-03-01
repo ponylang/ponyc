@@ -2228,3 +2228,22 @@ TEST_F(SugarTest, StringConcatChainMultipleVars)
 
   TEST_EQUIV(short_form, full_form);
 }
+
+
+TEST_F(SugarTest, StringConcatEmbeddedNull)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"ab\\x00cd\" + \"ef\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"ab\\x00cdef\"";
+
+  TEST_EQUIV(short_form, full_form);
+}

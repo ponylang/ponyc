@@ -155,6 +155,20 @@ static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
   {
     // Allow expected and actual hygenic names to match.
   }
+  else if(expected_id == TK_STRING)
+  {
+    // Use length-aware comparison for strings so embedded nulls are compared
+    // correctly. strcmp would stop at the first null byte.
+    size_t expected_len = ast_name_len(expected);
+    size_t actual_len = ast_name_len(actual);
+    if(expected_len != actual_len ||
+      memcmp(ast_name(expected), ast_name(actual), expected_len) != 0)
+    {
+      ast_error(errors, expected, "AST string mismatch, got %s, expected %s",
+        ast_get_print(actual), ast_get_print(expected));
+      return false;
+    }
+  }
   else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {
     ast_error(errors, expected, "AST text mismatch, got %s, expected %s",
