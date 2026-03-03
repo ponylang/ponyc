@@ -330,6 +330,9 @@ actor \nodoc\ Main is TestList
     test(_TestAssignmentIndentRecoverViolation)
     test(_TestAssignmentIndentReassignment)
     test(_TestAssignmentIndentMultipleViolations)
+    test(_TestAssignmentIndentRHSNotIndented)
+    test(_TestAssignmentIndentReassignmentNotIndented)
+    test(_TestAssignmentIndentRHSDedented)
 
     // PreferChaining tests
     test(_TestPreferChainingViolation)
