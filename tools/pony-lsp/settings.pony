@@ -1,5 +1,4 @@
 use "json"
-use pc = "collections/persistent"
 
 class val Settings
   """
@@ -62,16 +61,6 @@ class val Settings
       else
         []
       end
-
-  fun val to_json(): JsonObject =>
-    var defs = JsonArray
-    for def in this._defines.values() do
-      defs = defs.push(def)
-    end
-    var pp = JsonArray(pc.Vec[JsonValue].concat(defs.values()))
-    JsonObject
-      .update("defines", defs)
-      .update("ponypath", pp)
 
   fun val defines(): Array[String] val =>
     this._defines
