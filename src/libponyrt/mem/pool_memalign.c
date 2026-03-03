@@ -20,7 +20,8 @@ void* ponyint_pool_alloc(size_t index)
 {
   void* p;
   size_t size = POOL_SIZE(index);
-  int code = posix_memalign(&p, POOL_ALIGN, size);
+  size_t align = size < POOL_ALIGN ? POOL_MEMALIGN_MIN_ALIGN : POOL_ALIGN;
+  int code = posix_memalign(&p, align, size);
   (void)code;
   pony_assert(code == 0);
 
