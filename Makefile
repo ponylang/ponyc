@@ -150,6 +150,8 @@ define USE_CHECK
     PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
   else ifeq ($1,pool_memalign)
     PONY_USES += -DPONY_USE_POOL_MEMALIGN=true
+  else ifeq ($1,pool_retain)
+    PONY_USES += -DPONY_USE_POOL_RETAIN=true
   else ifeq ($1,runtime_tracing)
     PONY_USES += -DPONY_USE_RUNTIME_TRACING=true
   else

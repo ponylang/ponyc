@@ -8,6 +8,7 @@
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 #if defined(PLATFORM_IS_MACOSX)
@@ -65,4 +66,31 @@ void ponyint_virt_free(void* p, size_t bytes)
 #elif defined(PLATFORM_IS_POSIX_BASED)
   munmap(p, bytes);
 #endif
+}
+
+void ponyint_virt_decommit(void* p, size_t bytes)
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  VirtualAlloc(p, bytes, MEM_RESET, PAGE_READWRITE);
+#elif defined(PLATFORM_IS_POSIX_BASED)
+  madvise(p, bytes, MADV_DONTNEED);
+#endif
+}
+
+size_t ponyint_page_size()
+{
+  static size_t page_size = 0;
+
+  if(page_size == 0)
+  {
+#if defined(PLATFORM_IS_WINDOWS)
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    page_size = si.dwPageSize;
+#elif defined(PLATFORM_IS_POSIX_BASED)
+    page_size = (size_t)sysconf(_SC_PAGESIZE);
+#endif
+  }
+
+  return page_size;
 }
