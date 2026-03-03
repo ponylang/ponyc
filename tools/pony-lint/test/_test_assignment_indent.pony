@@ -213,6 +213,129 @@ class \nodoc\ _TestAssignmentIndentReassignment is UnitTest
       h.fail("compilation failed")
     end
 
+class \nodoc\ _TestAssignmentIndentRHSNotIndented is UnitTest
+  """Multiline RHS on next line at same indentation produces 1 diagnostic."""
+  fun name(): String =>
+    "AssignmentIndent: RHS on next line not indented flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(): Array[U8] val =>\n" +
+      "    let chunk =\n" +
+      "    recover val\n" +
+      "      Array[U8]\n" +
+      "    end\n" +
+      "    chunk\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
+          h.assert_eq[USize](1, diags.size())
+          try
+            h.assert_eq[String](
+              "style/assignment-indent", diags(0)?.rule_id)
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestAssignmentIndentReassignmentNotIndented is UnitTest
+  """Reassignment RHS on next line at same indentation produces 1 diagnostic."""
+  fun name(): String =>
+    "AssignmentIndent: reassignment RHS not indented flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(x: U32): U32 =>\n" +
+      "    var y: U32 = 0\n" +
+      "    y =\n" +
+      "    if x > 0 then\n" +
+      "      x\n" +
+      "    else\n" +
+      "      U32(0)\n" +
+      "    end\n" +
+      "    y\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
+          h.assert_eq[USize](1, diags.size())
+          try
+            h.assert_eq[String](
+              "style/assignment-indent", diags(0)?.rule_id)
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestAssignmentIndentRHSDedented is UnitTest
+  """RHS on next line indented less than assignment produces 1 diagnostic."""
+  fun name(): String =>
+    "AssignmentIndent: RHS dedented below assignment flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(): Array[U8] val =>\n" +
+      "    let chunk =\n" +
+      "  recover val\n" +
+      "    Array[U8]\n" +
+      "  end\n" +
+      "    chunk\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.AssignmentIndent)
+          h.assert_eq[USize](1, diags.size())
+          try
+            h.assert_eq[String](
+              "style/assignment-indent", diags(0)?.rule_id)
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
 class \nodoc\ _TestAssignmentIndentMultipleViolations is UnitTest
   """Two multiline assignments on '=' lines produce 2 diagnostics."""
   fun name(): String => "AssignmentIndent: multiple violations"

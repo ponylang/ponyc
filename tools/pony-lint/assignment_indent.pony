@@ -2,17 +2,25 @@ use ast = "pony_compiler"
 
 primitive AssignmentIndent is ASTRule
   """
-  Flags multiline assignment RHS that starts on the same line as the `=`.
+  Flags assignment RHS with incorrect line placement or insufficient
+  indentation.
 
-  When an assignment's right-hand side spans multiple lines, the Pony style
-  guide requires the RHS to start on the line after the `=`, not on the same
-  line. Single-line assignments are always clean.
+  Two checks are performed:
+
+  1. When an assignment's right-hand side spans multiple lines, the Pony style
+     guide requires the RHS to start on the line after the `=`, not on the same
+     line.
+  2. When the RHS starts on the line after the `=`, it must be indented beyond
+     the assignment line. Code at the same column or further left is a
+     violation.
+
+  Single-line assignments where the RHS is on the `=` line are always clean.
   """
   fun id(): String val => "style/assignment-indent"
   fun category(): String val => "style"
 
   fun description(): String val =>
-    "multiline assignment RHS must start on the line after '='"
+    "assignment RHS must start on the line after '=' and be indented"
 
   fun default_status(): RuleStatus => RuleOn
 
@@ -23,12 +31,16 @@ primitive AssignmentIndent is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Check whether a multiline RHS begins on the same line as the `=`.
+    Check whether an assignment RHS has correct placement and indentation.
 
-    Gets the RHS (child 1) and compares its start line to the `=` line. If
-    they differ, the RHS already starts on the next line — clean. If they
-    match, uses `_MaxLineVisitor` to determine whether the RHS is multiline.
-    A multiline RHS on the `=` line is a violation.
+    Gets the RHS (child 1) and compares its start line to the `=` line.
+
+    If the RHS starts on a different line, verifies that it is indented beyond
+    the assignment line — the RHS column must exceed the first non-whitespace
+    column of the assignment line.
+
+    If they are on the same line, uses `_MaxLineVisitor` to determine whether
+    the RHS is multiline. A multiline RHS on the `=` line is a violation.
     """
     let assign_line = node.line()
 
@@ -39,8 +51,24 @@ primitive AssignmentIndent is ASTRule
         return recover val Array[Diagnostic val] end
       end
 
-    // RHS starts on a different line than `=` — already correct
     if rhs.line() != assign_line then
+      // RHS starts on a different line — verify sufficient indentation
+      let assign_indent =
+        try
+          _count_leading_spaces(source.lines(assign_line - 1)?)
+        else
+          return recover val Array[Diagnostic val] end
+        end
+      if rhs.pos() <= (assign_indent + 1) then
+        return recover val
+          [ Diagnostic(
+            id(),
+            "assignment RHS must be indented relative to the assignment",
+            source.rel_path,
+            rhs.line(),
+            rhs.pos())]
+        end
+      end
       return recover val Array[Diagnostic val] end
     end
 
@@ -62,3 +90,23 @@ primitive AssignmentIndent is ASTRule
       // Single-line RHS — clean
       recover val Array[Diagnostic val] end
     end
+
+  fun _count_leading_spaces(line: String val): USize =>
+    """
+    Count the number of leading space characters on a line.
+    """
+    var count: USize = 0
+    var i: USize = 0
+    while i < line.size() do
+      try
+        if line(i)? == ' ' then
+          count = count + 1
+        else
+          return count
+        end
+      else
+        return count
+      end
+      i = i + 1
+    end
+    count
