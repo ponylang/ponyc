@@ -345,11 +345,11 @@ actor LanguageServer is (Notifier & RequestSender)
     end
 
   fun ref handle_did_change_configuration(params: JsonObject val) =>
-    // example output: for settings: {"pony-lsp":{"defines":["FOO","BAR"]}}
+    // example params: {"pony-lsp":{"defines":["FOO","BAR"]}}
     try
       let pony_lsp_settings = params("pony-lsp")? as JsonObject
       let settings = Settings.from_json(pony_lsp_settings)
-      this._channel.log("Received didChangeConfiguration response: " + settings.to_json().string())
+      this._channel.log("Received didChangeConfiguration response: " + params.string())
       this._compiler.apply_settings(settings)
     else
       this._channel.log("Invalid didChangeConfiguration response")
