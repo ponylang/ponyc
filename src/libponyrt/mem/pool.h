@@ -31,6 +31,7 @@ PONY_EXTERN_C_BEGIN
 #define POOL_MIN (1 << POOL_MIN_BITS)
 #define POOL_MAX (1 << POOL_MAX_BITS)
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
+#define POOL_MEMALIGN_MIN_ALIGN 64
 #define POOL_COUNT (POOL_MAX_BITS - POOL_MIN_BITS + 1)
 
 __pony_spec_malloc__(void* ponyint_pool_alloc(size_t index));
