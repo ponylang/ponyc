@@ -758,3 +758,13 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, c_t->desc, "");
 }
+
+LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc)
+{
+  return desc_field(c, desc, DESC_SIZE);
+}
+
+LLVMValueRef gendesc_fieldoffset(compile_t* c, LLVMValueRef desc)
+{
+  return desc_field(c, desc, DESC_FIELD_OFFSET);
+}
