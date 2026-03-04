@@ -655,7 +655,7 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
 }
 
 
-static bool catch_up_provides(pass_opt_t* opt, ast_t* provides)
+static bool catch_up_provides(pass_opt_t* opt, ast_t* provides, ast_t* obj_ast)
 {
   // Make sure all traits have been through the expr pass before proceeding.
   // We run into dangling ast_data pointer problems when we inherit methods from
@@ -670,8 +670,26 @@ static bool catch_up_provides(pass_opt_t* opt, ast_t* provides)
 
     ast_t* def = (ast_t*)ast_data(child);
 
-    if(def != NULL && !ast_passes_type(&def, opt, PASS_EXPR))
-      return false;
+    if(def != NULL)
+    {
+      // If the provided type definition is an ancestor of the original object
+      // literal, we are inside the type we're trying to provide (e.g., an
+      // object literal inside a trait method that implements that trait).
+      // Skip catching it up to avoid re-entrant expression pass processing
+      // on nodes that haven't been through name resolution yet.
+      bool is_ancestor = false;
+      for(ast_t* p = obj_ast; p != NULL; p = ast_parent(p))
+      {
+        if(p == def)
+        {
+          is_ancestor = true;
+          break;
+        }
+      }
+
+      if(!is_ancestor && !ast_passes_type(&def, opt, PASS_EXPR))
+        return false;
+    }
 
     child = ast_sibling(child);
   }
@@ -847,19 +865,31 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
     type_for_class(opt, def, result, cap_id, TK_EPHEMERAL, false));
 
   // Catch up provides before catching up the entire type.
-  if(!catch_up_provides(opt, provides))
+  if(!catch_up_provides(opt, provides, ast))
+    return false;
+
+  // Replace object..end with $0.create(...) before type-checking the
+  // anonymous type. This must happen first so that if the anonymous type
+  // inherits methods from its provided traits (during PASS_TRAITS), those
+  // methods see the replacement call rather than the raw object literal
+  // (whose children have had PRESERVE cleared and haven't been through
+  // name resolution). Process the call through PASS_REFER so inherited
+  // copies have resolved references; PASS_EXPR is deferred until after
+  // the anonymous type is fully processed.
+  ast_replace(astp, call);
+
+  if(ast_visit(astp, pass_syntax, NULL, opt, PASS_SYNTAX) != AST_OK)
+    return false;
+
+  if(!ast_passes_subtree(astp, opt, PASS_REFER))
     return false;
 
   // Type check the anonymous type.
   if(!ast_passes_type(&def, opt, PASS_EXPR))
     return false;
 
-  // Replace object..end with $0.create(...)
-  ast_replace(astp, call);
-
-  if(ast_visit(astp, pass_syntax, NULL, opt, PASS_SYNTAX) != AST_OK)
-    return false;
-
+  // Finish processing the replacement call through the expression pass,
+  // now that the anonymous type is fully type-checked.
   if(!ast_passes_subtree(astp, opt, PASS_EXPR))
     return false;
 
