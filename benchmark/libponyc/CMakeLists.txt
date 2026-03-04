@@ -30,6 +30,7 @@ if (MSVC)
         PRIVATE ucrt
         PRIVATE Ws2_32
         PRIVATE Shlwapi
+        PRIVATE ntdll
     )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(libponyc.benchmarks PRIVATE dl)

@@ -515,8 +515,8 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   LLVMValueRef vlow = LLVMConstInt(c->i128, value->low, false);
   LLVMValueRef vhigh = LLVMConstInt(c->i128, value->high, false);
   LLVMValueRef shift = LLVMConstInt(c->i128, 64, false);
-  vhigh = LLVMConstShl(vhigh, shift);
-  vhigh = LLVMConstAdd(vhigh, vlow);
+  vhigh = LLVMBuildShl(c->builder, vhigh, shift, "");
+  vhigh = LLVMBuildAdd(c->builder, vhigh, vlow, "");
 
   if(c_t->primitive == c->i128)
     return vhigh;

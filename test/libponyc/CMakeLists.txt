@@ -90,6 +90,7 @@ if (MSVC)
         PRIVATE ucrt
         PRIVATE Ws2_32
         PRIVATE Shlwapi
+        PRIVATE ntdll
     )
 
     set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
