@@ -456,10 +456,10 @@ switch ($Command.ToLower())
     }
     "build-examples"
     {
-        # Find all .pony files in examples directory, get their unique directories, and build each one
-        $examples = Get-ChildItem -Path "$srcDir\examples\*\*" -Filter "*.pony" -Recurse |
-                Select-Object -ExpandProperty Directory -Unique |
-                Where-Object { $_.FullName -notlike "*ffi-*" } |
+        # Find all example subdirectories that contain .pony files and build each one
+        $examples = Get-ChildItem -Path "$srcDir\examples" -Directory |
+                Where-Object { $_.Name -notlike "ffi-*" } |
+                Where-Object { (Get-ChildItem -Path $_.FullName -Filter "*.pony" -File).Count -gt 0 } |
                 Select-Object -ExpandProperty FullName
 
         $failed = @()
