@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `assignment-indent` to require RHS indented relative to assignment ([PR #4913](https://github.com/ponylang/ponyc/pull/4913))
 - Fix tool install with `use` flags ([PR #4915](https://github.com/ponylang/ponyc/pull/4915))
 - Fix stack overflow in AST tree checker ([PR #4905](https://github.com/ponylang/ponyc/pull/4905))
+- Fix Scheduler Stats output for memory usage ([PR #4916](https://github.com/ponylang/ponyc/pull/4916))
 
 ### Added
 
