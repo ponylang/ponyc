@@ -1,4 +1,4 @@
-use @pony_os_accept[U32](event: AsioEventID)
+use @pony_os_accept[I32](event: AsioEventID)
 use @pony_os_listen_tcp[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] tag,
   service: Pointer[U8] tag)
 use @pony_os_listen_tcp4[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] tag,
@@ -207,13 +207,14 @@ actor TCPListener is AsioEventNotify
 
         match fd
         | -1 =>
-          // Something other than EWOULDBLOCK, try again.
-          None
+          // Something other than EWOULDBLOCK, bail out. The ASIO event
+          // will re-notify when the socket is readable.
+          return
         | 0 =>
           // EWOULDBLOCK, don't try again.
           return
         else
-          _spawn(fd)
+          _spawn(fd.u32())
         end
       end
 
