@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix stack overflow in AST tree checker ([PR #4905](https://github.com/ponylang/ponyc/pull/4905))
 - Fix Scheduler Stats output for memory usage ([PR #4916](https://github.com/ponylang/ponyc/pull/4916))
 - Fix compiler crash when object literal implements enclosing trait ([PR #4919](https://github.com/ponylang/ponyc/pull/4919))
+- Fix TCPListener accept loop spin on persistent errors ([PR #4917](https://github.com/ponylang/ponyc/pull/4917))
 
 ### Added
 
