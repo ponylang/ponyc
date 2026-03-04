@@ -40,3 +40,7 @@ This primarily benefits programs that make large temporary allocations (the comp
 
 To preserve the old behavior (never decommit), build with `make configure use=pool_retain`.
 
+## Fix scheduler stats output for memory usage
+
+Applications compiled against the runtime which prints periodic scheduler statistics will now display the correct memory usage values per scheduler and for messages "in-flight".
+
