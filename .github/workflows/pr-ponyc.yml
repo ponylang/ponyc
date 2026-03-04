@@ -432,6 +432,9 @@ jobs:
             directives: pool_memalign
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             debugger: lldb
+            directives: pool_retain
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            debugger: lldb
             directives: runtimestats
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             debugger: lldb

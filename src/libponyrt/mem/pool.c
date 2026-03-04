@@ -698,10 +698,15 @@ static void* pool_alloc_pages(size_t size)
 
 static void pool_free_pages(void* p, size_t size)
 {
-  if(pool_block_header.total_size >= POOL_MMAP)
+#ifndef USE_POOL_RETAIN
   {
-    // TODO: ???
+    size_t pg = ponyint_page_size();
+    uintptr_t start = ((uintptr_t)p + pg - 1) & ~(pg - 1);
+    uintptr_t end = ((uintptr_t)p + size) & ~(pg - 1);
+    if(end > start)
+      ponyint_virt_decommit((void*)start, end - start);
   }
+#endif
 
 #ifdef USE_ADDRESS_SANITIZER
   ASAN_UNPOISON_MEMORY_REGION(p, sizeof(pool_block_t));
