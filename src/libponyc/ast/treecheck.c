@@ -1,6 +1,7 @@
 #include "treecheck.h"
 #include "ast.h"
 #include "../pass/pass.h"
+#include "../../libponyrt/ds/stack.h"
 #include "ponyassert.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -42,6 +43,16 @@ typedef struct check_state_t
 } check_state_t;
 
 
+// File-static state for iterative worklist processing.
+// The tree checker is only called from a single thread, so globals are safe.
+static Stack* g_worklist = NULL;
+static bool g_check_id_only = false;
+static check_fn_t g_matched_fn = NULL;
+#ifndef PONY_NDEBUG
+static bool g_has_error = false;
+#endif
+
+
 // Print an error preamble for the given node.
 static void error_preamble(ast_t* ast)
 {
@@ -80,7 +91,12 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
     check_res_t r = (*p)(ast, errors, print_width);
 
     if(r != CHK_NOT_FOUND)
+    {
+      if(g_check_id_only)
+        g_matched_fn = *p;
+
       return r;
+    }
   }
 
   // Child does not match any rule in given list
@@ -90,6 +106,8 @@ static check_res_t check_from_list(ast_t* ast, const check_fn_t *rules,
 
 // Check some number of children, all using the same rules.
 // The given max and min counts are inclusive. Pass -1 for no maximum limit.
+// Uses ID-only matching to avoid deep recursion, deferring full child
+// validation to the iterative worklist in check_tree.
 static bool check_children(ast_t* ast, check_state_t* state,
   const check_fn_t *rules, size_t min_count, size_t max_count, errors_t* errors,
   size_t print_width)
@@ -102,16 +120,18 @@ static bool check_children(ast_t* ast, check_state_t* state,
 
   while(found_count < max_count && state->child != NULL)
   {
-    // See if next child is suitable
+    // ID-only match: check token ID without recursing into child subtree.
+    g_check_id_only = true;
     check_res_t r = check_from_list(state->child, rules, errors, print_width);
-
-    if(r == CHK_ERROR)  // Propagate error
-      return false;
+    g_check_id_only = false;
 
     if(r == CHK_NOT_FOUND)  // End of list
       break;
 
-    // Child found
+    // Defer full validation of this child to the worklist.
+    g_worklist = ponyint_stack_push(g_worklist, (void*)g_matched_fn);
+    g_worklist = ponyint_stack_push(g_worklist, state->child);
+
     state->child = ast_sibling(state->child);
     state->child_index++;
     found_count++;
@@ -280,6 +300,7 @@ static check_res_t check_extras(ast_t* ast, check_state_t* state,
   { \
     const token_id ids[] = { __VA_ARGS__, TK_EOF }; \
     if(!is_id_in_list(ast_id(ast), ids)) return CHK_NOT_FOUND; \
+    if(g_check_id_only) return CHK_OK; \
     check_state_t state = {SCOPE_NO, false, NULL, NULL, 0, errors}; \
     state.child = ast_child(ast); \
     def \
@@ -333,9 +354,35 @@ void check_tree(ast_t* tree, pass_opt_t* opt)
 #else
   // Only check tree in debug builds.
   pony_assert(tree != NULL);
-  check_res_t r = check_root(tree, opt->check.errors, opt->ast_print_width);
-  pony_assert(r != CHK_ERROR);
 
-  // Ignore CHK_NOT_FOUND, that means we weren't given a whole tree.
+  g_worklist = NULL;
+  g_has_error = false;
+
+  errors_t* errors = opt->check.errors;
+  size_t print_width = opt->ast_print_width;
+
+  check_res_t r = check_root(tree, errors, print_width);
+
+  if(r == CHK_ERROR)
+    g_has_error = true;
+
+  // Process deferred child validations iteratively.
+  while(g_worklist != NULL)
+  {
+    ast_t* node;
+    check_fn_t fn;
+    g_worklist = ponyint_stack_pop(g_worklist, (void**)&node);
+    g_worklist = ponyint_stack_pop(g_worklist, (void**)&fn);
+
+    r = fn(node, errors, print_width);
+
+    if(r == CHK_ERROR)
+      g_has_error = true;
+  }
+
+  pony_assert(!g_has_error);
+
+  // Ignore CHK_NOT_FOUND from check_root, that means we weren't given a
+  // whole tree.
 #endif
 }
