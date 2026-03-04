@@ -66,8 +66,8 @@ static size_t print_stats_interval;
 void print_scheduler_stats(scheduler_t* sched)
 {
   printf("Scheduler stats for index: %d, "
-        "total memory allocated: %" PRIu64 ", "
-        "total memory used: %" PRIu64 ", "
+        "total memory allocated: %" PRId64 ", "
+        "total memory used: %" PRId64 ", "
         "created actors counter: %lu, "
         "destroyed actors counter: %lu, "
         "actors app cpu: %lu, "
@@ -76,9 +76,9 @@ void print_scheduler_stats(scheduler_t* sched)
         "actors system cpu: %lu, "
         "scheduler msgs cpu: %lu, "
         "scheduler misc cpu: %lu, "
-        "memory used inflight messages: %" PRIu64 ", "
-        "memory allocated inflight messages: %" PRIu64 ", "
-        "number of inflight messages: %" PRIu64 "\n",
+        "memory used inflight messages: %" PRId64 ", "
+        "memory allocated inflight messages: %" PRId64 ", "
+        "number of inflight messages: %" PRId64 "\n",
         sched->index,
         sched->ctx.schedulerstats.mem_used + sched->ctx.schedulerstats.mem_used_actors,
         sched->ctx.schedulerstats.mem_allocated + sched->ctx.schedulerstats.mem_allocated_actors,
