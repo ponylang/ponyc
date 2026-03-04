@@ -324,9 +324,9 @@ install: build
 	$(SILENT)if [ -f $(outDir)/libponyc-standalone.a ]; then cp $(outDir)/libponyc-standalone.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
-	$(SILENT)cp $(outDir)/pony-lsp $(ponydir)/bin
-	$(SILENT)cp $(outDir)/pony-lint $(ponydir)/bin
-	$(SILENT)cp $(outDir)/pony-doc $(ponydir)/bin
+	$(SILENT)if [ -f $(outDir)/pony-lsp ]; then cp $(outDir)/pony-lsp $(ponydir)/bin; fi
+	$(SILENT)if [ -f $(outDir)/pony-lint ]; then cp $(outDir)/pony-lint $(ponydir)/bin; fi
+	$(SILENT)if [ -f $(outDir)/pony-doc ]; then cp $(outDir)/pony-doc $(ponydir)/bin; fi
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
 	$(SILENT)cp -r packages $(ponydir)/
@@ -335,9 +335,9 @@ ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
-	$(SILENT)ln -s -f $(ponydir)/bin/pony-lsp $(prefix)/bin/pony-lsp
-	$(SILENT)ln -s -f $(ponydir)/bin/pony-lint $(prefix)/bin/pony-lint
-	$(SILENT)ln -s -f $(ponydir)/bin/pony-doc $(prefix)/bin/pony-doc
+	$(SILENT)if [ -f $(ponydir)/bin/pony-lsp ]; then ln -s -f $(ponydir)/bin/pony-lsp $(prefix)/bin/pony-lsp; fi
+	$(SILENT)if [ -f $(ponydir)/bin/pony-lint ]; then ln -s -f $(ponydir)/bin/pony-lint $(prefix)/bin/pony-lint; fi
+	$(SILENT)if [ -f $(ponydir)/bin/pony-doc ]; then ln -s -f $(ponydir)/bin/pony-doc $(prefix)/bin/pony-doc; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc.a $(prefix)/lib/libponyc.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc-standalone.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc-standalone.a $(prefix)/lib/libponyc-standalone.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/libponyrt.a; fi
