@@ -122,3 +122,30 @@ TEST_F(ObjectTest, ObjectProvidesNestedUnionTypeAliasProvides)
   TEST_ERRORS_1(src, "invalid provides type. Can only be interfaces, traits and intersects of those.");
 }
 
+TEST_F(ObjectTest, ObjectProvidesEnclosingTrait)
+{
+  // From issue #4451: object literal inside a trait method that implements
+  // the same trait should compile without crashing.
+  const char* src =
+    "trait Printer\n"
+    "  fun double(): Printer =>\n"
+    "    object ref is Printer\n"
+    "      fun apply() => None\n"
+    "    end\n"
+    "  fun apply() => None\n";
+  TEST_COMPILE(src);
+}
+
+TEST_F(ObjectTest, ObjectProvidesEnclosingTraitWithTypeParams)
+{
+  // Variant of issue #4451 with type parameters on the trait.
+  const char* src =
+    "trait Printer[A]\n"
+    "  fun double(): Printer[A] =>\n"
+    "    object ref is Printer[A]\n"
+    "      fun apply() => None\n"
+    "    end\n"
+    "  fun apply() => None\n";
+  TEST_COMPILE(src);
+}
+
