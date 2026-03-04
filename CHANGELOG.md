@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix pool_memalign crash due to insufficient alignment for AVX instructions ([PR #4909](https://github.com/ponylang/ponyc/pull/4909))
 - Fix `assignment-indent` to require RHS indented relative to assignment ([PR #4913](https://github.com/ponylang/ponyc/pull/4913))
+- Fix tool install with `use` flags ([PR #4915](https://github.com/ponylang/ponyc/pull/4915))
 
 ### Added
 
