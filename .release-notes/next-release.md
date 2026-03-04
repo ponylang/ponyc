@@ -44,3 +44,18 @@ To preserve the old behavior (never decommit), build with `make configure use=po
 
 Applications compiled against the runtime which prints periodic scheduler statistics will now display the correct memory usage values per scheduler and for messages "in-flight".
 
+## Fix compiler crash when object literal implements enclosing trait
+
+The compiler crashed with an assertion failure when an object literal inside a trait method implemented the same trait. This code would crash the compiler regardless of whether the trait was used:
+
+```pony
+trait Printer
+  fun double(): Printer =>
+    object ref is Printer
+      fun apply() => None
+    end
+  fun apply() => None
+```
+
+This is now accepted. The object literal correctly creates an anonymous class that implements the enclosing trait, and inherited methods that reference the object literal work as expected.
+
