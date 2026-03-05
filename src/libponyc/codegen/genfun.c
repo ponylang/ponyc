@@ -929,10 +929,10 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
 
           case TK_TRN:
           case TK_REF:
+          case TK_TAG:
             break;
 
           case TK_VAL:
-          case TK_TAG:
           case TK_BOX:
             LLVMAddAttributeAtIndex(fun, i + offset, readonly_attr);
             break;
