@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Update to LLVM 21.1.8 ([PR #4876](https://github.com/ponylang/ponyc/pull/4876))
+- Exempt unsplittable string literals from line length rule ([PR #4923](https://github.com/ponylang/ponyc/pull/4923))
 
 ## [0.61.0] - 2026-02-28
 
