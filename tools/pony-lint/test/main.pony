@@ -69,6 +69,18 @@ actor \nodoc\ Main is TestList
     test(_TestLineLengthMultiByteUTF8)
     test(_TestLineLengthEmptyLine)
     test(_TestLineLengthProperty)
+    test(_TestLineLengthStringExemptNoSpaces)
+    test(_TestLineLengthStringNotExemptSpaces)
+    test(_TestLineLengthStringBeforeCol80)
+    test(_TestLineLengthStringAfterCol80)
+    test(_TestLineLengthStringEndsAtCol80)
+    test(_TestLineLengthDocstringNoExempt)
+    test(_TestLineLengthMultipleStringsOneExempt)
+    test(_TestLineLengthEscapedQuotes)
+    test(_TestLineLengthTripleQuoteLineNoExempt)
+    test(_TestLineLengthStringExemptUTF8)
+    test(_TestLineLengthStringExemptProperty)
+    test(_TestLineLengthStringFlaggedProperty)
 
     // TrailingWhitespace tests
     test(_TestTrailingWhitespaceSpace)
