@@ -2017,3 +2017,252 @@ TEST_F(SugarTest, AsOperatorWithLambdaType)
 
   TEST_COMPILE(short_form);
 }
+
+
+// Compile-time string literal concatenation
+
+TEST_F(SugarTest, StringConcatBasic)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"abc\" + \"def\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"abcdef\"";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatChain)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"a\" + \"b\" + \"c\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"abc\"";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatEmptyLeft)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"\" + \"abc\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"abc\"";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatBothEmpty)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"\" + \"\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"\"";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatNoFoldRight)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    \"abc\" + x";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    \"abc\".add(x)";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatNoFoldLeft)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    x + \"abc\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    x.add(\"abc\")";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatChainLiteralsBeforeVar)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    \"a\" + \"b\" + x";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    \"ab\".add(x)";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatChainLiteralsAfterVar)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    x + \"a\" + \"b\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    x.add(\"ab\")";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatChainVarBetweenLiterals)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    \"a\" + x + \"b\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    \"a\".add(x).add(\"b\")";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatChainLiteralsBothEnds)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    \"a\" + \"b\" + x + \"c\" + \"d\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    \"ab\".add(x).add(\"cd\")";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatChainMultipleVars)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(x: String): String val =>\n"
+    "    \"a\" + \"b\" + x + \"c\" + \"d\" + x + \"e\" + \"f\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(x: String): String val =>\n"
+    "    \"ab\".add(x).add(\"cd\").add(x).add(\"ef\")";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatEmbeddedNull)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"ab\\x00cd\" + \"ef\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"ab\\x00cdef\"";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, StringConcatTrailingNull)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): String val =>\n"
+    "    \"ab\\x00\" + \"cd\"";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): String val =>\n"
+    "    \"ab\\x00cd\"";
+
+  TEST_EQUIV(short_form, full_form);
+}
