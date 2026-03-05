@@ -1,0 +1,18 @@
+diff --git a/llvm/lib/Transforms/Utils/InlineFunction.cpp b/llvm/lib/Transforms/Utils/InlineFunction.cpp
+index abcdef1234..abcdef5678 100644
+--- a/llvm/lib/Transforms/Utils/InlineFunction.cpp
++++ b/llvm/lib/Transforms/Utils/InlineFunction.cpp
+@@ -1397,8 +1397,10 @@ static void propagateMemoryAccessAttrs(
+     // Access attributes can be propagated to any param with the same underlying
+     // object as the argument.
+     if (CB.paramHasAttr(I, Attribute::ReadNone))
+       ValidObjParamAttrs.back().addAttribute(Attribute::ReadNone);
+-    if (CB.paramHasAttr(I, Attribute::ReadOnly))
+-      ValidObjParamAttrs.back().addAttribute(Attribute::ReadOnly);
++    // Pony patch: do not propagate readonly from callee parameters to inner
++    // call sites during inlining. Pony's capability system marks FFI wrapper
++    // parameters as readonly, but C code may write through those pointers.
++    // See: https://github.com/ponylang/ponyc/issues/4925
+
+     for (Attribute::AttrKind AK : ExactAttrsToPropagate) {
+       Attribute Attr = CB.getParamAttr(I, AK);
