@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Compile-time string literal concatenation ([PR #4900](https://github.com/ponylang/ponyc/pull/4900))
 
 ### Changed
 
