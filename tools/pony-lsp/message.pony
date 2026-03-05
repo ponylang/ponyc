@@ -195,7 +195,7 @@ primitive ErrorCodes
 	  NOT send this error code if it detects a content change
 	  in it unprocessed messages. The result even computed
 	  on an older state might still be useful for the client.
-	 
+
 	  If a client decides that a result is not of any use anymore
 	  the client should cancel the request.
     """
@@ -207,12 +207,3 @@ primitive ErrorCodes
 	  the cancel.
     """
     -32800
-
-
-trait tag RequestSender
-  """
-  Describes some entity that supports sending LSP requests.
-
-  It needs to keep track of outgoing request ids.
-  """
-  be send_request(method: String val, params: (JsonObject | JsonArray | None))
