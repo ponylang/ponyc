@@ -91,6 +91,7 @@ typedef struct compile_frame_t
   bool is_function;
   bool early_termination;
   bool bare_function;
+  bool has_ffi_call;
   deferred_reification_t* reify;
 
   struct compile_frame_t* prev;

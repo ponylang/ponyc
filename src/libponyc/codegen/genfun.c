@@ -890,6 +890,7 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
   LLVMValueRef fun)
 {
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
 
   LLVMValueRef param = LLVMGetFirstParam(fun);
   reach_type_t* type = t;
@@ -928,9 +929,12 @@ void genfun_param_attrs(compile_t* c, reach_type_t* t, reach_method_t* m,
 
           case TK_TRN:
           case TK_REF:
-          case TK_TAG:
+            break;
+
           case TK_VAL:
+          case TK_TAG:
           case TK_BOX:
+            LLVMAddAttributeAtIndex(fun, i + offset, readonly_attr);
             break;
 
           default:

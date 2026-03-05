@@ -1271,6 +1271,20 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
+  // Mark that the enclosing function contains an FFI call.
+  {
+    compile_frame_t* f = c->frame;
+    while(f != NULL)
+    {
+      if(f->is_function)
+      {
+        f->has_ffi_call = true;
+        break;
+      }
+      f = f->prev;
+    }
+  }
+
   // If we can error out and we have an invoke target, generate an invoke
   // instead of a call.
   LLVMValueRef result;

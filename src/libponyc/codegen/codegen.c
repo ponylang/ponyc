@@ -1037,6 +1037,13 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
 
 void codegen_finishfun(compile_t* c)
 {
+  if(c->frame->has_ffi_call && c->frame->fun != NULL)
+  {
+    LLVM_DECLARE_ATTRIBUTEREF(noinline_attr, noinline, 0);
+    LLVMAddAttributeAtIndex(c->frame->fun, LLVMAttributeFunctionIndex,
+      noinline_attr);
+  }
+
   pop_frame(c);
 }
 
