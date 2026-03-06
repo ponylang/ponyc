@@ -1,6 +1,11 @@
 # pony-lsp - the Pony Language Server
 
-This language server is communicating with LSP-clients (editors) via stdout/stdin.
+`pony-lsp` implements the [Language Server Protocol] for Pony. It communicates with editors via stdout/stdin, and is built and distributed alongside `ponyc` via `ponyup`.
+
+For user documentation — installation and editor configuration — see the [pony-lsp documentation] on the Ponylang website.
+
+[Language Server Protocol]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/
+[pony-lsp documentation]: https://www.ponylang.io/use/pony-lsp/
 
 ## Feature Support
 
@@ -11,17 +16,19 @@ This language server is communicating with LSP-clients (editors) via stdout/stdi
 | **Go To Definition** | For most language constructs, you can go from a reference to its definition. |
 | **Document Symbols** | pony-lsp provides a list of available symbols for each opened document. |
 
-We are constantly working on adding new features, but also welcome all contributions and offer help and guidance for implementing any feature.
+New features are actively being added. Contributions are welcome — we are happy to provide help and guidance.
 
 ## Settings
 
-`pony-lsp` supports settings via `workspace/configuration` request and `workspace/didChangeConfiguration`.
-It expects the following optional settings:
+`pony-lsp` supports settings via the [`workspace/configuration`] request and [`workspace/didChangeConfiguration`] notification.
 
-| **Name** | **Type** | **Example** | **Description** |
-| ---- | ---- | ------- | ----------- |
-| **defines** | `Array[String]` | `["FOO", "BAR"]` | Defines active during compilation. These are usually set when using `ponyc` using `-D` |
-| **ponypath** | `Array[String]` | `["/path/to/pony/package", "/another/path"]` | An array of paths which are added to the package search paths of `pony-lsp` |
+[`workspace/configuration`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_configuration
+[`workspace/didChangeConfiguration`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_didChangeConfiguration
+
+| **Setting** | **Type** | **Example** | **Description** |
+| ------- | ---- | ------- | ----------- |
+| `defines` | `Array[String]` | `["FOO", "BAR"]` | Defines active during compilation, equivalent to the `-D` flag in `ponyc` |
+| `ponypath` | `Array[String]` | `["/path/to/pony/package"]` | Additional package search paths |
 
 Example settings in JSON:
 
@@ -32,22 +39,18 @@ Example settings in JSON:
 }
 ```
 
-## Getting pony-lsp
-
-`pony-lsp` is distributed via `ponyup` alongside ponyc, so installing a recent `ponyc` will also give you `pony-lsp`.
-
-Checkout the [Ponyc installation instructions](/INSTALL.md) on how to install `ponyc` (and `pony-lsp` at the same time).
-
 ## Building from source
 
-First checkout [the ponyc build documentation](/BUILD.md) and make sure you have
-everything necessary available to build `ponyc`. Then building `pony-lsp` should be as simple as:
+First, follow the [ponyc build documentation] and make sure you have everything to build `ponyc`. Then building `pony-lsp` is as easy as:
 
 ```bash
 make pony-lsp
 ```
 
+[ponyc build documentation]: ../../BUILD.md
+
 ## Reporting Issues
 
-The best support and feedback you can give us, is when the pony-lsp is not working as expected.
-Please provide a minimal Pony program to reproduce this issue, document the `pony-lsp` version you are using and the lsp-client/editor you are using.
+If `pony-lsp` is not working as expected, please [open an issue]. Include a minimal Pony program that reproduces the problem, the `pony-lsp` version, and the LSP client/editor you are using.
+
+[open an issue]: https://github.com/ponylang/ponyc/issues/new
