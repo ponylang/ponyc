@@ -34,7 +34,7 @@ The build system defaults to using Clang on Unix.  In order to use GCC, you must
 ## FreeBSD
 
 ```bash
-pkg install -y cmake gmake libunwind git
+pkg install -y cmake gmake libunwind git python3
 gmake libs
 gmake configure
 gmake build

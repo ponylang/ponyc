@@ -1,0 +1,92 @@
+name: ponyc Tier 3
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to check out and test (branch, tag, or SHA)"
+        required: false
+        default: "main"
+  schedule:
+    - cron: "0 3 * * 6"
+
+concurrency:
+  group: ponyc-tier3-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
+jobs:
+  check-for-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      has-changes: ${{ steps.check.outputs.has-changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+      - name: Check for recent commits
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          elif git log --since="7 days ago" --oneline | head -1 | grep -q .; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  freebsd:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '14.3'
+            name: x86-64 FreeBSD 14.3
+          - version: '15.0'
+            name: x86-64 FreeBSD 15.0
+
+    name: ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Build and Test
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: freebsd
+          version: '${{ matrix.version }}'
+          cpu_count: 4
+          run: |
+            sudo pkg install -y cmake gmake libunwind git python3
+            gmake libs build_flags=-j4
+            gmake configure config=debug
+            gmake build config=debug
+            gmake test-ci-core config=debug
+            gmake test-pony-doc config=debug
+            gmake test-pony-lint config=debug
+            gmake test-pony-lsp config=debug
+            gmake lint-pony-lint config=debug
+            gmake configure config=release
+            gmake build config=release
+            gmake test-ci-core config=release
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
