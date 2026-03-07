@@ -20,21 +20,9 @@ permissions:
 
 jobs:
   tools:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Lint pony-lint
-            target: lint-pony-lint
-          - name: Test pony-lsp
-            target: test-pony-lsp
-          - name: Test pony-doc
-            target: test-pony-doc
-          - name: Test pony-lint
-            target: test-pony-lint
     if: github.event.pull_request.draft == false
-    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    name: Tools
     container:
       image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
       options: --user pony
@@ -54,5 +42,11 @@ jobs:
         run: |
           make configure config=debug
           make build config=debug
-      - name: ${{ matrix.name }}
-        run: make ${{ matrix.target }} config=debug
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
+      - name: Lint pony-lint
+        run: make lint-pony-lint config=debug
