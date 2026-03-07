@@ -25,6 +25,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # We require LLVM, Google Test and Google Benchmark
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
+    find_package(LLD REQUIRED CONFIG PATHS "build/libs/lib/cmake/lld" "build/libs/lib64/cmake/lld" NO_DEFAULT_PATH)
     find_package(GTest REQUIRED CONFIG PATHS "build/libs/lib/cmake/GTest" "build/libs/lib64/cmake/GTest" NO_DEFAULT_PATH)
     find_package(benchmark REQUIRED CONFIG PATHS "build/libs/lib/cmake/benchmark" "build/libs/lib64/cmake/benchmark" NO_DEFAULT_PATH)
 endif()
@@ -215,6 +216,8 @@ if(NOT PONY_CROSS_LIBPONYRT)
 
     llvm_map_components_to_libnames(PONYC_LLVM_LIBS ${LLVM_COMPONENTS})
     # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
+
+    set(PONYC_LLD_LIBS lldELF lldMachO lldCOFF lldWasm lldMinGW lldCommon)
 endif()
 
 # Required definitions.  We use these generators so that the defines are correct for both *nix (where the config applies at configuration time) and Windows (where the config applies at build time).
@@ -294,6 +297,9 @@ set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
 if (PONY_CROSS_LIBPONYRT)
     add_subdirectory(src/libponyrt)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_subdirectory(src/crt)
+    endif()
     install(TARGETS libponyrt)
 else()
     add_subdirectory(src/libponyc)
@@ -307,6 +313,10 @@ else()
 
     add_subdirectory(benchmark/libponyc)
     add_subdirectory(benchmark/libponyrt)
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_subdirectory(src/crt)
+    endif()
 
     add_subdirectory(tools/pony-lsp)
     add_subdirectory(tools/pony-lint)

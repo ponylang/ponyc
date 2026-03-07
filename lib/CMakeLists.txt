@@ -144,4 +144,6 @@ if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
 endif()
 
+set(LLVM_ENABLE_PROJECTS "lld" CACHE STRING "ponyc: build LLD as an LLVM sub-project")
+
 add_subdirectory(llvm/src/llvm)

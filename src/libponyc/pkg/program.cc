@@ -19,6 +19,12 @@ typedef struct program_t
   size_t lib_args_size;
   size_t lib_args_alloced;
   char* lib_args;
+
+  // Embedded LLD support (set by program_lib_build_args_embedded)
+  const char** embedded_paths;
+  size_t embedded_path_count;
+  const char** embedded_libs;
+  size_t embedded_lib_count;
 } program_t;
 
 
@@ -57,6 +63,11 @@ program_t* program_create()
   p->lib_args_size = -1;
   p->lib_args = NULL;
 
+  p->embedded_paths = NULL;
+  p->embedded_path_count = 0;
+  p->embedded_libs = NULL;
+  p->embedded_lib_count = 0;
+
   return p;
 }
 
@@ -75,6 +86,16 @@ void program_free(program_t* program)
 
   if(program->lib_args != NULL)
     ponyint_pool_free_size(program->lib_args_alloced, program->lib_args);
+
+  if(program->embedded_paths != NULL)
+    ponyint_pool_free_size(
+      program->embedded_path_count * sizeof(const char*),
+      program->embedded_paths);
+
+  if(program->embedded_libs != NULL)
+    ponyint_pool_free_size(
+      program->embedded_lib_count * sizeof(const char*),
+      program->embedded_libs);
 
   POOL_FREE(program_t, program);
 }
@@ -189,6 +210,7 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
   program_t* data = (program_t*)ast_data(program);
   pony_assert(data != NULL);
   pony_assert(data->lib_args == NULL); // Not yet built args
+  pony_assert(data->embedded_paths == NULL); // Mutually exclusive
 
   // Start with an arbitrary amount of space
   data->lib_args_alloced = 256;
@@ -265,6 +287,135 @@ const char* program_lib_args(ast_t* program)
   pony_assert(data->lib_args != NULL); // Args have been built
 
   return data->lib_args;
+}
+
+
+// Strip the surrounding quotes added by quoted_locator().
+static const char* unquote(const char* quoted)
+{
+  pony_assert(quoted != NULL);
+
+  size_t len = strlen(quoted);
+  pony_assert(len >= 2);
+  pony_assert(quoted[0] == '"');
+  pony_assert(quoted[len - 1] == '"');
+
+  size_t unquoted_len = len - 2;
+  char* buf = (char*)ponyint_pool_alloc_size(unquoted_len + 1);
+  memcpy(buf, quoted + 1, unquoted_len);
+  buf[unquoted_len] = '\0';
+
+  return stringtab_consume(buf, unquoted_len + 1);
+}
+
+
+void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+  pony_assert(data->lib_args == NULL); // Mutually exclusive
+  pony_assert(data->embedded_paths == NULL); // Not yet built
+
+  // Count valid paths from source code and CLI/PONYPATH.
+  // Two-pass: first count valid entries, then allocate exactly.
+  size_t path_count = 0;
+  for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
+    path_count++;
+  for(strlist_t* p = opt->package_search_paths; p != NULL; p = strlist_next(p))
+  {
+    if(quoted_locator(opt, NULL, strlist_data(p)) != NULL)
+      path_count++;
+  }
+
+  // Allocate and populate path array.
+  if(path_count > 0)
+  {
+    data->embedded_paths = (const char**)ponyint_pool_alloc_size(
+      path_count * sizeof(const char*));
+    data->embedded_path_count = path_count;
+
+    size_t i = 0;
+    for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
+      data->embedded_paths[i++] = unquote(strlist_data(p));
+
+    for(strlist_t* p = opt->package_search_paths; p != NULL;
+      p = strlist_next(p))
+    {
+      const char* quoted = quoted_locator(opt, NULL, strlist_data(p));
+      if(quoted != NULL)
+        data->embedded_paths[i++] = unquote(quoted);
+    }
+  }
+
+  // Count libraries.
+  size_t lib_count = 0;
+  for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
+    lib_count++;
+
+  // Allocate and populate library array.
+  if(lib_count > 0)
+  {
+    data->embedded_libs = (const char**)ponyint_pool_alloc_size(
+      lib_count * sizeof(const char*));
+    data->embedded_lib_count = lib_count;
+
+    size_t i = 0;
+    for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
+      data->embedded_libs[i++] = unquote(strlist_data(p));
+  }
+}
+
+
+size_t program_lib_path_count(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  return data->embedded_path_count;
+}
+
+
+const char* program_lib_path_at(ast_t* program, size_t index)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+  pony_assert(index < data->embedded_path_count);
+
+  return data->embedded_paths[index];
+}
+
+
+size_t program_lib_count(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  return data->embedded_lib_count;
+}
+
+
+const char* program_lib_at(ast_t* program, size_t index)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+  pony_assert(index < data->embedded_lib_count);
+
+  return data->embedded_libs[index];
 }
 
 
@@ -392,6 +543,11 @@ static void program_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->lib_args_size = program->lib_args_size;
   dst->lib_args_alloced = program->lib_args_size + 1;
 
+  dst->embedded_paths = NULL;
+  dst->embedded_path_count = 0;
+  dst->embedded_libs = NULL;
+  dst->embedded_lib_count = 0;
+
   ptr_offset = pony_serialise_offset(ctx, program->lib_args);
   dst->lib_args = (char*)ptr_offset;
 
@@ -416,6 +572,11 @@ static void program_deserialise(pony_ctx_t* ctx, void* object)
     (uintptr_t)program->libs);
   program->lib_args = (char*)pony_deserialise_block(ctx,
     (uintptr_t)program->lib_args, program->lib_args_size + 1);
+
+  program->embedded_paths = NULL;
+  program->embedded_path_count = 0;
+  program->embedded_libs = NULL;
+  program->embedded_lib_count = 0;
 }
 
 
