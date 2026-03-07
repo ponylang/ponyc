@@ -549,12 +549,131 @@ static bool is_x_sub_isect(ast_t* sub, ast_t* super, check_cap_t check_cap,
   return true;
 }
 
+// Expand a type by distributing tuples over unions into a union of tuples.
+// Returns a TK_UNIONTYPE containing all expanded alternatives, or NULL if
+// the expansion would exceed max_alternatives.
+//
+// For TK_UNIONTYPE: collects alternatives from all members.
+// For TK_TUPLETYPE: computes the cross-product of each element's alternatives.
+// For anything else: returns a 1-element union containing a copy of the type.
+static ast_t* expand_type_alternatives(ast_t* type, size_t max_alternatives)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      ast_t* result = ast_from(type, TK_UNIONTYPE);
+
+      for(ast_t* child = ast_child(type);
+        child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* child_alts = expand_type_alternatives(child, max_alternatives);
+
+        if(child_alts == NULL)
+        {
+          ast_free_unattached(result);
+          return NULL;
+        }
+
+        for(ast_t* alt = ast_child(child_alts);
+          alt != NULL;
+          alt = ast_sibling(alt))
+        {
+          ast_append(result, ast_dup(alt));
+        }
+
+        ast_free_unattached(child_alts);
+
+        if(ast_childcount(result) > max_alternatives)
+        {
+          ast_free_unattached(result);
+          return NULL;
+        }
+      }
+
+      return result;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      // Start with a single empty tuple.
+      ast_t* result = ast_from(type, TK_UNIONTYPE);
+      ast_append(result, ast_from(type, TK_TUPLETYPE));
+
+      for(ast_t* child = ast_child(type);
+        child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* child_alts = expand_type_alternatives(child, max_alternatives);
+
+        if(child_alts == NULL)
+        {
+          ast_free_unattached(result);
+          return NULL;
+        }
+
+        ast_t* new_result = ast_from(type, TK_UNIONTYPE);
+
+        for(ast_t* partial = ast_child(result);
+          partial != NULL;
+          partial = ast_sibling(partial))
+        {
+          for(ast_t* alt = ast_child(child_alts);
+            alt != NULL;
+            alt = ast_sibling(alt))
+          {
+            ast_t* new_tuple = ast_dup(partial);
+            ast_append(new_tuple, ast_dup(alt));
+            ast_append(new_result, new_tuple);
+          }
+        }
+
+        ast_free_unattached(result);
+        ast_free_unattached(child_alts);
+        result = new_result;
+
+        if(ast_childcount(result) > max_alternatives)
+        {
+          ast_free_unattached(result);
+          return NULL;
+        }
+      }
+
+      return result;
+    }
+
+    default:
+    {
+      ast_t* result = ast_from(type, TK_UNIONTYPE);
+      ast_append(result, ast_dup(type));
+      return result;
+    }
+  }
+}
+
+// If type is a tuple containing union elements, expand it into an equivalent
+// union of tuples. Returns the expanded union, or NULL if no expansion is
+// needed or the expansion would be too large.
+static ast_t* expand_tuple_unions(ast_t* type)
+{
+  if(ast_id(type) != TK_TUPLETYPE)
+    return NULL;
+
+  ast_t* expanded = expand_type_alternatives(type, 256);
+
+  if((expanded == NULL) || (ast_childcount(expanded) <= 1))
+  {
+    ast_free_unattached(expanded);
+    return NULL;
+  }
+
+  return expanded;
+}
+
 static bool is_x_sub_union(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
-  // TODO: a tuple of unions may be a subtype of a union of tuples without
-  // being a subtype of any one element.
-
   // T1 <: T2 or T1 <: T3
   // ---
   // T1 <: (T2 | T3)
@@ -564,6 +683,35 @@ static bool is_x_sub_union(ast_t* sub, ast_t* super, check_cap_t check_cap,
   {
     if(is_x_sub_x(sub, child, check_cap, NULL, opt))
       return true;
+  }
+
+  // A tuple of unions may be a subtype of a union of tuples without being a
+  // subtype of any one element. Expand the tuple into a union of tuples
+  // (cross-product) and check if every alternative is covered.
+  if(ast_id(sub) == TK_TUPLETYPE)
+  {
+    ast_t* expanded = expand_tuple_unions(sub);
+
+    if(expanded != NULL)
+    {
+      bool all_match = true;
+
+      for(ast_t* alt = ast_child(expanded);
+        alt != NULL;
+        alt = ast_sibling(alt))
+      {
+        if(!is_x_sub_x(alt, super, check_cap, NULL, opt))
+        {
+          all_match = false;
+          break;
+        }
+      }
+
+      ast_free_unattached(expanded);
+
+      if(all_match)
+        return true;
+    }
   }
 
   if(errorf != NULL)
