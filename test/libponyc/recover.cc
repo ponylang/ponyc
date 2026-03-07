@@ -944,6 +944,112 @@ TEST_F(RecoverTest, CantAutoRecover_CtorAssignmentWithNonSendableArg)
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
 
+// Issue #4459 - generic field with #any in recover
+TEST_F(RecoverTest, CantRecover_GenericFieldAny)
+{
+  const char* src =
+    "class Foo[T]\n"
+    "  let _t: T\n"
+    "  new create(t': T) => _t = consume t'\n"
+    "  fun box get(): T^ =>\n"
+    "    recover _t end\n";
+
+  TEST_ERRORS_1(src,
+    "can't access non-sendable field of non-sendable object inside of a "
+    "recover expression");
+}
+
+// Issue #4459 - generic field with #read in recover
+TEST_F(RecoverTest, CantRecover_GenericFieldRead)
+{
+  const char* src =
+    "class Foo[T: Any #read]\n"
+    "  let _t: T\n"
+    "  new create(t': T) => _t = consume t'\n"
+    "  fun box get(): T^ =>\n"
+    "    recover _t end\n";
+
+  TEST_ERRORS_1(src,
+    "can't access non-sendable field of non-sendable object inside of a "
+    "recover expression");
+}
+
+// Issue #4459 - generic field with #alias in recover
+TEST_F(RecoverTest, CantRecover_GenericFieldAlias)
+{
+  const char* src =
+    "class Foo[T: Any #alias]\n"
+    "  let _t: T\n"
+    "  new create(t': T) => _t = consume t'\n"
+    "  fun box get(): T^ =>\n"
+    "    recover _t end\n";
+
+  TEST_ERRORS_1(src,
+    "can't access non-sendable field of non-sendable object inside of a "
+    "recover expression");
+}
+
+// Issue #4459 - generic field with #send in recover: field access is allowed
+// (all instantiations of #send are sendable) even though the recovery
+// expression itself may not fully type-check for unrelated reasons.
+TEST_F(RecoverTest, CanRecover_GenericFieldSend)
+{
+  const char* src =
+    "class Foo[T: Any #send]\n"
+    "  let _t: T\n"
+    "  new create(t': T) => _t = consume t'\n"
+    "  fun box check(): None =>\n"
+    "    recover\n"
+    "      _t\n"
+    "      None\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+}
+
+// Issue #4459 - generic field with #share in recover should compile
+TEST_F(RecoverTest, CanRecover_GenericFieldShare)
+{
+  const char* src =
+    "class Foo[T: Any #share]\n"
+    "  let _t: T\n"
+    "  new create(t': T) => _t = consume t'\n"
+    "  fun box get(): T^ =>\n"
+    "    recover _t end\n";
+
+  TEST_COMPILE(src);
+}
+
+// Regression guard: concrete val field in recover still works
+TEST_F(RecoverTest, CanRecover_ConcreteValField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Foo\n"
+    "  let _t: Inner val\n"
+    "  new create() => _t = Inner\n"
+    "  fun box get(): Inner val =>\n"
+    "    recover _t end\n";
+
+  TEST_COMPILE(src);
+}
+
+// Regression guard: concrete box field in recover still rejected
+TEST_F(RecoverTest, CantRecover_ConcreteBoxField)
+{
+  const char* src =
+    "class Inner\n"
+    "class Foo\n"
+    "  let _t: Inner box\n"
+    "  new create(t': Inner box) => _t = t'\n"
+    "  fun box get(): Inner val =>\n"
+    "    recover val _t end\n";
+
+  TEST_ERRORS_1(src,
+    "can't access non-sendable field of non-sendable object inside of a "
+    "recover expression");
+}
+
 TEST_F(RecoverTest, CantAutoRecover_CtorParamToComplexTypeWithNonSendableArg)
 {
   const char* src =
