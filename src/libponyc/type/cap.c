@@ -1024,22 +1024,6 @@ bool cap_mutable(token_id cap)
   }
 }
 
-bool cap_immutable_or_opaque(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_VAL:
-    case TK_BOX:
-    case TK_TAG:
-    case TK_CAP_SHARE:
-      return true;
-
-    default: {}
-  }
-
-  return false;
-}
-
 static ast_t* modified_cap_single(ast_t* type, cap_mutation* mutation)
 {
   ast_t* cap = cap_fetch(type);

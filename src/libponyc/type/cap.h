@@ -94,8 +94,6 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
 
 bool cap_sendable(token_id cap);
 
-bool cap_immutable_or_opaque(token_id cap);
-
 bool cap_mutable(token_id cap);
 
 /**
