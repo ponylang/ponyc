@@ -21,6 +21,7 @@ actor WorkspaceManager
   After first successful compilation we should have all information at hand to do LSP work.
   i.e. all packages we can move to from opened files in the workspace should be available.
   """
+
   let workspace: WorkspaceData
   let _file_auth: FileAuth
   let _client: Client
@@ -93,6 +94,26 @@ actor WorkspaceManager
     error
 
   be done_compiling(program_dir: FilePath, result: (Program val | Array[Error val] val), run: USize) =>
+    if this._client.supports_window_work_done_progress() then
+      let message =
+        match result
+        | let p: Program val =>
+          "Success"
+        | let errors: Array[Error val] val =>
+          errors.size().string() + " Errors"
+        end
+      this._channel.send(
+        Notification(
+          Methods.progress(),
+          JsonObject
+            .update("token", this._compilation_token(program_dir)) // needs to be done before this.compile_run is updated
+            .update("value", JsonObject
+              .update("kind", "end")
+              .update("message", message)
+            )
+        )
+      )
+    end
     this._compiling = false
     // TODO: check if we are awaiting compilation for some files
     //       and compare their hash against the current document hashes
@@ -105,7 +126,8 @@ actor WorkspaceManager
       let errors_by_file = Map[String, pc.Vec[JsonValue]].create(4)
 
       if this._client.supports_publish_diagnostics() then
-        // pre-fill with errors by file for all currently opened files
+        // pre-fill with empty list of errors for all files for which we have
+        // errors now, so we might clear those errors if compilation is successful
         // if we have no errors for them, they will get their errors cleared
         for pkg in this._packages.values() do
           for doc in pkg.documents.keys() do
@@ -158,8 +180,7 @@ actor WorkspaceManager
           end
           if requires_another_compilation then
             this._channel.log(program_dir.path + " needs another compilation...")
-            this._compiler.compile(program_dir, workspace.dependency_paths, this)
-            this._compiling = true
+            this._compile(program_dir)
           end
         end
       | let errors: Array[Error val] val =>
@@ -242,6 +263,48 @@ actor WorkspaceManager
       " but already received results for run " + this._compile_run.string())
     end
 
+  fun ref _compile(package: FilePath) =>
+    """
+    Central entry point for triggering a compilation.
+
+    Does all the notifying and bookkeeping before actually triggering the compilation.
+    """
+    this._channel.log("Compiling package " + package.path + " with dependency-paths: " + ", ".join(workspace.dependency_paths.values()))
+
+    let token = this._compilation_token(package)
+    if this._client.supports_window_work_done_progress() then
+      let chan = this._channel
+      let progress_begin_notification =
+        Notification(
+          Methods.progress(),
+          JsonObject
+            .update("token", token)
+            .update("value", JsonObject
+              .update("kind", "begin")
+              .update("title", "Compiling " + Path.base(package.path) + " (" + this._compile_run.string() + ")")
+              .update("cancellable", false)
+            )
+        )
+      this._request_sender.send_request(
+        Methods.window().work_done_progress().create(),
+        JsonObject.update("token", token),
+        object is ResponseNotify
+          let _chan: Channel = chan
+          be notify(method: String val, r: ResponseMessage val) =>
+            if r.is_result() then
+              // only send the begin notification when the client prepared the workDoneProgress and confirmed with a successful response
+              _chan.send(progress_begin_notification)
+            end
+        end
+      )
+    end
+    _compiler.compile(package, workspace.dependency_paths, this)
+    _compiling = true
+
+  fun _compilation_token(package: FilePath): String =>
+    recover val
+      String.create(128) .>append("pony-lsp").>append(package.path).>append("/compile/").>append(this._compile_run.string())
+    end
 
   be did_open(document_uri: String, notification: Notification val) =>
     """
@@ -279,8 +342,7 @@ actor WorkspaceManager
         this._awaiting_compilation_for.insert(document_path, current_hash)
       else
         _channel.log("No module found for document " + document_path + ". Need to compile.")
-        _compiler.compile(package, workspace.dependency_paths, this)
-        _compiling = true
+        this._compile(package)
       end
     end
 
@@ -317,9 +379,7 @@ actor WorkspaceManager
         let text_content_hash = try (JsonPathParser.compile("$.text")?.query_one(notification.params) as String).hash() end
         this._awaiting_compilation_for.insert(document_path, text_content_hash)
       else
-        this._channel.log("Compiling package " + package.path + " with dependency-paths: " + ", ".join(workspace.dependency_paths.values()))
-        this._compiler.compile(package, workspace.dependency_paths, this)
-        this._compiling = true
+        this._compile(package)
       end
     else
       _channel.log("document not in workspace: " + document_path)

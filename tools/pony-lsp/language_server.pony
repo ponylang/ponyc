@@ -32,7 +32,7 @@ actor LanguageServer is (Notifier & RequestSender)
 
   // current LSP state
   var _state: _LspState = _Uninitialized
-  var _expect_responses_for: Array[(RequestId, String)]
+  var _expect_responses_for: Array[(RequestId, String, (ResponseNotify | None))]
   var _request_id_gen: I64
   var _client: (Client | None)
 
@@ -155,7 +155,7 @@ actor LanguageServer is (Notifier & RequestSender)
     | _Initialized | _Uninitialized =>
       for i in Range[USize](0, this._expect_responses_for.size()) do
         try
-          (let expected_request_id, let expected_method) = this._expect_responses_for(i)?
+          (let expected_request_id, let expected_method, let maybe_notify) = this._expect_responses_for(i)?
           if
             try
               RequestIds.eq(expected_request_id, (r.id as RequestId))
@@ -171,9 +171,15 @@ actor LanguageServer is (Notifier & RequestSender)
               this.handle_configuration(r)
             | Methods.client().register_capability() =>
               this.handle_register_capability_response(r)
+            | Methods.window().work_done_progress().create() =>
+              this.handle_work_done_progress_create_response(r)
             | let other: String =>
               this._channel.log("Unhandled response method " + other)
             end
+            match maybe_notify
+            | let rn: ResponseNotify => rn.notify(expected_method, r)
+            end
+            return // no need to iterate further
           else
             this._channel.log("Unhandled response\n" + r.json().string())
           end
@@ -220,7 +226,7 @@ actor LanguageServer is (Notifier & RequestSender)
       end
     | Methods.workspace().did_change_configuration() =>
       try
-        let settings = JsonPathParser.compile("$.settings")?.query_one(n.params) as JsonObject
+        let settings = JsonPathParser.compile("$.settings")?.query_one(n.params) as JsonValue
         this.handle_did_change_configuration(settings)
       else
         this._channel.log("[" + n.method + "] Invalid or missing settings")
@@ -341,34 +347,62 @@ actor LanguageServer is (Notifier & RequestSender)
     end
     // if none of these work, we have no way to get our config :(
     if not can_get_settings then
+      // we cannot expect any settings, so signal the compiler that we have nothing for him with an empty settings object
+      this._compiler.apply_settings(Settings.empty())
       this._channel.log("Cannot get ponyc settings workspace." where message_type = Warning)
     end
 
-  fun ref handle_did_change_configuration(params: JsonObject val) =>
-    // example params: {"pony-lsp":{"defines":["FOO","BAR"]}}
-    try
-      let pony_lsp_settings = params("pony-lsp")? as JsonObject
-      let settings = Settings.from_json(pony_lsp_settings)
-      this._channel.log("Received didChangeConfiguration response: " + params.string())
-      this._compiler.apply_settings(settings)
+  fun ref handle_did_change_configuration(settings: JsonValue val) =>
+    // example output: for settings: {"pony-lsp":{"defines":["FOO","BAR"]}}
+    this._channel.log("Received didChangeConfiguration response: " + settings.string())
+    match settings
+    | None =>
+      // this is a signal to pull the settings again, so we do it here
+      try
+        this._channel.log("Received null didChangeConfiguration response: requesting settings from client")
+        if (this._client as Client).supports_configuration() then
+          this.send_configuration_request()
+        end
+      end
+    | let json_settings: JsonObject =>
+      let maybe_settings =
+        try
+          let json_settings_obj = JsonNav(json_settings)("pony-lsp").as_object()?
+          Settings.from_json(json_settings_obj)
+        end
+      this._compiler.apply_settings(maybe_settings)
     else
-      this._channel.log("Invalid didChangeConfiguration response")
+      this._channel.log("[workspace/didChangeConfiguration] No or invalid pony-lsp settings provided.")
+      this._compiler.apply_settings(None) // this is all we got, we still have to initialize the compiler at least once
     end
 
   fun handle_configuration(r: ResponseMessage val) =>
-    try
-      // LSPAny[]
-      let json_settings = (r.result as JsonArray)(0)? as JsonObject
-      this._channel.log("Received workspace/configuration response = " + json_settings.string())
-
-      this._compiler.apply_settings(Settings.from_json(json_settings))
-    end
+    let maybe_settings =
+      try
+        // LSPAny[] - we only read the first one, as we only ever request settings for 1 item
+        let json_settings = (r.result as JsonArray)(0)? as JsonObject
+        this._channel.log("Received workspace/configuration response = " + json_settings.string())
+        Settings.from_json(json_settings)
+      else
+        this._channel.log("[workspace/configuration] No setting provided.")
+      end
+    // even if we have no valid settings, we still call the compiler, as it has
+    // to be initialized with apply_settings at least once
+    this._compiler.apply_settings(maybe_settings)
 
   fun handle_register_capability_response(r: ResponseMessage val) =>
-    // TODO: handle
+    // TODO: handle, check for error
     None
 
-  be send_request(method: String val, params: (JsonObject | JsonArray | None)) =>
+  fun handle_work_done_progress_create_response(r: ResponseMessage val) =>
+    // TODO: handle, check for error
+    None
+
+  be send_request(
+    method: String val,
+    params: (JsonObject | JsonArray | None),
+    notify: (ResponseNotify | None) = None)
+  =>
     let request_id: RequestId = this._next_request_id()
     this._channel.send(
       RequestMessage.create(
@@ -377,7 +411,7 @@ actor LanguageServer is (Notifier & RequestSender)
         params
       )
     )
-    this._expect_responses_for.push((request_id, method))
+    this._expect_responses_for.push((request_id, method, notify))
 
   be register_capability(register_for_method: String val, register_options: JsonValue) =>
     """

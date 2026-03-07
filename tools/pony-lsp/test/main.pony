@@ -16,6 +16,7 @@ actor Main is TestList
     test(_InitializeTest)
     test(_WorkspaceConfigurationTest)
     test(_DidChangeConfigurationTest)
+    test(_DidChangeConfigurationNullTest)
     _WorkspaceTests.make().tests(test)
     _HoverTests.make().tests(test)
 
@@ -682,6 +683,85 @@ class \nodoc\ iso _DidChangeConfigurationTest is UnitTest
       )
     )
 
+
+class \nodoc\ iso _DidChangeConfigurationNullTest is UnitTest
+  fun name(): String =>
+    Methods.workspace().did_change_configuration() + "/null"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(10_000_000_000)
+
+    // ensure compiler got settings applied
+    let compiler = TestCompiler(
+      h
+      where
+        expected_defines = ["FOO"; "BAR"],
+        expected_ponypath = ["/pony/path"; "/foo/bar"]
+    )
+    let harness = TestHarness.create(
+      h,
+      compiler,
+      object iso is MessageHandler
+        var num_conf_requests: USize = 0
+        fun handle_response(h: TestHelper, res: ResponseMessage val, server: BaseProtocol) =>
+          // this should be the initialize response with server capabilities as result
+          try
+            h.assert_true(RequestIds.eq(res.id as RequestId, 0))
+          end
+          // send initialized notification
+          server(_LspMsg.initialized())
+
+        fun ref handle_request(h: TestHelper, req: RequestMessage val, server: BaseProtocol) =>
+          match req.method
+          | Methods.client().register_capability() =>
+            // 1.) expect register capability
+            h.assert_eq[String](Methods.client().register_capability(), req.method)
+            // 2.) send response with null result
+            server(ResponseMessage(req.id, None).into_bytes())
+            // 3.) send empty didChangeConfiguration notification with null payload
+            server(
+              Notification(
+                Methods.workspace().did_change_configuration(),
+                JsonObject.update("settings", None)
+              ).into_bytes()
+            )
+          | Methods.workspace().configuration() =>
+            if num_conf_requests == 0 then
+              // send empty settings at first
+              server(ResponseMessage(req.id, JsonArray).into_bytes())
+            else
+              // this request should be triggered by the null didChangeConfiguration above
+              // send the correct settings this time
+              server(
+                ResponseMessage(
+                  req.id,
+                  JsonArray.push(
+                    JsonObject
+                      .update("defines", JsonArray.push("FOO").push("BAR"))
+                      .update("ponypath", JsonArray.push("/pony/path").push("/foo/bar"))
+                  )
+                ).into_bytes()
+              )
+            end
+            num_conf_requests = num_conf_requests + 1
+          end
+          None
+      end,
+      {(h: TestHelper, harness: TestHarness ref): Bool =>
+        true
+      }
+    )
+
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    harness.send_to_server(
+      _LspMsg.initialize(
+        workspace_dir
+        where
+          did_change_configuration_dynamic_registration = true,
+          supports_configuration = true
+      )
+    )
+
 actor TestCompiler is LspCompiler
   let _h: TestHelper
   let _expected_defines: Array[String] val
@@ -695,16 +775,19 @@ actor TestCompiler is LspCompiler
     _expected_defines = expected_defines
     _expected_ponypath = expected_ponypath
 
-  be apply_settings(settings: Settings) =>
-    _h.assert_array_eq[String](
-      _expected_defines,
-      settings.defines()
-    )
-    _h.assert_array_eq[String](
-      _expected_ponypath,
-      settings.ponypath()
-    )
-    _h.complete(true)
+  be apply_settings(settings: (Settings| None)) =>
+    match settings
+    | let settings': Settings =>
+      var all_good = _h.assert_array_eq[String](
+        _expected_defines,
+        settings'.defines()
+      )
+      all_good = _h.assert_array_eq[String](
+        _expected_ponypath,
+        settings'.ponypath()
+      ) or all_good
+      _h.complete(all_good)
+    end
 
   be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag) =>
     """Most efficient compiler ever"""
