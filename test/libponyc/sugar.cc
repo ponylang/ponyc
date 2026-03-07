@@ -1770,6 +1770,27 @@ TEST_F(SugarTest, LambdaTypeSimpleAliased)
 }
 
 
+TEST_F(SugarTest, LambdaTypeThisViewpoint)
+{
+  // See #4168. this-> in a lambda type should resolve to the enclosing
+  // method's receiver cap (box for fun), not the desugared interface's
+  // receiver.
+  const char* short_form =
+    "trait Foo[A: F64]\n"
+    "  fun f(x: {(this->A!)})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo[A: F64]\n"
+    "  fun box f(x: $T[A]): None\n"
+
+    "interface ref $T[A: F64]\n"
+    "  fun box apply(p1: box->A!): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, UseGuardNormalises)
 {
   const char* short_form =
