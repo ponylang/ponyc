@@ -30,7 +30,9 @@ use debug = "debug"
 use files = "files"
 use format = "format"
 use ini = "ini"
+use iregex = "iregex"
 use itertools = "itertools"
+use json = "json"
 use math = "math"
 use net = "net"
 use pony_bench = "pony_bench"
@@ -64,7 +66,9 @@ actor \nodoc\ Main is TestList
     files.Main.make().tests(test)
     format.Main.make().tests(test)
     ini.Main.make().tests(test)
+    iregex.Main.make().tests(test)
     itertools.Main.make().tests(test)
+    json.Main.make().tests(test)
     math.Main.make().tests(test)
     net.Main.make().tests(test)
     pony_check.Main.make().tests(test)
