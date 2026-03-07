@@ -189,6 +189,21 @@ TEST_F(BadPonyTest, ParenthesisedReturn)
   TEST_ERRORS_1(src, "use return only to exit early from a method");
 }
 
+TEST_F(BadPonyTest, ReturnError)
+{
+  // From issue #4934
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    _foo(true)\n"
+    "\n"
+    "  fun tag _foo(x: Bool): Bool =>\n"
+    "    if x then return error end\n"
+    "    x";
+
+  TEST_ERRORS_1(src, "return value cannot be a control statement");
+}
+
 TEST_F(BadPonyTest, ParenthesisedReturn2)
 {
   // From issue #1050
