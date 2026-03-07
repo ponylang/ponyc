@@ -454,6 +454,13 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   ast_t* type = ast_childidx(opt->check.frame->method, 4);
   ast_t* body = ast_child(ast);
 
+  if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  {
+    ast_error(opt->check.errors, body,
+      "return value cannot be a control statement");
+    return false;
+  }
+
   if(!coerce_literals(&body, type, opt))
     return false;
 
@@ -461,13 +468,6 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
   if(is_typecheck_error(body_type))
     return false;
-
-  if(ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
-  {
-    ast_error(opt->check.errors, body,
-      "return value cannot be a control statement");
-    return false;
-  }
 
   bool ok = true;
 
