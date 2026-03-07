@@ -48,5 +48,5 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 if(NOT PONY_CROSS_LIBPONYRT)
-    target_link_libraries(libponyc.benchmarks PRIVATE ${PONYC_LLVM_LIBS})
+    target_link_libraries(libponyc.benchmarks PRIVATE ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS})
 endif()

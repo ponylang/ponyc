@@ -217,7 +217,7 @@ crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 cross-libponyrt:
 	$(SILENT)mkdir -p $(crossBuildDir)
 	$(SILENT)cd '$(crossBuildDir)' && env CC=$(CC) CXX=$(CXX) cmake -B '$(crossBuildDir)' -S '$(srcDir)' -DCMAKE_CROSSCOMPILING=true -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=$(arch) -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DPONY_CROSS_LIBPONYRT=true -DCMAKE_BUILD_TYPE=$(config) -DCMAKE_C_FLAGS="$(cross_cflags)" -DCMAKE_CXX_FLAGS="$(cross_cflags)" -DPONY_ARCH=$(arch) -DPONYC_VERSION=$(version) -DLL_FLAGS="$(cross_llc_flags)"  $(CMAKE_FLAGS)
-	$(SILENT)cd '$(crossBuildDir)' && env CC=$(CC) CXX=$(CXX) cmake --build '$(crossBuildDir)' --config $(config) --target libponyrt -- $(build_flags)
+	$(SILENT)cd '$(crossBuildDir)' && env CC=$(CC) CXX=$(CXX) cmake --build '$(crossBuildDir)' --config $(config) --target libponyrt crt_objects -- $(build_flags)
 
 test: all test-core test-stdlib-release test-examples
 
@@ -325,6 +325,10 @@ install: build
 	$(SILENT)if [ -f $(outDir)/libponyc.a ]; then cp $(outDir)/libponyc.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyc-standalone.a ]; then cp $(outDir)/libponyc-standalone.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
+	$(SILENT)if [ -f $(outDir)/crtbeginS.o ]; then cp $(outDir)/crtbeginS.o $(ponydir)/lib/$(arch); fi
+	$(SILENT)if [ -f $(outDir)/crtendS.o ]; then cp $(outDir)/crtendS.o $(ponydir)/lib/$(arch); fi
+	$(SILENT)if [ -f $(outDir)/crtbeginT.o ]; then cp $(outDir)/crtbeginT.o $(ponydir)/lib/$(arch); fi
+	$(SILENT)if [ -f $(outDir)/crtend.o ]; then cp $(outDir)/crtend.o $(ponydir)/lib/$(arch); fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
 	$(SILENT)if [ -f $(outDir)/pony-lsp ]; then cp $(outDir)/pony-lsp $(ponydir)/bin; fi
 	$(SILENT)if [ -f $(outDir)/pony-lint ]; then cp $(outDir)/pony-lint $(ponydir)/bin; fi

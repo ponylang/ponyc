@@ -42,6 +42,27 @@ void program_lib_build_args(ast_t* program, pass_opt_t* opt,
  */
 const char* program_lib_args(ast_t* program);
 
+/** Build library arguments for embedded LLD linking.
+ * Collects all library paths (source-defined and CLI/PONYPATH) and library
+ * names into structured arrays without shell-specific formatting.
+ * Mutually exclusive with program_lib_build_args() — call one or the other.
+ */
+void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt);
+
+/** Return the number of library search paths.
+ * Only valid after program_lib_build_args_embedded(). */
+size_t program_lib_path_count(ast_t* program);
+
+/** Return a library search path by index (unquoted, no -L prefix). */
+const char* program_lib_path_at(ast_t* program, size_t index);
+
+/** Return the number of user-specified libraries.
+ * Only valid after program_lib_build_args_embedded(). */
+size_t program_lib_count(ast_t* program);
+
+/** Return a library name by index (unquoted, no -l prefix or .lib suffix). */
+const char* program_lib_at(ast_t* program, size_t index);
+
 const char* program_signature(ast_t* program);
 
 void program_dump(ast_t* program);
