@@ -96,3 +96,7 @@ let msg =
 
 Lines inside triple-quoted strings (docstrings) and lines containing `"""` delimiters are not eligible for this exemption — docstring content should be wrapped regardless of whether it contains spaces.
 
+## Fix compiler crash on `return error`
+
+Previously, writing `return error` in a function body would crash the compiler with an assertion failure instead of producing a diagnostic error. The compiler now correctly reports that a return value cannot be a control statement.
+
