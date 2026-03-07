@@ -33,6 +33,7 @@ jobs:
             target: test-pony-doc
           - name: Test pony-lint
             target: test-pony-lint
+    if: github.event.pull_request.draft == false
     name: ${{ matrix.name }}
     container:
       image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
