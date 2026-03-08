@@ -17,11 +17,13 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Compile-time string literal concatenation ([PR #4900](https://github.com/ponylang/ponyc/pull/4900))
+- Add `--sysroot` option for cross-compilation ([PR #4964](https://github.com/ponylang/ponyc/pull/4964))
 
 ### Changed
 
 - Update to LLVM 21.1.8 ([PR #4876](https://github.com/ponylang/ponyc/pull/4876))
 - Exempt unsplittable string literals from line length rule ([PR #4923](https://github.com/ponylang/ponyc/pull/4923))
+- Use embedded LLD for cross-compilation to Linux targets ([PR #4964](https://github.com/ponylang/ponyc/pull/4964))
 
 ## [0.61.0] - 2026-02-28
 
