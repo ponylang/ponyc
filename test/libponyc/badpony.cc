@@ -1408,3 +1408,165 @@ TEST_F(BadPonyTest, MatchArrayPatternWithBareIntegerLiterals)
     "couldn't find 'eq' in 'Array'",
     "this pattern element doesn't support structural equality");
 }
+
+TEST_F(BadPonyTest, MatchViewpointIsoCaptureWithoutConsume)
+{
+  // From issue #3596
+  // Viewpoint-adapted iso capture from non-ephemeral field bypasses
+  // the is_matchtype_with_consumed_pattern check.
+  const char* src =
+    "class B\n"
+    "  var data: U64 = 99\n"
+
+    "class Holder\n"
+    "  let b: B iso = B\n"
+
+    "  fun get(): this->B iso =>\n"
+    "    match b\n"
+    "    | let b': this->B iso => b'\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchGenericCaptureWithoutConsume)
+{
+  // From issue #3596
+  // Generic this->T capture where T could be iso bypasses
+  // the is_matchtype_with_consumed_pattern check.
+  const char* src =
+    "class UsesNoConsume[T]\n"
+    "  var value: (T | None) = None\n"
+
+    "  fun ref set(t: T) =>\n"
+    "    value = consume t\n"
+
+    "  fun get(): this->T ? =>\n"
+    "    match value\n"
+    "    | let none: None => error\n"
+    "    | let t: this->T => t\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchViewpointIsoCaptureNoReturn)
+{
+  // From issue #3596
+  // Even when the capture isn't returned, binding an iso from a
+  // non-ephemeral field is unsound.
+  const char* src =
+    "class Holder2\n"
+    "  let b: String iso = String\n"
+
+    "  fun box bad() =>\n"
+    "    match b\n"
+    "    | let b': this->String iso => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchIsoCaptureWithConsume)
+{
+  // From issue #3596
+  // Consuming the match expression makes the discriminee ephemeral,
+  // so iso captures are sound.
+  // Uses a custom class instead of String to avoid hitting an unrelated
+  // LLVM 21 codegen issue in genprim_string_serialise.
+  const char* src =
+    "class Foo\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Foo iso = recover iso Foo end\n"
+    "    match consume x\n"
+    "    | let y: Foo iso => None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, MatchNonIsoCaptureFromUnion)
+{
+  // From issue #3596
+  // Non-iso captures (ref, val, box) from non-ephemeral discriminees are safe
+  // and should not trigger the new soundness check.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: (String | U32) = \"hello\"\n"
+    "    match x\n"
+    "    | let s: String => None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, MatchViewpointRefCaptureFromField)
+{
+  // From issue #3596
+  // Viewpoint-adapted captures with ref/val/box caps should not trigger
+  // the new soundness check — only iso/trn/cap_any are dangerous.
+  const char* src =
+    "class Holder\n"
+    "  let _s: (String | None) = \"hello\"\n"
+
+    "  fun box get(): (this->String | None) =>\n"
+    "    match _s\n"
+    "    | let s: this->String => s\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, MatchValConstraintCapture)
+{
+  // From issue #3596
+  // Generic captures with val constraint don't need ephemeral since
+  // val is safe to alias.
+  const char* src =
+    "class Container[K: Any val]\n"
+    "  var _data: (K | None) = None\n"
+
+    "  fun box lookup(): (this->K | None) =>\n"
+    "    match _data\n"
+    "    | let k: this->K => k\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, MatchAliasedViewpointCapture)
+{
+  // From issue #3596
+  // Already-aliased viewpoint captures (this->K!) should be accepted
+  // since the aliased eph marker means aliasing won't change the capability.
+  // This exercises the ast_id(eph) != TK_NONE early return in
+  // capture_needs_ephemeral.
+  const char* src =
+    "class Container[K: Any #any]\n"
+    "  var _data: (K | U32) = U32(0)\n"
+
+    "  fun box lookup(): (this->K! | None) =>\n"
+    "    match _data\n"
+    "    | let k: this->K! => k\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
