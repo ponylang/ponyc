@@ -46,6 +46,7 @@ enum
   OPT_LINK_ARCH,
   OPT_LINKER,
   OPT_LINK_LDCMD,
+  OPT_SYSROOT,
   OPT_PLUGIN,
 
   OPT_VERBOSE,
@@ -93,6 +94,7 @@ static opt_arg_t std_args[] =
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
   {"linker", '\0', OPT_ARG_REQUIRED, OPT_LINKER},
   {"link-ldcmd", '\0', OPT_ARG_REQUIRED, OPT_LINK_LDCMD},
+  {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
 
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
@@ -167,6 +169,9 @@ static void usage(void)
     "    =name          Default is the compiler used to compile ponyc.\n"
     "  --link-ldcmd     Set the ld command to use.\n"
     "    =name          Default is `gold` on linux and system default otherwise.\n"
+    "  --sysroot        Path to target system root for cross-compilation.\n"
+    "    =path          Used by embedded LLD to find libc CRT objects and\n"
+    "                   system libraries. Auto-detected if not specified.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
     "  --define, -D     Set a compile time definition.\n"
@@ -335,6 +340,7 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
       case OPT_LINKER: opt->linker = s->arg_val; break;
       case OPT_LINK_LDCMD: opt->link_ldcmd = s->arg_val; break;
+      case OPT_SYSROOT: opt->sysroot = s->arg_val; break;
       case OPT_PLUGIN:
         if(!plugin_load(opt, s->arg_val))
         {

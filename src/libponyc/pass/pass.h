@@ -308,6 +308,7 @@ typedef struct pass_opt_t
   char* link_arch;
   char* linker;
   char* link_ldcmd;
+  char* sysroot;
   const char* llvm_args;
 
   char* triple;
