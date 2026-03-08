@@ -60,25 +60,100 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ inputs.ref || github.sha }}
-      - name: Build and Test
-        uses: cross-platform-actions/action@v0.32.0
-        with:
-          operating_system: freebsd
-          version: '${{ matrix.version }}'
-          cpu_count: 4
-          run: |
-            sudo pkg install -y cmake gmake libunwind git python3
-            gmake libs build_flags=-j4
-            gmake configure config=debug
-            gmake build config=debug
-            gmake test-ci-core config=debug
-            gmake test-pony-doc config=debug
-            gmake test-pony-lint config=debug
-            gmake test-pony-lsp config=debug
-            gmake lint-pony-lint config=debug
-            gmake configure config=release
-            gmake build config=release
-            gmake test-ci-core config=release
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          df -h /
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-utils qemu-system-x86 cloud-image-utils
+          sudo chmod 666 /dev/kvm
+      - name: Download FreeBSD image
+        run: |
+          curl -L -o freebsd.qcow2.xz \
+            "https://download.freebsd.org/releases/VM-IMAGES/${{ matrix.version }}-RELEASE/amd64/Latest/FreeBSD-${{ matrix.version }}-RELEASE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz"
+          xz -d freebsd.qcow2.xz
+          qemu-img resize freebsd.qcow2 60G
+      - name: Prepare VM access
+        run: |
+          ssh-keygen -t ed25519 -f vm_key -N ""
+          PUB_KEY=$(cat vm_key.pub)
+          cat > user-data <<USERDATA
+          #cloud-config
+          ssh_authorized_keys:
+            - ${PUB_KEY}
+          packages:
+            - sudo
+            - rsync
+          runcmd:
+            - echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/wheel
+          USERDATA
+          cat > meta-data <<METADATA
+          instance-id: freebsd-ci
+          local-hostname: freebsd-ci
+          METADATA
+          cloud-localds seed.img user-data meta-data
+      - name: Boot FreeBSD VM
+        run: |
+          qemu-system-x86_64 \
+            -machine pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 6G \
+            -drive file=freebsd.qcow2,format=qcow2,if=virtio \
+            -drive file=seed.img,format=raw,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -display none \
+            -daemonize
+      - name: Wait for VM
+        run: |
+          timeout 300 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 freebsd@localhost true 2>/dev/null; do
+              sleep 2
+            done
+          '
+          echo "SSH available, waiting for sudo to be installed by cloud-init..."
+          timeout 120 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost "which sudo" 2>/dev/null; do
+              sleep 5
+            done
+          '
+          echo "VM fully provisioned"
+      - name: Install build dependencies
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
+          set -e
+          sudo pkg install -y cmake gmake libunwind git python3
+          EOF
+      - name: Copy source to VM
+        run: |
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
+            "$GITHUB_WORKSPACE/" freebsd@localhost:/home/freebsd/ponyc/
+      - name: Build and test
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
+          set -e
+          cd /home/freebsd/ponyc
+          gmake libs build_flags=-j4
+          gmake configure config=debug
+          gmake build config=debug
+          gmake test-ci-core config=debug
+          gmake test-pony-doc config=debug
+          gmake test-pony-lint config=debug
+          gmake test-pony-lsp config=debug
+          gmake lint-pony-lint config=debug
+          gmake configure config=release
+          gmake build config=release
+          gmake test-ci-core config=release
+          EOF
+      - name: Shutdown VM
+        if: always()
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost "sudo shutdown -p now" 2>/dev/null || true
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
