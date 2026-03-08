@@ -3,6 +3,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "literal.h"
+#include "operator.h"
 #include "reference.h"
 #include "../ast/astbuild.h"
 #include "../ast/lexer.h"
@@ -266,6 +267,8 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     if(!coerce_literals(&arg, p_type, opt))
       return false;
+
+    coerce_tuple_to_target(opt, arg, p_type);
 
     ast_t* arg_type = ast_type(arg);
 
