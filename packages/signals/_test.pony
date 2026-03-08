@@ -187,7 +187,6 @@ class \nodoc\ _TestMultiHandlerNotify is SignalNotify
 class \nodoc\ iso _TestMultipleHandlers is UnitTest
   """
   Verify that multiple handlers for the same signal all get notified.
-  Uses SIGTERM to avoid interference with other SIGINT tests.
   Handlers return true to stay registered; the test disposes them on
   completion to avoid auto-dispose interfering with the second handler.
   """
@@ -200,7 +199,7 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
     let auth = SignalAuth(h.env.root)
     h.expect_action("handler1")
     h.expect_action("handler2")
-    match MakeValidSignal(Sig.term())
+    match MakeValidSignal(Sig.int())
     | let sig: ValidSignal =>
       let s1 = SignalHandler(auth,
         _TestMultiHandlerNotify(h, "handler1"), sig)
@@ -211,7 +210,7 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
       _signal2 = s2
       h.long_test(10_000_000_000)
     | let _: ValidationFailure =>
-      h.fail("SIGTERM should be a valid signal")
+      h.fail("SIGINT should be a valid signal")
     end
 
   fun timed_out(h: TestHelper) =>
@@ -237,20 +236,19 @@ class \nodoc\ _TestDisposeNotify is SignalNotify
 class \nodoc\ iso _TestDispose is UnitTest
   """
   Verify that disposing a SignalHandler calls the notify's dispose method.
-  Uses SIGURG to avoid interference with other signal tests.
   """
 
   fun name(): String => "signals/dispose"
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeValidSignal(Sig.urg())
+    match MakeValidSignal(Sig.int())
     | let sig: ValidSignal =>
       let signal = SignalHandler(auth, _TestDisposeNotify(h), sig)
       signal.dispose(auth)
       h.long_test(10_000_000_000)
     | let _: ValidationFailure =>
-      h.fail("SIGURG should be a valid signal")
+      h.fail("SIGINT should be a valid signal")
     end
 
   fun timed_out(h: TestHelper) =>
@@ -272,7 +270,6 @@ class \nodoc\ _TestReturnsFalseNotify is SignalNotify
 class \nodoc\ iso _TestNotifyReturnsFalse is UnitTest
   """
   Verify that a notify returning false auto-disposes the handler.
-  Uses SIGALRM to avoid interference with other signal tests.
   """
   var _signal: (SignalHandler | None) = None
 
@@ -280,14 +277,14 @@ class \nodoc\ iso _TestNotifyReturnsFalse is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeValidSignal(Sig.alrm())
+    match MakeValidSignal(Sig.int())
     | let sig: ValidSignal =>
       let signal = SignalHandler(auth, _TestReturnsFalseNotify(h), sig)
       signal.raise(auth)
       _signal = signal
       h.long_test(10_000_000_000)
     | let _: ValidationFailure =>
-      h.fail("SIGALRM should be a valid signal")
+      h.fail("SIGINT should be a valid signal")
     end
 
   fun timed_out(h: TestHelper) =>

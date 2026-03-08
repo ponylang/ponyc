@@ -39,17 +39,19 @@ primitive SignalValidator is Validator[U32]
         or (sig == Sig.sys())
         or _is_usr2(sig)
         or _is_rt(sig)
+    elseif windows then
+      // Windows signal() only supports SIGINT and SIGTERM as catchable
+      // signals. SIGABRT, SIGFPE, SIGILL, SIGSEGV are fatal.
+      (sig == Sig.int()) or (sig == Sig.term())
     else
       false
     end
 
   fun _is_usr2(sig: U32): Bool =>
-    // Sig.usr2() has a compile_error when scheduler_scaling_pthreads is
-    // not defined because SIGUSR2 is reserved for the runtime. Match
-    // that guard here.
+    // SIGUSR2 is only available when the runtime doesn't use it for
+    // scheduler scaling. Sig.usr2() has a compile_error when
+    // scheduler_scaling_pthreads is set, so guard the call here.
     ifdef not "scheduler_scaling_pthreads" then
-      false
-    else
       ifdef bsd or osx then
         sig == Sig.usr2()
       elseif linux then
@@ -57,6 +59,8 @@ primitive SignalValidator is Validator[U32]
       else
         false
       end
+    else
+      false
     end
 
   fun _is_rt(sig: U32): Bool =>
