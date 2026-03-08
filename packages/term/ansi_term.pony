@@ -1,3 +1,4 @@
+use "constrained_types"
 use "time"
 use "signals"
 use @ioctl[I32](fx: I32, cmd: ULong, ...) if posix
@@ -57,6 +58,7 @@ actor ANSITerm
   var _closed: Bool = false
 
   new create(
+    auth: SignalAuth,
     notify: ANSINotify iso,
     source: DisposableActor,
     timers: Timers = Timers)
@@ -69,7 +71,10 @@ actor ANSITerm
     _source = source
 
     ifdef not windows then
-      SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+      match MakeValidSignal(Sig.winch())
+      | let sig: ValidSignal =>
+        SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
+      end
     end
 
     _size()

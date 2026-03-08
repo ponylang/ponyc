@@ -13,6 +13,7 @@ actor Custodian
 
   ```pony
   use "bureaucracy"
+  use "constrained_types"
   use "signals"
 
   actor Actor1
@@ -35,7 +36,11 @@ actor Custodian
       custodian(actor2)
       custodian(actor3)
 
-      SignalHandler(TermHandler(custodian), Sig.term())
+      let auth = SignalAuth(env.root)
+      match MakeValidSignal(Sig.term())
+      | let sig: ValidSignal =>
+        SignalHandler(auth, TermHandler(custodian), sig)
+      end
 
   class TermHandler is SignalNotify
     let _custodian: Custodian

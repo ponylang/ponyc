@@ -23,8 +23,13 @@ interface SignalNotify
 primitive SignalRaise
   """
   Raise a signal.
+
+  Unlike SignalHandler, this accepts a raw signal number rather than a
+  ValidSignal. Raising fatal signals (e.g. SIGABRT to intentionally crash)
+  is a legitimate operation — it is only handling them via the ASIO
+  mechanism that is prevented.
   """
-  fun apply(sig: U32) =>
+  fun apply(auth: SignalAuth, sig: U32) =>
     ifdef osx then
       // On Darwin, @raise delivers the signal to the current thread, not the
       // process, but kqueue EVFILT_SIGNAL will only see signals delivered to

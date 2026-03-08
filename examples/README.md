@@ -92,7 +92,7 @@ Floods a single `Receiver` actor with messages from multiple senders to demonstr
 
 Establishes a TCP connection and applies explicit backpressure when the send buffer fills up. Demonstrates the `backpressure` package's `Backpressure` primitive, `ApplyReleaseBackpressureAuth`, and throttled/unthrottled callbacks for detecting when the scheduler responds to pressure.
 
-## File I/O and Terminal
+## File I/O, Terminal, and Signals
 
 ### [files](files/)
 
@@ -101,6 +101,10 @@ Reads a file specified as a command-line argument and prints its path and conten
 ### [readline](readline/)
 
 An interactive command-line prompt with tab completion and command history. Demonstrates the `term` package's `Readline` and `ReadlineNotify` interfaces, and `Promise`-based prompt control where rejecting the promise exits the loop.
+
+### [signals](signals/)
+
+Registers two handlers for SIGINT, raises the signal programmatically, and disposes one handler. Demonstrates the `signals` package's capability-secured API: `SignalAuth` for authorization, `MakeValidSignal` for signal validation via constrained types, `SignalHandler` for subscription, and `SignalNotify` for callbacks. Shows that multiple handlers can subscribe to the same signal.
 
 ## C FFI
 

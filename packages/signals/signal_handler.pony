@@ -10,31 +10,41 @@ use @pony_asio_event_destroy[None](event: AsioEventID)
 actor SignalHandler is AsioEventNotify
   """
   Listen for a specific signal.
-  If the wait parameter is true, the program will not terminate until the SignalHandler's dispose method is called, or if the SignalNotify returns false, after handling the signal as this also disposes the SignalHandler and unsubscribes it.
 
+  Multiple SignalHandlers can be registered for the same signal. All
+  registered handlers will be notified when the signal is received, in
+  no particular order.
+
+  If the wait parameter is true, the program will not terminate until
+  the SignalHandler's dispose method is called, or if the SignalNotify
+  returns false after handling the signal. Disposing a SignalHandler
+  unsubscribes it from the signal and is required to allow the runtime
+  to garbage collect the handler.
   """
   let _notify: SignalNotify
   let _sig: U32
   var _event: AsioEventID
 
-  new create(notify: SignalNotify iso, sig: U32, wait: Bool = false) =>
+  new create(auth: SignalAuth, notify: SignalNotify iso, sig: ValidSignal,
+    wait: Bool = false)
+  =>
     """
-    Create a signal handler.
+    Create a signal handler for a validated signal number.
     """
     _notify = consume notify
-    _sig = sig
+    _sig = sig()
     _event =
-      @pony_asio_event_create(this, 0, AsioEvent.signal(), sig.u64(), wait)
+      @pony_asio_event_create(this, 0, AsioEvent.signal(), _sig.u64(), wait)
 
-  be raise() =>
+  be raise(auth: SignalAuth) =>
     """
     Raise the signal.
     """
-    SignalRaise(_sig)
+    SignalRaise(auth, _sig)
 
-  be dispose() =>
+  be dispose(auth: SignalAuth) =>
     """
-    Dispose of the signal handler.
+    Dispose of the signal handler, unsubscribing from the signal.
     """
     _dispose()
 
