@@ -206,13 +206,10 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
         _TestMultiHandlerNotify(h, "handler1"), sig)
       let s2 = SignalHandler(auth,
         _TestMultiHandlerNotify(h, "handler2"), sig)
-      // Raise from both handlers to ensure delivery under heavy scheduler load.
-      // Each raise sends SIGTERM which dispatches to all subscribers.
       s1.raise(auth)
-      s2.raise(auth)
       _signal1 = s1
       _signal2 = s2
-      h.long_test(30_000_000_000)
+      h.long_test(10_000_000_000)
     | let _: ValidationFailure =>
       h.fail("SIGTERM should be a valid signal")
     end
