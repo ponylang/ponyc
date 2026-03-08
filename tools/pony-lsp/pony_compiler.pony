@@ -85,6 +85,12 @@ actor PonyCompiler is LspCompiler
     end
 
   be apply_settings(settings: (Settings | None)) =>
+    match settings
+    | let settings': Settings =>
+      _pony_path_from_settings = settings'.ponypath()
+      _defines = settings'.defines()
+    end
+
     if not this._got_settings then
       this._got_settings = true
       // trigger all queued compilations
@@ -96,16 +102,11 @@ actor PonyCompiler is LspCompiler
       end
     end
 
-    match settings
-    | let settings': Settings =>
-      _pony_path_from_settings = settings'.ponypath()
-      _defines = settings'.defines()
-    end
-
   be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag) =>
     if not this._got_settings then
-      // enqueue compilation
+      // enqueue compilation and dont execute it yet
       this._compilation_queue.push((package, paths, notify))
+      return
     end
     // Search order: installation paths first (prevents PONYPATH from
     // overriding builtin, per ponylang/ponyc#3779), then PONYPATH, then

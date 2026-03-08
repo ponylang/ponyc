@@ -114,13 +114,13 @@ primitive WindowMethods
     "window/logMessage"
 
   fun work_done_progress(): WorkDoneProgressMethods =>
-    WorkDoneProgressMethods.construct()
+    WorkDoneProgressMethods.create_progress()
 
 primitive WorkDoneProgressMethods
   """
   Collection of window/workDoneProgress methods
   """
-  new construct() =>
+  new create_progress() =>
     """create method below collides with default constructor"""
     None
 

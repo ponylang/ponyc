@@ -134,12 +134,12 @@ class val Client
         .>append(try (this.client_version as String val) + " " else "" end)
         .>append(try "(" + (this.process_id as I64).string() + ")" else "" end)
         .>append("\nsupports:\r\n")
-        if this.supports_configuration() then
-          s.append("\tconfiguration\r\n")
-        end
-        if this.supports_configuration_dynamic_registration() then
-          s.append("\tdynamic registration for didChangeConfiguration notifications\r\n")
-        end
+      if this.supports_configuration() then
+        s.append("\tconfiguration\r\n")
+      end
+      if this.supports_configuration_dynamic_registration() then
+        s.append("\tdynamic registration for didChangeConfiguration notifications\r\n")
+      end
       if this.supports_publish_diagnostics() then
         s.append("\tpublish diagnostics\r\n")
       end

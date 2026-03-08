@@ -785,7 +785,7 @@ actor TestCompiler is LspCompiler
       all_good = _h.assert_array_eq[String](
         _expected_ponypath,
         settings'.ponypath()
-      ) or all_good
+      ) and all_good
       _h.complete(all_good)
     end
 
