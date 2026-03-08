@@ -265,40 +265,43 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  use_directives:
+  # Currently, Github actions supplied by GH like checkout and cache do not work
+  # in musl libc environments on arm64. We can work around this by running
+  # those actions on the host and then "manually" doing our work that would
+  # normally be done "in the musl container" by starting the container ourselves
+  # for various steps by invoking docker directly.
+  #
+  # This is not in line with our standard pattern of "just do it all in the
+  # container" but is required to work around the GitHub actions limitation
+  # documented above.
+  arm64-linux:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-            debugger: lldb
-            directives: dtrace
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-            debugger: lldb
-            directives: pool_memalign
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-            debugger: lldb
-            directives: pool_retain
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-            debugger: lldb
-            directives: runtimestats
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-            debugger: lldb
-            directives: runtime_tracing
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
+            name: arm64 Linux glibc
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+            name: arm64 Linux musl
 
-    name: use ${{ matrix.directives }}
-    container:
-      image: ${{ matrix.image }}
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    name: ${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
         with:
           ref: ${{ inputs.ref || github.sha }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        run: docker pull ${{ matrix.image }}
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -309,19 +312,49 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make libs build_flags=-j8
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug use=${{ matrix.directives }}
-          make build config=debug
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "make configure arch=armv8-a config=debug && make build config=debug"
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}'
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-ci-core config=debug
       - name: Build Release Runtime
         run: |
-          make configure arch=x86-64 config=release use=${{ matrix.directives }}
-          make build config=release
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "make configure arch=armv8-a config=release && make build config=release"
       - name: Test with Release Runtime
-        run: make test-ci-core config=release usedebugger='${{ matrix.debugger }}'
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-ci-core config=release
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -334,23 +367,15 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  with_sanitizers:
+  arm64-windows:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
-    runs-on: ubuntu-latest
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-            debugger: lldb
-            directives: pool_memalign,address_sanitizer,undefined_behavior_sanitizer
-
-    name: with sanitizers ${{ matrix.directives }}
-    container:
-      image: ${{ matrix.image }}
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    name: arm64 Windows MSVC
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
@@ -363,22 +388,24 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: .\make.ps1 -Command libs -Arch ARM64
       - name: Build Debug Runtime
         run: |
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=debug
+          .\make.ps1 -Command configure -Config Debug -Arch ARM64
+          .\make.ps1 -Command build -Config Debug
       - name: Test with Debug Runtime
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci-core config=debug test_full_program_timeout=300
+        run: .\make.ps1 -Command test -Config Debug
       - name: Build Release Runtime
         run: |
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=release use=${{ matrix.directives }}
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=release
+          .\make.ps1 -Command configure -Config Release -Arch ARM64
+          .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci-core config=release test_full_program_timeout=300
+        run: .\make.ps1 -Command test -Config Release
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
