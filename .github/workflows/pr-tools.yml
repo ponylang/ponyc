@@ -33,7 +33,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'

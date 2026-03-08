@@ -41,7 +41,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -50,7 +52,9 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
@@ -98,7 +102,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -107,7 +113,9 @@ jobs:
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |

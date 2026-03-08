@@ -46,7 +46,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -102,7 +104,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -162,7 +166,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -192,7 +198,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -228,7 +236,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
@@ -263,7 +273,9 @@ jobs:
         id: restore-libs
         uses: actions/cache/restore@v4
         with:
-          path: build/libs
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
           key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
