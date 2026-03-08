@@ -154,38 +154,6 @@ jobs:
             ${{ matrix.image }} \
             make test-ci-core config=release
 
-  x86_64-macos:
-    if: github.event.pull_request.draft == false
-    runs-on: macos-15-intel
-
-    name: x86-64 Apple Darwin
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Build Debug Runtime
-        run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
-      - name: Test with Debug Runtime
-        run: make test-ci-core config=debug test_full_program_timeout=180
-      - name: Build Release Runtime
-        run: |
-          make configure arch=x86-64 config=release
-          make build config=release
-      - name: Test with Release Runtime
-        run: make test-ci-core config=release test_full_program_timeout=180
-
   arm64-macos:
     if: github.event.pull_request.draft == false
     runs-on: macos-15
