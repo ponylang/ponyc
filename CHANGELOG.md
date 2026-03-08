@@ -18,12 +18,15 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Compile-time string literal concatenation ([PR #4900](https://github.com/ponylang/ponyc/pull/4900))
 - Add `--sysroot` option for cross-compilation ([PR #4964](https://github.com/ponylang/ponyc/pull/4964))
+- Add capability security and multi-subscriber support to signal handling ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 
 ### Changed
 
 - Update to LLVM 21.1.8 ([PR #4876](https://github.com/ponylang/ponyc/pull/4876))
 - Exempt unsplittable string literals from line length rule ([PR #4923](https://github.com/ponylang/ponyc/pull/4923))
 - Use embedded LLD for cross-compilation to Linux targets ([PR #4964](https://github.com/ponylang/ponyc/pull/4964))
+- Signal handling API requires `SignalAuth` and `ValidSignal` ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
+- `ANSITerm` constructor requires `SignalAuth` parameter ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 
 ## [0.61.0] - 2026-02-28
 
