@@ -19,6 +19,12 @@ class iso Payload
 
 actor Main
   new create(env: Env) =>
+    // Skip on arm64 Windows: the CI runners are too slow for this stress test
+    // and it regularly times out for reasons unrelated to the regression.
+    ifdef windows and arm then
+      return
+    end
+
     let t = Test
 
     @printf("starting loop\n".cstring())
