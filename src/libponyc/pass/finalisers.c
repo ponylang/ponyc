@@ -14,7 +14,7 @@ enum
   FINAL_RECURSE = (1 << 2)
 };
 
-static int check_body_send(ast_t* ast, bool in_final);
+static int check_body_send(pass_opt_t* opt, ast_t* ast, bool in_final);
 
 static void show_send(pass_opt_t* opt, ast_t* ast)
 {
@@ -38,62 +38,7 @@ static void show_send(pass_opt_t* opt, ast_t* ast)
   }
 }
 
-static ast_t* receiver_def(ast_t* type)
-{
-  // We must be a known type at this point.
-  switch(ast_id(type))
-  {
-    case TK_ISECTTYPE:
-    {
-      // Find the first concrete type in the intersection.
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        ast_t* def = receiver_def(child);
-
-        if(def != NULL)
-        {
-          switch(ast_id(def))
-          {
-            case TK_PRIMITIVE:
-            case TK_STRUCT:
-            case TK_CLASS:
-            case TK_ACTOR:
-              return def;
-
-            default: {}
-          }
-        }
-
-        child = ast_sibling(child);
-      }
-
-      break;
-    }
-
-    case TK_NOMINAL:
-      // Return the def.
-      return (ast_t*)ast_data(type);
-
-    case TK_ARROW:
-      // Use the right-hand side.
-      return receiver_def(ast_childidx(type, 1));
-
-    case TK_TYPEPARAMREF:
-    {
-      // Use the constraint.
-      ast_t* def = (ast_t*)ast_data(type);
-      return receiver_def(ast_childidx(def, 1));
-    }
-
-    default: {}
-  }
-
-  return NULL;
-}
-
-static int check_call_send(ast_t* ast, bool in_final)
+static int check_call_send(pass_opt_t* opt, ast_t* ast, bool in_final)
 {
   AST_GET_CHILDREN(ast, lhs, positional, named, question);
   AST_GET_CHILDREN(lhs, receiver, method);
@@ -118,15 +63,60 @@ static int check_call_send(ast_t* ast, bool in_final)
   if(!is_known(type))
     return FINAL_MAY_SEND;
 
-  ast_t* def = receiver_def(type);
-  pony_assert(def != NULL);
-
   const char* method_name = ast_name(method);
-  ast_t* fun = ast_get(def, method_name, NULL);
-  pony_assert(fun != NULL);
+
+  // Use lookup_try to resolve the method, which handles inherited methods
+  // from the provides chain. ast_get only searches the entity's own scope.
+  deferred_reification_t* method_ref = lookup_try(opt, NULL, type,
+    method_name, true);
+
+  if(method_ref == NULL)
+    return FINAL_MAY_SEND;
+
+  ast_t* fun = method_ref->ast;
+  ast_t* def = (ast_t*)ast_data(type);
 
   AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error, body);
-  int r = check_body_send(body, false);
+
+  // If the receiver type has type arguments and the entity has type parameters,
+  // reify the method body so generic type parameters are replaced with their
+  // concrete types. Without this, expressions like `_min.lt(_max)` inside
+  // `Range[USize]` have receiver type `A` (the type parameter), which fails
+  // is_known() and produces a false positive FINAL_MAY_SEND.
+  ast_t* reified_body = NULL;
+  int r;
+
+  if(ast_id(type) == TK_NOMINAL)
+  {
+    ast_t* typeargs = ast_childidx(type, 2);
+    ast_t* entity_typeparams = ast_childidx(def, 1);
+
+    if((ast_id(typeargs) == TK_TYPEARGS) &&
+      (ast_id(entity_typeparams) == TK_TYPEPARAMS))
+    {
+      reified_body = reify(body, entity_typeparams, typeargs, NULL, true);
+    }
+  }
+
+  if(reified_body != NULL)
+  {
+    // Set the recursion guard on the original body so that recursive calls
+    // (which look up the original, not the reified copy) see FINAL_RECURSE.
+    bool already_recursing = ast_checkflag(body, AST_FLAG_RECURSE_1);
+    if(!already_recursing)
+      ast_setflag(body, AST_FLAG_RECURSE_1);
+
+    r = check_body_send(opt, reified_body, false);
+
+    if(!already_recursing)
+      ast_clearflag(body, AST_FLAG_RECURSE_1);
+
+    ast_free_unattached(reified_body);
+  } else {
+    r = check_body_send(opt, body, false);
+  }
+
+  deferred_reify_free(method_ref);
 
   if(r == FINAL_NO_SEND)
   {
@@ -147,19 +137,19 @@ static int check_call_send(ast_t* ast, bool in_final)
   return r;
 }
 
-static int check_expr_send(ast_t* ast, bool in_final)
+static int check_expr_send(pass_opt_t* opt, ast_t* ast, bool in_final)
 {
   int send = FINAL_NO_SEND;
 
   if(ast_id(ast) == TK_CALL)
-    send |= check_call_send(ast, in_final);
+    send |= check_call_send(opt, ast, in_final);
 
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
     if(ast_mightsend(child))
-      send |= check_expr_send(child, in_final);
+      send |= check_expr_send(opt, child, in_final);
 
     child = ast_sibling(child);
   }
@@ -167,7 +157,7 @@ static int check_expr_send(ast_t* ast, bool in_final)
   return send;
 }
 
-static int check_body_send(ast_t* ast, bool in_final)
+static int check_body_send(pass_opt_t* opt, ast_t* ast, bool in_final)
 {
   if(ast_checkflag(ast, AST_FLAG_RECURSE_1))
     return FINAL_RECURSE;
@@ -180,7 +170,7 @@ static int check_body_send(ast_t* ast, bool in_final)
 
   ast_setflag(ast, AST_FLAG_RECURSE_1);
 
-  int r = check_expr_send(ast, in_final);
+  int r = check_expr_send(opt, ast, in_final);
 
   if(r == FINAL_NO_SEND)
   {
@@ -206,7 +196,7 @@ static bool entity_finaliser(pass_opt_t* opt, ast_t* entity, const char* final)
     return true;
 
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-  int r = check_body_send(body, true);
+  int r = check_body_send(opt, body, true);
 
   if((r & FINAL_CAN_SEND) != 0 || (r & FINAL_MAY_SEND) != 0)
   {

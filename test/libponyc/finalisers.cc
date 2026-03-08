@@ -111,6 +111,53 @@ TEST_F(FinalisersTest, FinalCannotCallChainedBehaviour)
   TEST_ERRORS_1(src, "_final cannot create actors or send messages");
 }
 
+TEST_F(FinalisersTest, FinalCanCallMethodOnGenericClassWithConcreteTypeArgs)
+{
+  const char* src =
+    "trait Gettable\n"
+    "  fun get(): U32\n"
+    "primitive Prim is Gettable\n"
+    "  fun get(): U32 => 0\n"
+    "class Generic[A: Gettable val]\n"
+    "  let _value: A\n"
+    "  new val create(value: A) =>\n"
+    "    _value = value\n"
+    "  fun get(): U32 =>\n"
+    "    _value.get()\n"
+    "class Foo\n"
+    "  fun _final() =>\n"
+    "    Generic[Prim](Prim).get()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(FinalisersTest, FinalCannotCallMethodOnGenericClassThatSends)
+{
+  // The send_msg method sends a message via a behavior call on an actor field.
+  // Even though Generic is instantiated with concrete type args (U32),
+  // the finaliser pass should still detect the send inside send_msg.
+  const char* src =
+    "actor Ping\n"
+    "  new create() => None\n"
+    "  be ping() => None\n"
+    "class Holder\n"
+    "  let _p: Ping\n"
+    "  new create(p: Ping) => _p = p\n"
+    "  fun get(): Ping => _p\n"
+    "class Generic[A]\n"
+    "  let _h: Holder\n"
+    "  new create(h: Holder) => _h = h\n"
+    "  fun send_msg() =>\n"
+    "    _h.get().ping()\n"
+    "class Foo\n"
+    "  let _g: Generic[U32]\n"
+    "  new create(h: Holder) => _g = Generic[U32](h)\n"
+    "  fun _final() =>\n"
+    "    _g.send_msg()";
+
+  TEST_ERRORS_1(src, "_final cannot create actors or send messages");
+}
+
 TEST_F(FinalisersTest, CannotLookupFinal)
 {
   const char* src =
