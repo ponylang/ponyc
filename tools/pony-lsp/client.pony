@@ -133,7 +133,7 @@ class val Client
         .>append(try (this.client_name as String val) + "-" else "" end)
         .>append(try (this.client_version as String val) + " " else "" end)
         .>append(try "(" + (this.process_id as I64).string() + ")" else "" end)
-        .>append("\nsupports:\r\n")
+        .>append("\r\nsupports:\r\n")
       if this.supports_configuration() then
         s.append("\tconfiguration\r\n")
       end
