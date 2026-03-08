@@ -31,7 +31,7 @@ jobs:
       - name: Check for recent commits
         id: check
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "has-changes=true" >> "$GITHUB_OUTPUT"
           elif git log --since="7 days ago" --oneline | head -1 | grep -q .; then
             echo "has-changes=true" >> "$GITHUB_OUTPUT"
@@ -69,7 +69,7 @@ jobs:
       - name: Install QEMU
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-utils qemu-system-x86 cloud-image-utils
+          sudo apt-get install -y -q qemu-utils qemu-system-x86 cloud-image-utils expect
           sudo chmod 666 /dev/kvm
       - name: Download FreeBSD image
         run: |
@@ -81,15 +81,16 @@ jobs:
         run: |
           ssh-keygen -t ed25519 -f vm_key -N ""
           PUB_KEY=$(cat vm_key.pub)
+
+          # nuageinit seed: SSH key for freebsd, set root password for su access
           cat > user-data <<USERDATA
           #cloud-config
           ssh_authorized_keys:
             - ${PUB_KEY}
-          packages:
-            - sudo
-            - rsync
-          runcmd:
-            - echo 'freebsd ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/freebsd
+          chpasswd:
+            expire: false
+            list:
+              - root:ciroot
           USERDATA
           cat > meta-data <<METADATA
           instance-id: freebsd-ci
@@ -116,19 +117,30 @@ jobs:
               sleep 2
             done
           '
-          echo "SSH available, waiting for cloud-init to finish..."
-          timeout 300 bash -c '
-            while ! ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost "test -f /var/lib/cloud/instance/boot-finished" 2>/dev/null; do
-              sleep 5
-            done
-          '
-          echo "VM fully provisioned"
+          echo "SSH available"
       - name: Install build dependencies
         run: |
-          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
-          set -e
-          sudo pkg install -y cmake gmake libunwind git python3
-          EOF
+          export PUB_KEY=$(cat vm_key.pub)
+          expect <<'EXPECT'
+          set timeout 600
+          spawn ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 -t freebsd@localhost su -m root
+          expect {
+            "Password:" { send "ciroot\r" }
+            timeout { puts "Timeout waiting for password prompt"; exit 1 }
+          }
+          expect {
+            "#" {}
+            "su: Sorry" { puts "su failed - wrong password or nuageinit didn't set it"; exit 1 }
+            timeout { puts "Timeout waiting for root shell"; exit 1 }
+          }
+          send "pkg install -y cmake gmake libunwind git python3 rsync\r"
+          expect {
+            "#" {}
+            timeout { puts "Timeout during pkg install"; exit 1 }
+          }
+          send "exit\r"
+          expect eof
+          EXPECT
       - name: Copy source to VM
         run: |
           rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
@@ -153,7 +165,7 @@ jobs:
       - name: Shutdown VM
         if: always()
         run: |
-          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost "sudo shutdown -p now" 2>/dev/null || true
+          pkill -f qemu-system-x86 || true
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
