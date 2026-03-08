@@ -1472,19 +1472,16 @@ TEST_F(BadPonyTest, MatchIsoCaptureWithConsume)
   // From issue #3596
   // Consuming the match expression makes the discriminee ephemeral,
   // so iso captures are sound.
-  // Uses a custom class instead of String to avoid hitting an unrelated
-  // LLVM 21 codegen issue in genprim_string_serialise.
   const char* src =
-    "class Foo\n"
-
     "actor Main\n"
     "  new create(env: Env) =>\n"
-    "    let x: Foo iso = recover iso Foo end\n"
+    "    let x: String iso = recover iso String end\n"
     "    match consume x\n"
-    "    | let y: Foo iso => None\n"
+    "    | let y: String iso => None\n"
     "    end";
 
-  TEST_COMPILE(src);
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
 }
 
 TEST_F(BadPonyTest, MatchNonIsoCaptureFromUnion)
@@ -1500,7 +1497,8 @@ TEST_F(BadPonyTest, MatchNonIsoCaptureFromUnion)
     "    | let s: String => None\n"
     "    end";
 
-  TEST_COMPILE(src);
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
 }
 
 TEST_F(BadPonyTest, MatchViewpointRefCaptureFromField)
@@ -1522,7 +1520,8 @@ TEST_F(BadPonyTest, MatchViewpointRefCaptureFromField)
     "actor Main\n"
     "  new create(env: Env) => None";
 
-  TEST_COMPILE(src);
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
 }
 
 TEST_F(BadPonyTest, MatchValConstraintCapture)
@@ -1544,7 +1543,8 @@ TEST_F(BadPonyTest, MatchValConstraintCapture)
     "actor Main\n"
     "  new create(env: Env) => None";
 
-  TEST_COMPILE(src);
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
 }
 
 TEST_F(BadPonyTest, MatchAliasedViewpointCapture)
@@ -1568,5 +1568,6 @@ TEST_F(BadPonyTest, MatchAliasedViewpointCapture)
     "actor Main\n"
     "  new create(env: Env) => None";
 
-  TEST_COMPILE(src);
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
 }
