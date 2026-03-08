@@ -704,6 +704,44 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
       case TRACE_TAG_UNKNOWN:
       case TRACE_DYNAMIC:
       {
+        // The expected element is a nominal type or dynamic union, stored
+        // as a pointer. But the actual tuple may be a different variant
+        // where this element is a machine word or nested tuple (inline
+        // data). Loading inline data as a pointer and dereferencing it
+        // crashes. Check the field's type_id category to verify it's an
+        // object (class/actor) before loading. Object type_ids are odd;
+        // numeric and tuple type_ids are even. A NULL field descriptor
+        // means a non-concrete type (trait/interface), always a pointer.
+        LLVMValueRef field_info = gendesc_fieldinfo(c, desc, index);
+        LLVMValueRef field_desc = gendesc_fielddesc(c, field_info);
+        LLVMValueRef is_null = LLVMBuildIsNull(c->builder, field_desc, "");
+
+        LLVMBasicBlockRef null_block = codegen_block(c, "");
+        LLVMBasicBlockRef nonnull_block = codegen_block(c, "");
+        LLVMBasicBlockRef trace_block = codegen_block(c, "");
+        LLVMBasicBlockRef skip_block = codegen_block(c, "");
+        LLVMBuildCondBr(c->builder, is_null, null_block, nonnull_block);
+
+        // NULL descriptor: non-concrete type, always a pointer.
+        LLVMPositionBuilderAtEnd(c->builder, null_block);
+        LLVMBuildBr(c->builder, trace_block);
+
+        // Non-NULL descriptor: check if the type_id is odd (object).
+        LLVMMoveBasicBlockAfter(nonnull_block,
+          LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, nonnull_block);
+        LLVMValueRef type_id = gendesc_typeid(c, field_desc);
+        LLVMValueRef is_object = LLVMBuildAnd(c->builder, type_id,
+          LLVMConstInt(c->i32, 1, false), "");
+        LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntNE, is_object,
+          LLVMConstInt(c->i32, 0, false), "");
+        LLVMBuildCondBr(c->builder, test, trace_block, skip_block);
+
+        // Field is a pointer: load and trace.
+        LLVMMoveBasicBlockAfter(trace_block,
+          LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, trace_block);
+
         // If we are (A, B), turn (_, _) into (A, _).
         ast_t* swap = ast_dup(child);
         ast_swap(dc_child, swap);
@@ -712,7 +750,6 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
         LLVMBasicBlockRef next_block = codegen_block(c, "");
 
         // Load the object from the tuple field.
-        LLVMValueRef field_info = gendesc_fieldinfo(c, desc, index);
         LLVMValueRef object = gendesc_fieldload(c, ptr, field_info);
 
         // Trace dynamic, even if the tuple thinks the field isn't dynamic.
@@ -725,19 +762,50 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
         // Restore (A, _) to (_, _).
         ast_swap(swap, dc_child);
         ast_free_unattached(swap);
+
+        LLVMBuildBr(c->builder, skip_block);
+        LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, skip_block);
         break;
       }
 
       case TRACE_TUPLE:
       {
+        // The expected element is a nested tuple, stored inline. But the
+        // actual tuple may be a different variant where this element is an
+        // object pointer or machine word. Check the field's type_id
+        // category: tuple type_ids have (type_id & 3) == 2. A NULL field
+        // descriptor means a non-concrete type (always a pointer, not an
+        // inline tuple), so skip.
+        LLVMValueRef field_info = gendesc_fieldinfo(c, desc, index);
+        LLVMValueRef field_desc = gendesc_fielddesc(c, field_info);
+        LLVMValueRef is_null = LLVMBuildIsNull(c->builder, field_desc, "");
+
+        LLVMBasicBlockRef nonnull_block = codegen_block(c, "");
+        LLVMBasicBlockRef trace_block = codegen_block(c, "");
+        LLVMBasicBlockRef skip_block = codegen_block(c, "");
+        LLVMBuildCondBr(c->builder, is_null, skip_block, nonnull_block);
+
+        // Non-NULL descriptor: check if type_id indicates a tuple.
+        LLVMPositionBuilderAtEnd(c->builder, nonnull_block);
+        LLVMValueRef type_id = gendesc_typeid(c, field_desc);
+        LLVMValueRef category = LLVMBuildAnd(c->builder, type_id,
+          LLVMConstInt(c->i32, 3, false), "");
+        LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, category,
+          LLVMConstInt(c->i32, 2, false), "");
+        LLVMBuildCondBr(c->builder, test, trace_block, skip_block);
+
+        // Field is an inline tuple: trace it.
+        LLVMMoveBasicBlockAfter(trace_block,
+          LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, trace_block);
+
         // If we are (A, B), turn (_, _) into (A, _).
         ast_t* swap = ast_dup(child);
         ast_swap(dc_child, swap);
 
-        // Get a pointer to the unboxed tuple and it's descriptor.
-        LLVMValueRef field_info = gendesc_fieldinfo(c, desc, index);
+        // Get a pointer to the unboxed tuple and its descriptor.
         LLVMValueRef field_ptr = gendesc_fieldptr(c, ptr, field_info);
-        LLVMValueRef field_desc = gendesc_fielddesc(c, field_info);
 
         // Trace the tuple dynamically.
         trace_dynamic_tuple(c, ctx, field_ptr, field_desc, swap, orig, tuple);
@@ -745,6 +813,10 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
         // Restore (A, _) to (_, _).
         ast_swap(swap, dc_child);
         ast_free_unattached(swap);
+
+        LLVMBuildBr(c->builder, skip_block);
+        LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, skip_block);
         break;
       }
 
