@@ -89,7 +89,7 @@ jobs:
             - sudo
             - rsync
           runcmd:
-            - echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/wheel
+            - echo 'freebsd ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/freebsd
           USERDATA
           cat > meta-data <<METADATA
           instance-id: freebsd-ci
@@ -116,9 +116,9 @@ jobs:
               sleep 2
             done
           '
-          echo "SSH available, waiting for sudo to be installed by cloud-init..."
-          timeout 120 bash -c '
-            while ! ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost "which sudo" 2>/dev/null; do
+          echo "SSH available, waiting for cloud-init to finish..."
+          timeout 300 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost "test -f /var/lib/cloud/instance/boot-finished" 2>/dev/null; do
               sleep 5
             done
           '
