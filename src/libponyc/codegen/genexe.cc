@@ -26,6 +26,12 @@ LLD_HAS_DRIVER(wasm)
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
+#  include <sys/stat.h>
+#  include <dirent.h>
+#  include <llvm/TargetParser/Triple.h>
+#  include <llvm/Support/raw_ostream.h>
+#  include <vector>
+#  include <string>
 #endif
 
 #define STR(x) STR2(x)
@@ -267,10 +273,535 @@ static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
 }
 #endif
 
+#ifdef PLATFORM_IS_POSIX_BASED
+static bool is_cross_compiling(compile_t* c)
+{
+  char* default_triple_str = LLVMGetDefaultTargetTriple();
+  llvm::Triple target(c->opt->triple);
+  llvm::Triple host(default_triple_str);
+  LLVMDisposeMessage(default_triple_str);
+
+  return target.getArch() != host.getArch()
+    || target.getOS() != host.getOS()
+    || target.getEnvironment() != host.getEnvironment();
+}
+
+static const char* elf_emulation(compile_t* c)
+{
+  llvm::Triple triple(c->opt->triple);
+
+  switch(triple.getArch())
+  {
+    case llvm::Triple::x86_64: return "elf_x86_64";
+    case llvm::Triple::aarch64: return "aarch64linux";
+    case llvm::Triple::riscv64: return "elf64lriscv";
+    case llvm::Triple::riscv32: return "elf32lriscv";
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb: return "armelf_linux_eabi";
+    default: return NULL;
+  }
+}
+
+static const char* dynamic_linker_path(compile_t* c)
+{
+  llvm::Triple triple(c->opt->triple);
+  bool is_musl = triple.isMusl();
+
+  switch(triple.getArch())
+  {
+    case llvm::Triple::x86_64:
+      return is_musl ? "/lib/ld-musl-x86_64.so.1"
+                     : "/lib64/ld-linux-x86-64.so.2";
+    case llvm::Triple::aarch64:
+      return is_musl ? "/lib/ld-musl-aarch64.so.1"
+                     : "/lib/ld-linux-aarch64.so.1";
+    case llvm::Triple::riscv64:
+      return is_musl ? "/lib/ld-musl-riscv64.so.1"
+                     : "/lib/ld-linux-riscv64-lp64d.so.1";
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb:
+    {
+      llvm::Triple::EnvironmentType env = triple.getEnvironment();
+      if(is_musl)
+      {
+        return (env == llvm::Triple::MuslEABIHF)
+          ? "/lib/ld-musl-armhf.so.1"
+          : "/lib/ld-musl-arm.so.1";
+      }
+      return (env == llvm::Triple::GNUEABIHF)
+        ? "/lib/ld-linux-armhf.so.3"
+        : "/lib/ld-linux.so.3";
+    }
+    default: return NULL;
+  }
+}
+
+static const char* system_triple(compile_t* c)
+{
+  llvm::Triple triple(c->opt->triple);
+  std::string result = std::string(triple.getArchName()) + "-"
+    + std::string(triple.getOSName()) + "-"
+    + std::string(triple.getEnvironmentName());
+  return stringtab(result.c_str());
+}
+
+static bool file_exists(const char* path)
+{
+  struct stat st;
+  return stat(path, &st) == 0;
+}
+
+static const char* find_libc_crt_dir(const char* sysroot,
+  const char* sys_triple)
+{
+  // Search candidate paths for libc CRT objects (crt1.o).
+  const char* candidates[4];
+  char buf[PATH_MAX];
+
+  snprintf(buf, sizeof(buf), "%s/usr/lib/%s", sysroot, sys_triple);
+  candidates[0] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/usr/lib", sysroot);
+  candidates[1] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/lib/%s", sysroot, sys_triple);
+  candidates[2] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/lib", sysroot);
+  candidates[3] = stringtab(buf);
+
+  for(int i = 0; i < 4; i++)
+  {
+    snprintf(buf, sizeof(buf), "%s/crt1.o", candidates[i]);
+    if(file_exists(buf))
+      return candidates[i];
+  }
+
+  return NULL;
+}
+
+static const char* find_ponyc_crt_dir(ast_t* program, pass_opt_t* opt)
+{
+  (void)opt;
+  size_t count = program_lib_path_count(program);
+  char buf[PATH_MAX];
+
+  for(size_t i = 0; i < count; i++)
+  {
+    const char* path = program_lib_path_at(program, i);
+    snprintf(buf, sizeof(buf), "%s/crtbeginS.o", path);
+    if(file_exists(buf))
+      return path;
+  }
+
+  return NULL;
+}
+
+static const char* find_gcc_lib_dir(const char* sysroot,
+  const char* sys_triple)
+{
+  // Search for GCC runtime library directory containing libgcc.a.
+  // Check multiple base paths and pick the highest version.
+  const char* base_patterns[] = {
+    "/usr/lib/gcc",
+    NULL, // sysroot-relative patterns filled in below
+    NULL
+  };
+
+  char sysroot_rel[PATH_MAX];
+  char sysroot_internal[PATH_MAX];
+
+  // <sysroot>/../lib/gcc
+  snprintf(sysroot_rel, sizeof(sysroot_rel), "%s/../lib/gcc", sysroot);
+  base_patterns[1] = sysroot_rel;
+
+  // <sysroot>/lib/gcc
+  snprintf(sysroot_internal, sizeof(sysroot_internal), "%s/lib/gcc", sysroot);
+  base_patterns[2] = sysroot_internal;
+
+  const char* best_dir = NULL;
+  int best_version = -1;
+
+  for(int p = 0; p < 3; p++)
+  {
+    char triple_dir[PATH_MAX];
+    snprintf(triple_dir, sizeof(triple_dir), "%s/%s",
+      base_patterns[p], sys_triple);
+
+    DIR* dir = opendir(triple_dir);
+    if(dir == NULL)
+      continue;
+
+    struct dirent* entry;
+    while((entry = readdir(dir)) != NULL)
+    {
+      if(entry->d_name[0] == '.')
+        continue;
+
+      // Parse leading numeric component for version comparison.
+      int version = atoi(entry->d_name);
+      if(version <= 0)
+        continue;
+
+      char candidate[PATH_MAX];
+      snprintf(candidate, sizeof(candidate), "%s/%s/libgcc.a",
+        triple_dir, entry->d_name);
+
+      if(file_exists(candidate) && version > best_version)
+      {
+        best_version = version;
+        char result[PATH_MAX];
+        snprintf(result, sizeof(result), "%s/%s",
+          triple_dir, entry->d_name);
+        best_dir = stringtab(result);
+      }
+    }
+
+    closedir(dir);
+  }
+
+  return best_dir;
+}
+
+static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
+  errors_t* errors)
+{
+  // If user specified --sysroot, validate it.
+  if(c->opt->sysroot != NULL && c->opt->sysroot[0] != '\0')
+  {
+    if(find_libc_crt_dir(c->opt->sysroot, sys_triple) != NULL)
+      return c->opt->sysroot;
+
+    errorf(errors, NULL,
+      "sysroot '%s' does not contain libc CRT objects (crt1.o)\n"
+      "  Searched: %s/usr/lib/%s/, %s/usr/lib/, %s/lib/%s/, %s/lib/",
+      c->opt->sysroot,
+      c->opt->sysroot, sys_triple,
+      c->opt->sysroot,
+      c->opt->sysroot, sys_triple,
+      c->opt->sysroot);
+    return NULL;
+  }
+
+  // Auto-detect from common cross-toolchain locations.
+  const char* candidates[4];
+  char buf[PATH_MAX];
+
+  snprintf(buf, sizeof(buf), "/usr/%s", sys_triple);
+  candidates[0] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "/usr/local/%s", sys_triple);
+  candidates[1] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "/usr/%s/libc", sys_triple);
+  candidates[2] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "/usr/local/%s/libc", sys_triple);
+  candidates[3] = stringtab(buf);
+
+  for(int i = 0; i < 4; i++)
+  {
+    if(find_libc_crt_dir(candidates[i], sys_triple) != NULL)
+      return candidates[i];
+  }
+
+  errorf(errors, NULL,
+    "cross-compiling for %s requires --sysroot=<path>\n"
+    "  Searched: /usr/%s/, /usr/local/%s/,\n"
+    "           /usr/%s/libc/, /usr/local/%s/libc/\n"
+    "  Install a cross-toolchain or specify --sysroot explicitly.",
+    c->opt->triple,
+    sys_triple, sys_triple, sys_triple, sys_triple);
+  return NULL;
+}
+
+static bool link_exe_lld_elf(compile_t* c, ast_t* program,
+  const char* file_o)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
+
+  program_lib_build_args_embedded(program, c->opt);
+
+  const char* sys_triple = system_triple(c);
+
+  // Resolve sysroot.
+  const char* sysroot = resolve_sysroot(c, sys_triple, errors);
+  if(sysroot == NULL)
+    return false;
+
+  // Get target-derived values.
+  const char* emulation = elf_emulation(c);
+  if(emulation == NULL)
+  {
+    errorf(errors, NULL,
+      "unsupported architecture for embedded LLD: %s", c->opt->triple);
+    return false;
+  }
+
+  const char* dynlinker = dynamic_linker_path(c);
+  if(!c->opt->staticbin && dynlinker == NULL)
+  {
+    errorf(errors, NULL,
+      "unsupported architecture for dynamic linking: %s", c->opt->triple);
+    return false;
+  }
+
+  // Find CRT directories.
+  const char* libc_crt_dir = find_libc_crt_dir(sysroot, sys_triple);
+  if(libc_crt_dir == NULL)
+  {
+    errorf(errors, NULL,
+      "could not find libc CRT objects in sysroot '%s'", sysroot);
+    return false;
+  }
+
+  const char* ponyc_crt_dir = find_ponyc_crt_dir(program, c->opt);
+  if(ponyc_crt_dir == NULL)
+  {
+    errorf(errors, NULL,
+      "could not find compiler-rt CRT objects (crtbeginS.o) in lib paths");
+    return false;
+  }
+
+  // GCC lib dir is optional.
+  const char* gcc_lib_dir = find_gcc_lib_dir(sysroot, sys_triple);
+
+  if(c->opt->link_ldcmd != NULL)
+  {
+    fprintf(stderr,
+      "Warning: --link-ldcmd is ignored when using embedded LLD\n");
+  }
+
+  // Build argument vector.
+  std::vector<const char*> args;
+  char buf[PATH_MAX];
+
+  args.push_back("ld.lld");
+  args.push_back("-m");
+  args.push_back(emulation);
+  args.push_back("-z");
+  args.push_back("relro");
+
+  if(c->opt->staticbin)
+  {
+    args.push_back("-z");
+    args.push_back("now");
+  }
+
+  args.push_back("--hash-style=both");
+  args.push_back("--build-id");
+  args.push_back("--eh-frame-hdr");
+
+  if(c->opt->staticbin)
+  {
+    args.push_back("-static");
+    args.push_back("--as-needed");
+  }
+  else
+  {
+    args.push_back("-pie");
+    args.push_back("-dynamic-linker");
+    args.push_back(dynlinker);
+  }
+
+// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
+#ifndef NDEBUG
+  args.push_back("--export-dynamic");
+#endif
+
+  if(c->opt->strip_debug)
+    args.push_back("--strip-debug");
+
+  // CRT startup objects.
+  if(c->opt->staticbin)
+  {
+    snprintf(buf, sizeof(buf), "%s/crt1.o", libc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+  else
+  {
+    // Prefer Scrt1.o (PIE startup) if available, fall back to crt1.o.
+    snprintf(buf, sizeof(buf), "%s/Scrt1.o", libc_crt_dir);
+    if(file_exists(buf))
+      args.push_back(stringtab(buf));
+    else
+    {
+      snprintf(buf, sizeof(buf), "%s/crt1.o", libc_crt_dir);
+      args.push_back(stringtab(buf));
+    }
+  }
+
+  snprintf(buf, sizeof(buf), "%s/crti.o", libc_crt_dir);
+  args.push_back(stringtab(buf));
+
+  if(c->opt->staticbin)
+  {
+    snprintf(buf, sizeof(buf), "%s/crtbeginT.o", ponyc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+  else
+  {
+    snprintf(buf, sizeof(buf), "%s/crtbeginS.o", ponyc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+
+  // Library search paths: sysroot dirs first, then GCC, then ponyc/user.
+  snprintf(buf, sizeof(buf), "-L%s", libc_crt_dir);
+  args.push_back(stringtab(buf));
+
+  if(gcc_lib_dir != NULL)
+  {
+    snprintf(buf, sizeof(buf), "-L%s", gcc_lib_dir);
+    args.push_back(stringtab(buf));
+  }
+
+  // Add ponyc lib paths and user lib paths.
+  size_t path_count = program_lib_path_count(program);
+  for(size_t i = 0; i < path_count; i++)
+  {
+    snprintf(buf, sizeof(buf), "-L%s", program_lib_path_at(program, i));
+    args.push_back(stringtab(buf));
+  }
+
+  // Object file.
+  args.push_back(file_o);
+
+  // User libraries.
+  size_t lib_count = program_lib_count(program);
+  for(size_t i = 0; i < lib_count; i++)
+  {
+    const char* lib = program_lib_at(program, i);
+    if(is_path_absolute(lib))
+    {
+      args.push_back(lib);
+    }
+    else
+    {
+      snprintf(buf, sizeof(buf), "-l%s", lib);
+      args.push_back(stringtab(buf));
+    }
+  }
+
+  // Pony runtime.
+  if(!c->opt->runtimebc)
+  {
+    if(c->opt->staticbin)
+      args.push_back("-lponyrt");
+    else
+      args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+  }
+
+  args.push_back("-lpthread");
+  args.push_back("-lm");
+  args.push_back("-ldl");
+  args.push_back("-latomic");
+
+  // ARM-specific exclude-libs.
+  if(target_is_arm(c->opt->triple))
+  {
+    args.push_back("--exclude-libs");
+    args.push_back("libgcc.a");
+    args.push_back("--exclude-libs");
+    args.push_back("libgcc_real.a");
+    args.push_back("--exclude-libs");
+    args.push_back("libgnustl_shared.so");
+    args.push_back("--exclude-libs");
+    args.push_back("libunwind.a");
+  }
+
+  // GCC runtime and libc linkage.
+  if(c->opt->staticbin)
+  {
+    args.push_back("--start-group");
+    args.push_back("-lgcc");
+    args.push_back("-lgcc_eh");
+    args.push_back("-lc");
+    args.push_back("--end-group");
+    args.push_back("-lssp_nonshared");
+  }
+  else
+  {
+    args.push_back("-lgcc");
+    args.push_back("--as-needed");
+    args.push_back("-lgcc_s");
+    args.push_back("--no-as-needed");
+    args.push_back("-lc");
+  }
+
+  // CRT finalization objects.
+  if(c->opt->staticbin)
+  {
+    snprintf(buf, sizeof(buf), "%s/crtend.o", ponyc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+  else
+  {
+    snprintf(buf, sizeof(buf), "%s/crtendS.o", ponyc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+
+  snprintf(buf, sizeof(buf), "%s/crtn.o", libc_crt_dir);
+  args.push_back(stringtab(buf));
+
+  args.push_back("-o");
+  args.push_back(file_exe);
+
+  // Log the command if verbose.
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+  {
+    std::string cmd;
+    for(size_t i = 0; i < args.size(); i++)
+    {
+      if(i > 0) cmd += " ";
+      cmd += args[i];
+    }
+    fprintf(stderr, "%s\n", cmd.c_str());
+  }
+
+  // Invoke LLD.
+  std::vector<const char*> lld_args(args.begin(), args.end());
+  std::string lld_stdout_str;
+  std::string lld_stderr_str;
+  llvm::raw_string_ostream lld_stdout(lld_stdout_str);
+  llvm::raw_string_ostream lld_stderr(lld_stderr_str);
+
+  lld::Result result = lld::lldMain(
+    lld_args,
+    lld_stdout,
+    lld_stderr,
+    {{lld::Gnu, &lld::elf::link}});
+
+  if(result.retCode != 0)
+  {
+    errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
+    return false;
+  }
+
+  return true;
+}
+#endif
+
 static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
+
+  // Use embedded LLD for cross-compilation to Linux targets
+  // unless --linker escape hatch is specified.
+#ifdef PLATFORM_IS_POSIX_BASED
+  if(c->opt->linker == NULL
+    && target_is_linux(c->opt->triple)
+    && is_cross_compiling(c))
+  {
+    return link_exe_lld_elf(c, program, file_o);
+  }
+#endif
 
   const char* ponyrt = c->opt->runtimebc ? "" :
 #if defined(PLATFORM_IS_WINDOWS)

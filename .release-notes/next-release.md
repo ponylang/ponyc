@@ -100,3 +100,13 @@ Lines inside triple-quoted strings (docstrings) and lines containing `"""` delim
 
 Previously, writing `return error` in a function body would crash the compiler with an assertion failure instead of producing a diagnostic error. The compiler now correctly reports that a return value cannot be a control statement.
 
+## Add `--sysroot` option for cross-compilation
+
+A new `--sysroot` option specifies the target system root when cross-compiling. The compiler uses the sysroot to locate libc CRT objects and system libraries for the target platform. If `--sysroot` is not specified, common cross-toolchain locations are searched automatically.
+
+## Use embedded LLD for cross-compilation to Linux targets
+
+Cross-compilation to Linux targets (RISC-V, ARM, ARMhf) now uses the embedded LLD linker directly instead of invoking an external linker through `system()`. This eliminates the requirement to have a target-specific GCC cross-compiler installed solely for linking, and produces more predictable link behavior across host environments.
+
+The embedded LLD path activates automatically when cross-compiling to a Linux target without `--linker` set. To use an external linker instead, pass `--linker=<command>` as an escape hatch to the legacy linking path.
+
