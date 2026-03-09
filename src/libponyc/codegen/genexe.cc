@@ -726,39 +726,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   args.push_back("--build-id");
   args.push_back("--eh-frame-hdr");
 
-  // Pass --sysroot so LLD can resolve absolute paths in linker scripts
-  // (e.g. libc.so referencing /lib/libc.so.6). However, some cross
-  // toolchains (Debian gcc-cross packages) generate linker scripts with
-  // fully-qualified paths that already include the sysroot prefix. LLD
-  // doesn't fall back to the original path after prepending sysroot
-  // (unlike GNU ld), so --sysroot would cause double-prepending. Detect
-  // this by checking whether libc.so contains the sysroot path.
-  {
-    bool needs_sysroot = true;
-    char libc_so_path[PATH_MAX];
-    snprintf(libc_so_path, sizeof(libc_so_path), "%s/libc.so", libc_crt_dir);
-
-    FILE* f = fopen(libc_so_path, "r");
-    if(f != NULL)
-    {
-      char line[1024];
-      while(fgets(line, sizeof(line), f) != NULL)
-      {
-        if(strstr(line, sysroot) != NULL)
-        {
-          needs_sysroot = false;
-          break;
-        }
-      }
-      fclose(f);
-    }
-
-    if(needs_sysroot)
-    {
-      snprintf(buf, sizeof(buf), "--sysroot=%s", sysroot);
-      args.push_back(stringtab(buf));
-    }
-  }
+  // Sysroot lets LLD resolve absolute paths in linker scripts (e.g.
+  // libc.so referencing /lib/libpthread.so.0) by prepending the sysroot.
+  // Our patched LLD falls back to the original path when the
+  // sysroot-prefixed path doesn't exist, matching GNU ld behavior.
+  snprintf(buf, sizeof(buf), "--sysroot=%s", sysroot);
+  args.push_back(stringtab(buf));
 
   if(c->opt->staticbin)
   {
