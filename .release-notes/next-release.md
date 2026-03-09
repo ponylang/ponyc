@@ -110,3 +110,59 @@ Cross-compilation to Linux targets (RISC-V, ARM, ARMhf) now uses the embedded LL
 
 The embedded LLD path activates automatically when cross-compiling to a Linux target without `--linker` set. To use an external linker instead, pass `--linker=<command>` as an escape hatch to the legacy linking path.
 
+## Add capability security and multi-subscriber support to signal handling
+
+The `signals` package now provides capability security and signal number validation. `SignalHandler` requires a `SignalAuth` capability (derived from `AmbientAuth`) and a `ValidSignal` constrained type that enforces platform-specific whitelists, preventing registration of fatal signals like `SIGSEGV` or uncatchable signals like `SIGKILL`. Multiple actors can now subscribe to the same signal — up to 16 subscribers per signal number, with all subscribers notified when the signal fires.
+
+```pony
+use "constrained_types"
+use "signals"
+
+actor Main
+  new create(env: Env) =>
+    let auth = SignalAuth(env.root)
+    match MakeValidSignal(Sig.int())
+    | let sig: ValidSignal =>
+      let handler = SignalHandler(auth, MyNotify, sig)
+    end
+```
+
+## Signal handling API requires `SignalAuth` and `ValidSignal`
+
+The `SignalHandler` constructor now requires a `SignalAuth` capability and a `ValidSignal` constrained type instead of a raw `U32` signal number. `ANSITerm.create` also requires a `SignalAuth` parameter as its first argument.
+
+Before:
+
+```pony
+use "signals"
+
+let handler = SignalHandler(MyNotify, Sig.int())
+```
+
+```pony
+use "term"
+
+let term = ANSITerm(handler, env.input)
+```
+
+After:
+
+```pony
+use "constrained_types"
+use "signals"
+
+let auth = SignalAuth(env.root)
+match MakeValidSignal(Sig.int())
+| let sig: ValidSignal =>
+  let handler = SignalHandler(auth, MyNotify, sig)
+end
+```
+
+```pony
+use "signals"
+use "term"
+
+let auth = SignalAuth(env.root)
+let term = ANSITerm(auth, handler, env.input)
+```
+

@@ -23,12 +23,19 @@
 // (the asio background thread).
 
 #define MAX_SIGNAL 32
+#define MAX_SIGNAL_SUBSCRIBERS 16
+
+typedef struct signal_subscribers_t {
+  PONY_ATOMIC(int) registered;  // 0=no, -1=in-progress, 1=yes
+  PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
+} signal_subscribers_t;
 
 struct asio_backend_t
 {
   HANDLE wakeup;
   PONY_ATOMIC(bool) stop;
-  asio_event_t* sighandlers[MAX_SIGNAL];
+  signal_subscribers_t sighandlers[MAX_SIGNAL];
+  PONY_ATOMIC(uint32_t) pending_signals;
   messageq_t q;
 };
 
@@ -39,8 +46,7 @@ enum // Event requests
   ASIO_STDIN_RESUME = 6,
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
-  ASIO_SET_SIGNAL = 9,
-  ASIO_CANCEL_SIGNAL = 10
+  ASIO_CANCEL_SIGNAL = 9
 };
 
 
@@ -69,12 +75,17 @@ static void signal_handler(int sig)
   if(sig >= MAX_SIGNAL)
     return;
 
-  // Reset the signal handler.
+  // Re-register handler (Windows signal is one-shot)
   signal(sig, signal_handler);
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
-  asio_event_t* ev = b->sighandlers[sig];
-  pony_asio_event_send(ev, ASIO_SIGNAL, 1);
+
+  // Set the pending bit and wake the ASIO thread for fan-out.
+  // This avoids iterating the subscriber list from signal context,
+  // which would race with the ASIO thread modifying the list.
+  atomic_fetch_or_explicit(&b->pending_signals, 1u << sig,
+    memory_order_release);
+  SetEvent(b->wakeup);
 }
 
 
@@ -199,27 +210,48 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
               break;
             }
 
-            case ASIO_SET_SIGNAL:
-            {
-              int sig = (int)ev->nsec;
-
-              if(b->sighandlers[sig] == NULL)
-              {
-                b->sighandlers[sig] = ev;
-                signal(sig, signal_handler);
-              }
-              break;
-            }
-
             case ASIO_CANCEL_SIGNAL:
             {
-              asio_event_t* ev = msg->event;
               int sig = (int)ev->nsec;
 
-              if(b->sighandlers[sig] == ev)
+              if(sig >= MAX_SIGNAL)
               {
-                b->sighandlers[sig] = NULL;
+                ev->flags = ASIO_DISPOSABLE;
+                pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+                break;
+              }
+
+              signal_subscribers_t* subs = &b->sighandlers[sig];
+
+              // Remove ev from subscriber array (set slot to NULL)
+              for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+              {
+                if(atomic_load_explicit(&subs->subscribers[i],
+                  memory_order_acquire) == ev)
+                {
+                  atomic_store_explicit(&subs->subscribers[i], NULL,
+                    memory_order_release);
+                  break;
+                }
+              }
+
+              // Check if all subscribers are gone
+              bool has_subscribers = false;
+              for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+              {
+                if(atomic_load_explicit(&subs->subscribers[i],
+                  memory_order_acquire) != NULL)
+                {
+                  has_subscribers = true;
+                  break;
+                }
+              }
+
+              if(!has_subscribers)
+              {
                 signal(sig, SIG_DFL);
+                atomic_store_explicit(&subs->registered, 0,
+                  memory_order_release);
               }
 
               ev->flags = ASIO_DISPOSABLE;
@@ -229,6 +261,23 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
             default:  // Something's gone very wrong if we reach here
               break;
+          }
+        }
+
+        // Process pending signals (set by signal_handler via atomic bitmask)
+        uint32_t pending = atomic_exchange_explicit(&b->pending_signals, 0,
+          memory_order_acquire);
+        while(pending != 0)
+        {
+          int sig = (int)__pony_ctz(pending);
+          pending &= ~(1u << sig);
+          signal_subscribers_t* subs = &b->sighandlers[sig];
+          for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+          {
+            asio_event_t* sub = atomic_load_explicit(
+              &subs->subscribers[i], memory_order_acquire);
+            if(sub != NULL)
+              pony_asio_event_send(sub, ASIO_SIGNAL, 1);
           }
         }
 
@@ -302,8 +351,42 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
     send_request(ev, ASIO_SET_TIMER);
   } else if((ev->flags & ASIO_SIGNAL) != 0) {
-    if(ev->nsec < MAX_SIGNAL)
-      send_request(ev, ASIO_SET_SIGNAL);
+    int sig = (int)ev->nsec;
+    if(sig < MAX_SIGNAL)
+    {
+      signal_subscribers_t* subs = &b->sighandlers[sig];
+
+      // Install signal handler synchronously on first subscriber
+      int expected = 0;
+      if(atomic_compare_exchange_strong_explicit(&subs->registered, &expected,
+        -1, memory_order_acq_rel, memory_order_acquire))
+      {
+        signal(sig, signal_handler);
+        atomic_store_explicit(&subs->registered, 1, memory_order_release);
+      }
+      else
+      {
+        // Another thread is setting up this signal. Spin until setup completes.
+        while(atomic_load_explicit(&subs->registered,
+          memory_order_acquire) < 0)
+          ;
+      }
+
+      // Add subscriber synchronously using CAS on array slots
+      bool added = false;
+      for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+      {
+        asio_event_t* exp = NULL;
+        if(atomic_compare_exchange_strong_explicit(&subs->subscribers[i],
+          &exp, ev, memory_order_release, memory_order_relaxed))
+        {
+          added = true;
+          break;
+        }
+      }
+      pony_assert(added);
+      (void)added;
+    }
   } else if(ev->fd == 0) {
     // Need to subscribe to stdin
     send_request(ev, ASIO_STDIN_NOTIFY);

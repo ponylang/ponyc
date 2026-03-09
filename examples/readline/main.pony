@@ -1,3 +1,4 @@
+use "signals"
 use "term"
 use "promises"
 
@@ -44,7 +45,8 @@ actor Main
     env.out.print("Use 'quit' to exit.")
 
     // Building a delegate manually
-    let term = ANSITerm(Readline(recover Handler end, env.out), env.input)
+    let term = ANSITerm(SignalAuth(env.root),
+      Readline(recover Handler end, env.out), env.input)
     term.prompt("0 > ")
 
     let notify = object iso

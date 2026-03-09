@@ -24,13 +24,21 @@
 #endif
 
 #define MAX_SIGNAL 128
+#define MAX_SIGNAL_SUBSCRIBERS 16
+
+#define ASIO_CANCEL_SIGNAL 10
+
+typedef struct signal_subscribers_t {
+  PONY_ATOMIC(int) eventfd;  // shared eventfd for this signal (-1 if none)
+  PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
+} signal_subscribers_t;
 
 struct asio_backend_t
 {
   int epfd;
   int wakeup;    /* eventfd to break epoll loop */
   struct epoll_event events[MAX_EVENTS];
-  PONY_ATOMIC(asio_event_t*) sighandlers[MAX_SIGNAL];
+  signal_subscribers_t sighandlers[MAX_SIGNAL];
   PONY_ATOMIC(bool) terminate;
   messageq_t q;
 };
@@ -60,17 +68,15 @@ static void signal_handler(int sig)
 
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
-  asio_event_t* ev = atomic_load_explicit(&b->sighandlers[sig],
+
+  // The eventfd is set (with release) before sigaction installs this handler,
+  // so the happens-before ordering is established.
+  int fd = atomic_load_explicit(&b->sighandlers[sig].eventfd,
     memory_order_acquire);
-
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_AFTER(&b->sighandlers[sig]);
-#endif
-
-  if(ev == NULL)
+  if(fd < 0)
     return;
 
-  eventfd_write(ev->fd, 1);
+  eventfd_write(fd, 1);
 }
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
@@ -98,6 +104,73 @@ static void handle_queue(asio_backend_t* b)
         pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
         break;
 
+      case ASIO_CANCEL_SIGNAL:
+      {
+        int sig = (int)ev->nsec;
+
+        if(sig >= MAX_SIGNAL)
+        {
+          ev->flags = ASIO_DISPOSABLE;
+          pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+          break;
+        }
+
+        signal_subscribers_t* subs = &b->sighandlers[sig];
+
+        // Remove ev from subscriber array (set slot to NULL)
+        for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+        {
+          if(atomic_load_explicit(&subs->subscribers[i],
+            memory_order_acquire) == ev)
+          {
+            atomic_store_explicit(&subs->subscribers[i], NULL,
+              memory_order_release);
+            break;
+          }
+        }
+
+        // Check if all subscribers are gone
+        bool has_subscribers = false;
+        for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+        {
+          if(atomic_load_explicit(&subs->subscribers[i],
+            memory_order_acquire) != NULL)
+          {
+            has_subscribers = true;
+            break;
+          }
+        }
+
+        if(!has_subscribers)
+        {
+          int fd = atomic_load_explicit(&subs->eventfd, memory_order_acquire);
+          if(fd >= 0)
+          {
+            // Last subscriber: restore default signal handling, clean up
+            struct sigaction new_action;
+
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+            if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+              new_action.sa_handler = empty_signal_handler;
+            else
+#endif
+              new_action.sa_handler = SIG_DFL;
+
+            sigemptyset(&new_action.sa_mask);
+            new_action.sa_flags = SA_RESTART;
+            sigaction(sig, &new_action, NULL);
+
+            epoll_ctl(b->epfd, EPOLL_CTL_DEL, fd, NULL);
+            close(fd);
+            atomic_store_explicit(&subs->eventfd, -1, memory_order_release);
+          }
+        }
+
+        ev->flags = ASIO_DISPOSABLE;
+        pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+        break;
+      }
+
       default: {}
     }
   }
@@ -108,6 +181,11 @@ asio_backend_t* ponyint_asio_backend_init()
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
   memset(b, 0, sizeof(asio_backend_t));
   ponyint_messageq_init(&b->q);
+
+  // Initialize all signal eventfds to -1 (0 is a valid fd)
+  for(int i = 0; i < MAX_SIGNAL; i++)
+    atomic_store_explicit(&b->sighandlers[i].eventfd, -1,
+      memory_order_relaxed);
 
   b->epfd = epoll_create1(EPOLL_CLOEXEC);
   b->wakeup = eventfd(0, EFD_NONBLOCK);
@@ -237,12 +315,39 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
     SYSTEMATIC_TESTING_YIELD();
 
+    handle_queue(b);
+
     for(int i = 0; i < event_cnt; i++)
     {
       struct epoll_event* ep = &(b->events[i]);
 
       if(ep->data.ptr == b)
         continue;
+
+      // Check if this is a signal event (ptr into sighandlers array)
+      if(ep->data.ptr >= (void*)b->sighandlers &&
+         ep->data.ptr < (void*)&b->sighandlers[MAX_SIGNAL])
+      {
+        signal_subscribers_t* subs = (signal_subscribers_t*)ep->data.ptr;
+        if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+        {
+          int fd = atomic_load_explicit(&subs->eventfd, memory_order_acquire);
+          if(fd >= 0)
+          {
+            uint64_t count;
+            ssize_t rc = read(fd, &count, sizeof(uint64_t));
+            (void)rc;
+            for(size_t j = 0; j < MAX_SIGNAL_SUBSCRIBERS; j++)
+            {
+              asio_event_t* sub = atomic_load_explicit(
+                &subs->subscribers[j], memory_order_acquire);
+              if(sub != NULL)
+                pony_asio_event_send(sub, ASIO_SIGNAL, (uint32_t)count);
+            }
+          }
+        }
+        continue;
+      }
 
       asio_event_t* ev = ep->data.ptr;
       uint32_t flags = 0;
@@ -252,12 +357,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
-          // Send read notification to an actor if either
-          // * the event is not a one shot event
-          // * the event is a one shot event and we haven't already sent a notification
-          // if the event is a one shot event and we have already sent a notification
-          // don't send another one until we are asked for it again (i.e. the actor
-          // gets a 0 byte read and sets `readable` to false and resubscribes to reads
           if(((ev->flags & ASIO_ONESHOT) && !ev->readable) || !(ev->flags & ASIO_ONESHOT))
           {
             ev->readable = true;
@@ -270,12 +369,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & EPOLLOUT)
         {
-          // Send write notification to an actor if either
-          // * the event is not a one shot event
-          // * the event is a one shot event and we haven't already sent a notification
-          // if the event is a one shot event and we have already sent a notification
-          // don't send another one until we are asked for it again (i.e. the actor
-          // gets partial write and sets `writeable` to false and resubscribes to writes
           if(((ev->flags & ASIO_ONESHOT) && !ev->writeable) || !(ev->flags & ASIO_ONESHOT))
           {
             flags |= ASIO_WRITE;
@@ -295,28 +388,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         }
       }
 
-      if(ev->flags & ASIO_SIGNAL)
-      {
-        if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
-        {
-          uint64_t missed;
-          ssize_t rc = read(ev->fd, &missed, sizeof(uint64_t));
-          (void)rc;
-          flags |= ASIO_SIGNAL;
-          count = (uint32_t)missed;
-        }
-      }
-
-      // if we had a valid event of some type that needs to be sent
-      // to an actor
       if(flags != 0)
       {
-        // send the event to the actor
         pony_asio_event_send(ev, flags, count);
       }
     }
-
-    handle_queue(b);
   }
 
   close(b->epfd);
@@ -365,6 +441,73 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       ponyint_sched_noisy_asio(pony_scheduler_index());
   }
 
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    int sig = (int)ev->nsec;
+
+    if(sig >= MAX_SIGNAL)
+      return;
+
+    signal_subscribers_t* subs = &b->sighandlers[sig];
+
+    // Install the OS signal handler and add the subscriber synchronously
+    // so they are active before subscribe returns. This prevents a race
+    // where @raise fires before the handler or subscriber is installed.
+    int expected = -1;
+    if(atomic_compare_exchange_strong_explicit(&subs->eventfd, &expected, -2,
+      memory_order_acq_rel, memory_order_acquire))
+    {
+      // We won the race — first subscriber. Set up the shared eventfd,
+      // install sigaction, register with epoll.
+      int fd = eventfd(0, EFD_NONBLOCK);
+
+      struct sigaction new_action;
+      new_action.sa_handler = signal_handler;
+      sigemptyset(&new_action.sa_mask);
+      new_action.sa_flags = SA_RESTART;
+
+      struct epoll_event ep;
+      ep.data.ptr = subs;
+      ep.events = EPOLLIN | EPOLLET;
+      epoll_ctl(b->epfd, EPOLL_CTL_ADD, fd, &ep);
+
+      // Store the fd with release ordering BEFORE installing sigaction.
+      // sigaction provides additional ordering, but the release store
+      // ensures signal_handler sees the fd.
+      atomic_store_explicit(&subs->eventfd, fd, memory_order_release);
+
+      sigaction(sig, &new_action, NULL);
+    }
+    else
+    {
+      // Another thread is setting up this signal (-2 sentinel). Spin until
+      // setup completes so that signal_handler can see a valid eventfd.
+      // This loop is very brief — it only waits for eventfd creation,
+      // epoll registration, and one atomic store.
+      while(atomic_load_explicit(&subs->eventfd, memory_order_acquire) < 0)
+        ;
+    }
+
+    // Add subscriber synchronously using CAS on array slots. This ensures
+    // the subscriber is visible before the calling actor's next behavior
+    // (e.g., raise) executes, preventing a race where the signal fires
+    // before the subscriber is in the list.
+    bool added = false;
+    for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+    {
+      asio_event_t* expected = NULL;
+      if(atomic_compare_exchange_strong_explicit(&subs->subscribers[i],
+        &expected, ev, memory_order_release, memory_order_relaxed))
+      {
+        added = true;
+        break;
+      }
+    }
+    pony_assert(added);
+    (void)added;
+    return;
+  }
+
   struct epoll_event ep;
   ep.data.ptr = ev;
   ep.events = EPOLLRDHUP;
@@ -382,47 +525,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ep.events |= EPOLLIN;
   }
 
-  if(ev->flags & ASIO_SIGNAL)
-  {
-    int sig = (int)ev->nsec;
-    asio_event_t* prev = NULL;
-
-#ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_BEFORE(&b->sighandlers[sig]);
-#endif
-    if((sig < MAX_SIGNAL) &&
-      atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, ev,
-      memory_order_acq_rel, memory_order_acquire))
-    {
-      struct sigaction new_action;
-      new_action.sa_handler = signal_handler;
-      sigemptyset (&new_action.sa_mask);
-
-      // ask to restart interrupted syscalls to match `signal` behavior
-      new_action.sa_flags = SA_RESTART;
-
-      sigaction(sig, &new_action, NULL);
-
-      ev->fd = eventfd(0, EFD_NONBLOCK);
-      ep.events |= EPOLLIN;
-    } else {
-      return;
-    }
-  }
-
   if(ev->flags & ASIO_ONESHOT)
   {
     ep.events |= EPOLLONESHOT;
   } else {
-    // Only use edge triggering if one shot isn't enabled.
-    // This is because of how the runtime gets notifications
-    // from epoll in this ASIO thread and then notifies the
-    // appropriate actor to read/write as necessary.
-    // specifically, it seems there's an edge case/race condition
-    // with edge triggering where if there is already data waiting
-    // on the socket, then epoll might not be triggering immediately
-    // when an edge triggered epoll request is made.
-
     ep.events |= EPOLLET;
   }
 
@@ -459,47 +565,20 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
 
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    // Signal unregistration is serialized through the ASIO thread.
+    // The shared eventfd and epoll cleanup are handled in ASIO_CANCEL_SIGNAL.
+    send_request(ev, ASIO_CANCEL_SIGNAL);
+    return;
+  }
+
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
 
   if(ev->flags & ASIO_TIMER)
   {
     if(ev->fd != -1)
     {
-      close(ev->fd);
-      ev->fd = -1;
-    }
-  }
-
-  if(ev->flags & ASIO_SIGNAL)
-  {
-    int sig = (int)ev->nsec;
-    asio_event_t* prev = ev;
-
-#ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_BEFORE(&b->sighandlers[sig]);
-#endif
-    if((sig < MAX_SIGNAL) &&
-      atomic_compare_exchange_strong_explicit(&b->sighandlers[sig], &prev, NULL,
-      memory_order_acq_rel, memory_order_acquire))
-    {
-      struct sigaction new_action;
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // Make sure we ignore signals related to scheduler sleeping/waking
-      // as the default for those signals is termination
-      if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
-        new_action.sa_handler = empty_signal_handler;
-      else
-#endif
-        new_action.sa_handler = SIG_DFL;
-
-      sigemptyset (&new_action.sa_mask);
-
-      // ask to restart interrupted syscalls to match `signal` behavior
-      new_action.sa_flags = SA_RESTART;
-
-      sigaction(sig, &new_action, NULL);
-
       close(ev->fd);
       ev->fd = -1;
     }
