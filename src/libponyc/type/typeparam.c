@@ -264,6 +264,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         default: {}
       }
+      break;
 
     case TK_CAP_ALIAS:
       switch(b)
@@ -283,6 +284,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         default: {}
       }
+      break;
 
     default: {}
   }
