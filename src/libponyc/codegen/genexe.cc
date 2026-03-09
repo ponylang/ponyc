@@ -380,9 +380,59 @@ static const char* find_libc_crt_dir(const char* sysroot,
   return NULL;
 }
 
-static const char* find_ponyc_crt_dir(ast_t* program, pass_opt_t* opt)
+static uint16_t expected_elf_machine(compile_t* c)
 {
-  (void)opt;
+  llvm::Triple triple(c->opt->triple);
+
+  switch(triple.getArch())
+  {
+    case llvm::Triple::x86_64:  return 62;   // EM_X86_64
+    case llvm::Triple::aarch64: return 183;  // EM_AARCH64
+    case llvm::Triple::riscv64: return 243;  // EM_RISCV
+    case llvm::Triple::riscv32: return 243;  // EM_RISCV
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb:   return 40;   // EM_ARM
+    default:                    return 0;
+  }
+}
+
+static bool elf_matches_target(const char* path, uint16_t target_machine)
+{
+  // Read the ELF header and check e_machine matches the target.
+  // If we can't determine the architecture, accept the file.
+  if(target_machine == 0)
+    return true;
+
+  FILE* f = fopen(path, "rb");
+  if(f == NULL)
+    return false;
+
+  unsigned char hdr[20];
+  if(fread(hdr, 1, 20, f) < 20)
+  {
+    fclose(f);
+    return false;
+  }
+  fclose(f);
+
+  // Verify ELF magic.
+  if(hdr[0] != 0x7f || hdr[1] != 'E' || hdr[2] != 'L' || hdr[3] != 'F')
+    return false;
+
+  // e_machine is at offset 18, 2 bytes, in the ELF header's native
+  // byte order. hdr[5] == 1 means little-endian, 2 means big-endian.
+  uint16_t machine;
+  if(hdr[5] == 1)
+    machine = (uint16_t)hdr[18] | ((uint16_t)hdr[19] << 8);
+  else
+    machine = ((uint16_t)hdr[18] << 8) | (uint16_t)hdr[19];
+
+  return machine == target_machine;
+}
+
+static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)
+{
+  uint16_t target_machine = expected_elf_machine(c);
   size_t count = program_lib_path_count(program);
   char buf[PATH_MAX];
 
@@ -390,7 +440,7 @@ static const char* find_ponyc_crt_dir(ast_t* program, pass_opt_t* opt)
   {
     const char* path = program_lib_path_at(program, i);
     snprintf(buf, sizeof(buf), "%s/crtbeginS.o", path);
-    if(file_exists(buf))
+    if(file_exists(buf) && elf_matches_target(buf, target_machine))
       return path;
   }
 
@@ -402,27 +452,44 @@ static const char* find_gcc_lib_dir(const char* sysroot,
 {
   // Search for GCC runtime library directory containing libgcc.a.
   // Check multiple base paths and pick the highest version.
-  const char* base_patterns[] = {
-    "/usr/lib/gcc",
-    NULL, // sysroot-relative patterns filled in below
-    NULL
-  };
+  //
+  // Debian/Ubuntu cross-compiler packages install to /usr/lib/gcc-cross/
+  // rather than /usr/lib/gcc/. Custom GCC cross-compiler builds (e.g. the
+  // arm/armhf CI containers) install to /usr/local/lib/gcc/.
+  const char* base_patterns[8];
+  int pattern_count = 0;
 
   char sysroot_rel[PATH_MAX];
-  char sysroot_internal[PATH_MAX];
+  char sysroot_rel_cross[PATH_MAX];
+  char sysroot_parent_rel[PATH_MAX];
+  char sysroot_parent_rel_cross[PATH_MAX];
 
-  // <sysroot>/../lib/gcc
+  base_patterns[pattern_count++] = "/usr/lib/gcc";
+  base_patterns[pattern_count++] = "/usr/lib/gcc-cross";
+  base_patterns[pattern_count++] = "/usr/local/lib/gcc";
+  base_patterns[pattern_count++] = "/usr/local/lib/gcc-cross";
+
+  // <sysroot>/../lib/gcc (handles sysroot=/usr/<triple>)
   snprintf(sysroot_rel, sizeof(sysroot_rel), "%s/../lib/gcc", sysroot);
-  base_patterns[1] = sysroot_rel;
+  base_patterns[pattern_count++] = sysroot_rel;
 
-  // <sysroot>/lib/gcc
-  snprintf(sysroot_internal, sizeof(sysroot_internal), "%s/lib/gcc", sysroot);
-  base_patterns[2] = sysroot_internal;
+  snprintf(sysroot_rel_cross, sizeof(sysroot_rel_cross),
+    "%s/../lib/gcc-cross", sysroot);
+  base_patterns[pattern_count++] = sysroot_rel_cross;
+
+  // <sysroot>/../../lib/gcc (handles sysroot=/usr/local/<triple>/libc)
+  snprintf(sysroot_parent_rel, sizeof(sysroot_parent_rel),
+    "%s/../../lib/gcc", sysroot);
+  base_patterns[pattern_count++] = sysroot_parent_rel;
+
+  snprintf(sysroot_parent_rel_cross, sizeof(sysroot_parent_rel_cross),
+    "%s/../../lib/gcc-cross", sysroot);
+  base_patterns[pattern_count++] = sysroot_parent_rel_cross;
 
   const char* best_dir = NULL;
   int best_version = -1;
 
-  for(int p = 0; p < 3; p++)
+  for(int p = 0; p < pattern_count; p++)
   {
     char triple_dir[PATH_MAX];
     snprintf(triple_dir, sizeof(triple_dir), "%s/%s",
@@ -561,7 +628,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* ponyc_crt_dir = find_ponyc_crt_dir(program, c->opt);
+  const char* ponyc_crt_dir = find_ponyc_crt_dir(program, c);
   if(ponyc_crt_dir == NULL)
   {
     errorf(errors, NULL,
@@ -597,6 +664,40 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   args.push_back("--hash-style=both");
   args.push_back("--build-id");
   args.push_back("--eh-frame-hdr");
+
+  // Pass --sysroot so LLD can resolve absolute paths in linker scripts
+  // (e.g. libc.so referencing /lib/libc.so.6). However, some cross
+  // toolchains (Debian gcc-cross packages) generate linker scripts with
+  // fully-qualified paths that already include the sysroot prefix. LLD
+  // doesn't fall back to the original path after prepending sysroot
+  // (unlike GNU ld), so --sysroot would cause double-prepending. Detect
+  // this by checking whether libc.so contains the sysroot path.
+  {
+    bool needs_sysroot = true;
+    char libc_so_path[PATH_MAX];
+    snprintf(libc_so_path, sizeof(libc_so_path), "%s/libc.so", libc_crt_dir);
+
+    FILE* f = fopen(libc_so_path, "r");
+    if(f != NULL)
+    {
+      char line[1024];
+      while(fgets(line, sizeof(line), f) != NULL)
+      {
+        if(strstr(line, sysroot) != NULL)
+        {
+          needs_sysroot = false;
+          break;
+        }
+      }
+      fclose(f);
+    }
+
+    if(needs_sysroot)
+    {
+      snprintf(buf, sizeof(buf), "--sysroot=%s", sysroot);
+      args.push_back(stringtab(buf));
+    }
+  }
 
   if(c->opt->staticbin)
   {
@@ -659,6 +760,22 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   {
     snprintf(buf, sizeof(buf), "-L%s", gcc_lib_dir);
     args.push_back(stringtab(buf));
+
+    // GCC installs shared runtime libraries (libatomic, libgcc_s) in
+    // <prefix>/<triple>/lib/ while static libraries (libgcc.a) go in
+    // <prefix>/lib/gcc[-cross]/<triple>/<version>/. Derive the former
+    // from the latter.
+    char gcc_target_lib[PATH_MAX];
+    snprintf(gcc_target_lib, sizeof(gcc_target_lib),
+      "%s/../../../../%s/lib", gcc_lib_dir, sys_triple);
+
+    struct stat gcc_target_stat;
+    if(stat(gcc_target_lib, &gcc_target_stat) == 0
+      && S_ISDIR(gcc_target_stat.st_mode))
+    {
+      snprintf(buf, sizeof(buf), "-L%s", gcc_target_lib);
+      args.push_back(stringtab(buf));
+    }
   }
 
   // Add ponyc lib paths and user lib paths.
@@ -688,13 +805,26 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
-  // Pony runtime.
+  // Pony runtime. Use the full path from ponyc_crt_dir to ensure we
+  // pick the target-architecture library, not a native-arch copy that
+  // might appear earlier in the -L search path.
   if(!c->opt->runtimebc)
   {
-    if(c->opt->staticbin)
-      args.push_back("-lponyrt");
+    const char* rt_name = c->opt->staticbin ? "libponyrt.a"
+      : (c->opt->pic ? "libponyrt-pic.a" : "libponyrt.a");
+
+    snprintf(buf, sizeof(buf), "%s/%s", ponyc_crt_dir, rt_name);
+    if(file_exists(buf))
+    {
+      args.push_back(stringtab(buf));
+    }
     else
-      args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+    {
+      if(c->opt->staticbin)
+        args.push_back("-lponyrt");
+      else
+        args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+    }
   }
 
   args.push_back("-lpthread");
