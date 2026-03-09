@@ -973,12 +973,253 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     lld_args,
     lld_stdout,
     lld_stderr,
-    {{lld::Gnu, &lld::elf::link}});
+    {{lld::WinLink, &lld::coff::link},
+     {lld::Gnu, &lld::elf::link},
+     {lld::Darwin, &lld::macho::link},
+     {lld::MinGW, &lld::mingw::link},
+     {lld::Wasm, &lld::wasm::link}});
 
   if(result.retCode != 0)
   {
     errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
     return false;
+  }
+
+  return true;
+}
+
+static const char* find_macos_sdk_path()
+{
+  static const char* cached = NULL;
+  static bool searched = false;
+
+  if(searched)
+    return cached;
+  searched = true;
+
+  char sdk_path[PATH_MAX];
+
+  // Try xcrun first.
+  FILE* f = popen("xcrun --show-sdk-path 2>/dev/null", "r");
+  if(f != NULL)
+  {
+    if(fgets(sdk_path, sizeof(sdk_path), f) != NULL)
+    {
+      // Strip trailing newline.
+      size_t len = strlen(sdk_path);
+      if(len > 0 && sdk_path[len - 1] == '\n')
+        sdk_path[len - 1] = '\0';
+
+      char lib_path[PATH_MAX];
+      snprintf(lib_path, sizeof(lib_path), "%s/usr/lib", sdk_path);
+
+      struct stat st;
+      if(stat(lib_path, &st) == 0 && S_ISDIR(st.st_mode))
+      {
+        cached = stringtab(lib_path);
+        pclose(f);
+        return cached;
+      }
+    }
+    pclose(f);
+  }
+
+  // Hardcoded fallback (same as legacy code).
+  const char* fallback =
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib";
+
+  struct stat st;
+  if(stat(fallback, &st) == 0 && S_ISDIR(st.st_mode))
+  {
+    cached = stringtab(fallback);
+    return cached;
+  }
+
+  return NULL;
+}
+
+static const char* macho_arch_name(compile_t* c)
+{
+  llvm::Triple triple(c->opt->triple);
+
+  switch(triple.getArch())
+  {
+    case llvm::Triple::aarch64: return "arm64";
+    case llvm::Triple::x86_64: return "x86_64";
+    default: return NULL;
+  }
+}
+
+static const char* macho_platform_version(compile_t* c)
+{
+  llvm::Triple triple(c->opt->triple);
+
+  llvm::VersionTuple ver = triple.getOSVersion();
+  unsigned major = ver.getMajor();
+  unsigned minor = ver.getMinor().value_or(0);
+  unsigned micro = ver.getSubminor().value_or(0);
+
+  if(major == 0)
+    return NULL;
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%u.%u.%u", major, minor, micro);
+  return stringtab(buf);
+}
+
+static bool link_exe_lld_macho(compile_t* c, ast_t* program,
+  const char* file_o)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
+
+  program_lib_build_args_embedded(program, c->opt);
+
+  const char* macho_arch = macho_arch_name(c);
+  if(macho_arch == NULL)
+  {
+    errorf(errors, NULL,
+      "unsupported architecture for embedded LLD Mach-O: %s", c->opt->triple);
+    return false;
+  }
+
+  const char* platform_ver = macho_platform_version(c);
+  if(platform_ver == NULL)
+  {
+    errorf(errors, NULL,
+      "could not determine macOS platform version from triple: %s",
+      c->opt->triple);
+    return false;
+  }
+
+  const char* sdk_lib_path = find_macos_sdk_path();
+  if(sdk_lib_path == NULL)
+  {
+    errorf(errors, NULL,
+      "could not find macOS SDK library path\n"
+      "  Install Xcode or CommandLineTools, or use --linker to specify an"
+      " external linker");
+    return false;
+  }
+
+  if(c->opt->link_ldcmd != NULL)
+  {
+    fprintf(stderr,
+      "Warning: --link-ldcmd is ignored when using embedded LLD\n");
+  }
+
+  // Build argument vector.
+  std::vector<const char*> args;
+  char buf[PATH_MAX];
+
+  args.push_back("ld64.lld");
+  args.push_back("-execute");
+  args.push_back("-arch");
+  args.push_back(macho_arch);
+
+  args.push_back("-platform_version");
+  args.push_back("macos");
+  args.push_back(platform_ver);
+  args.push_back("0.0.0");
+
+  // SDK library path.
+  snprintf(buf, sizeof(buf), "-L%s", sdk_lib_path);
+  args.push_back(stringtab(buf));
+
+  // Ponyc lib paths and user lib paths.
+  size_t path_count = program_lib_path_count(program);
+  for(size_t i = 0; i < path_count; i++)
+  {
+    const char* path = program_lib_path_at(program, i);
+    snprintf(buf, sizeof(buf), "-L%s", path);
+    args.push_back(stringtab(buf));
+  }
+
+  // Object file.
+  args.push_back(file_o);
+
+  // User libraries.
+  size_t lib_count = program_lib_count(program);
+  for(size_t i = 0; i < lib_count; i++)
+  {
+    const char* lib = program_lib_at(program, i);
+    if(is_path_absolute(lib))
+    {
+      args.push_back(lib);
+    }
+    else
+    {
+      snprintf(buf, sizeof(buf), "-l%s", lib);
+      args.push_back(stringtab(buf));
+    }
+  }
+
+  // System library and Pony runtime.
+  args.push_back("-lSystem");
+
+  if(!c->opt->runtimebc)
+  {
+    args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+  }
+
+  args.push_back("-o");
+  args.push_back(file_exe);
+
+  // Log the command if verbose.
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+  {
+    std::string cmd;
+    for(size_t i = 0; i < args.size(); i++)
+    {
+      if(i > 0) cmd += " ";
+      cmd += args[i];
+    }
+    fprintf(stderr, "%s\n", cmd.c_str());
+  }
+
+  // Invoke LLD.
+  std::vector<const char*> lld_args(args.begin(), args.end());
+  std::string lld_stdout_str;
+  std::string lld_stderr_str;
+  llvm::raw_string_ostream lld_stdout(lld_stdout_str);
+  llvm::raw_string_ostream lld_stderr(lld_stderr_str);
+
+  lld::Result result = lld::lldMain(
+    lld_args,
+    lld_stdout,
+    lld_stderr,
+    {{lld::WinLink, &lld::coff::link},
+     {lld::Gnu, &lld::elf::link},
+     {lld::Darwin, &lld::macho::link},
+     {lld::MinGW, &lld::mingw::link},
+     {lld::Wasm, &lld::wasm::link}});
+
+  if(result.retCode != 0)
+  {
+    errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
+    return false;
+  }
+
+  // Run dsymutil unless stripping debug info.
+  if(!c->opt->strip_debug)
+  {
+    size_t dsym_len = 16 + strlen(file_exe);
+    char* dsym_cmd = (char*)ponyint_pool_alloc_size(dsym_len);
+
+    snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
+    system(dsym_cmd);
+
+    snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
+
+    if(system(dsym_cmd) != 0)
+      errorf(errors, NULL, "unable to create dsym");
+
+    ponyint_pool_free_size(dsym_len, dsym_cmd);
   }
 
   return true;
@@ -990,8 +1231,8 @@ static bool link_exe(compile_t* c, ast_t* program,
 {
   errors_t* errors = c->opt->check.errors;
 
-  // Use embedded LLD for Linux targets unless --linker escape hatch is
-  // specified. Sanitizer builds fall back to the system compiler driver for
+  // Use embedded LLD for Linux and macOS targets unless --linker escape hatch
+  // is specified. Sanitizer builds fall back to the system compiler driver for
   // native compilation since sanitizer runtime libraries need compiler-specific
   // link logic; cross-compilation still uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -1003,6 +1244,16 @@ static bool link_exe(compile_t* c, ast_t* program,
     )
   {
     return link_exe_lld_elf(c, program, file_o);
+  }
+
+  if(c->opt->linker == NULL
+    && target_is_macosx(c->opt->triple)
+#if defined(PONY_SANITIZER)
+    && is_cross_compiling(c)
+#endif
+    )
+  {
+    return link_exe_lld_macho(c, program, file_o);
   }
 #endif
 
