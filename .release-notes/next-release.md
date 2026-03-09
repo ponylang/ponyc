@@ -116,3 +116,9 @@ It often happens that, during pony-lsp startup, compilation would be triggered b
 
 This has been fixed by enqueue compilations until settings are provided and only run them if either settings have been provided or we can be sure that no settings can be provided (e.g. if the lsp-client does not implement the necessary protocol bits).
 
+## Native macOS builds now use embedded LLD
+
+macOS linking now uses the embedded LLD linker (Mach-O driver) instead of invoking the system `ld` command. This is part of the ongoing work to eliminate external linker dependencies across all platforms.
+
+If the embedded linker causes issues, use `--linker=ld` to fall back to the system linker.
+
