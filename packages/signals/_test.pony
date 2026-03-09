@@ -205,7 +205,13 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
         _TestMultiHandlerNotify(h, "handler1"), sig)
       let s2 = SignalHandler(auth,
         _TestMultiHandlerNotify(h, "handler2"), sig)
+      // Both handlers must raise independently. Actor constructors run
+      // asynchronously, so s2's create might not have executed when s1's
+      // raise fires the signal. Having each handler raise guarantees that
+      // handler's own constructor has run (same-actor message ordering)
+      // before its raise executes.
       s1.raise(auth)
+      s2.raise(auth)
       _signal1 = s1
       _signal2 = s2
       h.long_test(10_000_000_000)
