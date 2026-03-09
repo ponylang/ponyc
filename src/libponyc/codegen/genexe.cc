@@ -1164,7 +1164,8 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
 
   if(!c->opt->runtimebc)
   {
-    args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+    // macOS has no separate PIC runtime library — all code is PIC by default.
+    args.push_back("-lponyrt");
   }
 
   args.push_back("-o");
