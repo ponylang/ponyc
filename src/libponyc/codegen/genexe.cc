@@ -24,14 +24,15 @@ LLD_HAS_DRIVER(wasm)
 #include "ponyassert.h"
 #include <string.h>
 
+#include <llvm/Support/raw_ostream.h>
+#include <vector>
+#include <string>
+
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
 #  include <sys/stat.h>
 #  include <dirent.h>
 #  include <llvm/TargetParser/Triple.h>
-#  include <llvm/Support/raw_ostream.h>
-#  include <vector>
-#  include <string>
 #endif
 
 #define STR(x) STR2(x)
@@ -1227,15 +1228,169 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
 }
 #endif
 
+#ifdef PLATFORM_IS_WINDOWS
+static bool link_exe_lld_coff(compile_t* c, ast_t* program,
+  const char* file_o)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  vcvars_t vcvars;
+
+  if(!vcvars_get(c, &vcvars, errors))
+  {
+    errorf(errors, NULL, "unable to link: no vcvars");
+    return false;
+  }
+
+  const char* file_exe = suffix_filename(c, c->opt->output, "", c->filename,
+    ".exe");
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Linking %s\n", file_exe);
+
+  program_lib_build_args_embedded(program, c->opt);
+
+#ifdef _M_ARM64
+  const char* arch = "ARM64";
+#elif defined(_M_X64)
+  const char* arch = "x64";
+#else
+  const char* arch = "";
+#endif
+
+  if(c->opt->link_ldcmd != NULL)
+  {
+    fprintf(stderr,
+      "Warning: --link-ldcmd is ignored when using embedded LLD\n");
+  }
+
+  // Build argument vector.
+  std::vector<const char*> args;
+  char buf[MAX_PATH + 32];
+
+  args.push_back("lld-link");
+  args.push_back("/DEBUG");
+  args.push_back("/NOLOGO");
+
+  snprintf(buf, sizeof(buf), "/MACHINE:%s", arch);
+  args.push_back(stringtab(buf));
+
+  args.push_back("/ignore:4099");
+
+  snprintf(buf, sizeof(buf), "/OUT:%s", file_exe);
+  args.push_back(stringtab(buf));
+
+  // Object file.
+  args.push_back(file_o);
+
+  // UCRT library path (Windows 10+ SDK).
+  if(strlen(vcvars.ucrt) > 0)
+  {
+    snprintf(buf, sizeof(buf), "/LIBPATH:%s", vcvars.ucrt);
+    args.push_back(stringtab(buf));
+  }
+
+  // Windows SDK kernel32 path.
+  snprintf(buf, sizeof(buf), "/LIBPATH:%s", vcvars.kernel32);
+  args.push_back(stringtab(buf));
+
+  // MSVC runtime lib path.
+  snprintf(buf, sizeof(buf), "/LIBPATH:%s", vcvars.msvcrt);
+  args.push_back(stringtab(buf));
+
+  // User library search paths.
+  size_t path_count = program_lib_path_count(program);
+  for(size_t i = 0; i < path_count; i++)
+  {
+    const char* path = program_lib_path_at(program, i);
+    snprintf(buf, sizeof(buf), "/LIBPATH:%s", path);
+    args.push_back(stringtab(buf));
+  }
+
+  // User libraries (append .lib suffix for non-absolute paths).
+  size_t lib_count = program_lib_count(program);
+  for(size_t i = 0; i < lib_count; i++)
+  {
+    const char* lib = program_lib_at(program, i);
+    if(is_path_absolute(lib))
+    {
+      args.push_back(lib);
+    }
+    else
+    {
+      snprintf(buf, sizeof(buf), "%s.lib", lib);
+      args.push_back(stringtab(buf));
+    }
+  }
+
+  // Default Windows system libraries.
+  // vcvars.default_libs is a space-separated string; tokenize into
+  // individual arguments for embedded LLD.
+  char default_libs_copy[MAX_PATH];
+  strncpy(default_libs_copy, vcvars.default_libs, MAX_PATH - 1);
+  default_libs_copy[MAX_PATH - 1] = '\0';
+
+  char* tok = strtok(default_libs_copy, " ");
+  while(tok != NULL)
+  {
+    args.push_back(stringtab(tok));
+    tok = strtok(NULL, " ");
+  }
+
+  // Pony runtime.
+  if(!c->opt->runtimebc)
+  {
+    args.push_back("libponyrt.lib");
+  }
+
+  // Log the command if verbose.
+  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+  {
+    std::string cmd;
+    for(size_t i = 0; i < args.size(); i++)
+    {
+      if(i > 0) cmd += " ";
+      cmd += args[i];
+    }
+    fprintf(stderr, "%s\n", cmd.c_str());
+  }
+
+  // Invoke LLD.
+  std::vector<const char*> lld_args(args.begin(), args.end());
+  std::string lld_stdout_str;
+  std::string lld_stderr_str;
+  llvm::raw_string_ostream lld_stdout(lld_stdout_str);
+  llvm::raw_string_ostream lld_stderr(lld_stderr_str);
+
+  lld::Result result = lld::lldMain(
+    lld_args,
+    lld_stdout,
+    lld_stderr,
+    {{lld::WinLink, &lld::coff::link},
+     {lld::Gnu, &lld::elf::link},
+     {lld::Darwin, &lld::macho::link},
+     {lld::MinGW, &lld::mingw::link},
+     {lld::Wasm, &lld::wasm::link}});
+
+  if(result.retCode != 0)
+  {
+    errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
+    return false;
+  }
+
+  return true;
+}
+#endif
+
 static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
   errors_t* errors = c->opt->check.errors;
 
-  // Use embedded LLD for Linux and macOS targets unless --linker escape hatch
-  // is specified. Sanitizer builds fall back to the system compiler driver for
-  // native compilation since sanitizer runtime libraries need compiler-specific
-  // link logic; cross-compilation still uses LLD.
+  // Use embedded LLD for Linux, macOS, and Windows targets unless --linker
+  // escape hatch is specified. Sanitizer builds fall back to the system
+  // compiler driver for native compilation since sanitizer runtime libraries
+  // need compiler-specific link logic; cross-compilation still uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(c->opt->linker == NULL
     && target_is_linux(c->opt->triple)
@@ -1255,6 +1410,13 @@ static bool link_exe(compile_t* c, ast_t* program,
     )
   {
     return link_exe_lld_macho(c, program, file_o);
+  }
+#endif
+
+#ifdef PLATFORM_IS_WINDOWS
+  if(c->opt->linker == NULL)
+  {
+    return link_exe_lld_coff(c, program, file_o);
   }
 #endif
 
