@@ -7,7 +7,7 @@ First of all, you need a compiler with decent C11 support. We officially support
 - MSVC >= 2017
 - GCC >= 4.7
 
-You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM.
+You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
 
 ## Clone this repository
 
@@ -64,16 +64,16 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-Alpine 3.17+ | binutils-gold, clang, clang-dev, cmake, make
+Alpine 3.17+ | binutils-gold, clang, clang-dev, cmake, make, zlib-dev
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Fedora | clang, cmake, libatomic, libstdc++-static, make
-Fedora 41 | binutils-gold, clang, cmake, libatomic, libstdc++-static, make
-OpenSuse Leap | binutils-gold, cmake
-Raspbian 32-bit | cmake
-Raspbian 64-bit | cmake, clang
+Fedora | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
+Fedora 41 | binutils-gold, clang, cmake, libatomic, libstdc++-static, make, zlib-devel
+OpenSuse Leap | binutils-gold, cmake, zlib-devel
+Raspbian 32-bit | cmake, zlib1g-dev
+Raspbian 64-bit | cmake, clang, zlib1g-dev
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Ubuntu | clang, cmake, make
-Void | clang, cmake, make, libatomic libatomic-devel
+Ubuntu | clang, cmake, make, zlib1g-dev
+Void | clang, cmake, make, libatomic, libatomic-devel, zlib-devel
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
