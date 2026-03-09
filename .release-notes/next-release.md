@@ -110,3 +110,9 @@ All Linux builds — both native and cross-compilation — now use the embedded 
 
 The embedded LLD path activates automatically for any Linux target without `--linker` set. To use an external linker instead, pass `--linker=<command>` as an escape hatch to the legacy linking path. The `--link-ldcmd` flag is ignored when using embedded LLD; use `--linker` instead to get legacy behavior.
 
+## Fix compilation not correctly triggered upon startup with pony-lsp
+
+It often happens that, during pony-lsp startup, compilation would be triggered before the necessary settings are being provided (e.g. `ponypath`), so the initial parsing and type-checking of pony-lsp failed. It needed to be retriggered by opening another file or save a currently open file.
+
+This has been fixed by enqueue compilations until settings are provided and only run them if either settings have been provided or we can be sure that no settings can be provided (e.g. if the lsp-client does not implement the necessary protocol bits).
+
