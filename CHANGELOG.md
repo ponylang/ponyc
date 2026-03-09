@@ -27,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Exempt unsplittable string literals from line length rule ([PR #4923](https://github.com/ponylang/ponyc/pull/4923))
 - Use embedded LLD for cross-compilation to Linux targets ([PR #4964](https://github.com/ponylang/ponyc/pull/4964))
 - Use embedded LLD for native Linux builds ([PR #4971](https://github.com/ponylang/ponyc/pull/4971))
+- Native macOS builds now use embedded LLD ([PR #4993](https://github.com/ponylang/ponyc/pull/4993))
 
 ## [0.61.0] - 2026-02-28
 
