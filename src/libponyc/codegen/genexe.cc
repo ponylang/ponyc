@@ -302,10 +302,41 @@ static const char* elf_emulation(compile_t* c)
   }
 }
 
+static bool file_exists(const char* path)
+{
+  struct stat st;
+  return stat(path, &st) == 0;
+}
+
+// Check whether the host is actually musl. LLVM's default target triple
+// may report "gnu" on musl systems (e.g., Alpine's LLVM reports
+// x86_64-unknown-linux-gnu). For native compilation, probe the filesystem
+// rather than trusting the triple.
+static bool host_is_musl(compile_t* c, llvm::Triple::ArchType arch)
+{
+  if(is_cross_compiling(c))
+    return false;
+
+  const char* musl_linker = NULL;
+  switch(arch)
+  {
+    case llvm::Triple::x86_64:  musl_linker = "/lib/ld-musl-x86_64.so.1"; break;
+    case llvm::Triple::aarch64: musl_linker = "/lib/ld-musl-aarch64.so.1"; break;
+    case llvm::Triple::riscv64: musl_linker = "/lib/ld-musl-riscv64.so.1"; break;
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb:
+      return file_exists("/lib/ld-musl-armhf.so.1")
+        || file_exists("/lib/ld-musl-arm.so.1");
+    default: return false;
+  }
+
+  return file_exists(musl_linker);
+}
+
 static const char* dynamic_linker_path(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
-  bool is_musl = triple.isMusl();
+  bool is_musl = triple.isMusl() || host_is_musl(c, triple.getArch());
 
   switch(triple.getArch())
   {
@@ -322,15 +353,15 @@ static const char* dynamic_linker_path(compile_t* c)
     case llvm::Triple::thumb:
     {
       llvm::Triple::EnvironmentType env = triple.getEnvironment();
+      bool is_hf = (env == llvm::Triple::MuslEABIHF)
+        || (env == llvm::Triple::GNUEABIHF);
       if(is_musl)
       {
-        return (env == llvm::Triple::MuslEABIHF)
-          ? "/lib/ld-musl-armhf.so.1"
-          : "/lib/ld-musl-arm.so.1";
+        return is_hf ? "/lib/ld-musl-armhf.so.1"
+                     : "/lib/ld-musl-arm.so.1";
       }
-      return (env == llvm::Triple::GNUEABIHF)
-        ? "/lib/ld-linux-armhf.so.3"
-        : "/lib/ld-linux.so.3";
+      return is_hf ? "/lib/ld-linux-armhf.so.3"
+                   : "/lib/ld-linux.so.3";
     }
     default: return NULL;
   }
@@ -343,12 +374,6 @@ static const char* system_triple(compile_t* c)
     + std::string(triple.getOSName()) + "-"
     + std::string(triple.getEnvironmentName());
   return stringtab(result.c_str());
-}
-
-static bool file_exists(const char* path)
-{
-  struct stat st;
-  return stat(path, &st) == 0;
 }
 
 static const char* find_libc_crt_dir(const char* sysroot,
@@ -448,10 +473,19 @@ static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)
 }
 
 static const char* find_gcc_lib_dir(const char* sysroot,
-  const char* sys_triple)
+  const char* arch_prefix)
 {
   // Search for GCC runtime library directory containing libgcc.a.
   // Check multiple base paths and pick the highest version.
+  //
+  // GCC installs its runtime libraries under <base>/<triple>/<version>/.
+  // The triple directory name varies across distros — it may be the
+  // stripped triple (x86_64-linux-gnu on Ubuntu), the vendor triple
+  // (x86_64-alpine-linux-musl on Alpine), or something else entirely
+  // (x86_64-pc-linux-gnu on Arch). Rather than guessing which vendor
+  // string GCC uses, enumerate all subdirectories under each base path
+  // and check each for versioned libgcc.a. Filter by arch_prefix to
+  // avoid picking up cross-compiler directories.
   //
   // Debian/Ubuntu cross-compiler packages install to /usr/lib/gcc-cross/
   // rather than /usr/lib/gcc/. Custom GCC cross-compiler builds (e.g. the
@@ -491,40 +525,61 @@ static const char* find_gcc_lib_dir(const char* sysroot,
 
   for(int p = 0; p < pattern_count; p++)
   {
-    char triple_dir[PATH_MAX];
-    snprintf(triple_dir, sizeof(triple_dir), "%s/%s",
-      base_patterns[p], sys_triple);
-
-    DIR* dir = opendir(triple_dir);
-    if(dir == NULL)
+    // Enumerate triple directories under this base path.
+    DIR* base_dir = opendir(base_patterns[p]);
+    if(base_dir == NULL)
       continue;
 
-    struct dirent* entry;
-    while((entry = readdir(dir)) != NULL)
+    size_t prefix_len = strlen(arch_prefix);
+
+    struct dirent* triple_entry;
+    while((triple_entry = readdir(base_dir)) != NULL)
     {
-      if(entry->d_name[0] == '.')
+      if(triple_entry->d_name[0] == '.')
         continue;
 
-      // Parse leading numeric component for version comparison.
-      int version = atoi(entry->d_name);
-      if(version <= 0)
+      // Skip cross-compiler directories for a different architecture.
+      if(strncmp(triple_entry->d_name, arch_prefix, prefix_len) != 0)
         continue;
 
-      char candidate[PATH_MAX];
-      snprintf(candidate, sizeof(candidate), "%s/%s/libgcc.a",
-        triple_dir, entry->d_name);
+      char triple_dir[PATH_MAX];
+      snprintf(triple_dir, sizeof(triple_dir), "%s/%s",
+        base_patterns[p], triple_entry->d_name);
 
-      if(file_exists(candidate) && version > best_version)
+      // Search version directories within this triple directory.
+      DIR* ver_dir = opendir(triple_dir);
+      if(ver_dir == NULL)
+        continue;
+
+      struct dirent* ver_entry;
+      while((ver_entry = readdir(ver_dir)) != NULL)
       {
-        best_version = version;
-        char result[PATH_MAX];
-        snprintf(result, sizeof(result), "%s/%s",
-          triple_dir, entry->d_name);
-        best_dir = stringtab(result);
+        if(ver_entry->d_name[0] == '.')
+          continue;
+
+        // Parse leading numeric component for version comparison.
+        int version = atoi(ver_entry->d_name);
+        if(version <= 0)
+          continue;
+
+        char candidate[PATH_MAX];
+        snprintf(candidate, sizeof(candidate), "%s/%s/libgcc.a",
+          triple_dir, ver_entry->d_name);
+
+        if(file_exists(candidate) && version > best_version)
+        {
+          best_version = version;
+          char result[PATH_MAX];
+          snprintf(result, sizeof(result), "%s/%s",
+            triple_dir, ver_entry->d_name);
+          best_dir = stringtab(result);
+        }
       }
+
+      closedir(ver_dir);
     }
 
-    closedir(dir);
+    closedir(base_dir);
   }
 
   return best_dir;
@@ -549,6 +604,10 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
       c->opt->sysroot);
     return NULL;
   }
+
+  // Native compilation: use host root filesystem.
+  if(!is_cross_compiling(c))
+    return "";
 
   // Auto-detect from common cross-toolchain locations.
   const char* candidates[4];
@@ -637,7 +696,9 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // GCC lib dir is optional.
-  const char* gcc_lib_dir = find_gcc_lib_dir(sysroot, sys_triple);
+  llvm::Triple target_triple(c->opt->triple);
+  std::string arch_prefix = std::string(target_triple.getArchName()) + "-";
+  const char* gcc_lib_dir = find_gcc_lib_dir(sysroot, arch_prefix.c_str());
 
   if(c->opt->link_ldcmd != NULL)
   {
@@ -782,8 +843,15 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   size_t path_count = program_lib_path_count(program);
   for(size_t i = 0; i < path_count; i++)
   {
-    snprintf(buf, sizeof(buf), "-L%s", program_lib_path_at(program, i));
+    const char* path = program_lib_path_at(program, i);
+    snprintf(buf, sizeof(buf), "-L%s", path);
     args.push_back(stringtab(buf));
+
+    if(!c->opt->staticbin)
+    {
+      args.push_back("-rpath");
+      args.push_back(path);
+    }
   }
 
   // Object file.
@@ -922,12 +990,17 @@ static bool link_exe(compile_t* c, ast_t* program,
 {
   errors_t* errors = c->opt->check.errors;
 
-  // Use embedded LLD for cross-compilation to Linux targets
-  // unless --linker escape hatch is specified.
+  // Use embedded LLD for Linux targets unless --linker escape hatch is
+  // specified. Sanitizer builds fall back to the system compiler driver for
+  // native compilation since sanitizer runtime libraries need compiler-specific
+  // link logic; cross-compilation still uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(c->opt->linker == NULL
     && target_is_linux(c->opt->triple)
-    && is_cross_compiling(c))
+#if defined(PONY_SANITIZER)
+    && is_cross_compiling(c)
+#endif
+    )
   {
     return link_exe_lld_elf(c, program, file_o);
   }

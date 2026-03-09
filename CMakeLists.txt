@@ -218,6 +218,11 @@ if(NOT PONY_CROSS_LIBPONYRT)
     # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
 
     set(PONYC_LLD_LIBS lldELF lldMachO lldCOFF lldWasm lldMinGW lldCommon)
+
+    if(NOT MSVC)
+        find_package(ZLIB REQUIRED)
+        set(PONYC_EXTRA_LIBS ZLIB::ZLIB)
+    endif()
 endif()
 
 # Required definitions.  We use these generators so that the defines are correct for both *nix (where the config applies at configuration time) and Windows (where the config applies at build time).
