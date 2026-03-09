@@ -102,7 +102,7 @@ class WorkspaceScanner
         end
         // if no `corral.json` could be found, search for a `main.pony`
         try
-          // ensure we are not inside a folder that is alrady in a workspace,
+          // ensure we are not inside a folder that is already in a workspace,
           // those are scanned
           dir_entries.find("main.pony" where predicate = {(a,b) => a == b})?
           try

@@ -18,6 +18,9 @@ primitive Methods
   fun set_trace(): String val =>
     "$/setTrace"
 
+  fun progress(): String val =>
+    "$/progress"
+
   fun shutdown(): String val =>
     "shutdown"
 
@@ -109,3 +112,20 @@ primitive WindowMethods
   """
   fun log_message(): String val =>
     "window/logMessage"
+
+  fun work_done_progress(): WorkDoneProgressMethods =>
+    WorkDoneProgressMethods.create_progress()
+
+primitive WorkDoneProgressMethods
+  """
+  Collection of window/workDoneProgress methods
+  """
+  new create_progress() =>
+    """create method below collides with default constructor"""
+    None
+
+  fun create(): String val =>
+    "window/workDoneProgress/create"
+
+  fun cancel(): String val =>
+    "window/workDoneProgress/cancel"

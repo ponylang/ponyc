@@ -62,6 +62,10 @@ class val Settings
         []
       end
 
+  new val empty() =>
+    _defines = []
+    _ponypath = []
+
   fun val defines(): Array[String] val =>
     this._defines
 

@@ -44,7 +44,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
 
 class tag FakeRequestSender is RequestSender
   new tag create() => None
-  fun tag send_request(method: String val, params: (JsonObject | JsonArray | None)) => None
+  fun tag send_request(method: String val, params: (JsonObject | JsonArray | None), notify: (ResponseNotify | None) = None) => None
 
 actor FakeChannel is Channel
   be send(msg: Message val) => None

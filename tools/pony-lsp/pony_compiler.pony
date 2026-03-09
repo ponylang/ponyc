@@ -22,17 +22,27 @@ actor PonyCompiler is LspCompiler
   """
   let _pony_path: Array[String val] val
   let _installation_paths: Array[String val] val
+  let _compilation_queue: Array[(FilePath, Array[String val] val, CompilerNotify tag)]
 
   var _defines: Array[String val] val
   var _pony_path_from_settings: Array[String val] val
 
+  var _got_settings: Bool
+    """
+    The compiler will only start compiling after it got initialized
+    by calling `apply_settings`.
+    """
   var _run_id_gen: USize
 
   new create(pony_path': String) =>
     _pony_path = Path.split_list(pony_path')
     _installation_paths = _find_installation_paths()
+    _compilation_queue = []
+
     _defines = _defines.create()
     _pony_path_from_settings = Array[String val].create()
+
+    _got_settings = false
 
     // we start the runs with 1, as all other state-keeping things in this
     // program start with 0
@@ -74,11 +84,30 @@ actor PonyCompiler is LspCompiler
       None
     end
 
-  be apply_settings(settings: Settings) =>
-    _pony_path_from_settings = settings.ponypath()
-    _defines = settings.defines()
+  be apply_settings(settings: (Settings | None)) =>
+    match settings
+    | let settings': Settings =>
+      _pony_path_from_settings = settings'.ponypath()
+      _defines = settings'.defines()
+    end
+
+    if not this._got_settings then
+      this._got_settings = true
+      // trigger all queued compilations
+      try
+        while this._compilation_queue.size() > 0 do
+          (let package, let paths, let notify) = this._compilation_queue.pop()?
+          this.compile(package, paths, notify)
+        end
+      end
+    end
 
   be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag) =>
+    if not this._got_settings then
+      // enqueue compilation and dont execute it yet
+      this._compilation_queue.push((package, paths, notify))
+      return
+    end
     // Search order: installation paths first (prevents PONYPATH from
     // overriding builtin, per ponylang/ponyc#3779), then PONYPATH, then
     // workspace-specific paths (corral dependencies).
@@ -105,7 +134,13 @@ actor PonyCompiler is LspCompiler
     notify.done_compiling(package, result, run_id)
 
 trait tag LspCompiler
-  be apply_settings(settings: Settings)
+  be apply_settings(settings: (Settings|None))
+    """
+    Provide settings to initialize or reconfigure the compiler.
+
+    `None` can be provided when no new settings should be applied, but the
+    initialization step should be completed. E.g. when no settings are available.
+    """
   be compile(package: FilePath, paths: Array[String val] val, notify: CompilerNotify tag)
 
 interface CompilerNotify
