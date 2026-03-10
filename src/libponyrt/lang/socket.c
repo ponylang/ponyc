@@ -930,8 +930,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
         return 0;
       default:
         iocp_destroy(iocp);
-        pony_error();
-        return 0;
+        return SIZE_MAX;
     }
   }
 
@@ -947,7 +946,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int io
     if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
-    pony_error();
+    return SIZE_MAX;
   }
 
   return (size_t)sent;
@@ -975,8 +974,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
         return 0;
       default:
         iocp_destroy(iocp);
-        pony_error();
-        return 0;
+        return SIZE_MAX;
     }
   }
 
@@ -989,7 +987,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
     if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
-    pony_error();
+    return SIZE_MAX;
   }
 
   return (size_t)sent;
@@ -1000,7 +998,7 @@ PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_recv(ev, buf, len))
-    pony_error();
+    return SIZE_MAX;
 
   return 0;
 #else
@@ -1011,9 +1009,9 @@ PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
     if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
-    pony_error();
+    return SIZE_MAX;
   } else if(received == 0) {
-    pony_error();
+    return SIZE_MAX;
   }
 
   return (size_t)received;
@@ -1025,14 +1023,14 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_sendto(fd, buf, len, ipaddr))
-    pony_error();
+    return SIZE_MAX;
 
   return 0;
 #else
   socklen_t addrlen = ponyint_address_length(ipaddr);
 
   if(addrlen == (socklen_t)-1)
-    pony_error();
+    return SIZE_MAX;
 
   ssize_t sent = sendto(fd, buf, len, 0, (struct sockaddr*)&ipaddr->addr,
     addrlen);
@@ -1042,7 +1040,7 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
     if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
-    pony_error();
+    return SIZE_MAX;
   }
 
   return (size_t)sent;
@@ -1054,7 +1052,7 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
 {
 #ifdef PLATFORM_IS_WINDOWS
   if(!iocp_recvfrom(ev, buf, len, ipaddr))
-    pony_error();
+    return SIZE_MAX;
 
   return 0;
 #else
@@ -1068,9 +1066,9 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
     if(errno == EWOULDBLOCK || errno == EAGAIN)
       return 0;
 
-    pony_error();
+    return SIZE_MAX;
   } else if(recvd == 0) {
-    pony_error();
+    return SIZE_MAX;
   }
 
   return (size_t)recvd;

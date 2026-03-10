@@ -492,12 +492,15 @@ static void nullable_pointer_none(compile_t* c, reach_type_t* t)
 
 static void nullable_pointer_apply(compile_t* c, void* data, token_id cap)
 {
-  // Returns the receiver if it isn't null.
+  // Returns the receiver if it isn't null, errors if null.
+  // This is a partial function, so returns {T, i1} where i1 is the error flag.
   reach_type_t* t = ((reach_type_t**)data)[0];
   compile_type_t* t_elem = ((compile_type_t**)data)[1];
 
   FIND_METHOD("apply", cap);
-  start_function(c, t, m, t_elem->use_type, &c_t->use_type, 1);
+  c_m->is_partial = true;
+  LLVMTypeRef ret_type = error_flag_type(c, t_elem->use_type);
+  start_function(c, t, m, ret_type, &c_t->use_type, 1);
 
   LLVMValueRef result = LLVMGetParam(c_m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, result, "");
@@ -506,11 +509,16 @@ static void nullable_pointer_apply(compile_t* c, void* data, token_id cap)
   LLVMBasicBlockRef is_true = codegen_block(c, "");
   LLVMBuildCondBr(c->builder, test, is_true, is_false);
 
+  // Non-null: return {result, false}.
   LLVMPositionBuilderAtEnd(c->builder, is_false);
-  genfun_build_ret(c, result);
+  genfun_build_ret(c,
+    wrap_result(c, result, LLVMConstInt(c->i1, 0, false)));
 
+  // Null: return {undef, true}.
   LLVMPositionBuilderAtEnd(c->builder, is_true);
-  gencall_error(c);
+  genfun_build_ret(c,
+    wrap_result(c, LLVMGetUndef(t_elem->use_type),
+      LLVMConstInt(c->i1, 1, false)));
 
   codegen_finishfun(c);
 }

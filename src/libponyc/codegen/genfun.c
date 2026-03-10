@@ -131,16 +131,31 @@ static void make_signature(compile_t* c, reach_type_t* t,
       mparams[i + offset + 2] = p_c_t->mem_type;
   }
 
+  // Detect if the method is partial.
+  // Bare functions keep using C++ exception semantics (pony_error) since they
+  // are called from C code that doesn't understand error-flag returns.
+  ast_t* can_error = ast_childidx(m->fun->ast, 5);
+  c_m->is_partial = (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
+
   // Generate the function type.
   // Bare methods returning None return void to maintain compatibility with C.
   // Class constructors return void to avoid clobbering nocapture information.
-  if(bare_void || (n->name == c->str__final) ||
-    ((ast_id(m->fun->ast) == TK_NEW) && (t->underlying == TK_CLASS)))
-    c_m->func_type = LLVMFunctionType(c->void_type, tparams, (int)count, false);
+  // Partial functions wrap the return type with an error flag.
+  bool is_void_return = bare_void || (n->name == c->str__final) ||
+    ((ast_id(m->fun->ast) == TK_NEW) && (t->underlying == TK_CLASS));
+
+  if(is_void_return)
+  {
+    LLVMTypeRef ret = c_m->is_partial ? c->i1 : c->void_type;
+    c_m->func_type = LLVMFunctionType(ret, tparams, (int)count, false);
+  }
   else
-    c_m->func_type = LLVMFunctionType(
-      ((compile_type_t*)m->result->c_type)->use_type, tparams, (int)count,
-      false);
+  {
+    LLVMTypeRef ret = ((compile_type_t*)m->result->c_type)->use_type;
+    if(c_m->is_partial)
+      ret = error_flag_type(c, ret);
+    c_m->func_type = LLVMFunctionType(ret, tparams, (int)count, false);
+  }
 
   if(message_type)
   {
@@ -478,6 +493,53 @@ genfun_build_ret_void(compile_t* c)
   return NULL;
 }
 
+static void setup_default_landing_pad(compile_t* c, compile_method_t* c_m)
+{
+  // For partial functions, create a function-level landing pad that catches
+  // C++ exceptions from FFI calls and converts them to error-flag returns.
+  // Without this, a partial FFI call outside any try block has no unwind
+  // destination.
+  if(!c_m->is_partial)
+    return;
+
+  LLVMBasicBlockRef current_block = LLVMGetInsertBlock(c->builder);
+
+  LLVMBasicBlockRef lp_block = codegen_block(c, "ffi_lp");
+  LLVMPositionBuilderAtEnd(c->builder, lp_block);
+
+  // Build the landing pad instruction.
+  LLVMTypeRef lp_elements[2];
+  lp_elements[0] = c->ptr;
+  lp_elements[1] = c->i32;
+  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
+    false);
+  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
+    c->personality, 1, "");
+  LLVMAddClause(landing, LLVMConstNull(c->ptr));
+
+  // Return error flag.
+  LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
+  LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+
+  if(r_type == c->i1)
+  {
+    genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
+  }
+  else
+  {
+    LLVMValueRef undef_val =
+      LLVMGetUndef(LLVMStructGetTypeAtIndex(r_type, 0));
+    LLVMValueRef ret = wrap_result(c, undef_val,
+      LLVMConstInt(c->i1, 1, false));
+    genfun_build_ret(c, ret);
+  }
+
+  c->frame->landing_pad = lp_block;
+
+  // Restore builder position.
+  LLVMPositionBuilderAtEnd(c->builder, current_block);
+}
+
 static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -489,6 +551,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
     ast_id(cap) == TK_AT);
+  c->frame->is_partial = c_m->is_partial;
+  setup_default_landing_pad(c, c_m);
   name_params(c, t, m, c_m->func);
 
   bool finaliser = c_m->func == c_t->final_fn;
@@ -517,18 +581,37 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
       LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
       ast_t* body_type = deferred_reify(m->fun, ast_type(body), c->opt);
-      LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
 
-      ast_free_unattached(body_type);
-      ast_free_unattached(r_result);
+      if(c_m->is_partial)
+      {
+        LLVMTypeRef unwrapped = LLVMStructGetTypeAtIndex(r_type, 0);
+        LLVMValueRef ret = gen_assign_cast(c, unwrapped, value, body_type);
 
-      if(ret == NULL)
-        return false;
+        ast_free_unattached(body_type);
+        ast_free_unattached(r_result);
 
-      codegen_scope_lifetime_end(c);
-      codegen_debugloc(c, ast_childlast(body));
+        if(ret == NULL)
+          return false;
 
-      genfun_build_ret(c, ret);
+        codegen_scope_lifetime_end(c);
+        codegen_debugloc(c, ast_childlast(body));
+
+        ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
+        genfun_build_ret(c, ret);
+      } else {
+        LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
+
+        ast_free_unattached(body_type);
+        ast_free_unattached(r_result);
+
+        if(ret == NULL)
+          return false;
+
+        codegen_scope_lifetime_end(c);
+        codegen_debugloc(c, ast_childlast(body));
+
+        genfun_build_ret(c, ret);
+      }
     }
 
     codegen_debugloc(c, NULL);
@@ -601,6 +684,8 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
     body);
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun, false);
+  c->frame->is_partial = c_m->is_partial;
+  setup_default_landing_pad(c, c_m);
   name_params(c, t, m, c_m->func);
 
   LLVMValueRef value = gen_expr(c, body);
@@ -615,9 +700,23 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast_childlast(body));
   if(t->underlying == TK_CLASS)
-    genfun_build_ret_void(c);
+  {
+    if(c_m->is_partial)
+      genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
+    else
+      genfun_build_ret_void(c);
+  }
   else
-    genfun_build_ret(c, value);
+  {
+    if(c_m->is_partial)
+    {
+      LLVMValueRef ret = wrap_result(c, value,
+        LLVMConstInt(c->i1, 0, false));
+      genfun_build_ret(c, ret);
+    }
+    else
+      genfun_build_ret(c, value);
+  }
   codegen_debugloc(c, NULL);
 
   codegen_finishfun(c);
@@ -685,6 +784,7 @@ static void copy_subordinate(reach_method_t* m)
     compile_method_t* c_m2 = (compile_method_t*)m2->c_method;
     c_m2->func_type = c_m->func_type;
     c_m2->func = c_m->func;
+    c_m2->is_partial = c_m->is_partial;
     m2 = m2->subordinate;
   }
 }
@@ -794,6 +894,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
     m->cap == TK_AT);
+  c->frame->is_partial = c_m->is_partial;
 
   int count = LLVMCountParams(c_m->func);
   size_t buf_size = count * sizeof(LLVMValueRef);
@@ -813,9 +914,55 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   LLVMValueRef ret = codegen_call(c, LLVMGlobalGetValueType(c_m2->func),
     c_m2->func, args, count, m->cap != TK_AT);
   codegen_debugloc(c, NULL);
-  ret = gen_assign_cast(c, ((compile_type_t*)m->result->c_type)->use_type, ret,
-    m2->result->ast_cap);
-  genfun_build_ret(c, ret);
+
+  if(c_m->is_partial)
+  {
+    LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
+    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+
+    if(r_type == c->i1)
+    {
+      if(c_m2->is_partial)
+      {
+        // Both partial class constructors: i1 passes through directly.
+        genfun_build_ret(c, ret);
+      }
+      else
+      {
+        // Target is non-partial class constructor (returns void).
+        // Wrapper is partial: return false (no error).
+        genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
+      }
+    }
+    else
+    {
+      LLVMTypeRef unwrapped = LLVMStructGetTypeAtIndex(r_type, 0);
+
+      if(c_m2->is_partial)
+      {
+        // Both partial: unwrap target result, cast, re-wrap.
+        LLVMValueRef error_flag = unwrap_error(c, ret);
+        LLVMValueRef value = unwrap_result(c, ret);
+        value = gen_assign_cast(c, unwrapped, value, m2->result->ast_cap);
+        value = wrap_result(c, value, error_flag);
+        genfun_build_ret(c, value);
+      }
+      else
+      {
+        // Target is non-partial: cast result, wrap with false (no error).
+        ret = gen_assign_cast(c, unwrapped, ret, m2->result->ast_cap);
+        ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
+        genfun_build_ret(c, ret);
+      }
+    }
+  }
+  else
+  {
+    ret = gen_assign_cast(c, ((compile_type_t*)m->result->c_type)->use_type,
+      ret, m2->result->ast_cap);
+    genfun_build_ret(c, ret);
+  }
+
   codegen_finishfun(c);
   ponyint_pool_free_size(buf_size, args);
   return true;

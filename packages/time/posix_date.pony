@@ -1,6 +1,6 @@
 use @ponyint_gmtime[None](date: PosixDate, sec: I64, nsec: I64)
 use @ponyint_timegm[I64](date: PosixDate tag)
-use @ponyint_formattime[Pointer[U8]](date: PosixDate tag, fmt: Pointer[U8] tag) ?
+use @ponyint_formattime[Pointer[U8]](date: PosixDate tag, fmt: Pointer[U8] tag)
 
 class PosixDate
   """
@@ -44,11 +44,11 @@ class PosixDate
   fun format(fmt: String): String ? =>
     """
     Format the time as for strftime.
-
-    Will return an empty string if the format string is "%p" or "%P".
     """
     recover
-      String.from_cstring(@ponyint_formattime(this, fmt.cstring())?)
+      let ptr = @ponyint_formattime(this, fmt.cstring())
+      if ptr.is_null() then error end
+      String.from_cstring(ptr)
     end
 
   fun _negative_to_zero(value: I64): I64 =>

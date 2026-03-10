@@ -84,6 +84,7 @@ typedef struct compile_frame_t
   LLVMBasicBlockRef break_novalue_target;
   LLVMBasicBlockRef continue_target;
   LLVMBasicBlockRef invoke_target;
+  LLVMBasicBlockRef landing_pad;
 
   compile_locals_t locals;
   LLVMMetadataRef di_file;
@@ -91,6 +92,7 @@ typedef struct compile_frame_t
   bool is_function;
   bool early_termination;
   bool bare_function;
+  bool is_partial;
   deferred_reification_t* reify;
 
   struct compile_frame_t* prev;
@@ -272,7 +274,8 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
 
 void codegen_poploop(compile_t* c);
 
-void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target);
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target,
+  LLVMBasicBlockRef landing_pad);
 
 void codegen_poptry(compile_t* c);
 

@@ -1047,10 +1047,12 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
   frame->fun = frame->prev->fun;
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
+  frame->is_partial = frame->prev->is_partial;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = frame->prev->invoke_target;
+  frame->landing_pad = frame->prev->landing_pad;
   frame->di_file = frame->prev->di_file;
 
   if(frame->prev->di_scope != NULL)
@@ -1153,10 +1155,12 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   frame->fun = frame->prev->fun;
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
+  frame->is_partial = frame->prev->is_partial;
   frame->break_target = break_target;
   frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
   frame->invoke_target = frame->prev->invoke_target;
+  frame->landing_pad = frame->prev->landing_pad;
   frame->di_file = frame->prev->di_file;
   frame->di_scope = frame->prev->di_scope;
 }
@@ -1166,17 +1170,20 @@ void codegen_poploop(compile_t* c)
   pop_frame(c);
 }
 
-void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target,
+  LLVMBasicBlockRef landing_pad)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
+  frame->is_partial = frame->prev->is_partial;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
   frame->invoke_target = invoke_target;
+  frame->landing_pad = landing_pad;
   frame->di_file = frame->prev->di_file;
   frame->di_scope = frame->prev->di_scope;
 }
