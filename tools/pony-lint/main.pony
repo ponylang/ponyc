@@ -169,7 +169,8 @@ actor Main
     // Build package search paths: installation paths first (prevents
     // PONYPATH from overriding builtin, per ponylang/ponyc#3779),
     // then PONYPATH.
-    let package_paths = _build_package_paths(env.vars)
+    let argv0 = try env.args(0)? else "" end
+    let package_paths = _build_package_paths(env.vars, argv0)
 
     // Run linter
     let cwd = Path.cwd()
@@ -184,7 +185,8 @@ actor Main
     env.exitcode(exit_code())
 
   fun _build_package_paths(
-    vars: (Array[String val] val | None))
+    vars: (Array[String val] val | None),
+    argv0: String val)
     : Array[String val] val
   =>
     """
@@ -201,7 +203,7 @@ actor Main
     recover val
       let paths = Array[String val]
       // Installation paths first
-      match _find_exe_directory()
+      match _find_exe_directory(argv0)
       | let dir: String val =>
         paths.push(Path.join(dir, "../packages"))
         paths.push(
@@ -233,14 +235,14 @@ actor Main
     end
     recover val Array[String val] end
 
-  fun _find_exe_directory(): (String val | None) =>
+  fun _find_exe_directory(argv0: String val): (String val | None) =>
     """
     Find the directory containing the currently running executable
     using the same platform-specific mechanism as ponyc.
     """
     let buf_size: USize = 4096
     let buf = @ponyint_pool_alloc_size(buf_size)
-    if @get_compiler_exe_directory(buf, "pony-lint".cstring())
+    if @get_compiler_exe_directory(buf, argv0.cstring())
     then
       let result =
         recover val String.copy_cstring(buf) end

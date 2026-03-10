@@ -34,9 +34,9 @@ actor PonyCompiler is LspCompiler
     """
   var _run_id_gen: USize
 
-  new create(pony_path': String) =>
+  new create(pony_path': String, argv0: String val = "") =>
     _pony_path = Path.split_list(pony_path')
-    _installation_paths = _find_installation_paths()
+    _installation_paths = _find_installation_paths(argv0)
     _compilation_queue = []
 
     _defines = _defines.create()
@@ -48,14 +48,14 @@ actor PonyCompiler is LspCompiler
     // program start with 0
     _run_id_gen = 1
 
-  fun tag _find_installation_paths(): Array[String val] val =>
+  fun tag _find_installation_paths(argv0: String val): Array[String val] val =>
     """
     Find pony package paths relative to the running executable's directory.
     Since pony-lsp is installed alongside ponyc, the standard library lives
     at `../packages` (installed layout) or `../../packages` (source build
     layout) relative to the executable.
     """
-    match \exhaustive\ _find_exe_directory()
+    match \exhaustive\ _find_exe_directory(argv0)
     | let dir: String val =>
       recover val
         let paths = Array[String val](2)
@@ -67,7 +67,7 @@ actor PonyCompiler is LspCompiler
       recover val Array[String val] end
     end
 
-  fun tag _find_exe_directory(): (String val | None) =>
+  fun tag _find_exe_directory(argv0: String val): (String val | None) =>
     """
     Find the directory containing the currently running executable using the
     same platform-specific mechanism as ponyc (readlink /proc/self/exe on
@@ -75,7 +75,7 @@ actor PonyCompiler is LspCompiler
     """
     let buf_size: USize = 4096
     let buf = @ponyint_pool_alloc_size(buf_size)
-    if @get_compiler_exe_directory(buf, "pony-lsp".cstring()) then
+    if @get_compiler_exe_directory(buf, argv0.cstring()) then
       let result = recover val String.copy_cstring(buf) end
       @ponyint_pool_free_size(buf_size, buf)
       result

@@ -177,3 +177,121 @@ jobs:
           type: stream
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  openbsd:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    name: x86-64 OpenBSD 7.8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          df -h /
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-utils qemu-system-x86 genisoimage
+          sudo chmod 666 /dev/kvm
+      - name: Download OpenBSD image
+        run: |
+          curl -L -o openbsd.qcow2 \
+            "https://github.com/hcartiaux/openbsd-cloud-image/releases/download/v7.8_2025-10-22-09-25/openbsd-generic.qcow2"
+          qemu-img resize openbsd.qcow2 60G
+      - name: Prepare VM access
+        run: |
+          ssh-keygen -t ed25519 -f vm_key -N ""
+          PUB_KEY=$(cat vm_key.pub)
+
+          cat > user-data <<USERDATA
+          #cloud-config
+          users:
+          - name: openbsd
+            groups: wheel
+            ssh_authorized_keys:
+            - ${PUB_KEY}
+          write_files:
+          - path: /etc/doas.conf
+            content: |
+              permit nopass keepenv :wheel
+            owner: root:wheel
+            permissions: '0600'
+          USERDATA
+          cat > meta-data <<METADATA
+          instance-id: openbsd-ci
+          local-hostname: openbsd-ci
+          METADATA
+          genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data
+      - name: Boot OpenBSD VM
+        run: |
+          qemu-system-x86_64 \
+            -machine pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 6G \
+            -drive file=openbsd.qcow2,format=qcow2,if=virtio \
+            -drive file=seed.iso,media=cdrom \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -display none \
+            -daemonize
+      - name: Wait for VM
+        run: |
+          timeout 300 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 openbsd@localhost true 2>/dev/null; do
+              sleep 2
+            done
+          '
+          echo "SSH available"
+      - name: Install build dependencies
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
+            "doas pkg_add cmake gmake git python%3 rsync--"
+      - name: Raise datasize limit
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
+            "doas sed -i 's/datasize-max=1536M/datasize-max=4096M/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=4096M/' /etc/login.conf"
+      - name: Copy source to VM
+        run: |
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
+            "$GITHUB_WORKSPACE/" openbsd@localhost:/home/openbsd/ponyc/
+      - name: Build and test
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost <<'EOF'
+          set -e
+          cd /home/openbsd/ponyc
+          gmake libs build_flags=-j4
+          rm -rf build/build_libs
+          gmake configure config=debug
+          gmake build config=debug
+          gmake test-ci-core config=debug
+          gmake test-pony-doc config=debug
+          gmake test-pony-lint config=debug
+          gmake test-pony-lsp config=debug
+          gmake lint-pony-lint config=debug
+          gmake configure config=release
+          gmake build config=release
+          gmake test-ci-core config=release
+          EOF
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

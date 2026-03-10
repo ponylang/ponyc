@@ -1,4 +1,4 @@
-use "lib:ponyc-standalone" if not (openbsd or dragonfly)
+use "lib:ponyc-standalone" if not dragonfly
 use "lib:z" if not (windows or openbsd or dragonfly)
 use "lib:c++" if osx
 use "files"
