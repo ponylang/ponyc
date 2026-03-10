@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Compile-time string literal concatenation ([PR #4900](https://github.com/ponylang/ponyc/pull/4900))
 - Add `--sysroot` option for cross-compilation ([PR #4964](https://github.com/ponylang/ponyc/pull/4964))
 - Support `--sysroot` for native Linux builds ([PR #4971](https://github.com/ponylang/ponyc/pull/4971))
+- Add OpenBSD 7.8 as a tier 3 CI target ([PR #5003](https://github.com/ponylang/ponyc/pull/5003))
 
 ### Changed
 
