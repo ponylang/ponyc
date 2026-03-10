@@ -245,9 +245,12 @@ static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 
 // class PassTest
 
+extern const char* test_argv0;
+
 void PassTest::SetUp()
 {
   pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
   codegen_pass_init(&opt);
   package_init(&opt);
   program = NULL;
@@ -697,8 +700,12 @@ void Environment::TearDown()
 }
 
 
+// Stored for OpenBSD, which needs argv0 to locate the executable path.
+const char* test_argv0 = NULL;
+
 int main(int argc, char** argv)
 {
+  test_argv0 = argv[0];
   testing::InitGoogleTest(&argc, argv);
   testing::AddGlobalTestEnvironment(new Environment());
   return RUN_ALL_TESTS();

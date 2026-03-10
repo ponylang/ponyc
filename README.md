@@ -28,6 +28,7 @@ Best-effort platforms are operating systems where Pony _should_ work, but with l
 
 * DragonFlyBSD (x86 only)
 * FreeBSD (x86 only)
+* OpenBSD (x86 only)
 * Windows 10 (x86 only)
 
 ## More Information
