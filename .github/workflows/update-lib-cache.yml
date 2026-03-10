@@ -161,7 +161,7 @@ jobs:
   arm64-windows:
     runs-on: windows-11-arm
 
-    name: x86-64 Windows MSVC
+    name: arm64 Windows MSVC
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
