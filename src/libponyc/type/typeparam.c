@@ -14,6 +14,14 @@ static token_id cap_union_constraint(token_id a, token_id b)
   if(a == b)
     return a;
 
+  // If one side is empty (TK_NONE), return the other side.
+  // Empty is the identity element for union.
+  if(a == TK_NONE)
+    return b;
+
+  if(b == TK_NONE)
+    return a;
+
   // If we're in a set together, return the set. Otherwise, use #any.
   switch(a)
   {
@@ -161,14 +169,18 @@ static token_id cap_isect_constraint(token_id a, token_id b)
   if(b == TK_CAP_ANY)
     return a;
 
-  // If we're in a set, extract us from the set. Otherwise, use #any.
+  // If one side is empty (TK_NONE), the intersection stays empty.
+  if(a == TK_NONE || b == TK_NONE)
+    return TK_NONE;
+
+  // If we're in a set, extract us from the set. Otherwise, return TK_NONE
+  // (empty intersection — no capability is in both sets).
   switch(a)
   {
     case TK_ISO:
       switch(b)
       {
         case TK_CAP_SEND:
-        case TK_CAP_SHARE:
           return TK_ISO;
 
         default: {}
@@ -205,6 +217,18 @@ static token_id cap_isect_constraint(token_id a, token_id b)
         case TK_CAP_READ:
         case TK_CAP_ALIAS:
           return TK_BOX;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG:
+      switch(b)
+      {
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_TAG;
 
         default: {}
       }
@@ -264,6 +288,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         default: {}
       }
+      break;
 
     case TK_CAP_ALIAS:
       switch(b)
@@ -283,11 +308,12 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         default: {}
       }
+      break;
 
     default: {}
   }
 
-  return TK_CAP_ANY;
+  return TK_NONE;
 }
 
 static token_id cap_from_constraint(ast_t* type)
