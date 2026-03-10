@@ -132,8 +132,8 @@ static void make_signature(compile_t* c, reach_type_t* t,
   }
 
   // Detect if the method is partial.
-  // Bare functions keep using C++ exception semantics (pony_error) since they
-  // are called from C code that doesn't understand error-flag returns.
+  // Bare functions are excluded: they are called from C code that doesn't
+  // understand error-flag returns, so they abort on unhandled error instead.
   ast_t* can_error = ast_childidx(m->fun->ast, 5);
   c_m->is_partial = (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
 
@@ -493,53 +493,6 @@ genfun_build_ret_void(compile_t* c)
   return NULL;
 }
 
-static void setup_default_landing_pad(compile_t* c, compile_method_t* c_m)
-{
-  // For partial functions, create a function-level landing pad that catches
-  // C++ exceptions from FFI calls and converts them to error-flag returns.
-  // Without this, a partial FFI call outside any try block has no unwind
-  // destination.
-  if(!c_m->is_partial)
-    return;
-
-  LLVMBasicBlockRef current_block = LLVMGetInsertBlock(c->builder);
-
-  LLVMBasicBlockRef lp_block = codegen_block(c, "ffi_lp");
-  LLVMPositionBuilderAtEnd(c->builder, lp_block);
-
-  // Build the landing pad instruction.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
-
-  // Return error flag.
-  LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
-  LLVMTypeRef r_type = LLVMGetReturnType(f_type);
-
-  if(r_type == c->i1)
-  {
-    genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
-  }
-  else
-  {
-    LLVMValueRef undef_val =
-      LLVMGetUndef(LLVMStructGetTypeAtIndex(r_type, 0));
-    LLVMValueRef ret = wrap_result(c, undef_val,
-      LLVMConstInt(c->i1, 1, false));
-    genfun_build_ret(c, ret);
-  }
-
-  c->frame->landing_pad = lp_block;
-
-  // Restore builder position.
-  LLVMPositionBuilderAtEnd(c->builder, current_block);
-}
-
 static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 {
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -552,7 +505,6 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
     ast_id(cap) == TK_AT);
   c->frame->is_partial = c_m->is_partial;
-  setup_default_landing_pad(c, c_m);
   name_params(c, t, m, c_m->func);
 
   bool finaliser = c_m->func == c_t->final_fn;
@@ -685,7 +637,6 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun, false);
   c->frame->is_partial = c_m->is_partial;
-  setup_default_landing_pad(c, c_m);
   name_params(c, t, m, c_m->func);
 
   LLVMValueRef value = gen_expr(c, body);

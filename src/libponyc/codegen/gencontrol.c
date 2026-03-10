@@ -654,25 +654,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "try_post");
 
-  // Create a landing pad block for FFI invoke unwind. The landing pad
-  // instruction is required for LLVM invoke semantics; it branches to the
-  // else block where the else body is generated.
-  LLVMBasicBlockRef lp_block = codegen_block(c, "try_lp");
-  LLVMPositionBuilderAtEnd(c->builder, lp_block);
-
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
-  LLVMBuildBr(c->builder, else_block);
-
-  // Keep a reference to the else block (for error-flag branches) and the
-  // landing pad block (for FFI invoke unwind).
-  codegen_pushtry(c, else_block, lp_block);
+  codegen_pushtry(c, else_block);
 
   // Body block.
   LLVMPositionBuilderAtEnd(c->builder, block);
@@ -774,22 +756,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "disposing_block_post");
 
-  // Create a landing pad block for FFI invoke unwind.
-  LLVMBasicBlockRef lp_block = codegen_block(c, "disposing_block_lp");
-  LLVMPositionBuilderAtEnd(c->builder, lp_block);
-
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
-  LLVMBuildBr(c->builder, else_block);
-
-  // Keep a reference to the else block and landing pad block.
-  codegen_pushtry(c, else_block, lp_block);
+  codegen_pushtry(c, else_block);
 
   // Body block.
   LLVMPositionBuilderAtEnd(c->builder, block);
@@ -949,23 +916,15 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
 
-  if(c->frame->bare_function)
-  {
-    // Bare functions use C++ exception semantics since they are called from
-    // C code that doesn't understand error-flag returns.
-    gencall_error(c);
-  }
-  else if(c->frame->invoke_target != NULL)
+  if(c->frame->error_target != NULL)
   {
     // Inside a try block: branch to the error handler.
-    LLVMBuildBr(c->builder, c->frame->invoke_target);
+    LLVMBuildBr(c->builder, c->frame->error_target);
   }
-  else
+  else if(c->frame->is_partial)
   {
-    // Propagate error: return error tuple. This path is only valid when the
-    // enclosing function is partial (its return type is {T, i1} or i1).
-    pony_assert(c->frame->is_partial);
-
+    // Propagate error: return error tuple. The enclosing function is partial,
+    // so its return type is {T, i1} or i1.
     LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
@@ -981,6 +940,17 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
         LLVMConstInt(c->i1, 1, false));
       genfun_build_ret(c, ret);
     }
+  }
+  else
+  {
+    // Bare function with no error handler: abort. Bare functions have
+    // is_partial=false (they can't use error-flag returns since C callers
+    // don't understand them), so this is the only remaining path.
+    pony_assert(c->frame->bare_function);
+    LLVMValueRef func = LLVMGetNamedFunction(c->module, "abort");
+    LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
+    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
+    LLVMBuildUnreachable(c->builder);
   }
 
   codegen_debugloc(c, NULL);

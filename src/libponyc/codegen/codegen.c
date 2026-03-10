@@ -605,15 +605,11 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readonly);
 
-  // void pony_error()
+  // void abort()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
-  value = LLVMAddFunction(c->module, "pony_error", type);
+  value = LLVMAddFunction(c->module, "abort", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, noreturn_attr);
-
-  // i32 ponyint_personality_v0(...)
-  type = LLVMFunctionType(c->i32, NULL, 0, true);
-  c->personality = LLVMAddFunction(c->module, "ponyint_personality_v0", type);
 
   // i32 memcmp(i8*, i8*, intptr)
   params[0] = c->ptr;
@@ -1051,8 +1047,7 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
-  frame->invoke_target = frame->prev->invoke_target;
-  frame->landing_pad = frame->prev->landing_pad;
+  frame->error_target = frame->prev->error_target;
   frame->di_file = frame->prev->di_file;
 
   if(frame->prev->di_scope != NULL)
@@ -1159,8 +1154,7 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   frame->break_target = break_target;
   frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
-  frame->invoke_target = frame->prev->invoke_target;
-  frame->landing_pad = frame->prev->landing_pad;
+  frame->error_target = frame->prev->error_target;
   frame->di_file = frame->prev->di_file;
   frame->di_scope = frame->prev->di_scope;
 }
@@ -1170,8 +1164,7 @@ void codegen_poploop(compile_t* c)
   pop_frame(c);
 }
 
-void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target,
-  LLVMBasicBlockRef landing_pad)
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef error_target)
 {
   compile_frame_t* frame = push_frame(c);
 
@@ -1182,8 +1175,7 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target,
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
-  frame->invoke_target = invoke_target;
-  frame->landing_pad = landing_pad;
+  frame->error_target = error_target;
   frame->di_file = frame->prev->di_file;
   frame->di_scope = frame->prev->di_scope;
 }

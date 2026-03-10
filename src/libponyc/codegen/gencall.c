@@ -85,28 +85,6 @@ static void ffi_decl_free(ffi_decl_t* d)
 DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
   ffi_decl_free);
 
-static LLVMValueRef invoke_fun(compile_t* c, LLVMTypeRef fun_type,
-  LLVMValueRef fun, LLVMValueRef* args, int count, const char* ret, bool setcc)
-{
-  if(fun == NULL)
-    return NULL;
-
-  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMInsertBasicBlockInContext(c->context,
-    this_block, "invoke");
-  LLVMMoveBasicBlockAfter(then_block, this_block);
-  LLVMBasicBlockRef else_block = c->frame->landing_pad;
-
-  LLVMValueRef invoke = LLVMBuildInvoke2(c->builder, fun_type, fun, args, count,
-    then_block, else_block, ret);
-
-  if(setcc)
-    LLVMSetInstructionCallConv(invoke, c->callconv);
-
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-  return invoke;
-}
-
 static bool special_case_operator(compile_t* c, ast_t* ast,
   LLVMValueRef *value, bool short_circuit, bool native128)
 {
@@ -915,9 +893,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         LLVMBuildCondBr(c->builder, error_flag, error_block, continue_block);
 
         LLVMPositionBuilderAtEnd(c->builder, error_block);
-        if(c->frame->invoke_target != NULL)
+        if(c->frame->error_target != NULL)
         {
-          LLVMBuildBr(c->builder, c->frame->invoke_target);
+          LLVMBuildBr(c->builder, c->frame->error_target);
         }
         else
         {
@@ -1194,7 +1172,6 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args, can_err);
-  bool err = (ast_id(can_err) == TK_QUESTION);
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
@@ -1228,7 +1205,6 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     bool is_intrinsic = (!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9));
     AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_named_params, decl_err);
 
-    err = (ast_id(decl_err) == TK_QUESTION);
     func = declare_ffi(c, f_name, t, decl_params, is_intrinsic);
 
     size_t index = HASHMAP_UNKNOWN;
@@ -1311,16 +1287,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  // If the FFI call is partial and we have a landing pad, generate an invoke
-  // so C++ exceptions from pony_error() unwind to the landing pad. Otherwise,
-  // generate a plain call.
   LLVMValueRef result;
   codegen_debugloc(c, ast);
-
-  if(err && (c->frame->landing_pad != NULL))
-    result = invoke_fun(c, f_type, func, f_args, count, "", false);
-  else
-    result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
+  result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
 
   codegen_debugloc(c, NULL);
   ponyint_pool_free_size(buf_size, f_args);
@@ -1433,22 +1402,6 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   set_descriptor(c, t, result);
 
   return result;
-}
-
-void gencall_error(compile_t* c)
-{
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_error");
-  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
-
-  // invoke_target and landing_pad are always set together by codegen_pushtry,
-  // so checking invoke_target guarantees landing_pad is also available for
-  // invoke_fun to use as the unwind destination.
-  if(c->frame->invoke_target != NULL)
-    invoke_fun(c, func_type, func, NULL, 0, "", false);
-  else
-    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
-
-  LLVMBuildUnreachable(c->builder);
 }
 
 LLVMTypeRef error_flag_type(compile_t* c, LLVMTypeRef real_type)

@@ -27,8 +27,6 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t, ast_t* call);
 
 LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t);
 
-void gencall_error(compile_t* c);
-
 LLVMTypeRef error_flag_type(compile_t* c, LLVMTypeRef real_type);
 
 LLVMValueRef wrap_result(compile_t* c, LLVMValueRef value,

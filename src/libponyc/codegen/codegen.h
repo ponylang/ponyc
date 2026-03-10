@@ -83,8 +83,7 @@ typedef struct compile_frame_t
   LLVMBasicBlockRef break_target;
   LLVMBasicBlockRef break_novalue_target;
   LLVMBasicBlockRef continue_target;
-  LLVMBasicBlockRef invoke_target;
-  LLVMBasicBlockRef landing_pad;
+  LLVMBasicBlockRef error_target;
 
   compile_locals_t locals;
   LLVMMetadataRef di_file;
@@ -223,8 +222,6 @@ typedef struct compile_t
   LLVMTypeRef custom_serialise_space_fn;
   LLVMTypeRef custom_deserialise_fn;
 
-  LLVMValueRef personality;
-
   compile_frame_t* frame;
 } compile_t;
 
@@ -274,8 +271,7 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
 
 void codegen_poploop(compile_t* c);
 
-void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target,
-  LLVMBasicBlockRef landing_pad);
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef error_target);
 
 void codegen_poptry(compile_t* c);
 
