@@ -79,6 +79,7 @@ struct _PassOpt
   var link_arch: Pointer[U8] ref = link_arch.create()
   var linker: Pointer[U8] ref = linker.create()
   var link_ldcmd: Pointer[U8] ref = link_ldcmd.create()
+  var sysroot: Pointer[U8] ref = sysroot.create()
 
   // this field is only present in debug builds
   var llvm_args: Pointer[U8] val = recover val llvm_args.create() end
