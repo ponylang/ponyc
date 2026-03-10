@@ -828,6 +828,37 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
+  // Standard system library fallback paths. The paths above cover
+  // distro-specific locations (libc_crt_dir, gcc_lib_dir, etc.) but miss
+  // common install locations like /usr/local/lib (where libraries built
+  // from source typically go) and /lib (separate from /usr/lib on systems
+  // that haven't done the /usr merge). Without these, -l flags for
+  // libraries in these locations fail. No -rpath needed since the runtime
+  // linker already knows these paths.
+  {
+    // /usr/lib is intentionally absent — libc_crt_dir already covers it.
+    const char* fallback_dirs[] = {
+      "%s/lib",
+      "%s/usr/local/lib",
+      "%s/lib64",
+      "%s/usr/lib64",
+      "%s/usr/local/lib64",
+    };
+
+    struct stat st;
+    for(size_t i = 0;
+      i < sizeof(fallback_dirs) / sizeof(fallback_dirs[0]); i++)
+    {
+      snprintf(buf, sizeof(buf), fallback_dirs[i], sysroot);
+      if(stat(buf, &st) == 0 && S_ISDIR(st.st_mode))
+      {
+        char lbuf[PATH_MAX];
+        snprintf(lbuf, sizeof(lbuf), "-L%s", buf);
+        args.push_back(stringtab(lbuf));
+      }
+    }
+  }
+
   // Object file.
   args.push_back(file_o);
 
@@ -1112,6 +1143,27 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
     const char* path = program_lib_path_at(program, i);
     snprintf(buf, sizeof(buf), "-L%s", path);
     args.push_back(stringtab(buf));
+  }
+
+  // Standard library fallback paths for Homebrew and other system
+  // locations. The SDK path above only covers the Xcode/CLT SDK; libraries
+  // installed via Homebrew or from source end up in these locations.
+  {
+    const char* fallback_dirs[] = {
+      "/opt/homebrew/lib",
+      "/usr/local/lib",
+    };
+
+    struct stat st;
+    for(size_t i = 0;
+      i < sizeof(fallback_dirs) / sizeof(fallback_dirs[0]); i++)
+    {
+      if(stat(fallback_dirs[i], &st) == 0 && S_ISDIR(st.st_mode))
+      {
+        snprintf(buf, sizeof(buf), "-L%s", fallback_dirs[i]);
+        args.push_back(stringtab(buf));
+      }
+    }
   }
 
   // Object file.
