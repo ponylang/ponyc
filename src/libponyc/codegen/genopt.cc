@@ -170,7 +170,7 @@ public:
       (*iter)->setTailCall(false);
 
     // TODO: for variable size alloca, don't insert at the beginning.
-    Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
+    BasicBlock::iterator begin = call.getCaller()->getEntryBlock().begin();
 
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
       inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
@@ -182,7 +182,7 @@ public:
     auto invoke = dyn_cast<InvokeInst>(static_cast<Instruction*>(&call));
     if (invoke)
     {
-      BranchInst::Create(invoke->getNormalDest(), invoke);
+      BranchInst::Create(invoke->getNormalDest(), invoke->getIterator());
       invoke->getUnwindDest()->removePredecessor(call.getParent());
     }
 
