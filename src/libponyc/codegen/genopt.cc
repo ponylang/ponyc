@@ -30,7 +30,6 @@
 #include "ponyassert.h"
 
 using namespace llvm;
-using namespace llvm::legacy;
 
 static void print_transform(compile_t* c, Instruction* i, const char* s)
 {
