@@ -638,14 +638,121 @@ bool sendable(ast_t* type)
 
     case TK_ARROW:
     {
-      ast_t* upper = viewpoint_upper(type);
+      AST_GET_CHILDREN(type, left, right);
 
-      if(upper == NULL)
-        return false;
+      // Determine if the left side has a generic cap that needs
+      // case-splitting. For generic caps, viewpoint_upper computes a single
+      // bound that can incorrectly classify non-sendable types as sendable
+      // (e.g. this->(T #any !) with box receiver upper-bounds to tag, which
+      // is sendable, but ref->(T #any !) = T #alias which is not).
+      //
+      // Case-splitting enumerates the concrete capabilities the left side
+      // could be and checks sendability for each, matching the approach used
+      // by viewpoint_reifythis and viewpoint_reifytypeparam for subtyping.
+      token_id concrete_caps[6];
+      int num_caps = 0;
 
-      bool ok = sendable(upper);
-      ast_free_unattached(upper);
-      return ok;
+      switch(ast_id(left))
+      {
+        case TK_THISTYPE:
+          concrete_caps[0] = TK_REF;
+          concrete_caps[1] = TK_VAL;
+          concrete_caps[2] = TK_BOX;
+          num_caps = 3;
+          break;
+
+        case TK_NOMINAL:
+        case TK_TYPEPARAMREF:
+        {
+          ast_t* l_cap = cap_fetch(left);
+
+          switch(ast_id(l_cap))
+          {
+            case TK_CAP_READ:
+              concrete_caps[0] = TK_REF;
+              concrete_caps[1] = TK_VAL;
+              concrete_caps[2] = TK_BOX;
+              num_caps = 3;
+              break;
+
+            case TK_CAP_SEND:
+              concrete_caps[0] = TK_ISO;
+              concrete_caps[1] = TK_VAL;
+              concrete_caps[2] = TK_TAG;
+              num_caps = 3;
+              break;
+
+            case TK_CAP_SHARE:
+              concrete_caps[0] = TK_VAL;
+              concrete_caps[1] = TK_TAG;
+              num_caps = 2;
+              break;
+
+            case TK_CAP_ALIAS:
+              concrete_caps[0] = TK_REF;
+              concrete_caps[1] = TK_VAL;
+              concrete_caps[2] = TK_BOX;
+              concrete_caps[3] = TK_TAG;
+              num_caps = 4;
+              break;
+
+            case TK_CAP_ANY:
+              concrete_caps[0] = TK_ISO;
+              concrete_caps[1] = TK_TRN;
+              concrete_caps[2] = TK_REF;
+              concrete_caps[3] = TK_VAL;
+              concrete_caps[4] = TK_BOX;
+              concrete_caps[5] = TK_TAG;
+              num_caps = 6;
+              break;
+
+            default:
+              break;
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      if(num_caps == 0)
+      {
+        // Single concrete cap: use viewpoint_upper directly.
+        ast_t* upper = viewpoint_upper(type);
+
+        if(upper == NULL)
+          return false;
+
+        bool ok = sendable(upper);
+        ast_free_unattached(upper);
+        return ok;
+      }
+
+      // Generic cap: check that ALL concrete instantiations are sendable.
+      for(int i = 0; i < num_caps; i++)
+      {
+        ast_t* temp_left = ast_from(left, concrete_caps[i]);
+
+        BUILD(temp_arrow, type,
+          NODE(TK_ARROW,
+            TREE(temp_left)
+            TREE(ast_dup(right))));
+
+        ast_t* upper = viewpoint_upper(temp_arrow);
+        ast_free_unattached(temp_arrow);
+
+        if(upper == NULL)
+          return false;
+
+        bool ok = sendable(upper);
+        ast_free_unattached(upper);
+
+        if(!ok)
+          return false;
+      }
+
+      return true;
     }
 
     case TK_NOMINAL:
