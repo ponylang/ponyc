@@ -14,7 +14,7 @@ jobs:
     name: Lint bash, docker, markdown, and yaml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Lint codebase
         uses: docker://github/super-linter:v3.8.3
         env:
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Set up Docker Buildx
         # v3.10.0
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Set up Docker Buildx
         # v3.10.0
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
@@ -57,7 +57,7 @@ jobs:
     name: Verify CHANGELOG is valid
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Verify CHANGELOG
         uses: docker://ghcr.io/ponylang/changelog-tool:release
         with:

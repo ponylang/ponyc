@@ -24,7 +24,7 @@ jobs:
       has-changes: ${{ steps.check.outputs.has-changes }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
@@ -57,7 +57,7 @@ jobs:
     name: ${{ matrix.name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Free disk space
@@ -186,7 +186,7 @@ jobs:
     name: x86-64 OpenBSD 7.8
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Free disk space
@@ -304,7 +304,7 @@ jobs:
     name: x86-64 DragonFly BSD 6.4.2
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Free disk space

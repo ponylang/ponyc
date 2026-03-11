@@ -36,7 +36,7 @@ jobs:
       options: --user pony
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: cache-libs
         uses: actions/cache@v4
@@ -73,7 +73,7 @@ jobs:
     name: ${{ matrix.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: cache-libs
         uses: actions/cache@v4
@@ -108,7 +108,7 @@ jobs:
     name: x86-64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
         uses: actions/cache@v4
@@ -127,7 +127,7 @@ jobs:
     name: arm64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
         uses: actions/cache@v4
@@ -146,7 +146,7 @@ jobs:
     name: x86-64 Windows MSVC
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
         uses: actions/cache@v4
@@ -165,7 +165,7 @@ jobs:
     name: arm64 Windows MSVC
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
         uses: actions/cache@v4

@@ -28,7 +28,7 @@ jobs:
       options: --user pony
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
