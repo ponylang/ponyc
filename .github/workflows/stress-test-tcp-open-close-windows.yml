@@ -46,7 +46,7 @@ jobs:
           python.exe -m pip install --upgrade cloudsmith-cli
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5.0.3
         with:
           path: |
             build/libs
@@ -57,7 +57,7 @@ jobs:
         run: .\make.ps1 -Command libs
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5.0.3
         with:
           path: |
             build/libs
