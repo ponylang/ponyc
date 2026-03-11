@@ -12,6 +12,8 @@
 
 #include <llvm/IR/PassManager.h>
 #include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Analysis/CGSCCPassManager.h>
+#include <llvm/Analysis/LazyCallGraph.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
 
@@ -85,26 +87,80 @@ public:
     c = compiler;
   }
 
-  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
+  PreservedAnalyses run(LazyCallGraph::SCC &C, CGSCCAnalysisManager &AM,
+    LazyCallGraph &CG, CGSCCUpdateResult &UR)
   {
-    DominatorTree& dt = am.getResult<DominatorTreeAnalysis>(f);
-    BasicBlock& entry = f.getEntryBlock();
-    IRBuilder<> builder(&entry, entry.begin());
+    auto &FAM =
+      AM.getResult<FunctionAnalysisManagerCGSCCProxy>(C, CG).getManager();
 
     bool changed = false;
 
-    for(auto block = f.begin(), end = f.end(); block != end; ++block)
-    {
-      for(auto iter = block->begin(), end = block->end(); iter != end; )
-      {
-        Instruction* inst = &(*(iter++));
+    // Collect functions upfront to avoid iterator invalidation if
+    // updateCGAndAnalysisManagerForCGSCCPass splits the SCC.
+    SmallVector<Function*, 4> functions;
+    for(LazyCallGraph::Node &N : C)
+      functions.push_back(&N.getFunction());
 
-        if(runOnInstruction(builder, inst, dt, f))
-          changed = true;
-      }
+    for(Function *fp : functions)
+    {
+      if(fp->isDeclaration())
+        continue;
+
+      if(runOnFunction(*fp, FAM, CG, AM, UR))
+        changed = true;
     }
 
     return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+  }
+
+  bool runOnFunction(Function &f, FunctionAnalysisManager &FAM,
+    LazyCallGraph &CG, CGSCCAnalysisManager &AM, CGSCCUpdateResult &UR)
+  {
+    bool changed = false;
+    bool restart;
+
+    do
+    {
+      restart = false;
+      DominatorTree& dt = FAM.getResult<DominatorTreeAnalysis>(f);
+      BasicBlock& entry = f.getEntryBlock();
+      IRBuilder<> builder(&entry, entry.begin());
+
+      for(auto block = f.begin(); block != f.end(); ++block)
+      {
+        for(auto iter = block->begin(); iter != block->end();)
+        {
+          Instruction* inst = &(*iter);
+
+          if(runOnInstruction(builder, inst, dt, f))
+          {
+            changed = restart = true;
+
+            FAM.invalidate(f, PreservedAnalyses::none());
+
+            auto *FN = CG.lookup(f);
+            if(FN)
+            {
+              auto *FC = CG.lookupSCC(*FN);
+              if(FC)
+              {
+                updateCGAndAnalysisManagerForCGSCCPass(
+                  CG, *FC, *FN, AM, UR, FAM);
+              }
+            }
+
+            break;
+          }
+
+          ++iter;
+        }
+
+        if(restart)
+          break;
+      }
+    } while(restart);
+
+    return changed;
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
@@ -461,10 +517,6 @@ public:
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage& use) const
-  {
-    use.addRequired<DominatorTreeWrapperPass>();
-  }
 };
 
 // Pass to replace pony_ctx calls in a dispatch function by the context passed
@@ -957,10 +1009,10 @@ static void optimise(compile_t* c, bool pony_specific)
   // Wire in the Pony-specific passes if requested.
   if(pony_specific)
   {
-    PB.registerPeepholeEPCallback(
-      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+    PB.registerCGSCCOptimizerLateEPCallback(
+      [&](CGSCCPassManager &cgpm, OptimizationLevel level) {
         if(level.getSpeedupLevel() >= 2) {
-          fpm.addPass(HeapToStack(c));
+          cgpm.addPass(HeapToStack(c));
         }
       }
     );
