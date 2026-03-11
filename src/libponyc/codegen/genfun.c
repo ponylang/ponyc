@@ -818,6 +818,47 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   genfun_build_ret(c, ret);
   codegen_finishfun(c);
   ponyint_pool_free_size(buf_size, args);
+
+  // For forwarding behaviors/constructors on actors, add a dispatch case that
+  // traces with the forwarding method's params (the trait's capabilities) but
+  // calls the concrete method's handler.
+  //
+  // Only do this when all parameter types are structurally equivalent between
+  // the forwarding and concrete methods — i.e. the forwarding was created
+  // solely because of a trace-kind (cap) difference. We compare mangles
+  // rather than reach_type_t pointers because compound types with different
+  // capabilities (e.g. (B iso, A iso) vs (B val, A val)) produce different
+  // reach_type_t instances but identical mangles. When the types themselves
+  // differ (e.g. a tuple vs Any), the LLVM types are incompatible and the
+  // existing forwarding sender path handles dispatch correctly without a
+  // separate dispatch case.
+  if(t->underlying == TK_ACTOR)
+  {
+    token_id fun_id = ast_id(m->fun->ast);
+
+    if((fun_id == TK_BE) || (fun_id == TK_NEW))
+    {
+      bool types_match = (m->param_count == m2->param_count);
+
+      for(size_t i = 0; types_match && (i < m->param_count); i++)
+      {
+        if(strcmp(m->params[i].type->mangle, m2->params[i].type->mangle) != 0)
+          types_match = false;
+      }
+
+      if(types_match)
+      {
+        pony_assert(c_m2->func_handler != NULL);
+        add_dispatch_case(c, t, m->params, m->vtable_index,
+          c_m2->func_handler, c_m2->func_type, c_m->msg_type);
+
+#if defined(USE_RUNTIME_TRACING)
+        add_get_behavior_name_case(c, t, m->name, m->vtable_index);
+#endif
+      }
+    }
+  }
+
   return true;
 }
 
@@ -1019,19 +1060,45 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
+    // First pass: non-forwarding methods (generates handlers that forwarding
+    // dispatch cases will reference).
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      if(!genfun_method(c, t, n, m))
+      if(!m->forwarding)
       {
-        if(errors_get_count(c->opt->check.errors) == 0)
+        if(!genfun_method(c, t, n, m))
         {
-          pony_assert(m->fun != NULL);
-          ast_error(c->opt->check.errors, m->fun->ast,
-            "internal failure: code generation failed for method %s",
-            m->full_name);
-        }
+          if(errors_get_count(c->opt->check.errors) == 0)
+          {
+            pony_assert(m->fun != NULL);
+            ast_error(c->opt->check.errors, m->fun->ast,
+              "internal failure: code generation failed for method %s",
+              m->full_name);
+          }
 
-        return false;
+          return false;
+        }
+      }
+    }
+
+    // Second pass: forwarding methods (may need handlers from first pass).
+    j = HASHMAP_BEGIN;
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
+    {
+      if(m->forwarding)
+      {
+        if(!genfun_method(c, t, n, m))
+        {
+          if(errors_get_count(c->opt->check.errors) == 0)
+          {
+            pony_assert(m->fun != NULL);
+            ast_error(c->opt->check.errors, m->fun->ast,
+              "internal failure: code generation failed for method %s",
+              m->full_name);
+          }
+
+          return false;
+        }
       }
     }
   }
