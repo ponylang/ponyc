@@ -89,10 +89,15 @@ class val Notification is Message
     params = params'
 
   fun json(): JsonObject =>
-    JsonObject
+    let obj = JsonObject
       .update("jsonrpc", "2.0")
       .update("method", method)
-      .update("params", this.params)
+    match this.params
+    | let p: (JsonObject | JsonArray) =>
+      obj.update("params", p)
+    else
+      obj
+    end
 
 class val ResponseMessage is Message
   let id: (RequestId | None)
