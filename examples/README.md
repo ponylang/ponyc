@@ -102,6 +102,12 @@ Reads a file specified as a command-line argument and prints its path and conten
 
 An interactive command-line prompt with tab completion and command history. Demonstrates the `term` package's `Readline` and `ReadlineNotify` interfaces, and `Promise`-based prompt control where rejecting the promise exits the loop.
 
+## Data Formats
+
+### [json](json/)
+
+Demonstrates the `json` standard library package: building JSON documents with `JsonObject` and `JsonArray`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
+
 ## C FFI
 
 ### [ffi-callbacks](ffi-callbacks/)
