@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash in HeapToStack optimization pass on Windows ([PR #4938](https://github.com/ponylang/ponyc/pull/4938))
 - Fix exhaustive match on tuples of union types ([PR #4939](https://github.com/ponylang/ponyc/pull/4939))
 - Fix non-sendable data seen as sendable in generic recover blocks ([PR #4953](https://github.com/ponylang/ponyc/pull/4953))
+- Fix SEGV when sending a union of tuples to an actor ([PR #4959](https://github.com/ponylang/ponyc/pull/4959))
 
 ### Added
 
