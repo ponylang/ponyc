@@ -64,3 +64,43 @@ actor Main
       @fprintf(@pony_os_stdout(), "FAIL: argument tuple\n".cstring())
       @exit(1)
     end
+
+    // Test 4: Recover block producing a tuple element whose type gets widened.
+    // Exercises whether the type widening interacts correctly with AST nodes
+    // that were transformed during earlier passes (recover creates scope
+    // changes that sugar/refer process before expr).
+    let cc4: Change = ((0, 0), "bob", Dependency, (Link,
+      recover val
+        let s: String = "abc"
+        s + "def"
+      end))
+    if not CheckChange.check(cc4) then
+      @fprintf(@pony_os_stdout(), "FAIL: recover in tuple element\n".cstring())
+      @exit(1)
+    end
+
+    // Test 5: Lambda inside a recover block producing a tuple element.
+    // Lambdas are desugared into object literals during the sugar pass and
+    // require pass catchup. If the type widening conflicts with the caught-up
+    // AST, this will fail at compile time or produce wrong results.
+    let cc5: Change = ((0, 0), "bob", Dependency, (Link,
+      recover val
+        let f = {(s: String): String => s + "!" }
+        f("123")
+      end))
+    if not CheckChange.check(cc5) then
+      @fprintf(@pony_os_stdout(), "FAIL: lambda in tuple element\n".cstring())
+      @exit(1)
+    end
+
+    // Test 6: Object literal producing a tuple element.
+    // Object literals, like lambdas, create new type definitions during expr
+    // and require pass catchup on the generated AST.
+    let cc6: Change = ((0, 0), "bob", Dependency, (Link,
+      object val is Stringable
+        fun string(): String iso^ => "obj".clone()
+      end.string()))
+    if not CheckChange.check(cc6) then
+      @fprintf(@pony_os_stdout(), "FAIL: object literal in tuple element\n".cstring())
+      @exit(1)
+    end
