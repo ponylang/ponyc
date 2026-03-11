@@ -66,8 +66,8 @@ else ifneq (,$(shell $(CC) --version 2>&1 | grep "Free Software Foundation"))
   endif
 endif
 
-# Make sure the compiler gets all relevant search paths on FreeBSD/OpenBSD
-ifneq (,$(filter FreeBSD OpenBSD,$(shell uname -s)))
+# Make sure the compiler gets all relevant search paths on FreeBSD/OpenBSD/DragonFly
+ifneq (,$(filter FreeBSD OpenBSD DragonFly,$(shell uname -s)))
   ifeq (,$(findstring /usr/local/include,$(shell echo $CPATH)))
     export CPATH = /usr/local/include:$CPATH
   endif
@@ -238,7 +238,7 @@ test-libponyrt: all
 test-libponyc: all
 	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyc.tests --gtest_shuffle $(testextras)
 
-ifneq (,$(filter FreeBSD OpenBSD Darwin,$(shell uname -s)))
+ifneq (,$(filter FreeBSD OpenBSD DragonFly Darwin,$(shell uname -s)))
   num_cores := `sysctl -n hw.ncpu`
 else
   num_cores := `nproc --all`

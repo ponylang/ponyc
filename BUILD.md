@@ -57,11 +57,17 @@ Note that you only need to run `gmake libs` once the first time you build (or if
 
 ## DragonFly
 
+DragonFly BSD's base compiler (GCC 8.3) cannot build the vendored LLVM. Install GCC 13 and the required atomics package, then build with the packaged compiler:
+
 ```bash
-pkg install -y cxx_atomics
+pkg install -y cmake gmake git python3 cxx_atomics gcc13
+gmake libs CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
+gmake configure CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
+gmake build CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
+sudo gmake install
 ```
 
-Then continue with the same instructions as FreeBSD.
+Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
 ## Linux
 
