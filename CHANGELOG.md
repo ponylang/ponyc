@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix TCPListener accept loop spin on persistent errors ([PR #4917](https://github.com/ponylang/ponyc/pull/4917))
 - Fix compilation not correctly triggered upon startup with pony-lsp ([PR #4930](https://github.com/ponylang/ponyc/pull/4930))
 - Fix compiler crash in HeapToStack optimization pass on Windows ([PR #4938](https://github.com/ponylang/ponyc/pull/4938))
+- Fix exhaustive match on tuples of union types ([PR #4939](https://github.com/ponylang/ponyc/pull/4939))
 
 ### Added
 
