@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash when object literal implements enclosing trait ([PR #4919](https://github.com/ponylang/ponyc/pull/4919))
 - Fix TCPListener accept loop spin on persistent errors ([PR #4917](https://github.com/ponylang/ponyc/pull/4917))
 - Fix compilation not correctly triggered upon startup with pony-lsp ([PR #4930](https://github.com/ponylang/ponyc/pull/4930))
+- Fix compiler crash in HeapToStack optimization pass on Windows ([PR #4938](https://github.com/ponylang/ponyc/pull/4938))
 
 ### Added
 
