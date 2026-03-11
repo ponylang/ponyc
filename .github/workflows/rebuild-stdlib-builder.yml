@@ -23,6 +23,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Build and push
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash

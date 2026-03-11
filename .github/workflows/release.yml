@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -136,7 +136,7 @@ jobs:
     name: ${{ matrix.name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -191,7 +191,7 @@ jobs:
     name: x86-64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -229,7 +229,7 @@ jobs:
     name: arm64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v4
@@ -270,7 +270,7 @@ jobs:
     name: x86-64-pc-windows-msvc
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: |
           function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
@@ -317,7 +317,7 @@ jobs:
     name: arm64-pc-windows-msvc
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: |
           python.exe -m pip install --upgrade cloudsmith-cli

@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}

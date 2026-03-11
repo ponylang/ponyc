@@ -23,7 +23,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Build and Push
         run: bash .ci-dockerfiles/x86-64-unknown-linux-arch-builder/build-and-push.bash
       - name: Send alert on failure
@@ -48,7 +48,7 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Build Libs
         run: make libs build_flags=-j8
       - name: Build Debug Runtime
