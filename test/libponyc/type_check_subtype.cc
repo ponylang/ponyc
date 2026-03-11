@@ -508,9 +508,8 @@ TEST_F(SubTypeTest, IsSubTypeUnionOfTuple)
   // ((C1, C1) | (C1, C2) | (C2, C1)) <: ((C1 | C2), (C1 | C2))
   ASSERT_TRUE(is_subtype(type_of("uoft3"), type_of("tofu"), NULL, &opt));
 
-  // TODO: Fix this, union of tuples vs tuple of unions
   // ((C1 | C2), (C1 | C2)) <: ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2))
-  //ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft4"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft4"), NULL, &opt));
 
   // ((C1 | C2), (C1 | C2)) <!: ((C1, C1) | (C1, C2) | (C2, C1))
   ASSERT_FALSE(is_subtype(type_of("tofu"), type_of("uoft3"), NULL, &opt));
