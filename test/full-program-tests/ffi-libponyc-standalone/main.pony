@@ -1,12 +1,12 @@
-use "lib:ponyc-standalone" if not dragonfly
-use "lib:z" if not (windows or openbsd or dragonfly)
+use "lib:ponyc-standalone"
+use "lib:z" if not (windows or openbsd)
 use "lib:c++" if osx
 
-use @token_new[NullablePointer[TokenStub]](token_id: TokenId) if not dragonfly
-use @ast_new[NullablePointer[AstStub]](token: TokenStub, token_id: TokenId) if not dragonfly
-use @token_free[None](token: TokenStub) if not dragonfly
-use @ast_free[None](ast: AstStub) if not dragonfly
-use @ast_id[TokenId](ast: AstStub) if not dragonfly
+use @token_new[NullablePointer[TokenStub]](token_id: TokenId)
+use @ast_new[NullablePointer[AstStub]](token: TokenStub, token_id: TokenId)
+use @token_free[None](token: TokenStub)
+use @ast_free[None](ast: AstStub)
+use @ast_id[TokenId](ast: AstStub)
 
 struct AstStub
 struct TokenStub
@@ -16,17 +16,13 @@ type TokenId is I32
 actor Main
   new create(env: Env) =>
     try
-      ifdef not dragonfly then
-        let token = @token_new(2)()?
-        let ast = @ast_new(token, 2)()?
-        if @ast_id(ast) != 2 then
-          env.exitcode(1)
-        end
-        @ast_free(ast)
-        @token_free(token)
-      else
-        env.out.print("We are on an unsupported platform")
+      let token = @token_new(2)()?
+      let ast = @ast_new(token, 2)()?
+      if @ast_id(ast) != 2 then
+        env.exitcode(1)
       end
+      @ast_free(ast)
+      @token_free(token)
     else
       env.exitcode(1)
     end
