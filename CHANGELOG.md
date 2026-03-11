@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Support `--sysroot` for native Linux builds ([PR #4971](https://github.com/ponylang/ponyc/pull/4971))
 - Add OpenBSD 7.8 as a tier 3 CI target ([PR #5003](https://github.com/ponylang/ponyc/pull/5003))
 - Add safety/exhaustive-match lint rule to pony-lint ([PR #4904](https://github.com/ponylang/ponyc/pull/4904))
+- Add DragonFly BSD 6.4.2 as a tier 3 CI target ([PR #5009](https://github.com/ponylang/ponyc/pull/5009))
 
 ### Changed
 
