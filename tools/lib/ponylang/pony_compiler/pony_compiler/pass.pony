@@ -1,6 +1,6 @@
 use @pass_opt_init[None](options: _PassOpt)
 use @pass_opt_done[None](options: _PassOpt)
-use @ast_passes_program[Bool](program: Pointer[_AST], options: _PassOpt)
+use @ast_passes_program[Bool](program: Pointer[_AST] val, options: _PassOpt)
 
 type PassId is (
   PassParse      | PassSyntax         | PassSugar        | PassScope  |

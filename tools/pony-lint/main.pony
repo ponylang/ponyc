@@ -100,6 +100,7 @@ actor Main
         .> push(MethodDeclarationFormat)
         .> push(TypeParameterFormat)
         .> push(CallArgumentFormat)
+        .> push(ExhaustiveMatch)
     end
 
     // Handle --explain
