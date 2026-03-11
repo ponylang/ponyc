@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   x86_64-macos:
-    runs-on: macos-15-intel
+    runs-on: macos-26-intel
 
     strategy:
       fail-fast: false
@@ -44,7 +44,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-x86-macos-26-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
@@ -55,7 +55,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-x86-macos-26-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -77,7 +77,7 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   arm64-macos:
-    runs-on: macos-15
+    runs-on: macos-26
 
     strategy:
       fail-fast: false
@@ -105,7 +105,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8
@@ -116,7 +116,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Debug Runtime
         run: |
           make configure config=debug

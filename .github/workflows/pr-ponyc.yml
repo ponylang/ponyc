@@ -68,7 +68,7 @@ jobs:
 
   arm64-macos:
     if: github.event.pull_request.draft == false
-    runs-on: macos-15
+    runs-on: macos-26
 
     name: arm64 Apple Darwin
     steps:
@@ -81,7 +81,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j8

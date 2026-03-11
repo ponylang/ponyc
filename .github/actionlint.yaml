@@ -2,4 +2,4 @@
 self-hosted-runner:
   labels:
     - windows-11-arm
-    - macos-15-intel
+    - macos-26-intel
