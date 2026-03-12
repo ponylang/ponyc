@@ -75,7 +75,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5.0.3
         with:
           path: |
             build/libs
@@ -132,7 +132,7 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5.0.3
         with:
           path: |
             build/libs

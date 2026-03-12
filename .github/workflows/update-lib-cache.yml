@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: cache-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             build/libs
@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: cache-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             build/libs
@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             build/libs
@@ -130,7 +130,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             build/libs
@@ -149,7 +149,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             build/libs
@@ -168,7 +168,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Cache Libs
         id: restore-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             build/libs

@@ -67,7 +67,7 @@ jobs:
           ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5.0.3
         with:
           path: |
             build/libs
@@ -78,7 +78,7 @@ jobs:
         run: make libs build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5.0.3
         with:
           path: |
             build/libs
@@ -166,7 +166,7 @@ jobs:
         run: docker pull ${{ matrix.image }}
       - name: Restore Libs Cache
         id: restore-libs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5.0.3
         with:
           path: |
             build/libs
@@ -183,7 +183,7 @@ jobs:
             make libs build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5.0.3
         with:
           path: |
             build/libs
