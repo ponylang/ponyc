@@ -36,7 +36,6 @@ client requests in the [`PackageState`](lsp-workspace-PackageState.md) and
 """
 use "path:../lib/ponylang/peg/"
 use "path:../lib/ponylang/pony_compiler/"
-use "path:../lib/ponylang/json-ng/"
 use "files"
 use "pony_compiler"
 

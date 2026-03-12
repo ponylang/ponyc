@@ -10,9 +10,6 @@
   ],
   "deps": [
     {
-      "locator": "./lib/ponylang/json-ng"
-    },
-    {
       "locator": "./lib/ponylang/pony_compiler"
     },
     {

@@ -1,10 +1,6 @@
 {
   "locks": [
     {
-      "locator": "lib/ponylang/json-ng",
-      "revision": "main"
-    },
-    {
       "locator": "lib/ponylang/peg",
       "revision": "main"
     },
