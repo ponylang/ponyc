@@ -245,3 +245,7 @@ Fields constrained to `#send` or `#share` are unaffected — all their concrete 
 
 Sending a message with a union of tuple types would crash with a segfault when one tuple variant contained a class or actor reference at a position where another variant contained a machine word type. For example, `((U32, String) | (U32, U32))` would crash when sending the `(U32, U32)` variant because the GC trace code would try to dereference the second `U32` value as a pointer.
 
+## Add pony-doc and pony-lint to Windows distribution
+
+pony-doc and pony-lint were accidentally left out of the Windows distribution packages. Both tools were being compiled during the Windows build but then removed during packaging. They are now included alongside ponyc and pony-lsp.
+
