@@ -1,10 +1,6 @@
 {
   "locks": [
     {
-      "locator": "lib/ponylang/peg",
-      "revision": "main"
-    },
-    {
       "locator": "lib/ponylang/pony_compiler",
       "revision": "main"
     }
