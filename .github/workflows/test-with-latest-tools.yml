@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Login to GitHub Container Registry
         # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
