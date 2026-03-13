@@ -108,7 +108,7 @@ primitive Nil[A] is ReadSeq[val->A]
     """
     object ref is Iterator[val->A]
       fun has_next(): Bool => false
-      fun ref next(): val->A! ? => error
+      fun ref next(): val->A ? => error
     end
 
   fun is_empty(): Bool =>
@@ -141,7 +141,7 @@ primitive Nil[A] is ReadSeq[val->A]
     """
     this
 
-  fun prepend(a: val->A!): Cons[A] =>
+  fun prepend(a: val->A): Cons[A] =>
     """
     Builds a new list with an element added to the front of this list.
     """
@@ -267,7 +267,7 @@ class val Cons[A] is ReadSeq[val->A]
     object is Iterator[val->A]
       var _list: List[A] box = this
       fun has_next(): Bool => _list isnt Nil[A]
-      fun ref next(): val->A! ? => (_list = _list.tail()?).head()?
+      fun ref next(): val->A ? => (_list = _list.tail()?).head()?
     end
 
   fun is_empty(): Bool =>
@@ -310,7 +310,7 @@ class val Cons[A] is ReadSeq[val->A]
       acc
     end
 
-  fun val prepend(a: val->A!): Cons[A] =>
+  fun val prepend(a: val->A): Cons[A] =>
     """
     Builds a new list with an element added to the front of this list.
     """

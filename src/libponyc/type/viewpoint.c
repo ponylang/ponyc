@@ -421,9 +421,43 @@ static void replace_typeparam(ast_t* tuple, ast_t* type, ast_t* typeparamref,
   ast_append(tuple, r_type);
 }
 
+// Find the first typeparamref in ast that refers to the same type parameter
+// definition as target. Returns NULL if not found.
+static ast_t* find_typeparamref_in(ast_t* ast, ast_t* target)
+{
+  if(ast_id(ast) == TK_TYPEPARAMREF)
+  {
+    if(ast_data(ast) == ast_data(target))
+      return ast;
+    return NULL;
+  }
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    ast_t* found = find_typeparamref_in(child, target);
+    if(found != NULL)
+      return found;
+    child = ast_sibling(child);
+  }
+  return NULL;
+}
+
 ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+
+  // When type contains the same type parameter, use the version found in
+  // type to get the correct ephemeral marker. The typeparamref argument may
+  // come from a different context (e.g., the other side of a subtype check)
+  // and carry a different ephemeral marker, which would produce an incorrect
+  // reification. Only override when the cap constraint matches to avoid
+  // changing the expansion basis. See #1798.
+  ast_t* local_tp = find_typeparamref_in(type, typeparamref);
+  if((local_tp != NULL) &&
+    (ast_id(ast_childidx(local_tp, 1)) == ast_id(ast_childidx(typeparamref, 1))))
+    typeparamref = local_tp;
+
   AST_GET_CHILDREN(typeparamref, id, cap, eph);
 
   switch(ast_id(cap))
@@ -515,14 +549,19 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
   pony_assert(ast_id(a) == TK_ARROW);
   pony_assert(ast_id(b) == TK_ARROW);
 
-  // Find the first left side that needs reification.
-  ast_t* test = a;
+  // Walk both arrows in parallel to find the first element that needs
+  // reification. Each side must use its own typeparamref so the correct
+  // ephemeral marker is used for each reification. Using a's typeparamref
+  // for b would apply a's alias/ephemeral semantics to b's expansion,
+  // which is unsound when the markers differ (see #1798).
+  ast_t* test_a = a;
+  ast_t* test_b = b;
 
-  while(ast_id(test) == TK_ARROW)
+  while(ast_id(test_a) == TK_ARROW)
   {
-    AST_GET_CHILDREN(test, left, right);
+    AST_GET_CHILDREN(test_a, left_a, right_a);
 
-    switch(ast_id(left))
+    switch(ast_id(left_a))
     {
       case TK_THISTYPE:
       {
@@ -535,31 +574,53 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
       case TK_TYPEPARAMREF:
       {
         // If we can reify a, we can reify b.
-        ast_t* r = viewpoint_reifytypeparam(a, left);
+        ast_t* r = viewpoint_reifytypeparam(a, left_a);
 
         if(r == NULL)
           break;
 
         *r_a = r;
-        *r_b = viewpoint_reifytypeparam(b, left);
+
+        // Use b's own typeparamref at the corresponding position if it
+        // refers to the same type parameter.
+        ast_t* left_b = left_a;
+        if(ast_id(test_b) == TK_ARROW)
+        {
+          ast_t* candidate = ast_child(test_b);
+          if((ast_id(candidate) == TK_TYPEPARAMREF) &&
+            (ast_data(candidate) == ast_data(left_a)))
+            left_b = candidate;
+        }
+
+        *r_b = viewpoint_reifytypeparam(b, left_b);
         return true;
       }
 
       default: {}
     }
 
-    test = right;
+    test_a = right_a;
+    if(ast_id(test_b) == TK_ARROW)
+      test_b = ast_childidx(test_b, 1);
   }
 
-  if(ast_id(test) == TK_TYPEPARAMREF)
+  if(ast_id(test_a) == TK_TYPEPARAMREF)
   {
-    ast_t* r = viewpoint_reifytypeparam(a, test);
+    ast_t* r = viewpoint_reifytypeparam(a, test_a);
 
     if(r == NULL)
       return false;
 
     *r_a = r;
-    *r_b = viewpoint_reifytypeparam(b, test);
+
+    // Use b's own typeparamref at the corresponding position if it
+    // refers to the same type parameter.
+    ast_t* tp_b = test_a;
+    if((ast_id(test_b) == TK_TYPEPARAMREF) &&
+      (ast_data(test_b) == ast_data(test_a)))
+      tp_b = test_b;
+
+    *r_b = viewpoint_reifytypeparam(b, tp_b);
     return true;
   }
 

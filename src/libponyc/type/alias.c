@@ -271,6 +271,14 @@ ast_t* alias(ast_t* type)
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
+      // A val viewpoint produces only val or tag results for any right-hand
+      // type, and both alias to themselves. Aliasing inside the arrow would
+      // give val->(A!) which differs from (val->A)! when A=iso:
+      // val->(iso!) = val->tag = tag, but (val->iso)! = val! = val.
+      // Return the arrow unchanged to avoid this over-conservative result.
+      if(ast_id(left) == TK_VAL)
+        return type;
+
       BUILD(r_type, type,
         NODE(TK_ARROW,
           TREE(left)

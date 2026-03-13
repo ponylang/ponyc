@@ -514,6 +514,20 @@ TEST_F(BadPonyTest, CapSubtypeInConstrainSubtyping)
     "type does not implement its provides list");
 }
 
+TEST_F(BadPonyTest, AliasedTypeParamNotSubtypeOfUnaliased)
+{
+  // From issue #1798
+  // X! should not be a subtype of ref->X: this would allow duplicating iso
+  // references by taking an aliased (tag) reference and returning it as iso.
+  const char* src =
+    "class Foo\n"
+    "  fun alias[X](x: X!) : X^ =>\n"
+    "    let y : ref->X = consume x\n"
+    "    consume y\n";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
 TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
 {
   // From issue #1715
@@ -1249,6 +1263,8 @@ TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeddedType)
 
 TEST_F(BadPonyTest, AllowAliasForNonEphemeralReturn)
 {
+  // Direct field reads return the viewpoint-adapted type (this->A)
+  // without auto-aliasing, so the return type matches.
   const char* src =
     "class iso Inner\n"
     "  new iso create() => None\n"
@@ -1256,16 +1272,38 @@ TEST_F(BadPonyTest, AllowAliasForNonEphemeralReturn)
     "class Container[A: Inner #any]\n"
     "  var inner: A\n"
     "  new create(inner': A) => inner = consume inner'\n"
-    "  fun get_1(): this->A => inner                        // works\n"
-    "  fun get_2(): this->A => let tmp = inner; consume tmp // also works\n"
+    "  fun get_1(): this->A => inner\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let o = Container[Inner iso](Inner)\n"
-    "    let i_1 : Inner tag = o.get_1()\n"
-    "    let i_2 : Inner tag = o.get_2()";
+    "    let i_1 : Inner tag = o.get_1()";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, AliasedFieldReadNotSubtypeOfViewpointReturn)
+{
+  // Reading a field into a local auto-aliases: the local has type this->A!.
+  // Consuming the local doesn't strip the alias marker. The resulting
+  // this->A! is not a subtype of this->A because for some instantiations
+  // (e.g. A=iso, receiver=ref) the aliased cap (tag) is not a subcap of
+  // the original (iso). See #1798.
+  const char* src =
+    "class iso Inner\n"
+    "  new iso create() => None\n"
+
+    "class Container[A: Inner #any]\n"
+    "  var inner: A\n"
+    "  new create(inner': A) => inner = consume inner'\n"
+    "  fun get_2(): this->A => let tmp = inner; consume tmp\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Container[Inner iso](Inner)\n"
+    "    let i_2 : Inner tag = o.get_2()";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
 }
 
 TEST_F(BadPonyTest, AllowNestedTupleAccess)
