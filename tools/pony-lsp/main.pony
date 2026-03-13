@@ -34,7 +34,6 @@ client requests in the [`PackageState`](lsp-workspace-PackageState.md) and
 [`DocumentState`](lsp-workspace-DocumentState.md) classes.
 
 """
-use "path:../lib/ponylang/peg/"
 use "path:../lib/ponylang/pony_compiler/"
 use "files"
 use "pony_compiler"

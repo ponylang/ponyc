@@ -11,9 +11,6 @@
   "deps": [
     {
       "locator": "./lib/ponylang/pony_compiler"
-    },
-    {
-      "locator": "./lib/ponylang/peg"
     }
   ],
   "info": {
