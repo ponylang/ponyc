@@ -492,6 +492,7 @@ jobs:
           set -e
           export CC=/usr/local/bin/gcc13
           export CXX=/usr/local/bin/g++13
+          export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           cd /build/ponyc
           gmake libs build_flags=-j4
           rm -rf build/build_libs
