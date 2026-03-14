@@ -1,5 +1,5 @@
 use "lib:ponyc-standalone"
-use "lib:z" if not (windows or openbsd)
+use "lib:z" if not windows
 use "lib:c++" if osx
 use "files"
 
