@@ -349,7 +349,7 @@ jobs:
             -machine pc,accel=kvm \
             -cpu host \
             -smp 4 \
-            -m 6G \
+            -m 8G \
             -drive file=dfly.qcow2,format=qcow2,if=virtio \
             -drive file=dfly-data.qcow2,format=qcow2,if=virtio \
             -netdev user,id=net0,hostfwd=tcp::2222-:22 \
