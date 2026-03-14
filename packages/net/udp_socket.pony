@@ -7,9 +7,9 @@ use @pony_os_listen_udp4[AsioEventID](owner: AsioEventNotify,
 use @pony_os_listen_udp6[AsioEventID](owner: AsioEventNotify,
   host: Pointer[U8] tag, service: Pointer[U8] tag)
 use @pony_os_sendto[USize](fd: U32, buffer: Pointer[U8] tag,
-  size: USize, to: NetAddress tag) ?
+  size: USize, to: NetAddress tag)
 use @pony_os_recvfrom[USize](event: AsioEventID, buffer: Pointer[U8] tag,
-  size: USize, from: NetAddress tag) ?
+  size: USize, from: NetAddress tag)
 use @pony_os_multicast_join[None](fd: U32, group: Pointer[U8] tag,
   to: Pointer[U8] tag)
 use @pony_os_multicast_leave[None](fd: U32, group: Pointer[U8] tag,
@@ -304,7 +304,8 @@ actor UDPSocket is AsioEventNotify
           let from = recover NetAddress end
           let len =
             @pony_os_recvfrom(_event, data.cpointer(), data.space(),
-              from) ?
+              from)
+          if len == USize.max_value() then error end
 
           if len == 0 then
             _readable = false
@@ -360,8 +361,9 @@ actor UDPSocket is AsioEventNotify
     """
     ifdef windows then
       try
-        @pony_os_recvfrom(_event, _read_buf.cpointer(),
-          _read_buf.space(), _read_from) ?
+        let recv_len = @pony_os_recvfrom(_event, _read_buf.cpointer(),
+          _read_buf.space(), _read_from)
+        if recv_len == USize.max_value() then error end
       else
         _readable = false
         _close()
@@ -374,7 +376,8 @@ actor UDPSocket is AsioEventNotify
     """
     if not _closed then
       try
-        @pony_os_sendto(_fd, data.cpointer(), data.size(), to) ?
+        let sent = @pony_os_sendto(_fd, data.cpointer(), data.size(), to)
+        if sent == USize.max_value() then error end
       else
         _close()
       end
