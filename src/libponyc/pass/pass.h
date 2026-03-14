@@ -224,7 +224,6 @@ typedef enum pass_id
   PASS_NAME_RESOLUTION,
   PASS_FLATTEN,
   PASS_TRAITS,
-  PASS_DOCS,
   PASS_REFER,
   PASS_EXPR,
   PASS_COMPLETENESS,
@@ -252,7 +251,6 @@ typedef enum pass_id
     "    =name\n" \
     "    =flatten\n" \
     "    =traits\n" \
-    "    =docs\n" \
     "    =refer\n" \
     "    =expr\n" \
     "    =completeness\n" \
@@ -288,8 +286,6 @@ typedef struct pass_opt_t
   bool print_filenames;
   bool check_tree;
   bool lint_llvm;
-  bool docs;
-  bool docs_private;
 
   verbosity_level verbosity;
 
