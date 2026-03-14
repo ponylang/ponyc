@@ -12,6 +12,7 @@ endif()
 configure_file(version.pony.in ${CMAKE_CURRENT_SOURCE_DIR}/version.pony @ONLY)
 
 add_custom_target(tools.pony-doc ALL DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PONY_DOC_EXECUTABLE})
+add_dependencies(tools.pony-doc libponyc-standalone)
 
 file(GLOB_RECURSE DOC_SOURCES CONFIGURE_DEPENDS "*.pony")
 add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PONY_DOC_EXECUTABLE}
