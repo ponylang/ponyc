@@ -5,8 +5,9 @@ use @ponyint_formattime[Pointer[U8]](date: PosixDate tag, fmt: Pointer[U8] tag) 
 class PosixDate
   """
   Represents a proleptic Gregorian date and time, without specifying a
-  time zone. The day of month, month, day of week, and day of year are all
-  indexed from 1, i.e. January is 1, Monday is 1.
+  time zone. The day of month and month are indexed from 1 (January is 1).
+  day_of_week follows C's tm_wday convention (0=Sunday through 6=Saturday).
+  day_of_year follows C's tm_yday convention (0-based, January 1 is 0).
   """
   var nsec: I32 = 0
   var sec: I32 = 0
@@ -16,7 +17,7 @@ class PosixDate
   var month: I32 = 1
   var year: I32 = 1970
   var day_of_week: I32 = 4
-  var day_of_year: I32 = 1
+  var day_of_year: I32 = 0
 
   new create(seconds: I64 = 0, nanoseconds: I64 = 0) =>
     """
