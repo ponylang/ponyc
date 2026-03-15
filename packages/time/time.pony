@@ -37,6 +37,8 @@ primitive _ClockMonotonic
   fun apply(): U32 =>
     ifdef linux then
       1
+    elseif openbsd then
+      3
     elseif bsd then
       4
     else
