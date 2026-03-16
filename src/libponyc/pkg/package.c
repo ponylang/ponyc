@@ -738,17 +738,33 @@ static bool add_exec_dir(pass_opt_t* opt)
 
 bool package_init(pass_opt_t* opt)
 {
-  // package_add_paths for command line paths has already been done.
-  // Here, we add the package paths that are relative to the compiler location
-  // on disk. Then we append the paths from an optional environment variable
-  // PONYPATH. Previously we did PONYPATH before the compiler relative location,
-  // however, that allows packages to silently override the builtin module.
-  // See https://github.com/ponylang/ponyc/issues/3779
+  // Command line --path entries have already been added to
+  // package_search_paths during option parsing. We need the standard library
+  // paths to come first so that --path directories cannot shadow stdlib
+  // packages. This is the same approach used to fix PONYPATH shadowing in
+  // https://github.com/ponylang/ponyc/issues/3779 — save the existing paths,
+  // add stdlib paths first, then re-append the saved paths after.
+  strlist_t* cmdline_paths = opt->package_search_paths;
+  opt->package_search_paths = NULL;
+
   if(!add_exec_dir(opt))
   {
+    strlist_free(cmdline_paths);
     errorf(opt->check.errors, NULL, "Error adding package paths relative to ponyc binary location");
     return false;
   }
+
+  // Re-append command line paths after the standard library paths.
+  for(strlist_t* p = cmdline_paths; p != NULL; p = strlist_next(p))
+  {
+    const char* path = strlist_data(p);
+
+    if(strlist_find(opt->package_search_paths, path) == NULL)
+      opt->package_search_paths = strlist_append(opt->package_search_paths,
+        path);
+  }
+  strlist_free(cmdline_paths);
+
   package_add_paths(getenv("PONYPATH"), opt);
 
   // Finally we add OS specific paths.
