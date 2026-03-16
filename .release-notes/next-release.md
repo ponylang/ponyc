@@ -4,3 +4,11 @@ On OpenBSD, `CLOCK_MONOTONIC` is defined as `3`, not `4` like on FreeBSD and Dra
 
 The practical result is that the `Timers` system, which relies on `Time.nanos()` for scheduling, would misfire on OpenBSD. Timers set for wall-clock durations would instead fire based on how much CPU time the scheduler thread had burned. For a mostly-idle program, a 60-second timer could take far longer than 60 seconds to fire. Any other code that depends on monotonic time would see similarly wrong values. Hilarity ensues.
 
+## Don't allow --path to override standard library
+
+Previously, directories passed via `--path` on the ponyc command line were searched before the standard library when resolving package names. This meant a `--path` directory could contain a subdirectory that shadows a stdlib package. For example, `--path /usr/lib` would cause `/usr/lib/debug/` to shadow the stdlib `debug` package, breaking any code that depends on it.
+
+The standard library is now always searched first, before any `--path` entries. This is the same fix that was applied to `PONYPATH` in [#3779](https://github.com/ponylang/ponyc/issues/3779).
+
+If you were relying on `--path` to override a standard library package, that will no longer work.
+
