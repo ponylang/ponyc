@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Don't allow --path to override standard library ([PR #5040](https://github.com/ponylang/ponyc/pull/5040))
 
 ## [0.61.1] - 2026-03-14
 
