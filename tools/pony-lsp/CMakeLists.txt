@@ -17,8 +17,9 @@ add_dependencies(tools.pony-lsp libponyc-standalone)
 # TODO STA: --path entries are temporary until a ponyc bug is fixed.
 file(GLOB_RECURSE LSP_SOURCES CONFIGURE_DEPENDS "*.pony")
 add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PONY_LSP_EXECUTABLE}
+  COMMAND_EXPAND_LISTS
   COMMAND echo "Building pony-lsp..."
-  COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} --path ${CMAKE_CURRENT_SOURCE_DIR} --path ${CMAKE_CURRENT_SOURCE_DIR}/../lib/ponylang/pony_compiler/ -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} --path ${CMAKE_CURRENT_SOURCE_DIR} --path ${CMAKE_CURRENT_SOURCE_DIR}/../lib/ponylang/pony_compiler/ ${PONYC_SELFHOSTED_TOOL_PATH_ARGS} -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS
     ${LSP_SOURCES}
     $<TARGET_FILE:ponyc>

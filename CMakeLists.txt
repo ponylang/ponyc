@@ -224,10 +224,21 @@ if(NOT PONY_CROSS_LIBPONYRT)
     # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
 
     set(PONYC_LLD_LIBS lldELF lldMachO lldCOFF lldWasm lldMinGW lldCommon)
+    set(PONYC_SELFHOSTED_TOOL_PATH_ARGS "")
 
     if(NOT MSVC)
         find_package(ZLIB REQUIRED)
         set(PONYC_EXTRA_LIBS ZLIB::ZLIB)
+
+        # Self-hosted Pony tools use `use "lib:z"` via pony_compiler. Pass the
+        # resolved zlib libdir so embedded LLD can find non-system installs.
+        foreach(PONYC_ZLIB_LIBRARY IN LISTS ZLIB_LIBRARIES)
+            if(IS_ABSOLUTE "${PONYC_ZLIB_LIBRARY}")
+                get_filename_component(PONYC_ZLIB_LIBRARY_DIR "${PONYC_ZLIB_LIBRARY}" DIRECTORY)
+                list(APPEND PONYC_SELFHOSTED_TOOL_PATH_ARGS "--path" "${PONYC_ZLIB_LIBRARY_DIR}")
+                break()
+            endif()
+        endforeach()
     endif()
 endif()
 
