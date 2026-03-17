@@ -18,3 +18,7 @@ The tool build commands didn't pass `--cpu` to ponyc, so ponyc targeted the buil
 
 The C/C++ side of the build already respected `PONY_ARCH` (e.g., `arch=x86-64` targets the baseline x86-64 instruction set). The Pony code generation for the tools just wasn't wired up to use it. Now it is.
 
+## Fix failure to build pony tools with Homebrew
+
+When building ponyc from source with Homebrew, the self-hosted tools (pony-lint, pony-lsp, pony-doc) failed to link because the embedded LLD linker couldn't find zlib. Homebrew installs zlib outside the default system linker search paths, and while CMake resolved the correct location for linking ponyc itself, that path wasn't forwarded to the ponyc invocations that compile the tools.
+
