@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix incorrect CLOCK_MONOTONIC value on OpenBSD ([PR #5035](https://github.com/ponylang/ponyc/pull/5035))
+- Fix illegal instruction crashes in pony-lint, pony-lsp, and pony-doc ([PR #5041](https://github.com/ponylang/ponyc/pull/5041))
 
 ### Added
 
