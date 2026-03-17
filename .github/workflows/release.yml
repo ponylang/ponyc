@@ -119,15 +119,12 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
             name: arm64-unknown-linux-alpine3.21
             triple-os: linux-alpine3.21
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
             name: arm64-unknown-linux-alpine3.22
             triple-os: linux-alpine3.22
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: arm64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
             name: arm64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
@@ -177,10 +174,9 @@ jobs:
           -v ${{ github.workspace }}:/home/pony/project \
           -w /home/pony/project \
           -e CLOUDSMITH_API_KEY=${{ secrets.CLOUDSMITH_API_KEY }} \
-          -e TRIPLE_VENDOR=${{ matrix.triple-vendor }} \
           -e TRIPLE_OS=${{ matrix.triple-os }} \
           ${{ matrix.image }} \
-          bash .ci-scripts/arm64-release.bash
+          bash .ci-scripts/arm64-unknown-linux-release.bash
 
   x86_macos:
     needs:
@@ -252,11 +248,9 @@ jobs:
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Release
-        run: bash .ci-scripts/arm64-release.bash
+        run: bash .ci-scripts/arm64-apple-darwin-release.bash
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-          TRIPLE_VENDOR: apple
-          TRIPLE_OS: darwin
 
   x86_64-windows:
     needs:

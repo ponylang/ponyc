@@ -203,15 +203,21 @@ switch ($Command.ToLower())
             $lto_flag = "-DPONY_USE_LTO=true"
         }
 
+        $PonyCpu = switch ($Arch.ToLower()) {
+            "x64"   { "x86-64" }
+            "arm64" { "generic" }
+            default { "" }
+        }
+
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`""
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }

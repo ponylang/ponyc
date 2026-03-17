@@ -17,7 +17,7 @@ add_dependencies(tools.pony-lint libponyc-standalone)
 file(GLOB_RECURSE LINT_SOURCES CONFIGURE_DEPENDS "*.pony")
 add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PONY_LINT_EXECUTABLE}
   COMMAND echo "Building pony-lint..."
-  COMMAND $<TARGET_FILE:ponyc> --path ${CMAKE_CURRENT_SOURCE_DIR} --path ${CMAKE_CURRENT_SOURCE_DIR}/../lib/ponylang/pony_compiler/ -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} --path ${CMAKE_CURRENT_SOURCE_DIR} --path ${CMAKE_CURRENT_SOURCE_DIR}/../lib/ponylang/pony_compiler/ -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS
     ${LINT_SOURCES}
     $<TARGET_FILE:ponyc>

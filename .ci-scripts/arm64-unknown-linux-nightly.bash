@@ -12,12 +12,6 @@ if [[ -z "${CLOUDSMITH_API_KEY}" ]]; then
   exit 1
 fi
 
-if [[ -z "${TRIPLE_VENDOR}" ]]; then
-  echo -e "\e[31mVendor needs to be set in TRIPLE_VENDOR."
-  echo -e "Exiting.\e[0m"
-  exit 1
-fi
-
 if [[ -z "${TRIPLE_OS}" ]]; then
   echo -e "\e[31mOperating system needs to be set in TRIPLE_OS."
   echo -e "Exiting.\e[0m"
@@ -29,9 +23,10 @@ TODAY=$(date +%Y%m%d)
 # Compiler target parameters
 MACHINE=arm64
 PROCESSOR=armv8-a
+CPU=generic
 
 # Triple construction
-TRIPLE=${MACHINE}-${TRIPLE_VENDOR}-${TRIPLE_OS}
+TRIPLE=${MACHINE}-unknown-${TRIPLE_OS}
 
 # Build parameters
 MAKE_PARALLELISM=8
@@ -54,7 +49,7 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
-make configure arch=${PROCESSOR} build_flags=-j${MAKE_PARALLELISM} \
+make configure arch=${PROCESSOR} cpu=${CPU} build_flags=-j${MAKE_PARALLELISM} \
   version="${PONY_VERSION}"
 make build version="${PONY_VERSION}"
 make install arch=${PROCESSOR} prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
