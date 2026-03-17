@@ -129,6 +129,12 @@ if(NOT DEFINED PONY_ARCH)
     set(PONY_ARCH "native")
 endif()
 
+if(DEFINED PONY_CPU AND NOT PONY_CPU STREQUAL "")
+    set(PONY_CPU_FLAG --cpu ${PONY_CPU})
+else()
+    set(PONY_CPU_FLAG "")
+endif()
+
 # System information
 message("-- CMAKE_SYSTEM_INFO_FILE: ${CMAKE_SYSTEM_INFO_FILE}")
 message("-- CMAKE_SYSTEM_NAME:      ${CMAKE_SYSTEM_NAME}")

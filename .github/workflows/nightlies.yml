@@ -104,19 +104,15 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
             name: arm64-unknown-linux-alpine3.21
             triple-os: linux-alpine3.21
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
             name: arm64-unknown-linux-alpine3.22
             triple-os: linux-alpine3.22
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: arm64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
             name: arm64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
-            triple-vendor: unknown
 
     name: ${{ matrix.name }}
     steps:
@@ -162,10 +158,9 @@ jobs:
           -v ${{ github.workspace }}:/home/pony/project \
           -w /home/pony/project \
           -e CLOUDSMITH_API_KEY=${{ secrets.CLOUDSMITH_API_KEY }} \
-          -e TRIPLE_VENDOR=${{ matrix.triple-vendor }} \
           -e TRIPLE_OS=${{ matrix.triple-os }} \
           ${{ matrix.image }} \
-          bash .ci-scripts/arm64-nightly.bash
+          bash .ci-scripts/arm64-unknown-linux-nightly.bash
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -253,11 +248,9 @@ jobs:
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Nightly
-        run: bash .ci-scripts/arm64-nightly.bash
+        run: bash .ci-scripts/arm64-apple-darwin-nightly.bash
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-          TRIPLE_VENDOR: apple
-          TRIPLE_OS: darwin
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
