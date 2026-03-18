@@ -36,6 +36,7 @@ static PONY_ATOMIC(uint32_t) active_scheduler_count_check;
 static scheduler_t* scheduler;
 static PONY_ATOMIC(bool) temporarily_disable_scheduler_scaling;
 static PONY_ATOMIC(bool) detect_quiescence;
+static PONY_ATOMIC(bool) runtime_shutdown_initiated;
 static bool use_yield;
 static mpmcq_t inject;
 static PONY_ATOMIC(bool) pinned_actor_scheduler_suspended;
@@ -746,6 +747,13 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
   while(get_active_scheduler_count() <= (uint32_t)sched->index)
   {
+    // If shutdown has been initiated, break out so we can process
+    // SCHED_TERMINATE and exit. Without this check, a suspended thread can
+    // re-enter sigwait indefinitely: as other threads exit during shutdown,
+    // active_scheduler_count drops, keeping this condition true.
+    if(atomic_load_explicit(&runtime_shutdown_initiated, memory_order_relaxed))
+      break;
+
     // if we're scheduler 0 with noisy actors check to make
     // sure inject queue is empty to avoid race condition
     // between thread 0 sleeping and the ASIO thread getting a
@@ -1556,6 +1564,20 @@ static void run_pinned_actors()
 static void ponyint_sched_shutdown()
 {
   uint32_t start = 0;
+
+  // Signal all scheduler threads to stop suspending. The suspend loop in
+  // suspend_scheduler checks this flag and breaks out instead of re-entering
+  // sigwait. We also set active_scheduler_count high and send wake signals so
+  // threads currently in sigwait wake up and see the flag.
+  atomic_store_explicit(&runtime_shutdown_initiated, true,
+    memory_order_release);
+  atomic_store_explicit(&active_scheduler_count, scheduler_count,
+    memory_order_relaxed);
+  for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    if(scheduler[i].tid)
+      ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
+  }
 
   while(start < scheduler_count)
   {
