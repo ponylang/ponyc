@@ -318,6 +318,140 @@ static bool check_embed_construction(pass_opt_t* opt, ast_t* left, ast_t* right)
   return result;
 }
 
+void coerce_tuple_to_target(pass_opt_t* opt, ast_t* expr,
+  ast_t* target_type)
+{
+  // When a tuple literal is used where a union-of-tuples type is expected,
+  // the literal's bottom-up type may be narrower than the target variant.
+  // For example, ((0,0), "bob", Dep, (Link, "123")) gets type
+  // ((I64,I64), String, Dep, (Link, String)) but the target variant is
+  // ((I64,I64), String, Dep, DependencyOp) where DependencyOp is a union.
+  // The narrow type stores inner tuples inline, but the match code expects
+  // boxed union pointers. Fix by widening the tuple's type to the variant.
+  if(target_type == NULL)
+    return;
+
+  // Save the original expression so we can propagate type changes back
+  // through any SEQ wrappers. gen_call uses the SEQ's type, so it must
+  // stay in sync with the inner tuple's type.
+  ast_t* original_expr = expr;
+
+  // Unwrap SEQ wrappers.
+  while(ast_id(expr) == TK_SEQ)
+  {
+    if(ast_childcount(expr) != 1)
+      return;
+    expr = ast_child(expr);
+  }
+
+  if(ast_id(expr) != TK_TUPLE)
+    return;
+
+  ast_t* expr_type = ast_type(expr);
+  if(expr_type == NULL || ast_id(expr_type) != TK_TUPLETYPE)
+    return;
+
+  // Resolve arrow types.
+  ast_t* target = target_type;
+  while(ast_id(target) == TK_ARROW)
+    target = ast_childidx(target, 1);
+
+  // Only act when the target is a union of tuples. When the target is a
+  // plain tuple (e.g., destructuring assignment), there is no representation
+  // mismatch to fix, so just recurse into children for nested unions.
+  if(ast_id(target) == TK_UNIONTYPE)
+  {
+    // Find the first union variant that is a supertype of the literal's type.
+    ast_t* member = ast_child(target);
+    ast_t* variant = NULL;
+    while(member != NULL)
+    {
+      if(is_subtype(expr_type, member, NULL, opt))
+      {
+        variant = member;
+        break;
+      }
+      member = ast_sibling(member);
+    }
+    if(variant == NULL)
+      return;
+    target = variant;
+
+    if(ast_id(target) != TK_TUPLETYPE)
+      return;
+
+    if(ast_childcount(expr_type) != ast_childcount(target))
+      return;
+
+    // Check if any element has a structural type mismatch: the literal's
+    // element type is a concrete type (e.g., a tuple) but the target
+    // variant wants a union. Only widen in that case — capability and
+    // ephemeral differences are handled correctly by codegen already.
+    bool needs_change = false;
+    ast_t* tc = ast_child(expr_type);
+    ast_t* vc = ast_child(target);
+    while(tc != NULL && vc != NULL)
+    {
+      if(ast_id(vc) == TK_UNIONTYPE && ast_id(tc) != TK_UNIONTYPE)
+      {
+        needs_change = true;
+        break;
+      }
+      tc = ast_sibling(tc);
+      vc = ast_sibling(vc);
+    }
+
+    if(needs_change)
+    {
+      // Build a new tuple type, using the target element type where the
+      // literal has a concrete type but the target wants a union.
+      ast_t* new_type = ast_from(expr, TK_TUPLETYPE);
+      tc = ast_child(expr_type);
+      vc = ast_child(target);
+      while(tc != NULL && vc != NULL)
+      {
+        if(ast_id(vc) == TK_UNIONTYPE && ast_id(tc) != TK_UNIONTYPE)
+          ast_append(new_type, ast_dup(vc));
+        else
+          ast_append(new_type, ast_dup(tc));
+        tc = ast_sibling(tc);
+        vc = ast_sibling(vc);
+      }
+      ast_settype(expr, new_type);
+      expr_type = new_type;
+    }
+  }
+  else if(ast_id(target) != TK_TUPLETYPE)
+  {
+    return;
+  }
+
+  if(ast_childcount(expr_type) != ast_childcount(target))
+    return;
+
+  // Recursively coerce inner tuple elements for nested union cases.
+  ast_t* child_expr = ast_child(expr);
+  ast_t* child_target = ast_child(target);
+  while(child_expr != NULL && child_target != NULL)
+  {
+    coerce_tuple_to_target(opt, child_expr, child_target);
+    child_expr = ast_sibling(child_expr);
+    child_target = ast_sibling(child_target);
+  }
+
+  // Propagate the tuple's (possibly widened) type back through any SEQ
+  // wrappers we unwrapped. Codegen (gen_call, gen_tuple) reads types from
+  // SEQ nodes, so they must reflect the widened type for the reach set
+  // lookup and boxing to work correctly.
+  ast_t* seq = original_expr;
+  while(seq != expr)
+  {
+    pony_assert(ast_id(seq) == TK_SEQ);
+    ast_settype(seq, ast_type(ast_child(seq)));
+    seq = ast_child(seq);
+  }
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -335,6 +469,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(!coerce_literals(&right, l_type, opt))
     return false;
+
+  coerce_tuple_to_target(opt, right, l_type);
 
   ast_t* r_type = ast_type(right);
 

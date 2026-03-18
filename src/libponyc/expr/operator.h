@@ -12,6 +12,9 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast);
 bool expr_as(pass_opt_t* opt, ast_t** astp);
 bool expr_consume(pass_opt_t* opt, ast_t* ast);
 
+void coerce_tuple_to_target(pass_opt_t* opt, ast_t* expr,
+  ast_t* target_type);
+
 PONY_EXTERN_C_END
 
 #endif
