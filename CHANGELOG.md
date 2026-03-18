@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix incorrect CLOCK_MONOTONIC value on OpenBSD ([PR #5035](https://github.com/ponylang/ponyc/pull/5035))
 - Fix illegal instruction crashes in pony-lint, pony-lsp, and pony-doc ([PR #5041](https://github.com/ponylang/ponyc/pull/5041))
 - Fix failure to build pony tools with Homebrew ([PR #5042](https://github.com/ponylang/ponyc/pull/5042))
+- Fix memory leak and re-enable immutable-send GC optimization ([PR #4944](https://github.com/ponylang/ponyc/pull/4944))
 
 ### Added
 
