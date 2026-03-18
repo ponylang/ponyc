@@ -212,15 +212,83 @@ static void set_method_types(reach_t* r, reach_method_t* m,
   ast_free_unattached(r_result);
 }
 
+static void trace_kind_append(printbuf_t* buf, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_ACTOR:
+          printbuf(buf, "t");
+          return;
+
+        case TK_PRIMITIVE:
+          printbuf(buf, "p");
+          return;
+
+        default:
+          switch(ast_id(cap_fetch(type)))
+          {
+            case TK_VAL: printbuf(buf, "i"); return;
+            case TK_TAG: printbuf(buf, "t"); return;
+            default:     printbuf(buf, "m"); return;
+          }
+      }
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        trace_kind_append(buf, child);
+        child = ast_sibling(child);
+      }
+
+      return;
+    }
+
+    default:
+      printbuf(buf, "x");
+      return;
+  }
+}
+
 static const char* make_mangled_name(reach_method_t* m)
 {
   // Generate the mangled name.
-  // cap_name[_Arg1_Arg2]_args_result
+  // cap_name[_Arg1_Arg2]_[<trace_kind>]<args>_result
+  //
+  // Trace kind characters are only included for behaviors and constructors,
+  // since those are the only methods where a trace-kind mismatch between
+  // sender and receiver can cause ORCA GC problems. Functions don't have
+  // dispatch cases, and their symbol names may be hard-coded in the runtime
+  // (e.g. Main_runtime_override_defaults).
+  bool include_trace_kind = false;
+
+  if(m->fun != NULL)
+  {
+    token_id fun_id = ast_id(m->fun->ast);
+    include_trace_kind = (fun_id == TK_BE) || (fun_id == TK_NEW);
+  }
+
   printbuf_t* buf = printbuf_new();
   printbuf(buf, "%s_", m->name);
 
   for(size_t i = 0; i < m->param_count; i++)
+  {
+    if(include_trace_kind)
+      trace_kind_append(buf, m->params[i].ast);
+
     printbuf(buf, "%s", m->params[i].type->mangle);
+  }
 
   if(!m->internal)
     printbuf(buf, "%s", m->result->mangle);
@@ -232,7 +300,7 @@ static const char* make_mangled_name(reach_method_t* m)
 static const char* make_full_name(reach_type_t* t, reach_method_t* m)
 {
   // Generate the full mangled name.
-  // pkg_Type[_Arg1_Arg2]_cap_name[_Arg1_Arg2]_args_result
+  // pkg_Type[_Arg1_Arg2]_cap_name[_Arg1_Arg2]_[<trace_kind>]<args>_result
   printbuf_t* buf = printbuf_new();
   printbuf(buf, "%s_%s", t->name, m->mangled_name);
   const char* name = stringtab(buf->m);
