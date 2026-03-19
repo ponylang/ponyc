@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix memory leak and re-enable immutable-send GC optimization ([PR #4944](https://github.com/ponylang/ponyc/pull/4944))
 - Fix intermittent hang during runtime shutdown ([PR #5037](https://github.com/ponylang/ponyc/pull/5037))
 - Fix tuple literals not matching correctly in union-of-tuples types ([PR #4970](https://github.com/ponylang/ponyc/pull/4970))
+- Fix false positive in _final send checking for generic classes ([PR #4982](https://github.com/ponylang/ponyc/pull/4982))
 
 ### Added
 
