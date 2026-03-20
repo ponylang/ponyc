@@ -76,3 +76,7 @@ The compiler incorrectly rejected `_final` methods that called methods on generi
 
 The finaliser pass now resolves generic type parameters to their concrete types before analyzing method bodies for potential message sends. This expands the range of generic code accepted in `_final` methods, though some cases involving methods inherited through a provides chain (like `Range`) still produce false positives.
 
+## Fix `#share` capability constraint intersection
+
+When intersecting a `#share` generic constraint with capabilities outside the `#share` set (like `ref` or `box`), the compiler incorrectly reported a non-empty intersection instead of recognizing that the capabilities are disjoint. This did not affect type safety — full subtyping checks always ran afterward — but the internal function returned incorrect intermediate results.
+
