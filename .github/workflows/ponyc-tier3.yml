@@ -43,7 +43,6 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
 
     strategy:
       fail-fast: false
@@ -182,7 +181,6 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
     name: x86-64 OpenBSD 7.8
     steps:
       - name: Checkout
@@ -300,7 +298,6 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
     name: x86-64 DragonFly BSD 6.4.2
     steps:
       - name: Checkout
