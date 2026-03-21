@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.62.0] - 2026-03-21
 
 ### Fixed
 
@@ -16,9 +16,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `#share` capability constraint intersection ([PR #4998](https://github.com/ponylang/ponyc/pull/4998))
 - Fix use-after-free crash in IOCP runtime on Windows ([PR #5046](https://github.com/ponylang/ponyc/pull/5046))
 - Fix pony_os_ip_string returning NULL for valid IP addresses ([PR #5049](https://github.com/ponylang/ponyc/pull/5049))
-
-### Added
-
 
 ### Changed
 
