@@ -80,3 +80,7 @@ The finaliser pass now resolves generic type parameters to their concrete types 
 
 When intersecting a `#share` generic constraint with capabilities outside the `#share` set (like `ref` or `box`), the compiler incorrectly reported a non-empty intersection instead of recognizing that the capabilities are disjoint. This did not affect type safety — full subtyping checks always ran afterward — but the internal function returned incorrect intermediate results.
 
+## Fix use-after-free crash in IOCP runtime on Windows
+
+When a Pony actor closed a TCP connection on Windows, pending I/O completions could fire after the connection's ASIO event and owning actor were already freed, causing an intermittent access violation crash. The runtime now detects these orphaned completions and cleans them up safely without touching freed memory.
+
