@@ -242,6 +242,24 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 {
   iocp_t* iocp = (iocp_t*)ov;
 
+  // When CancelIoEx cancels pending I/O, the completion fires with
+  // ERROR_OPERATION_ABORTED. When closesocket closes a handle with pending
+  // I/O, the completion fires with ERROR_NETNAME_DELETED. In both cases the
+  // owning actor is tearing down — don't touch iocp->ev because the event
+  // or its owner may already be freed. Just clean up and return.
+  if(err == ERROR_OPERATION_ABORTED || err == ERROR_NETNAME_DELETED)
+  {
+    if(iocp->op == IOCP_ACCEPT)
+    {
+      iocp_accept_t* acc = (iocp_accept_t*)iocp;
+      closesocket(acc->ns);
+      iocp_accept_destroy(acc);
+    } else {
+      iocp_destroy(iocp);
+    }
+    return;
+  }
+
   switch(iocp->op)
   {
     case IOCP_CONNECT:
