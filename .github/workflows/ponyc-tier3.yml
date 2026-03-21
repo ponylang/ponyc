@@ -253,7 +253,7 @@ jobs:
       - name: Install build dependencies
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
-            "doas pkg_add cmake gmake git python%3 rsync--"
+            "doas pkg_add -u && doas pkg_add cmake gmake git python%3 rsync--"
       - name: Raise datasize limit
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
