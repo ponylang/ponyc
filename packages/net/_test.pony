@@ -1,6 +1,8 @@
 use "files"
 use "pony_test"
 
+use @pony_os_ip_string[Pointer[U8]](src: Pointer[U8] tag, len: I32)
+
 primitive TimeoutValue
   fun apply(): U64 =>
     ifdef windows then
@@ -16,6 +18,7 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
+    test(_TestOsIpString)
     test(_TestTCPConnectionFailed)
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
@@ -837,3 +840,27 @@ actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
       host,
       port)
     h.dispose_when_done(connection)
+
+class \nodoc\ _TestOsIpString is UnitTest
+  """
+  Regression test for https://github.com/ponylang/ponyc/issues/5048.
+
+  pony_os_ip_string had an inverted inet_ntop check that returned NULL
+  for valid IP addresses.
+  """
+  fun name(): String => "net/pony_os_ip_string"
+
+  fun apply(h: TestHelper) =>
+    // IPv4: 127.0.0.1
+    let ipv4 = [as U8: 0x7F; 0x00; 0x00; 0x01]
+    let ipv4_str: String val = recover
+      String.from_cstring(@pony_os_ip_string(ipv4.cpointer(), I32(4)))
+    end
+    h.assert_eq[String](ipv4_str, "127.0.0.1")
+
+    // IPv6: ::1
+    let ipv6 = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 1]
+    let ipv6_str: String val = recover
+      String.from_cstring(@pony_os_ip_string(ipv6.cpointer(), I32(16)))
+    end
+    h.assert_eq[String](ipv6_str, "::1")

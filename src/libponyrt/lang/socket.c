@@ -877,7 +877,7 @@ PONY_API char* pony_os_ip_string(void* src, int len)
   if(family == -1)
     return NULL;
 
-  if(inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
+  if(!inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
     return NULL;
 
   size_t dstlen = strlen(dst);
