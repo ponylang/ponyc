@@ -8,6 +8,22 @@
 
 PONY_EXTERN_C_BEGIN
 
+#ifdef PLATFORM_IS_WINDOWS
+/** Shared liveness token for IOCP operations.
+ *
+ *  IOCP completion callbacks fire on Windows thread pool threads after the
+ *  owning actor may have destroyed the event. Each in-flight IOCP operation
+ *  holds a pointer to this token. The callback checks the dead flag before
+ *  touching the event; the refcount tracks how many callbacks are outstanding
+ *  so the token itself can be freed when no longer needed.
+ */
+typedef struct iocp_token_t
+{
+  PONY_ATOMIC(bool) dead;
+  PONY_ATOMIC(uint32_t) refcount;
+} iocp_token_t;
+#endif
+
 /** Definiton of an ASIO event.
  *
  *  Used to carry user defined data for event notifications.
@@ -26,6 +42,7 @@ typedef struct asio_event_t
 
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE timer;         /* timer handle */
+  iocp_token_t* iocp_token; /* shared liveness token for IOCP callbacks */
 #endif
 } asio_event_t;
 

@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #ifdef __linux__
 #define _GNU_SOURCE
 #endif
@@ -198,6 +200,7 @@ typedef struct iocp_t
   iocp_op_t op;
   int from_len;
   asio_event_t* ev;
+  iocp_token_t* token;
 } iocp_t;
 
 typedef struct iocp_accept_t
@@ -214,12 +217,35 @@ static iocp_t* iocp_create(iocp_op_t op, asio_event_t* ev)
   iocp->op = op;
   iocp->ev = ev;
 
+  if(ev != NULL)
+  {
+    iocp->token = ev->iocp_token;
+    atomic_fetch_add_explicit(&iocp->token->refcount, 1, memory_order_relaxed);
+  } else {
+    iocp->token = NULL;
+  }
+
   return iocp;
+}
+
+static void iocp_release_token(iocp_token_t* token)
+{
+  if(atomic_fetch_sub_explicit(&token->refcount, 1, memory_order_acq_rel) == 1)
+  {
+    // We were the last outstanding operation. If the event has been destroyed,
+    // nobody else will free the token — we do it.
+    if(atomic_load_explicit(&token->dead, memory_order_acquire))
+      POOL_FREE(iocp_token_t, token);
+  }
 }
 
 static void iocp_destroy(iocp_t* iocp)
 {
+  iocp_token_t* token = iocp->token;
   POOL_FREE(iocp_t, iocp);
+
+  if(token != NULL)
+    iocp_release_token(token);
 }
 
 static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
@@ -228,6 +254,9 @@ static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
   memset(&iocp->iocp.ov, 0, sizeof(OVERLAPPED));
   iocp->iocp.op = IOCP_ACCEPT;
   iocp->iocp.ev = ev;
+  iocp->iocp.token = ev->iocp_token;
+  atomic_fetch_add_explicit(&iocp->iocp.token->refcount, 1,
+    memory_order_relaxed);
   iocp->ns = s;
 
   return iocp;
@@ -235,19 +264,23 @@ static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
 
 static void iocp_accept_destroy(iocp_accept_t* iocp)
 {
+  iocp_token_t* token = iocp->iocp.token;
   POOL_FREE(iocp_accept_t, iocp);
+
+  if(token != NULL)
+    iocp_release_token(token);
 }
 
 static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 {
   iocp_t* iocp = (iocp_t*)ov;
+  iocp_token_t* token = iocp->token;
 
-  // When CancelIoEx cancels pending I/O, the completion fires with
-  // ERROR_OPERATION_ABORTED. When closesocket closes a handle with pending
-  // I/O, the completion fires with ERROR_NETNAME_DELETED. In both cases the
-  // owning actor is tearing down — don't touch iocp->ev because the event
-  // or its owner may already be freed. Just clean up and return.
-  if(err == ERROR_OPERATION_ABORTED || err == ERROR_NETNAME_DELETED)
+  // Check whether the event has been destroyed. If so, the event and its
+  // owning actor may already be freed — don't touch iocp->ev.
+  // token is NULL for IOCP_NOP (e.g. UDP sendto) which has no event.
+  if((token != NULL) &&
+    atomic_load_explicit(&token->dead, memory_order_acquire))
   {
     if(iocp->op == IOCP_ACCEPT)
     {
@@ -257,9 +290,11 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
     } else {
       iocp_destroy(iocp);
     }
+
     return;
   }
 
+  // Event is alive — proceed normally.
   switch(iocp->op)
   {
     case IOCP_CONNECT:
