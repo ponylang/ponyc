@@ -457,7 +457,7 @@ class val Linter
       else
         return
       end
-    let parts = rel.split_by("/")
+    let parts = rel.split_by(Path.sep())
     var current: String val = root
     for part in (consume parts).values() do
       current = Path.join(current, part)

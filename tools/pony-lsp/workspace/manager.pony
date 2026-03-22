@@ -89,7 +89,9 @@ actor WorkspaceManager
             this.workspace.folder.join(dir_path)?
           end
       end
-      dir_path = Path.dir(dir_path)
+      let parent = Path.dir(dir_path)
+      if parent == dir_path then break end // hit filesystem root
+      dir_path = parent
     end
     error
 

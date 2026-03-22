@@ -19,10 +19,10 @@ permissions:
   packages: read
 
 jobs:
-  tools:
+  linux:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    name: Tools
+    name: Linux
     container:
       image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
       options: --user pony
@@ -52,3 +52,36 @@ jobs:
         run: make test-pony-lsp config=debug
       - name: Lint pony-lint
         run: make lint-pony-lint config=debug
+
+  windows:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+
+    name: Windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v5.0.3
+        with:
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Build
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test pony-doc
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
+      - name: Test pony-lint
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
+      - name: Test pony-lsp
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests
