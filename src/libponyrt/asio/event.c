@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "event.h"
 #include "asio.h"
 #include "../actor/actor.h"
@@ -29,6 +31,12 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->nsec = nsec;
   ev->writeable = false;
   ev->readable = false;
+
+#ifdef PLATFORM_IS_WINDOWS
+  ev->iocp_token = POOL_ALLOC(iocp_token_t);
+  atomic_store_explicit(&ev->iocp_token->dead, false, memory_order_relaxed);
+  atomic_store_explicit(&ev->iocp_token->refcount, 0, memory_order_relaxed);
+#endif
 
   owner->live_asio_events = owner->live_asio_events + 1;
 
@@ -63,6 +71,15 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
 
   ev->flags = ASIO_DESTROYED;
 
+#ifdef PLATFORM_IS_WINDOWS
+  // Grab the token pointer before freeing the event.
+  iocp_token_t* token = ev->iocp_token;
+
+  // Mark the token as dead. Any IOCP callback that hasn't yet checked the
+  // token will see this (acquire/release) and skip the event.
+  atomic_store_explicit(&token->dead, true, memory_order_release);
+#endif
+
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.
   pony_ctx_t* ctx = pony_ctx();
@@ -74,6 +91,13 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
   ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
 
   POOL_FREE(asio_event_t, ev);
+
+#ifdef PLATFORM_IS_WINDOWS
+  // Free the token if no IOCP callbacks are outstanding. If callbacks are
+  // still in flight, the last one to complete will free the token.
+  if(atomic_load_explicit(&token->refcount, memory_order_acquire) == 0)
+    POOL_FREE(iocp_token_t, token);
+#endif
 }
 
 PONY_API int pony_asio_event_fd(asio_event_t* ev)
