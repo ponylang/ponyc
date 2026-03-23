@@ -53,11 +53,11 @@ jobs:
       - name: Lint pony-lint
         run: make lint-pony-lint config=debug
 
-  arm64-macos:
+  macos:
     if: github.event.pull_request.draft == false
     runs-on: macos-26
 
-    name: arm64 Apple Darwin
+    name: macOS
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
