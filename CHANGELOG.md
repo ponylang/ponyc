@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix IOCP use-after-free crash ([PR #5055](https://github.com/ponylang/ponyc/pull/5055))
+- Fix pony-lint FileNaming false positives on Windows ([PR #5059](https://github.com/ponylang/ponyc/pull/5059))
 
 ### Added
 
