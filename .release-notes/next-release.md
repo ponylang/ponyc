@@ -15,3 +15,7 @@ pony-lint's `.gitignore` and `.ignore` pattern matching failed on Windows becaus
 ## Fix pony-lsp on Windows
 
 pony-lsp's JSON-RPC initialization failed on Windows because filesystem paths containing backslashes were embedded directly into JSON strings, producing invalid escape sequences. The LSP file URI conversion also didn't handle Windows drive-letter paths correctly. Additionally, several directory-walking loops in the workspace manager and router used `Path.dir` to walk up to the filesystem root, terminating when the result was `"."` — which works on Unix but not on Windows, where `Path.dir("C:")` returns `"C:"` rather than `"."`, causing an infinite loop. Windows CI for tool tests has been added to prevent regressions.
+
+## Fix pony-lint FileNaming false positives on Windows
+
+pony-lint's FileNaming rule produced false positives on Windows because the filename extraction logic only recognized `/` as a path separator. On Windows, where paths use `\`, the full path including directory components was compared against the expected type name, causing every file to be flagged.

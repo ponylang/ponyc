@@ -204,6 +204,10 @@ actor \nodoc\ Main is TestList
     test(_TestFileNamingMultipleEntitiesSkipped)
     test(_TestFileNamingTestPonyMain)
     test(_TestFileNamingPrivateType)
+    test(_TestFileNamingPathWithDirectory)
+    test(_TestFileNamingPathMismatch)
+    test(_TestFileNamingWindowsPath)
+    test(_TestFileNamingTestPonyMainWithDir)
 
     // PackageNaming tests
     test(_TestPackageNamingClean)

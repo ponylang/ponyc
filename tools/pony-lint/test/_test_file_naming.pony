@@ -1,3 +1,4 @@
+use "files"
 use "pony_test"
 use ast = "pony_compiler"
 use lint = ".."
@@ -101,6 +102,79 @@ class \nodoc\ _TestFileNamingPrivateType is UnitTest
       recover val
         Array[(String val, ast.TokenId, USize, USize)]
           .> push(("_MyHelper", ast.TokenIds.tk_primitive(), 0, 0))
+      end
+    let diags = lint.FileNaming.check_module(entities, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestFileNamingPathWithDirectory is UnitTest
+  """Directory components are stripped before comparing to the type name."""
+  fun name(): String => "FileNaming: path with directory is stripped"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        Path.join("src", "foo.pony"), "class Foo\n", ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
+      end
+    let diags = lint.FileNaming.check_module(entities, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestFileNamingPathMismatch is UnitTest
+  """Diagnostic message uses the basename, not the full path."""
+  fun name(): String => "FileNaming: path mismatch shows basename"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        Path.join("src", "bar.pony"), "class Foo\n", ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
+      end
+    let diags = lint.FileNaming.check_module(entities, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_true(diags(0)?.message.contains("bar.pony"))
+    else
+      h.fail("could not access diagnostic")
+    end
+
+class \nodoc\ _TestFileNamingWindowsPath is UnitTest
+  """Backslash path separator is recognized on Windows."""
+  fun name(): String => "FileNaming: Windows backslash path is stripped"
+
+  fun apply(h: TestHelper) =>
+    // Backslash is only a path separator on Windows; this test is a no-op
+    // on other platforms where \ is a valid filename character.
+    ifdef windows then
+      let sf =
+        lint.SourceFile(
+          "C:\\Users\\dev\\project\\foo.pony", "class Foo\n", ".")
+      let entities =
+        recover val
+          Array[(String val, ast.TokenId, USize, USize)]
+            .> push(("Foo", ast.TokenIds.tk_class(), 0, 0))
+        end
+      let diags = lint.FileNaming.check_module(entities, sf)
+      h.assert_eq[USize](0, diags.size())
+    end
+
+class \nodoc\ _TestFileNamingTestPonyMainWithDir is UnitTest
+  """_test.pony + Main exemption works with directory-prefixed paths."""
+  fun name(): String => "FileNaming: _test.pony with Main and dir is clean"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        Path.join("src", "_test.pony"), "actor Main is TestList\n", ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Main", ast.TokenIds.tk_actor(), 0, 0))
       end
     let diags = lint.FileNaming.check_module(entities, sf)
     h.assert_eq[USize](0, diags.size())
