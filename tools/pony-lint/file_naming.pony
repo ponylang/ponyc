@@ -1,3 +1,4 @@
+use "files"
 use ast = "pony_compiler"
 
 primitive FileNaming is ASTRule
@@ -128,7 +129,7 @@ primitive FileNaming is ASTRule
       i = i - 1
       try
         let ch = path(i)?
-        if ch == '/' then
+        if Path.is_sep(ch) then
           base = path.substring((i + 1).isize())
           break
         end
