@@ -87,6 +87,12 @@ jobs:
         run: make cross-libponyrt config=release CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_llc_flags="-march=riscv64"
       - name: Test with Release Cross-Compiled Runtime
         run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -147,6 +153,12 @@ jobs:
         run: make cross-libponyrt config=release CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
       - name: Test with Release Cross-Compiled Runtime
         run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -207,6 +219,12 @@ jobs:
         run: make cross-libponyrt config=release CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
       - name: Test with Release Cross-Compiled Runtime
         run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -253,6 +271,12 @@ jobs:
           make build config=release
       - name: Test with Release Runtime
         run: make test-ci-core config=release test_full_program_timeout=180
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -355,6 +379,30 @@ jobs:
             -w /home/pony/project \
             ${{ matrix.image }} \
             make test-ci-core config=release
+      - name: Test pony-doc
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
@@ -406,6 +454,12 @@ jobs:
         run: .\make.ps1 -Command test -Config Release
       - name: Build examples
         run: .\make.ps1 -Command build-examples
+      - name: Test pony-doc
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
+      - name: Test pony-lint
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
+      - name: Test pony-lsp
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
