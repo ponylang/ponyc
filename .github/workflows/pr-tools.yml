@@ -53,6 +53,36 @@ jobs:
       - name: Lint pony-lint
         run: make lint-pony-lint config=debug
 
+  arm64-macos:
+    if: github.event.pull_request.draft == false
+    runs-on: macos-26
+
+    name: arm64 Apple Darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v5.0.3
+        with:
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
+          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Build
+        run: |
+          make configure arch=armv8 config=debug
+          make build config=debug
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
+
   windows:
     if: github.event.pull_request.draft == false
     runs-on: windows-2025
