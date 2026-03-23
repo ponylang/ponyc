@@ -126,10 +126,18 @@ class ref IgnoreMatcher
 
         let matched =
           if pat.anchored then
-            // Match against path relative to the rule's base directory
+            // Match against path relative to the rule's base directory,
+            // normalized to forward slashes for GlobMatch
             let rel =
               try
-                Path.rel(base_dir, abs_path)?
+                let r = Path.rel(base_dir, abs_path)?
+                ifdef windows then
+                  let s = r.clone()
+                  s.replace("\\", "/")
+                  consume s
+                else
+                  r
+                end
               else
                 abs_path
               end
@@ -154,9 +162,9 @@ class ref IgnoreMatcher
     """
     if abs_path.at(base_dir) then
       let blen = base_dir.size()
-      // Exact match or path continues with /
+      // Exact match or path continues with a separator
       (abs_path.size() == blen)
-        or (try abs_path(blen)? == '/' else false end)
+        or (try Path.is_sep(abs_path(blen)?) else false end)
     else
       false
     end

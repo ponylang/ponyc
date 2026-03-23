@@ -449,6 +449,87 @@ switch ($Command.ToLower())
             }
         }
 
+        # pony-doc-tests
+        if ($TestsToRun -match 'pony-doc-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-doc-tests -o $outDir $srcDir\tools\pony-doc\test"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-doc-tests -o $outDir $srcDir\tools\pony-doc\test
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    Write-Output "$outDir\pony-doc-tests.exe --sequential"
+                    & $outDir\pony-doc-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'pony-doc-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-doc-tests'
+            }
+        }
+
+        # pony-lint-tests
+        if ($TestsToRun -match 'pony-lint-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lint-tests -o $outDir $srcDir\tools\pony-lint\test"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lint-tests -o $outDir $srcDir\tools\pony-lint\test
+            if ($LastExitCode -eq 0)
+            {
+                $savePonyPath = $env:PONYPATH
+                $env:PONYPATH = "$srcDir\packages;$savePonyPath"
+                try
+                {
+                    Write-Output "$outDir\pony-lint-tests.exe --sequential"
+                    & $outDir\pony-lint-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                $env:PONYPATH = $savePonyPath
+                if ($err -ne 0) { $failedTestSuites += 'pony-lint-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-lint-tests'
+            }
+        }
+
+        # pony-lsp-tests
+        if ($TestsToRun -match 'pony-lsp-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\peg --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\peg --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    Write-Output "$outDir\pony-lsp-tests.exe --sequential"
+                    & $outDir\pony-lsp-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'pony-lsp-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-lsp-tests'
+            }
+        }
+
         #
         $numTestSuitesFailed = $failedTestSuites.Length
         Write-Output "Test suites run: $numTestSuitesRun, num failed: $numTestSuitesFailed"

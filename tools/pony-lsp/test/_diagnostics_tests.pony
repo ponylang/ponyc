@@ -43,7 +43,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
                 Methods.text_document().did_open(),
                 JsonObject
                   .update("textDocument", JsonObject
-                    .update("uri", "file://" + Path.join(workspace_dir, "main.pony"))
+                    .update("uri", Uris.from_path(Path.join(workspace_dir, "main.pony")))
                     .update("languageId", "pony")
                     .update("version", I64(1))
                     .update("text", "don't care"))

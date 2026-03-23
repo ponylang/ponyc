@@ -70,7 +70,9 @@ class val WorkspaceData
           package_path.substring(this.folder.path.size().isize() + 1)
         )?
       end
-      doc_path = Path.dir(doc_path)
+      let parent = Path.dir(doc_path)
+      if parent == doc_path then break end // hit filesystem root
+      doc_path = parent
     end
     None
 

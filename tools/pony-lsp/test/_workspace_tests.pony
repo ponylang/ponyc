@@ -22,24 +22,28 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     let scanner = WorkspaceScanner.create(channel)
     let workspaces = scanner.scan(file_auth, this_dir_path)
     h.assert_eq[USize](3, workspaces.size())
-    // main.pony workspace has been found first
-    var workspace = workspaces(0)?
-    h.assert_eq[String](folder.path, workspace.folder.path)
 
-    // corral workspace
-    workspace = workspaces(1)?
-    h.assert_eq[String](folder.join("error_workspace")?.path, workspace.folder.path)
+    // Verify all expected workspaces were found (order is not guaranteed
+    // because path.walk uses filesystem enumeration order)
+    let actual = Array[String]
+    for ws in workspaces.values() do
+      actual.push(ws.folder.path)
+    end
+    let expected = [as String:
+      folder.path
+      folder.join("error_workspace")?.path
+      folder.join("workspace")?.path
+    ]
+    h.assert_array_eq_unordered[String](expected, actual)
 
-    // corral error workspace
-    workspace = workspaces(2)?
-    h.assert_eq[String](folder.join("workspace")?.path, workspace.folder.path)
-
+    // Verify router lookup works with any workspace
     let router = WorkspaceRouter.create()
     let compiler = PonyCompiler("") // dummy, not actually in use
     let request_sender = FakeRequestSender
     let client = Client.from(JsonObject)
 
-    let mgr = WorkspaceManager(workspace, file_auth, channel, request_sender, client, compiler)
+    let mgr = WorkspaceManager(
+      workspaces(0)?, file_auth, channel, request_sender, client, compiler)
     router.add_workspace(folder, mgr)?
 
     let file_path = folder.join("main.pony")?

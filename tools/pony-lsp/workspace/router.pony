@@ -18,7 +18,9 @@ class WorkspaceRouter
         let workspace = this.workspaces(file_path)?
         return workspace
       end
-      file_path = Path.dir(file_path)
+      let parent = Path.dir(file_path)
+      if parent == file_path then break end // hit filesystem root
+      file_path = parent
     end
     None
 

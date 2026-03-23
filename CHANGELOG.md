@@ -28,6 +28,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `#share` capability constraint intersection ([PR #4998](https://github.com/ponylang/ponyc/pull/4998))
 - Fix use-after-free crash in IOCP runtime on Windows ([PR #5046](https://github.com/ponylang/ponyc/pull/5046))
 - Fix pony_os_ip_string returning NULL for valid IP addresses ([PR #5049](https://github.com/ponylang/ponyc/pull/5049))
+- Fix pony-lint ignore matching on Windows ([PR #5050](https://github.com/ponylang/ponyc/pull/5050))
+- Fix pony-lsp on Windows ([PR #5050](https://github.com/ponylang/ponyc/pull/5050))
 
 ### Changed
 
