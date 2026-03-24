@@ -15,3 +15,9 @@ pony-lint's `.gitignore` and `.ignore` pattern matching failed on Windows becaus
 ## Fix pony-lsp on Windows
 
 pony-lsp's JSON-RPC initialization failed on Windows because filesystem paths containing backslashes were embedded directly into JSON strings, producing invalid escape sequences. The LSP file URI conversion also didn't handle Windows drive-letter paths correctly. Additionally, several directory-walking loops in the workspace manager and router used `Path.dir` to walk up to the filesystem root, terminating when the result was `"."` — which works on Unix but not on Windows, where `Path.dir("C:")` returns `"C:"` rather than `"."`, causing an infinite loop. Windows CI for tool tests has been added to prevent regressions.
+## Enforce documented maximum for --ponysuspendthreshold
+
+The help text for `--ponysuspendthreshold` has always said the maximum value is 1000 ms, but the runtime never actually enforced it. You could pass any value and it would be accepted. Values above ~4294 would silently overflow during an internal conversion to CPU cycles, producing nonsensical thresholds.
+
+The documented maximum of 1000 ms is now enforced. Passing a value above 1000 on the command line will produce an error. Values set via `RuntimeOptions` are clamped to 1000.
+
