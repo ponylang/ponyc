@@ -25,3 +25,9 @@ The documented maximum of 1000 ms is now enforced. Passing a value above 1000 on
 
 The compiler would crash with a segmentation fault when a method call was chained onto a bit-shift expression with an oversized shift amount. For example, `y.shr(33).string()` where `y` is a `U32` would crash instead of reporting the "shift amount greater than type width" error. The shift amount error was detected internally but the crash occurred before it could be reported. Standalone shift expressions like `y.shr(33)` were not affected and correctly produced an error message.
 
+## Enforce documented bounds for --ponycdinterval
+
+The help text for `--ponycdinterval` has always said the minimum is 10 ms and the maximum is 1000 ms, but the runtime never actually enforced either bound on the command line. You could pass any non-negative value and it would be silently clamped deep in the cycle detector initialization. Values above ~2147 would also overflow during an internal conversion to CPU cycles, producing nonsensical detection intervals.
+
+The documented bounds are now enforced. Passing a value outside [10, 1000] on the command line will produce an error. Values set via `RuntimeOptions` continue to be clamped to the valid range.
+
