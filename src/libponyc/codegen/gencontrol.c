@@ -177,6 +177,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast);
   AST_GET_CHILDREN(ast, left, right);
   AST_GET_CHILDREN(left, subtype, supertype, body);
 
@@ -190,10 +191,28 @@ LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
   ast_free_unattached(r_sub);
   ast_free_unattached(r_super);
 
-  if(is_sub)
-    return gen_expr(c, body);
+  ast_t* branch = is_sub ? body : right;
+  LLVMValueRef value = gen_expr(c, branch);
 
-  return gen_expr(c, right);
+  if(value == NULL || value == GEN_NOVALUE || value == GEN_NOTNEEDED)
+    return value;
+
+  // Cast the branch value to the iftype's overall type. Without this,
+  // returning a primitive (e.g. U8) from an iftype with a union result type
+  // (e.g. (U8 | None)) fails in gen_box because it receives the union type
+  // instead of the primitive's own type for boxing.
+  if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
+    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type)->c_type;
+
+    ast_t* branch_type = deferred_reify(reify, ast_type(branch), c->opt);
+    value = gen_assign_cast(c, c_t->use_type, value, branch_type);
+    ast_free_unattached(branch_type);
+    ast_free_unattached(type);
+  }
+
+  return value;
 }
 
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
