@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash when calling methods on invalid shift expressions ([PR #5063](https://github.com/ponylang/ponyc/pull/5063))
 - Enforce documented bounds for --ponycdinterval ([PR #5065](https://github.com/ponylang/ponyc/pull/5065))
 - Fix code generation failure for iftype with union return type ([PR #5066](https://github.com/ponylang/ponyc/pull/5066))
+- Add missing NULL checks for gen_expr results in gencall.c ([PR #5067](https://github.com/ponylang/ponyc/pull/5067))
 
 ### Added
 
