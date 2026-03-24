@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix IOCP use-after-free crash ([PR #5055](https://github.com/ponylang/ponyc/pull/5055))
 - Fix pony-lint FileNaming false positives on Windows ([PR #5059](https://github.com/ponylang/ponyc/pull/5059))
 - Enforce documented maximum for --ponysuspendthreshold ([PR #5061](https://github.com/ponylang/ponyc/pull/5061))
+- Fix compiler crash when calling methods on invalid shift expressions ([PR #5063](https://github.com/ponylang/ponyc/pull/5063))
 
 ### Added
 
