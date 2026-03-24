@@ -213,7 +213,12 @@ static int parse_opts(int argc, char** argv, options_t* opt)
         if(opt->thread_suspend_threshold > 1000)
           err_out(id, "can't be more than 1000");
         break;
-      case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_CDINTERVAL:
+        if(parse_uint(&opt->cd_detect_interval, 10, s.arg_val))
+          err_out(id, "can't be less than 10");
+        if(opt->cd_detect_interval > 1000)
+          err_out(id, "can't be more than 1000");
+        break;
       case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
       case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
