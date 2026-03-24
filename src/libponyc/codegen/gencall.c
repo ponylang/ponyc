@@ -810,6 +810,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       case TK_BECHAIN:
       case TK_FUNCHAIN:
         args[0] = gen_expr(c, receiver);
+
+        if(args[0] == NULL)
+        {
+          ponyint_pool_free_size(buf_size, args);
+          return NULL;
+        }
+
         break;
 
       default:
