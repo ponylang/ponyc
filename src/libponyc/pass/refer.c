@@ -1093,7 +1093,10 @@ static bool ast_get_child(pass_opt_t *opt, ast_t* ast, const char* name)
 
   while(child != NULL)
   {
-    if(ast_get_child(opt, child, name))
+    // Don't recurse into children that introduce their own scope (e.g., a match
+    // from `as` desugaring). Variables defined in those scopes are not
+    // assignment targets of the outer expression.
+    if(!ast_has_scope(child) && ast_get_child(opt, child, name))
       return true;
 
     child = ast_sibling(child);
