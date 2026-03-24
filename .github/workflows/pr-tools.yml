@@ -92,6 +92,8 @@ jobs:
 
     name: Windows
     steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Restore Libs Cache
