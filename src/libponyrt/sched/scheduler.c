@@ -1658,9 +1658,11 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 
   use_yield = !noyield;
 
-  // if thread suspend threshold is less then 1, then ensure it is 1
+  // clamp thread suspend threshold to documented range [1, 1000] ms
   if(thread_suspend_threshold < 1)
     thread_suspend_threshold = 1;
+  if(thread_suspend_threshold > 1000)
+    thread_suspend_threshold = 1000;
 
   // If no thread count is specified, use the available physical core count.
   if(threads == 0)
@@ -1673,7 +1675,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   // convert to cycles for use with ponyint_cpu_tick()
   // 1 second = 2000000000 cycles (approx.)
   // based on same scale as ponyint_cpu_core_pause() uses
-  scheduler_suspend_threshold = thread_suspend_threshold * 1000000;
+  scheduler_suspend_threshold = (uint64_t)thread_suspend_threshold * 1000000;
 
   scheduler_count = threads;
   min_scheduler_count = min_threads;
