@@ -127,6 +127,15 @@ ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
 
   token_id set_cap = ast_id(cap_ast);
 
+  if(set_cap == TK_NONE)
+  {
+    ast_error(opt->check.errors, constraint,
+      "type parameter constraint has no valid capability");
+    ast_error_continue(opt->check.errors, (ast_t*)ast_data(ast),
+      "type parameter definition is here");
+    return AST_ERROR;
+  }
+
   if((cap != TK_NONE) && (cap != set_cap))
   {
     ast_t* def = (ast_t*)ast_data(ast);
