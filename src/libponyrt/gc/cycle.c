@@ -1236,7 +1236,7 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_
   // convert to cycles for use with ponyint_cpu_tick()
   // 1 second = 2000000000 cycles (approx.)
   // based on same scale as ponyint_cpu_core_pause() uses
-  d->detect_interval = (uint64_t)detect_interval * 2000000;
+  d->detect_interval = detect_interval * 2000000;
 
   // initialize last_checked
   d->last_checked = HASHMAP_BEGIN;
