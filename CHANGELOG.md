@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Enforce documented bounds for --ponycdinterval ([PR #5065](https://github.com/ponylang/ponyc/pull/5065))
 - Fix code generation failure for iftype with union return type ([PR #5066](https://github.com/ponylang/ponyc/pull/5066))
 - Add missing NULL checks for gen_expr results in gencall.c ([PR #5067](https://github.com/ponylang/ponyc/pull/5067))
+- Fix type system soundness hole ([PR #4963](https://github.com/ponylang/ponyc/pull/4963))
 
 ### Added
 
