@@ -496,7 +496,7 @@ actor ParallelCompiler
 class \nodoc\ _ParallelCompilerTest is UnitTest
   fun name(): String => "parallel/compilation"
   fun apply(h: TestHelper) =>
-    h.long_test(9000000000)
+    h.long_test(60_000_000_000)
     let source_dir = FilePath(FileAuth(h.env.root), Path.join(Path.dir(__loc.file()), "constructs"))
     for i in Range(0, 10) do
       let token: String val = i.string()

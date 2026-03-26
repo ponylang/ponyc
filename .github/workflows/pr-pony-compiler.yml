@@ -1,18 +1,15 @@
-name: Tools
+name: pony-compiler
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - '**'
-      - '!**/*.md'
-      - '!**/*.yml'
-      - '!.dockerfiles/**'
-      - '!.ci-dockerfiles/**'
-      - '.github/workflows/pr-tools.yml'
+      - 'src/libponyc/**'
+      - 'tools/lib/ponylang/pony_compiler/**'
+      - '.github/workflows/pr-pony-compiler.yml'
 
 concurrency:
-  group: pr-tools-${{ github.ref }}
+  group: pr-pony-compiler-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -44,14 +41,8 @@ jobs:
         run: |
           make configure config=debug
           make build config=debug
-      - name: Test pony-doc
-        run: make test-pony-doc config=debug
-      - name: Test pony-lint
-        run: make test-pony-lint config=debug
-      - name: Test pony-lsp
-        run: make test-pony-lsp config=debug
-      - name: Lint pony-lint
-        run: make lint-pony-lint config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
 
   macos:
     if: github.event.pull_request.draft == false
@@ -76,12 +67,8 @@ jobs:
         run: |
           make configure arch=armv8 config=debug
           make build config=debug
-      - name: Test pony-doc
-        run: make test-pony-doc config=debug
-      - name: Test pony-lint
-        run: make test-pony-lint config=debug
-      - name: Test pony-lsp
-        run: make test-pony-lsp config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
 
   windows:
     if: github.event.pull_request.draft == false
@@ -111,9 +98,5 @@ jobs:
         run: |
           .\make.ps1 -Command configure -Config Debug
           .\make.ps1 -Command build -Config Debug
-      - name: Test pony-doc
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
-      - name: Test pony-lint
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
-      - name: Test pony-lsp
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests
+      - name: Test pony-compiler
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-compiler-tests
