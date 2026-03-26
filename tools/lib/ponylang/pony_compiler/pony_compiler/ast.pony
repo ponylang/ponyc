@@ -419,7 +419,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     // regular iteration through all the children
     for child' in children() do
       if child'._from_same_source(source') then
-        if (not filter_none) or (child'.id() != TokenIds.tk_none()) then
+        if filter_none and (child'.id() == TokenIds.tk_none()) then
+          // filtered out
+          None
+        else
           ////Debug("Visiting: " + child'.debug(true))
           if visitor.visit(child') is Stop then
             return Stop

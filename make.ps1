@@ -504,11 +504,37 @@ switch ($Command.ToLower())
             }
         }
 
+        # pony-compiler-tests
+        if ($TestsToRun -match 'pony-compiler-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    Write-Output "$outDir\pony-compiler-tests.exe --sequential"
+                    & $outDir\pony-compiler-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'pony-compiler-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-compiler-tests'
+            }
+        }
+
         # pony-lsp-tests
         if ($TestsToRun -match 'pony-lsp-tests')
         {
             $numTestSuitesRun += 1;
-            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\peg --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools"
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools"
             & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\peg --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools
             if ($LastExitCode -eq 0)
             {

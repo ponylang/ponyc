@@ -44,6 +44,8 @@ jobs:
         run: |
           make configure config=debug
           make build config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
       - name: Test pony-doc
         run: make test-pony-doc config=debug
       - name: Test pony-lint
@@ -76,6 +78,8 @@ jobs:
         run: |
           make configure arch=armv8 config=debug
           make build config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
       - name: Test pony-doc
         run: make test-pony-doc config=debug
       - name: Test pony-lint
@@ -111,6 +115,8 @@ jobs:
         run: |
           .\make.ps1 -Command configure -Config Debug
           .\make.ps1 -Command build -Config Debug
+      - name: Test pony-compiler
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-compiler-tests
       - name: Test pony-doc
         run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
       - name: Test pony-lint
