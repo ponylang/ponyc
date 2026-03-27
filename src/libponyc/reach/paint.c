@@ -403,7 +403,7 @@ static void painter_tidy(painter_t* painter)
   {
     colour_record_t* next = c->next;
     ponyint_pool_free_size(map_byte_count, c->type_map);
-    POOL_FREE(sizeof(colour_record_t), c);
+    POOL_FREE(colour_record_t, c);
     c = next;
   }
 }
