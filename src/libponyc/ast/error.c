@@ -332,12 +332,6 @@ void errorframe_append(errorframe_t* first, errorframe_t* second)
   *second = NULL;
 }
 
-bool errorframe_has_errors(errorframe_t* frame)
-{
-  pony_assert(frame != NULL);
-  return frame != NULL;
-}
-
 void errorframe_report(errorframe_t* frame, errors_t* errors)
 {
   pony_assert(frame != NULL);
