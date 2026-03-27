@@ -31,3 +31,23 @@ TEST_F(WithTest, NoEarlyReturnFromWith)
   TEST_ERRORS_1(src,
     "use return only to exit early from a with block, not at the end");
 }
+
+TEST_F(WithTest, DontcareInTupleSecondBindingIsRejected)
+{
+  // Regression: without the tuple-loop fix in build_with_dispose (sugar.c),
+  // this compiles with 0 errors (wrong). With the fix, exactly one error.
+  // build_with_dispose must recurse through every tuple element; a prior bug
+  // returned after the first binding only, so `_` in a later position was not
+  // diagnosed.
+  const char* src =
+    "class D\n"
+    "  new create() => None\n"
+    "  fun dispose() => None\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    with (a, _) = (D.create(), D.create()) do\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "_ isn't allowed for a variable in a with block");
+}
