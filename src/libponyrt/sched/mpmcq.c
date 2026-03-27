@@ -151,7 +151,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
   // This is a standalone fence instead of a synchronised compare_exchange
   // operation because the latter would result in unnecessary synchronisation
   // on each loop iteration.
-#ifdef USE_VALGRID
+#ifdef USE_VALGRIND
   atomic_thread_fence(memory_order_acquire);
   ANNOTATE_HAPPENS_AFTER(&tail->next);
   ANNOTATE_HAPPENS_BEFORE(&next->data);
