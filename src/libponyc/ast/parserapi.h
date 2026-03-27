@@ -448,9 +448,8 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   { \
     static const size_t order[] = { __VA_ARGS__ }; \
     pony_assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
-    // this has been static - but as it is mutated in ast_reorder_children
-    // it wasn't possible to use the parser in parallel in the same process
-    // without data races.
+    /* Not static: ast_reorder_children mutates shuffle, so static would \
+       cause data races when using the parser in parallel. */ \
     ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
     ast_reorder_children(state.ast, order, shuffle); \
     state.last_child = NULL; \
