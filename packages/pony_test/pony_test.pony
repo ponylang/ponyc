@@ -282,6 +282,13 @@ class _Shuffled
   let seed: U64
   new create(seed': U64) => seed = seed'
 
+  fun apply[A](array: Array[A]) =>
+    """
+    Shuffle the given array using this instance's seed. The same seed always
+    produces the same permutation for the same input.
+    """
+    Rand.from_u64(seed).shuffle[A](array)
+
 type _TestOrdering is (_InOrder | _Shuffled)
   """
   Controls the order in which tests are dispatched to their groups.
@@ -451,8 +458,7 @@ actor PonyTest
       match _ordering
       | let s: _Shuffled =>
         _env.out.print("Test seed: " + s.seed.string())
-        let rand = Rand.from_u64(s.seed)
-        rand.shuffle[String](_list_names)
+        s.apply[String](_list_names)
       end
       for name in _list_names.values() do
         _env.out.print(name)
@@ -467,8 +473,7 @@ actor PonyTest
     match _ordering
     | let s: _Shuffled =>
       _env.out.print("Test seed: " + s.seed.string())
-      let rand = Rand.from_u64(s.seed)
-      rand.shuffle[(_TestRunner, _Group)](_pending)
+      s.apply[(_TestRunner, _Group)](_pending)
     end
 
     for (runner, group) in _pending.values() do
