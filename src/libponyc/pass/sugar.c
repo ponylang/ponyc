@@ -592,7 +592,8 @@ static bool build_with_dispose(pass_opt_t* opt, ast_t* dispose_clause, ast_t* id
   {
     pony_assert(ast_id(p) == TK_SEQ);
     ast_t* let = ast_child(p);
-    return build_with_dispose(opt, dispose_clause, let);
+    if(!build_with_dispose(opt, dispose_clause, let))
+      return false;
   }
 
   return true;
