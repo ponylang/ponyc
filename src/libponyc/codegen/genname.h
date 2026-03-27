@@ -44,6 +44,8 @@ const char* genname_box(const char* name);
 
 const char* genname_unbox(const char* name);
 
+const char* genname_error_wrap(const char* name);
+
 const char* genname_unsafe(const char* name);
 
 const char* genname_program_fn(const char* program, const char* name);

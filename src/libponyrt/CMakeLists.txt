@@ -25,16 +25,13 @@ set(_c_src
     lang/directory.c
     lang/errno.c
     lang/io.c
-    lang/lsda.c
     lang/paths.c
-    lang/posix_except.c
     lang/process.c
     lang/socket.c
     lang/ssl.c
     lang/stat.c
     lang/stdfd.c
     lang/time.c
-    lang/win_except.c
     mem/alloc.c
     mem/heap.c
     mem/pagemap.c
@@ -52,21 +49,12 @@ set(_c_src
     tracing/tracing.c
 )
 
-set(_ll_except_src "${CMAKE_CURRENT_SOURCE_DIR}/lang/except_try_catch.ll")
-set(_ll_except_obj "${CMAKE_BINARY_DIR}/except_try_catch.o")
-
-find_file(_llc_command
-    NAMES llc.exe llc
-    HINTS "${CMAKE_BINARY_DIR}/../../libs/bin" "${CMAKE_BINARY_DIR}/../libs/bin"
-)
-
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
 endif()
 
 add_library(libponyrt STATIC
     ${_c_src}
-    ${_ll_except_obj}
 )
 
 if(PONY_USE_DTRACE)
@@ -90,15 +78,6 @@ if (NOT MSVC)
         target_compile_options(libponyrt PUBLIC -mcx16)
     endif()
 endif()
-
-set_source_files_properties(${ll_obj} PROPERTIES EXTERNAL_OBJECT True)
-
-add_custom_command(
-    COMMAND "${_llc_command}" ${LL_FLAGS} ${_ll_obj_flags} -relocation-model=pic -filetype=obj -o ${_ll_except_obj} ${_ll_except_src}
-    WORKING_DIRECTORY ${libponyrt_BINARY_DIR}
-    DEPENDS ${_ll_except_src}
-    OUTPUT ${_ll_except_obj}
-)
 
 target_include_directories(libponyrt
     PUBLIC .
@@ -162,7 +141,6 @@ if(PONY_RUNTIME_BITCODE)
     set(_ll_bc_all ${_ll_src_all})
     list(TRANSFORM _ll_bc_all PREPEND "${libponyrt_BINARY_DIR}/")
     list(TRANSFORM _ll_bc_all APPEND ".bc")
-    list(APPEND _ll_bc_all ${_ll_except_src})
 
     add_custom_target(libponyrt_bc ALL
         ${libponyrt_SOURCE_DIR}/../../build/libs/bin/llvm-link -o "${libponyrt_BINARY_DIR}/libponyrt.bc" ${_ll_bc_all}
