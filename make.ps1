@@ -508,10 +508,12 @@ switch ($Command.ToLower())
         if ($TestsToRun -match 'pony-compiler-tests')
         {
             $numTestSuitesRun += 1;
-            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler"
-            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler\tests"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler\tests
             if ($LastExitCode -eq 0)
             {
+                $savePonyPath = $env:PONYPATH
+                $env:PONYPATH = "$srcDir\tools\lib\ponylang\pony_compiler;$srcDir\packages;$savePonyPath"
                 try
                 {
                     Write-Output "$outDir\pony-compiler-tests.exe --sequential"
@@ -522,6 +524,7 @@ switch ($Command.ToLower())
                 {
                     $err = -1
                 }
+                $env:PONYPATH = $savePonyPath
                 if ($err -ne 0) { $failedTestSuites += 'pony-compiler-tests' }
             }
             else
