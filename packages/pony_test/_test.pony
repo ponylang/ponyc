@@ -3,100 +3,238 @@ actor \nodoc\ Main is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>
-    test(_TestShuffledDeterministic)
-    test(_TestShuffledChangesOrder)
-    test(_TestShuffledPreservesElements)
-    test(_TestShuffledDifferentSeeds)
-    test(_TestShuffledSeedZero)
+    test(_TestListPreservesOrder)
+    test(_TestListShuffleOrder)
+    test(_TestListShuffleDeterministic)
+    test(_TestListShuffleDifferentSeeds)
+    test(_TestListShuffleSeedZero)
 
-class \nodoc\ iso _TestShuffledDeterministic is UnitTest
+class \nodoc\ iso _TestListPreservesOrder is UnitTest
   """
-  _Shuffled.apply with the same seed produces identical results.
+  --list without --shuffle prints test names in registration order.
   """
-  fun name(): String => "pony_test/shuffled/deterministic"
+  fun name(): String => "pony_test/list/preserves_order"
 
   fun apply(h: TestHelper) =>
-    let a: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-    let b: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+    h.long_test(2_000_000_000)
+    let expected = recover val ["A"; "B"; "C"; "D"; "E"] end
+    _RunList(h, ["test"; "--list"], expected)
 
-    _Shuffled(42).apply[USize](a)
-    _Shuffled(42).apply[USize](b)
-
-    h.assert_array_eq[USize](a, b)
-
-class \nodoc\ iso _TestShuffledChangesOrder is UnitTest
+class \nodoc\ iso _TestListShuffleOrder is UnitTest
   """
-  _Shuffled.apply reorders an array of 10 elements.
+  --list --shuffle=42 prints the seed then test names in shuffled order.
+  Exercises the full code path: _process_opts() parses --shuffle=42 into
+  _Shuffled(42), apply() buffers names, _all_tests_applied() shuffles and
+  prints.
   """
-  fun name(): String => "pony_test/shuffled/changes_order"
+  fun name(): String => "pony_test/list/shuffle_order"
 
   fun apply(h: TestHelper) =>
-    let original: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-    let shuffled: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-
-    _Shuffled(42).apply[USize](shuffled)
-
-    var any_different = false
-    try
-      for (i, v) in original.pairs() do
-        if v != shuffled(i)? then
-          any_different = true
-          break
-        end
-      end
+    h.long_test(2_000_000_000)
+    let expected = recover val
+      ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
     end
-    h.assert_true(any_different, "Shuffle with seed 42 did not change order")
+    _RunList(h, ["test"; "--list"; "--shuffle=42"], expected)
 
-class \nodoc\ iso _TestShuffledPreservesElements is UnitTest
+class \nodoc\ iso _TestListShuffleDeterministic is UnitTest
   """
-  _Shuffled.apply is a permutation: all original elements are preserved.
+  Running --list --shuffle=42 twice produces identical output.
   """
-  fun name(): String => "pony_test/shuffled/preserves_elements"
+  fun name(): String => "pony_test/list/shuffle_deterministic"
 
   fun apply(h: TestHelper) =>
-    let original: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-    let shuffled: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-
-    _Shuffled(42).apply[USize](shuffled)
-
-    h.assert_array_eq_unordered[USize](original, shuffled)
-
-class \nodoc\ iso _TestShuffledDifferentSeeds is UnitTest
-  """
-  _Shuffled instances with different seeds produce different orderings.
-  """
-  fun name(): String => "pony_test/shuffled/different_seeds"
-
-  fun apply(h: TestHelper) =>
-    let a: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-    let b: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-
-    _Shuffled(42).apply[USize](a)
-    _Shuffled(123).apply[USize](b)
-
-    var any_different = false
-    try
-      for (i, v) in a.pairs() do
-        if v != b(i)? then
-          any_different = true
-          break
-        end
-      end
+    h.long_test(2_000_000_000)
+    let expected = recover val
+      ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
     end
-    h.assert_true(any_different,
-      "Seeds 42 and 123 produced the same order")
+    let collector = _OutputCollector(h, expected, 2)
+    _RunListWith(collector, ["test"; "--list"; "--shuffle=42"], h)
+    _RunListWith(collector, ["test"; "--list"; "--shuffle=42"], h)
 
-class \nodoc\ iso _TestShuffledSeedZero is UnitTest
+class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
   """
-  Seed value 0 is valid: _Shuffled(0).apply produces a deterministic shuffle.
+  Different seeds produce different orderings through the full PonyTest flow.
   """
-  fun name(): String => "pony_test/shuffled/seed_zero"
+  fun name(): String => "pony_test/list/shuffle_different_seeds"
 
   fun apply(h: TestHelper) =>
-    let a: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
-    let b: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+    h.long_test(2_000_000_000)
+    let from_42 = recover val
+      ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
+    end
+    let from_123 = recover val
+      ["Test seed: 123"; "B"; "E"; "A"; "C"; "D"]
+    end
+    let collector = _OutputCollectorPair(h, from_42, from_123)
+    _RunListWith(collector.first(), ["test"; "--list"; "--shuffle=42"], h)
+    _RunListWith(collector.second(), ["test"; "--list"; "--shuffle=123"], h)
 
-    _Shuffled(0).apply[USize](a)
-    _Shuffled(0).apply[USize](b)
+class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
+  """
+  Seed 0 is valid and not confused with "no seed provided".
+  """
+  fun name(): String => "pony_test/list/shuffle_seed_zero"
 
-    h.assert_array_eq[USize](a, b)
+  fun apply(h: TestHelper) =>
+    h.long_test(2_000_000_000)
+    let expected = recover val
+      ["Test seed: 0"; "E"; "A"; "C"; "D"; "B"]
+    end
+    _RunList(h, ["test"; "--list"; "--shuffle=0"], expected)
+
+// ---------------------------------------------------------------------------
+// Test infrastructure
+// ---------------------------------------------------------------------------
+
+primitive \nodoc\ _RunList
+  """
+  Create a PonyTest in --list mode with controlled args and verify its output.
+  """
+  fun apply(
+    h: TestHelper,
+    args: Array[String] val,
+    expected: Array[String] val)
+  =>
+    let collector = _OutputCollector(h, expected, 1)
+    _RunListWith(collector, args, h)
+
+primitive \nodoc\ _RunListWith
+  """
+  Create a PonyTest in --list mode, sending output to the given collector.
+  """
+  fun apply(collector: OutStream, args: Array[String] val, h: TestHelper) =>
+    let env = Env.create(
+      h.env.root,
+      h.env.input,
+      collector,
+      h.env.err,
+      args,
+      h.env.vars,
+      {(code: I32) => None})
+    PonyTest(env, _FiveTests)
+
+class \nodoc\ iso _NamedTest is UnitTest
+  """
+  A trivially-passing test with a configurable name.
+  """
+  let _name: String
+  new iso create(name': String) => _name = name'
+  fun name(): String => _name
+  fun apply(h: TestHelper) => None
+
+primitive \nodoc\ _FiveTests is TestList
+  fun tag tests(test: PonyTest) =>
+    test(_NamedTest("A"))
+    test(_NamedTest("B"))
+    test(_NamedTest("C"))
+    test(_NamedTest("D"))
+    test(_NamedTest("E"))
+
+actor \nodoc\ _OutputCollector is OutStream
+  """
+  Captures print output from a PonyTest instance and verifies it against
+  expected lines. Supports multiple runs: _runs_remaining counts how many
+  complete sets of expected output must be received before signaling
+  completion. Each run must produce output identical to _expected.
+  """
+  let _h: TestHelper
+  let _expected: Array[String] val
+  var _runs_remaining: USize
+  embed _received: Array[String] = Array[String]
+
+  new create(h: TestHelper, expected: Array[String] val,
+    runs: USize = 1)
+  =>
+    _h = h
+    _expected = expected
+    _runs_remaining = runs
+
+  be print(data: ByteSeq) =>
+    match data
+    | let s: String => _received.push(s)
+    | let a: Array[U8] val => _received.push(String.from_array(a))
+    end
+    if _received.size() == _expected.size() then
+      _check_and_maybe_complete()
+    end
+
+  fun ref _check_and_maybe_complete() =>
+    _h.assert_array_eq[String](_expected, _received)
+    _received.clear()
+    _runs_remaining = _runs_remaining - 1
+    if _runs_remaining == 0 then
+      _h.complete(true)
+    end
+
+  be write(data: ByteSeq) => None
+  be printv(data: ByteSeqIter) => None
+  be writev(data: ByteSeqIter) => None
+  be flush() => None
+
+actor \nodoc\ _OutputCollectorPair
+  """
+  Manages two independent collectors for tests that compare output from
+  two different PonyTest runs.
+  """
+  let _h: TestHelper
+  let _first_expected: Array[String] val
+  let _second_expected: Array[String] val
+  var _first_done: Bool = false
+  var _second_done: Bool = false
+
+  new create(h: TestHelper, first_expected: Array[String] val,
+    second_expected: Array[String] val)
+  =>
+    _h = h
+    _first_expected = first_expected
+    _second_expected = second_expected
+
+  fun tag first(): _OutputCollectorHalf =>
+    _OutputCollectorHalf(this, true)
+
+  fun tag second(): _OutputCollectorHalf =>
+    _OutputCollectorHalf(this, false)
+
+  be _half_done(is_first: Bool, received: Array[String] val) =>
+    if is_first then
+      _h.assert_array_eq[String](_first_expected, received)
+      _first_done = true
+    else
+      _h.assert_array_eq[String](_second_expected, received)
+      _second_done = true
+    end
+    if _first_done and _second_done then
+      _h.complete(true)
+    end
+
+actor \nodoc\ _OutputCollectorHalf is OutStream
+  """
+  Captures output for one half of a collector pair.
+  """
+  let _parent: _OutputCollectorPair
+  let _is_first: Bool
+  let _expected_count: USize
+  embed _received: Array[String] = Array[String]
+
+  new create(parent: _OutputCollectorPair, is_first: Bool) =>
+    _parent = parent
+    _is_first = is_first
+    _expected_count = 6  // seed line + 5 test names
+
+  be print(data: ByteSeq) =>
+    match data
+    | let s: String => _received.push(s)
+    | let a: Array[U8] val => _received.push(String.from_array(a))
+    end
+    if _received.size() == _expected_count then
+      let snap: Array[String] iso = recover iso Array[String] end
+      for s in _received.values() do
+        snap.push(s)
+      end
+      _parent._half_done(_is_first, consume snap)
+    end
+
+  be write(data: ByteSeq) => None
+  be printv(data: ByteSeqIter) => None
+  be writev(data: ByteSeqIter) => None
+  be flush() => None
