@@ -114,9 +114,6 @@ void errorf_continue(errors_t* errors, const char* file, const char* fmt,
 /// The second frame is left empty.
 void errorframe_append(errorframe_t* first, errorframe_t* second);
 
-/// Check if there are any errors in the given frame.
-bool errorframe_has_errors(errorframe_t* frame);
-
 /// Report all errors (if any) in the given frame.
 /// The frame is left empty.
 void errorframe_report(errorframe_t* frame, errors_t* errors);
