@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add missing NULL checks for gen_expr results in gencall.c ([PR #5067](https://github.com/ponylang/ponyc/pull/5067))
 - Fix type system soundness hole ([PR #4963](https://github.com/ponylang/ponyc/pull/4963))
 - Fix cap_isect_constraint returning incorrect capability for empty intersections ([PR #4999](https://github.com/ponylang/ponyc/pull/4999))
+- Fix POOL_FREE first argument in painter_tidy ([PR #5082](https://github.com/ponylang/ponyc/pull/5082))
 
 ### Added
 
