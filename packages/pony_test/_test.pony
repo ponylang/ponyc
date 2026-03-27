@@ -17,8 +17,16 @@ class \nodoc\ iso _TestListPreservesOrder is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
+    let list = object tag is TestList
+      fun tag tests(test: PonyTest) =>
+        test(_NamedTest("A"))
+        test(_NamedTest("B"))
+        test(_NamedTest("C"))
+        test(_NamedTest("D"))
+        test(_NamedTest("E"))
+    end
     let expected = recover val ["A"; "B"; "C"; "D"; "E"] end
-    _RunList(h, ["test"; "--list"], _FiveTests, expected)
+    _RunList(h, ["test"; "--list"], list, expected)
 
 class \nodoc\ iso _TestListShuffleOrder is UnitTest
   """
@@ -31,10 +39,18 @@ class \nodoc\ iso _TestListShuffleOrder is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
+    let list = object tag is TestList
+      fun tag tests(test: PonyTest) =>
+        test(_NamedTest("A"))
+        test(_NamedTest("B"))
+        test(_NamedTest("C"))
+        test(_NamedTest("D"))
+        test(_NamedTest("E"))
+    end
     let expected = recover val
       ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
     end
-    _RunList(h, ["test"; "--list"; "--shuffle=42"], _FiveTests, expected)
+    _RunList(h, ["test"; "--list"; "--shuffle=42"], list, expected)
 
 class \nodoc\ iso _TestListShuffleDeterministic is UnitTest
   """
@@ -44,12 +60,20 @@ class \nodoc\ iso _TestListShuffleDeterministic is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
+    let list = object tag is TestList
+      fun tag tests(test: PonyTest) =>
+        test(_NamedTest("A"))
+        test(_NamedTest("B"))
+        test(_NamedTest("C"))
+        test(_NamedTest("D"))
+        test(_NamedTest("E"))
+    end
     let expected = recover val
       ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
     end
     let collector = _OutputCollector(h, expected, 2)
-    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], _FiveTests, collector)
-    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], _FiveTests, collector)
+    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], list, collector)
+    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], list, collector)
 
 class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
   """
@@ -59,6 +83,14 @@ class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
+    let list = object tag is TestList
+      fun tag tests(test: PonyTest) =>
+        test(_NamedTest("A"))
+        test(_NamedTest("B"))
+        test(_NamedTest("C"))
+        test(_NamedTest("D"))
+        test(_NamedTest("E"))
+    end
     let from_42 = recover val
       ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
     end
@@ -66,9 +98,9 @@ class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
       ["Test seed: 123"; "B"; "E"; "A"; "C"; "D"]
     end
     let collector = _OutputCollectorPair(h, from_42, from_123)
-    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], _FiveTests,
+    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], list,
       collector.first())
-    _RunListWith(h, ["test"; "--list"; "--shuffle=123"], _FiveTests,
+    _RunListWith(h, ["test"; "--list"; "--shuffle=123"], list,
       collector.second())
 
 class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
@@ -79,10 +111,18 @@ class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
+    let list = object tag is TestList
+      fun tag tests(test: PonyTest) =>
+        test(_NamedTest("A"))
+        test(_NamedTest("B"))
+        test(_NamedTest("C"))
+        test(_NamedTest("D"))
+        test(_NamedTest("E"))
+    end
     let expected = recover val
       ["Test seed: 0"; "E"; "A"; "C"; "D"; "B"]
     end
-    _RunList(h, ["test"; "--list"; "--shuffle=0"], _FiveTests, expected)
+    _RunList(h, ["test"; "--list"; "--shuffle=0"], list, expected)
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
@@ -126,14 +166,6 @@ class \nodoc\ iso _NamedTest is UnitTest
   new iso create(name': String) => _name = name'
   fun name(): String => _name
   fun apply(h: TestHelper) => None
-
-primitive \nodoc\ _FiveTests is TestList
-  fun tag tests(test: PonyTest) =>
-    test(_NamedTest("A"))
-    test(_NamedTest("B"))
-    test(_NamedTest("C"))
-    test(_NamedTest("D"))
-    test(_NamedTest("E"))
 
 actor \nodoc\ _OutputCollector is OutStream
   """
