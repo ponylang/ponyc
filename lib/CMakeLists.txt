@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
-cmake_policy(SET CMP0135 NEW)
-
 file(STRINGS "../VERSION" PONYC_PROJECT_VERSION)
 project(ponyclibs VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
@@ -35,6 +33,7 @@ endif()
 set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.5.tar.gz)
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
@@ -42,6 +41,7 @@ set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/releases/download/
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
