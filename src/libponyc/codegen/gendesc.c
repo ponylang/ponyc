@@ -405,7 +405,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
   }
 
   const char* desc_name = genname_descriptor(t->name);
-  uint32_t vtable_size = t->vtable_size;
+  uint32_t vtable_size = 0;
 
   if(t->underlying != TK_TUPLETYPE)
     vtable_size = t->vtable_size;
