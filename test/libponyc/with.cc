@@ -51,3 +51,20 @@ TEST_F(WithTest, DontcareInTupleSecondBindingIsRejected)
 
   TEST_ERRORS_1(src, "_ isn't allowed for a variable in a with block");
 }
+
+TEST_F(WithTest, TwoElementTupleWithCompiles)
+{
+  // Happy path: both bindings get dispose calls; tuple loop must process every
+  // element (regression for early-return bug that only handled the first).
+  const char* src =
+    "class D\n"
+    "  new create() => None\n"
+    "  fun dispose() => None\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    with (a, b) = (D.create(), D.create()) do\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
