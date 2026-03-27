@@ -65,3 +65,9 @@ When a type parameter was constrained by an intersection of types with incompati
 
 The compiler now correctly detects empty capability intersections and reports "type parameter constraint has no valid capability" when the intersection of capabilities in a type parameter's constraint is empty. This also fixes incorrect results for `iso` intersected with `#share` and `#share` intersected with concrete capabilities outside its set, which were caused by missing `break` statements and an incorrect case in the capability intersection logic.
 
+## Fix incorrect pool free when tidying the reachability painter
+
+The compiler’s reachability “painter” frees internal `colour_record_t` nodes when cleaning up. Those allocations must be returned to the same memory pool they came from. A bug passed a size expression as the first argument to `POOL_FREE` instead of the type name, so the wrong pool index was used when freeing those records.
+
+That could corrupt the allocator’s bookkeeping during compilation in scenarios that exercise that cleanup path. The free now uses the correct type, matching how other `POOL_FREE` calls work in the codebase.
+
