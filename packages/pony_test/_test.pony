@@ -48,8 +48,8 @@ class \nodoc\ iso _TestListShuffleDeterministic is UnitTest
       ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
     end
     let collector = _OutputCollector(h, expected, 2)
-    _RunListWith(collector, ["test"; "--list"; "--shuffle=42"], h)
-    _RunListWith(collector, ["test"; "--list"; "--shuffle=42"], h)
+    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], collector)
+    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], collector)
 
 class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
   """
@@ -66,8 +66,8 @@ class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
       ["Test seed: 123"; "B"; "E"; "A"; "C"; "D"]
     end
     let collector = _OutputCollectorPair(h, from_42, from_123)
-    _RunListWith(collector.first(), ["test"; "--list"; "--shuffle=42"], h)
-    _RunListWith(collector.second(), ["test"; "--list"; "--shuffle=123"], h)
+    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], collector.first())
+    _RunListWith(h, ["test"; "--list"; "--shuffle=123"], collector.second())
 
 class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
   """
@@ -96,13 +96,13 @@ primitive \nodoc\ _RunList
     expected: Array[String] val)
   =>
     let collector = _OutputCollector(h, expected, 1)
-    _RunListWith(collector, args, h)
+    _RunListWith(h, args, collector)
 
 primitive \nodoc\ _RunListWith
   """
   Create a PonyTest in --list mode, sending output to the given collector.
   """
-  fun apply(collector: OutStream, args: Array[String] val, h: TestHelper) =>
+  fun apply(h: TestHelper, args: Array[String] val, collector: OutStream) =>
     let env = Env.create(
       h.env.root,
       h.env.input,
