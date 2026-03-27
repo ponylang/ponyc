@@ -205,7 +205,7 @@ static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
     return false;
 
   pony_assert(path_root.next == NULL);
-  pony_assert(path_root.root = &path_root);
+  pony_assert(path_root.root == &path_root);
   return true;
 }
 
