@@ -147,6 +147,7 @@ class val PositionIndex
         | TokenIds.tk_nominal() // name of a type
         | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed() // fields
         | TokenIds.tk_fletref() | TokenIds.tk_fvarref() | TokenIds.tk_embedref() // references to fields
+        | TokenIds.tk_varref() | TokenIds.tk_letref() // references to local variables
         | TokenIds.tk_paramref()
         | TokenIds.tk_var() | TokenIds.tk_let() // local variables
         | TokenIds.tk_packageref() // package reference

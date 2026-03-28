@@ -1,0 +1,102 @@
+name: pony-compiler
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'src/libponyc/**'
+      - 'tools/lib/ponylang/pony_compiler/**'
+      - '.github/workflows/pr-pony-compiler.yml'
+
+concurrency:
+  group: pr-pony-compiler-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
+jobs:
+  linux:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    name: Linux
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v5.0.3
+        with:
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
+          key: libs-ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Build
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
+
+  macos:
+    if: github.event.pull_request.draft == false
+    runs-on: macos-26
+
+    name: macOS
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v5.0.3
+        with:
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
+          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: make libs build_flags=-j8
+      - name: Build
+        run: |
+          make configure arch=armv8 config=debug
+          make build config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
+
+  windows:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+
+    name: Windows
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Restore Libs Cache
+        id: restore-libs
+        uses: actions/cache/restore@v5.0.3
+        with:
+          path: |
+            build/libs
+            lib/llvm/src/compiler-rt/lib/builtins
+          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build Libs
+        if: steps.restore-libs.outputs.cache-hit != 'true'
+        run: .\make.ps1 -Command libs
+      - name: Build
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test pony-compiler
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-compiler-tests
