@@ -37,6 +37,7 @@ use math = "math"
 use net = "net"
 use pony_bench = "pony_bench"
 use pony_check = "pony_check"
+use pony_test = "pony_test"
 use process = "process"
 use promises = "promises"
 use random = "random"
@@ -72,6 +73,7 @@ actor \nodoc\ Main is TestList
     math.Main.make().tests(test)
     net.Main.make().tests(test)
     pony_check.Main.make().tests(test)
+    pony_test.Main.make().tests(test)
     process.Main.make().tests(test)
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
