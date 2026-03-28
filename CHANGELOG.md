@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.62.1] - 2026-03-28
 
 ### Fixed
 
@@ -16,12 +16,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix type system soundness hole ([PR #4963](https://github.com/ponylang/ponyc/pull/4963))
 - Fix cap_isect_constraint returning incorrect capability for empty intersections ([PR #4999](https://github.com/ponylang/ponyc/pull/4999))
 - Fix POOL_FREE first argument in painter_tidy ([PR #5082](https://github.com/ponylang/ponyc/pull/5082))
-
-### Added
-
-
-### Changed
-
 
 ## [0.62.0] - 2026-03-21
 
