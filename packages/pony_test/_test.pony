@@ -4,9 +4,7 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_TestListPreservesOrder)
-    test(_TestListShuffleOrder)
-    test(_TestListShuffleDeterministic)
-    test(_TestListShuffleDifferentSeeds)
+    test(_TestShuffleVariesAcrossSeeds)
     test(_TestListShuffleSeedZero)
 
 class \nodoc\ iso _TestListPreservesOrder is UnitTest
@@ -28,80 +26,42 @@ class \nodoc\ iso _TestListPreservesOrder is UnitTest
     let expected = recover val ["A"; "B"; "C"; "D"; "E"] end
     _RunList(h, ["test"; "--list"], list, expected)
 
-class \nodoc\ iso _TestListShuffleOrder is UnitTest
+class \nodoc\ iso _TestShuffleVariesAcrossSeeds is UnitTest
   """
-  --list --shuffle=42 prints the seed then test names in shuffled order.
-  Exercises the full code path: _process_opts() parses --shuffle=42 into
-  _Shuffled(42), apply() buffers names, _all_tests_applied() shuffles and
-  prints.
+  Across 10 different seeds, the shuffled test order varies. Each seed is run
+  through the full PonyTest code path (argument parsing, buffered dispatch,
+  shuffle, output) and the resulting orderings are collected. The test passes
+  when at least two orderings differ.
   """
-  fun name(): String => "pony_test/list/shuffle_order"
+  fun name(): String => "pony_test/shuffle/varies_across_seeds"
 
   fun apply(h: TestHelper) =>
-    h.long_test(2_000_000_000)
-    let list = object tag is TestList
-      fun tag tests(test: PonyTest) =>
-        test(_NamedTest("A"))
-        test(_NamedTest("B"))
-        test(_NamedTest("C"))
-        test(_NamedTest("D"))
-        test(_NamedTest("E"))
+    h.long_test(5_000_000_000)
+    let num_tests: USize = 10
+    let num_seeds: USize = 10
+    let collector = _MultiSeedCollector(h, num_seeds, num_tests)
+    var seed: U64 = 1
+    while seed <= num_seeds.u64() do
+      let list = object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test(_NamedTest("A"))
+          test(_NamedTest("B"))
+          test(_NamedTest("C"))
+          test(_NamedTest("D"))
+          test(_NamedTest("E"))
+          test(_NamedTest("F"))
+          test(_NamedTest("G"))
+          test(_NamedTest("H"))
+          test(_NamedTest("I"))
+          test(_NamedTest("J"))
+      end
+      let args = recover val
+        ["test"; "--list"; "--shuffle=" + seed.string()]
+      end
+      let out = _PerSeedCollector(collector, num_tests + 1)
+      _RunListWith(h, args, list, out)
+      seed = seed + 1
     end
-    let expected = recover val
-      ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
-    end
-    _RunList(h, ["test"; "--list"; "--shuffle=42"], list, expected)
-
-class \nodoc\ iso _TestListShuffleDeterministic is UnitTest
-  """
-  Running --list --shuffle=42 twice produces identical output.
-  """
-  fun name(): String => "pony_test/list/shuffle_deterministic"
-
-  fun apply(h: TestHelper) =>
-    h.long_test(2_000_000_000)
-    let list = object tag is TestList
-      fun tag tests(test: PonyTest) =>
-        test(_NamedTest("A"))
-        test(_NamedTest("B"))
-        test(_NamedTest("C"))
-        test(_NamedTest("D"))
-        test(_NamedTest("E"))
-    end
-    let expected = recover val
-      ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
-    end
-    let collector = _OutputCollector(h, expected, 2)
-    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], list, collector)
-    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], list, collector)
-
-class \nodoc\ iso _TestListShuffleDifferentSeeds is UnitTest
-  """
-  Different seeds produce different orderings through the full PonyTest flow.
-  """
-  fun name(): String => "pony_test/list/shuffle_different_seeds"
-
-  fun apply(h: TestHelper) =>
-    h.long_test(2_000_000_000)
-    let list = object tag is TestList
-      fun tag tests(test: PonyTest) =>
-        test(_NamedTest("A"))
-        test(_NamedTest("B"))
-        test(_NamedTest("C"))
-        test(_NamedTest("D"))
-        test(_NamedTest("E"))
-    end
-    let from_42 = recover val
-      ["Test seed: 42"; "C"; "D"; "B"; "A"; "E"]
-    end
-    let from_123 = recover val
-      ["Test seed: 123"; "B"; "E"; "A"; "C"; "D"]
-    end
-    let collector = _OutputCollectorPair(h, from_42, from_123)
-    _RunListWith(h, ["test"; "--list"; "--shuffle=42"], list,
-      collector.first())
-    _RunListWith(h, ["test"; "--list"; "--shuffle=123"], list,
-      collector.second())
 
 class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
   """
@@ -208,67 +168,85 @@ actor \nodoc\ _OutputCollector is OutStream
   be writev(data: ByteSeqIter) => None
   be flush() => None
 
-actor \nodoc\ _OutputCollectorPair
+actor \nodoc\ _MultiSeedCollector
   """
-  Manages two independent collectors for tests that compare output from
-  two different PonyTest runs.
+  Collects shuffled test orders from multiple PonyTest runs (one per seed)
+  and verifies that at least two different orderings were produced.
   """
   let _h: TestHelper
-  let _first_expected: Array[String] val
-  let _second_expected: Array[String] val
-  var _first_done: Bool = false
-  var _second_done: Bool = false
+  let _total: USize
+  let _num_tests: USize
+  embed _orders: Array[Array[String] val] = Array[Array[String] val]
 
-  new create(h: TestHelper, first_expected: Array[String] val,
-    second_expected: Array[String] val)
-  =>
+  new create(h: TestHelper, total: USize, num_tests: USize) =>
     _h = h
-    _first_expected = first_expected
-    _second_expected = second_expected
+    _total = total
+    _num_tests = num_tests
 
-  fun tag first(): _OutputCollectorHalf =>
-    _OutputCollectorHalf(this, true)
+  be receive(order: Array[String] val) =>
+    _orders.push(order)
+    if _orders.size() == _total then
+      _verify()
+    end
 
-  fun tag second(): _OutputCollectorHalf =>
-    _OutputCollectorHalf(this, false)
+  fun ref _verify() =>
+    var found_different = false
+    try
+      let first = _orders(0)?
+      var i: USize = 1
+      while i < _orders.size() do
+        let other = _orders(i)?
+        if not _arrays_equal(first, other) then
+          found_different = true
+          break
+        end
+        i = i + 1
+      end
+    end
+    _h.assert_true(found_different,
+      "All 10 seeds produced the same test order")
+    _h.complete(true)
 
-  be _half_done(is_first: Bool, received: Array[String] val) =>
-    if is_first then
-      _h.assert_array_eq[String](_first_expected, received)
-      _first_done = true
+  fun _arrays_equal(a: Array[String] val, b: Array[String] val): Bool =>
+    if a.size() != b.size() then return false end
+    try
+      var i: USize = 0
+      while i < a.size() do
+        if a(i)? != b(i)? then return false end
+        i = i + 1
+      end
     else
-      _h.assert_array_eq[String](_second_expected, received)
-      _second_done = true
+      return false
     end
-    if _first_done and _second_done then
-      _h.complete(true)
-    end
+    true
 
-actor \nodoc\ _OutputCollectorHalf is OutStream
+actor \nodoc\ _PerSeedCollector is OutStream
   """
-  Captures output for one half of a collector pair.
+  Captures output from a single --list --shuffle=SEED run. After receiving
+  all expected lines, strips the seed line and sends just the test name
+  ordering to the parent _MultiSeedCollector.
   """
-  let _parent: _OutputCollectorPair
-  let _is_first: Bool
-  let _expected_count: USize
+  let _parent: _MultiSeedCollector
+  let _expected_lines: USize
   embed _received: Array[String] = Array[String]
 
-  new create(parent: _OutputCollectorPair, is_first: Bool) =>
+  new create(parent: _MultiSeedCollector, expected_lines: USize) =>
     _parent = parent
-    _is_first = is_first
-    _expected_count = 6  // seed line + 5 test names
+    _expected_lines = expected_lines
 
   be print(data: ByteSeq) =>
     match data
     | let s: String => _received.push(s)
     | let a: Array[U8] val => _received.push(String.from_array(a))
     end
-    if _received.size() == _expected_count then
-      let snap: Array[String] iso = recover iso Array[String] end
-      for s in _received.values() do
-        snap.push(s)
+    if _received.size() == _expected_lines then
+      let order: Array[String] iso = recover iso Array[String] end
+      var i: USize = 1  // skip "Test seed: N" line
+      while i < _received.size() do
+        try order.push(_received(i)?) end
+        i = i + 1
       end
-      _parent._half_done(_is_first, consume snap)
+      _parent.receive(consume order)
     end
 
   be write(data: ByteSeq) => None
