@@ -19,7 +19,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
     let workspace_dir = Path.join(Path.dir(__loc.file()), "error_workspace")
     let harness = TestHarness.create(
       h,
-      PonyCompiler(""),
+      PonyCompiler("", try h.env.args(0)? else "" end),
       object iso is MessageHandler
         var received_diagnostics: USize = 0
         let expected_messages: Array[String] val = [
