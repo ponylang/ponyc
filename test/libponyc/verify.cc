@@ -787,6 +787,30 @@ TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionAs)
     " expression if there is a partial call involved");
 }
 
+TEST_F(VerifyTest, AsFieldAssignInTry)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/3604
+  // Assigning to a field on the result of `as` inside a try block should not
+  // produce a spurious "can't reassign to a consumed identifier" error.
+  const char* src =
+    "class Wumpus\n"
+    "  var hunger: USize = 0\n"
+    "  fun ref self(): Wumpus => this\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: (Wumpus | None) = Wumpus\n"
+        "try\n"
+        "  (a as Wumpus).hunger = 1\n"
+        "end\n"
+        "let b: (Wumpus | None) = Wumpus\n"
+        "try\n"
+        "  (b as Wumpus).self().hunger = 2\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, ConsumeVarFieldReassignTrySameExpressionPartial)
 {
   const char* src =
