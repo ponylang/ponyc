@@ -162,18 +162,26 @@ Supported JSONPath syntax:
 
 ## Serialization
 
-`JsonObject` and `JsonArray` implement `Stringable`. Compact output
-uses `string()`; indented output uses `pretty_string()`:
+`JsonPrinter` serializes any `JsonValue` — not just objects and arrays —
+to valid JSON. This is the recommended way to produce JSON output:
 
 ```pony
+// Any JsonValue — scalars, objects, arrays
+env.out.print(json.JsonPrinter.print("hello \"world\""))
+// "hello \"world\""
+env.out.print(json.JsonPrinter.print(None))
+// null
+
+// Compact object output
 let obj = json.JsonObject
   .update("a", I64(1))
   .update("b", json.JsonArray.push(I64(2)).push(I64(3)))
 
-env.out.print(obj.string())
+env.out.print(json.JsonPrinter.print(obj))
 // {"a":1,"b":[2,3]}
 
-env.out.print(obj.pretty_string())
+// Pretty-printed output
+env.out.print(json.JsonPrinter.pretty(obj))
 // {
 //   "a": 1,
 //   "b": [
@@ -183,8 +191,12 @@ env.out.print(obj.pretty_string())
 // }
 
 // Custom indent string (default is two spaces)
-env.out.print(obj.pretty_string("\t"))
+env.out.print(json.JsonPrinter.pretty(obj, "\t"))
 ```
+
+`JsonObject` and `JsonArray` also implement `Stringable` via `string()`
+and `pretty_string()` for convenience when you already have an object
+or array in hand.
 
 ## Choosing an Access Pattern
 
