@@ -89,7 +89,7 @@ jobs:
           make configure arch=x86-64 config=debug use=${{ matrix.directives }}
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}'
+        run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}' test_full_program_timeout=120
       - name: Build Release Runtime
         run: |
           make configure arch=x86-64 config=release use=${{ matrix.directives }}
