@@ -8,7 +8,7 @@ on:
         required: false
         default: "main"
   schedule:
-    - cron: "0 3 * * 6"
+    - cron: "0 3 * * 3"
 
 concurrency:
   group: ponyc-tier3-${{ github.ref }}
