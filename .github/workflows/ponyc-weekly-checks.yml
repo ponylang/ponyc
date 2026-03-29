@@ -8,7 +8,7 @@ on:
         required: false
         default: "main"
   schedule:
-    - cron: "0 3 * * 0"
+    - cron: "0 3 * * 4"
 
 concurrency:
   group: ponyc-weekly-checks-${{ github.ref }}
