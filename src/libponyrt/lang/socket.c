@@ -228,24 +228,28 @@ static iocp_t* iocp_create(iocp_op_t op, asio_event_t* ev)
   return iocp;
 }
 
-static void iocp_release_token(iocp_token_t* token)
+static void iocp_release_token(iocp_token_t* token, asio_event_t* ev)
 {
   if(atomic_fetch_sub_explicit(&token->refcount, 1, memory_order_acq_rel) == 1)
   {
     // We were the last outstanding operation. If the event has been destroyed,
-    // nobody else will free the token — we do it.
+    // nobody else will free the event and token — we do it.
     if(atomic_load_explicit(&token->dead, memory_order_acquire))
+    {
+      POOL_FREE(asio_event_t, ev);
       POOL_FREE(iocp_token_t, token);
+    }
   }
 }
 
 static void iocp_destroy(iocp_t* iocp)
 {
   iocp_token_t* token = iocp->token;
+  asio_event_t* ev = iocp->ev;
   POOL_FREE(iocp_t, iocp);
 
   if(token != NULL)
-    iocp_release_token(token);
+    iocp_release_token(token, ev);
 }
 
 static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
@@ -265,10 +269,11 @@ static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
 static void iocp_accept_destroy(iocp_accept_t* iocp)
 {
   iocp_token_t* token = iocp->iocp.token;
+  asio_event_t* ev = iocp->iocp.ev;
   POOL_FREE(iocp_accept_t, iocp);
 
   if(token != NULL)
-    iocp_release_token(token);
+    iocp_release_token(token, ev);
 }
 
 static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
@@ -276,8 +281,9 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
   iocp_t* iocp = (iocp_t*)ov;
   iocp_token_t* token = iocp->token;
 
-  // Check whether the event has been destroyed. If so, the event and its
-  // owning actor may already be freed — don't touch iocp->ev.
+  // Check whether the event has been destroyed. If so, skip the event and
+  // just release our reference (iocp_destroy will free the event if we're
+  // the last holder).
   // token is NULL for IOCP_NOP (e.g. UDP sendto) which has no event.
   if((token != NULL) &&
     atomic_load_explicit(&token->dead, memory_order_acquire))

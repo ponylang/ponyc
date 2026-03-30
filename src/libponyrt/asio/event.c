@@ -35,7 +35,10 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
 #ifdef PLATFORM_IS_WINDOWS
   ev->iocp_token = POOL_ALLOC(iocp_token_t);
   atomic_store_explicit(&ev->iocp_token->dead, false, memory_order_relaxed);
-  atomic_store_explicit(&ev->iocp_token->refcount, 0, memory_order_relaxed);
+  // Start at 1: the event itself holds a reference. IOCP operations add more.
+  // Destroy releases the event's reference; callbacks release theirs.
+  // The last releaser (refcount 1 -> 0) frees both the event and the token.
+  atomic_store_explicit(&ev->iocp_token->refcount, 1, memory_order_relaxed);
 #endif
 
   owner->live_asio_events = owner->live_asio_events + 1;
@@ -72,7 +75,6 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
   ev->flags = ASIO_DESTROYED;
 
 #ifdef PLATFORM_IS_WINDOWS
-  // Grab the token pointer before freeing the event.
   iocp_token_t* token = ev->iocp_token;
 
   // Mark the token as dead. Any IOCP callback that hasn't yet checked the
@@ -90,13 +92,18 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
   pony_assert(ev->owner->live_asio_events > 0);
   ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
 
-  POOL_FREE(asio_event_t, ev);
-
 #ifdef PLATFORM_IS_WINDOWS
-  // Free the token if no IOCP callbacks are outstanding. If callbacks are
-  // still in flight, the last one to complete will free the token.
-  if(atomic_load_explicit(&token->refcount, memory_order_acquire) == 0)
+  // Release the event's reference (created with refcount 1). If all IOCP
+  // callbacks have already completed, we're the last releaser and free the
+  // event and token. Otherwise the last callback to complete will free them.
+  if(atomic_fetch_sub_explicit(&token->refcount, 1,
+    memory_order_acq_rel) == 1)
+  {
+    POOL_FREE(asio_event_t, ev);
     POOL_FREE(iocp_token_t, token);
+  }
+#else
+  POOL_FREE(asio_event_t, ev);
 #endif
 }
 
@@ -162,6 +169,13 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   // scheduler index if this is run on a normal scheduler thread and that would
   // be not good.
   pony_register_thread();
+
+  // Hold a token reference for the message. The event pointer stored in the
+  // message must remain valid until the actor finishes processing it.
+  // The corresponding release happens in handle_message (actor.c) after
+  // the behavior dispatch returns.
+  atomic_fetch_add_explicit(&ev->iocp_token->refcount, 1,
+    memory_order_relaxed);
 #endif
 
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
