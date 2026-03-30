@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix use-after-free in IOCP ASIO system ([PR #5091](https://github.com/ponylang/ponyc/pull/5091))
 
 ### Added
 
