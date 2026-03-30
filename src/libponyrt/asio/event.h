@@ -14,8 +14,14 @@ PONY_EXTERN_C_BEGIN
  *  IOCP completion callbacks fire on Windows thread pool threads after the
  *  owning actor may have destroyed the event. Each in-flight IOCP operation
  *  holds a pointer to this token. The callback checks the dead flag before
- *  touching the event; the refcount tracks how many callbacks are outstanding
- *  so the token itself can be freed when no longer needed.
+ *  touching the event.
+ *
+ *  The refcount starts at 1 (the event's own reference) and tracks three
+ *  kinds of holders: each IOCP operation adds 1 (released on callback
+ *  completion); each message sent via pony_asio_event_send adds 1
+ *  (released in handle_message after the behavior dispatch returns);
+ *  destroy marks dead and subtracts the event's 1. Whoever decrements
+ *  to zero frees both the event and the token.
  */
 typedef struct iocp_token_t
 {
