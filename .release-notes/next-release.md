@@ -4,3 +4,7 @@ We fixed a pair of use-after-free races in the Windows IOCP event system. A prev
 
 This is the hard part that Pony protects you from. Concurrent access to mutable data across threads is genuinely difficult to get right, even when you have a mechanism designed specifically to handle it.
 
+## Remove support for Alpine 3.20
+
+Alpine 3.20 has reached end-of-life. We no longer test against it or build ponyc releases for it.
+
