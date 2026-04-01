@@ -30,3 +30,7 @@ This now correctly produces an error: `_ isn't allowed for a variable in a with 
 
 Additionally, valid tuple patterns like `with (a, b) = (D.create(), D.create()) do ... end` now correctly generate dispose calls for all bindings, not just the first.
 
+## Fix memory leak in Windows networking subsystem
+
+Fixed a memory leak on Windows where an IOCP token's reference count was not decremented when a network send operation encountered backpressure. Over time, this could cause memory to grow unboundedly in programs with sustained network traffic.
+
