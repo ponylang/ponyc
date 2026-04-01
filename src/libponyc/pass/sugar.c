@@ -588,14 +588,17 @@ static bool build_with_dispose(pass_opt_t* opt, ast_t* dispose_clause, ast_t* id
   // We have a list of variables
   pony_assert(ast_id(idseq) == TK_TUPLE);
 
+  bool r = true;
+
   for(ast_t* p = ast_child(idseq); p != NULL; p = ast_sibling(p))
   {
     pony_assert(ast_id(p) == TK_SEQ);
     ast_t* let = ast_child(p);
-    return build_with_dispose(opt, dispose_clause, let);
+    if(!build_with_dispose(opt, dispose_clause, let))
+      r = false;
   }
 
-  return true;
+  return r;
 }
 
 
