@@ -986,6 +986,7 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
       case WSA_IO_PENDING:
         return wsacnt;
       case WSAEWOULDBLOCK :
+        iocp_destroy(iocp);
         return 0;
       default:
         iocp_destroy(iocp);
@@ -1031,6 +1032,7 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
       case WSA_IO_PENDING:
         return len;
       case WSAEWOULDBLOCK :
+        iocp_destroy(iocp);
         return 0;
       default:
         iocp_destroy(iocp);
