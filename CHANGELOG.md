@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove support for Alpine 3.20 ([PR #5094](https://github.com/ponylang/ponyc/pull/5094))
 
 ## [0.62.1] - 2026-03-28
 
