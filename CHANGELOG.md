@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix use-after-free in IOCP ASIO system ([PR #5091](https://github.com/ponylang/ponyc/pull/5091))
 - Fix with tuple only processing first binding in build_with_dispose ([PR #5095](https://github.com/ponylang/ponyc/pull/5095))
+- Fix memory leak in Windows networking subsystem ([PR #5096](https://github.com/ponylang/ponyc/pull/5096))
 
 ### Added
 
