@@ -1,6 +1,7 @@
 primitive Methods
   """
-  Collection of methods for LSP requests, notifications, responses
+  Collection of methods for LSP requests,
+  notifications, responses.
   """
 
   fun exit(): String val =>
@@ -26,33 +27,33 @@ primitive Methods
 
   fun client(): ClientMethods =>
     """
-    Access client scoped methods
+    Access client scoped methods.
     """
     ClientMethods
 
   fun text_document(): TextDocumentMethods =>
     """
-    Access testDocument scoped methods
+    Access testDocument scoped methods.
     """
     TextDocumentMethods
 
   fun window(): WindowMethods =>
     """
-    Access window scoped methods
+    Access window scoped methods.
     """
     WindowMethods
 
   fun workspace(): WorkspaceMethods =>
     """
-    Access workspace scoped methods
+    Access workspace scoped methods.
     """
     WorkspaceMethods
 
-  
 primitive WorkspaceMethods
   """
-  Collection of workspace scoped methods
+  Collection of workspace scoped methods.
   """
+
   fun configuration(): String val =>
     "workspace/configuration"
 
@@ -64,16 +65,17 @@ primitive WorkspaceMethods
 
 primitive WorkspaceDiagnosticMethods
   """
-  Collection of workspace/diagnostic related methods
+  Collection of workspace/diagnostic related methods.
   """
+
   fun refresh(): String val =>
     "workspace/diagnostic/refresh"
 
-  
 primitive TextDocumentMethods
   """
-  Collection of textDocument scoped methods
+  Collection of textDocument scoped methods.
   """
+
   fun definition(): String val =>
     "textDocument/definition"
 
@@ -98,18 +100,19 @@ primitive TextDocumentMethods
   fun publish_diagnostics(): String val =>
     "textDocument/publishDiagnostics"
 
-
 primitive ClientMethods
   """
-  Collection of client scoped methods
+  Collection of client scoped methods.
   """
+
   fun register_capability(): String val =>
     "client/registerCapability"
 
 primitive WindowMethods
   """
-  Collection of window scoped methods
+  Collection of window scoped methods.
   """
+
   fun log_message(): String val =>
     "window/logMessage"
 
@@ -118,10 +121,14 @@ primitive WindowMethods
 
 primitive WorkDoneProgressMethods
   """
-  Collection of window/workDoneProgress methods
+  Collection of window/workDoneProgress methods.
   """
+
   new create_progress() =>
-    """create method below collides with default constructor"""
+    """
+    create method below collides with default
+    constructor.
+    """
     None
 
   fun create(): String val =>

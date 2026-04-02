@@ -1,5 +1,8 @@
 class val DocProgram
-  """Top-level IR node representing an entire compiled Pony program."""
+  """
+  Top-level IR node representing an entire compiled
+  Pony program.
+  """
   let name: String
   let packages: Array[DocPackage] val
 
@@ -8,7 +11,10 @@ class val DocProgram
     packages = packages'
 
 class val DocPackage
-  """A Pony package with its documented types and source files."""
+  """
+  A Pony package with its documented types and source
+  files.
+  """
   let qualified_name: String
   let doc_string: (String | None)
   let public_types: Array[DocEntity] val
@@ -84,7 +90,10 @@ class val DocEntity
     source = source'
 
 class val DocMethod
-  """A documented method (constructor, function, or behaviour)."""
+  """
+  A documented method (constructor, function, or
+  behaviour).
+  """
   let kind: MethodKind
   let name: String
   let cap: (String | None)
@@ -117,7 +126,10 @@ class val DocMethod
     source = source'
 
 class val DocField
-  """A documented field (var, let, or embed). Only public fields are collected."""
+  """
+  A documented field (var, let, or embed). Only public
+  fields are collected.
+  """
   let kind: FieldKind
   let name: String
   let field_type: DocType
@@ -138,7 +150,10 @@ class val DocField
     source = source'
 
 class val DocParam
-  """A method parameter with its type and optional default value."""
+  """
+  A method parameter with its type and optional default
+  value.
+  """
   let name: String
   let param_type: DocType
   let default_value: (String | None)
@@ -153,7 +168,10 @@ class val DocParam
     default_value = default_value'
 
 class val DocTypeParam
-  """A type parameter with optional constraint and default type."""
+  """
+  A type parameter with optional constraint and default
+  type.
+  """
   let name: String
   let constraint: (DocType | None)
   let default_type: (DocType | None)

@@ -15,41 +15,52 @@ class val Settings
   """
   let _defines: Array[String] val
     """
-    Userflags, usually defined by `-D` when calling ponyc.
+    Userflags, usually defined by `-D` when calling
+    ponyc.
     """
-
   let _ponypath: Array[String] val
     """
-    Additional ponypath entries, that will be added to the
-    entries that pony-lsp adds on its own:
-
-      1. the stdlib path
-      2. path list extracted from the `PONYPATH` environment variable
+    Additional ponypath entries, that will be added
+    to the entries that pony-lsp adds on its own:
+    the stdlib path and path list extracted from the
+    `PONYPATH` environment variable.
     """
 
   new val from_json(data: JsonObject) =>
-    let defs = recover trn Array[String].create(4) end
-      try
-        let json_arr = JsonPathParser.compile("$.defines")?.query_one(data) as JsonArray
-        for elem in json_arr.values() do
-          try
-            defs.push(elem as String)
-          end
+    """
+    Parse settings from a JSON object.
+    """
+    let defs =
+      recover trn Array[String].create(4) end
+    try
+      let json_arr =
+        JsonPathParser.compile("$.defines")?
+          .query_one(data) as JsonArray
+      for elem in json_arr.values() do
+        try
+          defs.push(elem as String)
         end
-      else
-        JsonArray
       end
+    else
+      JsonArray
+    end
     this._defines = consume defs
 
     this._ponypath =
       try
-        let pony_path_json = JsonPathParser.compile("$.ponypath")?.query_one(data)
+        let pony_path_json =
+          JsonPathParser.compile("$.ponypath")?
+            .query_one(data)
         match pony_path_json
         | let arr: JsonArray =>
-          let pony_path_array = recover trn Array[String].create(arr.size()) end
+          let pony_path_array =
+            recover trn
+              Array[String].create(arr.size())
+            end
           for json_entry in arr.values() do
             try
-              pony_path_array.push(json_entry as String)
+              pony_path_array.push(
+                json_entry as String)
             end
           end
           consume pony_path_array

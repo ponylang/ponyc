@@ -14,21 +14,49 @@ primitive TypeRenderer
     include_private: Bool)
     : String
   =>
-    """Render a DocType to a markdown string."""
+    """
+    Render a DocType to a markdown string.
+    """
     match \exhaustive\ doc_type
-    | let n: DocNominal => _nominal(n, generate_links, break_lines,
+    | let n: DocNominal =>
+      _nominal(
+        n,
+        generate_links,
+        break_lines,
         include_private)
     | let t: DocTypeParamRef => _type_param_ref(t)
     | let u: DocUnion =>
-      _type_list(u.types, "(", " | ", ")", generate_links, break_lines,
+      _type_list(
+        u.types,
+        "(",
+        " | ",
+        ")",
+        generate_links,
+        break_lines,
         include_private)
     | let i: DocIntersection =>
-      _type_list(i.types, "(", " & ", ")", generate_links, break_lines,
+      _type_list(
+        i.types,
+        "(",
+        " & ",
+        ")",
+        generate_links,
+        break_lines,
         include_private)
     | let t: DocTuple =>
-      _type_list(t.types, "(", " , ", ")", generate_links, break_lines,
+      _type_list(
+        t.types,
+        "(",
+        " , ",
+        ")",
+        generate_links,
+        break_lines,
         include_private)
-    | let a: DocArrow => _arrow(a, generate_links, break_lines,
+    | let a: DocArrow =>
+      _arrow(
+        a,
+        generate_links,
+        break_lines,
         include_private)
     | let _: DocThis => "this"
     | let c: DocCapability => c.name
@@ -97,8 +125,14 @@ primitive TypeRenderer
     Used for both the code block provides list (`is\n  ` preamble, no links)
     and the Implements/Type Alias For section (with links, bullet list format).
     """
-    _type_list(provides, preamble, separator, postamble,
-      generate_links, false, include_private)
+    _type_list(
+      provides,
+      preamble,
+      separator,
+      postamble,
+      generate_links,
+      false,
+      include_private)
 
   fun _nominal(
     n: DocNominal,
@@ -129,7 +163,13 @@ primitive TypeRenderer
       // Type args with escaped brackets and links
       if n.type_args.size() > 0 then
         result.append(
-          _type_list(n.type_args, "\\[", ", ", "\\]", true, false,
+          _type_list(
+            n.type_args,
+            "\\[",
+            ", ",
+            "\\]",
+            true,
+            false,
             include_private))
       end
     else
@@ -137,7 +177,13 @@ primitive TypeRenderer
       // Type args with plain brackets, no links
       if n.type_args.size() > 0 then
         result.append(
-          _type_list(n.type_args, "[", ", ", "]", false, false,
+          _type_list(
+            n.type_args,
+            "[",
+            ", ",
+            "]",
+            false,
+            false,
             include_private))
       end
     end
@@ -155,7 +201,10 @@ primitive TypeRenderer
     consume result
 
   fun _type_param_ref(t: DocTypeParamRef): String =>
-    """Render a type parameter reference with optional ephemeral modifier."""
+    """
+    Render a type parameter reference with optional
+    ephemeral modifier.
+    """
     match t.ephemeral
     | let e: String => t.name + e
     else
@@ -169,7 +218,9 @@ primitive TypeRenderer
     include_private: Bool)
     : String
   =>
-    """Render an arrow (viewpoint adaptation) type."""
+    """
+    Render an arrow (viewpoint adaptation) type.
+    """
     let left = render(a.left, generate_links, break_lines, include_private)
     let right = render(a.right, generate_links, break_lines, include_private)
     left + "->" + right

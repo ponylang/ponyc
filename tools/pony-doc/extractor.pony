@@ -9,7 +9,14 @@ primitive Extractor
   Matches the traversal logic of `doc_packages()` and `doc_package()`
   in docgen.c (lines 1152-1256).
   """
-  fun apply(program: ast.Program val, include_private: Bool): DocProgram =>
+  fun apply(
+    program: ast.Program val,
+    include_private: Bool)
+    : DocProgram
+  =>
+    """
+    Extract a documentation IR from a compiled program.
+    """
     // Build package map: AST pointer address → qualified name
     let package_map = _build_package_map(program)
 
@@ -23,7 +30,8 @@ primitive Extractor
       end
 
     // Root package is always first, remaining sorted alphabetically
-    let packages = recover val
+    let packages =
+      recover val
       let result = Array[DocPackage]
 
       // Collect all packages
@@ -37,8 +45,11 @@ primitive Extractor
       // Process root package first (unconditionally)
       try
         (let root_pkg, _) = all_packages(0)?
-        result.push(_extract_package(root_pkg, include_private,
-          package_map))
+        result.push(
+          _extract_package(
+            root_pkg,
+            include_private,
+            package_map))
       end
 
       // Sort remaining packages alphabetically by qualified name,
@@ -82,13 +93,15 @@ primitive Extractor
   fun _sort_packages(
     packages: Array[(ast.Package val, String)])
   =>
-    """Sort packages in-place by qualified name."""
+    """
+    Sort packages in-place by qualified name.
+    """
     // Simple insertion sort — package count is small
     for i in Range(1, packages.size()) do
       try
         var j = i
         while (j > 0) and
-          (packages(j)? ._2 < packages(j - 1)? ._2)
+          (packages(j)?._2 < packages(j - 1)?._2)
         do
           let tmp = packages(j)?
           packages(j)? = packages(j - 1)?
@@ -104,7 +117,9 @@ primitive Extractor
     package_map: Map[USize, String] val)
     : DocPackage
   =>
-    """Extracts a `DocPackage` from a compiled package."""
+    """
+    Extracts a `DocPackage` from a compiled package.
+    """
     var doc_string: (String | None) = None
     let public_entities = Array[DocEntity]
     let private_entities = Array[DocEntity]
@@ -147,8 +162,11 @@ primitive Extractor
             documented_modules(m.file) = m
           end
 
-          let entity = _extract_entity(entity_ast, include_private,
-            package_map)
+          let entity =
+            _extract_entity(
+              entity_ast,
+              include_private,
+              package_map)
 
           if is_priv then
             private_entities.push(entity)
@@ -164,18 +182,27 @@ primitive Extractor
     let sorted_private = _sort_entities(private_entities)
 
     // Collect source files from documented modules only
-    let source_files = _collect_source_files(pkg.qualified_name,
-      documented_modules)
+    let source_files =
+      _collect_source_files(
+        pkg.qualified_name,
+        documented_modules)
 
-    DocPackage(pkg.qualified_name, doc_string, sorted_public,
-      sorted_private, source_files)
+    DocPackage(
+      pkg.qualified_name,
+      doc_string,
+      sorted_public,
+      sorted_private,
+      source_files)
 
   fun _find_module_for_ast(
     pkg: ast.Package val,
     module_ast: ast.AST box)
     : (ast.Module val | None)
   =>
-    """Find the Module wrapper for a given TK_MODULE AST node."""
+    """
+    Find the Module wrapper for a given TK_MODULE AST
+    node.
+    """
     for m in pkg.modules() do
       if m.ast.raw.usize() == module_ast.raw.usize() then
         return m
@@ -225,24 +252,42 @@ primitive Extractor
         end
 
       // Source location
-      let source = DocSourceLocation(
-        try
-          (entity_ast.source_file() as String)
-        else
-          ""
-        end,
-        entity_ast.line())
+      let source =
+        DocSourceLocation(
+          try
+            (entity_ast.source_file() as String)
+          else
+            ""
+          end,
+          entity_ast.line())
 
       // Members
       let members_node = entity_ast(4)?
-      (let constructors, let public_fields, let public_behaviours,
-        let public_functions, let private_behaviours,
+      (let constructors, let public_fields,
+        let public_behaviours,
+        let public_functions,
+        let private_behaviours,
         let private_functions) =
-        _extract_members(members_node, include_private, package_map)
+        _extract_members(
+          members_node,
+          include_private,
+          package_map)
 
-      DocEntity(kind, name, tqfn, type_params, cap, provides, doc_string,
-        constructors, public_fields, public_behaviours, public_functions,
-        private_behaviours, private_functions, source)
+      DocEntity(
+        kind,
+        name,
+        tqfn,
+        type_params,
+        cap,
+        provides,
+        doc_string,
+        constructors,
+        public_fields,
+        public_behaviours,
+        public_functions,
+        private_behaviours,
+        private_functions,
+        source)
     else
       _empty_entity()
     end
@@ -252,7 +297,10 @@ primitive Extractor
     package_map: Map[USize, String] val)
     : String
   =>
-    """Resolves the TQFN for an entity by walking up to its TK_PACKAGE."""
+    """
+    Resolves the TQFN for an entity by walking up to
+    its TK_PACKAGE.
+    """
     try
       let entity_name = (entity_ast(0)?.token_value() as String)
       var parent = entity_ast.parent()
@@ -320,7 +368,9 @@ primitive Extractor
     package_map: Map[USize, String] val)
     : Array[DocType] val
   =>
-    """Extracts the provides/implements type list."""
+    """
+    Extracts the provides/implements type list.
+    """
     let result: Array[DocType] iso = recover iso Array[DocType] end
     if provides_node.id() != ast.TokenIds.tk_none() then
       for child in provides_node.children() do
@@ -491,16 +541,25 @@ primitive Extractor
         end
 
       // Source location
-      let source = DocSourceLocation(
-        try
-          (method_ast.source_file() as String)
-        else
-          ""
-        end,
-        method_ast.line())
+      let source =
+        DocSourceLocation(
+          try
+            (method_ast.source_file() as String)
+          else
+            ""
+          end,
+          method_ast.line())
 
-      DocMethod(kind, name, cap, type_params, params, return_type,
-        is_partial, doc_string, source)
+      DocMethod(
+        kind,
+        name,
+        cap,
+        type_params,
+        params,
+        return_type,
+        is_partial,
+        doc_string,
+        source)
     else
       _empty_method()
     end
@@ -529,13 +588,14 @@ primitive Extractor
           None
         end
 
-      let source = DocSourceLocation(
-        try
-          (field_ast.source_file() as String)
-        else
-          ""
-        end,
-        field_ast.line())
+      let source =
+        DocSourceLocation(
+          try
+            (field_ast.source_file() as String)
+          else
+            ""
+          end,
+          field_ast.line())
 
       DocField(kind, name, field_type, doc_string, source)
     else
@@ -568,7 +628,9 @@ primitive Extractor
     entities: Array[DocEntity])
     : Array[DocEntity] val
   =>
-    """Sort entities by name, ignoring leading underscore."""
+    """
+    Sort entities by name, ignoring leading underscore.
+    """
     // Simple insertion sort in-place — entity count per package is small
     for i in Range(1, entities.size()) do
       try
@@ -617,10 +679,17 @@ primitive Extractor
     consume result
 
   fun _empty_entity(): DocEntity =>
-    """Fallback for extraction errors."""
-    DocEntity(EntityClass, "unknown", "",
-      recover val Array[DocTypeParam] end, None,
-      recover val Array[DocType] end, None,
+    """
+    Fallback for extraction errors.
+    """
+    DocEntity(
+      EntityClass,
+      "unknown",
+      "",
+      recover val Array[DocTypeParam] end,
+      None,
+      recover val Array[DocType] end,
+      None,
       recover val Array[DocMethod] end,
       recover val Array[DocField] end,
       recover val Array[DocMethod] end,
@@ -630,13 +699,27 @@ primitive Extractor
       None)
 
   fun _empty_method(): DocMethod =>
-    """Fallback for extraction errors."""
-    DocMethod(MethodFunction, "unknown", None,
+    """
+    Fallback for extraction errors.
+    """
+    DocMethod(
+      MethodFunction,
+      "unknown",
+      None,
       recover val Array[DocTypeParam] end,
       recover val Array[DocParam] end,
-      None, false, None, None)
+      None,
+      false,
+      None,
+      None)
 
   fun _empty_field(): DocField =>
-    """Fallback for extraction errors."""
-    DocField(FieldLet, "unknown",
-      DocCapability("unknown"), None, None)
+    """
+    Fallback for extraction errors.
+    """
+    DocField(
+      FieldLet,
+      "unknown",
+      DocCapability("unknown"),
+      None,
+      None)

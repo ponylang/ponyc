@@ -10,7 +10,15 @@ primitive TQFN
   TQFNs, e.g. passing `"-index"` for package index pages produces
   a double dash: `{pkg}--index`.
   """
-  fun apply(qualified_name: String, type_name: String): String =>
+  fun apply(
+    qualified_name: String,
+    type_name: String)
+    : String
+  =>
+    """
+    Build the TQFN string from a qualified package name
+    and a type name.
+    """
     let raw: String val = qualified_name + "-" + type_name
     let result = recover iso String(raw.size()) end
     for byte in raw.values() do

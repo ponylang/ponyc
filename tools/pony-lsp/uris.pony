@@ -1,12 +1,18 @@
 use "files"
 
+// pony-lint: allow style/acronym-casing
 primitive Uris
+  """
+  URI conversion utilities for the language server.
+  """
+
   fun to_path(uri: String): String =>
     """
-    Convert an LSP document URI to a local filesystem path by stripping the
-    scheme. On Windows, also strips the leading `/` before a drive letter
-    (e.g., `/D:/path` becomes `D:/path`) and normalizes forward slashes to
-    the native separator.
+    Convert an LSP document URI to a local filesystem
+    path by stripping the scheme. On Windows, also strips
+    the leading `/` before a drive letter (e.g.,
+    `/D:/path` becomes `D:/path`) and normalizes forward
+    slashes to the native separator.
     """
     let result = uri.split_by("://", 2)
     let path =
@@ -17,7 +23,8 @@ primitive Uris
         return uri
       end
     ifdef windows then
-      // file:///D:/path → /D:/path after stripping scheme; remove leading /
+      // file:///D:/path -> /D:/path after stripping
+      // scheme; remove leading /
       let trimmed =
         try
           if (path.size() >= 3) and (path(0)? == '/')
@@ -39,9 +46,10 @@ primitive Uris
 
   fun from_path(path: String): String =>
     """
-    Convert a local filesystem path to an LSP file URI. On Windows,
-    normalizes backslashes to forward slashes and uses the `file:///`
-    prefix required for drive-letter paths.
+    Convert a local filesystem path to an LSP file URI.
+    On Windows, normalizes backslashes to forward slashes
+    and uses the `file:///` prefix required for
+    drive-letter paths.
     """
     if path.contains("://") then
       path

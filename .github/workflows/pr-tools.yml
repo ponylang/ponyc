@@ -52,6 +52,10 @@ jobs:
         run: make test-pony-lsp config=debug
       - name: Lint pony-lint
         run: make lint-pony-lint config=debug
+      - name: Lint pony-doc
+        run: make lint-pony-doc config=debug
+      - name: Lint pony-lsp
+        run: make lint-pony-lsp config=debug
 
   macos:
     if: github.event.pull_request.draft == false
