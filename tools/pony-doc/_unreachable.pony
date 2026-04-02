@@ -12,6 +12,9 @@ primitive _Unreachable
   fun apply(loc: SourceLoc = __loc): None =>
     let url = "https://github.com/ponylang/ponyc/issues"
     let fmt = "Unreachable at %s:%zu\nPlease report: " + url + "\n"
-    @fprintf(@pony_os_stderr(), fmt.cstring(),
-      loc.file().cstring(), loc.line())
+    @fprintf(
+      @pony_os_stderr(),
+      fmt.cstring(),
+      loc.file().cstring(),
+      loc.line())
     @exit(1)

@@ -156,7 +156,6 @@ jobs:
           gmake test-pony-doc config=debug
           gmake test-pony-lint config=debug
           gmake test-pony-lsp config=debug
-          gmake lint-pony-lint config=debug
           gmake configure config=release
           gmake build config=release
           gmake test-ci-core config=release
@@ -273,7 +272,6 @@ jobs:
           gmake test-pony-doc config=debug
           gmake test-pony-lint config=debug
           gmake test-pony-lsp config=debug
-          gmake lint-pony-lint config=debug
           gmake configure config=release
           gmake build config=release
           gmake test-ci-core config=release
@@ -500,7 +498,6 @@ jobs:
           gmake test-pony-doc config=debug
           gmake test-pony-lint config=debug
           gmake test-pony-lsp config=debug
-          gmake lint-pony-lint config=debug
           gmake configure config=release
           gmake build config=release
           gmake test-ci-core config=release

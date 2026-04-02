@@ -55,28 +55,38 @@ class val DocTypeParamRef
     ephemeral = ephemeral'
 
 class val DocUnion
-  """A union type (e.g., `(String | None)`)."""
+  """
+  A union type (e.g., `(String | None)`).
+  """
   let types: Array[DocType] val
 
   new val create(types': Array[DocType] val) =>
     types = types'
 
 class val DocIntersection
-  """An intersection type (e.g., `(Stringable & Hashable)`)."""
+  """
+  An intersection type
+  (e.g., `(Stringable & Hashable)`).
+  """
   let types: Array[DocType] val
 
   new val create(types': Array[DocType] val) =>
     types = types'
 
 class val DocTuple
-  """A tuple type (e.g., `(String, U32)`)."""
+  """
+  A tuple type (e.g., `(String, U32)`).
+  """
   let types: Array[DocType] val
 
   new val create(types': Array[DocType] val) =>
     types = types'
 
 class val DocArrow
-  """An arrow (viewpoint adaptation) type (e.g., `this->T`)."""
+  """
+  An arrow (viewpoint adaptation) type
+  (e.g., `this->T`).
+  """
   let left: DocType
   let right: DocType
 
@@ -85,7 +95,9 @@ class val DocArrow
     right = right'
 
 class val DocThis
-  """The `this` type literal."""
+  """
+  The `this` type literal.
+  """
   new val create() => None
 
 class val DocCapability

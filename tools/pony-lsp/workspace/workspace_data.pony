@@ -13,8 +13,13 @@ class val WorkspaceData
   let dependencies: Array[String] val
   // absolute paths (derived from folder and dependencies)
   let dependency_paths: Array[String] val
-  // absolute paths of packages listed in all corral.json files (including dependencies)
+  // absolute paths of packages listed in all
+  // corral.json files (including dependencies)
   let package_paths: Set[String] val
+    """
+    Absolute paths of packages listed in all
+    corral.json files (including dependencies).
+    """
   let _min_package_paths_len: USize
   // TODO: further structure a workspace into different packages, separately
   // compiled
@@ -35,8 +40,18 @@ class val WorkspaceData
     dependency_paths =
       recover val
         Iter[String](dependencies.values())
-          .map[String]({(dep): String? => if dep.contains(Path.sep()) then dep else folder.join("_corral")?.join(dep)?.path end})
-          .collect(Array[String].create(dependencies.size()))
+          .map[String](
+            {(dep): String? =>
+              if dep.contains(Path.sep()) then
+                dep
+              else
+                folder.join("_corral")?
+                  .join(dep)?.path
+              end
+            })
+          .collect(
+            Array[String]
+              .create(dependencies.size()))
       end
     package_paths = package_paths'
     var min: USize = USize.max_value()
@@ -46,6 +61,9 @@ class val WorkspaceData
     _min_package_paths_len = min
 
   fun debug(): String =>
+    """
+    Return a JSON string representation for logging.
+    """
     var dp_arr = JsonArray
     for dp in dependencies.values() do
       dp_arr = dp_arr.push(dp)

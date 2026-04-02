@@ -22,15 +22,22 @@ actor Main
           "pony-doc",
           "Generate MkDocs documentation for Pony packages",
           [
-            OptionSpec.string("output",
-              "Output directory" where short' = 'o', default' = ".")
-            OptionSpec.bool("include-private",
-              "Include private types and methods" where default' = false)
-            OptionSpec.bool("version",
-              "Print version and exit" where short' = 'V', default' = false)
+            OptionSpec.string(
+              "output",
+              "Output directory"
+              where short' = 'o', default' = ".")
+            OptionSpec.bool(
+              "include-private",
+              "Include private types and methods"
+              where default' = false)
+            OptionSpec.bool(
+              "version",
+              "Print version and exit"
+              where short' = 'V', default' = false)
           ],
           [
-            ArgSpec.string("package-dir",
+            ArgSpec.string(
+              "package-dir",
               "Package directory to document (default: CWD)"
               where default' = ".")
           ])? .> add_help()?
@@ -135,7 +142,9 @@ actor Main
     vars: (Array[String val] val | None))
     : Array[String val] val
   =>
-    """Extract PONYPATH entries as an array of paths."""
+    """
+    Extract PONYPATH entries as an array of paths.
+    """
     match vars
     | let env_vars: Array[String val] val =>
       for pair in env_vars.values() do
@@ -157,9 +166,10 @@ actor Main
     let buf = @ponyint_pool_alloc_size(buf_size)
     if @get_compiler_exe_directory(buf, argv0.cstring())
     then
-      let result = recover val
-        String.copy_cstring(buf)
-      end
+      let result =
+        recover val
+          String.copy_cstring(buf)
+        end
       @ponyint_pool_free_size(buf_size, buf)
       result
     else

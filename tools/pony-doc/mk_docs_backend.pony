@@ -13,6 +13,9 @@ primitive MkDocsBackend is Backend
     include_private: Bool)
     ?
   =>
+    """
+    Generate MkDocs documentation for the given program.
+    """
     // Create directory structure: <name>-docs/docs/{src,assets}
     let base_name: String val = program.name + "-docs"
     let base_dir = output_dir.join(base_name)?
@@ -73,7 +76,10 @@ primitive MkDocsBackend is Backend
         public_type_links.append(entity.tqfn)
         public_type_links.append(".md)\n")
 
-        _write_entity_page(docs_dir, entity, sanitized_pkg,
+        _write_entity_page(
+          docs_dir,
+          entity,
+          sanitized_pkg,
           include_private)?
       end
 
@@ -94,13 +100,20 @@ primitive MkDocsBackend is Backend
         private_type_links.append(entity.tqfn)
         private_type_links.append(".md)\n")
 
-        _write_entity_page(docs_dir, entity, sanitized_pkg,
+        _write_entity_page(
+          docs_dir,
+          entity,
+          sanitized_pkg,
           include_private)?
       end
 
       // Write package index page
-      _write_package_page(docs_dir, pkg, pkg_tqfn,
-        consume public_type_links, consume private_type_links,
+      _write_package_page(
+        docs_dir,
+        pkg,
+        pkg_tqfn,
+        consume public_type_links,
+        consume private_type_links,
         include_private)?
 
       // Write source files
@@ -152,7 +165,9 @@ primitive MkDocsBackend is Backend
     nav_entries: String val)
     ?
   =>
-    """Write the mkdocs.yml configuration file."""
+    """
+    Write the mkdocs.yml configuration file.
+    """
     let content = recover iso String(2048) end
     content.append("site_name: ")
     content.append(site_name)
@@ -185,7 +200,9 @@ primitive MkDocsBackend is Backend
     _write_file(base_dir, "mkdocs.yml", consume content)?
 
   fun _write_home_page(docs_dir: FilePath, links: String val) ? =>
-    """Write the index.md home page."""
+    """
+    Write the index.md home page.
+    """
     let content = recover iso String(512) end
     content.append("---\nsearch:\n  exclude: true\n---\n")
     content.append("Packages\n\n")
@@ -252,7 +269,10 @@ primitive MkDocsBackend is Backend
     content.append("# ")
     content.append(entity.name)
     content.append(
-      TypeRenderer.render_type_params(entity.type_params, true, false,
+      TypeRenderer.render_type_params(
+        entity.type_params,
+        true,
+        false,
         include_private))
     content.append(_source_link(entity.source, sanitized_pkg))
 
@@ -275,46 +295,80 @@ primitive MkDocsBackend is Backend
     end
     content.append(entity.name)
     content.append(
-      TypeRenderer.render_type_params(entity.type_params, false, true,
+      TypeRenderer.render_type_params(
+        entity.type_params,
+        false,
+        true,
         include_private))
     content.append(
-      TypeRenderer.render_provides(entity.provides, " is\n  ", ",\n  ", "",
-        false, include_private))
+      TypeRenderer.render_provides(
+        entity.provides,
+        " is\n  ",
+        ",\n  ",
+        "",
+        false,
+        include_private))
     content.append("\n```\n\n")
 
     // Implements / Type Alias For section
     match entity.kind
     | EntityTypeAlias =>
       content.append(
-        TypeRenderer.render_provides(entity.provides,
-          "#### Type Alias For\n\n* ", "\n* ", "\n\n---\n\n",
-          true, include_private))
+        TypeRenderer.render_provides(
+          entity.provides,
+          "#### Type Alias For\n\n* ",
+          "\n* ",
+          "\n\n---\n\n",
+          true,
+          include_private))
     else
       content.append(
-        TypeRenderer.render_provides(entity.provides,
-          "#### Implements\n\n* ", "\n* ", "\n\n---\n\n",
-          true, include_private))
+        TypeRenderer.render_provides(
+          entity.provides,
+          "#### Implements\n\n* ",
+          "\n* ",
+          "\n\n---\n\n",
+          true,
+          include_private))
     end
 
     // Member sections
     content.append(
-      _render_methods(entity.constructors, "Constructors",
-        sanitized_pkg, include_private))
+      _render_methods(
+        entity.constructors,
+        "Constructors",
+        sanitized_pkg,
+        include_private))
     content.append(
-      _render_fields(entity.public_fields, "Public fields",
-        sanitized_pkg, include_private))
+      _render_fields(
+        entity.public_fields,
+        "Public fields",
+        sanitized_pkg,
+        include_private))
     content.append(
-      _render_methods(entity.public_behaviours, "Public Behaviours",
-        sanitized_pkg, include_private))
+      _render_methods(
+        entity.public_behaviours,
+        "Public Behaviours",
+        sanitized_pkg,
+        include_private))
     content.append(
-      _render_methods(entity.public_functions, "Public Functions",
-        sanitized_pkg, include_private))
+      _render_methods(
+        entity.public_functions,
+        "Public Functions",
+        sanitized_pkg,
+        include_private))
     content.append(
-      _render_methods(entity.private_behaviours, "Private Behaviours",
-        sanitized_pkg, include_private))
+      _render_methods(
+        entity.private_behaviours,
+        "Private Behaviours",
+        sanitized_pkg,
+        include_private))
     content.append(
-      _render_methods(entity.private_functions, "Private Functions",
-        sanitized_pkg, include_private))
+      _render_methods(
+        entity.private_functions,
+        "Private Functions",
+        sanitized_pkg,
+        include_private))
 
     let filename: String val = entity.tqfn + ".md"
     _write_file(docs_dir, filename, consume content)?
@@ -326,7 +380,9 @@ primitive MkDocsBackend is Backend
     include_private: Bool)
     : String val
   =>
-    """Render a methods section."""
+    """
+    Render a methods section.
+    """
     if methods.size() == 0 then return "" end
 
     let result = recover iso String(2048) end
@@ -358,7 +414,10 @@ primitive MkDocsBackend is Backend
     result.append("### ")
     result.append(method.name)
     result.append(
-      TypeRenderer.render_type_params(method.type_params, true, false,
+      TypeRenderer.render_type_params(
+        method.type_params,
+        true,
+        false,
         include_private))
     result.append(_source_link(method.source, sanitized_pkg))
     result.append("\n\n")
@@ -387,7 +446,10 @@ primitive MkDocsBackend is Backend
 
     result.append(method.name)
     result.append(
-      TypeRenderer.render_type_params(method.type_params, false, true,
+      TypeRenderer.render_type_params(
+        method.type_params,
+        false,
+        true,
         include_private))
 
     // Parameters in code block
@@ -402,7 +464,11 @@ primitive MkDocsBackend is Backend
       result.append(param.name)
       result.append(": ")
       result.append(
-        TypeRenderer.render(param.param_type, false, true, include_private))
+        TypeRenderer.render(
+          param.param_type,
+          false,
+          true,
+          include_private))
       match param.default_value
       | let dv: String =>
         result.append(" = ")
@@ -418,7 +484,11 @@ primitive MkDocsBackend is Backend
       match method.return_type
       | let rt: DocType =>
         result.append(
-          TypeRenderer.render(rt, false, true, include_private))
+          TypeRenderer.render(
+            rt,
+            false,
+            true,
+            include_private))
       end
       if method.is_partial then
         result.append(" ?")
@@ -436,7 +506,10 @@ primitive MkDocsBackend is Backend
         result.append(param.name)
         result.append(": ")
         result.append(
-          TypeRenderer.render(param.param_type, true, true,
+          TypeRenderer.render(
+            param.param_type,
+            true,
+            true,
             include_private))
         match param.default_value
         | let dv: String =>
@@ -456,7 +529,11 @@ primitive MkDocsBackend is Backend
       match method.return_type
       | let rt: DocType =>
         result.append(
-          TypeRenderer.render(rt, true, true, include_private))
+          TypeRenderer.render(
+            rt,
+            true,
+            true,
+            include_private))
       end
       if method.is_partial then
         result.append(" ?")
@@ -496,7 +573,11 @@ primitive MkDocsBackend is Backend
       result.append(field.name)
       result.append(": ")
       result.append(
-        TypeRenderer.render(field.field_type, true, false, include_private))
+        TypeRenderer.render(
+          field.field_type,
+          true,
+          false,
+          include_private))
       result.append(_source_link(field.source, sanitized_pkg))
       result.append("\n")
 
@@ -534,7 +615,9 @@ primitive MkDocsBackend is Backend
     _write_file(pkg_dir, out_name, consume content)?
 
   fun _write_assets(assets_dir: FilePath) ? =>
-    """Write CSS and logo PNG files."""
+    """
+    Write CSS and logo PNG files.
+    """
     _write_file(assets_dir, "ponylang.css", _Assets.css())?
     _write_binary(assets_dir, "logo.png", _Assets.logo())?
 
@@ -571,7 +654,9 @@ primitive MkDocsBackend is Backend
     end
 
   fun _sort_strings(entries: Array[String]) =>
-    """Sort strings alphabetically using insertion sort."""
+    """
+    Sort strings alphabetically using insertion sort.
+    """
     var i: USize = 1
     while i < entries.size() do
       try
@@ -588,8 +673,14 @@ primitive MkDocsBackend is Backend
       i = i + 1
     end
 
-  fun _source_doc_path(sanitized_pkg: String, filename: String): String val =>
-    """Build the docs-relative path for a source file."""
+  fun _source_doc_path(
+    sanitized_pkg: String,
+    filename: String)
+    : String val
+  =>
+    """
+    Build the docs-relative path for a source file.
+    """
     let result = recover iso String(64) end
     result.append("src/")
     result.append(sanitized_pkg)
@@ -599,7 +690,9 @@ primitive MkDocsBackend is Backend
     consume result
 
   fun _remove_ext(filename: String): String =>
-    """Remove the file extension from a filename."""
+    """
+    Remove the file extension from a filename.
+    """
     var last_dot: USize = filename.size()
     var i: USize = 0
     while i < filename.size() do
@@ -618,7 +711,9 @@ primitive MkDocsBackend is Backend
     content: String val)
     ?
   =>
-    """Write a text file, creating or truncating as needed."""
+    """
+    Write a text file, creating or truncating as needed.
+    """
     let path = dir.join(name)?
     match CreateFile(path)
     | let file: File =>
@@ -634,7 +729,10 @@ primitive MkDocsBackend is Backend
     data: Array[U8] val)
     ?
   =>
-    """Write a binary file, creating or truncating as needed."""
+    """
+    Write a binary file, creating or truncating as
+    needed.
+    """
     let path = dir.join(name)?
     match CreateFile(path)
     | let file: File =>

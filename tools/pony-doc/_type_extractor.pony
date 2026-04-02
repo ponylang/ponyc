@@ -17,11 +17,20 @@ primitive _TypeExtractor
     match type_ast.id()
     | ast.TokenIds.tk_nominal() => _nominal(type_ast, package_map)
     | ast.TokenIds.tk_typeparamref() => _type_param_ref(type_ast)
-    | ast.TokenIds.tk_uniontype() => _type_list(type_ast, package_map,
+    | ast.TokenIds.tk_uniontype() =>
+      _type_list(
+        type_ast,
+        package_map,
         {(types) => DocUnion(types) })
-    | ast.TokenIds.tk_isecttype() => _type_list(type_ast, package_map,
+    | ast.TokenIds.tk_isecttype() =>
+      _type_list(
+        type_ast,
+        package_map,
         {(types) => DocIntersection(types) })
-    | ast.TokenIds.tk_tupletype() => _type_list(type_ast, package_map,
+    | ast.TokenIds.tk_tupletype() =>
+      _type_list(
+        type_ast,
+        package_map,
         {(types) => DocTuple(types) })
     | ast.TokenIds.tk_arrow() => _arrow(type_ast, package_map)
     | ast.TokenIds.tk_thistype() => DocThis
@@ -93,8 +102,14 @@ primitive _TypeExtractor
         Filter.is_private(raw_name),
         Filter.is_internal(raw_name))
     else
-      DocNominal("unknown", "", recover val Array[DocType] end,
-        None, None, false, false)
+      DocNominal(
+        "unknown",
+        "",
+        recover val Array[DocType] end,
+        None,
+        None,
+        false,
+        false)
     end
 
   fun _type_param_ref(type_ast: ast.AST box): DocTypeParamRef =>
@@ -126,7 +141,10 @@ primitive _TypeExtractor
     builder: {(Array[DocType] val): DocType} val)
     : DocType
   =>
-    """Extracts child types and wraps them via the builder function."""
+    """
+    Extracts child types and wraps them via the builder
+    function.
+    """
     let result: Array[DocType] iso = recover iso Array[DocType] end
     for child in type_ast.children() do
       result.push(apply(child, package_map))

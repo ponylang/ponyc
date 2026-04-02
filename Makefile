@@ -275,6 +275,12 @@ test-pony-lint: all
 lint-pony-lint: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lint/
 
+lint-pony-doc: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-doc/
+
+lint-pony-lsp: all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lsp/
+
 test-pony-compiler: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-compiler-tests ../../tools/lib/ponylang/pony_compiler/tests && echo Build `pwd`/pony-compiler-tests && PONYPATH=../../tools/lib/ponylang/pony_compiler:../../packages:$(PONYPATH) ./pony-compiler-tests --sequential
 
