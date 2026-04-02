@@ -5,9 +5,6 @@ use ast = "pony_compiler"
 primitive Extractor
   """
   Walks a compiled `Program` and builds the documentation IR.
-
-  Matches the traversal logic of `doc_packages()` and `doc_package()`
-  in docgen.c (lines 1152-1256).
   """
   fun apply(
     program: ast.Program val,
@@ -397,7 +394,7 @@ primitive Extractor
         Array[DocMethod] val ) // private_functions
   =>
     """
-    Sorts entity members into categories matching docgen.c lines 1035-1073.
+    Sorts entity members into categories.
 
     Fields are always public-only. Constructors are filtered by
     `include_private`. Behaviours and functions are split into
@@ -435,11 +432,8 @@ primitive Extractor
 
       let is_priv = Filter.is_private(member_name)
 
-      // Deliberate divergence from docgen.c: unrecognized member tokens are
-      // silently skipped (no else branch) instead of asserting. docgen.c uses
-      // pony_assert(0) in its default case, but graceful degradation is safer
-      // here since pony-doc runs as a standalone tool rather than inside the
-      // compiler pipeline.
+      // Unrecognized member tokens are silently skipped (no else branch)
+      // rather than asserting, since pony-doc runs as a standalone tool.
       match member.id()
       | ast.TokenIds.tk_fvar()
       | ast.TokenIds.tk_flet()

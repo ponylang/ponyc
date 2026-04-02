@@ -24,7 +24,8 @@ ast_t* ponydoc_load(const char* path, const char* pony_installation)
   pass_opt_t opt;
   pass_opt_init(&opt);
 
-  // Stop at trait pass as that's the last pass before doc gen
+  // Stop at traits pass — pony-doc extracts documentation from the AST
+  // at this point in the pipeline
   opt.limit = PASS_TRAITS;
   // hardcode where we put any output
   opt.output = ".";

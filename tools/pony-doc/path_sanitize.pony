@@ -3,8 +3,7 @@ primitive PathSanitize
   Sanitizes package names for use in source directory paths.
 
   Replaces `.` with `_` and `/` with `-`. On Windows, also replaces
-  `\\` with `-`. Matches docgen.c `replace_path_separator()` at
-  line 890. Separate from TQFN which only replaces `/` with `-`.
+  `\\` with `-`. Separate from TQFN which only replaces `/` with `-`.
   """
   fun replace_path_separator(name: String): String =>
     let result = recover iso String(name.size()) end

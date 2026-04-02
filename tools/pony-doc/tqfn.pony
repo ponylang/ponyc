@@ -4,7 +4,7 @@ primitive TQFN
   qualified name and a type name.
 
   Format: `{qualified_package_name}-{type_name}` with all `/`
-  replaced by `-`. Matches `write_tqfn()` in docgen.c (lines 226-257).
+  replaced by `-`.
 
   The `type_name` parameter can be overridden to produce special
   TQFNs, e.g. passing `"-index"` for package index pages produces

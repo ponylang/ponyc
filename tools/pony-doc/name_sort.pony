@@ -1,7 +1,7 @@
 primitive NameSort
   """
   Comparator for sorting names alphabetically, ignoring a single
-  leading underscore. Matches docgen.c's `doc_list_cmp()`.
+  leading underscore.
   """
   fun compare(a: String box, b: String box): Compare =>
     _stripped(a).compare(_stripped(b))
