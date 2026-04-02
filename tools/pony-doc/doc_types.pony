@@ -39,9 +39,8 @@ class val DocEntity
   A documented Pony type (class, actor, trait, interface, primitive,
   struct, or type alias) with its members.
 
-  Note: there is no `private_fields` array. docgen.c only collects
-  public fields (`allow_public=true, allow_private=false` at line 1050),
-  regardless of the `--include-private` setting.
+  Note: there is no `private_fields` array. Fields are always
+  public-only, regardless of the `--include-private` setting.
   """
   let kind: EntityKind
   let name: String

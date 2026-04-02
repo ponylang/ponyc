@@ -13,7 +13,7 @@ primitive _Assets
 
   fun logo(): Array[U8] val =>
     """
-    Ponylang logo PNG (15,558 bytes, from src/libponyc/logo.h).
+    Ponylang logo PNG (15,558 bytes).
 
     Stored as chunked array literals to avoid LLVM crashes
     from single oversized array expressions.

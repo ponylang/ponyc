@@ -4,8 +4,8 @@ primitive MkDocsBackend is Backend
   """
   Generates MkDocs-compatible documentation output.
 
-  Matches the output format of docgen.c in ponyc: mkdocs.yml configuration,
-  package index pages, entity type pages, source code pages, and theme assets.
+  Generates mkdocs.yml configuration, package index pages, entity type pages,
+  source code pages, and theme assets.
   """
   fun generate(
     program: DocProgram box,
@@ -221,8 +221,7 @@ primitive MkDocsBackend is Backend
     """
     Write a package index page.
 
-    Matches `doc_package_home()` and the type listing append in
-    `doc_package()` (lines 1096-1217 of docgen.c).
+    Lists public and private types with their docstrings.
     """
     let content = recover iso String(1024) end
 
@@ -260,8 +259,6 @@ primitive MkDocsBackend is Backend
   =>
     """
     Write an entity type page.
-
-    Matches `doc_entity()` in docgen.c (lines 946-1092).
     """
     let content = recover iso String(4096) end
 
@@ -405,8 +402,6 @@ primitive MkDocsBackend is Backend
   =>
     """
     Render a single method's documentation.
-
-    Matches `doc_method()` in docgen.c (lines 693-762).
     """
     let result = recover iso String(1024) end
 
@@ -497,8 +492,7 @@ primitive MkDocsBackend is Backend
 
     result.append("\n```\n")
 
-    // Parameters list — matches docgen.c list_doc_params which always
-    // emits a trailing "\n" even when there are zero parameters.
+    // Parameters list
     if method.params.size() > 0 then
       result.append("#### Parameters\n\n")
       for param in method.params.values() do
@@ -555,8 +549,6 @@ primitive MkDocsBackend is Backend
   =>
     """
     Render a fields section.
-
-    Matches `doc_fields()` in docgen.c (lines 512-554).
     """
     if fields.size() == 0 then return "" end
 
@@ -600,8 +592,6 @@ primitive MkDocsBackend is Backend
   =>
     """
     Write a source code page.
-
-    Matches `copy_source_to_doc_src()` in docgen.c (lines 795-888).
     """
     let content = recover iso String(sf.content.size() + 256) end
     content.append("---\nhide:\n  - toc\nsearch:\n  exclude: true\n---\n")
@@ -629,7 +619,6 @@ primitive MkDocsBackend is Backend
     """
     Build a source code link span.
 
-    Matches `add_source_code_link()` in docgen.c (lines 486-505).
     Returns `\n\n` when no source information is available.
     """
     match source

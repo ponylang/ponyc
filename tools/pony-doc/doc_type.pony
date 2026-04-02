@@ -1,5 +1,4 @@
-// A Pony type as represented in the documentation IR. Mirrors the type AST
-// nodes that docgen.c handles in `doc_type()`.
+// A Pony type as represented in the documentation IR.
 type DocType is
   ( DocNominal
   | DocTypeParamRef

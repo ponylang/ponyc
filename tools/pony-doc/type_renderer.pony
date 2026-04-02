@@ -2,8 +2,7 @@ primitive TypeRenderer
   """
   Renders `DocType` values to markdown strings.
 
-  Matches `doc_type()` (lines 345-444) and `doc_type_list()` (lines 449-484)
-  in docgen.c. Handles cross-reference links for nominals, bracket escaping,
+  Handles cross-reference links for nominals, bracket escaping,
   and the `break_lines` parameter for inserting line breaks after every 3rd
   item in a type list.
   """
@@ -72,9 +71,8 @@ primitive TypeRenderer
     """
     Render type parameters with surrounding brackets.
 
-    Matches `doc_type_params()` in docgen.c (lines 559-601). Uses escaped
-    brackets `\[`/`\]` when links are active. Prepends `optional ` when a
-    type parameter has a default type.
+    Uses escaped brackets `\[`/`\]` when links are active. Prepends
+    `optional ` when a type parameter has a default type.
     """
     if type_params.size() == 0 then return "" end
 
@@ -146,7 +144,7 @@ primitive TypeRenderer
 
     Links are generated when `generate_links` is true AND the type is not
     anonymous (compiler-generated) AND either `include_private` is true or
-    the type is not private. This matches docgen.c lines 362-383.
+    the type is not private.
     """
     let result = recover iso String end
     let should_link =
@@ -238,8 +236,7 @@ primitive TypeRenderer
     """
     Render a list of types with preamble, separator, and postamble.
 
-    When `break_lines` is true, inserts `\n    ` after every 3rd separator,
-    matching `doc_type_list()` in docgen.c (lines 449-484).
+    When `break_lines` is true, inserts `\n    ` after every 3rd separator.
     """
     if types.size() == 0 then return "" end
 

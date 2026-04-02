@@ -12,7 +12,6 @@
 #include "verify.h"
 #include "finalisers.h"
 #include "serialisers.h"
-#include "docgen.h"
 #include "../ast/ast.h"
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
@@ -60,7 +59,6 @@ const char* pass_name(pass_id pass)
     case PASS_NAME_RESOLUTION: return "name";
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
-    case PASS_DOCS: return "docs";
     case PASS_REFER: return "refer";
     case PASS_EXPR: return "expr";
     case PASS_COMPLETENESS: return "completeness";
@@ -262,12 +260,6 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_TRAITS);
-
-  if(!check_limit(astp, options, PASS_DOCS, last))
-    return true;
-
-  if(is_program && options->docs)
-    generate_docs(*astp, options);
 
   if(!visit_pass(astp, options, last, &r, PASS_REFER, pass_pre_refer,
     pass_refer))

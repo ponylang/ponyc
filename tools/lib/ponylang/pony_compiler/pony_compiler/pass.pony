@@ -4,7 +4,7 @@ use @ast_passes_program[Bool](program: Pointer[_AST] val, options: _PassOpt)
 
 type PassId is (
   PassParse      | PassSyntax         | PassSugar        | PassScope  |
-  PassImport     | PassNameResolution | PassFlatten      | PassTraits | PassDocs |
+  PassImport     | PassNameResolution | PassFlatten      | PassTraits |
   PassRefer      | PassExpr           | PassCompleteness | PassVerify | PassFinaliser |
   PassSerialiser | PassReach          | PassPaint        | PassLLVMIR | PassBitcode |
   PassASM        | PassObj            | PassAll
@@ -18,20 +18,19 @@ primitive PassImport fun apply(): I32 => 4
 primitive PassNameResolution fun apply(): I32 => 5
 primitive PassFlatten fun apply(): I32 => 6
 primitive PassTraits fun apply(): I32 => 7
-primitive PassDocs fun apply(): I32 => 8
-primitive PassRefer fun apply(): I32 => 9
-primitive PassExpr fun apply(): I32 => 10
-primitive PassCompleteness fun apply(): I32 => 11
-primitive PassVerify fun apply(): I32 => 12
-primitive PassFinaliser fun apply(): I32 => 13
-primitive PassSerialiser fun apply(): I32 => 14
-primitive PassReach fun apply(): I32 => 15
-primitive PassPaint fun apply(): I32 => 16
-primitive PassLLVMIR fun apply(): I32 => 17
-primitive PassBitcode fun apply(): I32 => 18
-primitive PassASM fun apply(): I32 => 19
-primitive PassObj fun apply(): I32 => 20
-primitive PassAll fun apply(): I32 => 21
+primitive PassRefer fun apply(): I32 => 8
+primitive PassExpr fun apply(): I32 => 9
+primitive PassCompleteness fun apply(): I32 => 10
+primitive PassVerify fun apply(): I32 => 11
+primitive PassFinaliser fun apply(): I32 => 12
+primitive PassSerialiser fun apply(): I32 => 13
+primitive PassReach fun apply(): I32 => 14
+primitive PassPaint fun apply(): I32 => 15
+primitive PassLLVMIR fun apply(): I32 => 16
+primitive PassBitcode fun apply(): I32 => 17
+primitive PassASM fun apply(): I32 => 18
+primitive PassObj fun apply(): I32 => 19
+primitive PassAll fun apply(): I32 => 20
 
 primitive _StrList
   """STUB"""
@@ -58,9 +57,6 @@ struct _PassOpt
   var print_filenames: Bool = false
   var check_tree: Bool = false
   var lint_llvm: Bool = false
-  var docs: Bool = false
-  var docs_private: Bool = false
-
   var verbosity: I32 = VerbosityQuiet()
 
   var ast_print_width: USize = 0

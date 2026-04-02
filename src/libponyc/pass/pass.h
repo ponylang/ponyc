@@ -124,14 +124,6 @@ Also performs minor anomalous tasks that have to be done before the type check
 pass.
 
 
-* Documentation generation pass (AST)
-
-Auto-generates documentation, if the relevant command line flag is given,
-otherwise does nothing.
-
-Does not alter the AST at all.
-
-
 * Reference resolution pass (AST)
 
 Resolves all instances of TK_REFERENCE by finding the relevant definition in
@@ -224,7 +216,6 @@ typedef enum pass_id
   PASS_NAME_RESOLUTION,
   PASS_FLATTEN,
   PASS_TRAITS,
-  PASS_DOCS,
   PASS_REFER,
   PASS_EXPR,
   PASS_COMPLETENESS,
@@ -252,7 +243,6 @@ typedef enum pass_id
     "    =name\n" \
     "    =flatten\n" \
     "    =traits\n" \
-    "    =docs\n" \
     "    =refer\n" \
     "    =expr\n" \
     "    =completeness\n" \
@@ -288,8 +278,6 @@ typedef struct pass_opt_t
   bool print_filenames;
   bool check_tree;
   bool lint_llvm;
-  bool docs;
-  bool docs_private;
 
   verbosity_level verbosity;
 
