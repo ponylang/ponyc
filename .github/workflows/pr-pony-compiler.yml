@@ -62,7 +62,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs build_flags=-j4
       - name: Build
         run: |
           make configure arch=armv8 config=debug

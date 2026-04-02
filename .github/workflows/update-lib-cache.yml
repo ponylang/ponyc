@@ -118,7 +118,7 @@ jobs:
           key: libs-x86-macos-26-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs build_flags=-j2
 
   arm64-macos:
     runs-on: macos-26
@@ -137,7 +137,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs build_flags=-j4
 
   x86_64-windows:
     runs-on: windows-2025
