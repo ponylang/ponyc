@@ -258,7 +258,7 @@ jobs:
           key: libs-x86-macos-26-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs build_flags=-j2
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
