@@ -5,10 +5,6 @@ project(ponyclibs VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 include(ExternalProject)
 
-if(POLICY CMP0135)
-    cmake_policy(SET CMP0135 NEW)
-endif()
-
 if(NOT DEFINED PONYC_LIBS_BUILD_TYPE)
     set(PONYC_LIBS_BUILD_TYPE Release)
 endif()
