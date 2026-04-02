@@ -34,3 +34,9 @@ Additionally, valid tuple patterns like `with (a, b) = (D.create(), D.create()) 
 
 Fixed a memory leak on Windows where an IOCP token's reference count was not decremented when a network send operation encountered backpressure. Over time, this could cause memory to grow unboundedly in programs with sustained network traffic.
 
+## Remove docgen pass
+
+We've removed ponyc's built-in documentation generation pass. The `--docs`, `-g`, and `--docs-public` command-line flags no longer exist, and `--pass docs` is no longer a valid compilation limit.
+
+Use `pony-doc` instead. It shipped in 0.61.0 as the replacement and has been the recommended tool since then. If you were using `--docs-public`, `pony-doc` generates public-only documentation by default. If you were using `--docs` to include private types, use `pony-doc --include-private`.
+
