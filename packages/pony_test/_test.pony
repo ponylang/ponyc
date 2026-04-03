@@ -39,7 +39,7 @@ class \nodoc\ iso _TestShuffleVariesAcrossSeeds is UnitTest
     h.long_test(5_000_000_000)
     let num_tests: USize = 10
     let num_seeds: USize = 10
-    let collector = _MultiSeedCollector(h, num_seeds, num_tests)
+    let collector = _MultiSeedCollector(h, num_seeds)
     var seed: U64 = 1
     while seed <= num_seeds.u64() do
       let list = object tag is TestList
@@ -147,20 +147,18 @@ actor \nodoc\ _OutputCollector is OutStream
     _runs_remaining = runs
 
   be print(data: ByteSeq) =>
+    if _runs_remaining == 0 then return end
     match data
     | let s: String => _received.push(s)
     | let a: Array[U8] val => _received.push(String.from_array(a))
     end
     if _received.size() == _expected.size() then
-      _check_and_maybe_complete()
-    end
-
-  fun ref _check_and_maybe_complete() =>
-    _h.assert_array_eq[String](_expected, _received)
-    _received.clear()
-    _runs_remaining = _runs_remaining - 1
-    if _runs_remaining == 0 then
-      _h.complete(true)
+      _h.assert_array_eq[String](_expected, _received)
+      _received.clear()
+      _runs_remaining = _runs_remaining - 1
+      if _runs_remaining == 0 then
+        _h.complete(true)
+      end
     end
 
   be write(data: ByteSeq) => None
@@ -175,13 +173,11 @@ actor \nodoc\ _MultiSeedCollector
   """
   let _h: TestHelper
   let _total: USize
-  let _num_tests: USize
   embed _orders: Array[Array[String] val] = Array[Array[String] val]
 
-  new create(h: TestHelper, total: USize, num_tests: USize) =>
+  new create(h: TestHelper, total: USize) =>
     _h = h
     _total = total
-    _num_tests = num_tests
 
   be receive(order: Array[String] val) =>
     _orders.push(order)
@@ -228,6 +224,7 @@ actor \nodoc\ _PerSeedCollector is OutStream
   """
   let _parent: _MultiSeedCollector
   let _expected_lines: USize
+  var _done: Bool = false
   embed _received: Array[String] = Array[String]
 
   new create(parent: _MultiSeedCollector, expected_lines: USize) =>
@@ -235,11 +232,13 @@ actor \nodoc\ _PerSeedCollector is OutStream
     _expected_lines = expected_lines
 
   be print(data: ByteSeq) =>
+    if _done then return end
     match data
     | let s: String => _received.push(s)
     | let a: Array[U8] val => _received.push(String.from_array(a))
     end
     if _received.size() == _expected_lines then
+      _done = true
       let order: Array[String] iso = recover iso Array[String] end
       var i: USize = 1  // skip "Test seed: N" line
       while i < _received.size() do

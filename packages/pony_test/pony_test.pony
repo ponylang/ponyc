@@ -275,12 +275,12 @@ primitive _InOrder
   Tests are dispatched in registration order (the default).
   """
 
-class _Shuffled
+class val _Shuffled
   """
   Tests are dispatched in a randomized order derived from the given seed.
   """
   let seed: U64
-  new create(seed': U64) => seed = seed'
+  new val create(seed': U64) => seed = seed'
 
   fun apply[A](array: Array[A]) =>
     """
