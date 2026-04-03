@@ -12,9 +12,9 @@ RUN apk add --update --no-cache \
     git
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
- && ponyup update ponyc nightly \
- && ponyup update corral nightly \
- && ponyup update changelog-tool nightly
+ && ponyup --api-timeout 30 update ponyc nightly --retries 3 \
+ && ponyup --api-timeout 30 update corral nightly --retries 3 \
+ && ponyup --api-timeout 30 update changelog-tool nightly --retries 3
 
 WORKDIR /src/main
 
