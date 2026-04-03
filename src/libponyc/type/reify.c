@@ -17,13 +17,19 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   ast_t* ref_def = (ast_t*)ast_data(ast);
 
   // We can't compare ref_def and typeparam, as they could be a copy or
-  // a iftype shadowing. However, their data points back to the original
-  // typeparam definition, which can be compared.
-  ref_def = (ast_t*)ast_data(ref_def);
-  typeparam = (ast_t*)ast_data(typeparam);
-
+  // an iftype shadowing. Follow the ast_data chain to the root
+  // (self-referential node set during the scope pass) for both sides.
+  // A single-level follow is insufficient when type parameters are copied
+  // multiple times, e.g. a lambda inside an object literal inside a generic
+  // method — collect_type_params creates copies of copies, producing a chain
+  // of length > 1.
   pony_assert(ref_def != NULL);
+  while((ast_t*)ast_data(ref_def) != ref_def)
+    ref_def = (ast_t*)ast_data(ref_def);
+
   pony_assert(typeparam != NULL);
+  while((ast_t*)ast_data(typeparam) != typeparam)
+    typeparam = (ast_t*)ast_data(typeparam);
 
   if(ref_def != typeparam)
     return;
@@ -97,10 +103,22 @@ static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   if(ref_def == NULL)
     return;
 
-  ast_t* param_def = (ast_t*)ast_data(typeparam);
-  pony_assert(param_def != NULL);
+  // Follow the ast_data chain to the root (self-referential node set during
+  // the scope pass) for both sides of the comparison, same as
+  // reify_typeparamref. A single-level follow is insufficient when type
+  // parameters are copied multiple times by collect_type_params for nested
+  // lambdas/object literals.
+  if(ast_id(ref_def) == TK_TYPEPARAM)
+  {
+    while((ast_t*)ast_data(ref_def) != ref_def)
+      ref_def = (ast_t*)ast_data(ref_def);
+  }
 
-  if(ref_def != param_def)
+  pony_assert(typeparam != NULL);
+  while((ast_t*)ast_data(typeparam) != typeparam)
+    typeparam = (ast_t*)ast_data(typeparam);
+
+  if(ref_def != typeparam)
     return;
 
   ast_setid(ast, TK_TYPEREF);
