@@ -11,6 +11,7 @@ other packages as possible. Currently the required packages are:
 * builtin
 * time
 * collections
+* random
 
 Each unit test is a class, with a single test function. By default all tests
 run concurrently.
@@ -181,6 +182,31 @@ class iso _I8AddTest is UnitTest
 
 ```
 
+## Shuffle
+
+By default tests are dispatched in registration order. The `--shuffle` option
+randomizes the order, which helps detect hidden dependencies between tests. A
+test that only passes because another test ran first will eventually fail under
+shuffled ordering.
+
+Use `--shuffle` to generate a random seed, or `--shuffle=SEED` to use a
+specific U64 seed for reproducibility. When shuffle is active, the seed is
+printed before any test output:
+
+```
+Test seed: 8675309
+```
+
+To reproduce a failure, pass the seed back: `--shuffle=8675309`. The same seed
+always produces the same test ordering.
+
+For CI environments that need sequential execution, `--sequential --shuffle` is
+the recommended combination: you get stable runs without resource contention,
+and each run uses a different seed so test coupling surfaces over time.
+
+`--list --shuffle=SEED` prints the test names in the shuffled order that the
+given seed would produce.
+
 ## Setting up and tearing down a test environment
 
 ### Set Up
@@ -240,8 +266,33 @@ class iso TempDirTest
 
 """
 
+use "random"
 use "time"
 use @ponyint_assert_disable_popups[None]()
+
+primitive _InOrder
+  """
+  Tests are dispatched in registration order (the default).
+  """
+
+class val _Shuffled
+  """
+  Tests are dispatched in a randomized order derived from the given seed.
+  """
+  let seed: U64
+  new val create(seed': U64) => seed = seed'
+
+  fun apply[A](array: Array[A]) =>
+    """
+    Shuffle the given array using this instance's seed. The same seed always
+    produces the same permutation for the same input.
+    """
+    Rand.from_u64(seed).shuffle[A](array)
+
+type _TestOrdering is (_InOrder | _Shuffled)
+  """
+  Controls the order in which tests are dispatched to their groups.
+  """
 
 actor PonyTest
   """
@@ -251,8 +302,11 @@ actor PonyTest
 
   embed _groups: Array[(String, _Group)] = Array[(String, _Group)]
   embed _records: Array[_TestRecord] = Array[_TestRecord]
+  embed _pending: Array[(_TestRunner, _Group)] = Array[(_TestRunner, _Group)]
+  embed _list_names: Array[String] = Array[String]
   let _env: Env
   let _timers: Timers = Timers
+  var _ordering: _TestOrdering = _InOrder
   var _do_nothing: Bool = false
   var _verbose: Bool = false
   var _sequential: Bool = false
@@ -308,8 +362,7 @@ actor PonyTest
     _any_found = true
 
     if _list_only then
-      // Don't actually run tests, just list them
-      _env.out.print(name)
+      _list_names.push(name)
       return
     end
 
@@ -317,8 +370,9 @@ actor PonyTest
     _records.push(_TestRecord(_env, name))
 
     var group = _find_group(test.exclusion_group())
-    group(_TestRunner(this, index, consume test, group, _verbose, _env,
-      _timers))
+    let runner = _TestRunner(this, index, consume test, group, _verbose, _env,
+      _timers)
+    _pending.push((runner, group))
 
   fun ref _find_group(group_name: String): _Group =>
     """
@@ -401,8 +455,29 @@ actor PonyTest
     end
 
     if _list_only then
-      // No tests to run
+      match _ordering
+      | let s: _Shuffled =>
+        _env.out.print("Test seed: " + s.seed.string())
+        s.apply[String](_list_names)
+      end
+      for name in _list_names.values() do
+        _env.out.print(name)
+      end
       return
+    end
+
+    // Shuffle pending tests if requested, then dispatch all to their groups.
+    // Buffered dispatch is always used: without shuffle, dispatch order matches
+    // registration order. This works because Pony's FIFO message ordering
+    // guarantees all apply messages arrive before _all_tests_applied.
+    match _ordering
+    | let s: _Shuffled =>
+      _env.out.print("Test seed: " + s.seed.string())
+      s.apply[(_TestRunner, _Group)](_pending)
+    end
+
+    for (runner, group) in _pending.values() do
+      group(runner)
     end
 
     _all_started = true
@@ -440,6 +515,16 @@ actor PonyTest
         _label = arg.substring(8)
       elseif arg.compare_sub("--only=", 7) is Equal then
         _only = arg.substring(7)
+      elseif arg == "--shuffle" then
+        _ordering = _Shuffled(Time.cycles())
+      elseif arg.compare_sub("--shuffle=", 10) is Equal then
+        try
+          _ordering = _Shuffled(arg.substring(10).u64()?)
+        else
+          _env.out.print("Invalid shuffle seed: " + arg.substring(10))
+          _do_nothing = true
+          return
+        end
       else
         _env.out.print("Unrecognised argument \"" + arg + "\"")
         _env.out.print("")
@@ -456,6 +541,8 @@ actor PonyTest
         _env.out.print("  --noprog          - Do not print progress messages.")
         _env.out.print("  --list            - List but do not run tests.")
         _env.out.print("  --label=label     - Only run tests with given label")
+        _env.out.print("  --shuffle[=seed]  - Run tests in a random order, "
+          + "optionally specifying a U64 seed.")
         _do_nothing = true
         return
       end
