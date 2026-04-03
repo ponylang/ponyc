@@ -977,14 +977,59 @@ static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 }
 
 
+// Replace TK_THISTYPE nodes in an AST with a cap token. This is used
+// when desugaring lambda types to resolve this-> to the enclosing method's
+// receiver cap, since this-> in the desugared interface would otherwise
+// refer to the interface's own receiver instead of the enclosing class's
+// receiver. See #4168.
+static void replace_thistype_with_cap(ast_t* ast, token_id cap)
+{
+  if(ast == NULL)
+    return;
+
+  if(ast_id(ast) == TK_THISTYPE)
+  {
+    ast_setid(ast, cap);
+    return;
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+    replace_thistype_with_cap(child, cap);
+}
+
+
 static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 {
   pony_assert(astp != NULL);
   ast_t* ast = *astp;
   pony_assert(ast != NULL);
 
+  // Find the enclosing method's receiver cap before extracting children.
+  // When a lambda type contains this->, the user intends the enclosing
+  // method's receiver, not the desugared lambda interface's receiver.
+  // Replace this-> with the enclosing method's cap to preserve semantics.
+  // See #4168.
+  ast_t* method = ast;
+  while(method != NULL && ast_id(method) != TK_FUN &&
+    ast_id(method) != TK_NEW && ast_id(method) != TK_BE)
+  {
+    method = ast_parent(method);
+  }
+
   AST_EXTRACT_CHILDREN(ast, apply_cap, apply_name, apply_t_params, params,
     ret_type, error, interface_cap, ephemeral);
+
+  if(method != NULL)
+  {
+    token_id method_cap = ast_id(ast_child(method));
+
+    // Default receiver cap for fun is box, for be/new it varies.
+    if(method_cap == TK_NONE)
+      method_cap = TK_BOX;
+
+    replace_thistype_with_cap(params, method_cap);
+    replace_thistype_with_cap(ret_type, method_cap);
+  }
 
   bool bare = ast_id(ast) == TK_BARELAMBDATYPE;
 
