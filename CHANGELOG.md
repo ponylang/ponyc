@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add --shuffle option to PonyTest ([PR #5076](https://github.com/ponylang/ponyc/pull/5076))
 
 ### Changed
 
