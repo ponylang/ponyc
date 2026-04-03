@@ -25,14 +25,14 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Update CHANGELOG.md
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.4
         with:
           entrypoint: update-changelog-for-release
         env:
           GIT_USER_NAME: "Ponylang Main Bot"
           GIT_USER_EMAIL: "ponylang.main@gmail.com"
       - name: Update VERSION
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.4
         with:
           entrypoint: update-version-in-VERSION
         env:
@@ -54,7 +54,7 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Trigger artefact creation
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.4
         with:
           entrypoint: trigger-artefact-creation
         env:
@@ -79,7 +79,7 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Add "unreleased" section to CHANGELOG.md
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.4
         with:
           entrypoint: add-unreleased-section-to-changelog
         env:
