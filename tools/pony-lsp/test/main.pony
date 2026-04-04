@@ -21,8 +21,9 @@ actor Main is TestList
     test(_DidChangeConfigurationTest)
     test(_DidChangeConfigurationNullTest)
     _WorkspaceTests.make().tests(test)
-    _HoverTests.make().tests(test)
+    _HoverFormatterTests.make().tests(test)
     _DiagnosticTests.make().tests(test)
+    _HoverIntegrationTests.make().tests(test)
 
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"
