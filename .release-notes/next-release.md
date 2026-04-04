@@ -117,3 +117,31 @@ The return type is now `(A, I32)` instead of `(A, U32)`. If you destructure the 
 (let mantissa, let exp: I32) = my_float.frexp()
 ```
 
+## Fix asymmetric NaN handling in F32/F64 min and max
+
+`F32.min` and `F64.min` (and `max`) gave different results depending on which argument was NaN. `F32.nan().min(5.0)` returned `5.0`, but `F32(5.0).min(F32.nan())` returned `NaN`. The result of a min/max operation shouldn't depend on argument order.
+
+The root cause was the conditional implementation `if this < y then this else y end`. IEEE 754 comparisons involving NaN always return `false`, so the `else` branch fires whenever `this` is NaN but not when only `y` is NaN.
+
+## Use LLVM intrinsics for NaN-propagating float min and max
+
+Float `min` and `max` now use LLVM's `llvm.minimum` and `llvm.maximum` intrinsics instead of conditional comparisons. These implement IEEE 754-2019 semantics: if either operand is NaN, the result is NaN.
+
+This is a breaking change. Code that relied on `min`/`max` to silently discard a NaN operand will now get NaN back. That said, the old behavior was order-dependent and unreliable, so anyone depending on it was already getting inconsistent results.
+
+Before:
+
+```pony
+// Old behavior: result depended on argument order
+F32.nan().min(F32(5.0)) // => 5.0
+F32(5.0).min(F32.nan()) // => NaN
+```
+
+After:
+
+```pony
+// New behavior: NaN propagates regardless of position
+F32.nan().min(F32(5.0)) // => NaN
+F32(5.0).min(F32.nan()) // => NaN
+```
+

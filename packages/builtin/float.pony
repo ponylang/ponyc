@@ -56,6 +56,10 @@ use @asinh[F64](x: F64)
 use @atanh[F64](x: F64)
 use @"llvm.copysign.f32"[F32](x: F32, sign: F32)
 use @"llvm.copysign.f64"[F64](x: F64, sign: F64)
+use @"llvm.minimum.f32"[F32](x: F32, y: F32)
+use @"llvm.minimum.f64"[F64](x: F64, y: F64)
+use @"llvm.maximum.f32"[F32](x: F32, y: F32)
+use @"llvm.maximum.f64"[F64](x: F64, y: F64)
 use @frexp[F64](value: F64, exponent: Pointer[I32])
 use @ldexpf[F32](value: F32, exponent: I32)
 use @ldexp[F64](value: F64, exponent: I32)
@@ -147,8 +151,8 @@ primitive F32 is FloatingPoint[F32]
   fun round(): F32 => @"llvm.round.f32"(this)
   fun trunc(): F32 => @"llvm.trunc.f32"(this)
 
-  fun min(y: F32): F32 => if this < y then this else y end
-  fun max(y: F32): F32 => if this > y then this else y end
+  fun min(y: F32): F32 => @"llvm.minimum.f32"(this, y)
+  fun max(y: F32): F32 => @"llvm.maximum.f32"(this, y)
 
   fun fld(y: F32): F32 =>
     (this / y).floor()
@@ -364,8 +368,8 @@ primitive F64 is FloatingPoint[F64]
   fun round(): F64 => @"llvm.round.f64"(this)
   fun trunc(): F64 => @"llvm.trunc.f64"(this)
 
-  fun min(y: F64): F64 => if this < y then this else y end
-  fun max(y: F64): F64 => if this > y then this else y end
+  fun min(y: F64): F64 => @"llvm.minimum.f64"(this, y)
+  fun max(y: F64): F64 => @"llvm.maximum.f64"(this, y)
 
   fun fld(y: F64): F64 =>
     (this / y).floor()
