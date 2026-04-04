@@ -22,7 +22,33 @@ class ref _MaxLineVisitor is ast.ASTVisitor
     then
       return ast.Continue
     end
-    let l = node.line()
+    // Multi-line string literals (docstrings) can span multiple
+    // lines but node.line() only reports the opening """. Use
+    // end_pos() to get the actual end line so blank lines inside
+    // the docstring aren't miscounted as blank lines between
+    // members. Only do this for strings whose value contains a
+    // newline — single-line and empty strings use node.line()
+    // because end_pos() has a parsing bug with short strings.
+    let l =
+      if node.id() == ast.TokenIds.tk_string() then
+        let is_multiline =
+          match node.token_value()
+          | let s: String val => s.contains("\n")
+          else
+            false
+          end
+        if is_multiline then
+          match node.end_pos()
+          | let p: ast.Position => p.line()
+          else
+            node.line()
+          end
+        else
+          node.line()
+        end
+      else
+        node.line()
+      end
     if l > max_line then max_line = l end
     ast.Continue
 
