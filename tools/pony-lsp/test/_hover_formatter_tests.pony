@@ -1,7 +1,7 @@
 use "pony_test"
 use "../workspace"
 
-primitive _HoverTests is TestList
+primitive _HoverFormatterTests is TestList
   new make() =>
     None
 
@@ -33,7 +33,7 @@ primitive _HoverTests is TestList
 
 class \nodoc\ iso _HoverFormatEntityTest
   is UnitTest
-  fun name(): String => "hover/format_entity"
+  fun name(): String => "hover/formatter/entity"
 
   fun apply(h: TestHelper) =>
     let info = EntityInfo("class", "MyClass")
@@ -46,7 +46,7 @@ class \nodoc\ iso
   _HoverFormatEntityWithTypeParamsTest
   is UnitTest
   fun name(): String =>
-    "hover/format_entity_with_type_params"
+    "hover/formatter/entity_with_type_params"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -62,7 +62,7 @@ class \nodoc\ iso
   _HoverFormatEntityWithDocstringTest
   is UnitTest
   fun name(): String =>
-    "hover/format_entity_with_docstring"
+    "hover/formatter/entity_with_docstring"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -80,7 +80,7 @@ class \nodoc\ iso
 
 class \nodoc\ iso _HoverFormatMethodTest
   is UnitTest
-  fun name(): String => "hover/format_method"
+  fun name(): String => "hover/formatter/method"
 
   fun apply(h: TestHelper) =>
     let info = MethodInfo("fun", "my_method", "")
@@ -93,7 +93,7 @@ class \nodoc\ iso
   _HoverFormatMethodWithReturnTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_method_with_return_type"
+    "hover/formatter/method_with_return_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -115,7 +115,7 @@ class \nodoc\ iso
   _HoverFormatMethodWithDocstringTest
   is UnitTest
   fun name(): String =>
-    "hover/format_method_with_docstring"
+    "hover/formatter/method_with_docstring"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -137,7 +137,7 @@ class \nodoc\ iso
 
 class \nodoc\ iso _HoverFormatFieldTest
   is UnitTest
-  fun name(): String => "hover/format_field"
+  fun name(): String => "hover/formatter/field"
 
   fun apply(h: TestHelper) =>
     let info = FieldInfo("let", "name")
@@ -150,7 +150,7 @@ class \nodoc\ iso
   _HoverFormatFieldWithTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_field_with_type"
+    "hover/formatter/field_with_type"
 
   fun apply(h: TestHelper) =>
     let info = FieldInfo("var", "count", ": U32")
@@ -163,7 +163,7 @@ class \nodoc\ iso
   _HoverFormatMethodWithTypeParamsTest
   is UnitTest
   fun name(): String =>
-    "hover/format_method_with_type_params"
+    "hover/formatter/method_with_type_params"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -186,7 +186,7 @@ class \nodoc\ iso
   _HoverFormatEntityWithMultipleTypeParamsTest
   is UnitTest
   fun name(): String =>
-    "hover/format_entity_with_multiple_type_params"
+    "hover/formatter/entity_with_multiple_type_params"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -205,7 +205,7 @@ class \nodoc\ iso
   _HoverFormatFieldWithGenericTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_field_with_generic_type"
+    "hover/formatter/field_with_generic_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -224,7 +224,7 @@ class \nodoc\ iso
   _HoverFormatMethodWithArrowTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_method_with_arrow_type"
+    "hover/formatter/method_with_arrow_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -246,7 +246,7 @@ class \nodoc\ iso
   _HoverFormatFieldWithUnionTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_field_with_union_type"
+    "hover/formatter/field_with_union_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -266,7 +266,7 @@ class \nodoc\ iso
   _HoverFormatFieldWithTupleTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_field_with_tuple_type"
+    "hover/formatter/field_with_tuple_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -285,7 +285,7 @@ class \nodoc\ iso
   _HoverFormatMethodWithCompleteSignatureTest
   is UnitTest
   fun name(): String =>
-    "hover/format_method_with_complete_signature"
+    "hover/formatter/method_with_complete_signature"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -311,7 +311,7 @@ class \nodoc\ iso
   _HoverFormatEntityWithTypeParamsAndDocstringTest
   is UnitTest
   fun name(): String =>
-    "hover/format_entity_with_" +
+    "hover/formatter/entity_with_" +
     "type_params_and_docstring"
 
   fun apply(h: TestHelper) =>
@@ -333,7 +333,7 @@ class \nodoc\ iso
   _HoverFormatFieldWithNestedGenericTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_field_with_nested_generic_type"
+    "hover/formatter/field_with_nested_generic_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -351,7 +351,7 @@ class \nodoc\ iso
 
 class \nodoc\ iso _HoverFormatParameterTest
   is UnitTest
-  fun name(): String => "hover/format_parameter"
+  fun name(): String => "hover/formatter/parameter"
 
   fun apply(h: TestHelper) =>
     let info = FieldInfo("param", "value")
@@ -364,7 +364,7 @@ class \nodoc\ iso
   _HoverFormatParameterWithTypeTest
   is UnitTest
   fun name(): String =>
-    "hover/format_parameter_with_type"
+    "hover/formatter/parameter_with_type"
 
   fun apply(h: TestHelper) =>
     let info =
@@ -378,7 +378,7 @@ class \nodoc\ iso
   _HoverFormatMethodWithReceiverCapTest
   is UnitTest
   fun name(): String =>
-    "hover/format_method_with_receiver_cap"
+    "hover/formatter/method_with_receiver_cap"
 
   fun apply(h: TestHelper) =>
     let info =
