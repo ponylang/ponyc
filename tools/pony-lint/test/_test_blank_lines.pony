@@ -457,7 +457,26 @@ class \nodoc\ _TestMaxLineVisitor is ast.ASTVisitor
     then
       return ast.Continue
     end
-    let l = node.line()
+    let l =
+      if node.id() == ast.TokenIds.tk_string() then
+        let is_multiline =
+          match node.token_value()
+          | let s: String val => s.contains("\n")
+          else
+            false
+          end
+        if is_multiline then
+          match node.end_pos()
+          | let p: ast.Position => p.line()
+          else
+            node.line()
+          end
+        else
+          node.line()
+        end
+      else
+        node.line()
+      end
     if l > max_line then max_line = l end
     ast.Continue
 
@@ -503,6 +522,177 @@ class \nodoc\ _TestBlankLinesBetweenDocstringEntities is UnitTest
     let source: String val =
       "primitive Foo\n" +
       "  \"\"\"Foo docs.\"\"\"\n" +
+      "\n" +
+      "primitive Bar\n" +
+      "  \"\"\"Bar docs.\"\"\"\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let collector = _TestEntityCollector
+          mod.ast.visit(collector)
+          let entities = collector.entities()
+          let diags = lint.BlankLines.check_module(entities, sf)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesMultiLineDocMethodClean is UnitTest
+  """
+  Abstract method with multi-line docstring containing blank
+  lines, followed by another method with 1 blank line — should
+  be clean. Uses a trait so the docstring is the last descendant
+  (no body expression to extend past it). Regression test for
+  #5099.
+  """
+  fun name(): String =>
+    "BlankLines: multi-line doc method 1 blank is clean"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "trait Foo\n" +
+      "  fun foo(): None\n" +
+      "    \"\"\"\n" +
+      "    First paragraph.\n" +
+      "\n" +
+      "    Second paragraph.\n" +
+      "    \"\"\"\n" +
+      "\n" +
+      "  fun bar(): None => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesMultiLineDocMethodNoBlank is UnitTest
+  """
+  Abstract method with multi-line docstring containing blank
+  lines, followed by another method with 0 blank lines — should
+  be flagged. Verifies that end_pos() reports the correct end
+  line and doesn't overshoot. Regression test for #5099.
+  """
+  fun name(): String =>
+    "BlankLines: multi-line doc method 0 blanks flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "trait Foo\n" +
+      "  fun foo(): None\n" +
+      "    \"\"\"\n" +
+      "    First paragraph.\n" +
+      "\n" +
+      "    Second paragraph.\n" +
+      "    \"\"\"\n" +
+      "  fun bar(): None => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          h.assert_true(diags.size() > 0)
+          try
+            h.assert_true(
+              diags(0)?.message.contains("1 blank line"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesMultiLineDocFieldToMethod is UnitTest
+  """
+  Field with multi-line docstring containing blank lines,
+  followed by a method with 1 blank line — should be clean.
+  Regression test for #5099.
+  """
+  fun name(): String =>
+    "BlankLines: multi-line doc field->method 1 blank is clean"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  let x: U32 = 0\n" +
+      "    \"\"\"\n" +
+      "    First paragraph.\n" +
+      "\n" +
+      "    Second paragraph.\n" +
+      "    \"\"\"\n" +
+      "\n" +
+      "  fun apply(): U32 => x\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesMultiLineDocEntities is UnitTest
+  """
+  Entity with multi-line docstring containing blank lines,
+  followed by another entity with 1 blank line — should be
+  clean (between-entity check). Regression test for #5099.
+  """
+  fun name(): String =>
+    "BlankLines: multi-line doc entities 1 blank (AST pipeline)"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  \"\"\"\n" +
+      "  First paragraph.\n" +
+      "\n" +
+      "  Second paragraph.\n" +
+      "  \"\"\"\n" +
       "\n" +
       "primitive Bar\n" +
       "  \"\"\"Bar docs.\"\"\"\n"

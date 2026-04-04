@@ -274,6 +274,9 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesMultiLineMethodsOneBlank)
     test(_TestBlankLinesMultiLineMethodsNoBlank)
     test(_TestBlankLinesOneLineMethodsNoBlank)
+    test(_TestBlankLinesMultiLineDocMethodClean)
+    test(_TestBlankLinesMultiLineDocMethodNoBlank)
+    test(_TestBlankLinesMultiLineDocFieldToMethod)
 
     // BlankLines tests (between-entity)
     test(_TestBlankLinesBetweenEntitiesOneBlank)
@@ -281,6 +284,7 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesBetweenEntitiesTooMany)
     test(_TestBlankLinesOneLinerEntitiesNoBlank)
     test(_TestBlankLinesBetweenDocstringEntities)
+    test(_TestBlankLinesMultiLineDocEntities)
 
     // IndentationSize tests
     test(_TestIndentationSizeClean)

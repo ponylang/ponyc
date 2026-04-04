@@ -179,7 +179,9 @@ trait tag LspCompiler
   be apply_settings(settings: (Settings | None))
     """
     Provide settings to initialize or reconfigure the
-    compiler. `None` can be provided when no new
+    compiler.
+
+    `None` can be provided when no new
     settings should be applied, but the initialization
     step should be completed.
     """

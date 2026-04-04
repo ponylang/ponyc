@@ -22,8 +22,10 @@ class val Settings
     """
     Additional ponypath entries, that will be added
     to the entries that pony-lsp adds on its own:
-    the stdlib path and path list extracted from the
-    `PONYPATH` environment variable.
+
+    1. the stdlib path
+    2. path list extracted from the `PONYPATH`
+       environment variable
     """
 
   new val from_json(data: JsonObject) =>
