@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix memory leak in Windows networking subsystem ([PR #5096](https://github.com/ponylang/ponyc/pull/5096))
 - Fix spurious error when assigning to a field on an `as` cast in a try block ([PR #5070](https://github.com/ponylang/ponyc/pull/5070))
 - Fix segfault when using Generator.map with PonyCheck shrinking ([PR #5006](https://github.com/ponylang/ponyc/pull/5006))
+- Fix pony-lint blank-lines rule false positives on multi-line docstrings ([PR #5109](https://github.com/ponylang/ponyc/pull/5109))
 
 ### Added
 
