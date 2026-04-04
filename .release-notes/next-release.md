@@ -103,3 +103,17 @@ Shuffle applies to all scheduling modes. For CI environments that run tests sequ
 
 The `style/blank-lines` rule incorrectly counted blank lines inside multi-line docstrings as blank lines between members. A method or field whose docstring contained blank lines (e.g., between paragraphs) would be flagged for having too many blank lines before the next member. The rule now correctly identifies where a docstring ends rather than using only its start line.
 
+## Fix `FloatingPoint.frexp` returning unsigned exponent
+
+`FloatingPoint.frexp` (and its implementations on `F32` and `F64`) returned the exponent as `U32` when C's `frexp` writes a signed `int`. Negative exponents were silently reinterpreted as large positive values.
+
+The return type is now `(A, I32)` instead of `(A, U32)`. If you destructure the result and type the exponent, update it:
+
+```pony
+// Before
+(let mantissa, let exp: U32) = my_float.frexp()
+
+// After
+(let mantissa, let exp: I32) = my_float.frexp()
+```
+

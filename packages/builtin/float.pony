@@ -56,7 +56,7 @@ use @asinh[F64](x: F64)
 use @atanh[F64](x: F64)
 use @"llvm.copysign.f32"[F32](x: F32, sign: F32)
 use @"llvm.copysign.f64"[F64](x: F64, sign: F64)
-use @frexp[F64](value: F64, exponent: Pointer[U32])
+use @frexp[F64](value: F64, exponent: Pointer[I32])
 use @ldexpf[F32](value: F32, exponent: I32)
 use @ldexp[F64](value: F64, exponent: I32)
 
@@ -202,8 +202,8 @@ primitive F32 is FloatingPoint[F32]
   fun ldexp(x: F32, exponent: I32): F32 =>
     @ldexpf(x, exponent)
 
-  fun frexp(): (F32, U32) =>
-    var exponent: U32 = 0
+  fun frexp(): (F32, I32) =>
+    var exponent: I32 = 0
     var mantissa = @frexp(f64(), addressof exponent)
     (mantissa.f32(), exponent)
 
@@ -419,8 +419,8 @@ primitive F64 is FloatingPoint[F64]
   fun ldexp(x: F64, exponent: I32): F64 =>
     @ldexp(x, exponent)
 
-  fun frexp(): (F64, U32) =>
-    var exponent: U32 = 0
+  fun frexp(): (F64, I32) =>
+    var exponent: I32 = 0
     var mantissa = @frexp(this, addressof exponent)
     (mantissa, exponent)
 
