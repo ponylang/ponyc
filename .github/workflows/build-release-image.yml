@@ -228,7 +228,7 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Trigger
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.4
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.5
         with:
           entrypoint: trigger-release-announcement
         env:
