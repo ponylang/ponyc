@@ -32,7 +32,6 @@ class \nodoc\ iso _HoverWorkspaceLiteralsTest is UnitTest
   fun name(): String => "hover/integration/literals"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_literals.pony",
@@ -66,7 +65,6 @@ class \nodoc\ iso _HoverWorkspaceClassTest is UnitTest
   fun name(): String => "hover/integration/class"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_class.pony",
@@ -96,7 +94,6 @@ class \nodoc\ iso _HoverWorkspaceActorTest is UnitTest
   fun name(): String => "hover/integration/actor"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_actor.pony",
@@ -113,7 +110,6 @@ class \nodoc\ iso _HoverWorkspaceAliasTest is UnitTest
   fun name(): String => "hover/integration/alias"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_alias.pony",
@@ -128,7 +124,6 @@ class \nodoc\ iso _HoverWorkspaceInterfaceTest is UnitTest
   fun name(): String => "hover/integration/interface"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_interface.pony",
@@ -145,7 +140,6 @@ class \nodoc\ iso _HoverWorkspacePrimitiveTest is UnitTest
   fun name(): String => "hover/integration/primitive"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_primitive.pony",
@@ -162,7 +156,6 @@ class \nodoc\ iso _HoverWorkspaceTraitTest is UnitTest
   fun name(): String => "hover/integration/trait"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_trait.pony",
@@ -177,7 +170,6 @@ class \nodoc\ iso _HoverWorkspaceFunctionTest is UnitTest
   fun name(): String => "hover/integration/function"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_function.pony",
@@ -221,7 +213,6 @@ class \nodoc\ iso _HoverWorkspaceTypeInferenceTest is UnitTest
   fun name(): String => "hover/integration/type_inference"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_type_inference.pony",
@@ -241,7 +232,6 @@ class \nodoc\ iso _HoverWorkspaceReceiverCapabilityTest is UnitTest
   fun name(): String => "hover/integration/receiver_capability"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_receiver_capability.pony",
@@ -258,7 +248,6 @@ class \nodoc\ iso _HoverWorkspaceComplexTypesTest is UnitTest
   fun name(): String => "hover/integration/complex_types"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_complex_types.pony",
@@ -276,7 +265,6 @@ class \nodoc\ iso _HoverWorkspaceGenericsTest is UnitTest
   fun name(): String => "hover/integration/generics"
 
   fun apply(h: TestHelper) =>
-    h.long_test(10_000_000_000)
     _server.hover(
       h,
       "hover/_generics.pony",
@@ -413,6 +401,7 @@ actor _HoverWorkspaceServer is Channel
     workspace_file: String,
     checks: Array[HoverCheck] val)
   =>
+    h.long_test(10_000_000_000)
     let file_path = Path.join(_workspace_dir, workspace_file)
     for (line, character, expected) in checks.values() do
       let action: String val =
