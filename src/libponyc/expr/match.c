@@ -578,6 +578,9 @@ static bool capture_needs_ephemeral(ast_t* type)
 }
 
 // Check if a type has any ephemeral component.
+// For unions/intersections, "any" is correct: a match capture binds a
+// single member, so it's sound if the matched member is ephemeral.
+// Tuples are handled position-by-position in check_capture_soundness.
 static bool type_is_ephemeral(ast_t* type)
 {
   switch(ast_id(type))
@@ -659,10 +662,28 @@ static bool check_capture_soundness(pass_opt_t* opt, ast_t* pattern,
     }
 
     case TK_TUPLE:
-      // Deferred: tuple patterns need position-aware checking.
-      // The existing is_matchtype_with_consumed_pattern check already
-      // catches direct iso in tuple positions.
-      return true;
+    {
+      if(ast_id(match_type) != TK_TUPLETYPE)
+        return true;
+
+      ast_t* pattern_child = ast_child(pattern);
+      ast_t* type_child = ast_child(match_type);
+      bool ok = true;
+
+      while((pattern_child != NULL) && (type_child != NULL))
+      {
+        if(!check_capture_soundness(opt, pattern_child,
+          type_child, match_expr))
+        {
+          ok = false;
+        }
+
+        pattern_child = ast_sibling(pattern_child);
+        type_child = ast_sibling(type_child);
+      }
+
+      return ok;
+    }
 
     default:
       return true;
