@@ -35,7 +35,17 @@ class \nodoc\ iso _HoverWorkspaceClassTest is UnitTest
     _server.hover(
       h,
       "hover/_class.pony",
-      [(0, 6, ["class _Class"; "A simple class for exercising LSP hover."])])
+      [ (0, 6, ["class _Class"; "A simple class for exercising LSP hover."])
+        (4, 6, ["let field_name: String val"])
+        (5, 6, ["var mutable_field: U32 val"])
+        (6, 8, ["embed embedded_field: Array[String val] ref"])
+        (9, 4, ["let field_name: String val"])
+        (10, 4, ["var mutable_field: U32 val"])
+        (16, 4, ["let field_name: String val"])
+        (28, 4, ["var mutable_field: U32 val"])
+        (1, 2, [])
+        (2, 4, [])
+        (7, 0, [])])
 
 class \nodoc\ iso _HoverWorkspaceActorTest is UnitTest
   let _server: _HoverWorkspaceServer
@@ -144,7 +154,15 @@ class \nodoc\ iso _HoverWorkspaceFunctionTest is UnitTest
             "(x: U32 val, y: String val, flag: Bool val): String val"
             "Method with multiple parameters for testing."])
         (11, 8, ["let result1: String val"])
-        (12, 8, ["let result2: String val"])])
+        (12, 8, ["let result2: String val"])
+        // parameter declarations
+        (15, 20, ["input: String val"])
+        (21, 34, ["x: U32 val"])
+        (21, 42, ["y: String val"])
+        (21, 53, ["flag: Bool val"])
+        // parameter usages
+        (19, 4, ["input: String val"])
+        (25, 4, ["y: String val"])])
 
 class \nodoc\ iso _HoverWorkspaceTypeInferenceTest is UnitTest
   let _server: _HoverWorkspaceServer
@@ -159,12 +177,12 @@ class \nodoc\ iso _HoverWorkspaceTypeInferenceTest is UnitTest
     _server.hover(
       h,
       "hover/_type_inference.pony",
-      [ (19, 8, ["let inferred_string: String val"])
-        (22, 8, ["let inferred_bool: Bool"])
-        (25, 8, ["let inferred_array: Array[U32 val] ref"])
-        (27, 4, ["let inferred_string: String val"])
-        (27, 22, ["let inferred_bool: Bool"])
-        (27, 47, ["let inferred_array: Array[U32 val] ref"])])
+      [ (18, 8, ["let inferred_string: String val"])
+        (21, 8, ["let inferred_bool: Bool"])
+        (24, 8, ["let inferred_array: Array[U32 val] ref"])
+        (26, 4, ["let inferred_string: String val"])
+        (26, 22, ["let inferred_bool: Bool"])
+        (26, 47, ["let inferred_array: Array[U32 val] ref"])])
 
 class \nodoc\ iso _HoverWorkspaceReceiverCapabilityTest is UnitTest
   let _server: _HoverWorkspaceServer
@@ -412,21 +430,30 @@ actor _HoverWorkspaceServer is Channel
             let id_i64 = id as I64
             (_, let pending) = _in_flight.remove(id_i64)?
             var ok = true
-            try
-              let value =
+            if pending.expected.size() == 0 then
+              try
                 JsonNav(res.result)("contents")("value").as_string()?
-              for s in pending.expected.values() do
-                if not pending.h.assert_true(
-                  value.contains(s),
-                  "Expected '" + s + "' in hover, got: " + value)
-                then
-                  ok = false
-                end
+                ok = false
+                pending.h.log(
+                  "Expected no hover result but got: " + res.string())
               end
             else
-              ok = false
-              pending.h.log(
-                "Could not parse hover response: " + res.string())
+              try
+                let value =
+                  JsonNav(res.result)("contents")("value").as_string()?
+                for s in pending.expected.values() do
+                  if not pending.h.assert_true(
+                    value.contains(s),
+                    "Expected '" + s + "' in hover, got: " + value)
+                  then
+                    ok = false
+                  end
+                end
+              else
+                ok = false
+                pending.h.log(
+                  "Could not parse hover response: " + res.string())
+              end
             end
             if ok then
               pending.h.complete_action(pending.action)
