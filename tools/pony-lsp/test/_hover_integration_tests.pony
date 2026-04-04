@@ -9,24 +9,24 @@ primitive _HoverIntegrationTests is TestList
 
   fun tag tests(test: PonyTest) =>
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
-    let server = _HoverWorkspaceServer(workspace_dir)
-    test(_HoverWorkspaceClassTest.create(server))
-    test(_HoverWorkspaceActorTest.create(server))
-    test(_HoverWorkspaceAliasTest.create(server))
-    test(_HoverWorkspaceInterfaceTest.create(server))
-    test(_HoverWorkspacePrimitiveTest.create(server))
-    test(_HoverWorkspaceTraitTest.create(server))
-    test(_HoverWorkspaceTypeInferenceTest.create(server))
-    test(_HoverWorkspaceReceiverCapabilityTest.create(server))
-    test(_HoverWorkspaceComplexTypesTest.create(server))
-    test(_HoverWorkspaceFunctionTest.create(server))
-    test(_HoverWorkspaceGenericsTest.create(server))
-    test(_HoverWorkspaceLiteralsTest.create(server))
+    let server = _HoverLspServer(workspace_dir)
+    test(_HoverIntegrationClassTest.create(server))
+    test(_HoverIntegrationActorTest.create(server))
+    test(_HoverIntegrationAliasTest.create(server))
+    test(_HoverIntegrationInterfaceTest.create(server))
+    test(_HoverIntegrationPrimitiveTest.create(server))
+    test(_HoverIntegrationTraitTest.create(server))
+    test(_HoverIntegrationTypeInferenceTest.create(server))
+    test(_HoverIntegrationReceiverCapabilityTest.create(server))
+    test(_HoverIntegrationComplexTypesTest.create(server))
+    test(_HoverIntegrationFunctionTest.create(server))
+    test(_HoverIntegrationGenericsTest.create(server))
+    test(_HoverIntegrationLiteralsTest.create(server))
 
-class \nodoc\ iso _HoverWorkspaceLiteralsTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/literals"
@@ -56,10 +56,10 @@ class \nodoc\ iso _HoverWorkspaceLiteralsTest is UnitTest
         (18, 27, [])
         (19, 33, [])])
 
-class \nodoc\ iso _HoverWorkspaceClassTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/class"
@@ -85,10 +85,10 @@ class \nodoc\ iso _HoverWorkspaceClassTest is UnitTest
         (2, 4, [])
         (7, 0, [])])
 
-class \nodoc\ iso _HoverWorkspaceActorTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/actor"
@@ -101,10 +101,10 @@ class \nodoc\ iso _HoverWorkspaceActorTest is UnitTest
         (6, 6, ["new tag create(name': String val)"])
         (9, 5, ["be tag do_something(value: U64 val)"])])
 
-class \nodoc\ iso _HoverWorkspaceAliasTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/alias"
@@ -115,10 +115,10 @@ class \nodoc\ iso _HoverWorkspaceAliasTest is UnitTest
       "hover/_alias.pony",
       [(0, 5, ["type _Alias"; "A simple alias for exercising LSP hover."])])
 
-class \nodoc\ iso _HoverWorkspaceInterfaceTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/interface"
@@ -131,10 +131,10 @@ class \nodoc\ iso _HoverWorkspaceInterfaceTest is UnitTest
         [ "interface _Interface"
           "A simple interface for exercising LSP hover."])])
 
-class \nodoc\ iso _HoverWorkspacePrimitiveTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/primitive"
@@ -147,10 +147,10 @@ class \nodoc\ iso _HoverWorkspacePrimitiveTest is UnitTest
         [ "primitive _Primitive"
           "A simple primitive for exercising LSP hover."])])
 
-class \nodoc\ iso _HoverWorkspaceTraitTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/trait"
@@ -161,10 +161,10 @@ class \nodoc\ iso _HoverWorkspaceTraitTest is UnitTest
       "hover/_trait.pony",
       [(0, 6, ["trait _Trait"; "A simple trait for exercising LSP hover."])])
 
-class \nodoc\ iso _HoverWorkspaceFunctionTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/function"
@@ -204,10 +204,10 @@ class \nodoc\ iso _HoverWorkspaceFunctionTest is UnitTest
         // this reference
         (11, 18, [])])
 
-class \nodoc\ iso _HoverWorkspaceTypeInferenceTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/type_inference"
@@ -223,10 +223,10 @@ class \nodoc\ iso _HoverWorkspaceTypeInferenceTest is UnitTest
         (26, 22, ["let inferred_bool: Bool"])
         (26, 47, ["let inferred_array: Array[U32 val] ref"])])
 
-class \nodoc\ iso _HoverWorkspaceReceiverCapabilityTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/receiver_capability"
@@ -239,10 +239,10 @@ class \nodoc\ iso _HoverWorkspaceReceiverCapabilityTest is UnitTest
         (13, 10, ["fun val valued_method(): String val"])
         (20, 10, ["fun ref mutable_method()"])])
 
-class \nodoc\ iso _HoverWorkspaceComplexTypesTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/complex_types"
@@ -256,10 +256,10 @@ class \nodoc\ iso _HoverWorkspaceComplexTypesTest is UnitTest
         (13, 4, ["let union_type: (String val | U32 val | None val)"])
         (13, 26, ["let tuple_type: (String val, U32 val, Bool val)"])])
 
-class \nodoc\ iso _HoverWorkspaceGenericsTest is UnitTest
-  let _server: _HoverWorkspaceServer
+class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
+  let _server: _HoverLspServer
 
-  new iso create(server: _HoverWorkspaceServer) =>
+  new iso create(server: _HoverLspServer) =>
     _server = server
 
   fun name(): String => "hover/integration/generics"
@@ -371,7 +371,7 @@ class val _PendingHover
     h = h'
     action = action'
 
-actor _HoverWorkspaceServer is Channel
+actor _HoverLspServer is Channel
   """
   Shared LSP server for all hover workspace tests.
   Initializes and compiles once, then dispatches
