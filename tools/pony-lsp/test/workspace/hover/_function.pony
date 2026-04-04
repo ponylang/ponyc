@@ -24,3 +24,9 @@ class _Function
     Method with multiple parameters for testing.
     """
     y
+
+  fun ref mutable_method(value: U32) =>
+    """
+    A method with a ref receiver capability.
+    """
+    None
