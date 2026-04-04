@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix segfault when using Generator.map with PonyCheck shrinking ([PR #5006](https://github.com/ponylang/ponyc/pull/5006))
 - Fix pony-lint blank-lines rule false positives on multi-line docstrings ([PR #5109](https://github.com/ponylang/ponyc/pull/5109))
 - Fix `FloatingPoint.frexp` returning unsigned exponent ([PR #5113](https://github.com/ponylang/ponyc/pull/5113))
+- Fix asymmetric NaN handling in F32/F64 min and max ([PR #5114](https://github.com/ponylang/ponyc/pull/5114))
 
 ### Added
 
@@ -23,6 +24,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Remove support for Alpine 3.20 ([PR #5094](https://github.com/ponylang/ponyc/pull/5094))
 - Remove docgen pass ([PR #5097](https://github.com/ponylang/ponyc/pull/5097))
 - Change `FloatingPoint.frexp` exponent return type from `U32` to `I32` ([PR #5113](https://github.com/ponylang/ponyc/pull/5113))
+- Use LLVM intrinsics for NaN-propagating float min and max ([PR #5114](https://github.com/ponylang/ponyc/pull/5114))
 
 ## [0.62.1] - 2026-03-28
 
