@@ -91,6 +91,23 @@ actor LanguageServer is (Notifier & RequestSender)
       this._channel.log(
         "\n\n<-\n" + r.json().string())
       match \exhaustive\ r.method
+      | Methods.text_document().document_highlight() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri)
+            as WorkspaceManager).document_highlight(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")
+            )
+          )
+        end
       | Methods.text_document().definition() =>
         try
           let document_uri =
@@ -452,6 +469,7 @@ actor LanguageServer is (Notifier & RequestSender)
             .update(
               "capabilities",
               JsonObject
+                .update("documentHighlightProvider", true)
                 .update(
                   "hoverProvider", true)
                 .update(
