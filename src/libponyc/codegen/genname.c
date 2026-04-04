@@ -204,6 +204,11 @@ const char* genname_unbox(const char* name)
   return stringtab_two(name, "Unbox");
 }
 
+const char* genname_error_wrap(const char* name)
+{
+  return stringtab_two(name, "ErrWrap");
+}
+
 const char* genname_unsafe(const char* name)
 {
   return stringtab_two(name, "unsafe");
