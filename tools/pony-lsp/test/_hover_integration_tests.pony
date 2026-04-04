@@ -21,6 +21,41 @@ primitive _HoverIntegrationTests is TestList
     test(_HoverWorkspaceComplexTypesTest.create(server))
     test(_HoverWorkspaceFunctionTest.create(server))
     test(_HoverWorkspaceGenericsTest.create(server))
+    test(_HoverWorkspaceLiteralsTest.create(server))
+
+class \nodoc\ iso _HoverWorkspaceLiteralsTest is UnitTest
+  let _server: _HoverWorkspaceServer
+
+  new iso create(server: _HoverWorkspaceServer) =>
+    _server = server
+
+  fun name(): String => "hover/integration/literals"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(10_000_000_000)
+    _server.hover(
+      h,
+      "hover/_literals.pony",
+      [ // variable declarations show their types
+        (11, 8, ["let integer: U32 val"])
+        (12, 8, ["let hex: U32 val"])
+        (13, 8, ["let binary: U32 val"])
+        (14, 8, ["let float_val: F64 val"])
+        (15, 8, ["let string_val: String val"])
+        (16, 8, ["let char_val: U32 val"])
+        (17, 8, ["let bool_true: Bool val"])
+        (18, 8, ["let bool_false: Bool val"])
+        (19, 8, ["let array_val: Array[U32 val] ref"])
+        // no hover on literal values
+        (11, 23, [])
+        (12, 19, [])
+        (13, 22, [])
+        (14, 25, [])
+        (15, 29, [])
+        (16, 24, [])
+        (17, 26, [])
+        (18, 27, [])
+        (19, 33, [])])
 
 class \nodoc\ iso _HoverWorkspaceClassTest is UnitTest
   let _server: _HoverWorkspaceServer
@@ -36,13 +71,18 @@ class \nodoc\ iso _HoverWorkspaceClassTest is UnitTest
       h,
       "hover/_class.pony",
       [ (0, 6, ["class _Class"; "A simple class for exercising LSP hover."])
+        // field declarations
         (4, 6, ["let field_name: String val"])
         (5, 6, ["var mutable_field: U32 val"])
         (6, 8, ["embed embedded_field: Array[String val] ref"])
+        // constructor declaration
+        (8, 6, ["new ref create(name: String val)"])
+        // field usages
         (9, 4, ["let field_name: String val"])
         (10, 4, ["var mutable_field: U32 val"])
         (16, 4, ["let field_name: String val"])
         (28, 4, ["var mutable_field: U32 val"])
+        // no hover on docstring or blank line
         (1, 2, [])
         (2, 4, [])
         (7, 0, [])])
@@ -60,7 +100,9 @@ class \nodoc\ iso _HoverWorkspaceActorTest is UnitTest
     _server.hover(
       h,
       "hover/_actor.pony",
-      [(0, 6, ["actor _Actor"; "A simple actor for exercising LSP hover."])])
+      [ (0, 6, ["actor _Actor"; "A simple actor for exercising LSP hover."])
+        (6, 6, ["new tag create(name': String val)"])
+        (9, 5, ["be tag do_something(value: U64 val)"])])
 
 class \nodoc\ iso _HoverWorkspaceAliasTest is UnitTest
   let _server: _HoverWorkspaceServer
@@ -162,7 +204,13 @@ class \nodoc\ iso _HoverWorkspaceFunctionTest is UnitTest
         (21, 53, ["flag: Bool val"])
         // parameter usages
         (19, 4, ["input: String val"])
-        (25, 4, ["y: String val"])])
+        (25, 4, ["y: String val"])
+        // ref receiver method
+        (27, 10,
+        [ "fun ref mutable_method(value: U32 val)"
+          "A method with a ref receiver capability."])
+        // this reference
+        (11, 18, [])])
 
 class \nodoc\ iso _HoverWorkspaceTypeInferenceTest is UnitTest
   let _server: _HoverWorkspaceServer
@@ -451,8 +499,17 @@ actor _HoverWorkspaceServer is Channel
                 end
               else
                 ok = false
+                var expected_str =
+                  recover val
+                    let s = String
+                    for e in pending.expected.values() do
+                      if s.size() > 0 then s.append(", ") end
+                      s.append("'"); s.append(e); s.append("'")
+                    end
+                    s
+                  end
                 pending.h.log(
-                  "Could not parse hover response: " + res.string())
+                  "Hover returned null, expected: " + expected_str)
               end
             end
             if ok then
