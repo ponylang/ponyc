@@ -1571,3 +1571,58 @@ TEST_F(BadPonyTest, MatchAliasedViewpointCapture)
   // Soundness check is in the expr pass; stop before codegen.
   DO(test_compile(src, "expr"));
 }
+
+TEST_F(BadPonyTest, MatchTupleViewpointIsoCaptureWithoutConsume)
+{
+  // Joe's review comment on PR #4975:
+  // Viewpoint-adapted iso captures in tuple patterns bypass BOTH the old
+  // is_matchtype_with_consumed_pattern check AND the new
+  // check_capture_soundness (which punts on TK_TUPLE).
+  // This compiles but is unsound — it allows creating iso refs to fields
+  // without consuming them. Crashes at codegen with assertion failure.
+  //
+  // TODO: This test documents a known gap. It should be changed to
+  // TEST_ERRORS_1(src, "this capture is unsound") once tuple pattern
+  // checking is implemented.
+  const char* src =
+    "class Foo\n"
+    "  var data: U64 = 0\n"
+
+    "class Holder\n"
+    "  let a: Foo iso = Foo\n"
+    "  let b: Foo iso = Foo\n"
+
+    "  fun box bad() =>\n"
+    "    match (a, b)\n"
+    "    | (let x: this->Foo iso, let y: this->Foo iso) => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // This SHOULD fail with "this capture is unsound" but currently doesn't.
+  // Stopping at expr pass to avoid the codegen assertion failure.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchUnionGenericIsoCaptureWithoutConsume)
+{
+  // Joe's review comment on PR #4975:
+  // Generic iso capture from a non-ephemeral union is correctly rejected
+  // by the new check_capture_soundness check.
+  const char* src =
+    "class Holder[T: Any #any]\n"
+    "  var _a: (T | None) = None\n"
+
+    "  fun box get(): (this->T | None) =>\n"
+    "    match _a\n"
+    "    | let t: this->T => t\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
