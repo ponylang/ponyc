@@ -1,4 +1,3 @@
-
 class _TypeInference
   """
   Demonstrates that type inference works in hover.
