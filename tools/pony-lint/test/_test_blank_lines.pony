@@ -716,3 +716,190 @@ class \nodoc\ _TestBlankLinesMultiLineDocEntities is UnitTest
     else
       h.fail("compilation failed")
     end
+
+class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesClean is UnitTest
+  """
+  Entity with docstring that starts with a blank line after the
+  opening \"\"\", followed by another entity with 1 blank line —
+  should be clean (between-entity check). Regression test for
+  #5120.
+  """
+  fun name(): String =>
+    "BlankLines: leading-blank doc entities 1 blank (AST pipeline)"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  \"\"\"\n" +
+      "\n" +
+      "  Returned by a request interceptor.\n" +
+      "  \"\"\"\n" +
+      "\n" +
+      "class ref Bar\n" +
+      "  fun apply(): None => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let collector = _TestEntityCollector
+          mod.ast.visit(collector)
+          let entities = collector.entities()
+          // Verify Foo's end_line covers the closing """
+          try
+            (_, _, let foo_start, let foo_end) = entities(0)?
+            h.assert_eq[USize](1, foo_start)
+            h.assert_eq[USize](
+              5,
+              foo_end,
+              "Foo end_line should be line 5 (closing \"\"\")")
+          else
+            h.fail("could not access Foo entity")
+          end
+          let diags = lint.BlankLines.check_module(entities, sf)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesNoBlank is UnitTest
+  """
+  Entity with docstring that starts with a blank line after the
+  opening \"\"\", followed by another entity with 0 blank lines —
+  should be flagged. Verifies the leading blank line inside the
+  docstring is not mistakenly counted as a blank line between
+  entities. Regression test for #5120.
+  """
+  fun name(): String =>
+    "BlankLines: leading-blank doc entities 0 blanks flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  \"\"\"\n" +
+      "\n" +
+      "  Returned by a request interceptor.\n" +
+      "  \"\"\"\n" +
+      "class ref Bar\n" +
+      "  fun apply(): None => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let collector = _TestEntityCollector
+          mod.ast.visit(collector)
+          let entities = collector.entities()
+          let diags = lint.BlankLines.check_module(entities, sf)
+          h.assert_eq[USize](1, diags.size())
+          try
+            h.assert_true(
+              diags(0)?.message.contains("between entities"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesLeadingBlankDocMethodClean is UnitTest
+  """
+  Abstract method with docstring that starts with a blank line
+  after the opening \"\"\", followed by another method with
+  1 blank line — should be clean (within-entity check).
+  Regression test for #5120.
+  """
+  fun name(): String =>
+    "BlankLines: leading-blank doc method 1 blank is clean"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "trait Foo\n" +
+      "  fun foo(): None\n" +
+      "    \"\"\"\n" +
+      "\n" +
+      "    Foo docs.\n" +
+      "    \"\"\"\n" +
+      "\n" +
+      "  fun bar(): None => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestBlankLinesLeadingBlankDocMethodNoBlank is UnitTest
+  """
+  Abstract method with docstring that starts with a blank line
+  after the opening \"\"\", followed by another method with
+  0 blank lines — should be flagged. Regression test for #5120.
+  """
+  fun name(): String =>
+    "BlankLines: leading-blank doc method 0 blanks flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "trait Foo\n" +
+      "  fun foo(): None\n" +
+      "    \"\"\"\n" +
+      "\n" +
+      "    Foo docs.\n" +
+      "    \"\"\"\n" +
+      "  fun bar(): None => None\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          h.assert_true(diags.size() > 0)
+          try
+            h.assert_true(
+              diags(0)?.message.contains("1 blank line"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end

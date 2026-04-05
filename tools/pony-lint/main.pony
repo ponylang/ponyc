@@ -88,6 +88,7 @@ actor Main
         .> push(DotSpacing)
         .> push(BlankLines)
         .> push(DocstringFormat)
+        .> push(DocstringLeadingBlank)
         .> push(PackageDocstring)
         .> push(PreferChaining)
         .> push(OperatorSpacing)

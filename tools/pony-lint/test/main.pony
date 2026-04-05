@@ -285,6 +285,10 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesOneLinerEntitiesNoBlank)
     test(_TestBlankLinesBetweenDocstringEntities)
     test(_TestBlankLinesMultiLineDocEntities)
+    test(_TestBlankLinesLeadingBlankDocEntitiesClean)
+    test(_TestBlankLinesLeadingBlankDocEntitiesNoBlank)
+    test(_TestBlankLinesLeadingBlankDocMethodClean)
+    test(_TestBlankLinesLeadingBlankDocMethodNoBlank)
 
     // IndentationSize tests
     test(_TestIndentationSizeClean)
@@ -303,6 +307,16 @@ actor \nodoc\ Main is TestList
     test(_TestDocstringFormatNoDocstring)
     test(_TestDocstringFormatNodocEntityExempt)
     test(_TestDocstringFormatNodocEntityMethodExempt)
+
+    // DocstringLeadingBlank tests
+    test(_TestDocLeadingBlankEntityFlagged)
+    test(_TestDocLeadingBlankEntityClean)
+    test(_TestDocLeadingBlankMethodFlagged)
+    test(_TestDocLeadingBlankMethodClean)
+    test(_TestDocLeadingBlankAbstractMethodFlagged)
+    test(_TestDocLeadingBlankSingleLineClean)
+    test(_TestDocLeadingBlankNodocEntityExempt)
+    test(_TestDocLeadingBlankNodocEntityMethodExempt)
 
     // PackageDocstring tests
     test(_TestPackageDocstringClean)
