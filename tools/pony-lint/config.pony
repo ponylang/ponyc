@@ -40,6 +40,54 @@ class val LintConfig
     _cli_disabled = recover val Set[String] end
     _file_rules = recover val Map[String, RuleStatus] end
 
+  new val merge(parent: LintConfig, child_rules: Map[String, RuleStatus] val)
+  =>
+    """
+    Create a config that layers child overrides on top of a parent config.
+    CLI-disabled rules carry forward from the parent unchanged.
+
+    Category-cleaning: when the child has a category entry (key with no `/`),
+    all parent rule-specific entries in that category are removed before
+    layering. This ensures a child's `"style": "off"` overrides a parent's
+    `"style/line-length": "on"`.
+
+    A child config with both `"style": "off"` and `"style/line-length": "on"`
+    results in `style/line-length` being on and all other style rules off,
+    because `rule_status()` checks rule-specific before category.
+
+    Rule-specific child entries do NOT remove parent category entries.
+    """
+    _cli_disabled = parent._cli_disabled
+    _file_rules =
+      recover val
+        let merged = Map[String, RuleStatus]
+        // Copy parent entries
+        for (k, v) in parent._file_rules.pairs() do
+          merged(k) = v
+        end
+        // Category cleaning: for each category key in child,
+        // remove parent rule-specific entries in that category
+        for child_key in child_rules.keys() do
+          if not child_key.contains("/") then
+            let prefix: String val = child_key + "/"
+            let to_remove = Array[String val]
+            for k in merged.keys() do
+              if k.at(prefix) then
+                to_remove.push(k)
+              end
+            end
+            for k in to_remove.values() do
+              try merged.remove(k)? end
+            end
+          end
+        end
+        // Layer child entries on top
+        for (k, v) in child_rules.pairs() do
+          merged(k) = v
+        end
+        merged
+      end
+
   fun rule_status(
     rule_id: String,
     category: String,
@@ -68,16 +116,21 @@ class val LintConfig
 primitive ConfigLoader
   """
   Loads lint configuration from CLI arguments and/or a `.pony-lint.json` file.
+
+  `parse_file` is public so that subdirectory configs can be parsed during the
+  file-discovery walk (see `_FileCollector._load_config`).
   """
   fun from_cli(
     cli_disabled: Array[String] val,
     config_path: (String | None),
     file_auth: FileAuth)
-    : (LintConfig | ConfigError)
+    : ((LintConfig, String val) | ConfigError)
   =>
     """
     Build a `LintConfig` from CLI disable flags and an optional config file.
-    If `config_path` is None, auto-discovers the config file.
+    If `config_path` is None, auto-discovers the config file. Returns the
+    config and the hierarchy root directory (used by `ConfigResolver` to
+    anchor subdirectory config walks).
     """
     let disabled =
       recover val
@@ -87,41 +140,46 @@ primitive ConfigLoader
         end
         s
       end
-    let file_rules =
-      match \exhaustive\ config_path
-      | let path: String =>
-        let fp = FilePath(file_auth, path)
-        if not fp.exists() then
-          return ConfigError("config file not found: " + path)
-        end
-        match \exhaustive\ _load_file(fp)
-        | let rules: Map[String, RuleStatus] val => rules
-        | let err: ConfigError => return err
-        end
-      | None =>
-        match \exhaustive\ _discover(file_auth)
-        | let fp: FilePath =>
-          match \exhaustive\ _load_file(fp)
-          | let rules: Map[String, RuleStatus] val => rules
-          | let err: ConfigError => return err
-          end
-        | None =>
-          recover val Map[String, RuleStatus] end
-        end
+    match \exhaustive\ config_path
+    | let path: String =>
+      let fp = FilePath(file_auth, path)
+      if not fp.exists() then
+        return ConfigError("config file not found: " + path)
       end
-    LintConfig(disabled, file_rules)
+      match \exhaustive\ parse_file(fp)
+      | let rules: Map[String, RuleStatus] val =>
+        (LintConfig(disabled, rules), Path.dir(fp.path))
+      | let err: ConfigError => err
+      end
+    | None =>
+      match \exhaustive\ _discover(file_auth)
+      | (let fp: FilePath, let root_dir: String val) =>
+        match \exhaustive\ parse_file(fp)
+        | let rules: Map[String, RuleStatus] val =>
+          (LintConfig(disabled, rules), root_dir)
+        | let err: ConfigError => err
+        end
+      | let root_dir: String val =>
+        (LintConfig(disabled, recover val Map[String, RuleStatus] end),
+          root_dir)
+      end
+    end
 
-  fun _discover(file_auth: FileAuth): (FilePath | None) =>
+  fun _discover(file_auth: FileAuth)
+    : ((FilePath, String val) | String val)
+  =>
     """
     Discover `.pony-lint.json` by checking CWD first, then walking up
-    to find `corral.json` and checking its directory.
+    to find `corral.json` and checking its directory. Always returns a
+    hierarchy root directory — either the directory containing the config
+    file, the `corral.json` directory, or CWD.
     """
     let cwd = Path.cwd()
     // Check CWD first
     let cwd_config = Path.join(cwd, ".pony-lint.json")
     let cwd_fp = FilePath(file_auth, cwd_config)
     if cwd_fp.exists() then
-      return cwd_fp
+      return (cwd_fp, cwd)
     end
     // Walk up looking for corral.json
     var dir = cwd
@@ -129,12 +187,12 @@ primitive ConfigLoader
       let corral_path = Path.join(dir, "corral.json")
       let corral_fp = FilePath(file_auth, corral_path)
       if corral_fp.exists() then
-        let config_path = Path.join(dir, ".pony-lint.json")
-        let config_fp = FilePath(file_auth, config_path)
+        let config_path' = Path.join(dir, ".pony-lint.json")
+        let config_fp = FilePath(file_auth, config_path')
         if config_fp.exists() then
-          return config_fp
+          return (config_fp, dir)
         end
-        return None
+        return dir
       end
       let parent = Path.dir(dir)
       if parent == dir then
@@ -142,9 +200,11 @@ primitive ConfigLoader
       end
       dir = parent
     end
-    None
+    cwd
 
-  fun _load_file(fp: FilePath): (Map[String, RuleStatus] val | ConfigError) =>
+  fun parse_file(fp: FilePath)
+    : (Map[String, RuleStatus] val | ConfigError)
+  =>
     """
     Parse a `.pony-lint.json` file into rule status overrides.
     """

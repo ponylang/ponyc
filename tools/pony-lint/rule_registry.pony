@@ -19,16 +19,16 @@ class val RuleRegistry
   new val create(
     rules: Array[TextRule val] val,
     ast_rules: Array[ASTRule val] val,
-    config: LintConfig)
+    config': LintConfig)
   =>
     _all = rules
     _all_ast = ast_rules
-    _config = config
+    _config = config'
     _enabled =
       recover val
         let result = Array[TextRule val]
         for rule in rules.values() do
-          match config.rule_status(
+          match config'.rule_status(
             rule.id(),
             rule.category(),
             rule.default_status())
@@ -41,7 +41,7 @@ class val RuleRegistry
       recover val
         let result = Array[ASTRule val]
         for rule in ast_rules.values() do
-          match config.rule_status(
+          match config'.rule_status(
             rule.id(),
             rule.category(),
             rule.default_status())
@@ -71,6 +71,14 @@ class val RuleRegistry
         end
         result
       end
+
+  fun config(): LintConfig =>
+    """
+    Returns the config used to build this registry. Used by `_registry_for()`
+    to check identity — when the resolved config is the same object as the
+    root config, the root registry is reused.
+    """
+    _config
 
   fun enabled_text_rules(): Array[TextRule val] val =>
     """
