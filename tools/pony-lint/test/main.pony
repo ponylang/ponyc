@@ -55,6 +55,22 @@ actor \nodoc\ Main is TestList
     test(_TestConfigParseMalformedJSON)
     test(_TestConfigParseInvalidStatus)
     test(_TestConfigParseNoRules)
+    test(_TestConfigMergeRuleOverride)
+    test(_TestConfigMergeCategoryCleaning)
+    test(_TestConfigMergeOmissionDefers)
+    test(_TestConfigMergeCLICarriesForward)
+    test(_TestConfigMergeRuleSpecificNoCleanCategory)
+    test(_TestConfigFromCLIExplicitConfigRootDir)
+    test(_TestConfigFromCLIExplicitConfigNotFound)
+    test(_TestConfigFromCLIAutoDiscoverRootDir)
+
+    // ConfigResolver tests
+    test(_TestConfigResolverNoOverrides)
+    test(_TestConfigResolverSingleOverride)
+    test(_TestConfigResolverNestedOverrides)
+    test(_TestConfigResolverCaching)
+    test(_TestConfigResolverRootSkipped)
+    test(_TestConfigResolverDuplicateSkipped)
 
     // Registry tests
     test(_TestRegistryDefaultAllEnabled)
@@ -157,6 +173,12 @@ actor \nodoc\ Main is TestList
     test(_TestLinterRespectsGitignore)
     test(_TestLinterExplicitFileBypassesIgnore)
     test(_TestLinterRespectsGitignoreFromParent)
+    test(_TestLinterSubdirConfigDisablesRule)
+    test(_TestLinterSubdirConfigEnablesRule)
+    test(_TestLinterSubdirConfigError)
+    test(_TestLinterSubdirConfigCategoryCleaning)
+    test(_TestLinterExplicitFileSubdirConfig)
+    test(_TestLinterIntermediateConfigLoading)
 
     // ExplainHelpers tests
     test(_TestExplainFormatEnabled)

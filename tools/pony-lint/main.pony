@@ -154,10 +154,10 @@ actor Main
     let config_path: (String | None) =
       if cp.size() > 0 then cp else None end
 
-    let config =
+    (let config, let root_dir) =
       match \exhaustive\
         ConfigLoader.from_cli(cli_disabled, config_path, file_auth)
-      | let c: LintConfig => c
+      | (let c: LintConfig, let r: String val) => (c, r)
       | let err: ConfigError =>
         env.err.print("error: " + err.message)
         env.exitcode(ExitError())
@@ -175,7 +175,8 @@ actor Main
 
     // Run linter
     let cwd = Path.cwd()
-    let linter = Linter(registry, file_auth, cwd, package_paths)
+    let linter =
+      Linter(registry, file_auth, cwd, package_paths, root_dir)
     (let diags, let exit_code) = linter.run(targets)
 
     // Output diagnostics to stdout

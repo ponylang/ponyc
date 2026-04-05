@@ -439,3 +439,446 @@ class \nodoc\ _TestLinterRespectsGitignoreFromParent is UnitTest
     else
       h.fail("could not create temp directory")
     end
+
+class \nodoc\ _TestLinterSubdirConfigDisablesRule is UnitTest
+  """Subdirectory .pony-lint.json disables a rule for that subtree."""
+  fun name(): String =>
+    "Linter: subdir config disables rule"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+
+      // Root file with a long line (violation)
+      let root_file =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "root.pony"))
+      let rf = File(root_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      rf.print(long_line)
+      rf.dispose()
+
+      // Create examples/ subdirectory
+      let examples_dir =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "examples"))
+      examples_dir.mkdir()
+
+      // examples/.pony-lint.json disables line-length
+      let config_file =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(examples_dir.path, ".pony-lint.json")))
+      config_file.print(
+        """{"rules": {"style/line-length": "off"}}""")
+      config_file.dispose()
+
+      // examples/ file with a long line (should NOT be flagged)
+      let ex_file =
+        FilePath(
+          FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
+      let ef = File(ex_file)
+      ef.print(long_line)
+      ef.dispose()
+
+      let rules: Array[lint.TextRule val] val =
+        recover val [as lint.TextRule val: lint.LineLength] end
+      let registry =
+        lint.RuleRegistry(
+          rules, _NoASTRules(), lint.LintConfig.default())
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path
+          where root_dir = tmp.path)
+      let targets = recover val [as String val: tmp.path] end
+      (let diags, _) = linter.run(targets)
+
+      // Only root.pony should have a violation
+      h.assert_eq[USize](1, diags.size())
+      try
+        h.assert_true(diags(0)?.file.contains("root.pony"))
+      else
+        h.fail("could not access diagnostic")
+      end
+
+      // Cleanup
+      ex_file.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(examples_dir.path, ".pony-lint.json")).remove()
+      examples_dir.remove()
+      root_file.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterSubdirConfigEnablesRule is UnitTest
+  """Subdirectory config enables a rule disabled by root config."""
+  fun name(): String =>
+    "Linter: subdir config enables rule"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+
+      // Root .pony-lint.json disables line-length
+      let root_config =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(tmp.path, ".pony-lint.json")))
+      root_config.print(
+        """{"rules": {"style/line-length": "off"}}""")
+      root_config.dispose()
+
+      // Root file with a long line (should NOT be flagged)
+      let root_file =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "root.pony"))
+      let rf = File(root_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      rf.print(long_line)
+      rf.dispose()
+
+      // Create strict/ subdirectory
+      let strict_dir =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "strict"))
+      strict_dir.mkdir()
+
+      // strict/.pony-lint.json re-enables line-length
+      let strict_config =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(strict_dir.path, ".pony-lint.json")))
+      strict_config.print(
+        """{"rules": {"style/line-length": "on"}}""")
+      strict_config.dispose()
+
+      // strict/ file with a long line (SHOULD be flagged)
+      let strict_file =
+        FilePath(
+          FileAuth(auth), Path.join(strict_dir.path, "strict.pony"))
+      let sf = File(strict_file)
+      sf.print(long_line)
+      sf.dispose()
+
+      // Load root config manually since test creates its own
+      let file_auth = FileAuth(auth)
+      let root_rules =
+        recover val
+          let m = Map[String, lint.RuleStatus]
+          m("style/line-length") = lint.RuleOff
+          m
+        end
+      let config =
+        lint.LintConfig(recover val Set[String] end, root_rules)
+      let rules: Array[lint.TextRule val] val =
+        recover val [as lint.TextRule val: lint.LineLength] end
+      let registry = lint.RuleRegistry(rules, _NoASTRules(), config)
+      let linter =
+        lint.Linter(
+          registry, file_auth, tmp.path
+          where root_dir = tmp.path)
+      let targets = recover val [as String val: tmp.path] end
+      (let diags, _) = linter.run(targets)
+
+      // Only strict.pony should have a violation
+      h.assert_eq[USize](1, diags.size())
+      try
+        h.assert_true(diags(0)?.file.contains("strict.pony"))
+      else
+        h.fail("could not access diagnostic")
+      end
+
+      // Cleanup
+      strict_file.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(strict_dir.path, ".pony-lint.json")).remove()
+      strict_dir.remove()
+      root_file.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(tmp.path, ".pony-lint.json")).remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterSubdirConfigError is UnitTest
+  """Malformed subdirectory config produces lint/config-error diagnostic."""
+  fun name(): String =>
+    "Linter: subdir config error"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+
+      // Create sub/ directory with malformed config
+      let sub_dir =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "sub"))
+      sub_dir.mkdir()
+
+      let bad_config =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(sub_dir.path, ".pony-lint.json")))
+      bad_config.print("{not valid json}")
+      bad_config.dispose()
+
+      // A clean file in sub/
+      let sub_file =
+        FilePath(
+          FileAuth(auth), Path.join(sub_dir.path, "test.pony"))
+      let sf = File(sub_file)
+      sf.print("actor Main")
+      sf.dispose()
+
+      let rules: Array[lint.TextRule val] val =
+        recover val [as lint.TextRule val: lint.LineLength] end
+      let registry =
+        lint.RuleRegistry(
+          rules, _NoASTRules(), lint.LintConfig.default())
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path
+          where root_dir = tmp.path)
+      let targets = recover val [as String val: tmp.path] end
+      (let diags, let exit_code) = linter.run(targets)
+
+      // Should have a config-error diagnostic
+      var found_config_error = false
+      for d in diags.values() do
+        if d.rule_id == "lint/config-error" then
+          found_config_error = true
+          h.assert_true(d.message.contains("malformed JSON"))
+        end
+      end
+      h.assert_true(found_config_error)
+      match exit_code
+      | lint.ExitError => h.assert_true(true)
+      else
+        h.fail("expected ExitError")
+      end
+
+      // Cleanup
+      sub_file.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(sub_dir.path, ".pony-lint.json")).remove()
+      sub_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterSubdirConfigCategoryCleaning is UnitTest
+  """Child category off overrides parent rule-specific on."""
+  fun name(): String =>
+    "Linter: subdir config category cleaning"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+
+      // Root config enables line-length explicitly
+      let root_rules =
+        recover val
+          let m = Map[String, lint.RuleStatus]
+          m("style/line-length") = lint.RuleOn
+          m
+        end
+      let config =
+        lint.LintConfig(recover val Set[String] end, root_rules)
+
+      // Create examples/ with category-off config
+      let examples_dir =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "examples"))
+      examples_dir.mkdir()
+
+      let ex_config =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(examples_dir.path, ".pony-lint.json")))
+      ex_config.print("""{"rules": {"style": "off"}}""")
+      ex_config.dispose()
+
+      // Long line in examples/ (should NOT be flagged)
+      let ex_file =
+        FilePath(
+          FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
+      let ef = File(ex_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      ef.print(long_line)
+      ef.dispose()
+
+      let rules: Array[lint.TextRule val] val =
+        recover val [as lint.TextRule val: lint.LineLength] end
+      let registry = lint.RuleRegistry(rules, _NoASTRules(), config)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path
+          where root_dir = tmp.path)
+      let targets =
+        recover val [as String val: examples_dir.path] end
+      (let diags, _) = linter.run(targets)
+
+      // No violations — category cleaning removed rule-specific "on"
+      h.assert_eq[USize](0, diags.size())
+
+      // Cleanup
+      ex_file.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(examples_dir.path, ".pony-lint.json")).remove()
+      examples_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterExplicitFileSubdirConfig is UnitTest
+  """Explicit file target respects config in its directory."""
+  fun name(): String =>
+    "Linter: explicit file target uses subdir config"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+
+      // Create examples/ with config disabling line-length
+      let examples_dir =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "examples"))
+      examples_dir.mkdir()
+
+      let ex_config =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(examples_dir.path, ".pony-lint.json")))
+      ex_config.print(
+        """{"rules": {"style/line-length": "off"}}""")
+      ex_config.dispose()
+
+      // Long line in examples/ — should NOT be flagged
+      let ex_file =
+        FilePath(
+          FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
+      let ef = File(ex_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      ef.print(long_line)
+      ef.dispose()
+
+      let rules: Array[lint.TextRule val] val =
+        recover val [as lint.TextRule val: lint.LineLength] end
+      let registry =
+        lint.RuleRegistry(
+          rules, _NoASTRules(), lint.LintConfig.default())
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path
+          where root_dir = tmp.path)
+      // Target the file directly, not the directory
+      let targets =
+        recover val
+          [ as String val:
+            Path.join(examples_dir.path, "ex.pony")
+          ]
+        end
+      (let diags, _) = linter.run(targets)
+
+      // No violations — subdir config disables line-length
+      h.assert_eq[USize](0, diags.size())
+
+      // Cleanup
+      ex_file.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(examples_dir.path, ".pony-lint.json")).remove()
+      examples_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
+class \nodoc\ _TestLinterIntermediateConfigLoading is UnitTest
+  """Intermediate config between root and target is loaded."""
+  fun name(): String =>
+    "Linter: intermediate config loading"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+
+      // Create mid/ with config disabling line-length
+      let mid_dir =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, "mid"))
+      mid_dir.mkdir()
+
+      let mid_config =
+        File(
+          FilePath(
+            FileAuth(auth),
+            Path.join(mid_dir.path, ".pony-lint.json")))
+      mid_config.print(
+        """{"rules": {"style/line-length": "off"}}""")
+      mid_config.dispose()
+
+      // Create mid/sub/ as the lint target
+      let sub_dir =
+        FilePath(
+          FileAuth(auth), Path.join(mid_dir.path, "sub"))
+      sub_dir.mkdir()
+
+      // Long line in sub/ — should NOT be flagged (inherits mid/ config)
+      let sub_file =
+        FilePath(
+          FileAuth(auth), Path.join(sub_dir.path, "test.pony"))
+      let sf = File(sub_file)
+      let long_line = recover val String .> append("a".mul(100)) end
+      sf.print(long_line)
+      sf.dispose()
+
+      let rules: Array[lint.TextRule val] val =
+        recover val [as lint.TextRule val: lint.LineLength] end
+      let registry =
+        lint.RuleRegistry(
+          rules, _NoASTRules(), lint.LintConfig.default())
+      // Target is sub/, so mid/ is an intermediate directory
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path
+          where root_dir = tmp.path)
+      let targets = recover val [as String val: sub_dir.path] end
+      (let diags, _) = linter.run(targets)
+
+      // No violations — mid/ config disables line-length
+      h.assert_eq[USize](0, diags.size())
+
+      // Cleanup
+      sub_file.remove()
+      sub_dir.remove()
+      FilePath(
+        FileAuth(auth),
+        Path.join(mid_dir.path, ".pony-lint.json")).remove()
+      mid_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
