@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add style/docstring-leading-blank lint rule ([PR #5122](https://github.com/ponylang/ponyc/pull/5122))
+- Add hierarchical configuration for pony-lint ([PR #5135](https://github.com/ponylang/ponyc/pull/5135))
 
 ### Changed
 
