@@ -69,6 +69,7 @@ actor \nodoc\ Main is TestList
     test(_TestConfigValidateEmptyConfig)
     test(_TestConfigValidateMultipleUnknown)
     test(_TestConfigValidateMixedKnownUnknown)
+    test(_TestConfigParseFileTooLarge)
 
     // ConfigResolver tests
     test(_TestConfigResolverNoOverrides)

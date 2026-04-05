@@ -250,12 +250,23 @@ primitive ConfigLoader
   =>
     """
     Parse a `.pony-lint.json` file into rule status overrides.
+
+    Rejects files larger than 64 KB to prevent unexpected memory consumption,
+    especially with hierarchical configs where each directory can have its own
+    config file.
     """
     let file = File.open(fp)
     if not file.valid() then
       return ConfigError("could not open config file: " + fp.path)
     end
-    let content: String val = file.read_string(file.size())
+    let size = file.size()
+    if size > _max_config_size() then
+      file.dispose()
+      return ConfigError(
+        "config file too large (" + size.string() + " bytes, max "
+          + _max_config_size().string() + "): " + fp.path)
+    end
+    let content: String val = file.read_string(size)
     file.dispose()
     parse(content)
 
@@ -286,6 +297,8 @@ primitive ConfigLoader
     | let err: json.JsonParseError =>
       ConfigError("malformed JSON in config file: " + err.string())
     end
+
+  fun _max_config_size(): USize => 65_536
 
   fun _parse_rules(rules: json.JsonObject)
     : (Map[String, RuleStatus] val | ConfigError)
