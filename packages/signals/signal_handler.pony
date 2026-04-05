@@ -45,6 +45,8 @@ actor SignalHandler is AsioEventNotify
     """
     if AsioEvent.disposable(flags) then
       @pony_asio_event_destroy(event)
+    elseif (event is _event) and AsioEvent.errored(flags) then
+      _dispose()
     elseif event is _event then
       if not _notify(arg) then
         _dispose()

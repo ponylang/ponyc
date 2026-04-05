@@ -638,6 +638,22 @@ actor TCPConnection is AsioEventNotify
           @pony_os_socket_close(fd)
           _try_shutdown()
         end
+      elseif AsioEvent.errored(flags) then
+        // A subscription failure on a connection attempt.
+        var fd = @pony_asio_event_fd(event)
+        _connect_count = _connect_count - 1
+
+        if not _connected and not _closed then
+          @pony_asio_event_unsubscribe(event)
+          @pony_os_socket_close(fd)
+          _notify_connecting()
+        else
+          if not @pony_asio_event_get_disposable(event) then
+            @pony_asio_event_unsubscribe(event)
+          end
+          @pony_os_socket_close(fd)
+          _try_shutdown()
+        end
       else
         // It's not our event.
         if AsioEvent.disposable(flags) then
@@ -647,6 +663,11 @@ actor TCPConnection is AsioEventNotify
       end
     else
       // At this point, it's our event.
+      if AsioEvent.errored(flags) then
+        hard_close()
+        return
+      end
+
       if AsioEvent.writeable(flags) then
         _writeable = true
         _complete_writes(arg)
