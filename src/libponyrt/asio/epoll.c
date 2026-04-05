@@ -112,8 +112,13 @@ asio_backend_t* ponyint_asio_backend_init()
   b->epfd = epoll_create1(EPOLL_CLOEXEC);
   b->wakeup = eventfd(0, EFD_NONBLOCK);
 
-  if(b->epfd == 0 || b->wakeup == 0)
+  if(b->epfd == -1 || b->wakeup == -1)
   {
+    if(b->epfd != -1)
+      close(b->epfd);
+    if(b->wakeup != -1)
+      close(b->wakeup);
+    ponyint_messageq_destroy(&b->q, true);
     POOL_FREE(asio_backend_t, b);
     return NULL;
   }
@@ -122,7 +127,14 @@ asio_backend_t* ponyint_asio_backend_init()
   ep.data.ptr = b;
   ep.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
+  if(epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep) == -1)
+  {
+    close(b->epfd);
+    close(b->wakeup);
+    ponyint_messageq_destroy(&b->q, true);
+    POOL_FREE(asio_backend_t, b);
+    return NULL;
+  }
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we ignore signals related to scheduler sleeping/waking
@@ -186,7 +198,10 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 
   // only resubscribe if there is something to resubscribe to
   if (something_to_resub)
-    epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+  {
+    if(epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep) == -1)
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+  }
 }
 
 // Kept to maintain backwards compatibility so folks don't
@@ -426,7 +441,8 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ep.events |= EPOLLET;
   }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
+  if(epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep) == -1)
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
 }
 
 PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
@@ -459,6 +475,8 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   asio_backend_t* b = ponyint_asio_get_backend();
   pony_assert(b != NULL);
 
+  // Don't send ASIO_ERROR on delete failure — the actor is tearing down,
+  // and ENOENT/EBADF is expected (FD already closed or never registered).
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
 
   if(ev->flags & ASIO_TIMER)
