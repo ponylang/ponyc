@@ -480,6 +480,17 @@ class val Linter
       end
     end
 
+    // Surface errors from intermediate ignore file loading
+    for (msg, path) in matcher.errors().values() do
+      config_errors.push(Diagnostic(
+        "lint/ignore-error",
+        msg,
+        try Path.rel(_cwd, path)? else path end,
+        0,
+        0))
+    end
+    matcher.clear_errors()
+
     // Pre-load subdirectory configs from hierarchy root through intermediate
     // directories to each target. Uses _root_dir (config hierarchy root),
     // not the git root.
@@ -673,6 +684,17 @@ class ref _FileCollector is WalkHandler
   fun ref apply(dir_path: FilePath, dir_entries: Array[String] ref) =>
     // Load ignore files for this directory
     _matcher.load_directory(dir_path.path)
+
+    // Surface errors from ignore file loading
+    for (msg, path) in _matcher.errors().values() do
+      _config_errors.push(Diagnostic(
+        "lint/ignore-error",
+        msg,
+        try Path.rel(_cwd, path)? else path end,
+        0,
+        0))
+    end
+    _matcher.clear_errors()
 
     // Load subdirectory config if present
     _load_config(dir_path.path)
