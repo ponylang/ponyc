@@ -114,6 +114,10 @@ actor _HighlightRunner
 
   Place the cursor on `run` to see both occurrences: the behaviour
   declaration and the call site in trigger.
+
+  Place the cursor on `None` in the body of run to see no highlights:
+  None is a type-literal expression that the compiler desugars to an
+  implicit None.create() call and has no referenceable identity.
   """
   be run(n: U32) =>
     None

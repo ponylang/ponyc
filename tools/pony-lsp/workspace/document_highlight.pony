@@ -22,6 +22,23 @@ primitive DocumentHighlights
       return []
     end
 
+    // Type-literal expressions such as `None` are desugared by the compiler
+    // into implicit constructor calls `TypeName.create()`. The resulting
+    // tk_newref and its enclosing tk_call are both placed at the same source
+    // position (the marker ponyc uses for synthetic, position-less nodes).
+    // These have no referenceable identity the user can navigate — do not
+    // highlight them.
+    if nid == TokenIds.tk_newref() then
+      try
+        let par = node.parent() as AST box
+        if (par.id() == TokenIds.tk_call()) and
+          (par.position() == node.position())
+        then
+          return []
+        end
+      end
+    end
+
     // Determine the canonical target definition.
     // If the node has no definitions it IS the
     // definition; use it directly as the target.

@@ -24,6 +24,7 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightClassTypeTest.create(server, fixture))
     test(_DocHighlightTypeRefTest.create(server, fixture))
     test(_DocHighlightLiteralTest.create(server, fixture))
+    test(_DocHighlightNoneTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -282,8 +283,8 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
   Highlights the `run` behaviour from its declaration.
   Expects 2 occurrences:
-    line 117 col  5  (be run declaration)
-    line 121 col  4  (run(1) call in trigger)
+    line 121 col  5  (be run declaration)
+    line 125 col  4  (run(1) call in trigger)
   """
   let _server: _DocHighlightLspServer
   let _fixture: String val
@@ -296,13 +297,13 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
     "document_highlight/integration/be_ref"
 
   fun apply(h: TestHelper) =>
-    let at: (I64, I64) = (117, 5)
+    let at: (I64, I64) = (121, 5)
     (let line, let character) = at
     let action: String val =
       recover _fixture + ":" + line.string() + ":" + character.string() end
     h.long_test(10_000_000_000)
     h.expect_action(action)
-    _server.test_document_highlight(h, action, at, [(117, 5); (121, 4)])
+    _server.test_document_highlight(h, action, at, [(121, 5); (125, 4)])
 
 class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
   """
@@ -378,6 +379,32 @@ class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
 
   fun apply(h: TestHelper) =>
     let at: (I64, I64) = (85, 12)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
+
+class \nodoc\ iso _DocHighlightNoneTest is UnitTest
+  """
+  Placing the cursor on `None` (a type-literal expression) should produce no
+  highlights. `None` desugars to `None.create()` synthetically; it has no
+  referenceable identity.
+  Tests `None` on line 122 col 4 (body of be run in _HighlightRunner).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/none_literal"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (122, 4)
     (let line, let character) = at
     let action: String val =
       recover _fixture + ":" + line.string() + ":" + character.string() end
