@@ -797,12 +797,8 @@ actor WorkspaceManager
                             .source_file()
                               as String val),
                         LspPositionRange(
-                          LspPosition
-                            .from_ast_pos(
-                              start_pos),
-                          LspPosition
-                            .from_ast_pos(
-                              end_pos))
+                          LspPosition.from_ast_pos(start_pos),
+                          LspPosition.from_ast_pos_end(end_pos))
                       ).to_json()
                     )
                 else
