@@ -23,6 +23,7 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightBeRefTest.create(server, fixture))
     test(_DocHighlightClassTypeTest.create(server, fixture))
     test(_DocHighlightTypeRefTest.create(server, fixture))
+    test(_DocHighlightLiteralTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -359,6 +360,30 @@ class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(h, action, at, [(54, 6); (98, 22)])
+
+class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
+  """
+  Placing the cursor on a literal value should produce no highlights.
+  Tests `true` on line 85 col 12 (_flag = true in create).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/literal"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (85, 12)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
 
 class val _PendingDocHighlight
   let file_path: String

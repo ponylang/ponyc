@@ -13,6 +13,15 @@ primitive DocumentHighlights
     Walk the module AST and return the source ranges of all nodes that resolve
     to the same definition as `node`. Includes the definition site itself.
     """
+    // Literals have no referenceable identity — do not highlight.
+    let nid = node.id()
+    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false())
+      or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
+      or (nid == TokenIds.tk_string())
+    then
+      return []
+    end
+
     // Determine the canonical target definition.
     // If the node has no definitions it IS the
     // definition; use it directly as the target.
