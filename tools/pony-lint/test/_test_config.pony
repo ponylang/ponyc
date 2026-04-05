@@ -486,6 +486,36 @@ class \nodoc\ _TestConfigValidateMultipleUnknown is UnitTest
       h.assert_true(err.message.contains("bogus/two"))
     end
 
+class \nodoc\ _TestConfigParseFileTooLarge is UnitTest
+  """Oversized config file produces ConfigError."""
+  fun name(): String => "Config: oversized file -> error"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+      let config_fp =
+        FilePath(
+          FileAuth(auth), Path.join(tmp.path, ".pony-lint.json"))
+      let f = File(config_fp)
+      // Write 65537 bytes — one byte over the 64 KB limit
+      let content = recover val String(65_537) .> append("x" * 65_537) end
+      f.print(content)
+      f.dispose()
+
+      match \exhaustive\ lint.ConfigLoader.parse_file(config_fp)
+      | let _: Map[String, lint.RuleStatus] val =>
+        h.fail("expected ConfigError for oversized file")
+      | let err: lint.ConfigError =>
+        h.assert_true(err.message.contains("too large"))
+      end
+
+      config_fp.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
 class \nodoc\ _TestConfigValidateMixedKnownUnknown is UnitTest
   """Validate only reports unknown keys, not known ones."""
   fun name(): String => "Config: validate reports only unknown keys"
