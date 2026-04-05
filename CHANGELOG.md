@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix rare silent connection hangs on macOS and BSD ([PR #5121](https://github.com/ponylang/ponyc/pull/5121))
+- Fix rare silent connection hangs on Linux ([PR #5131](https://github.com/ponylang/ponyc/pull/5131))
 
 ### Added
 
