@@ -150,6 +150,11 @@ actor TCPListener is AsioEventNotify
       return
     end
 
+    if AsioEvent.errored(flags) then
+      close()
+      return
+    end
+
     if AsioEvent.readable(flags) then
       _accept(arg)
     end

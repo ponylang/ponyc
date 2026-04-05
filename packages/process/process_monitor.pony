@@ -221,6 +221,11 @@ actor ProcessMonitor is AsioEventNotify
     """
     Handle the incoming Asio event from one of the pipes.
     """
+    if AsioEvent.errored(flags) then
+      _close()
+      return
+    end
+
     match event
     | _stdin.event =>
       if AsioEvent.writeable(flags) then

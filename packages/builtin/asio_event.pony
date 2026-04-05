@@ -31,6 +31,14 @@ primitive AsioEvent
     """
     flags == 0
 
+  fun errored(flags: U32): Bool =>
+    """
+    Returns true if the flags contain the error flag, indicating a
+    subscription failure. The event is compromised and the actor should
+    tear down.
+    """
+    (flags and (1 << 4)) != 0
+
   fun oneshotable(flags: U32): Bool =>
     """
     Returns true if the flags contain the oneshot flag.

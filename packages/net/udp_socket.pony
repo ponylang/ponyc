@@ -261,6 +261,11 @@ actor UDPSocket is AsioEventNotify
     end
 
     if not _closed then
+      if AsioEvent.errored(flags) then
+        _close()
+        return
+      end
+
       if AsioEvent.readable(flags) then
         _readable = true
         _complete_reads(arg)
