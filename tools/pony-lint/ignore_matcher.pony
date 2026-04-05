@@ -46,6 +46,7 @@ class ref IgnoreMatcher
   let _root: String val
   let _in_git_repo: Bool
   let _rules: Array[(IgnorePattern val, String val)]
+  let _errors: Array[(String val, String val)]
 
   new ref create(file_auth: FileAuth, root: (String val | None)) =>
     """
@@ -63,6 +64,7 @@ class ref IgnoreMatcher
       _in_git_repo = false
     end
     _rules = Array[(IgnorePattern val, String val)]
+    _errors = Array[(String val, String val)]
 
   fun ref load_directory(dir_path: String val) =>
     """
@@ -75,15 +77,47 @@ class ref IgnoreMatcher
     end
     _load_file(Path.join(dir_path, ".ignore"), dir_path)
 
+  fun errors(): this->Array[(String val, String val)] =>
+    """
+    Return errors accumulated during `load_directory` calls. Each entry is
+    a `(message, file_path)` tuple. Call `clear_errors` after draining.
+    """
+    _errors
+
+  fun ref clear_errors() =>
+    """
+    Remove all accumulated errors. Call after draining `errors()`.
+    """
+    _errors.clear()
+
   fun ref _load_file(file_path: String val, base_dir: String val) =>
     """
     Parse all lines from an ignore file and append the resulting rules.
+
+    Rejects files that cannot be opened or are larger than 64 KB to prevent
+    unexpected memory consumption, especially with hierarchical ignore
+    loading where each directory can have its own `.gitignore` and `.ignore`
+    files.
     """
     let fp = FilePath(_file_auth, file_path)
     if not fp.exists() then return end
     let file = File.open(fp)
-    if not file.valid() then return end
-    let content: String val = file.read_string(file.size())
+    if not file.valid() then
+      _errors.push((
+        "could not open ignore file: " + file_path,
+        file_path))
+      return
+    end
+    let size = file.size()
+    if size > _max_ignore_file_size() then
+      file.dispose()
+      _errors.push((
+        "ignore file too large (" + size.string() + " bytes, max "
+          + _max_ignore_file_size().string() + "): " + file_path,
+        file_path))
+      return
+    end
+    let content: String val = file.read_string(size)
     file.dispose()
     // Normalize line endings and parse
     let clean_content: String val =
@@ -168,3 +202,5 @@ class ref IgnoreMatcher
     else
       false
     end
+
+  fun _max_ignore_file_size(): USize => 65_536

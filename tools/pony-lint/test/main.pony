@@ -169,6 +169,7 @@ actor \nodoc\ Main is TestList
     test(_TestIgnoreMatcherNonGitIgnoresGitignore)
     test(_TestIgnoreMatcherHierarchical)
     test(_TestIgnoreMatcherAnchoredPattern)
+    test(_TestIgnoreMatcherOversizedFile)
 
     // Linter tests
     test(_TestLinterSingleFile)
