@@ -9,20 +9,20 @@ primitive _DocumentHighlightIntegrationTests is TestList
 
   fun tag tests(test: PonyTest) =>
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
-    let server =
-      _DocHighlightLspServer(workspace_dir, "highlights/highlights.pony")
-    test(_DocHighlightFieldTest.create(server))
-    test(_DocHighlightFieldRefTest.create(server))
-    test(_DocHighlightLocalTest.create(server))
-    test(_DocHighlightFletTest.create(server))
-    test(_DocHighlightEmbedTest.create(server))
-    test(_DocHighlightNewRefTest.create(server))
-    test(_DocHighlightFunRefTest.create(server))
-    test(_DocHighlightParamTest.create(server))
-    test(_DocHighlightVarLocalTest.create(server))
-    test(_DocHighlightBeRefTest.create(server))
-    test(_DocHighlightClassTypeTest.create(server))
-    test(_DocHighlightTypeRefTest.create(server))
+    let fixture = "highlights/highlights.pony"
+    let server = _DocHighlightLspServer(workspace_dir, fixture)
+    test(_DocHighlightFieldTest.create(server, fixture))
+    test(_DocHighlightFieldRefTest.create(server, fixture))
+    test(_DocHighlightLocalTest.create(server, fixture))
+    test(_DocHighlightFletTest.create(server, fixture))
+    test(_DocHighlightEmbedTest.create(server, fixture))
+    test(_DocHighlightNewRefTest.create(server, fixture))
+    test(_DocHighlightFunRefTest.create(server, fixture))
+    test(_DocHighlightParamTest.create(server, fixture))
+    test(_DocHighlightVarLocalTest.create(server, fixture))
+    test(_DocHighlightBeRefTest.create(server, fixture))
+    test(_DocHighlightClassTypeTest.create(server, fixture))
+    test(_DocHighlightTypeRefTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -36,16 +36,24 @@ class \nodoc\ iso _DocHighlightFieldTest
     line 30 col 22  (use_local() body)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/field"
 
   fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (21, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
     _server.test_document_highlight(
-      h, (21, 6), [(21, 6); (24, 4); (24, 12); (27, 4); (30, 22)])
+      h, action, at, [(21, 6); (24, 4); (24, 12); (27, 4); (30, 22)])
 
 class \nodoc\ iso _DocHighlightFieldRefTest
   is UnitTest
@@ -54,16 +62,24 @@ class \nodoc\ iso _DocHighlightFieldRefTest
   Expects the same 5 occurrences as when starting from the declaration.
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/field_ref"
 
   fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (27, 4)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
     _server.test_document_highlight(
-      h, (27, 4), [(21, 6); (24, 4); (24, 12); (27, 4); (30, 22)])
+      h, action, at, [(21, 6); (24, 4); (24, 12); (27, 4); (30, 22)])
 
 class \nodoc\ iso _DocHighlightLocalTest
   is UnitTest
@@ -75,15 +91,23 @@ class \nodoc\ iso _DocHighlightLocalTest
     line 31 col 13  (second use in result + result)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/local"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (30, 8), [(30, 8); (31, 4); (31, 13)])
+    let at: (I64, I64) = (30, 8)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [(30, 8); (31, 4); (31, 13)])
 
 class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
@@ -94,15 +118,23 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
     line 90 col  4  (assigned false in other)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/flet"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (80, 6), [(80, 6); (85, 4); (90, 4)])
+    let at: (I64, I64) = (80, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [(80, 6); (85, 4); (90, 4)])
 
 class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
@@ -113,15 +145,23 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
     line 91 col  4  (assigned in other)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/embed"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (81, 8), [(81, 8); (86, 4); (91, 4)])
+    let at: (I64, I64) = (81, 8)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [(81, 8); (86, 4); (91, 4)])
 
 class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
   """
@@ -132,15 +172,24 @@ class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
     line 91 col 20  (_Inner.create() in other body)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/new_ref"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (51, 6), [(51, 6); (86, 20); (91, 20)])
+    let at: (I64, I64) = (51, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h, action, at, [(51, 6); (86, 20); (91, 20)])
 
 class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
   """
@@ -152,16 +201,24 @@ class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
     line 107 col 12  (w = w + add(n) — funref)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/fun_ref"
 
   fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (94, 10)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
     _server.test_document_highlight(
-      h, (94, 10), [(94, 10); (102, 15); (107, 12)])
+      h, action, at, [(94, 10); (102, 15); (107, 12)])
 
 class \nodoc\ iso _DocHighlightParamTest is UnitTest
   """
@@ -172,15 +229,24 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
     line 96 col  4  (x — return value)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/param"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (94, 14), [(94, 14); (95, 18); (96, 4)])
+    let at: (I64, I64) = (94, 14)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h, action, at, [(94, 14); (95, 18); (96, 4)])
 
 class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
   """
@@ -192,16 +258,24 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
     line 108 col  4  (w return value)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/var_local"
 
   fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (106, 8)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
     _server.test_document_highlight(
-      h, (106, 8), [(106, 8); (107, 4); (107, 8); (108, 4)])
+      h, action, at, [(106, 8); (107, 4); (107, 8); (108, 4)])
 
 class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
@@ -211,15 +285,23 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
     line 121 col  4  (run(1) call in trigger)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/be_ref"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (117, 5), [(117, 5); (121, 4)])
+    let at: (I64, I64) = (117, 5)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [(117, 5); (121, 4)])
 
 class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
   """
@@ -232,16 +314,24 @@ class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
     line  91 col 13  (_Inner.create() receiver in other)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/class_type"
 
   fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (81, 16)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
     _server.test_document_highlight(
-      h, (81, 16), [(33, 6); (81, 16); (86, 13); (91, 13)])
+      h, action, at, [(33, 6); (81, 16); (86, 13); (91, 13)])
 
 class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
   """
@@ -252,15 +342,23 @@ class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
     line  98 col 22  (_HighlightMore in get_self return type)
   """
   let _server: _DocHighlightLspServer
+  let _fixture: String val
 
-  new iso create(server: _DocHighlightLspServer) =>
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
     _server = server
+    _fixture = fixture
 
   fun name(): String =>
     "document_highlight/integration/type_ref"
 
   fun apply(h: TestHelper) =>
-    _server.test_document_highlight(h, (98, 22), [(54, 6); (98, 22)])
+    let at: (I64, I64) = (98, 22)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [(54, 6); (98, 22)])
 
 class val _PendingDocHighlight
   let file_path: String
@@ -314,18 +412,12 @@ actor _DocHighlightLspServer is Channel
 
   be test_document_highlight(
     h: TestHelper,
+    action: String val,
     at: (I64, I64),
     expected: Array[(I64, I64)] val)
   =>
     (let line, let character) = at
     let file_path = _fixture_file
-    h.long_test(10_000_000_000)
-    let action: String val =
-      recover
-        file_path.trim(_workspace_dir.size() + 1) +
-        ":" + line.string() + ":" + character.string()
-      end
-    h.expect_action(action)
     let pending =
       _PendingDocHighlight(file_path, line, character, expected, h, action)
     if _ready then
