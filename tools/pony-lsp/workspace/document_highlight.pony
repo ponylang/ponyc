@@ -56,7 +56,7 @@ class ref _HighlightCollector is ASTVisitor
 
     // Check if this node IS the target definition
     // or resolves to it via DefinitionResolver
-    var matches = (AST(ast.raw) == _target)
+    var matches = (ast == _target)
     if not matches then
       for def in ast.definitions().values() do
         if def == _target then
