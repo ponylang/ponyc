@@ -75,8 +75,8 @@ class _HighlightMore
   Place the cursor on the `x` parameter of add to see all 3
   occurrences: the parameter declaration and both uses in the body.
 
-  Place the cursor on `w` in do_work to see all 3 occurrences: the
-  var declaration and both sides of the assignment below it.
+  Place the cursor on `w` in do_work to see all 4 occurrences: the var
+  declaration, both sides of the assignment below it, and the return expression.
   """
   let _flag: Bool
   embed _inner: _Inner
