@@ -25,6 +25,19 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightTypeRefTest.create(server, fixture))
     test(_DocHighlightLiteralTest.create(server, fixture))
     test(_DocHighlightNoneTest.create(server, fixture))
+    test(_DocHighlightInnerXFieldTest.create(server, fixture))
+    test(_DocHighlightValFieldTest.create(server, fixture))
+    test(_DocHighlightDoWorkParamTest.create(server, fixture))
+    test(_DocHighlightDoWorkLetTest.create(server, fixture))
+    test(_DocHighlightLetRefTest.create(server, fixture))
+    test(_DocHighlightVarRefTest.create(server, fixture))
+    test(_DocHighlightParamRefTest.create(server, fixture))
+    test(_DocHighlightNewRefCallTest.create(server, fixture))
+    test(_DocHighlightIntLiteralTest.create(server, fixture))
+    test(_DocHighlightFloatLiteralTest.create(server, fixture))
+    test(_DocHighlightStringLiteralTest.create(server, fixture))
+    test(_DocHighlightWhitespaceTest.create(server, fixture))
+    test(_DocHighlightOutOfBoundsTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -424,6 +437,384 @@ class \nodoc\ iso _DocHighlightNoneTest is UnitTest
 
   fun apply(h: TestHelper) =>
     let at: (I64, I64) = (122, 4)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
+
+class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
+  """
+  Highlights the `x` fvar field of _Inner from its declaration.
+  Expects 2 occurrences:
+    line 49 col 6  (var x declaration in _Inner)
+    line 52 col 4  (x = 0 assignment in create)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/inner_x_field"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (49, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(49, 6, 49, 7); (52, 4, 52, 5)])
+
+class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
+  """
+  Highlights the `_val` fvar field of _HighlightMore from its declaration.
+  Expects 5 occurrences:
+    line 82 col  6  (_val declaration)
+    line 87 col  4  (_val = 0 in create)
+    line 92 col  4  (_val = 1 in other)
+    line 95 col  4  (_val = ... LHS in add)
+    line 95 col 11  (... + _val RHS in add)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/val_field"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (82, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [ (82, 6, 82, 10); (87, 4, 87, 8); (92, 4, 92, 8)
+        (95, 4, 95, 8); (95, 11, 95, 15)])
+
+class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
+  """
+  Highlights the `n` parameter of do_work from its declaration.
+  Expects 3 occurrences:
+    line 104 col 18  (n param declaration in do_work)
+    line 105 col 17  (let v: U32 = n)
+    line 107 col 16  (w = w + add(n))
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/do_work_param"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (104, 18)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(104, 18, 104, 19); (105, 17, 105, 18); (107, 16, 107, 17)])
+
+class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
+  """
+  Highlights the `v` let local of do_work from its declaration.
+  Expects 2 occurrences:
+    line 105 col  8  (let v declaration in do_work)
+    line 106 col 17  (var w: U32 = v)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/do_work_let"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (105, 8)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(105, 8, 105, 9); (106, 17, 106, 18)])
+
+class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
+  """
+  Highlights `result` from a letref site (line 31 col 4).
+  Verifies that starting from a reference produces the same highlights
+  as starting from the declaration (_DocHighlightLocalTest).
+  Expects 3 occurrences:
+    line 30 col  8  (let result declaration)
+    line 31 col  4  (first use in result + result)
+    line 31 col 13  (second use in result + result)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/let_ref"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (31, 4)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(30, 8, 30, 14); (31, 4, 31, 10); (31, 13, 31, 19)])
+
+class \nodoc\ iso _DocHighlightVarRefTest is UnitTest
+  """
+  Highlights `w` from a varref site (line 107 col 4).
+  Verifies that starting from a reference produces the same highlights
+  as starting from the declaration (_DocHighlightVarLocalTest).
+  Expects 4 occurrences:
+    line 106 col 8  (var w declaration)
+    line 107 col 4  (w = w + ... LHS)
+    line 107 col 8  (w = w + ... RHS)
+    line 108 col 4  (w return value)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/var_ref"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (107, 4)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(106, 8, 106, 9); (107, 4, 107, 5); (107, 8, 107, 9); (108, 4, 108, 5)])
+
+class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
+  """
+  Highlights `x` from a paramref site (line 95 col 18).
+  Verifies that starting from a reference produces the same highlights
+  as starting from the declaration (_DocHighlightParamTest).
+  Expects 3 occurrences:
+    line 94 col 14  (x param declaration in add)
+    line 95 col 18  (_val = _val + x — body use)
+    line 96 col  4  (x — return value)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/param_ref"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (95, 18)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(94, 14, 94, 15); (95, 18, 95, 19); (96, 4, 96, 5)])
+
+class \nodoc\ iso _DocHighlightNewRefCallTest is UnitTest
+  """
+  Highlights `create` from a call site (_Inner.create() on line 86 col 20).
+  Verifies that starting from a newref reference produces the same highlights
+  as starting from the declaration (_DocHighlightNewRefTest).
+  Expects 3 occurrences:
+    line 51 col  6  (new create declaration in _Inner)
+    line 86 col 20  (_Inner.create() in _HighlightMore.create body)
+    line 91 col 20  (_Inner.create() in _HighlightMore.other body)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/new_ref_call"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (86, 20)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(51, 6, 51, 12); (86, 20, 86, 26); (91, 20, 91, 26)])
+
+class \nodoc\ iso _DocHighlightIntLiteralTest is UnitTest
+  """
+  Placing the cursor on an integer literal should produce no highlights.
+  Tests `0` on line 87 col 11 (_val = 0 in _HighlightMore.create).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/int_literal"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (87, 11)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
+
+class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
+  """
+  Placing the cursor on a float literal should produce no highlights.
+  Tests `3.14` on line 132 col 16 (let _f: F64 = 3.14 in _LiteralExamples).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/float_literal"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (132, 16)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
+
+class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
+  """
+  Placing the cursor on a string literal should produce no highlights.
+  Tests `"hello"` on line 133 col 23 (in _LiteralExamples).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/string_literal"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (133, 23)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
+
+class \nodoc\ iso _DocHighlightWhitespaceTest is UnitTest
+  """
+  Placing the cursor on a blank line should produce no highlights.
+  Tests line 22 col 0 (blank line between count field and tick method).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/whitespace"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (22, 0)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(h, action, at, [])
+
+class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
+  """
+  Placing the cursor past the end of a line should produce no highlights.
+  Tests line 21 col 100 (past end of `  var count: U32 = 0`).
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/out_of_bounds"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (21, 100)
     (let line, let character) = at
     let action: String val =
       recover _fixture + ":" + line.string() + ":" + character.string() end

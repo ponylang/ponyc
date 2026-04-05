@@ -124,3 +124,11 @@ actor _HighlightRunner
 
   fun ref trigger() =>
     run(1)
+
+class _LiteralExamples
+  """
+  Provides float and string literal expressions for testing that
+  cursor-on-literal produces no highlights.
+  """
+  let _f: F64 = 3.14
+  let _s: String val = "hello"
