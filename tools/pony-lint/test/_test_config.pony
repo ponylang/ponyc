@@ -369,3 +369,146 @@ class \nodoc\ _TestConfigFromCLIAutoDiscoverRootDir is UnitTest
     | let err: lint.ConfigError =>
       h.fail("unexpected error: " + err.message)
     end
+
+class \nodoc\ _TestConfigValidateKnownKeys is UnitTest
+  """Validate passes when all config keys are known rule IDs or categories."""
+  fun name(): String => "Config: validate passes for known keys"
+
+  fun apply(h: TestHelper) =>
+    let disabled = recover val Set[String] end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("style/line-length") = lint.RuleOff
+        m("style") = lint.RuleOn
+        m
+      end
+    let config = lint.LintConfig(disabled, file_rules)
+    let known =
+      recover val
+        Set[String]
+          .> set("style/line-length")
+          .> set("style/trailing-whitespace")
+          .> set("style")
+      end
+    match config.validate(known)
+    | let err: lint.ConfigError =>
+      h.fail("unexpected error: " + err.message)
+    end
+
+class \nodoc\ _TestConfigValidateUnknownRule is UnitTest
+  """Validate fails when config has an unrecognized rule ID."""
+  fun name(): String => "Config: validate fails for unknown rule"
+
+  fun apply(h: TestHelper) =>
+    let disabled = recover val Set[String] end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("stlye/line-length") = lint.RuleOff
+        m
+      end
+    let config = lint.LintConfig(disabled, file_rules)
+    let known =
+      recover val
+        Set[String]
+          .> set("style/line-length")
+          .> set("style")
+      end
+    match \exhaustive\ config.validate(known)
+    | None => h.fail("expected ConfigError")
+    | let err: lint.ConfigError =>
+      h.assert_true(err.message.contains("stlye/line-length"))
+    end
+
+class \nodoc\ _TestConfigValidateUnknownCategory is UnitTest
+  """Validate fails when config has an unrecognized category."""
+  fun name(): String => "Config: validate fails for unknown category"
+
+  fun apply(h: TestHelper) =>
+    let disabled = recover val Set[String] end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("stlye") = lint.RuleOff
+        m
+      end
+    let config = lint.LintConfig(disabled, file_rules)
+    let known =
+      recover val
+        Set[String]
+          .> set("style/line-length")
+          .> set("style")
+      end
+    match \exhaustive\ config.validate(known)
+    | None => h.fail("expected ConfigError")
+    | let err: lint.ConfigError =>
+      h.assert_true(err.message.contains("stlye"))
+    end
+
+class \nodoc\ _TestConfigValidateEmptyConfig is UnitTest
+  """Validate passes when config has no file rules."""
+  fun name(): String => "Config: validate passes for empty config"
+
+  fun apply(h: TestHelper) =>
+    let config = lint.LintConfig.default()
+    let known =
+      recover val Set[String] .> set("style/line-length") end
+    match config.validate(known)
+    | let err: lint.ConfigError =>
+      h.fail("unexpected error: " + err.message)
+    end
+
+class \nodoc\ _TestConfigValidateMultipleUnknown is UnitTest
+  """Validate reports all unrecognized keys, not just the first."""
+  fun name(): String => "Config: validate reports multiple unknown keys"
+
+  fun apply(h: TestHelper) =>
+    let disabled = recover val Set[String] end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("bogus/one") = lint.RuleOff
+        m("bogus/two") = lint.RuleOff
+        m
+      end
+    let config = lint.LintConfig(disabled, file_rules)
+    let known =
+      recover val
+        Set[String]
+          .> set("style/line-length")
+          .> set("style")
+      end
+    match \exhaustive\ config.validate(known)
+    | None => h.fail("expected ConfigError")
+    | let err: lint.ConfigError =>
+      h.assert_true(err.message.contains("bogus/one"))
+      h.assert_true(err.message.contains("bogus/two"))
+    end
+
+class \nodoc\ _TestConfigValidateMixedKnownUnknown is UnitTest
+  """Validate only reports unknown keys, not known ones."""
+  fun name(): String => "Config: validate reports only unknown keys"
+
+  fun apply(h: TestHelper) =>
+    let disabled = recover val Set[String] end
+    let file_rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("style/line-length") = lint.RuleOff
+        m("bogus/rule") = lint.RuleOn
+        m
+      end
+    let config = lint.LintConfig(disabled, file_rules)
+    let known =
+      recover val
+        Set[String]
+          .> set("style/line-length")
+          .> set("style")
+      end
+    match \exhaustive\ config.validate(known)
+    | None => h.fail("expected ConfigError")
+    | let err: lint.ConfigError =>
+      h.assert_true(err.message.contains("bogus/rule"))
+      h.assert_false(err.message.contains("style/line-length"))
+    end

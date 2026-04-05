@@ -88,6 +88,49 @@ class val LintConfig
         merged
       end
 
+  fun validate(known: Set[String] val): (None | ConfigError) =>
+    """
+    Check that every key in the config file matches a known rule ID or
+    category. Returns `ConfigError` listing all unrecognized keys, or
+    `None` when everything is valid.
+    """
+    let unknown = _unknown_keys(known)
+    if unknown.size() > 0 then
+      return ConfigError(_format_unknown(unknown))
+    end
+
+  fun _unknown_keys(known: Set[String] val): Array[String] val =>
+    """
+    Returns config file keys that don't appear in the known set.
+    """
+    recover val
+      let u = Array[String]
+      for key in _file_rules.keys() do
+        if not known.contains(key) then
+          u.push(key)
+        end
+      end
+      u
+    end
+
+  fun _format_unknown(keys: Array[String] val): String iso^ =>
+    """
+    Format unrecognized keys into an error message.
+    """
+    recover iso
+      let s = String
+      s.append("unrecognized config keys: ")
+      var first = true
+      for key in keys.values() do
+        if not first then s.append(", ") end
+        s.append("'")
+        s.append(key)
+        s.append("'")
+        first = false
+      end
+      s
+    end
+
   fun rule_status(
     rule_id: String,
     category: String,
