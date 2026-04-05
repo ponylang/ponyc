@@ -164,6 +164,27 @@ actor Main
         return
       end
 
+    // Validate config keys against known rules
+    let known_keys =
+      recover val
+        let s = Set[String]
+        for rule in all_rules.values() do
+          s.set(rule.id())
+          s.set(rule.category())
+        end
+        for rule in all_ast_rules.values() do
+          s.set(rule.id())
+          s.set(rule.category())
+        end
+        s
+      end
+    match config.validate(known_keys)
+    | let err: ConfigError =>
+      env.err.print("error: " + err.message)
+      env.exitcode(ExitError())
+      return
+    end
+
     // Build rule registry
     let registry = RuleRegistry(all_rules, all_ast_rules, config)
 

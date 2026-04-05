@@ -63,6 +63,12 @@ actor \nodoc\ Main is TestList
     test(_TestConfigFromCLIExplicitConfigRootDir)
     test(_TestConfigFromCLIExplicitConfigNotFound)
     test(_TestConfigFromCLIAutoDiscoverRootDir)
+    test(_TestConfigValidateKnownKeys)
+    test(_TestConfigValidateUnknownRule)
+    test(_TestConfigValidateUnknownCategory)
+    test(_TestConfigValidateEmptyConfig)
+    test(_TestConfigValidateMultipleUnknown)
+    test(_TestConfigValidateMixedKnownUnknown)
 
     // ConfigResolver tests
     test(_TestConfigResolverNoOverrides)
