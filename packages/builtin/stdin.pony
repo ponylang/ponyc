@@ -122,6 +122,10 @@ actor Stdin is AsioEventNotify
     """
     if AsioEvent.disposable(flags) then
       @pony_asio_event_destroy(event)
+    elseif (_event is event) and AsioEvent.errored(flags) then
+      _close_event()
+      try (_notify as InputNotify).dispose() end
+      _notify = None
     elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
     end
