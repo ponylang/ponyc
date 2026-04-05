@@ -55,7 +55,11 @@ class \nodoc\ iso _DocHighlightFieldTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(21, 6); (24, 4); (24, 12); (27, 4); (30, 22)])
+      h,
+      action,
+      at,
+      [ (21, 6, 21, 11); (24, 4, 24, 9); (24, 12, 24, 17)
+        (27, 4, 27, 9); (30, 22, 30, 27)])
 
 class \nodoc\ iso _DocHighlightFieldRefTest
   is UnitTest
@@ -81,7 +85,11 @@ class \nodoc\ iso _DocHighlightFieldRefTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(21, 6); (24, 4); (24, 12); (27, 4); (30, 22)])
+      h,
+      action,
+      at,
+      [ (21, 6, 21, 11); (24, 4, 24, 9); (24, 12, 24, 17)
+        (27, 4, 27, 9); (30, 22, 30, 27)])
 
 class \nodoc\ iso _DocHighlightLocalTest
   is UnitTest
@@ -109,7 +117,8 @@ class \nodoc\ iso _DocHighlightLocalTest
       recover _fixture + ":" + line.string() + ":" + character.string() end
     h.long_test(10_000_000_000)
     h.expect_action(action)
-    _server.test_document_highlight(h, action, at, [(30, 8); (31, 4); (31, 13)])
+    _server.test_document_highlight(
+      h, action, at, [(30, 8, 30, 14); (31, 4, 31, 10); (31, 13, 31, 19)])
 
 class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
@@ -136,7 +145,8 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
       recover _fixture + ":" + line.string() + ":" + character.string() end
     h.long_test(10_000_000_000)
     h.expect_action(action)
-    _server.test_document_highlight(h, action, at, [(80, 6); (85, 4); (90, 4)])
+    _server.test_document_highlight(
+      h, action, at, [(80, 6, 80, 11); (85, 4, 85, 9); (90, 4, 90, 9)])
 
 class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
@@ -163,7 +173,8 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
       recover _fixture + ":" + line.string() + ":" + character.string() end
     h.long_test(10_000_000_000)
     h.expect_action(action)
-    _server.test_document_highlight(h, action, at, [(81, 8); (86, 4); (91, 4)])
+    _server.test_document_highlight(
+      h, action, at, [(81, 8, 81, 14); (86, 4, 86, 10); (91, 4, 91, 10)])
 
 class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
   """
@@ -191,7 +202,7 @@ class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(51, 6); (86, 20); (91, 20)])
+      h, action, at, [(51, 6, 51, 12); (86, 20, 86, 26); (91, 20, 91, 26)])
 
 class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
   """
@@ -220,7 +231,7 @@ class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(94, 10); (102, 15); (107, 12)])
+      h, action, at, [(94, 10, 94, 13); (102, 15, 102, 18); (107, 12, 107, 15)])
 
 class \nodoc\ iso _DocHighlightParamTest is UnitTest
   """
@@ -248,7 +259,7 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(94, 14); (95, 18); (96, 4)])
+      h, action, at, [(94, 14, 94, 15); (95, 18, 95, 19); (96, 4, 96, 5)])
 
 class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
   """
@@ -277,7 +288,10 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(106, 8); (107, 4); (107, 8); (108, 4)])
+      h,
+      action,
+      at,
+      [(106, 8, 106, 9); (107, 4, 107, 5); (107, 8, 107, 9); (108, 4, 108, 5)])
 
 class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
@@ -303,7 +317,8 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
       recover _fixture + ":" + line.string() + ":" + character.string() end
     h.long_test(10_000_000_000)
     h.expect_action(action)
-    _server.test_document_highlight(h, action, at, [(121, 5); (125, 4)])
+    _server.test_document_highlight(
+      h, action, at, [(121, 5, 121, 8); (125, 4, 125, 7)])
 
 class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
   """
@@ -333,7 +348,10 @@ class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
     h.long_test(10_000_000_000)
     h.expect_action(action)
     _server.test_document_highlight(
-      h, action, at, [(33, 6); (81, 16); (86, 13); (91, 13)])
+      h,
+      action,
+      at,
+      [(33, 6, 33, 12); (81, 16, 81, 22); (86, 13, 86, 19); (91, 13, 91, 19)])
 
 class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
   """
@@ -360,7 +378,8 @@ class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
       recover _fixture + ":" + line.string() + ":" + character.string() end
     h.long_test(10_000_000_000)
     h.expect_action(action)
-    _server.test_document_highlight(h, action, at, [(54, 6); (98, 22)])
+    _server.test_document_highlight(
+      h, action, at, [(54, 6, 54, 20); (98, 22, 98, 36)])
 
 class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
   """
@@ -416,7 +435,7 @@ class val _PendingDocHighlight
   let file_path: String
   let line: I64
   let character: I64
-  let expected: Array[(I64, I64)] val
+  let expected: Array[(I64, I64, I64, I64)] val
   let h: TestHelper
   let action: String
 
@@ -424,7 +443,7 @@ class val _PendingDocHighlight
     file_path': String,
     line': I64,
     character': I64,
-    expected': Array[(I64, I64)] val,
+    expected': Array[(I64, I64, I64, I64)] val,
     h': TestHelper,
     action': String)
   =>
@@ -466,7 +485,7 @@ actor _DocHighlightLspServer is Channel
     h: TestHelper,
     action: String val,
     at: (I64, I64),
-    expected: Array[(I64, I64)] val)
+    expected: Array[(I64, I64, I64, I64)] val)
   =>
     (let line, let character) = at
     let file_path = _fixture_file
@@ -572,26 +591,32 @@ actor _DocHighlightLspServer is Channel
         "Expected " + want.string() + " highlights, got " + got.string())
       then
         ok = false
-        // Log all actual positions to diagnose unexpected highlights
+        // Log all actual ranges to diagnose unexpected highlights
         for item in arr.values() do
           try
-            let start = JsonNav(item)("range")("start")
-            let l = start("line").as_i64()?
-            let c = start("character").as_i64()?
+            let range = JsonNav(item)("range")
+            let sl = range("start")("line").as_i64()?
+            let sc = range("start")("character").as_i64()?
+            let el = range("end")("line").as_i64()?
+            let ec = range("end")("character").as_i64()?
             pending.h.log(
-              "  actual highlight at (" +
-              l.string() + ", " + c.string() + ")")
+              "  actual highlight (" + sl.string() + ", " + sc.string() +
+              ")–(" + el.string() + ", " + ec.string() + ")")
           end
         end
       end
-      for (exp_line, exp_char) in pending.expected.values() do
+      for (exp_sl, exp_sc, exp_el, exp_ec) in pending.expected.values() do
         var found = false
         for item in arr.values() do
           try
-            let start = JsonNav(item)("range")("start")
-            let l = start("line").as_i64()?
-            let c = start("character").as_i64()?
-            if (l == exp_line) and (c == exp_char) then
+            let range = JsonNav(item)("range")
+            let sl = range("start")("line").as_i64()?
+            let sc = range("start")("character").as_i64()?
+            let el = range("end")("line").as_i64()?
+            let ec = range("end")("character").as_i64()?
+            if (sl == exp_sl) and (sc == exp_sc) and
+              (el == exp_el) and (ec == exp_ec)
+            then
               found = true
               break
             end
@@ -599,9 +624,8 @@ actor _DocHighlightLspServer is Channel
         end
         if not pending.h.assert_true(
           found,
-          "Expected highlight at line " +
-          exp_line.string() + " col " +
-          exp_char.string() + " not found")
+          "Expected highlight (" + exp_sl.string() + ", " + exp_sc.string() +
+          ")–(" + exp_el.string() + ", " + exp_ec.string() + ") not found")
         then
           ok = false
         end
