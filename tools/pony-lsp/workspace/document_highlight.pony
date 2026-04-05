@@ -39,10 +39,38 @@ primitive DocumentHighlights
       end
     end
 
+    // When the cursor lands on the name identifier of an entity declaration
+    // (tk_class, tk_actor, etc.), _refine_node returns the bare tk_id rather
+    // than the enclosing entity node. Promote to the entity node so that
+    // references to the type (which resolve to tk_class, not its tk_id child)
+    // are found by the walker.
+    let node' =
+      if nid == TokenIds.tk_id() then
+        try
+          let par = node.parent() as AST box
+          match par.id()
+          | TokenIds.tk_class()
+          | TokenIds.tk_actor()
+          | TokenIds.tk_struct()
+          | TokenIds.tk_primitive()
+          | TokenIds.tk_trait()
+          | TokenIds.tk_interface()
+          | TokenIds.tk_type() =>
+            par
+          else
+            node
+          end
+        else
+          node
+        end
+      else
+        node
+      end
+
     // Determine the canonical target definition.
     // If the node has no definitions it IS the
     // definition; use it directly as the target.
-    let defs = node.definitions()
+    let defs = node'.definitions()
     let target: AST val =
       if defs.size() > 0 then
         try
@@ -51,7 +79,7 @@ primitive DocumentHighlights
           return []
         end
       else
-        AST(node.raw)
+        AST(node'.raw)
       end
 
     let collector = _HighlightCollector(target)

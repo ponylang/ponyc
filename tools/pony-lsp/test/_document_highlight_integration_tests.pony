@@ -21,7 +21,9 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightParamTest.create(server, fixture))
     test(_DocHighlightVarLocalTest.create(server, fixture))
     test(_DocHighlightBeRefTest.create(server, fixture))
+    test(_DocHighlightClassDeclTest.create(server, fixture))
     test(_DocHighlightClassTypeTest.create(server, fixture))
+    test(_DocHighlightTypeDeclTest.create(server, fixture))
     test(_DocHighlightTypeRefTest.create(server, fixture))
     test(_DocHighlightLiteralTest.create(server, fixture))
     test(_DocHighlightNoneTest.create(server, fixture))
@@ -365,6 +367,65 @@ class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
       action,
       at,
       [(33, 6, 33, 12); (81, 16, 81, 22); (86, 13, 86, 19); (91, 13, 91, 19)])
+
+class \nodoc\ iso _DocHighlightClassDeclTest is UnitTest
+  """
+  Highlights the `_Inner` class from its declaration site.
+  Expects the same 4 occurrences as _DocHighlightClassTypeTest:
+    line  33 col  6  (class _Inner declaration)
+    line  81 col 16  (embed _inner: _Inner type annotation)
+    line  86 col 13  (_Inner.create() receiver in create)
+    line  91 col 13  (_Inner.create() receiver in other)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/class_decl"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (33, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h,
+      action,
+      at,
+      [(33, 6, 33, 12); (81, 16, 81, 22); (86, 13, 86, 19); (91, 13, 91, 19)])
+
+class \nodoc\ iso _DocHighlightTypeDeclTest is UnitTest
+  """
+  Highlights the `_HighlightMore` class from its declaration site.
+  Expects the same 2 occurrences as _DocHighlightTypeRefTest:
+    line  54 col  6  (class _HighlightMore declaration)
+    line  98 col 22  (_HighlightMore in get_self return type)
+  """
+  let _server: _DocHighlightLspServer
+  let _fixture: String val
+
+  new iso create(server: _DocHighlightLspServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/type_decl"
+
+  fun apply(h: TestHelper) =>
+    let at: (I64, I64) = (54, 6)
+    (let line, let character) = at
+    let action: String val =
+      recover _fixture + ":" + line.string() + ":" + character.string() end
+    h.long_test(10_000_000_000)
+    h.expect_action(action)
+    _server.test_document_highlight(
+      h, action, at, [(54, 6, 54, 20); (98, 22, 98, 36)])
 
 class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
   """
