@@ -45,3 +45,7 @@ The runtime now detects these registration failures and notifies the affected ac
 
 Also fixes the ASIO backend init to correctly detect `epoll_create1` and `eventfd` failures (previously checked for 0 instead of -1), and to clean up all resources on partial init failure.
 
+## LSP: Fix goto_definition range end
+
+The Pony language server `textDocument/definition` response now returns a correct `range.end` position. Previously, it had an off-by-one error in the column value.
+
