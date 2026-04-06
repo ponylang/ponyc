@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add hierarchical configuration for pony-lint ([PR #5135](https://github.com/ponylang/ponyc/pull/5135))
 - Protect pony-lint against oversize configuration files ([PR #5138](https://github.com/ponylang/ponyc/pull/5138))
 - Protect pony-lint against oversize ignore files ([PR #5140](https://github.com/ponylang/ponyc/pull/5140))
+- Add LSP `textDocument/documentHighlight` support ([PR #5111](https://github.com/ponylang/ponyc/pull/5111))
 
 ### Changed
 
