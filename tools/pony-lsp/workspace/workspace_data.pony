@@ -45,13 +45,10 @@ class val WorkspaceData
               if dep.contains(Path.sep()) then
                 dep
               else
-                folder.join("_corral")?
-                  .join(dep)?.path
+                folder.join("_corral")?.join(dep)?.path
               end
             })
-          .collect(
-            Array[String]
-              .create(dependencies.size()))
+          .collect(Array[String].create(dependencies.size()))
       end
     package_paths = package_paths'
     var min: USize = USize.max_value()
