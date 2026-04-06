@@ -91,6 +91,9 @@ primitive TextDocumentMethods
   fun did_save(): String val =>
     "textDocument/didSave"
 
+  fun document_highlight(): String val =>
+    "textDocument/documentHighlight"
+
   fun document_symbol(): String val =>
     "textDocument/documentSymbol"
 

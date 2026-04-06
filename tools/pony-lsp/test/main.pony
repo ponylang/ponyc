@@ -25,6 +25,7 @@ actor Main is TestList
     _DiagnosticTests.make().tests(test)
     _HoverIntegrationTests.make().tests(test)
     _DefinitionIntegrationTests.make().tests(test)
+    _DocumentHighlightIntegrationTests.make().tests(test)
 
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"

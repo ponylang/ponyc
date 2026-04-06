@@ -725,10 +725,64 @@ actor WorkspaceManager
       .update("contents", hover_contents)
       .update("range", hover_range.to_json())
 
-  be goto_definition(
-    document_uri: String,
-    request: RequestMessage val)
-  =>
+  be document_highlight(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/documentHighlight request.
+    """
+    this._channel.log("Handling textDocument/documentHighlight")
+
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+
+    let document_path = Uris.to_path(document_uri)
+
+    try
+      let package: FilePath = this._find_workspace_package(document_path)?
+      match \exhaustive\ this._get_package(package)
+      | let pkg_state: PackageState =>
+        match \exhaustive\ pkg_state.get_document(document_path)
+        | let doc: DocumentState =>
+          let maybe_index = doc.position_index()
+          let maybe_module = doc.module()
+          match (maybe_index, maybe_module)
+          | (let index: PositionIndex, let module: Module val) =>
+            match \exhaustive\ index.find_node_at(
+              USize.from[I64](line + 1),
+              USize.from[I64](column + 1))
+            | let node: AST box =>
+              let ranges = DocumentHighlights.collect(node, module)
+              var json_arr = JsonArray
+              for range in ranges.values() do
+                json_arr =
+                  json_arr.push(JsonObject.update("range", range.to_json()))
+              end
+              this._channel.send(ResponseMessage(request.id, json_arr))
+              return
+            | None =>
+              this._channel.log(
+                "No AST node found @ " + line.string() + ":" + column.string())
+            end
+          else
+            this._channel.log(
+              "No index or module available for " + document_path)
+          end
+        | None =>
+          this._channel.log(
+            "No document state available for " + document_path)
+        end
+      | None =>
+        this._channel.log(
+          "No package state available for package: " + document_path)
+      end
+    else
+      this._channel.log("document not in workspace: " + document_path)
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be goto_definition(document_uri: String, request: RequestMessage val) =>
     """
     Handling the textDocument/definition request.
     """
