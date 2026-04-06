@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
@@ -207,6 +208,18 @@ static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
       ast_t* def = (ast_t*)ast_data(ast);
       pony_assert(ast_id(def) == TK_TYPEPARAM);
       find_possible_fun_defs(opt, ast_childidx(def, 1), fun_defs, obj_caps);
+      break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+      {
+        find_possible_fun_defs(opt, unfolded, fun_defs, obj_caps);
+        ast_free_unattached(unfolded);
+      }
       break;
     }
 

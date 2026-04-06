@@ -537,6 +537,9 @@ ast_t* cap_fetch(ast_t* type)
     case TK_TYPEPARAMREF:
       return ast_childidx(type, 1);
 
+    case TK_TYPEALIASREF:
+      return ast_childidx(type, 2);
+
     default: {}
   }
 
@@ -604,6 +607,7 @@ token_id cap_dispatch(ast_t* type)
     }
 
     case TK_NOMINAL:
+    case TK_TYPEALIASREF:
       return cap_single(type);
 
     default: {}
@@ -1067,6 +1071,7 @@ ast_t* modified_cap(ast_t* type, cap_mutation* mutation)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       return modified_cap_single(type, mutation);
 
     case TK_ARROW:

@@ -134,6 +134,32 @@ static void sanitise(ast_t** astp)
     return;
   }
 
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    // We have a type alias reference, convert to a nominal
+    ast_t* def = (ast_t*)ast_data(type);
+    pony_assert(def != NULL);
+
+    const char* name = ast_name(ast_child(def));
+    pony_assert(name != NULL);
+
+    // Sanitise typeargs before replacement
+    ast_t* typeargs = ast_childidx(type, 1);
+
+    for(ast_t* p = ast_child(typeargs); p != NULL; p = ast_sibling(p))
+      sanitise(&p);
+
+    REPLACE(astp,
+      NODE(TK_NOMINAL,
+        NONE            // Package name
+        ID(name)
+        TREE(typeargs)  // Type args
+        NONE            // Capability
+        NONE));         // Ephemeral
+
+    return;
+  }
+
   // Process all our children
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
     sanitise(&p);

@@ -355,6 +355,7 @@ static token_id cap_from_constraint(ast_t* type)
 
     case TK_TYPEPARAMREF:
     case TK_NOMINAL:
+    case TK_TYPEALIASREF:
       return cap_single(type);
 
     default: {}
@@ -492,6 +493,7 @@ static bool apply_cap(ast_t* type, token_id tcap, token_id teph)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       return apply_cap_to_single(type, tcap, teph);
 
     default: {}
@@ -601,6 +603,19 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
     case TK_NOMINAL:
     {
       ast_t* typeargs = ast_childidx(type, 2);
+      ast_t* typearg = ast_child(typeargs);
+
+      while(typearg != NULL)
+      {
+        typeparam_current_inner(typearg, scope);
+        typearg = ast_sibling(typearg);
+      }
+      break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* typeargs = ast_childidx(type, 1);
       ast_t* typearg = ast_child(typeargs);
 
       while(typearg != NULL)

@@ -263,6 +263,7 @@ ast_t* alias(ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       return alias_single(type);
 
     case TK_ARROW:
@@ -368,6 +369,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       return consume_single(type, cap, keep_double_ephemeral);
 
     case TK_ARROW:
@@ -461,6 +463,7 @@ static ast_t* recover_type_inner(ast_t* type, token_id cap,
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       return recover_single(type, cap, tuple_elem_recover);
 
     case TK_ARROW:
@@ -518,6 +521,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     {
       ast_t* cap = cap_fetch(type);
       ast_t* eph = ast_sibling(cap);
@@ -671,6 +675,7 @@ bool sendable(ast_t* type)
 
         case TK_NOMINAL:
         case TK_TYPEPARAMREF:
+        case TK_TYPEALIASREF:
         {
           ast_t* l_cap = cap_fetch(left);
 
@@ -772,6 +777,12 @@ bool sendable(ast_t* type)
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, eph);
+      return cap_sendable(ast_id(cap));
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      AST_GET_CHILDREN(type, id, typeargs, cap, eph);
       return cap_sendable(ast_id(cap));
     }
 

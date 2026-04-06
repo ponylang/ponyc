@@ -10,6 +10,7 @@
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
@@ -94,6 +95,19 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
       // This could this be an actor.
       ast_setid(ast, TK_NEWBEREF);
       return true;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      // Unfold the alias and re-dispatch.
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = constructor_type(opt, ast, cap, unfolded, resultp);
+      ast_free_unattached(unfolded);
+      return ok;
     }
 
     case TK_ARROW:

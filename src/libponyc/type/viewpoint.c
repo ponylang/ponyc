@@ -2,6 +2,7 @@
 #include "alias.h"
 #include "assemble.h"
 #include "cap.h"
+#include "typealias.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
 
@@ -40,6 +41,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       break;
 
     case TK_NOMINAL:
+    case TK_TYPEALIASREF:
     {
       ast_t* cap = cap_fetch(r_type);
 
@@ -77,6 +79,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
   {
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     {
       ast_t* cap = cap_fetch(l_type);
 
@@ -162,6 +165,7 @@ ast_t* viewpoint_upper(ast_t* type)
   {
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       break;
 
     case TK_ARROW:
@@ -197,6 +201,7 @@ ast_t* viewpoint_upper(ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     {
       ast_t* left_cap = cap_fetch(left);
       ast_t* left_eph = ast_sibling(left_cap);
@@ -244,6 +249,7 @@ ast_t* viewpoint_lower(ast_t* type)
   {
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       break;
 
     case TK_ARROW:
@@ -279,6 +285,7 @@ ast_t* viewpoint_lower(ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     {
       ast_t* left_cap = cap_fetch(left);
       ast_t* left_eph = ast_sibling(left_cap);

@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/lookup.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 
 static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
@@ -189,6 +190,18 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
       return;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+      {
+        find_possible_element_types(opt, unfolded, list);
+        ast_free_unattached(unfolded);
+      }
+      return;
+    }
+
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     {
@@ -227,6 +240,18 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
       ast_t* def = (ast_t*)ast_data(ast);
       pony_assert(ast_id(def) == TK_TYPEPARAM);
       find_possible_iterator_element_types(opt, ast_childidx(def, 1), list);
+      return;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+      {
+        find_possible_iterator_element_types(opt, unfolded, list);
+        ast_free_unattached(unfolded);
+      }
       return;
     }
 

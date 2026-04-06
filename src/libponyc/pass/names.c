@@ -56,6 +56,19 @@ static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
       return true;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      AST_GET_CHILDREN(ast, id, typeargs, tcap, teph);
+
+      if(ast_id(cap) != TK_NONE)
+        ast_replace(&tcap, cap);
+
+      if(ast_id(ephemeral) != TK_NONE)
+        ast_replace(&teph, ephemeral);
+
+      return true;
+    }
+
     case TK_ARROW:
       return names_applycap(opt, ast_childidx(ast, 1), cap, ephemeral);
 

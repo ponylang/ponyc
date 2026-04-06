@@ -12,6 +12,7 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 
 static bool is_numeric_primitive(const char* name)
@@ -251,6 +252,24 @@ static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
       return find_tuple_type(opt, ast_childlast(ast), child_count);
 
     case TK_TYPEPARAMREF: break; // TODO
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* r = find_tuple_type(opt, unfolded, child_count);
+
+      // find_tuple_type may return a pointer into the unfolded subtree.
+      // Duplicate the result before freeing the unfolded AST.
+      if(r != NULL)
+        r = ast_dup(r);
+
+      ast_free_unattached(unfolded);
+      return r;
+    }
 
     default:
       break;

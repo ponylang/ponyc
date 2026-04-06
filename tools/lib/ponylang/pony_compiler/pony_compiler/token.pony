@@ -269,39 +269,40 @@ primitive TokenIds
   fun tk_packageref(): I32 => 185
   fun tk_typeref(): I32 => 186
   fun tk_typeparamref(): I32 => 187
-  fun tk_newref(): I32 => 188
-  fun tk_newberef(): I32 => 189
-  fun tk_beref(): I32 => 190
-  fun tk_funref(): I32 => 191
-  fun tk_fvarref(): I32 => 192
-  fun tk_fletref(): I32 => 193
-  fun tk_embedref(): I32 => 194
-  fun tk_tupleelemref(): I32 => 195
-  fun tk_varref(): I32 => 196
-  fun tk_letref(): I32 => 197
-  fun tk_paramref(): I32 => 198
-  fun tk_dontcareref(): I32 => 199
-  fun tk_newapp(): I32 => 200
-  fun tk_beapp(): I32 => 201
-  fun tk_funapp(): I32 => 202
-  fun tk_bechain(): I32 => 203
-  fun tk_funchain(): I32 => 204
+  fun tk_typealiasref(): I32 => 188
+  fun tk_newref(): I32 => 189
+  fun tk_newberef(): I32 => 190
+  fun tk_beref(): I32 => 191
+  fun tk_funref(): I32 => 192
+  fun tk_fvarref(): I32 => 193
+  fun tk_fletref(): I32 => 194
+  fun tk_embedref(): I32 => 195
+  fun tk_tupleelemref(): I32 => 196
+  fun tk_varref(): I32 => 197
+  fun tk_letref(): I32 => 198
+  fun tk_paramref(): I32 => 199
+  fun tk_dontcareref(): I32 => 200
+  fun tk_newapp(): I32 => 201
+  fun tk_beapp(): I32 => 202
+  fun tk_funapp(): I32 => 203
+  fun tk_bechain(): I32 => 204
+  fun tk_funchain(): I32 => 205
 
-  fun tk_annotation(): I32 => 205
+  fun tk_annotation(): I32 => 206
 
-  fun tk_disposing_block(): I32 => 206
+  fun tk_disposing_block(): I32 => 207
 
   // Pseudo tokens that never actually exist
-  fun tk_newline(): I32 => 207  // Used by parser macros
-  fun tk_flatten(): I32 => 208  // Used by parser macros for tree building
+  fun tk_newline(): I32 => 208  // Used by parser macros
+  fun tk_flatten(): I32 => 209  // Used by parser macros for tree building
 
   // Token types for testing
-  fun tk_test_no_seq(): I32 => 209
-  fun tk_test_seq_scope(): I32 => 210
-  fun tk_test_try_no_check(): I32 => 211
-  fun tk_test_aliased(): I32 => 212
-  fun tk_test_updatearg(): I32 => 213
-  fun tk_test_extra(): I32 => 214
+  fun tk_test_no_seq(): I32 => 210
+  fun tk_test_seq_scope(): I32 => 211
+  fun tk_test_try_no_check(): I32 => 212
+  fun tk_test_aliased(): I32 => 213
+  fun tk_test_updatearg(): I32 => 214
+  fun tk_test_extra(): I32 => 215
 
   fun string(token_id: TokenId): String val =>
     match token_id
@@ -493,33 +494,34 @@ primitive TokenIds
     | 185 => "TK_PACKAGEREF"
     | 186 => "TK_TYPEREF"
     | 187 => "TK_TYPEPARAMREF"
-    | 188 => "TK_NEWREF"
-    | 189 => "TK_NEWBEREF"
-    | 190 => "TK_BEREF"
-    | 191 => "TK_FUNREF"
-    | 192 => "TK_FVARREF"
-    | 193 => "TK_FLETREF"
-    | 194 => "TK_EMBEDREF"
-    | 195 => "TK_TUPLEELEMREF"
-    | 196 => "TK_VARREF"
-    | 197 => "TK_LETREF"
-    | 198 => "TK_PARAMREF"
-    | 199 => "TK_DONTCAREREF"
-    | 200 => "TK_NEWAPP"
-    | 201 => "TK_BEAPP"
-    | 202 => "TK_FUNAPP"
-    | 203 => "TK_BECHAIN"
-    | 204 => "TK_FUNCHAIN"
-    | 205 => "TK_ANNOTATION"
-    | 206 => "TK_DISPOSING_BLOCK"
-    | 207 => "TK_NEWLINE"  // Used by parser macros
-    | 208 => "TK_FLATTEN"  // Used by parser macros for tree building
-    | 209 => "TK_TEST_NO_SEQ"
-    | 210 => "TK_TEST_SEQ_SCOPE"
-    | 211 => "TK_TEST_TRY_NO_CHECK"
-    | 212 => "TK_TEST_ALIASED"
-    | 213 => "TK_TEST_UPDATEARG"
-    | 214 => "TK_TEST_EXTRA"
+    | 188 => "TK_TYPEALIASREF"
+    | 189 => "TK_NEWREF"
+    | 190 => "TK_NEWBEREF"
+    | 191 => "TK_BEREF"
+    | 192 => "TK_FUNREF"
+    | 193 => "TK_FVARREF"
+    | 194 => "TK_FLETREF"
+    | 195 => "TK_EMBEDREF"
+    | 196 => "TK_TUPLEELEMREF"
+    | 197 => "TK_VARREF"
+    | 198 => "TK_LETREF"
+    | 199 => "TK_PARAMREF"
+    | 200 => "TK_DONTCAREREF"
+    | 201 => "TK_NEWAPP"
+    | 202 => "TK_BEAPP"
+    | 203 => "TK_FUNAPP"
+    | 204 => "TK_BECHAIN"
+    | 205 => "TK_FUNCHAIN"
+    | 206 => "TK_ANNOTATION"
+    | 207 => "TK_DISPOSING_BLOCK"
+    | 208 => "TK_NEWLINE"  // Used by parser macros
+    | 209 => "TK_FLATTEN"  // Used by parser macros for tree building
+    | 210 => "TK_TEST_NO_SEQ"
+    | 211 => "TK_TEST_SEQ_SCOPE"
+    | 212 => "TK_TEST_TRY_NO_CHECK"
+    | 213 => "TK_TEST_ALIASED"
+    | 214 => "TK_TEST_UPDATEARG"
+    | 215 => "TK_TEST_EXTRA"
     else
       "TK_UNKNOWN"
     end

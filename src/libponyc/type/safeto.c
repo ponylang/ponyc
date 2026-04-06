@@ -1,5 +1,6 @@
 #include "safeto.h"
 #include "cap.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
 
@@ -43,6 +44,7 @@ static bool safe_field_move(token_id cap, ast_t* type, direction direction)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
       return cap_safetomove(cap, cap_single(type), direction);
 
     default: {}
@@ -162,6 +164,7 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type, direction direction)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     {
       // An argument or result is safe for autorecover if it would be safe to
       // move into/out of the receiver, respectively.

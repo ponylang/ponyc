@@ -2,6 +2,7 @@
 #include "cap.h"
 #include "assemble.h"
 #include "subtype.h"
+#include "typealias.h"
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
@@ -546,6 +547,17 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, errorf, report_reject, opt);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(operand);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_tuple(unfolded, pattern, errorf,
+        report_reject, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default: {}
   }
 
@@ -803,6 +815,17 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, errorf, report_reject, opt);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(operand);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_nominal(unfolded, pattern, errorf,
+        report_reject, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_FUNTYPE:
       return MATCHTYPE_REJECT;
 
@@ -833,6 +856,17 @@ static matchtype_t is_x_match_base_typeparam(ast_t* operand, ast_t* pattern,
 
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, errorf, report_reject, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(operand);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_base_typeparam(unfolded, pattern, errorf,
+        report_reject, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
       return MATCHTYPE_REJECT;
@@ -916,6 +950,17 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
 
     case TK_ARROW:
       return is_x_match_arrow(operand, pattern, errorf, report_reject, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(pattern);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_x(operand, unfolded, errorf, report_reject,
+        opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
       return MATCHTYPE_DENY_CAP;

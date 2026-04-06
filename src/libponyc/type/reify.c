@@ -453,6 +453,9 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
         break;
       }
 
+      case TK_TYPEALIASREF:
+        break;
+
       default: {}
     }
 
