@@ -71,3 +71,7 @@ pony-lint now rejects `.pony-lint.json` files larger than 64 KB. With hierarchic
 
 pony-lint now rejects `.gitignore` and `.ignore` files larger than 64 KB. With hierarchical ignore loading, each directory in a project can have its own ignore files — an unexpectedly large file could cause excessive memory consumption. Ignore files that exceed the limit or that cannot be opened produce a `lint/ignore-error` diagnostic with exit code 2.
 
+## Add LSP textDocument/documentHighlight support
+
+The Pony language server now handles `textDocument/documentHighlight` requests. Placing the cursor on any symbol highlights all occurrences in the file, covering fields, locals, parameters, constructors, functions, behaviours, and type names.
+
