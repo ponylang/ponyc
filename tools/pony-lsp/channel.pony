@@ -24,9 +24,7 @@ trait tag Channel
     Send a message to the client.
     """
 
-  be log(
-    data: String val,
-    message_type: MessageType = Debug)
+  be log(data: String val, message_type: MessageType = Debug)
     """
     Log a message.
     """
@@ -48,10 +46,7 @@ actor Stdio is Channel
   let out: OutStream
   let stdin: InputStream
 
-  new create(
-    out': OutStream tag,
-    stdin': InputStream tag)
-  =>
+  new create(out': OutStream tag, stdin': InputStream tag) =>
     out = out'
     stdin = stdin'
 
@@ -62,20 +57,14 @@ actor Stdio is Channel
     // start receiving input
     // we do expect some bigger json messages,
     // so allocate 256 bytes by default
-    this.stdin.apply(
-      InputNotifier(notifier)
-        where chunk_size = 256
-    )
+    this.stdin.apply(InputNotifier(notifier) where chunk_size = 256)
 
   be send(msg: Message val) =>
     let output: String val = msg.string()
     out.write(output)
     out.flush()
 
-  be log(
-    data: String val,
-    message_type: MessageType = Debug)
-  =>
+  be log(data: String val, message_type: MessageType = Debug) =>
     """
     Log data to the editor via window/logMessage.
     """
@@ -84,9 +73,7 @@ actor Stdio is Channel
         Methods.window().log_message(),
         JsonObject
           .update("type", message_type.apply())
-          .update("message", data)
-      )
-    )
+          .update("message", data)))
 
   be dispose() =>
     this.stdin.dispose()

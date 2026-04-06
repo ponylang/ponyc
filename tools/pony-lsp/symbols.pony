@@ -42,14 +42,12 @@ primitive SymbolTags
 
 class DocumentSymbol
   """
-  Represents a symbol found in a document (e.g. a
-  class, method, or field).
+  Represents a symbol found in a document (e.g. a class, method, or field).
   """
   let name: String
   let detail: (String | None)
     """
-    More detail for this symbol, e.g the signature
-    of a function.
+    More detail for this symbol, e.g the signature of a function.
     """
   let kind: I64
     """
@@ -57,25 +55,21 @@ class DocumentSymbol
     """
   let tags: (Array[I64] ref | None)
     """
-    Tags for this document symbol.
-    since 3.16.0
+    Tags for this document symbol. since 3.16.0
     """
   let range: LspPositionRange
     """
-    The range enclosing this symbol not including
-    leading/trailing whitespace but everything else
-    like comments.
+    The range enclosing this symbol not including leading/trailing whitespace
+    but everything else like comments.
     """
   let selection_range: LspPositionRange
     """
-    The range that should be selected and revealed
-    when this symbol is being picked, e.g. the name
-    of a function.
+    The range that should be selected and revealed when this symbol is
+    being picked, e.g. the name of a function.
     """
   let children: Array[DocumentSymbol] ref
     """
-    Children of this symbol, e.g. properties of a
-    class.
+    Children of this symbol, e.g. properties of a class.
     """
 
   new ref create(
@@ -103,16 +97,13 @@ class DocumentSymbol
       .update("name", this.name)
       .update("kind", this.kind)
       .update("range", this.range.to_json())
-      .update(
-        "selectionRange", this.range.to_json())
+      .update("selectionRange", this.range.to_json())
     if this.detail isnt None then
       obj = obj.update("detail", detail)
     end
     try
       var json_tags = JsonArray
-      for tagg in
-        (this.tags as this->Array[I64]).values()
-      do
+      for tagg in (this.tags as this->Array[I64]).values() do
         json_tags = json_tags.push(tagg)
       end
       obj = obj.update("tags", json_tags)
@@ -120,8 +111,7 @@ class DocumentSymbol
     if this.children.size() > 0 then
       var json_children = JsonArray
       for child in this.children.values() do
-        json_children =
-          json_children.push(child.to_json())
+        json_children = json_children.push(child.to_json())
       end
       obj = obj.update("children", json_children)
     end
@@ -137,21 +127,17 @@ primitive DocumentSymbols
     module: Module,
     channel: Channel): Array[DocumentSymbol] ref
   =>
-    let symbols: Array[DocumentSymbol] ref =
-      Array[DocumentSymbol].create(4)
+    let symbols: Array[DocumentSymbol] ref = Array[DocumentSymbol].create(4)
     for module_child in module.ast.children() do
       let maybe_kind =
         match module_child.id()
         | TokenIds.tk_interface()
-        | TokenIds.tk_trait() =>
-          SymbolKinds.sk_interface()
+        | TokenIds.tk_trait() => SymbolKinds.sk_interface()
         | TokenIds.tk_primitive()
         | TokenIds.tk_class()
         | TokenIds.tk_type()
-        | TokenIds.tk_actor() =>
-          SymbolKinds.sk_class()
-        | TokenIds.tk_struct() =>
-          SymbolKinds.sk_struct()
+        | TokenIds.tk_actor() => SymbolKinds.sk_class()
+        | TokenIds.tk_struct() => SymbolKinds.sk_struct()
         else
           None
         end
@@ -160,35 +146,23 @@ primitive DocumentSymbols
         try
           let id = module_child(0)?
           if id.id() == TokenIds.tk_id() then
-            let name =
-              id.token_value() as String
-            (let start_pos, let end_pos) =
-              module_child.span()
+            let name = id.token_value() as String
+            (let start_pos, let end_pos) = module_child.span()
             let full_range =
               LspPositionRange(
-                LspPosition.from_ast_pos(
-                  start_pos),
-                LspPosition.from_ast_pos(end_pos)
-              )
+                LspPosition.from_ast_pos(start_pos),
+                LspPosition.from_ast_pos(end_pos))
             (let id_start, let id_end) = id.span()
             let selection_range =
               LspPositionRange(
                 LspPosition.from_ast_pos(id_start),
-                LspPosition.from_ast_pos(id_end)
-              )
+                LspPosition.from_ast_pos(id_end))
             let symbol =
-              DocumentSymbol(
-                name,
-                kind,
-                full_range,
-                selection_range)
-            this.find_members(
-              module_child, symbol, channel)
+              DocumentSymbol(name, kind, full_range, selection_range)
+            this.find_members(module_child, symbol, channel)
             symbols.push(symbol)
           else
-            channel.log(
-              "Expecred TK_ID, got " +
-              TokenIds.string(id.id()))
+            channel.log("Expecred TK_ID, got " + TokenIds.string(id.id()))
           end
         else
           channel.log("No id node at idx 1")
@@ -207,8 +181,7 @@ primitive DocumentSymbols
         entity(4)?
       else
         channel.log(
-          "No members node at child idx 4 " +
-          "for node " +
+          "No members node at child idx 4 for node " +
           TokenIds.string(entity.id()))
         return
       end
@@ -222,15 +195,12 @@ primitive DocumentSymbols
       try
         let maybe_kind_and_idx =
           match entity_child.id()
-          | TokenIds.tk_new() =>
-            (SymbolKinds.constructor(), USize(1))
+          | TokenIds.tk_new() => (SymbolKinds.constructor(), USize(1))
           | TokenIds.tk_fun()
-          | TokenIds.tk_be() =>
-            (SymbolKinds.method(), USize(1))
+          | TokenIds.tk_be() => (SymbolKinds.method(), USize(1))
           | TokenIds.tk_flet()
           | TokenIds.tk_fvar()
-          | TokenIds.tk_embed() =>
-            (SymbolKinds.field(), USize(0))
+          | TokenIds.tk_embed() => (SymbolKinds.field(), USize(0))
           else
             (None, None)
           end
@@ -242,27 +212,19 @@ primitive DocumentSymbols
             "Expected TK_ID node for child of " +
             TokenIds.string(entity_child.id()) +
             ", got " + TokenIds.string(id.id()))?
-          let name =
-            id.token_value() as String
-          (let start_pos, let end_pos) =
-            entity_child.span()
+          let name = id.token_value() as String
+          (let start_pos, let end_pos) = entity_child.span()
           let full_range =
             LspPositionRange(
               LspPosition.from_ast_pos(start_pos),
-              LspPosition.from_ast_pos(end_pos)
-            )
+              LspPosition.from_ast_pos(end_pos))
           (let id_start, let id_end) = id.span()
           let selection_range =
             LspPositionRange(
               LspPosition.from_ast_pos(id_start),
-              LspPosition.from_ast_pos(id_end)
-            )
+              LspPosition.from_ast_pos(id_end))
           let member_symbol =
-            DocumentSymbol(
-              name,
-              kind,
-              full_range,
-              selection_range)
+            DocumentSymbol(name, kind, full_range, selection_range)
           symbol.push_child(member_symbol)
         end
       end

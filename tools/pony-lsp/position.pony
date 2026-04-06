@@ -18,10 +18,7 @@ class val LspPositionRange
     _start = pos
     _end = pos
 
-  new val create(
-    start_pos: LspPosition,
-    end_pos: LspPosition)
-  =>
+  new val create(start_pos: LspPosition, end_pos: LspPosition) =>
     _start = start_pos
     _end = end_pos
 
@@ -40,9 +37,7 @@ class val LspPosition
     """
   let _character: USize
 
-  new val create(
-    line': USize, character': USize)
-  =>
+  new val create(line': USize, character': USize) =>
     _line = line'
     _character = character'
 
@@ -73,9 +68,7 @@ class val LspLocation
   let uri: String
   let range: LspPositionRange
 
-  new val create(
-    uri': String, range': LspPositionRange)
-  =>
+  new val create(uri': String, range': LspPositionRange) =>
     uri = uri'
     range = range'
 
