@@ -581,11 +581,9 @@ actor WorkspaceManager
       Uris.to_path(document_uri)
 
     // Find AST node at the position
-    match \exhaustive\ _find_hover_node(
-      document_path, line, column)
-    | let hover_node: AST box =>
-      this._channel.log(
-        "Found AST node: " + hover_node.debug())
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let hover_node: AST box, _) =>
+      this._channel.log("Found AST node: " + hover_node.debug())
 
       // Extract hover information and build
       // response
@@ -644,56 +642,47 @@ actor WorkspaceManager
       None
     end
 
-  fun ref _find_hover_node(
+  fun ref _find_node_and_module(
     document_path: String,
     line: I64,
-    column: I64): (AST box | None)
+    column: I64): ((AST box, Module val) | None)
   =>
     """
-    Find the AST node at the specified position.
-    Returns None if document/package not found or
-    position invalid.
+    Find the AST node and its module at the given position.
+    Returns None if the document or package is not found,
+    or no node exists at that position.
     """
     try
-      let package: FilePath =
-        this._find_workspace_package(
-          document_path)?
+      let package: FilePath = this._find_workspace_package(document_path)?
 
-      match \exhaustive\ this._get_package(
-        package)
+      match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state
-          .get_document(document_path)
+        match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
-          match doc.position_index()
-          | let index: PositionIndex =>
-            // Find AST node at cursor position
-            // (convert 0-based to 1-based)
-            index.find_node_at(
+          match (doc.position_index(), doc.module())
+          | (let index: PositionIndex, let module: Module val) =>
+            match \exhaustive\ index.find_node_at(
               USize.from[I64](line + 1),
               USize.from[I64](column + 1))
+            | let node: AST box => (node, module)
+            | None => None
+            end
           else
             this._channel.log(
-              "No position index available " +
-              "for " + document_path)
+              "No index or module available for " + document_path)
             None
           end
         else
-          this._channel.log(
-            "No document state available " +
-            "for " + document_path)
+          this._channel.log("No document state available for " + document_path)
           None
         end
       | None =>
         this._channel.log(
-          "No package state available for " +
-          "package: " + package.path)
+          "No package state available for package: " + package.path)
         None
       end
     else
-      this._channel.log(
-        "document not in workspace: " +
-        document_path)
+      this._channel.log("document not in workspace: " + document_path)
       None
     end
 
@@ -730,55 +719,21 @@ actor WorkspaceManager
     Handle textDocument/documentHighlight request.
     """
     this._channel.log("Handling textDocument/documentHighlight")
-
     (let line, let column) =
       match \exhaustive\ _parse_hover_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
-
     let document_path = Uris.to_path(document_uri)
-
-    try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
-        | let doc: DocumentState =>
-          let maybe_index = doc.position_index()
-          let maybe_module = doc.module()
-          match (maybe_index, maybe_module)
-          | (let index: PositionIndex, let module: Module val) =>
-            match \exhaustive\ index.find_node_at(
-              USize.from[I64](line + 1),
-              USize.from[I64](column + 1))
-            | let node: AST box =>
-              let ranges = DocumentHighlights.collect(node, module)
-              var json_arr = JsonArray
-              for range in ranges.values() do
-                json_arr =
-                  json_arr.push(JsonObject.update("range", range.to_json()))
-              end
-              this._channel.send(ResponseMessage(request.id, json_arr))
-              return
-            | None =>
-              this._channel.log(
-                "No AST node found @ " + line.string() + ":" + column.string())
-            end
-          else
-            this._channel.log(
-              "No index or module available for " + document_path)
-          end
-        | None =>
-          this._channel.log(
-            "No document state available for " + document_path)
-        end
-      | None =>
-        this._channel.log(
-          "No package state available for package: " + document_path)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, let module: Module val) =>
+      let ranges = DocumentHighlights.collect(node, module)
+      var json_arr = JsonArray
+      for range in ranges.values() do
+        json_arr = json_arr.push(JsonObject.update("range", range.to_json()))
       end
-    else
-      this._channel.log("document not in workspace: " + document_path)
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
@@ -786,115 +741,41 @@ actor WorkspaceManager
     """
     Handling the textDocument/definition request.
     """
-    this._channel.log(
-      "handling goto_definition")
+    this._channel.log("handling textDocument/definition")
     this._current_request = request
-    // extract the source code position
     (let line, let column) =
-      try
-        let nav =
-          JsonNav(request.params)("position")
-        let l = nav("line").as_i64()? // 0-based
-        let c = nav("character").as_i64()?
-        (l, c)
-      else
-        _channel.send(
-          ResponseMessage.create(
-            request.id,
-            None,
-            ResponseError(
-              ErrorCodes.invalid_params(),
-              "Invalid position"))
-        )
-        return
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
       end
-    let document_path =
-      Uris.to_path(document_uri)
-    try
-      let package: FilePath =
-        this._find_workspace_package(
-          document_path)?
-
-      match \exhaustive\ this._get_package(
-        package)
-      | let pkg_state: PackageState =>
-        // this._channel.log(pkg_state.debug())
-        match \exhaustive\ pkg_state
-          .get_document(document_path)
-        | let doc: DocumentState =>
-          match \exhaustive\ doc
-            .position_index()
-          | let index: PositionIndex =>
-            // pony lines and characters are
-            // 1-based, lsp are 0-based
-            match \exhaustive\ index.find_node_at(
-              USize.from[I64](line + 1),
-              USize.from[I64](column + 1))
-            | let ast: AST box =>
-              this._channel.log(ast.debug())
-              var json_arr = JsonArray
-              // iterate through all found
-              // definitions
-              for ast_definition in
-                ast.definitions().values()
-              do
-                // get position of the found def
-                (let start_pos, let end_pos) =
-                  ast_definition.span()
-                try
-                  // append new location
-                  json_arr =
-                    json_arr.push(
-                      LspLocation(
-                        Uris.from_path(
-                          ast_definition
-                            .source_file()
-                              as String val),
-                        LspPositionRange(
-                          LspPosition.from_ast_pos(start_pos),
-                          LspPosition.from_ast_pos_end(end_pos))
-                      ).to_json()
-                    )
-                else
-                  this._channel.log(
-                    "No source file found " +
-                    "for definition: " +
-                    ast_definition.debug())
-                end
-              end
-              this._channel.send(
-                ResponseMessage(
-                  request.id, json_arr))
-              return
-            | None =>
-              this._channel.log(
-                "No AST node found @ " +
-                line.string() + ":" +
-                column.string())
-            end
-          else
-            this._channel.log(
-              "No position index available " +
-              "for " + document_path)
-          end
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let ast: AST box, _) =>
+      this._channel.log(ast.debug())
+      var json_arr = JsonArray
+      for ast_definition in ast.definitions().values() do
+        (let start_pos, let end_pos) = ast_definition.span()
+        try
+          json_arr =
+            json_arr.push(
+              LspLocation(
+                Uris.from_path(ast_definition.source_file() as String val),
+                LspPositionRange(
+                  LspPosition.from_ast_pos(start_pos),
+                  LspPosition.from_ast_pos_end(end_pos))
+              ).to_json()
+            )
         else
           this._channel.log(
-            "No document state available " +
-            "for " + document_path)
+            "No source file found for definition: " + ast_definition.debug())
         end
-      | None =>
-        this._channel.log(
-          "No package state available for " +
-          "package: " + package.path)
       end
-    else
-      this._channel.log(
-        "document not in workspace: " +
-        document_path)
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
+    | None => None
     end
     // send a null-response in every failure case
-    this._channel.send(
-      ResponseMessage.create(request.id, None))
+    this._channel.send(ResponseMessage.create(request.id, None))
 
   be document_symbols(
     document_uri: String,
