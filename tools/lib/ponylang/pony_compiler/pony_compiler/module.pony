@@ -80,8 +80,59 @@ class val PositionIndex
   new val create(module: Module val) =>
     _module = module
     let visitor = _PositionIndexBuilder
-    _module.ast.visit(visitor)
+    _build_index(_module.ast, visitor, _module.file)
     _index = visitor.index()
+
+  fun tag _is_filter_none_parent(ast_id: TokenId): Bool =>
+    """
+    Should TK_NONE children of this node type be skipped during traversal?
+    Matches the filter_none logic in AST.visit().
+    """
+    match ast_id
+    | TokenIds.tk_call() | TokenIds.tk_typeref() | TokenIds.tk_use()
+    | TokenIds.tk_actor() | TokenIds.tk_class() | TokenIds.tk_struct()
+    | TokenIds.tk_trait() | TokenIds.tk_interface() | TokenIds.tk_type()
+    | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be()
+    | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed()
+    | TokenIds.tk_nominal() | TokenIds.tk_param()
+    => true
+    else
+      false
+    end
+
+  fun tag _build_index(
+    ast: AST box,
+    visitor: _PositionIndexBuilder ref,
+    module_file: String val)
+  =>
+    """
+    Custom traversal for building the position index.
+
+    Unlike AST.visit(), which filters children by the parent's source file,
+    this checks each node against the module's source file and always recurses
+    into children. This is necessary because several compiler transformations
+    create mixed-source trees via ast_dup: type alias reification grafts
+    definition nodes (TK_TYPEARGS, TK_ID) that retain the stdlib source, and
+    default trait method bodies are copied into implementing classes. In both
+    cases, user-authored nodes appear as descendants of foreign-source parents.
+    The parent-relative filter in AST.visit() skips the foreign parent and
+    never reaches the user's nodes underneath.
+    """
+    let filter_none = _is_filter_none_parent(ast.id())
+    for child' in ast.children() do
+      if filter_none and (child'.id() == TokenIds.tk_none()) then
+        None // skip TK_NONE children of certain parent types
+      else
+        let from_module = match child'.source_file()
+          | let sf: String val => sf == module_file
+          else true
+          end
+        if from_module then visitor.visit(child') end
+        // Always recurse regardless of source, so we reach user nodes
+        // inside mixed-source subtrees
+        _build_index(child', visitor, module_file)
+      end
+    end
 
   fun debug(out: OutStream) =>
     for entry in _index.values() do
