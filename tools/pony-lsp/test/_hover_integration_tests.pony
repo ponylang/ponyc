@@ -9,7 +9,7 @@ primitive _HoverIntegrationTests is TestList
 
   fun tag tests(test: PonyTest) =>
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
-    let server = _HoverLspServer(workspace_dir)
+    let server = _LspTestServer(workspace_dir)
     test(_HoverIntegrationClassTest.create(server))
     test(_HoverIntegrationActorTest.create(server))
     test(_HoverIntegrationAliasTest.create(server))
@@ -24,9 +24,9 @@ primitive _HoverIntegrationTests is TestList
     test(_HoverIntegrationLiteralsTest.create(server))
 
 class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/literals"
@@ -55,16 +55,17 @@ class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
         (18, 27, [])
         (19, 33, [])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/class"
@@ -89,16 +90,17 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
         (2, 4, [])
         (7, 0, [])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/actor"
@@ -110,16 +112,17 @@ class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
         (6, 6, ["new tag create(name': String val)"])
         (9, 5, ["be tag do_something(value: U64 val)"])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/alias"
@@ -129,16 +132,17 @@ class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
     let checks: Array[HoverCheck] val =
       [(0, 5, ["type _Alias"; "A simple alias for exercising LSP hover."])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/interface"
@@ -150,16 +154,17 @@ class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
         [ "interface _Interface"
           "A simple interface for exercising LSP hover."])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/primitive"
@@ -171,16 +176,17 @@ class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
         [ "primitive _Primitive"
           "A simple primitive for exercising LSP hover."])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/trait"
@@ -190,16 +196,17 @@ class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
     let checks: Array[HoverCheck] val =
       [(0, 6, ["trait _Trait"; "A simple trait for exercising LSP hover."])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/function"
@@ -238,16 +245,17 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
         // this reference
         (11, 18, [])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/type_inference"
@@ -262,16 +270,17 @@ class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
         (26, 22, ["let inferred_bool: Bool"])
         (26, 47, ["let inferred_array: Array[U32 val] ref"])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/receiver_capability"
@@ -283,16 +292,17 @@ class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
         (13, 10, ["fun val valued_method(): String val"])
         (20, 10, ["fun ref mutable_method()"])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/complex_types"
@@ -305,16 +315,17 @@ class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
         (13, 4, ["let union_type: (String val | U32 val | None val)"])
         (13, 26, ["let tuple_type: (String val, U32 val, Bool val)"])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
-  let _server: _HoverLspServer
+  let _server: _LspTestServer
 
-  new iso create(server: _HoverLspServer) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
 
   fun name(): String => "hover/integration/generics"
@@ -400,218 +411,55 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
         [ "fun box with_generic_param[U: Any val](other: U): (T, U)"
           "A generic method with its own type parameter."])]
     h.long_test(10_000_000_000)
-    for (line, character, _) in checks.values() do
+    for (line, character, expected) in checks.values() do
       h.expect_action(
         workspace_file + ":" + line.string() + ":" + character.string())
+      _server.request(
+        h, workspace_file, line, character, _HoverChecker(expected))
     end
-    _server.hover(h, workspace_file, checks)
 
 type HoverCheck is (I64, I64, Array[String] val)
 
-class val _PendingHover
-  let file_path: String
-  let line: I64
-  let character: I64
-  let expected: Array[String] val
-  let h: TestHelper
-  let action: String
+class val _HoverChecker
+  let _expected: Array[String] val
 
-  new val create(
-    file_path': String,
-    line': I64,
-    character': I64,
-    expected': Array[String] val,
-    h': TestHelper,
-    action': String)
-  =>
-    file_path = file_path'
-    line = line'
-    character = character'
-    expected = expected'
-    h = h'
-    action = action'
+  new val create(expected: Array[String] val) =>
+    _expected = expected
 
-actor _HoverLspServer is Channel
-  """
-  Shared LSP server for all hover workspace tests.
-  Initializes and compiles once, then dispatches
-  individual hover requests to each test's TestHelper.
-  """
-  let _workspace_dir: String
-  var _server: (BaseProtocol | None)
-  var _ready: Bool
-  var _initialized: Bool
-  let _pending: Array[_PendingHover]
-  let _opened: Set[String]
-  let _in_flight: Map[I64, _PendingHover]
-  var _next_id: I64
+  fun lsp_method(): String =>
+    Methods.text_document().hover()
 
-  new create(workspace_dir: String) =>
-    _workspace_dir = workspace_dir
-    _server = None
-    _ready = false
-    _initialized = false
-    _pending = Array[_PendingHover]
-    _opened = Set[String]
-    _in_flight = Map[I64, _PendingHover]
-    _next_id = 2
-
-  be hover(
-    h: TestHelper,
-    workspace_file: String,
-    checks: Array[HoverCheck] val)
-  =>
-    let file_path = Path.join(_workspace_dir, workspace_file)
-    for (line, character, expected) in checks.values() do
-      let action: String val =
-        recover
-          val workspace_file + ":" + line.string() + ":" + character.string()
-        end
-      let pending =
-        _PendingHover(file_path, line, character, expected, h, action)
-      if _ready then
-        if not _opened.contains(file_path) then
-          _opened.set(file_path)
-          _did_open(file_path)
-        end
-        _dispatch(pending)
-      else
-        _pending.push(pending)
-      end
-    end
-    if not _initialized then
-      _initialized = true
-      let ponyc = try h.env.args(0)? else "" end
-      let proto =
-        BaseProtocol(LanguageServer(this, h.env, PonyCompiler("", ponyc)))
-      _server = proto
-      proto(LspMsg.initialize(_workspace_dir))
-    end
-
-  fun ref _dispatch(pending: _PendingHover) =>
-    let id = _next_id
-    _next_id = id + 1
-    try
-      (_server as BaseProtocol)(
-        RequestMessage(
-          id,
-          Methods.text_document().hover(),
-          JsonObject
-            .update(
-              "textDocument",
-              JsonObject.update(
-                "uri", Uris.from_path(pending.file_path)))
-            .update(
-              "position",
-              JsonObject
-                .update("line", pending.line)
-                .update("character", pending.character))
-        ).into_bytes()
-      )
-      _in_flight(id) = pending
-    else
-      pending.h.fail_action(pending.action)
-    end
-
-  be send(msg: Message val) =>
-    match msg
-    | let res: ResponseMessage val =>
+  fun check(res: ResponseMessage val, h: TestHelper, action: String): Bool =>
+    var ok = true
+    if _expected.size() == 0 then
       try
-        let id = res.id as RequestId
-        if RequestIds.eq(id, I64(0)) then
-          try (_server as BaseProtocol)(LspMsg.initialized()) end
-        else
-          try
-            let id_i64 = id as I64
-            (_, let pending) = _in_flight.remove(id_i64)?
-            var ok = true
-            if pending.expected.size() == 0 then
-              try
-                JsonNav(res.result)("contents")("value").as_string()?
-                ok = false
-                pending.h.log(
-                  "Expected no hover result but got: " + res.string())
-              end
-            else
-              try
-                let value =
-                  JsonNav(res.result)("contents")("value").as_string()?
-                for s in pending.expected.values() do
-                  if not pending.h.assert_true(
-                    value.contains(s),
-                    "Expected '" + s + "' in hover, got: " + value)
-                  then
-                    ok = false
-                  end
-                end
-              else
-                ok = false
-                var expected_str =
-                  recover val
-                    let s = String
-                    for e in pending.expected.values() do
-                      if s.size() > 0 then s.append(", ") end
-                      s.append("'"); s.append(e); s.append("'")
-                    end
-                    s
-                  end
-                pending.h.log(
-                  "Hover returned null, expected: " + expected_str)
-              end
-            end
-            if ok then
-              pending.h.complete_action(pending.action)
-            else
-              pending.h.fail_action(pending.action)
-            end
-          end
-        end
+        JsonNav(res.result)("contents")("value").as_string()?
+        ok = false
+        h.log("Expected no hover result but got: " + res.string())
       end
-    | let req: RequestMessage val =>
-      if req.method == Methods.workspace().configuration() then
-        try
-          let proto = _server as BaseProtocol
-          proto(ResponseMessage(req.id, JsonArray).into_bytes())
-          for p in _pending.values() do
-            if not _opened.contains(p.file_path) then
-              _opened.set(p.file_path)
-              _did_open(p.file_path)
+    else
+      try
+        let value = JsonNav(res.result)("contents")("value").as_string()?
+        for s in _expected.values() do
+          if not h.assert_true(
+            value.contains(s),
+            "Expected '" + s + "' in hover, got: " + value)
+          then
+            ok = false
+          end
+        end
+      else
+        ok = false
+        let expected_str: String val =
+          recover val
+            let s = String
+            for e in _expected.values() do
+              if s.size() > 0 then s.append(", ") end
+              s.append("'"); s.append(e); s.append("'")
             end
+            s
           end
-        end
-      end
-    | let n: Notification val =>
-      if n.method == Methods.text_document().publish_diagnostics() then
-        if not _ready then
-          _ready = true
-          for p in _pending.values() do
-            _dispatch(p)
-          end
-          _pending.clear()
-        end
+        h.log("Hover returned null, expected: " + expected_str)
       end
     end
-
-  fun ref _did_open(file_path: String) =>
-    try
-      (_server as BaseProtocol)(
-        Notification(
-          Methods.text_document().did_open(),
-          JsonObject.update(
-            "textDocument",
-            JsonObject
-              .update("uri", Uris.from_path(file_path))
-              .update("languageId", "pony")
-              .update("version", I64(1))
-              .update("text", ""))
-        ).into_bytes())
-    end
-
-  be log(data: String val, message_type: MessageType = Debug) =>
-    None
-
-  be set_notifier(notifier: Notifier tag) =>
-    None
-
-  be dispose() =>
-    None
+    ok
