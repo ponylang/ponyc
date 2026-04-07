@@ -346,7 +346,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   return NULL;
 }
 
-static void timer_set_nsec(int fd, uint64_t nsec)
+static bool timer_set_nsec(int fd, uint64_t nsec)
 {
   struct itimerspec ts;
 
@@ -355,7 +355,7 @@ static void timer_set_nsec(int fd, uint64_t nsec)
   ts.it_value.tv_sec = (time_t)(nsec / 1000000000);
   ts.it_value.tv_nsec = (long)(nsec - (ts.it_value.tv_sec * 1000000000));
 
-  timerfd_settime(fd, 0, &ts, NULL);
+  return timerfd_settime(fd, 0, &ts, NULL) == 0;
 }
 
 PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
@@ -393,7 +393,20 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if(ev->flags & ASIO_TIMER)
   {
     ev->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    timer_set_nsec(ev->fd, ev->nsec);
+    if(ev->fd == -1)
+    {
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+      return;
+    }
+
+    if(!timer_set_nsec(ev->fd, ev->nsec))
+    {
+      close(ev->fd);
+      ev->fd = -1;
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+      return;
+    }
+
     ep.events |= EPOLLIN;
   }
 
@@ -458,7 +471,8 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   if(ev->flags & ASIO_TIMER)
   {
     ev->nsec = nsec;
-    timer_set_nsec(ev->fd, nsec);
+    if(!timer_set_nsec(ev->fd, nsec))
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
   }
 }
 
