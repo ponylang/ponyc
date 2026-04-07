@@ -33,7 +33,7 @@ class \nodoc\ iso _InlayHintDemoTest is UnitTest
             [ (15, 23, ": String val")           // inferred_string
               (16, 21, ": Bool")                 // inferred_bool
               (18, 22, ": Array[U32 val] ref") ] // inferred_array
-            where expected_count = 3)) ])
+            )) ])
 
 class \nodoc\ iso _InlayHintRangeFirstLineTest is UnitTest
   """
@@ -55,9 +55,7 @@ class \nodoc\ iso _InlayHintRangeFirstLineTest is UnitTest
       [ (0, 0,
           _InlayHintChecker(
             [ (15, 23, ": String val") ]
-            where
-            expected_count = 1,
-            range = (15, 0, 16, 0))) ])
+            where range = (15, 0, 16, 0))) ])
 
 class \nodoc\ iso _InlayHintRangeMiddleTest is UnitTest
   """
@@ -79,9 +77,7 @@ class \nodoc\ iso _InlayHintRangeMiddleTest is UnitTest
       [ (0, 0,
           _InlayHintChecker(
             [ (16, 21, ": Bool") ]
-            where
-            expected_count = 1,
-            range = (16, 0, 17, 0))) ])
+            where range = (16, 0, 17, 0))) ])
 
 class \nodoc\ iso _InlayHintRangeEmptyTest is UnitTest
   """
@@ -103,27 +99,22 @@ class \nodoc\ iso _InlayHintRangeEmptyTest is UnitTest
       [ (0, 0,
           _InlayHintChecker(
             []
-            where
-            expected_count = 0,
-            range = (0, 0, 15, 0))) ])
+            where range = (0, 0, 15, 0))) ])
 
 class val _InlayHintChecker
   """
-  Checks that an inlayHint response contains exactly the expected set of hints.
-  Each expected hint is (line, character, label_substring).
-  expected_count always asserts the total hint count; use 0 to assert empty.
+  Checks that an inlayHint response contains exactly the expected hints.
+  Each entry is (line, character, label_substring). The total hint count
+  is asserted against the number of expected entries.
   """
   let _expected: Array[(I64, I64, String)] val
-  let _expected_count: USize
   let _range: (None | (I64, I64, I64, I64))
 
   new val create(
     expected: Array[(I64, I64, String)] val,
-    expected_count: USize = 0,
     range: (None | (I64, I64, I64, I64)) = None)
   =>
     _expected = expected
-    _expected_count = expected_count
     _range = range
 
   fun lsp_method(): String =>
@@ -137,9 +128,9 @@ class val _InlayHintChecker
     try
       let hints = res.result as JsonArray
       if not h.assert_eq[USize](
-        _expected_count,
+        _expected.size(),
         hints.size(),
-        "Expected " + _expected_count.string() +
+        "Expected " + _expected.size().string() +
         " hints, got " + hints.size().string())
       then
         ok = false
