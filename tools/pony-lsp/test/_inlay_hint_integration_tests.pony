@@ -57,7 +57,7 @@ class \nodoc\ iso _InlayHintRangeFirstLineTest is UnitTest
             [ (15, 23, ": String val") ]
             where
             expected_count = 1,
-            range = (I64(15), I64(0), I64(16), I64(0)))) ])
+            range = (15, 0, 16, 0))) ])
 
 class \nodoc\ iso _InlayHintRangeMiddleTest is UnitTest
   """
@@ -81,7 +81,7 @@ class \nodoc\ iso _InlayHintRangeMiddleTest is UnitTest
             [ (16, 21, ": Bool") ]
             where
             expected_count = 1,
-            range = (I64(16), I64(0), I64(17), I64(0)))) ])
+            range = (16, 0, 17, 0))) ])
 
 class \nodoc\ iso _InlayHintRangeEmptyTest is UnitTest
   """
@@ -105,7 +105,7 @@ class \nodoc\ iso _InlayHintRangeEmptyTest is UnitTest
             []
             where
             expected_count = 0,
-            range = (I64(0), I64(0), I64(15), I64(0)))) ])
+            range = (0, 0, 15, 0))) ])
 
 class val _InlayHintChecker
   """
