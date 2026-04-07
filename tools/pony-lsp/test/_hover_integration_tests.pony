@@ -32,9 +32,8 @@ class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
   fun name(): String => "hover/integration/literals"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_literals.pony",
+    let workspace_file = "hover/_literals.pony"
+    let checks: Array[HoverCheck] val =
       [ // variable declarations show their types
         (11, 8, ["let integer: U32 val"])
         (12, 8, ["let hex: U32 val"])
@@ -54,7 +53,13 @@ class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
         (16, 24, [])
         (17, 26, [])
         (18, 27, [])
-        (19, 33, [])])
+        (19, 33, [])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
   let _server: _HoverLspServer
@@ -65,9 +70,8 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
   fun name(): String => "hover/integration/class"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_class.pony",
+    let workspace_file = "hover/_class.pony"
+    let checks: Array[HoverCheck] val =
       [ (0, 6, ["class _Class"; "A simple class for exercising LSP hover."])
         // field declarations
         (4, 6, ["let field_name: String val"])
@@ -83,7 +87,13 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
         // no hover on docstring or blank line
         (1, 2, [])
         (2, 4, [])
-        (7, 0, [])])
+        (7, 0, [])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
   let _server: _HoverLspServer
@@ -94,12 +104,17 @@ class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
   fun name(): String => "hover/integration/actor"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_actor.pony",
+    let workspace_file = "hover/_actor.pony"
+    let checks: Array[HoverCheck] val =
       [ (0, 6, ["actor _Actor"; "A simple actor for exercising LSP hover."])
         (6, 6, ["new tag create(name': String val)"])
-        (9, 5, ["be tag do_something(value: U64 val)"])])
+        (9, 5, ["be tag do_something(value: U64 val)"])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
   let _server: _HoverLspServer
@@ -110,10 +125,15 @@ class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
   fun name(): String => "hover/integration/alias"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_alias.pony",
-      [(0, 5, ["type _Alias"; "A simple alias for exercising LSP hover."])])
+    let workspace_file = "hover/_alias.pony"
+    let checks: Array[HoverCheck] val =
+      [(0, 5, ["type _Alias"; "A simple alias for exercising LSP hover."])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
   let _server: _HoverLspServer
@@ -124,12 +144,17 @@ class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
   fun name(): String => "hover/integration/interface"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_interface.pony",
+    let workspace_file = "hover/_interface.pony"
+    let checks: Array[HoverCheck] val =
       [ (0, 10,
         [ "interface _Interface"
-          "A simple interface for exercising LSP hover."])])
+          "A simple interface for exercising LSP hover."])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
   let _server: _HoverLspServer
@@ -140,12 +165,17 @@ class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
   fun name(): String => "hover/integration/primitive"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_primitive.pony",
+    let workspace_file = "hover/_primitive.pony"
+    let checks: Array[HoverCheck] val =
       [ (0, 10,
         [ "primitive _Primitive"
-          "A simple primitive for exercising LSP hover."])])
+          "A simple primitive for exercising LSP hover."])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
   let _server: _HoverLspServer
@@ -156,10 +186,15 @@ class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
   fun name(): String => "hover/integration/trait"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_trait.pony",
-      [(0, 6, ["trait _Trait"; "A simple trait for exercising LSP hover."])])
+    let workspace_file = "hover/_trait.pony"
+    let checks: Array[HoverCheck] val =
+      [(0, 6, ["trait _Trait"; "A simple trait for exercising LSP hover."])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
   let _server: _HoverLspServer
@@ -170,9 +205,8 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
   fun name(): String => "hover/integration/function"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_function.pony",
+    let workspace_file = "hover/_function.pony"
+    let checks: Array[HoverCheck] val =
       [ (15, 6,
         [ "fun box helper_method(input: String val): String val"
           "A helper method that processes input."])
@@ -202,7 +236,13 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
         [ "fun ref mutable_method(value: U32 val)"
           "A method with a ref receiver capability."])
         // this reference
-        (11, 18, [])])
+        (11, 18, [])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
   let _server: _HoverLspServer
@@ -213,15 +253,20 @@ class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
   fun name(): String => "hover/integration/type_inference"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_type_inference.pony",
+    let workspace_file = "hover/_type_inference.pony"
+    let checks: Array[HoverCheck] val =
       [ (18, 8, ["let inferred_string: String val"])
         (21, 8, ["let inferred_bool: Bool"])
         (24, 8, ["let inferred_array: Array[U32 val] ref"])
         (26, 4, ["let inferred_string: String val"])
         (26, 22, ["let inferred_bool: Bool"])
-        (26, 47, ["let inferred_array: Array[U32 val] ref"])])
+        (26, 47, ["let inferred_array: Array[U32 val] ref"])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
   let _server: _HoverLspServer
@@ -232,12 +277,17 @@ class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
   fun name(): String => "hover/integration/receiver_capability"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_receiver_capability.pony",
+    let workspace_file = "hover/_receiver_capability.pony"
+    let checks: Array[HoverCheck] val =
       [ (5, 10, ["fun box boxed_method(): String val"])
         (13, 10, ["fun val valued_method(): String val"])
-        (20, 10, ["fun ref mutable_method()"])])
+        (20, 10, ["fun ref mutable_method()"])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
   let _server: _HoverLspServer
@@ -248,13 +298,18 @@ class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
   fun name(): String => "hover/integration/complex_types"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_complex_types.pony",
+    let workspace_file = "hover/_complex_types.pony"
+    let checks: Array[HoverCheck] val =
       [ (11, 8, ["let union_type: (String val | U32 val | None val)"])
         (12, 8, ["let tuple_type: (String val, U32 val, Bool val)"])
         (13, 4, ["let union_type: (String val | U32 val | None val)"])
-        (13, 26, ["let tuple_type: (String val, U32 val, Bool val)"])])
+        (13, 26, ["let tuple_type: (String val, U32 val, Bool val)"])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
   let _server: _HoverLspServer
@@ -265,9 +320,8 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
   fun name(): String => "hover/integration/generics"
 
   fun apply(h: TestHelper) =>
-    _server.hover(
-      h,
-      "hover/_generics.pony",
+    let workspace_file = "hover/_generics.pony"
+    let checks: Array[HoverCheck] val =
       [ // trait _Generics
         (0, 6,
         [ "trait _Generics[T: _Generics[T] box]"
@@ -344,7 +398,13 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
         (151, 8, ["let result: (U64 val, String val)"])
         (151, 25,
         [ "fun box with_generic_param[U: Any val](other: U): (T, U)"
-          "A generic method with its own type parameter."])])
+          "A generic method with its own type parameter."])]
+    h.long_test(10_000_000_000)
+    for (line, character, _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.hover(h, workspace_file, checks)
 
 type HoverCheck is (I64, I64, Array[String] val)
 
@@ -401,14 +461,12 @@ actor _HoverLspServer is Channel
     workspace_file: String,
     checks: Array[HoverCheck] val)
   =>
-    h.long_test(10_000_000_000)
     let file_path = Path.join(_workspace_dir, workspace_file)
     for (line, character, expected) in checks.values() do
       let action: String val =
         recover
           val workspace_file + ":" + line.string() + ":" + character.string()
         end
-      h.expect_action(action)
       let pending =
         _PendingHover(file_path, line, character, expected, h, action)
       if _ready then
