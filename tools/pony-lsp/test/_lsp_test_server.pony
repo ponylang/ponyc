@@ -91,7 +91,7 @@ actor _LspTestServer is Channel
             let id_i64 = id as I64
             (_, let pending) = _in_flight.remove(id_i64)?
             let action = pending.pos.action()
-            if pending.checker.check(res, pending.h, action) then
+            if pending.checker.check(res, pending.h) then
               pending.h.complete_action(action)
             else
               pending.h.fail_action(action)

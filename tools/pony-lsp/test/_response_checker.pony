@@ -8,4 +8,4 @@ interface val _ResponseChecker
   the shared test server.
   """
   fun lsp_method(): String
-  fun check(res: ResponseMessage val, h: TestHelper, action: String): Bool
+  fun check(res: ResponseMessage val, h: TestHelper): Bool

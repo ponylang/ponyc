@@ -771,7 +771,7 @@ class val _DocHighlightChecker
   fun lsp_method(): String =>
     Methods.text_document().document_highlight()
 
-  fun check(res: ResponseMessage val, h: TestHelper, action: String): Bool =>
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result
     | let arr: JsonArray =>

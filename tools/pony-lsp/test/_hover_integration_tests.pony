@@ -375,7 +375,7 @@ class val _HoverChecker
   fun lsp_method(): String =>
     Methods.text_document().hover()
 
-  fun check(res: ResponseMessage val, h: TestHelper, action: String): Bool =>
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     if _expected.size() == 0 then
       try

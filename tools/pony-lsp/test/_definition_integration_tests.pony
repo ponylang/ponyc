@@ -203,7 +203,7 @@ class val _DefinitionChecker
   fun lsp_method(): String =>
     Methods.text_document().definition()
 
-  fun check(res: ResponseMessage val, h: TestHelper, action: String): Bool =>
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     let got_count =
       try JsonNav(res.result).size()? else 0 end
