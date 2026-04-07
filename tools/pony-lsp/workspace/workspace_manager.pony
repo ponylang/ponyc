@@ -695,6 +695,44 @@ actor WorkspaceManager
       )
     )
 
+  be inlay_hint(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/inlayHint request.
+    """
+    this._channel.log("Handling textDocument/inlayHint")
+    let document_path = Uris.to_path(document_uri)
+    try
+      let package: FilePath = this._find_workspace_package(document_path)?
+      match \exhaustive\ this._get_package(package)
+      | let pkg_state: PackageState =>
+        match \exhaustive\ pkg_state.get_document(document_path)
+        | let doc: DocumentState =>
+          match \exhaustive\ doc.module()
+          | let module: Module val =>
+            let hints = InlayHints.collect(module)
+            var json_arr = JsonArray
+            for hint in hints.values() do
+              json_arr = json_arr.push(hint)
+            end
+            this._channel.send(ResponseMessage(request.id, json_arr))
+            return
+          | None =>
+            this._channel.log(
+              "No module available for " + document_path)
+          end
+        | None =>
+          this._channel.log(
+            "No document state available for " + document_path)
+        end
+      | None =>
+        this._channel.log(
+          "No package state available for " + document_path)
+      end
+    else
+      this._channel.log("document not in workspace: " + document_path)
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
   fun _get_node_for_highlight(ast: AST box): AST box =>
     """
     Get the appropriate node for hover highlighting.
