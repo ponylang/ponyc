@@ -67,13 +67,16 @@ target_include_directories(libponyc.tests
 )
 
 set(PONY_PACKAGES_DIR "${CMAKE_SOURCE_DIR}/packages")
+set(PONY_TEST_LIBPONYC_DIR "${CMAKE_SOURCE_DIR}/test/libponyc")
 
 if (MSVC)
     string(REPLACE "/" "\\\\" PONY_PACKAGES_DIR ${PONY_PACKAGES_DIR})
+    string(REPLACE "/" "\\\\" PONY_TEST_LIBPONYC_DIR ${PONY_TEST_LIBPONYC_DIR})
 endif (MSVC)
 
 target_compile_definitions(libponyc.tests
     PRIVATE PONY_PACKAGES_DIR="${PONY_PACKAGES_DIR}"
+    PRIVATE PONY_TEST_LIBPONYC_DIR="${PONY_TEST_LIBPONYC_DIR}"
 )
 
 target_link_directories(libponyc.tests

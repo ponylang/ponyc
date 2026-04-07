@@ -1052,7 +1052,10 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
         return NULL;
     } else if(magic->mapped_path != NULL) {
       if(!parse_files_in_dir(package, magic->mapped_path, opt))
+      {
+        ast_setflag(package, AST_FLAG_PRESERVE);
         return NULL;
+      }
     } else {
       return NULL;
     }
@@ -1060,7 +1063,15 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
   else
   {
     if(!parse_files_in_dir(package, full_path, opt))
+    {
+      // If source file parsing failed, don't run future passes on the
+      // partially-initialised package. Without this, passes that run on the
+      // whole program tree (e.g. the scope pass) would visit modules that
+      // were successfully parsed in this package but whose for-loop sugar
+      // has not been applied, producing spurious errors in those files.
+      ast_setflag(package, AST_FLAG_PRESERVE);
       return NULL;
+    }
   }
 
   if(ast_child(package) == NULL)
