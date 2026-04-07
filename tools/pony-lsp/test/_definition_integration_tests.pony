@@ -203,6 +203,9 @@ class val _DefinitionChecker
   fun lsp_method(): String =>
     Methods.text_document().definition()
 
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     let got_count =

@@ -771,6 +771,9 @@ class val _DocHighlightChecker
   fun lsp_method(): String =>
     Methods.text_document().document_highlight()
 
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result

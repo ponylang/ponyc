@@ -709,7 +709,18 @@ actor WorkspaceManager
         | let doc: DocumentState =>
           match \exhaustive\ doc.module()
           | let module: Module val =>
-            let hints = InlayHints.collect(module)
+            let range: (None | (I64, I64, I64, I64)) =
+              try
+                let p = request.params
+                let sl = JsonNav(p)("range")("start")("line").as_i64()?
+                let sc = JsonNav(p)("range")("start")("character").as_i64()?
+                let el = JsonNav(p)("range")("end")("line").as_i64()?
+                let ec = JsonNav(p)("range")("end")("character").as_i64()?
+                (sl, sc, el, ec)
+              else
+                None
+              end
+            let hints = InlayHints.collect(module, range)
             var json_arr = JsonArray
             for hint in hints.values() do
               json_arr = json_arr.push(hint)

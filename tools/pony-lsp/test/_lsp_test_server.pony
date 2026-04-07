@@ -59,21 +59,31 @@ actor _LspTestServer is Channel
     let id = _next_id
     _next_id = id + 1
     try
+      var params =
+        JsonObject
+          .update(
+            "textDocument",
+            JsonObject.update("uri", Uris.from_path(pending.file_path)))
+          .update(
+            "position",
+            JsonObject
+              .update("line", pending.pos.line)
+              .update("character", pending.pos.character))
+      match pending.checker.lsp_range()
+      | (let sl: I64, let sc: I64, let el: I64, let ec: I64) =>
+        params =
+          params.update(
+            "range",
+            JsonObject
+              .update(
+                "start",
+                JsonObject.update("line", sl).update("character", sc))
+              .update(
+                "end",
+                JsonObject.update("line", el).update("character", ec)))
+      end
       (_server as BaseProtocol)(
-        RequestMessage(
-          id,
-          pending.checker.lsp_method(),
-          JsonObject
-            .update(
-              "textDocument",
-              JsonObject.update("uri", Uris.from_path(pending.file_path)))
-            .update(
-              "position",
-              JsonObject
-                .update("line", pending.pos.line)
-                .update("character", pending.pos.character))
-        ).into_bytes()
-      )
+        RequestMessage(id, pending.checker.lsp_method(), params).into_bytes())
       _in_flight(id) = pending
     else
       pending.h.fail_action(pending.pos.action())

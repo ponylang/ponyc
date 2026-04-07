@@ -7,16 +7,22 @@ primitive InlayHints
   Collects inlay hints for a module: type hints for let/var declarations
   that have no explicit type annotation.
   """
-  fun collect(module: Module val): Array[JsonValue] =>
-    let collector = _InlayHintCollector.create()
+  fun collect(
+    module: Module val,
+    range: (None | (I64, I64, I64, I64)) = None)
+    : Array[JsonValue]
+  =>
+    let collector = _InlayHintCollector.create(range)
     module.ast.visit(collector)
     collector.hints()
 
 class ref _InlayHintCollector is ASTVisitor
   let _hints: Array[JsonValue] ref
+  let _range: (None | (I64, I64, I64, I64))
 
-  new ref create() =>
+  new ref create(range: (None | (I64, I64, I64, I64)) = None) =>
     _hints = Array[JsonValue].create()
+    _range = range
 
   fun ref visit(node: AST box): VisitResult =>
     match node.id()
@@ -42,13 +48,22 @@ class ref _InlayHintCollector is ASTVisitor
       end
       let type_str = node.ast_type_string() as String
       // LSP positions are 0-based; AST positions are 1-based
+      let hint_line = (l - 1).i64()
+      let hint_char = ((col - 1) + name.size()).i64()
+      match _range
+      | (let sl: I64, let sc: I64, let el: I64, let ec: I64) =>
+        if hint_line < sl then return end
+        if hint_line > el then return end
+        if (hint_line == sl) and (hint_char < sc) then return end
+        if (hint_line == el) and (hint_char >= ec) then return end
+      end
       _hints.push(
         JsonObject
           .update(
             "position",
             JsonObject
-              .update("line", (l - 1).i64())
-              .update("character", ((col - 1) + name.size()).i64()))
+              .update("line", hint_line)
+              .update("character", hint_char))
           .update("label", ": " + type_str)
           .update("kind", I64(1)))
     end
