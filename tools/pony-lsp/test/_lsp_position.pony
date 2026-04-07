@@ -8,11 +8,7 @@ class val _LspPosition
   let line: I64
   let character: I64
 
-  new val create(
-    workspace_file': String val,
-    line': I64,
-    character': I64)
-  =>
+  new val create(workspace_file': String val, line': I64, character': I64) =>
     workspace_file = workspace_file'
     line = line'
     character = character'

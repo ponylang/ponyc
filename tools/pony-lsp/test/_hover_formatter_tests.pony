@@ -15,18 +15,14 @@ primitive _HoverFormatterTests is TestList
     test(_HoverFormatMethodWithTypeParamsTest)
     test(_HoverFormatFieldTest)
     test(_HoverFormatFieldWithTypeTest)
-    test(
-      _HoverFormatEntityWithMultipleTypeParamsTest)
+    test(_HoverFormatEntityWithMultipleTypeParamsTest)
     test(_HoverFormatFieldWithGenericTypeTest)
     test(_HoverFormatMethodWithArrowTypeTest)
     test(_HoverFormatFieldWithUnionTypeTest)
     test(_HoverFormatFieldWithTupleTypeTest)
-    test(
-      _HoverFormatMethodWithCompleteSignatureTest)
-    test(
-      _HoverFormatEntityWithTypeParamsAndDocstringTest)
-    test(
-      _HoverFormatFieldWithNestedGenericTypeTest)
+    test(_HoverFormatMethodWithCompleteSignatureTest)
+    test(_HoverFormatEntityWithTypeParamsAndDocstringTest)
+    test(_HoverFormatFieldWithNestedGenericTypeTest)
     test(_HoverFormatParameterTest)
     test(_HoverFormatParameterWithTypeTest)
     test(_HoverFormatMethodWithReceiverCapTest)
@@ -37,10 +33,8 @@ class \nodoc\ iso _HoverFormatEntityTest
 
   fun apply(h: TestHelper) =>
     let info = EntityInfo("class", "MyClass")
-    let result =
-      HoverFormatter.format_entity(info)
-    h.assert_eq[String](
-      "```pony\nclass MyClass\n```", result)
+    let result = HoverFormatter.format_entity(info)
+    h.assert_eq[String]("```pony\nclass MyClass\n```", result)
 
 class \nodoc\ iso
   _HoverFormatEntityWithTypeParamsTest
@@ -49,49 +43,29 @@ class \nodoc\ iso
     "hover/formatter/entity_with_type_params"
 
   fun apply(h: TestHelper) =>
-    let info =
-      EntityInfo(
-        "class", "MyClass", "[T: Any val]")
-    let result =
-      HoverFormatter.format_entity(info)
-    h.assert_eq[String](
-      "```pony\nclass MyClass[T: Any val]\n```",
-      result)
+    let info = EntityInfo("class", "MyClass", "[T: Any val]")
+    let result = HoverFormatter.format_entity(info)
+    h.assert_eq[String]("```pony\nclass MyClass[T: Any val]\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatEntityWithDocstringTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatEntityWithDocstringTest is UnitTest
   fun name(): String =>
     "hover/formatter/entity_with_docstring"
 
   fun apply(h: TestHelper) =>
-    let info =
-      EntityInfo(
-        "actor",
-        "MyActor",
-        "",
-        "A sample actor.")
-    let result =
-      HoverFormatter.format_entity(info)
+    let info = EntityInfo("actor", "MyActor", "", "A sample actor.")
+    let result = HoverFormatter.format_entity(info)
     h.assert_eq[String](
-      "```pony\nactor MyActor\n```" +
-      "\n\nA sample actor.",
-      result)
+      "```pony\nactor MyActor\n```\n\nA sample actor.", result)
 
-class \nodoc\ iso _HoverFormatMethodTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodTest is UnitTest
   fun name(): String => "hover/formatter/method"
 
   fun apply(h: TestHelper) =>
     let info = MethodInfo("fun", "my_method", "")
-    let result =
-      HoverFormatter.format_method(info)
-    h.assert_eq[String](
-      "```pony\nfun my_method()\n```", result)
+    let result = HoverFormatter.format_method(info)
+    h.assert_eq[String]("```pony\nfun my_method()\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatMethodWithReturnTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodWithReturnTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/method_with_return_type"
 
@@ -104,16 +78,11 @@ class \nodoc\ iso
         "",
         "(x: U32)",
         ": String")
-    let result =
-      HoverFormatter.format_method(info)
+    let result = HoverFormatter.format_method(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "fun get_value(x: U32): String\n```",
-      result)
+      "```pony\nfun get_value(x: U32): String\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatMethodWithDocstringTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodWithDocstringTest is UnitTest
   fun name(): String =>
     "hover/formatter/method_with_docstring"
 
@@ -127,17 +96,16 @@ class \nodoc\ iso
         "(data: Array[U8] val)",
         "",
         "Process data asynchronously.")
-    let result =
-      HoverFormatter.format_method(info)
+    let result = HoverFormatter.format_method(info)
     h.assert_eq[String](
       "```pony\n" +
       "be process(data: Array[U8] val)\n```" +
       "\n\nProcess data asynchronously.",
       result)
 
-class \nodoc\ iso _HoverFormatFieldTest
-  is UnitTest
-  fun name(): String => "hover/formatter/field"
+class \nodoc\ iso _HoverFormatFieldTest is UnitTest
+  fun name(): String =>
+    "hover/formatter/field"
 
   fun apply(h: TestHelper) =>
     let info = FieldInfo("let", "name")
@@ -146,22 +114,16 @@ class \nodoc\ iso _HoverFormatFieldTest
     h.assert_eq[String](
       "```pony\nlet name\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatFieldWithTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatFieldWithTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/field_with_type"
 
   fun apply(h: TestHelper) =>
     let info = FieldInfo("var", "count", ": U32")
-    let result =
-      HoverFormatter.format_field(info)
-    h.assert_eq[String](
-      "```pony\nvar count: U32\n```", result)
+    let result = HoverFormatter.format_field(info)
+    h.assert_eq[String]("```pony\nvar count: U32\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatMethodWithTypeParamsTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodWithTypeParamsTest is UnitTest
   fun name(): String =>
     "hover/formatter/method_with_type_params"
 
@@ -174,55 +136,31 @@ class \nodoc\ iso
         "[U: Any val]",
         "(f: {(T): U} val)",
         ": U")
-    let result =
-      HoverFormatter.format_method(info)
+    let result = HoverFormatter.format_method(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "fun map[U: Any val]" +
-      "(f: {(T): U} val): U\n```",
-      result)
+      "```pony\nfun map[U: Any val](f: {(T): U} val): U\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatEntityWithMultipleTypeParamsTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatEntityWithMultipleTypeParamsTest is UnitTest
   fun name(): String =>
     "hover/formatter/entity_with_multiple_type_params"
 
   fun apply(h: TestHelper) =>
-    let info =
-      EntityInfo(
-        "class",
-        "Pair",
-        "[A: Any val, B: Any val]")
-    let result =
-      HoverFormatter.format_entity(info)
+    let info = EntityInfo("class", "Pair", "[A: Any val, B: Any val]")
+    let result = HoverFormatter.format_entity(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "class Pair[A: Any val, B: Any val]\n```",
-      result)
+      "```pony\nclass Pair[A: Any val, B: Any val]\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatFieldWithGenericTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatFieldWithGenericTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/field_with_generic_type"
 
   fun apply(h: TestHelper) =>
-    let info =
-      FieldInfo(
-        "let",
-        "items",
-        ": Array[String val] ref")
-    let result =
-      HoverFormatter.format_field(info)
+    let info = FieldInfo("let", "items", ": Array[String val] ref")
+    let result = HoverFormatter.format_field(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "let items: Array[String val] ref\n```",
-      result)
+      "```pony\nlet items: Array[String val] ref\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatMethodWithArrowTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodWithArrowTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/method_with_arrow_type"
 
@@ -235,16 +173,11 @@ class \nodoc\ iso
         "",
         "(that: box->T)",
         ": I32 val")
-    let result =
-      HoverFormatter.format_method(info)
+    let result = HoverFormatter.format_method(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "fun compare(that: box->T): I32 val\n```",
-      result)
+      "```pony\nfun compare(that: box->T): I32 val\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatFieldWithUnionTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatFieldWithUnionTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/field_with_union_type"
 
@@ -257,33 +190,19 @@ class \nodoc\ iso
     let result =
       HoverFormatter.format_field(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "let value: " +
-      "(String val | U32 val | None val)\n```",
-      result)
+      "```pony\nlet value: (String val | U32 val | None val)\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatFieldWithTupleTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatFieldWithTupleTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/field_with_tuple_type"
 
   fun apply(h: TestHelper) =>
-    let info =
-      FieldInfo(
-        "let",
-        "pair",
-        ": (String val, U32 val)")
-    let result =
-      HoverFormatter.format_field(info)
+    let info = FieldInfo("let", "pair", ": (String val, U32 val)")
+    let result = HoverFormatter.format_field(info)
     h.assert_eq[String](
-      "```pony\n" +
-      "let pair: (String val, U32 val)\n```",
-      result)
+      "```pony\nlet pair: (String val, U32 val)\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatMethodWithCompleteSignatureTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodWithCompleteSignatureTest is UnitTest
   fun name(): String =>
     "hover/formatter/method_with_complete_signature"
 
@@ -297,8 +216,7 @@ class \nodoc\ iso
         "(data: Array[T] ref)",
         ": Array[U] ref",
         "Transform elements.")
-    let result =
-      HoverFormatter.format_method(info)
+    let result = HoverFormatter.format_method(info)
     h.assert_eq[String](
       "```pony\n" +
       "fun transform[U: Any val]" +
@@ -307,91 +225,55 @@ class \nodoc\ iso
       "\n\nTransform elements.",
       result)
 
-class \nodoc\ iso
-  _HoverFormatEntityWithTypeParamsAndDocstringTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatEntityWithTypeParamsAndDocstringTest is UnitTest
   fun name(): String =>
-    "hover/formatter/entity_with_" +
-    "type_params_and_docstring"
+    "hover/formatter/entity_with_type_params_and_docstring"
 
   fun apply(h: TestHelper) =>
     let info =
-      EntityInfo(
-        "class",
-        "Container",
-        "[T: Any val]",
-        "A generic container.")
-    let result =
-      HoverFormatter.format_entity(info)
+      EntityInfo("class", "Container", "[T: Any val]", "A generic container.")
+    let result = HoverFormatter.format_entity(info)
     h.assert_eq[String](
       "```pony\n" +
       "class Container[T: Any val]\n```" +
       "\n\nA generic container.",
       result)
 
-class \nodoc\ iso
-  _HoverFormatFieldWithNestedGenericTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatFieldWithNestedGenericTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/field_with_nested_generic_type"
 
   fun apply(h: TestHelper) =>
-    let info =
-      FieldInfo(
-        "let",
-        "nested",
-        ": Array[Array[String val] ref] ref")
-    let result =
-      HoverFormatter.format_field(info)
+    let info = FieldInfo("let", "nested", ": Array[Array[String val] ref] ref")
+    let result = HoverFormatter.format_field(info)
     h.assert_eq[String](
       "```pony\n" +
       "let nested: " +
       "Array[Array[String val] ref] ref\n```",
       result)
 
-class \nodoc\ iso _HoverFormatParameterTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatParameterTest is UnitTest
   fun name(): String => "hover/formatter/parameter"
 
   fun apply(h: TestHelper) =>
     let info = FieldInfo("param", "value")
-    let result =
-      HoverFormatter.format_field(info)
-    h.assert_eq[String](
-      "```pony\nparam value\n```", result)
+    let result = HoverFormatter.format_field(info)
+    h.assert_eq[String]("```pony\nparam value\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatParameterWithTypeTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatParameterWithTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/parameter_with_type"
 
   fun apply(h: TestHelper) =>
-    let info =
-      FieldInfo("param", "name", ": String")
-    let result =
-      HoverFormatter.format_field(info)
-    h.assert_eq[String](
-      "```pony\nparam name: String\n```", result)
+    let info = FieldInfo("param", "name", ": String")
+    let result = HoverFormatter.format_field(info)
+    h.assert_eq[String]("```pony\nparam name: String\n```", result)
 
-class \nodoc\ iso
-  _HoverFormatMethodWithReceiverCapTest
-  is UnitTest
+class \nodoc\ iso _HoverFormatMethodWithReceiverCapTest is UnitTest
   fun name(): String =>
     "hover/formatter/method_with_receiver_cap"
 
   fun apply(h: TestHelper) =>
-    let info =
-      MethodInfo(
-        "fun",
-        "boxed_method",
-        "box",
-        "",
-        "()",
-        ": String")
-    let result =
-      HoverFormatter.format_method(info)
-    h.assert_eq[String](
-      "```pony\n" +
-      "fun box boxed_method(): String\n```",
-      result)
+    let info = MethodInfo("fun", "boxed_method", "box", "", "()", ": String")
+    let result = HoverFormatter.format_method(info)
+    h.assert_eq[String]("```pony\nfun box boxed_method(): String\n```", result)

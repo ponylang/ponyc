@@ -92,8 +92,7 @@ interface MessageHandler
 
 actor TestHarness is Channel
   """
-  Test harness that acts as a communication channel
-  and intercepts messages.
+  Test harness that acts as a communication channel and intercepts messages.
   """
   let sent: Array[Message val] ref =
     sent.create(8)
