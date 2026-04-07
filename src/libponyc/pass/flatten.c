@@ -94,7 +94,10 @@ bool constraint_contains_tuple(pass_opt_t* opt, ast_t* constraint, ast_t* scan)
       if(unfolded == NULL)
         return false;
 
-      bool r = constraint_contains_tuple(opt, constraint, unfolded);
+      // Pass unfolded as both constraint and scan: after unfolding, the
+      // concrete type IS the effective constraint. The TK_UNIONTYPE case
+      // iterates constraint's children, which must be the union members.
+      bool r = constraint_contains_tuple(opt, unfolded, unfolded);
       ast_free_unattached(unfolded);
       return r;
     }

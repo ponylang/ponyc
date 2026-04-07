@@ -1,5 +1,6 @@
 #include "reify.h"
 #include "subtype.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "assemble.h"
 #include "alias.h"
@@ -454,7 +455,34 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
       }
 
       case TK_TYPEALIASREF:
+      {
+        // Unfold to check if the underlying type is a struct.
+        ast_t* unfolded = typealias_unfold(typearg);
+
+        if(unfolded != NULL)
+        {
+          if(ast_id(unfolded) == TK_NOMINAL)
+          {
+            ast_t* def = (ast_t*)ast_data(unfolded);
+
+            if((def != NULL) && (ast_id(def) == TK_STRUCT))
+            {
+              ast_free_unattached(unfolded);
+
+              if(report_errors)
+              {
+                ast_error(opt->check.errors, typearg,
+                  "a struct cannot be used as a type argument");
+              }
+
+              return false;
+            }
+          }
+
+          ast_free_unattached(unfolded);
+        }
         break;
+      }
 
       default: {}
     }

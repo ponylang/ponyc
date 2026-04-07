@@ -5,80 +5,6 @@
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
-static bool names_applycap(pass_opt_t* opt, ast_t* ast, ast_t* cap,
-  ast_t* ephemeral)
-{
-  switch(ast_id(ast))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      // Apply the capability and ephemerality to each element of the type
-      // expression.
-      for(ast_t* child = ast_child(ast);
-        child != NULL;
-        child = ast_sibling(child))
-      {
-        names_applycap(opt, child, cap, ephemeral);
-      }
-
-      return true;
-    }
-
-    case TK_TYPEPARAMREF:
-    {
-      AST_GET_CHILDREN(ast, id, tcap, teph);
-
-      if(ast_id(cap) != TK_NONE)
-      {
-        ast_error(opt->check.errors, cap,
-          "can't specify a capability for an alias to a type parameter");
-        return false;
-      }
-
-      if(ast_id(ephemeral) != TK_NONE)
-        ast_replace(&teph, ephemeral);
-
-      return true;
-    }
-
-    case TK_NOMINAL:
-    {
-      AST_GET_CHILDREN(ast, pkg, id, typeargs, tcap, teph);
-
-      if(ast_id(cap) != TK_NONE)
-        ast_replace(&tcap, cap);
-
-      if(ast_id(ephemeral) != TK_NONE)
-        ast_replace(&teph, ephemeral);
-
-      return true;
-    }
-
-    case TK_TYPEALIASREF:
-    {
-      AST_GET_CHILDREN(ast, id, typeargs, tcap, teph);
-
-      if(ast_id(cap) != TK_NONE)
-        ast_replace(&tcap, cap);
-
-      if(ast_id(ephemeral) != TK_NONE)
-        ast_replace(&teph, ephemeral);
-
-      return true;
-    }
-
-    case TK_ARROW:
-      return names_applycap(opt, ast_childidx(ast, 1), cap, ephemeral);
-
-    default: {}
-  }
-
-  pony_assert(0);
-  return false;
-}
-
 static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 {
   int state = ast_checkflag(def,
@@ -155,25 +81,15 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
       return false;
   }
 
-  // Reify the alias.
-  ast_t* r_alias = reify(alias, typeparams, typeargs, opt, true);
+  // Change to a typealiasref.
+  REPLACE(astp,
+    NODE(TK_TYPEALIASREF,
+      TREE(id)
+      TREE(typeargs)
+      TREE(cap)
+      TREE(eph)));
 
-  if(r_alias == NULL)
-    return false;
-
-  // Apply our cap and ephemeral to the result.
-  if(!names_applycap(opt, r_alias, cap, eph))
-  {
-    ast_free_unattached(r_alias);
-    return false;
-  }
-
-  // Maintain the position info of the original reference to aid error
-  // reporting.
-  ast_setpos(r_alias, ast_source(ast), ast_line(ast), ast_pos(ast));
-
-  // Replace this with the alias.
-  ast_replace(astp, r_alias);
+  ast_setdata(*astp, def);
 
   if(!expr)
     ast_resetpass(*astp, PASS_NAME_RESOLUTION);

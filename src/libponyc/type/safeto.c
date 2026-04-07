@@ -44,8 +44,19 @@ static bool safe_field_move(token_id cap, ast_t* type, direction direction)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
       return cap_safetomove(cap, cap_single(type), direction);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = safe_field_move(cap, unfolded, direction);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     default: {}
   }
@@ -95,21 +106,42 @@ bool safe_to_move(ast_t* ast, ast_t* type, direction direction)
 
     case TK_TUPLE:
     {
+      // Unfold type aliases to get the underlying tuple type.
+      ast_t* tuple_type = type;
+      ast_t* unfolded = NULL;
+
+      if(ast_id(tuple_type) == TK_TYPEALIASREF)
+      {
+        unfolded = typealias_unfold(tuple_type);
+
+        if(unfolded != NULL)
+          tuple_type = unfolded;
+      }
+
       // At this point, we know these will be the same length.
-      pony_assert(ast_id(type) == TK_TUPLETYPE);
+      pony_assert(ast_id(tuple_type) == TK_TUPLETYPE);
       ast_t* child = ast_child(ast);
-      ast_t* type_child = ast_child(type);
+      ast_t* type_child = ast_child(tuple_type);
 
       while(child != NULL)
       {
         if(!safe_to_move(child, type_child, direction))
+        {
+          if(unfolded != NULL)
+            ast_free_unattached(unfolded);
+
           return false;
+        }
 
         child = ast_sibling(child);
         type_child = ast_sibling(type_child);
       }
 
       pony_assert(type_child == NULL);
+
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
+
       return true;
     }
 
@@ -164,11 +196,22 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type, direction direction)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
     {
       // An argument or result is safe for autorecover if it would be safe to
       // move into/out of the receiver, respectively.
       return safe_field_move(cap_single(receiver_type), type, direction);
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(receiver_type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = safe_to_autorecover(unfolded, type, direction);
+      ast_free_unattached(unfolded);
+      return ok;
     }
 
     case TK_ARROW:

@@ -1962,6 +1962,18 @@ bool is_literal(ast_t* type, const char* name)
   if(type == NULL)
     return false;
 
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(type);
+
+    if(unfolded == NULL)
+      return false;
+
+    bool r = is_literal(unfolded, name);
+    ast_free_unattached(unfolded);
+    return r;
+  }
+
   if(ast_id(type) != TK_NOMINAL)
     return false;
 

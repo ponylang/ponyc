@@ -519,6 +519,25 @@ static bool entity_access(pass_opt_t* opt, ast_t** astp)
   type = ast_type(left); // Literal handling may have changed lhs type
   pony_assert(type != NULL);
 
+  // Unfold type aliases to check for tuple access (e.g., `._1` on an alias
+  // wrapping a tuple type). Set the unfolded type on the left side so
+  // tuple_access sees TK_TUPLETYPE children.
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(type);
+
+    if((unfolded != NULL) && (ast_id(unfolded) == TK_TUPLETYPE))
+    {
+      ast_settype(left, unfolded);
+      type = unfolded;
+    }
+    else
+    {
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
+    }
+  }
+
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(opt, ast);
 

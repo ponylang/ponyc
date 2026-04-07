@@ -40,8 +40,19 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       upper = VIEW_UPPER_NO;
       break;
 
-    case TK_NOMINAL:
     case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(r_type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = viewpoint_type(l_type, unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    case TK_NOMINAL:
     {
       ast_t* cap = cap_fetch(r_type);
 
@@ -79,7 +90,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
   {
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
     {
       ast_t* cap = cap_fetch(l_type);
 
@@ -125,6 +135,18 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       return viewpoint_type(left, r_right);
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(l_type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = viewpoint_type(unfolded, r_type);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
     default:
       pony_assert(0);
       return NULL;
@@ -165,8 +187,19 @@ ast_t* viewpoint_upper(ast_t* type)
   {
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
       break;
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(right);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = viewpoint_type(left, unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
 
     case TK_ARROW:
       // Arrow types are right associative.
@@ -201,7 +234,6 @@ ast_t* viewpoint_upper(ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
     {
       ast_t* left_cap = cap_fetch(left);
       ast_t* left_eph = ast_sibling(left_cap);
@@ -209,6 +241,27 @@ ast_t* viewpoint_upper(ast_t* type)
       l_cap = ast_id(left_cap);
       l_eph = ast_id(left_eph);
       break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(left);
+
+      if(unfolded == NULL)
+      {
+        if(r_right != right)
+          ast_free_unattached(r_right);
+
+        return NULL;
+      }
+
+      ast_t* result = viewpoint_type(unfolded, r_right);
+
+      if(r_right != right)
+        ast_free_unattached(r_right);
+
+      ast_free_unattached(unfolded);
+      return result;
     }
 
     default:
@@ -249,8 +302,19 @@ ast_t* viewpoint_lower(ast_t* type)
   {
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
       break;
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(right);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = viewpoint_type(left, unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
 
     case TK_ARROW:
       // Arrow types are right associative.
@@ -285,7 +349,6 @@ ast_t* viewpoint_lower(ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-    case TK_TYPEALIASREF:
     {
       ast_t* left_cap = cap_fetch(left);
       ast_t* left_eph = ast_sibling(left_cap);
@@ -293,6 +356,27 @@ ast_t* viewpoint_lower(ast_t* type)
       l_cap = ast_id(left_cap);
       l_eph = ast_id(left_eph);
       break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(left);
+
+      if(unfolded == NULL)
+      {
+        if(r_right != right)
+          ast_free_unattached(r_right);
+
+        return NULL;
+      }
+
+      ast_t* result = viewpoint_type(unfolded, r_right);
+
+      if(r_right != right)
+        ast_free_unattached(r_right);
+
+      ast_free_unattached(unfolded);
+      return result;
     }
 
     default:

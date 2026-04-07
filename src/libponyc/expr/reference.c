@@ -933,16 +933,10 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       return flatten_typeparamref(opt, ast) == AST_OK;
 
     case TK_TYPEALIASREF:
-    {
-      // Unfold the alias and re-dispatch.
-      ast_t* unfolded = typealias_unfold(ast);
-
-      if(unfolded == NULL)
-        return false;
-
-      ast_replace(astp, unfolded);
-      return expr_nominal(opt, astp);
-    }
+      // Constraint checking is handled by names_typealias(expr=true) for
+      // the direct-call paths (expr_typeref, expr_this), and by pass_expr
+      // for nodes created during the names pass. Keep the alias in place.
+      return true;
 
     case TK_NOMINAL:
       break;

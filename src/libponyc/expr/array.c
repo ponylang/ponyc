@@ -192,13 +192,14 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
 
     case TK_TYPEALIASREF:
     {
+      // Don't free the unfolded AST: the TK_NOMINAL case stores pointers
+      // into it (ast_child(typeargs) for Array element types) that the
+      // caller uses.
       ast_t* unfolded = typealias_unfold(ast);
 
       if(unfolded != NULL)
-      {
         find_possible_element_types(opt, unfolded, list);
-        ast_free_unattached(unfolded);
-      }
+
       return;
     }
 
@@ -245,13 +246,12 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
 
     case TK_TYPEALIASREF:
     {
+      // Don't free: same reason as find_possible_element_types above.
       ast_t* unfolded = typealias_unfold(ast);
 
       if(unfolded != NULL)
-      {
         find_possible_iterator_element_types(opt, unfolded, list);
-        ast_free_unattached(unfolded);
-      }
+
       return;
     }
 

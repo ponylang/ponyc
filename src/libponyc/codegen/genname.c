@@ -1,5 +1,6 @@
 #include "genname.h"
 #include "../pkg/package.h"
+#include "../type/typealias.h"
 #include "../ast/stringtab.h"
 #include "../ast/lexer.h"
 #include "../../libponyrt/mem/pool.h"
@@ -54,6 +55,16 @@ static void type_append(printbuf_t* buf, ast_t* type, bool first)
       if(!first)
         printbuf(buf, "_%s", ast_get_print(cap));
 
+      return;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      type_append(buf, unfolded, first);
+      ast_free_unattached(unfolded);
       return;
     }
 
