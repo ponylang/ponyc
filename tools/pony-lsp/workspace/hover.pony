@@ -146,6 +146,7 @@ primitive HoverFormatter
     // Type references - follow to definition
     | TokenIds.tk_reference() => _format_reference(ast, channel)
     | TokenIds.tk_typeref() => _format_reference(ast, channel)
+    | TokenIds.tk_typealiasref() => _format_reference(ast, channel)
     | TokenIds.tk_nominal() => _format_reference(ast, channel)
 
     // Function/method/constructor calls
@@ -679,6 +680,54 @@ primitive HoverFormatter
         else
           "?"
         end
+      else
+        "?"
+      end
+    | TokenIds.tk_typealiasref() =>
+      // Type alias reference: children are (id, typeargs, cap, eph)
+      try
+        let num_children = type_node.num_children()
+        let type_id = type_node(0)?
+        let base_name =
+          if type_id.id() == TokenIds.tk_id() then
+            type_id.token_value() as String
+          else
+            _extract_type(type_id, channel)
+          end
+
+        // Check for type arguments at child(1)
+        let type_args_str =
+          match \exhaustive\
+            _find_child_by_type(
+              type_node,
+              TokenIds.tk_typeargs(),
+              1)
+          | let ta: AST box => _extract_typeargs(ta, channel)
+          | None => ""
+          end
+
+        // Check for capability starting at child(2)
+        var capability_str: String = ""
+        var idx: USize = 2
+        while idx < num_children do
+          try
+            let child = type_node(idx)?
+            let cap = _extract_capability(child.id())
+            if cap != "" then
+              capability_str = cap
+              break
+            end
+          end
+          idx = idx + 1
+        end
+
+        let cap_str =
+          if capability_str.size() > 0 then
+            " " + capability_str
+          else
+            ""
+          end
+        base_name + type_args_str + cap_str
       else
         "?"
       end

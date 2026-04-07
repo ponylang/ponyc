@@ -410,7 +410,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_trait() | TokenIds.tk_interface() | TokenIds.tk_type() // entities
       | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be() // method constructs
       | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed() // fields
-      | TokenIds.tk_nominal() // types
+      | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() // types
       | TokenIds.tk_param()
       => true
       else
@@ -508,6 +508,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_reference()
     | TokenIds.tk_packageref()
     | TokenIds.tk_typeref()
+    | TokenIds.tk_typealiasref()
     | TokenIds.tk_typeparamref()
     // those correspond to the member access dot
     //| TokenIds.tk_newref()
