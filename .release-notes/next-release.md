@@ -85,3 +85,7 @@ On Linux, if a timer system call failed (due to resource exhaustion or other sys
 
 The runtime now detects timer setup and arming failures and notifies the affected actor, which tears down cleanly — the same as any other I/O failure. Stdlib consumers like `Timers` handle this automatically.
 
+## Add LSP `textDocument/inlayHint` support
+
+`pony-lsp` now supports inlay hints. Editors that request `textDocument/inlayHint` will receive inline type annotations after the variable name for `let` and `var` declarations whose type is inferred rather than explicitly written.
+
