@@ -32,18 +32,11 @@ actor _LspTestServer is Channel
 
   be request(
     h: TestHelper,
-    workspace_file: String,
-    line: I64,
-    character: I64,
+    pos: _LspPosition val,
     checker: _ResponseChecker val)
   =>
-    let file_path = Path.join(_workspace_dir, workspace_file)
-    let action: String val =
-      recover
-        val workspace_file + ":" + line.string() + ":" + character.string()
-      end
-    let pending =
-      _PendingRequest(file_path, line, character, h, action, checker)
+    let file_path = Path.join(_workspace_dir, pos.workspace_file)
+    let pending = _PendingRequest(file_path, pos, h, checker)
     if _ready then
       if not _opened.contains(file_path) then
         _opened.set(file_path)
@@ -77,13 +70,13 @@ actor _LspTestServer is Channel
             .update(
               "position",
               JsonObject
-                .update("line", pending.line)
-                .update("character", pending.character))
+                .update("line", pending.pos.line)
+                .update("character", pending.pos.character))
         ).into_bytes()
       )
       _in_flight(id) = pending
     else
-      pending.h.fail_action(pending.action)
+      pending.h.fail_action(pending.pos.action())
     end
 
   be send(msg: Message val) =>
@@ -97,10 +90,11 @@ actor _LspTestServer is Channel
           try
             let id_i64 = id as I64
             (_, let pending) = _in_flight.remove(id_i64)?
-            if pending.checker.check(res, pending.h, pending.action) then
-              pending.h.complete_action(pending.action)
+            let action = pending.pos.action()
+            if pending.checker.check(res, pending.h, action) then
+              pending.h.complete_action(action)
             else
-              pending.h.fail_action(pending.action)
+              pending.h.fail_action(action)
             end
           end
         end
@@ -156,25 +150,19 @@ actor _LspTestServer is Channel
 
 class val _PendingRequest
   let file_path: String
-  let line: I64
-  let character: I64
+  let pos: _LspPosition val
   let h: TestHelper
-  let action: String
   let checker: _ResponseChecker val
 
   new val create(
     file_path': String,
-    line': I64,
-    character': I64,
+    pos': _LspPosition val,
     h': TestHelper,
-    action': String,
     checker': _ResponseChecker val)
   =>
     file_path = file_path'
-    line = line'
-    character = character'
+    pos = pos'
     h = h'
-    action = action'
     checker = checker'
 
 primitive _RunLspChecks
@@ -186,7 +174,7 @@ primitive _RunLspChecks
   =>
     h.long_test(10_000_000_000)
     for (line, character, checker) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      server.request(h, workspace_file, line, character, checker)
+      let pos = _LspPosition(workspace_file, line, character)
+      h.expect_action(pos.action())
+      server.request(h, pos, checker)
     end
