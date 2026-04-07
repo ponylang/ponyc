@@ -15,7 +15,7 @@ class \nodoc\ _TestRenderNominalNoLink is UnitTest
         false,
         false)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "Array")
 
 class \nodoc\ _TestRenderNominalWithLink is UnitTest
@@ -32,7 +32,7 @@ class \nodoc\ _TestRenderNominalWithLink is UnitTest
         false,
         false)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, true, false, false),
+      doc.TypeRenderer.render(t, doc.MkDocsLinkFormat, false, false),
       "[Array](builtin-Array.md)")
 
 class \nodoc\ _TestRenderNominalWithTypeArgs is UnitTest
@@ -60,14 +60,14 @@ class \nodoc\ _TestRenderNominalWithTypeArgs is UnitTest
         false,
         false)
 
-    // With links: escaped brackets and linked type args
+    // With MkDocsLinkFormat: escaped brackets and linked type args
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, true, false, false),
+      doc.TypeRenderer.render(t, doc.MkDocsLinkFormat, false, false),
       "[Array](builtin-Array.md)\\[[String](builtin-String.md)\\]")
 
     // Without links: plain brackets
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "Array[String]")
 
 class \nodoc\ _TestRenderNominalWithCap is UnitTest
@@ -84,7 +84,7 @@ class \nodoc\ _TestRenderNominalWithCap is UnitTest
         false,
         false)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "Array val")
 
 class \nodoc\ _TestRenderNominalPrivateNoInclude is UnitTest
@@ -102,12 +102,12 @@ class \nodoc\ _TestRenderNominalPrivateNoInclude is UnitTest
         true,
         false)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, true, false, false),
+      doc.TypeRenderer.render(t, doc.MkDocsLinkFormat, false, false),
       "_Foo")
 
     // Same type with include_private=true: link generated
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, true, false, true),
+      doc.TypeRenderer.render(t, doc.MkDocsLinkFormat, false, true),
       "[_Foo](pkg-_Foo.md)")
 
 class \nodoc\ _TestRenderNominalAnonymous is UnitTest
@@ -125,8 +125,38 @@ class \nodoc\ _TestRenderNominalAnonymous is UnitTest
         false,
         true)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, true, false, true),
+      doc.TypeRenderer.render(t, doc.MkDocsLinkFormat, false, true),
       "$1")
+
+class \nodoc\ _TestRenderNominalPrivateTypeArgs is UnitTest
+  fun name(): String => "TypeRenderer/nominal-private-type-args"
+
+  fun apply(h: TestHelper) =>
+    // Private type with type args and a format: the nominal is not linked
+    // and neither are its type args (plain brackets, no links)
+    let string_t =
+      doc.DocNominal(
+        "String",
+        "builtin-String",
+        recover val Array[doc.DocType] end,
+        None,
+        None,
+        false,
+        false)
+    let type_args: Array[doc.DocType] val =
+      recover val [as doc.DocType: string_t] end
+    let t =
+      doc.DocNominal(
+        "_Foo",
+        "pkg-_Foo",
+        type_args,
+        None,
+        None,
+        true,
+        false)
+    h.assert_eq[String](
+      doc.TypeRenderer.render(t, doc.MkDocsLinkFormat, false, false),
+      "_Foo[String]")
 
 class \nodoc\ _TestRenderUnion is UnitTest
   fun name(): String => "TypeRenderer/union"
@@ -155,11 +185,11 @@ class \nodoc\ _TestRenderUnion is UnitTest
         recover val [as doc.DocType: string_t; none_t] end)
 
     h.assert_eq[String](
-      doc.TypeRenderer.render(u, false, false, false),
+      doc.TypeRenderer.render(u, None, false, false),
       "(String | None)")
 
     h.assert_eq[String](
-      doc.TypeRenderer.render(u, true, false, false),
+      doc.TypeRenderer.render(u, doc.MkDocsLinkFormat, false, false),
       "([String](builtin-String.md) | [None](builtin-None.md))")
 
 class \nodoc\ _TestRenderIntersection is UnitTest
@@ -189,7 +219,7 @@ class \nodoc\ _TestRenderIntersection is UnitTest
         recover val [as doc.DocType: a; b] end)
 
     h.assert_eq[String](
-      doc.TypeRenderer.render(i, false, false, false),
+      doc.TypeRenderer.render(i, None, false, false),
       "(Stringable & Hashable)")
 
 class \nodoc\ _TestRenderTuple is UnitTest
@@ -219,7 +249,7 @@ class \nodoc\ _TestRenderTuple is UnitTest
         recover val [as doc.DocType: s; u] end)
 
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "(String , U32)")
 
 class \nodoc\ _TestRenderArrow is UnitTest
@@ -231,8 +261,37 @@ class \nodoc\ _TestRenderArrow is UnitTest
     let a = doc.DocArrow(this_t, param_ref)
 
     h.assert_eq[String](
-      doc.TypeRenderer.render(a, false, false, false),
+      doc.TypeRenderer.render(a, None, false, false),
       "this->T")
+
+class \nodoc\ _TestRenderArrowWithLink is UnitTest
+  fun name(): String => "TypeRenderer/arrow-with-link"
+
+  fun apply(h: TestHelper) =>
+    // Arrow with nominal children: format propagates to both sides
+    let left =
+      doc.DocNominal(
+        "Foo",
+        "pkg-Foo",
+        recover val Array[doc.DocType] end,
+        None,
+        None,
+        false,
+        false)
+    let right =
+      doc.DocNominal(
+        "Bar",
+        "pkg-Bar",
+        recover val Array[doc.DocType] end,
+        None,
+        None,
+        false,
+        false)
+    let a = doc.DocArrow(left, right)
+
+    h.assert_eq[String](
+      doc.TypeRenderer.render(a, doc.MkDocsLinkFormat, false, false),
+      "[Foo](pkg-Foo.md)->[Bar](pkg-Bar.md)")
 
 class \nodoc\ _TestRenderThis is UnitTest
   fun name(): String => "TypeRenderer/this"
@@ -241,7 +300,7 @@ class \nodoc\ _TestRenderThis is UnitTest
     h.assert_eq[String](
       doc.TypeRenderer.render(
         doc.DocThis,
-        false,
+        None,
         false,
         false),
       "this")
@@ -253,14 +312,14 @@ class \nodoc\ _TestRenderCapability is UnitTest
     h.assert_eq[String](
       doc.TypeRenderer.render(
         doc.DocCapability("iso"),
-        false,
+        None,
         false,
         false),
       "iso")
     h.assert_eq[String](
       doc.TypeRenderer.render(
         doc.DocCapability("#read"),
-        false,
+        None,
         false,
         false),
       "#read")
@@ -271,7 +330,7 @@ class \nodoc\ _TestRenderTypeParamRef is UnitTest
   fun apply(h: TestHelper) =>
     let t = doc.DocTypeParamRef("A", None)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "A")
 
 class \nodoc\ _TestRenderTypeParamRefEphemeral is UnitTest
@@ -280,7 +339,7 @@ class \nodoc\ _TestRenderTypeParamRefEphemeral is UnitTest
   fun apply(h: TestHelper) =>
     let t = doc.DocTypeParamRef("T", "^")
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "T^")
 
 class \nodoc\ _TestRenderTypeParams is UnitTest
@@ -300,11 +359,11 @@ class \nodoc\ _TestRenderTypeParams is UnitTest
     let tps: Array[doc.DocTypeParam] val =
       recover val [as doc.DocTypeParam: tp] end
 
-    // With links: escaped brackets
+    // With MkDocsLinkFormat: escaped brackets
     h.assert_eq[String](
       doc.TypeRenderer.render_type_params(
         tps,
-        true,
+        doc.MkDocsLinkFormat,
         false,
         false),
       "\\[A: [Any](builtin-Any.md) val\\]")
@@ -313,7 +372,7 @@ class \nodoc\ _TestRenderTypeParams is UnitTest
     h.assert_eq[String](
       doc.TypeRenderer.render_type_params(
         tps,
-        false,
+        None,
         false,
         false),
       "[A: Any val]")
@@ -348,7 +407,7 @@ class \nodoc\ _TestRenderTypeParamsOptional is UnitTest
     h.assert_eq[String](
       doc.TypeRenderer.render_type_params(
         tps,
-        false,
+        None,
         false,
         false),
       "[optional A: Any]")
@@ -364,7 +423,7 @@ class \nodoc\ _TestRenderTypeParamsNoConstraint is UnitTest
     h.assert_eq[String](
       doc.TypeRenderer.render_type_params(
         tps,
-        false,
+        None,
         false,
         false),
       "[A: no constraint]")
@@ -378,7 +437,7 @@ class \nodoc\ _TestRenderTypeParamsEmpty is UnitTest
     h.assert_eq[String](
       doc.TypeRenderer.render_type_params(
         tps,
-        true,
+        doc.MkDocsLinkFormat,
         false,
         false),
       "")
@@ -397,7 +456,7 @@ class \nodoc\ _TestRenderNominalCapEphemeral is UnitTest
         false,
         false)
     h.assert_eq[String](
-      doc.TypeRenderer.render(t, false, false, false),
+      doc.TypeRenderer.render(t, None, false, false),
       "Foo iso^")
 
 class \nodoc\ _TestRenderBreakLines is UnitTest
@@ -448,12 +507,12 @@ class \nodoc\ _TestRenderBreakLines is UnitTest
 
     // break_lines=true inserts "\n    " after the 3rd separator
     h.assert_eq[String](
-      doc.TypeRenderer.render(u, false, true, false),
+      doc.TypeRenderer.render(u, None, true, false),
       "(A | B | C | \n    D)")
 
     // break_lines=false: no line break
     h.assert_eq[String](
-      doc.TypeRenderer.render(u, false, false, false),
+      doc.TypeRenderer.render(u, None, false, false),
       "(A | B | C | D)")
 
 class \nodoc\ _TestRenderProvides is UnitTest
@@ -488,7 +547,7 @@ class \nodoc\ _TestRenderProvides is UnitTest
         "* ",
         "\n* ",
         "\n",
-        true,
+        doc.MkDocsLinkFormat,
         false),
       "* [Stringable](builtin-Stringable.md)"
         + "\n* [Hashable](collections-Hashable.md)\n")
@@ -500,6 +559,84 @@ class \nodoc\ _TestRenderProvides is UnitTest
         "is\n  ",
         " &\n  ",
         "\n",
-        false,
+        None,
         false),
       "is\n  Stringable &\n  Hashable\n")
+
+class \nodoc\ _TestMkDocsLinkFormatMethods is UnitTest
+  fun name(): String => "MkDocsLinkFormat/methods"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[String](
+      doc.MkDocsLinkFormat.link("Array", "builtin-Array"),
+      "[Array](builtin-Array.md)")
+    h.assert_eq[String](
+      doc.MkDocsLinkFormat.open_bracket(),
+      "\\[")
+    h.assert_eq[String](
+      doc.MkDocsLinkFormat.close_bracket(),
+      "\\]")
+
+primitive \nodoc\ _TestLinkFormat is doc.LinkFormat
+  """
+  A custom link format for testing that TypeRenderer dispatches to the
+  format object rather than hardcoding MkDocs behavior.
+  """
+  fun link(name: String, tqfn: String): String =>
+    "<" + name + ":" + tqfn + ">"
+
+  fun open_bracket(): String => "{"
+
+  fun close_bracket(): String => "}"
+
+class \nodoc\ _TestRenderCustomLinkFormat is UnitTest
+  fun name(): String => "TypeRenderer/custom-link-format"
+
+  fun apply(h: TestHelper) =>
+    // Nominal with custom format produces custom link syntax
+    let string_t =
+      doc.DocNominal(
+        "String",
+        "builtin-String",
+        recover val Array[doc.DocType] end,
+        None,
+        None,
+        false,
+        false)
+    let type_args: Array[doc.DocType] val =
+      recover val [as doc.DocType: string_t] end
+    let t =
+      doc.DocNominal(
+        "Array",
+        "builtin-Array",
+        type_args,
+        None,
+        None,
+        false,
+        false)
+
+    h.assert_eq[String](
+      doc.TypeRenderer.render(t, _TestLinkFormat, false, false),
+      "<Array:builtin-Array>{<String:builtin-String>}")
+
+    // Type params with custom format use custom brackets
+    let constraint =
+      doc.DocNominal(
+        "Any",
+        "builtin-Any",
+        recover val Array[doc.DocType] end,
+        None,
+        None,
+        false,
+        false)
+    let tp = doc.DocTypeParam("A", constraint, None)
+    let tps: Array[doc.DocTypeParam] val =
+      recover val [as doc.DocTypeParam: tp] end
+
+    h.assert_eq[String](
+      doc.TypeRenderer.render_type_params(
+        tps,
+        _TestLinkFormat,
+        false,
+        false),
+      "{A: <Any:builtin-Any>}")
