@@ -576,6 +576,36 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be references(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/references request.
+    """
+    this._channel.log("Handling textDocument/references")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let include_declaration: Bool =
+      try
+        JsonNav(request.params)("context")("includeDeclaration").as_bool()?
+      else
+        true
+      end
+    let document_path = Uris.to_path(document_uri)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      let locations =
+        References.collect(node, this._packages, include_declaration)
+      var json_arr = JsonArray
+      for loc in locations.values() do
+        json_arr = json_arr.push(loc.to_json())
+      end
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
   be goto_definition(document_uri: String, request: RequestMessage val) =>
     """
     Handling the textDocument/definition request.
