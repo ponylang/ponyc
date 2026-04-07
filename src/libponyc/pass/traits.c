@@ -203,6 +203,7 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
     case TK_FLOAT:   return ast_float(sig_a) == ast_float(sig_b);
 
     case TK_NOMINAL:
+    case TK_TYPEALIASREF:
       if(ast_data(sig_a) != ast_data(sig_b))
         return false;
 

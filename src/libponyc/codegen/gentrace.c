@@ -7,6 +7,7 @@
 #include "../type/cap.h"
 #include "../type/matchtype.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 
 // Arranged from most specific to least specific.
@@ -292,7 +293,9 @@ static trace_t trace_type_isect(ast_t* type)
 static trace_t trace_type_nominal(ast_t* type)
 {
   if(is_bare(type))
+  {
     return TRACE_PRIMITIVE;
+  }
 
   ast_t* def = (ast_t*)ast_data(type);
   switch(ast_id(def))
@@ -363,6 +366,16 @@ static trace_t trace_type(ast_t* type)
 
     case TK_NOMINAL:
       return trace_type_nominal(type);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      trace_t result = trace_type(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
 
     default: {}
   }
@@ -931,6 +944,18 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
       trace_dynamic_nominal(c, ctx, object, type, orig, tuple, next_block);
       break;
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded != NULL)
+      {
+        trace_dynamic(c, ctx, object, unfolded, orig, tuple, next_block);
+        ast_free_unattached(unfolded);
+      }
+      break;
+    }
+
     default: {}
   }
 }
@@ -945,12 +970,31 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
 
     case TRACE_MACHINE_WORD:
     {
-      if(ast_id(dst_type) == TK_NOMINAL)
+      ast_t* check_type = dst_type;
+      ast_t* unfolded = NULL;
+
+      if(ast_id(check_type) == TK_TYPEALIASREF)
       {
-        ast_t* def = (ast_t*)ast_data(dst_type);
-        if(ast_id(def) == TK_PRIMITIVE)
-          return false;
+        unfolded = typealias_unfold(check_type);
+        check_type = unfolded;
       }
+
+      if((check_type != NULL) && (ast_id(check_type) == TK_NOMINAL))
+      {
+        ast_t* def = (ast_t*)ast_data(check_type);
+
+        if(ast_id(def) == TK_PRIMITIVE)
+        {
+          if(unfolded != NULL)
+            ast_free_unattached(unfolded);
+
+          return false;
+        }
+      }
+
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
+
       return true;
     }
 
@@ -1022,6 +1066,27 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
   LLVMValueRef dst_value, ast_t* src_type, ast_t* dst_type)
 {
+  // Unfold type aliases so downstream dispatch (trace_tuple, etc.) sees
+  // concrete types when iterating children.
+  ast_t* src_unfolded = NULL;
+  ast_t* dst_unfolded = NULL;
+
+  if(ast_id(src_type) == TK_TYPEALIASREF)
+  {
+    src_unfolded = typealias_unfold(src_type);
+
+    if(src_unfolded != NULL)
+      src_type = src_unfolded;
+  }
+
+  if(ast_id(dst_type) == TK_TYPEALIASREF)
+  {
+    dst_unfolded = typealias_unfold(dst_type);
+
+    if(dst_unfolded != NULL)
+      dst_type = dst_unfolded;
+  }
+
   trace_t trace_method = trace_type(src_type);
   if(src_type != dst_type)
   {
@@ -1038,6 +1103,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
     case TRACE_MACHINE_WORD:
     {
       bool boxed = true;
+
       if(ast_id(dst_type) == TK_NOMINAL)
       {
         ast_t* def = (ast_t*)ast_data(dst_type);

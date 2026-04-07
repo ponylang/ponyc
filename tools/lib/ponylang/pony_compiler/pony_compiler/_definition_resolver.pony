@@ -141,7 +141,7 @@ primitive DefinitionResolver
       let package_defs = _data_ast(ast)
       let num_pkgs = package_defs.size()
       Iter[AST](package_defs.values()).filter_map[AST]({(pkg: AST) => pkg.child()}).collect(Array[AST](num_pkgs))
-    | TokenIds.tk_nominal() =>
+    | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() =>
       // the definition of the type is set as ast-data in the names pass
       _data_ast(ast)
     else

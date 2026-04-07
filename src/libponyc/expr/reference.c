@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../type/typeparam.h"
+#include "../type/typealias.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
 
@@ -931,6 +932,12 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(opt, ast) == AST_OK;
 
+    case TK_TYPEALIASREF:
+      // Constraint checking is handled by names_typealias(expr=true) for
+      // the direct-call paths (expr_typeref, expr_this), and by pass_expr
+      // for nodes created during the names pass. Keep the alias in place.
+      return true;
+
     case TK_NOMINAL:
       break;
 
@@ -980,6 +987,23 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
         pony_assert(def != NULL);
 
         ok = def == typeparam;
+        break;
+      }
+
+      case TK_TYPEALIASREF:
+      {
+        ast_t* unfolded = typealias_unfold(typearg);
+
+        if(unfolded != NULL)
+        {
+          if(ast_id(unfolded) == TK_NOMINAL)
+          {
+            ast_t* def = (ast_t*)ast_data(unfolded);
+            ok = (def != NULL) && (ast_id(def) == TK_STRUCT);
+          }
+
+          ast_free_unattached(unfolded);
+        }
         break;
       }
 

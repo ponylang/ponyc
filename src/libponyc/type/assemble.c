@@ -445,6 +445,18 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
       return type;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      type = ast_dup(type);
+      AST_GET_CHILDREN(type, id, typeargs, tcap, eph);
+
+      if(cap != TK_NONE)
+        ast_setid(tcap, cap);
+
+      ast_setid(eph, ephemeral);
+      return type;
+    }
+
     case TK_ARROW:
       // Just use the lhs of the viewpoint type.
       return set_cap_and_ephemeral(ast_childidx(type, 1), cap, ephemeral);

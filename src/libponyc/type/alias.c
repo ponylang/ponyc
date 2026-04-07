@@ -2,6 +2,7 @@
 #include "assemble.h"
 #include "cap.h"
 #include "compattype.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
@@ -265,6 +266,21 @@ ast_t* alias(ast_t* type)
     case TK_TYPEPARAMREF:
       return alias_single(type);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = alias(unfolded);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
+
     case TK_ARROW:
     {
       // Alias just the right side. The left side is either 'this' or a type
@@ -370,6 +386,21 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
     case TK_TYPEPARAMREF:
       return consume_single(type, cap, keep_double_ephemeral);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = consume_type(unfolded, cap, keep_double_ephemeral);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
+
     case TK_ARROW:
     {
       // Consume just the right side. The left side is either 'this' or a type
@@ -463,6 +494,21 @@ static ast_t* recover_type_inner(ast_t* type, token_id cap,
     case TK_TYPEPARAMREF:
       return recover_single(type, cap, tuple_elem_recover);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = recover_type_inner(unfolded, cap, tuple_elem_recover);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
+
     case TK_ARROW:
     {
       // recover just the right side. the left side is either 'this' or a type
@@ -514,6 +560,21 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
       }
 
       return c_type;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = chain_type(unfolded, fun_cap, recovered_call);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
     }
 
     case TK_NOMINAL:
@@ -671,6 +732,7 @@ bool sendable(ast_t* type)
 
         case TK_NOMINAL:
         case TK_TYPEPARAMREF:
+        case TK_TYPEALIASREF:
         {
           ast_t* l_cap = cap_fetch(left);
 
@@ -773,6 +835,18 @@ bool sendable(ast_t* type)
     {
       AST_GET_CHILDREN(type, id, cap, eph);
       return cap_sendable(ast_id(cap));
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = sendable(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
     }
 
     case TK_FUNTYPE:

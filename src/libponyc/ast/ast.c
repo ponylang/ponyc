@@ -1844,6 +1844,31 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
       break;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      AST_GET_CHILDREN(type, id, typeargs, cap, ephemeral);
+
+      ast_t* def = (ast_t*)ast_data(type);
+      if(def != NULL)
+        id = ast_child(def);
+
+      printbuf(buffer, "%s", ast_nice_name(id));
+
+      if(ast_id(typeargs) != TK_NONE)
+        print_typeexpr(buffer, typeargs, ", ", true, true);
+
+      if(print_cap)
+      {
+        if(ast_id(cap) != TK_NONE)
+          printbuf(buffer, " %s", token_print(cap->t));
+
+        if(ast_id(ephemeral) != TK_NONE)
+          printbuf(buffer, "%s", token_print(ephemeral->t));
+      }
+
+      break;
+    }
+
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
@@ -2230,6 +2255,7 @@ static void ast_serialise_trace_data(pony_ctx_t* ctx, ast_t* ast)
     case TK_FUN:
     case TK_TYPEPARAM:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     case TK_REFERENCE:
     case TK_PACKAGEREF:
     case TK_TYPEREF:
@@ -2286,6 +2312,7 @@ static void ast_serialise_data(pony_ctx_t* ctx, ast_t* ast, ast_t* dst)
     case TK_FUN:
     case TK_TYPEPARAM:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     case TK_REFERENCE:
     case TK_PACKAGEREF:
     case TK_TYPEREF:
@@ -2336,6 +2363,7 @@ static void ast_deserialise_data(pony_ctx_t* ctx, ast_t* ast)
     case TK_FUN:
     case TK_TYPEPARAM:
     case TK_TYPEPARAMREF:
+    case TK_TYPEALIASREF:
     case TK_REFERENCE:
     case TK_PACKAGEREF:
     case TK_TYPEREF:

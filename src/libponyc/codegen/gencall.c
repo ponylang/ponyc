@@ -10,6 +10,7 @@
 #include "../pkg/platformfuns.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../ast/stringtab.h"
 #include "../pass/expr.h"
 #include "../../libponyrt/mem/pool.h"
@@ -649,6 +650,16 @@ static bool contains_boxable(ast_t* type)
       }
 
       return false;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      bool ok = contains_boxable(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
     }
 
     default:

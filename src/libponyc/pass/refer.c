@@ -1,6 +1,7 @@
 #include "refer.h"
 #include "../ast/id.h"
 #include "../pass/expr.h"
+#include "../type/typealias.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -300,9 +301,33 @@ static bool is_constructed_from(ast_t* ast)
         return false;
 
       ast_t* typedefn = (ast_t*)ast_data(typeref);
-      ast_t* find = ast_get(typedefn, ast_name(right), NULL);
 
-      return (find != NULL) && (ast_id(find) == TK_NEW);
+      // For type aliases, unfold to get the concrete type definition.
+      ast_t* unfolded = NULL;
+
+      if(ast_id(typeref) == TK_TYPEALIASREF)
+      {
+        unfolded = typealias_unfold(typeref);
+
+        if((unfolded == NULL) || (ast_id(unfolded) != TK_NOMINAL) ||
+          (ast_data(unfolded) == NULL))
+        {
+          if(unfolded != NULL)
+            ast_free_unattached(unfolded);
+
+          return false;
+        }
+
+        typedefn = (ast_t*)ast_data(unfolded);
+      }
+
+      ast_t* find = ast_get(typedefn, ast_name(right), NULL);
+      bool result = (find != NULL) && (ast_id(find) == TK_NEW);
+
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
+
+      return result;
     }
 
     default: {}

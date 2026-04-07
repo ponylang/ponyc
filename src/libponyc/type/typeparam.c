@@ -3,6 +3,7 @@
 #include "cap.h"
 #include "subtype.h"
 #include "matchtype.h"
+#include "typealias.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -357,6 +358,24 @@ static token_id cap_from_constraint(ast_t* type)
     case TK_NOMINAL:
       return cap_single(type);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return TK_NONE;
+
+      token_id result = cap_from_constraint(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    case TK_TUPLETYPE:
+      // Tuples can't be used as constraints. Return a placeholder cap and let
+      // the constraint_contains_tuple check in the flatten pass report the
+      // error.
+      return TK_CAP_ANY;
+
     default: {}
   }
 
@@ -494,6 +513,23 @@ static bool apply_cap(ast_t* type, token_id tcap, token_id teph)
     case TK_TYPEPARAMREF:
       return apply_cap_to_single(type, tcap, teph);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = apply_cap(unfolded, tcap, teph);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
+    case TK_TUPLETYPE:
+      // Tuples can't be used as constraints. Return false and let the
+      // constraint_contains_tuple check in the flatten pass report the error.
+      return false;
+
     default: {}
   }
 
@@ -512,7 +548,16 @@ static ast_t* constraint_cap(ast_t* typeparamref)
   token_id tcap = ast_id(cap);
   token_id teph = ast_id(eph);
 
-  ast_t* r_constraint = ast_dup(constraint);
+  ast_t* r_constraint;
+
+  // Unfold type aliases so apply_cap can distribute into compound types.
+  if(ast_id(constraint) == TK_TYPEALIASREF)
+    r_constraint = typealias_unfold(constraint);
+  else
+    r_constraint = ast_dup(constraint);
+
+  if(r_constraint == NULL)
+    return NULL;
 
   if(!apply_cap(r_constraint, tcap, teph))
   {
@@ -601,6 +646,19 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
     case TK_NOMINAL:
     {
       ast_t* typeargs = ast_childidx(type, 2);
+      ast_t* typearg = ast_child(typeargs);
+
+      while(typearg != NULL)
+      {
+        typeparam_current_inner(typearg, scope);
+        typearg = ast_sibling(typearg);
+      }
+      break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* typeargs = ast_childidx(type, 1);
       ast_t* typearg = ast_child(typeargs);
 
       while(typearg != NULL)

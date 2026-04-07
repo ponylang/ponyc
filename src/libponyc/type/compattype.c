@@ -1,5 +1,6 @@
 #include "compattype.h"
 #include "cap.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
 
@@ -194,6 +195,16 @@ static bool is_tuple_compat_x(ast_t* a, ast_t* b)
     case TK_TYPEPARAMREF:
       return false;
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_tuple_compat_x(a, unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_ARROW:
       return false;
 
@@ -222,6 +233,16 @@ static bool is_nominal_compat_x(ast_t* a, ast_t* b)
 
     case TK_TYPEPARAMREF:
       return is_nominal_compat_typeparam(a, b);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_nominal_compat_x(a, unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_ARROW:
       return is_arrow_compat_nominal(b, a);
@@ -252,6 +273,16 @@ static bool is_typeparam_compat_x(ast_t* a, ast_t* b)
     case TK_TYPEPARAMREF:
       return is_typeparam_compat_typeparam(a, b);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_typeparam_compat_x(a, unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_ARROW:
       return is_arrow_compat_typeparam(b, a);
 
@@ -281,6 +312,16 @@ static bool is_arrow_compat_x(ast_t* a, ast_t* b)
     case TK_TYPEPARAMREF:
       return is_arrow_compat_typeparam(a, b);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_arrow_compat_x(a, unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_ARROW:
       return is_arrow_compat_arrow(a, b);
 
@@ -309,6 +350,16 @@ bool is_compat_type(ast_t* a, ast_t* b)
 
     case TK_TYPEPARAMREF:
       return is_typeparam_compat_x(a, b);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(a);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_compat_type(unfolded, b);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_ARROW:
       return is_arrow_compat_x(a, b);

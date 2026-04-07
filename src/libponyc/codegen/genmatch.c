@@ -10,6 +10,7 @@
 #include "../type/subtype.h"
 #include "../type/matchtype.h"
 #include "../type/alias.h"
+#include "../type/typealias.h"
 #include "../type/viewpoint.h"
 #include "../type/lookup.h"
 #include "ponyassert.h"
@@ -213,6 +214,16 @@ static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
       // try again with the right-hand side of the arrow.
       return check_type(c, ptr, desc, ast_childidx(pattern_type, 1),
         next_block, weight);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(pattern_type);
+      pony_assert(unfolded != NULL);
+
+      bool ok = check_type(c, ptr, desc, unfolded, next_block, weight);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     default: {}
   }
@@ -592,6 +603,16 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_ARROW:
       return static_tuple(c, value, ast_childidx(type, 1), pattern,
         next_block);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      bool ok = static_tuple(c, value, unfolded, pattern, next_block);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     default: {}
   }

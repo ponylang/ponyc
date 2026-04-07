@@ -6,6 +6,7 @@
 #include "gentype.h"
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 
 typedef LLVMValueRef (*build_binop)(LLVMBuilderRef builder, LLVMValueRef left,
@@ -348,9 +349,21 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
 static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
   LLVMValueRef r_value)
 {
+  // Unfold type aliases to get the actual tuple element types.
+  ast_t* iter_type = r_type;
+  ast_t* unfolded = NULL;
+
+  if(ast_id(r_type) == TK_TYPEALIASREF)
+  {
+    unfolded = typealias_unfold(r_type);
+
+    if(unfolded != NULL)
+      iter_type = unfolded;
+  }
+
   // Handle assignment for each component.
   ast_t* child = ast_child(left);
-  ast_t* rtype_child = ast_child(r_type);
+  ast_t* rtype_child = ast_child(iter_type);
   int i = 0;
 
   while(child != NULL)
@@ -395,6 +408,10 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
   }
 
   pony_assert(rtype_child == NULL);
+
+  if(unfolded != NULL)
+    ast_free_unattached(unfolded);
+
   return true;
 }
 

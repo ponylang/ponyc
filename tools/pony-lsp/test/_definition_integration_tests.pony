@@ -186,11 +186,9 @@ class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
         // `U32` type arg in `Map[String, U32]` → U32 primitive declaration
         (17, 25, _DefinitionChecker(
           [("unsigned.pony", (185, 0), (185, 9))]))
-        // `_Alias` usage — after reification the alias is replaced with its
-        // expansion (U8), so the original alias identity is lost and goto
-        // definition returns no result. Fixing this requires first-class type
-        // aliases (ponylang/ponyc#5007).
-        (19, 20, _DefinitionChecker([]))])
+        // `_Alias` usage → type alias declaration (line 2)
+        (19, 20, _DefinitionChecker(
+          [("_type_alias.pony", (2, 0), (2, 4))]))])
 
 type DefinitionExpectation is (String val, (I64, I64), (I64, I64))
 

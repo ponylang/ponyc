@@ -4,6 +4,7 @@
 #include "../type/cap.h"
 #include "../type/compattype.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../type/typeparam.h"
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
@@ -83,6 +84,21 @@ bool constraint_contains_tuple(pass_opt_t* opt, ast_t* constraint, ast_t* scan)
         child = ast_sibling(child);
       }
 
+      return r;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(scan);
+
+      if(unfolded == NULL)
+        return false;
+
+      // Pass unfolded as both constraint and scan: after unfolding, the
+      // concrete type IS the effective constraint. The TK_UNIONTYPE case
+      // iterates constraint's children, which must be the union members.
+      bool r = constraint_contains_tuple(opt, unfolded, unfolded);
+      ast_free_unattached(unfolded);
       return r;
     }
 
@@ -286,6 +302,19 @@ static bool flatten_provided_type(pass_opt_t* opt, ast_t* provides_type,
       return true;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(provides_type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool r = flatten_provided_type(opt, unfolded, error_at,
+        list_parent, list_end);
+      ast_free_unattached(unfolded);
+      return r;
+    }
+
     default:
       ast_error(opt->check.errors, error_at,
         "invalid provides type. Can only be interfaces, traits and intersects of those.");
@@ -361,26 +390,46 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       AST_GET_CHILDREN(ast, id, type, init);
       bool ok = true;
 
-      if(ast_id(type) != TK_NOMINAL || is_pointer(type) || is_nullable_pointer(type))
-        ok = false;
+      // Unfold type aliases to check the underlying type.
+      ast_t* check_type = type;
+      ast_t* unfolded = NULL;
 
-      ast_t* def = (ast_t*)ast_data(type);
-
-      if(def == NULL)
+      if(ast_id(type) == TK_TYPEALIASREF)
       {
-        ok = false;
-      } else {
-        switch(ast_id(def))
-        {
-          case TK_STRUCT:
-          case TK_CLASS:
-            break;
+        unfolded = typealias_unfold(type);
+        if(unfolded != NULL)
+          check_type = unfolded;
+        else
+          ok = false;
+      }
 
-          default:
-            ok = false;
-            break;
+      if(ok &&
+        (ast_id(check_type) != TK_NOMINAL ||
+          is_pointer(check_type) || is_nullable_pointer(check_type)))
+        ok = false;
+
+      if(ok)
+      {
+        ast_t* def = (ast_t*)ast_data(check_type);
+
+        if(def == NULL)
+        {
+          ok = false;
+        } else {
+          switch(ast_id(def))
+          {
+            case TK_STRUCT:
+            case TK_CLASS:
+              break;
+
+            default:
+              ok = false;
+              break;
+          }
         }
       }
+
+      ast_free_unattached(unfolded);
 
       if(!ok)
       {
