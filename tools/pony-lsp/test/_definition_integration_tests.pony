@@ -18,6 +18,7 @@ primitive _DefinitionIntegrationTests is TestList
     test(_DefinitionCrossFileIntegrationTest.create(server))
     test(_DefinitionGenericsIntegrationTest.create(server))
     test(_DefinitionTupleIntegrationTest.create(server))
+    test(_DefinitionTypeAliasIntegrationTest.create(server))
 
 class \nodoc\ iso _DefinitionClassIntegrationTest is UnitTest
   let _server: _DefinitionLspServer
@@ -207,6 +208,35 @@ class \nodoc\ iso _DefinitionTupleIntegrationTest is UnitTest
       [
         // `_1` tuple element access → `let pair` declaration
         ((16, 9), [("_tuple.pony", (15, 4), (15, 7))])
+      ]
+    h.long_test(10_000_000_000)
+    for ((line, character), _) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+    end
+    _server.test_goto_definition(h, workspace_file, checks)
+
+class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
+  let _server: _DefinitionLspServer
+
+  new iso create(server: _DefinitionLspServer) =>
+    _server = server
+
+  fun name(): String => "definition/integration/type_alias"
+
+  fun apply(h: TestHelper) =>
+    let workspace_file = "definition/_type_alias.pony"
+    let checks: Array[DefinitionCheck] val =
+      [
+        // `String` type arg in `Map[String, U32]` → String class declaration
+        ((17, 17), [("string.pony", (8, 0), (8, 5))])
+        // `U32` type arg in `Map[String, U32]` → U32 primitive declaration
+        ((17, 25), [("unsigned.pony", (185, 0), (185, 9))])
+        // `_Alias` usage — after reification the alias is replaced with its
+        // expansion (U8), so the original alias identity is lost and goto
+        // definition returns no result. Fixing this requires first-class type
+        // aliases (ponylang/ponyc#5007).
+        ((19, 20), [])
       ]
     h.long_test(10_000_000_000)
     for ((line, character), _) in checks.values() do
