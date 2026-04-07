@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix rare silent connection hangs on macOS and BSD ([PR #5121](https://github.com/ponylang/ponyc/pull/5121))
 - Fix rare silent connection hangs on Linux ([PR #5131](https://github.com/ponylang/ponyc/pull/5131))
 - Fix bug in pony-lsp's goto definition ([PR #5123](https://github.com/ponylang/ponyc/pull/5123))
+- Fix pony-lsp failures with some code constructs ([PR #5144](https://github.com/ponylang/ponyc/pull/5144))
 
 ### Added
 

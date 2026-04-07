@@ -6,11 +6,8 @@ use "files"
 use @get_compiler_exe_directory[Bool](
   output_path: Pointer[U8] tag,
   argv0: Pointer[U8] tag)
-use @ponyint_pool_alloc_size[Pointer[U8] val](
-  size: USize)
-use @ponyint_pool_free_size[None](
-  size: USize,
-  p: Pointer[U8] tag)
+use @ponyint_pool_alloc_size[Pointer[U8] val](size: USize)
+use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 
 actor PonyCompiler is LspCompiler
   """
@@ -37,18 +34,13 @@ actor PonyCompiler is LspCompiler
     """
   var _run_id_gen: USize
 
-  new create(
-    pony_path': String,
-    argv0: String val = "")
-  =>
+  new create(pony_path': String, argv0: String val = "") =>
     _pony_path = Path.split_list(pony_path')
-    _installation_paths =
-      _find_installation_paths(argv0)
+    _installation_paths = _find_installation_paths(argv0)
     _compilation_queue = []
 
     _defines = _defines.create()
-    _pony_path_from_settings =
-      Array[String val].create()
+    _pony_path_from_settings = Array[String val].create()
 
     _got_settings = false
 
@@ -57,15 +49,11 @@ actor PonyCompiler is LspCompiler
     // with 0
     _run_id_gen = 1
 
-  fun tag _find_installation_paths(
-    argv0: String val): Array[String val] val
-  =>
+  fun tag _find_installation_paths(argv0: String val): Array[String val] val =>
     """
-    Find pony package paths relative to the running
-    executable's directory.
-    Since pony-lsp is installed alongside ponyc, the
-    standard library lives at `../packages` (installed
-    layout) or `../../packages` (source build layout)
+    Find pony package paths relative to the running executable's directory.
+    Since pony-lsp is installed alongside ponyc, the standard library lives at
+    `../packages` (installed layout) or `../../packages` (source build layout)
     relative to the executable.
     """
     match \exhaustive\ _find_exe_directory(argv0)
@@ -85,21 +73,18 @@ actor PonyCompiler is LspCompiler
       recover val Array[String val] end
     end
 
-  fun tag _find_exe_directory(
-    argv0: String val): (String val | None)
-  =>
+  fun tag _find_exe_directory(argv0: String val): (String val | None) =>
     """
-    Find the directory containing the currently
-    running executable using the same
-    platform-specific mechanism as ponyc.
+    Find the directory containing the currently running executable
+    using the same platform-specific mechanism as ponyc.
     """
     let buf_size: USize = 4096
     let buf = @ponyint_pool_alloc_size(buf_size)
-    if @get_compiler_exe_directory(
-      buf, argv0.cstring())
-    then
+    if @get_compiler_exe_directory(buf, argv0.cstring()) then
       let result =
-        recover val String.copy_cstring(buf) end
+        recover
+          val String.copy_cstring(buf)
+        end
       @ponyint_pool_free_size(buf_size, buf)
       result
     else
@@ -107,13 +92,10 @@ actor PonyCompiler is LspCompiler
       None
     end
 
-  be apply_settings(
-    settings: (Settings | None))
-  =>
+  be apply_settings(settings: (Settings | None)) =>
     match settings
     | let settings': Settings =>
-      _pony_path_from_settings =
-        settings'.ponypath()
+      _pony_path_from_settings = settings'.ponypath()
       _defines = settings'.defines()
     end
 
@@ -122,8 +104,7 @@ actor PonyCompiler is LspCompiler
       // trigger all queued compilations
       try
         while this._compilation_queue.size() > 0 do
-          (let package, let paths, let notify) =
-            this._compilation_queue.pop()?
+          (let package, let paths, let notify) = this._compilation_queue.pop()?
           this.compile(package, paths, notify)
         end
       end
@@ -139,15 +120,12 @@ actor PonyCompiler is LspCompiler
     """
     if not this._got_settings then
       // enqueue compilation and dont execute it yet
-      this._compilation_queue.push(
-        (package, paths, notify))
+      this._compilation_queue.push((package, paths, notify))
       return
     end
-    // Search order: installation paths first
-    // (prevents PONYPATH from overriding builtin,
-    // per ponylang/ponyc#3779), then PONYPATH,
-    // then workspace-specific paths
-    // (corral dependencies).
+    // Search order: installation paths first (prevents PONYPATH from overriding
+    // builtin, per ponylang/ponyc#3779), then PONYPATH, then workspace-specific
+    // paths (corral dependencies).
     let package_paths: Array[String val] val =
       recover val
         let tmp = _installation_paths.clone()
@@ -166,8 +144,7 @@ actor PonyCompiler is LspCompiler
           user_flags = this._defines,
           release = false,
           verbosity = VerbosityQuiet,
-          limit = PassFinaliser
-      )
+          limit = PassFinaliser)
     let run_id = _run_id_gen = _run_id_gen + 1
     notify.done_compiling(package, result, run_id)
 
@@ -178,12 +155,10 @@ trait tag LspCompiler
 
   be apply_settings(settings: (Settings | None))
     """
-    Provide settings to initialize or reconfigure the
-    compiler.
+    Provide settings to initialize or reconfigure the compiler.
 
-    `None` can be provided when no new
-    settings should be applied, but the initialization
-    step should be completed.
+    `None` can be provided when no new settings should be applied,
+    but the initialization step should be completed.
     """
 
   be compile(
@@ -196,8 +171,7 @@ trait tag LspCompiler
 
 interface CompilerNotify
   """
-  Notify which is called by the compiler when it is
-  done.
+  Notify which is called by the compiler when it is done.
   """
 
   be done_compiling(

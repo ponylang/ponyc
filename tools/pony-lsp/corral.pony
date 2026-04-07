@@ -42,8 +42,7 @@ class val Locator is (Hashable & Stringable)
 
   fun path(): String =>
     """
-    Returns a unique name for this locator without the
-    vcs suffix.
+    Returns a unique name for this locator without the vcs suffix.
     """
     Path.to_slash(Path.join(repo_path, bundle_path))
 
@@ -54,9 +53,7 @@ class val Locator is (Hashable & Stringable)
     """
     Returns the full string form of this locator.
     """
-    Path.to_slash(
-      Path.join(repo_path + vcs_suffix, bundle_path)
-    ).clone()
+    Path.to_slash(Path.join(repo_path + vcs_suffix, bundle_path)).clone()
 
   fun compare(that: Locator box): Compare =>
     if (repo_path != that.repo_path) then
@@ -68,17 +65,13 @@ class val Locator is (Hashable & Stringable)
     bundle_path.compare(that.bundle_path)
 
   fun hash(): USize =>
-    repo_path.hash()
-      xor vcs_suffix.hash()
-      xor bundle_path.hash()
+    repo_path.hash() xor vcs_suffix.hash() xor bundle_path.hash()
 
   fun is_vcs(): Bool =>
     vcs_suffix != ""
 
   fun is_local(): Bool =>
-    (repo_path == "")
-      or repo_path.at(".")
-      or repo_path.at("/")
+    (repo_path == "") or repo_path.at(".") or repo_path.at("/")
 
   fun is_remote_vcs(): Bool =>
     is_vcs() and not is_local()

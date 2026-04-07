@@ -21,8 +21,7 @@ class val Diagnostic
     location': LspLocation,
     severity': I64,
     message': String,
-    related_information':
-      Array[DiagnosticRelatedInformation] val = [])
+    related_information': Array[DiagnosticRelatedInformation] val = [])
   =>
     location = location'
     severity = severity'
@@ -48,8 +47,7 @@ class val Diagnostic
     this.message = err.msg
     let relinfos =
       recover trn
-        Array[DiagnosticRelatedInformation]
-          .create(err.infos.size())
+        Array[DiagnosticRelatedInformation].create(err.infos.size())
       end
     for info in err.infos.values() do
       let file_path =
@@ -67,13 +65,8 @@ class val Diagnostic
         LspLocation.create(
           file,
           LspPositionRange.from_single_pos(
-            LspPosition.from_ast_pos(info.position)
-          )
-        )
-      relinfos.push(
-        DiagnosticRelatedInformation
-          .create(rel_loc, info.msg)
-      )
+            LspPosition.from_ast_pos(info.position)))
+      relinfos.push(DiagnosticRelatedInformation.create(rel_loc, info.msg))
     end
     this.related_information = consume relinfos
 
@@ -91,24 +84,16 @@ class val Diagnostic
     """
     let expanded =
       recover trn
-        Array[Diagnostic]
-          .create(
-            this.related_information.size() + 1)
+        Array[Diagnostic].create(this.related_information.size() + 1)
       end
     expanded.push(this)
-    for related_info in
-      this.related_information.values()
-    do
+    for related_info in this.related_information.values() do
       expanded.push(
         Diagnostic(
           related_info.location,
           DiagnosticSeverities.hint(),
           related_info.message,
-          [
-            DiagnosticRelatedInformation(
-              this.location,
-              "original diagnostic")
-          ]
+          [DiagnosticRelatedInformation(this.location, "original diagnostic")]
         )
       )
     end
@@ -122,9 +107,7 @@ class val Diagnostic
       .update("message", this.message)
     if this.related_information.size() > 0 then
       var arr = JsonArray
-      for rel_info in
-        this.related_information.values()
-      do
+      for rel_info in this.related_information.values() do
         arr = arr.push(rel_info.to_json())
       end
       obj = obj.update("relatedInformation", arr)
@@ -148,10 +131,7 @@ class val DiagnosticRelatedInformation
   let location: LspLocation
   let message: String
 
-  new val create(
-    location': LspLocation,
-    message': String)
-  =>
+  new val create(location': LspLocation, message': String) =>
     location = location'
     message = message'
 

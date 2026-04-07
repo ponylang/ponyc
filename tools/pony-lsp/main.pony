@@ -11,11 +11,14 @@ actor Main
       | None => ""
       end
     let argv0 =
-      try env.args(0)? else "" end
+      try
+        env.args(0)?
+      else
+        ""
+      end
     let language_server =
       LanguageServer(
         channel,
         env,
         PonyCompiler(pony_path, argv0))
-    // at this point the server should listen to
-    // incoming messages via stdin
+    // at this point the server should listen to incoming messages via stdin

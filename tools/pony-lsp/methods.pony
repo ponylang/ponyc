@@ -1,7 +1,6 @@
 primitive Methods
   """
-  Collection of methods for LSP requests,
-  notifications, responses.
+  Collection of methods for LSP requests, notifications, responses.
   """
 
   fun exit(): String val =>
@@ -129,8 +128,7 @@ primitive WorkDoneProgressMethods
 
   new create_progress() =>
     """
-    create method below collides with default
-    constructor.
+    create method below collides with default constructor.
     """
     None
 

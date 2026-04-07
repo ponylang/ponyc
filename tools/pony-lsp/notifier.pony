@@ -12,8 +12,7 @@ use "json"
 use "collections"
 use "buffered"
 
-type ReceivingMode is
-  (ReceivingModeHeader | ReceivingModeContent)
+type ReceivingMode is (ReceivingModeHeader | ReceivingModeContent)
 
 primitive ReceivingModeHeader
   """
@@ -97,10 +96,8 @@ class ref BaseProtocol
     var res = parse()
     while res isnt NeedMore do
       match res
-      | let m: Message val =>
-        notifier.handle_message(m)
-      | let pe: ParseError =>
-        notifier.handle_parse_error(pe)
+      | let m: Message val => notifier.handle_message(m)
+      | let pe: ParseError => notifier.handle_parse_error(pe)
       end
       // cleanup between messages/errors
       this.headers.clear()
@@ -108,17 +105,13 @@ class ref BaseProtocol
       res = parse()
     end
 
-  fun ref parse():
-    (Message val | ParseError | NeedMore)
-  =>
+  fun ref parse(): (Message val | ParseError | NeedMore) =>
     match \exhaustive\ receiving_mode
     | ReceivingModeHeader => receive_headers()
     | ReceivingModeContent => receive_content()
     end
 
-  fun ref receive_headers():
-    (Message val | ParseError | NeedMore)
-  =>
+  fun ref receive_headers(): (Message val | ParseError | NeedMore) =>
     try
       // read as many headers as we can
       var msg = this.buffer.line()?
@@ -139,9 +132,7 @@ class ref BaseProtocol
       NeedMore
     end
 
-  fun ref receive_content():
-    (Message val | ParseError | NeedMore)
-  =>
+  fun ref receive_content(): (Message val | ParseError | NeedMore) =>
     """
     Parse the message content from the buffer.
     """
@@ -173,17 +164,14 @@ class ref BaseProtocol
       end
     parse_message(message_json)
 
-  fun ref parse_message(json: JsonObject):
-    (Message val | ParseError)
-  =>
+  fun ref parse_message(json: JsonObject): (Message val | ParseError) =>
     if json.contains("method") then
       let method: String =
         try
           match json("method")?
           | let s: String => s
           else
-            return InvalidMessage(
-              "Invalid method. Not a string.")
+            return InvalidMessage("Invalid method. Not a string.")
           end
         else
           return InvalidMessage("Missing method")
@@ -196,8 +184,7 @@ class ref BaseProtocol
           | let obj: JsonObject => obj
           | let arr: JsonArray => arr
           else
-            return InvalidMessage(
-              "Invalid request params")
+            return InvalidMessage("Invalid request params")
           end
         else
           None
@@ -210,8 +197,7 @@ class ref BaseProtocol
             | let id: String => id
             | let id: I64 => id
             else
-              return InvalidMessage(
-                "Invalid id. Expected string or integer")
+              return InvalidMessage("Invalid id. Expected string or integer")
             end
           else
             return InvalidMessage("Missing request id")
@@ -233,8 +219,7 @@ class ref BaseProtocol
           | let id: String => id
           | let id: I64 => id
           else
-            return InvalidMessage(
-              "Invalid id. Expected string or integer")
+            return InvalidMessage("Invalid id. Expected string or integer")
           end
         else
           None
@@ -245,21 +230,17 @@ class ref BaseProtocol
             match json("error")?
             | let err: JsonObject =>
               // parse ResponseError object
-              match \exhaustive\
-                parse_response_error(err)
-              | let pe: ParseError =>
-                return pe
+              match \exhaustive\ parse_response_error(err)
+              | let pe: ParseError => return pe
               | let re: ResponseError => re
               end
             else
-              return InvalidMessage(
-                "Invalid response error")
+              return InvalidMessage("Invalid response error")
             end
           else
             None
           end
-      ResponseMessage.create(
-        id, result, response_error)
+      ResponseMessage.create(id, result, response_error)
     end
 
   fun parse_response_error(json: JsonObject):
@@ -273,25 +254,23 @@ class ref BaseProtocol
         match json("code")?
         | let c: I64 => c
         else
-          return InvalidMessage(
-            "Invalid ResponseError code. Not an integer.")
+          return InvalidMessage("Invalid ResponseError code. Not an integer.")
         end
       else
-        return InvalidMessage(
-          "Missing ResponseError code")
+        return InvalidMessage("Missing ResponseError code")
       end
     let message: String =
       try
         match json("message")?
         | let m: String => m
         else
-          return InvalidMessage(
-            "Invalid ResponseError message. Not a string.")
+          return InvalidMessage("Invalid ResponseError message. Not a string.")
         end
       else
-        return InvalidMessage(
-          "Missing ResponseError message")
+        return InvalidMessage("Missing ResponseError message")
       end
     let data: JsonValue =
-      try json("data")? end
+      try
+        json("data")?
+      end
     ResponseError(code, message, data)

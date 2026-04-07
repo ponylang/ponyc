@@ -100,8 +100,7 @@ class val Client
 
   fun supports_configuration(): Bool =>
     """
-    Returns `true` if the client supports the
-    workspace/configuration request.
+    Returns `true` if the client supports the workspace/configuration request.
     """
     this._supports_configuration
 
@@ -114,17 +113,14 @@ class val Client
 
   fun supports_publish_diagnostics(): Bool =>
     """
-    Checks that the client supports publishing
-    diagnostics per text-document.
+    Checks that the client supports publishing diagnostics per text-document.
     """
     this._supports_publish_diagnostics
 
   fun supports_publish_diagnostic_related_info(): Bool =>
     """
-    Returns `true` if the client supports
-    `relatedInformation` on `Diagnostic` items.
-    `false` denotes the client doesn't support or we
-    don't know.
+    Returns `true` if the client supports `relatedInformation` on `Diagnostic`
+    items. `false` denotes the client doesn't support or we don't know.
     """
     this._supports_publish_diagnostic_related_info
 
@@ -167,8 +163,7 @@ class val Client
       if this.supports_configuration() then
         s.append("\tconfiguration\r\n")
       end
-      if this.supports_configuration_dynamic_registration()
-      then
+      if this.supports_configuration_dynamic_registration() then
         s.append(
           "\tdynamic registration for " +
           "didChangeConfiguration notifications\r\n"
@@ -177,19 +172,14 @@ class val Client
       if this.supports_publish_diagnostics() then
         s.append("\tpublish diagnostics\r\n")
       end
-      if this.supports_publish_diagnostic_related_info()
-      then
-        s.append(
-          "\trelated information in diagnostics\r\n"
-        )
+      if this.supports_publish_diagnostic_related_info() then
+        s.append("\trelated information in diagnostics\r\n")
       end
       if this.supports_workspace_diagnostic_refresh() then
         s.append("\trefreshing diagnostics\r\n")
       end
       if this.supports_window_work_done_progress() then
-        s.append(
-          "\tserver-initiated workDoneProgress\r\n"
-        )
+        s.append("\tserver-initiated workDoneProgress\r\n")
       end
       consume s
     end
