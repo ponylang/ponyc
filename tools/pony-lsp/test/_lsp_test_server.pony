@@ -4,38 +4,6 @@ use "files"
 use "json"
 use "collections"
 
-interface val _ResponseChecker
-  """
-  Encapsulates the LSP method name and response validation for a single
-  pending request. Implement this to integrate a new LSP feature into
-  the shared test server.
-  """
-  fun lsp_method(): String
-  fun check(res: ResponseMessage val, h: TestHelper, action: String): Bool
-
-class val _PendingRequest
-  let file_path: String
-  let line: I64
-  let character: I64
-  let h: TestHelper
-  let action: String
-  let checker: _ResponseChecker val
-
-  new val create(
-    file_path': String,
-    line': I64,
-    character': I64,
-    h': TestHelper,
-    action': String,
-    checker': _ResponseChecker val)
-  =>
-    file_path = file_path'
-    line = line'
-    character = character'
-    h = h'
-    action = action'
-    checker = checker'
-
 actor _LspTestServer is Channel
   """
   Shared LSP server for integration tests. Initializes and compiles the
@@ -185,3 +153,40 @@ actor _LspTestServer is Channel
 
   be dispose() =>
     None
+
+class val _PendingRequest
+  let file_path: String
+  let line: I64
+  let character: I64
+  let h: TestHelper
+  let action: String
+  let checker: _ResponseChecker val
+
+  new val create(
+    file_path': String,
+    line': I64,
+    character': I64,
+    h': TestHelper,
+    action': String,
+    checker': _ResponseChecker val)
+  =>
+    file_path = file_path'
+    line = line'
+    character = character'
+    h = h'
+    action = action'
+    checker = checker'
+
+primitive _RunLspChecks
+  fun apply(
+    h: TestHelper,
+    server: _LspTestServer,
+    workspace_file: String,
+    checks: Array[(I64, I64, _ResponseChecker val)] val)
+  =>
+    h.long_test(10_000_000_000)
+    for (line, character, checker) in checks.values() do
+      h.expect_action(
+        workspace_file + ":" + line.string() + ":" + character.string())
+      server.request(h, workspace_file, line, character, checker)
+    end

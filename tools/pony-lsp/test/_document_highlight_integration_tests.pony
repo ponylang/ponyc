@@ -63,18 +63,13 @@ class \nodoc\ iso _DocHighlightFieldTest
     "document_highlight/integration/field"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 21
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (21, 6, _DocHighlightChecker(
         [ (21, 6, 21, 11); (24, 4, 24, 9); (24, 12, 24, 17)
-          (27, 4, 27, 9); (30, 22, 30, 27)]))
+          (27, 4, 27, 9); (30, 22, 30, 27)]))])
 
 class \nodoc\ iso _DocHighlightFieldRefTest
   is UnitTest
@@ -93,18 +88,13 @@ class \nodoc\ iso _DocHighlightFieldRefTest
     "document_highlight/integration/field_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 27
-    let character: I64 = 4
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (27, 4, _DocHighlightChecker(
         [ (21, 6, 21, 11); (24, 4, 24, 9); (24, 12, 24, 17)
-          (27, 4, 27, 9); (30, 22, 30, 27)]))
+          (27, 4, 27, 9); (30, 22, 30, 27)]))])
 
 class \nodoc\ iso _DocHighlightLocalTest
   is UnitTest
@@ -126,17 +116,12 @@ class \nodoc\ iso _DocHighlightLocalTest
     "document_highlight/integration/local"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 30
-    let character: I64 = 8
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(30, 8, 30, 14); (31, 4, 31, 10); (31, 13, 31, 19)]))
+      [ (30, 8, _DocHighlightChecker(
+        [ (30, 8, 30, 14); (31, 4, 31, 10); (31, 13, 31, 19)]))])
 
 class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
@@ -157,16 +142,12 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
     "document_highlight/integration/flet"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 80
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(80, 6, 80, 11); (85, 4, 85, 9); (90, 4, 90, 9)]))
+      [ (80, 6, _DocHighlightChecker(
+        [ (80, 6, 80, 11); (85, 4, 85, 9); (90, 4, 90, 9)]))])
 
 class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
@@ -187,16 +168,12 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
     "document_highlight/integration/embed"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 81
-    let character: I64 = 8
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(81, 8, 81, 14); (86, 4, 86, 10); (91, 4, 91, 10)]))
+      [ (81, 8, _DocHighlightChecker(
+        [ (81, 8, 81, 14); (86, 4, 86, 10); (91, 4, 91, 10)]))])
 
 class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
   """
@@ -217,17 +194,12 @@ class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
     "document_highlight/integration/new_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 51
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(51, 6, 51, 12); (86, 20, 86, 26); (91, 20, 91, 26)]))
+      [ (51, 6, _DocHighlightChecker(
+        [ (51, 6, 51, 12); (86, 20, 86, 26); (91, 20, 91, 26)]))])
 
 class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
   """
@@ -249,17 +221,12 @@ class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
     "document_highlight/integration/fun_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 94
-    let character: I64 = 10
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(94, 10, 94, 13); (102, 15, 102, 18); (107, 12, 107, 15)]))
+      [ (94, 10, _DocHighlightChecker(
+        [ (94, 10, 94, 13); (102, 15, 102, 18); (107, 12, 107, 15)]))])
 
 class \nodoc\ iso _DocHighlightParamTest is UnitTest
   """
@@ -280,17 +247,12 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
     "document_highlight/integration/param"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 94
-    let character: I64 = 14
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(94, 14, 94, 15); (95, 18, 95, 19); (96, 4, 96, 5)]))
+      [ (94, 14, _DocHighlightChecker(
+        [ (94, 14, 94, 15); (95, 18, 95, 19); (96, 4, 96, 5)]))])
 
 class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
   """
@@ -312,18 +274,13 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
     "document_highlight/integration/var_local"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 106
-    let character: I64 = 8
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (106, 8, _DocHighlightChecker(
         [ (106, 8, 106, 9); (107, 4, 107, 5)
-          (107, 8, 107, 9); (108, 4, 108, 5)]))
+          (107, 8, 107, 9); (108, 4, 108, 5)]))])
 
 class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
@@ -343,16 +300,12 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
     "document_highlight/integration/be_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 121
-    let character: I64 = 5
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(121, 5, 121, 8); (125, 4, 125, 7)]))
+      [ (121, 5, _DocHighlightChecker(
+        [ (121, 5, 121, 8); (125, 4, 125, 7)]))])
 
 class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
   """
@@ -375,18 +328,13 @@ class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
     "document_highlight/integration/class_type"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 81
-    let character: I64 = 16
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (81, 16, _DocHighlightChecker(
         [ (33, 6, 33, 12); (81, 16, 81, 22)
-          (86, 13, 86, 19); (91, 13, 91, 19)]))
+          (86, 13, 86, 19); (91, 13, 91, 19)]))])
 
 class \nodoc\ iso _DocHighlightClassDeclTest is UnitTest
   """
@@ -408,18 +356,13 @@ class \nodoc\ iso _DocHighlightClassDeclTest is UnitTest
     "document_highlight/integration/class_decl"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 33
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (33, 6, _DocHighlightChecker(
         [ (33, 6, 33, 12); (81, 16, 81, 22)
-          (86, 13, 86, 19); (91, 13, 91, 19)]))
+          (86, 13, 86, 19); (91, 13, 91, 19)]))])
 
 class \nodoc\ iso _DocHighlightTypeDeclTest is UnitTest
   """
@@ -439,16 +382,12 @@ class \nodoc\ iso _DocHighlightTypeDeclTest is UnitTest
     "document_highlight/integration/type_decl"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 54
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(54, 6, 54, 20); (98, 22, 98, 36)]))
+      [ (54, 6, _DocHighlightChecker(
+        [ (54, 6, 54, 20); (98, 22, 98, 36)]))])
 
 class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
   """
@@ -469,16 +408,12 @@ class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
     "document_highlight/integration/type_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 98
-    let character: I64 = 22
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(54, 6, 54, 20); (98, 22, 98, 36)]))
+      [ (98, 22, _DocHighlightChecker(
+        [ (54, 6, 54, 20); (98, 22, 98, 36)]))])
 
 class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
   """
@@ -496,11 +431,7 @@ class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
     "document_highlight/integration/literal"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 85
-    let character: I64 = 12
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(85, 12, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightNoneTest is UnitTest
   """
@@ -520,11 +451,7 @@ class \nodoc\ iso _DocHighlightNoneTest is UnitTest
     "document_highlight/integration/none_literal"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 122
-    let character: I64 = 4
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(122, 4, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
   """
@@ -544,16 +471,12 @@ class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
     "document_highlight/integration/inner_x_field"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 49
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(49, 6, 49, 7); (52, 4, 52, 5)]))
+      [ (49, 6, _DocHighlightChecker(
+        [ (49, 6, 49, 7); (52, 4, 52, 5)]))])
 
 class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
   """
@@ -576,18 +499,13 @@ class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
     "document_highlight/integration/val_field"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 82
-    let character: I64 = 6
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (82, 6, _DocHighlightChecker(
         [ (82, 6, 82, 10); (87, 4, 87, 8); (92, 4, 92, 8)
-          (95, 4, 95, 8); (95, 11, 95, 15)]))
+          (95, 4, 95, 8); (95, 11, 95, 15)]))])
 
 class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
   """
@@ -608,17 +526,12 @@ class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
     "document_highlight/integration/do_work_param"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 104
-    let character: I64 = 18
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(104, 18, 104, 19); (105, 17, 105, 18); (107, 16, 107, 17)]))
+      [ (104, 18, _DocHighlightChecker(
+        [ (104, 18, 104, 19); (105, 17, 105, 18); (107, 16, 107, 17)]))])
 
 class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
   """
@@ -638,16 +551,12 @@ class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
     "document_highlight/integration/do_work_let"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 105
-    let character: I64 = 8
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker([(105, 8, 105, 9); (106, 17, 106, 18)]))
+      [ (105, 8, _DocHighlightChecker(
+        [ (105, 8, 105, 9); (106, 17, 106, 18)]))])
 
 class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
   """
@@ -670,17 +579,12 @@ class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
     "document_highlight/integration/let_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 31
-    let character: I64 = 4
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(30, 8, 30, 14); (31, 4, 31, 10); (31, 13, 31, 19)]))
+      [ (31, 4, _DocHighlightChecker(
+        [ (30, 8, 30, 14); (31, 4, 31, 10); (31, 13, 31, 19)]))])
 
 class \nodoc\ iso _DocHighlightVarRefTest is UnitTest
   """
@@ -704,18 +608,13 @@ class \nodoc\ iso _DocHighlightVarRefTest is UnitTest
     "document_highlight/integration/var_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 107
-    let character: I64 = 4
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
+      [ (107, 4, _DocHighlightChecker(
         [ (106, 8, 106, 9); (107, 4, 107, 5)
-          (107, 8, 107, 9); (108, 4, 108, 5)]))
+          (107, 8, 107, 9); (108, 4, 108, 5)]))])
 
 class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
   """
@@ -738,17 +637,12 @@ class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
     "document_highlight/integration/param_ref"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 95
-    let character: I64 = 18
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(94, 14, 94, 15); (95, 18, 95, 19); (96, 4, 96, 5)]))
+      [ (95, 18, _DocHighlightChecker(
+        [ (94, 14, 94, 15); (95, 18, 95, 19); (96, 4, 96, 5)]))])
 
 class \nodoc\ iso _DocHighlightNewRefCallTest is UnitTest
   """
@@ -771,17 +665,12 @@ class \nodoc\ iso _DocHighlightNewRefCallTest is UnitTest
     "document_highlight/integration/new_ref_call"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 86
-    let character: I64 = 20
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(
+    _RunLspChecks(
       h,
+      _server,
       _fixture,
-      line,
-      character,
-      _DocHighlightChecker(
-        [(51, 6, 51, 12); (86, 20, 86, 26); (91, 20, 91, 26)]))
+      [ (86, 20, _DocHighlightChecker(
+        [ (51, 6, 51, 12); (86, 20, 86, 26); (91, 20, 91, 26)]))])
 
 class \nodoc\ iso _DocHighlightIntLiteralTest is UnitTest
   """
@@ -799,11 +688,7 @@ class \nodoc\ iso _DocHighlightIntLiteralTest is UnitTest
     "document_highlight/integration/int_literal"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 87
-    let character: I64 = 11
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(87, 11, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
   """
@@ -821,11 +706,7 @@ class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
     "document_highlight/integration/float_literal"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 132
-    let character: I64 = 16
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(132, 16, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
   """
@@ -843,11 +724,7 @@ class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
     "document_highlight/integration/string_literal"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 133
-    let character: I64 = 23
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(133, 23, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightWhitespaceTest is UnitTest
   """
@@ -865,11 +742,7 @@ class \nodoc\ iso _DocHighlightWhitespaceTest is UnitTest
     "document_highlight/integration/whitespace"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 22
-    let character: I64 = 0
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(22, 0, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
   """
@@ -887,11 +760,7 @@ class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
     "document_highlight/integration/out_of_bounds"
 
   fun apply(h: TestHelper) =>
-    let line: I64 = 21
-    let character: I64 = 100
-    h.long_test(10_000_000_000)
-    h.expect_action(_fixture + ":" + line.string() + ":" + character.string())
-    _server.request(h, _fixture, line, character, _DocHighlightChecker([]))
+    _RunLspChecks(h, _server, _fixture, [(21, 100, _DocHighlightChecker([]))])
 
 class val _DocHighlightChecker
   let _expected: Array[(I64, I64, I64, I64)] val

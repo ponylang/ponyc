@@ -29,26 +29,19 @@ class \nodoc\ iso _DefinitionClassIntegrationTest is UnitTest
   fun name(): String => "definition/integration/class"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_class.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // field usages → field declaration (line 4, "let" keyword span)
-        ((7, 4), [("_class.pony", (4, 2), (4, 5))])
-        ((10, 4), [("_class.pony", (4, 2), (4, 5))])
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_class.pony",
+      [ // field usages → field declaration (line 4, "let" keyword span)
+        (7, 4, _DefinitionChecker([("_class.pony", (4, 2), (4, 5))]))
+        (10, 4, _DefinitionChecker([("_class.pony", (4, 2), (4, 5))]))
         // parameter usage → parameter declaration (line 6, "v: U32" span)
-        ((7, 13), [("_class.pony", (6, 13), (6, 19))])
+        (7, 13, _DefinitionChecker([("_class.pony", (6, 13), (6, 19))]))
         // method call → method declaration (line 9, "fun" keyword span)
-        ((13, 9), [("_class.pony", (9, 2), (9, 5))])
+        (13, 9, _DefinitionChecker([("_class.pony", (9, 2), (9, 5))]))
         // no definition on docstring content
-        ((1, 4), [])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+        (1, 4, _DefinitionChecker([]))])
 
 class \nodoc\ iso _DefinitionThisIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -59,19 +52,12 @@ class \nodoc\ iso _DefinitionThisIntegrationTest is UnitTest
   fun name(): String => "definition/integration/this"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_class.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // `this` in method body → enclosing class declaration (line 0)
-        ((13, 4), [("_class.pony", (0, 0), (0, 5))])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_class.pony",
+      [ // `this` in method body → enclosing class declaration (line 0)
+        (13, 4, _DefinitionChecker([("_class.pony", (0, 0), (0, 5))]))])
 
 class \nodoc\ iso _DefinitionKeywordsIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -82,25 +68,18 @@ class \nodoc\ iso _DefinitionKeywordsIntegrationTest is UnitTest
   fun name(): String => "definition/integration/keywords"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_class.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // `class` keyword in a declaration → no definition
-        ((0, 0), [])
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_class.pony",
+      [ // `class` keyword in a declaration → no definition
+        (0, 0, _DefinitionChecker([]))
         // `new` keyword in a constructor declaration → no definition
-        ((6, 2), [])
+        (6, 2, _DefinitionChecker([]))
         // `fun` keyword in a method declaration → no definition
-        ((9, 2), [])
+        (9, 2, _DefinitionChecker([]))
         // `:` type annotation separator → no definition
-        ((9, 11), [])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+        (9, 11, _DefinitionChecker([]))])
 
 class \nodoc\ iso _DefinitionTraitIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -111,19 +90,12 @@ class \nodoc\ iso _DefinitionTraitIntegrationTest is UnitTest
   fun name(): String => "definition/integration/trait"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_trait.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // call via trait-typed receiver → trait method declaration (line 7)
-        ((50, 6), [("_trait.pony", (7, 2), (7, 5))])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_trait.pony",
+      [ // call via trait-typed receiver → trait method declaration (line 7)
+        (50, 6, _DefinitionChecker([("_trait.pony", (7, 2), (7, 5))]))])
 
 class \nodoc\ iso _DefinitionUnionIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -134,24 +106,15 @@ class \nodoc\ iso _DefinitionUnionIntegrationTest is UnitTest
   fun name(): String => "definition/integration/union"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_trait.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // call via union-typed receiver → one definition per union member
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_trait.pony",
+      [ // call via union-typed receiver → one definition per union member
         // _DefLeft.shared (line 29) and _DefRight.shared (line 35)
-        ((53, 6),
-          [
-            ("_trait.pony", (29, 2), (29, 5))
-            ("_trait.pony", (35, 2), (35, 5))
-          ])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+        (53, 6, _DefinitionChecker(
+          [ ("_trait.pony", (29, 2), (29, 5))
+            ("_trait.pony", (35, 2), (35, 5))]))])
 
 class \nodoc\ iso _DefinitionCrossFileIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -162,21 +125,15 @@ class \nodoc\ iso _DefinitionCrossFileIntegrationTest is UnitTest
   fun name(): String => "definition/integration/cross_file"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_cross_usage.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // type reference in parameter → class declaration in other file
-        ((13, 16), [("_cross_target.pony", (0, 0), (0, 5))])
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_cross_usage.pony",
+      [ // type reference in parameter → class declaration in other file
+        (13, 16, _DefinitionChecker([("_cross_target.pony", (0, 0), (0, 5))]))
         // method call → method declaration in other file (line 13)
-        ((14, 8), [("_cross_target.pony", (13, 2), (13, 5))])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+        (14, 8, _DefinitionChecker(
+          [("_cross_target.pony", (13, 2), (13, 5))]))])
 
 class \nodoc\ iso _DefinitionGenericsIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -187,19 +144,13 @@ class \nodoc\ iso _DefinitionGenericsIntegrationTest is UnitTest
   fun name(): String => "definition/integration/generics"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_generics.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // `T` in return type → type parameter declaration in method header
-        ((19, 22), [("_generics.pony", (19, 12), (19, 16))])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_generics.pony",
+      [ // `T` in return type → type parameter declaration in method header
+        (19, 22, _DefinitionChecker(
+          [("_generics.pony", (19, 12), (19, 16))]))])
 
 class \nodoc\ iso _DefinitionTupleIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -210,19 +161,12 @@ class \nodoc\ iso _DefinitionTupleIntegrationTest is UnitTest
   fun name(): String => "definition/integration/tuple"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_tuple.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // `_1` tuple element access → `let pair` declaration
-        ((16, 9), [("_tuple.pony", (15, 4), (15, 7))])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_tuple.pony",
+      [ // `_1` tuple element access → `let pair` declaration
+        (16, 9, _DefinitionChecker([("_tuple.pony", (15, 4), (15, 7))]))])
 
 class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -233,29 +177,22 @@ class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
   fun name(): String => "definition/integration/type_alias"
 
   fun apply(h: TestHelper) =>
-    let workspace_file = "definition/_type_alias.pony"
-    let checks: Array[DefinitionCheck] val =
-      [
-        // `String` type arg in `Map[String, U32]` → String class declaration
-        ((17, 17), [("string.pony", (8, 0), (8, 5))])
+    _RunLspChecks(
+      h,
+      _server,
+      "definition/_type_alias.pony",
+      [ // `String` type arg in `Map[String, U32]` → String class declaration
+        (17, 17, _DefinitionChecker([("string.pony", (8, 0), (8, 5))]))
         // `U32` type arg in `Map[String, U32]` → U32 primitive declaration
-        ((17, 25), [("unsigned.pony", (185, 0), (185, 9))])
+        (17, 25, _DefinitionChecker(
+          [("unsigned.pony", (185, 0), (185, 9))]))
         // `_Alias` usage — after reification the alias is replaced with its
         // expansion (U8), so the original alias identity is lost and goto
         // definition returns no result. Fixing this requires first-class type
         // aliases (ponylang/ponyc#5007).
-        ((19, 20), [])
-      ]
-    h.long_test(10_000_000_000)
-    for ((line, character), expected) in checks.values() do
-      h.expect_action(
-        workspace_file + ":" + line.string() + ":" + character.string())
-      _server.request(
-        h, workspace_file, line, character, _DefinitionChecker(expected))
-    end
+        (19, 20, _DefinitionChecker([]))])
 
 type DefinitionExpectation is (String val, (I64, I64), (I64, I64))
-type DefinitionCheck is ((I64, I64), Array[DefinitionExpectation] val)
 
 class val _DefinitionChecker
   let _expected: Array[DefinitionExpectation] val
