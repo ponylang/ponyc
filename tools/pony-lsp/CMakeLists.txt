@@ -12,7 +12,7 @@ endif()
 configure_file(version.pony.in ${CMAKE_CURRENT_SOURCE_DIR}/version.pony @ONLY)
 
 add_custom_target(tools.pony-lsp ALL DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PONY_LSP_EXECUTABLE})
-add_dependencies(tools.pony-lsp libponyc-standalone)
+add_dependencies(tools.pony-lsp libponyc-standalone tools_lib_stamp)
 
 # TODO STA: --path entries are temporary until a ponyc bug is fixed.
 file(GLOB_RECURSE LSP_SOURCES CONFIGURE_DEPENDS "*.pony")
@@ -22,6 +22,7 @@ add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PONY_LSP_EXECUTABL
   COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} --path ${CMAKE_CURRENT_SOURCE_DIR} --path ${CMAKE_CURRENT_SOURCE_DIR}/../lib/ponylang/pony_compiler/ ${PONYC_SELFHOSTED_TOOL_PATH_ARGS} -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS
     ${LSP_SOURCES}
+    ${TOOLS_LIB_STAMP}
     $<TARGET_FILE:ponyc>
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
