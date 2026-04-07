@@ -170,7 +170,7 @@ jobs:
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
   x86_macos:
-    runs-on: macos-26-intel
+    runs-on: macos-15-intel
 
     name: x86-64-apple-darwin
     steps:
@@ -183,7 +183,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-26-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: make libs build_flags=-j2
@@ -194,7 +194,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-26-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Install Cloudsmith
         run: pip3 install --break-system-packages --upgrade cloudsmith-cli
       - name: Nightly
