@@ -340,6 +340,18 @@ else()
         add_subdirectory(src/crt)
     endif()
 
+    # Stamp file so tools rebuild when shared library sources change.
+    # Adding new shared libraries under tools/lib/ only requires updating
+    # the glob here rather than every tool's CMakeLists.txt.
+    file(GLOB_RECURSE TOOLS_LIB_SOURCES CONFIGURE_DEPENDS "tools/lib/*.pony")
+    set(TOOLS_LIB_STAMP ${CMAKE_BINARY_DIR}/tools_lib.stamp)
+    add_custom_command(OUTPUT ${TOOLS_LIB_STAMP}
+      COMMAND ${CMAKE_COMMAND} -E touch ${TOOLS_LIB_STAMP}
+      DEPENDS ${TOOLS_LIB_SOURCES}
+      COMMENT "Shared tool library sources changed"
+    )
+    add_custom_target(tools_lib_stamp DEPENDS ${TOOLS_LIB_STAMP})
+
     add_subdirectory(tools/pony-lsp)
     add_subdirectory(tools/pony-lint)
     add_subdirectory(tools/pony-doc)
