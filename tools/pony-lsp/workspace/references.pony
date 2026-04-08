@@ -88,7 +88,7 @@ primitive References
       // are all blocked from appearing in the results.
       try
         let decl_file = target.source_file() as String val
-        (let decl_start, _) = node_to_highlight(target).span()
+        (let decl_start, _) = ASTIdentifier.identifier_node(target).span()
         collector.exclude(
           recover val
             decl_file + ":" +
@@ -108,80 +108,6 @@ primitive References
       end
     end
     collector.locations()
-
-  fun node_to_highlight(ast: AST box): AST box =>
-    """
-    Return the sub-node whose source span should be highlighted — usually the
-    identifier token.
-    """
-    match ast.id()
-    | TokenIds.tk_class()
-    | TokenIds.tk_actor()
-    | TokenIds.tk_trait()
-    | TokenIds.tk_interface()
-    | TokenIds.tk_primitive()
-    | TokenIds.tk_type()
-    | TokenIds.tk_struct()
-    | TokenIds.tk_flet()
-    | TokenIds.tk_fvar()
-    | TokenIds.tk_embed()
-    | TokenIds.tk_let()
-    | TokenIds.tk_var()
-    | TokenIds.tk_param() =>
-      // Declarations: identifier at child(0)
-      try
-        let id = ast(0)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    | TokenIds.tk_fun()
-    | TokenIds.tk_be()
-    | TokenIds.tk_new()
-    | TokenIds.tk_nominal()
-    | TokenIds.tk_typeref() =>
-      // Methods/types: identifier at child(1)
-      try
-        let id = ast(1)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    | TokenIds.tk_fvarref()
-    | TokenIds.tk_fletref()
-    | TokenIds.tk_embedref() =>
-      // Field references: field name identifier at child(1)
-      try
-        let id = ast(1)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    | TokenIds.tk_funref()
-    | TokenIds.tk_beref()
-    | TokenIds.tk_newref()
-    | TokenIds.tk_newberef()
-    | TokenIds.tk_funchain()
-    | TokenIds.tk_bechain() =>
-      // Method call references: method name is the sibling of
-      // the receiver child
-      try
-        let receiver = ast.child() as AST
-        let method = receiver.sibling() as AST
-        if method.id() == TokenIds.tk_id() then
-          return method
-        end
-      end
-    | TokenIds.tk_reference() =>
-      // Variable references: identifier at child(0)
-      try
-        let id = ast(0)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    end
-    ast
 
 class ref _ReferenceCollector is ASTVisitor
   """
@@ -229,7 +155,7 @@ class ref _ReferenceCollector is ASTVisitor
     end
 
     if matches then
-      let hl_node = References.node_to_highlight(ast)
+      let hl_node = ASTIdentifier.identifier_node(ast)
       (let start_pos, let end_pos) = hl_node.span()
       // Deduplicate: include file in key since multiple modules share
       // line numbers. Pre-excluded keys (declaration site) are in _seen.
