@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix pony-lsp hanging after shutdown and exit ([PR #5170](https://github.com/ponylang/ponyc/pull/5170))
 - Fix pony-lsp hanging on startup on Windows ([PR #5171](https://github.com/ponylang/ponyc/pull/5171))
 - Fix type checking failure for interfaces with interdependent type parameters ([PR #3664](https://github.com/ponylang/ponyc/pull/3664))
+- Fix incorrect code generation for `this->` in lambda type parameters ([PR #5127](https://github.com/ponylang/ponyc/pull/5127))
 
 ### Added
 
