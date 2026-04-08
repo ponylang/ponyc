@@ -89,3 +89,7 @@ The runtime now detects timer setup and arming failures and notifies the affecte
 
 `pony-lsp` now supports inlay hints. Editors that request `textDocument/inlayHint` will receive inline type annotations after the variable name for `let` and `var` declarations whose type is inferred rather than explicitly written.
 
+## Add LSP `textDocument/references` support
+
+The Pony language server now handles `textDocument/references` requests. References searches across all packages in the workspace, and supports the `includeDeclaration` option to optionally include the definition site in the results.
+
