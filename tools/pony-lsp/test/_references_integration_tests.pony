@@ -18,6 +18,7 @@ primitive _ReferencesIntegrationTests is TestList
     test(_RefsIncrementCrossFileTest.create(server, fixture))
     test(_RefsTypeNameTest.create(server, fixture))
     test(_RefsLiteralTest.create(server, fixture))
+    test(_RefsSyntheticNewrefTest.create(server, fixture))
 
 class \nodoc\ iso _RefsCountDeclIncludedTest is UnitTest
   """
@@ -216,6 +217,26 @@ class \nodoc\ iso _RefsLiteralTest is UnitTest
       _server,
       _fixture,
       [(16, 20, _RefsChecker([], true))])
+
+class \nodoc\ iso _RefsSyntheticNewrefTest is UnitTest
+  """
+  Requesting references for a `None` type-literal expression (line 26, col 4)
+  returns no results. `None` is desugared by the compiler into a synthetic
+  tk_newref inside a tk_call at the same position; the guard in
+  References.collect detects this pattern and returns early with [].
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/synthetic_newref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(h, _server, _fixture, [(26, 4, _RefsChecker([], true))])
 
 class val _RefsChecker
   """

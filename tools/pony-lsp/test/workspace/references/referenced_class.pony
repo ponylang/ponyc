@@ -22,3 +22,6 @@ class ReferencedClass
   fun ref increment(): U32 =>
     _count = _count + 1
     _count
+
+  fun maybe(): (U32 | None) =>
+    None
