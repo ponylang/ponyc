@@ -977,6 +977,47 @@ static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 }
 
 
+static bool contains_thistype(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  if(ast_id(ast) == TK_THISTYPE)
+    return true;
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(contains_thistype(child))
+      return true;
+  }
+
+  return false;
+}
+
+
+static void replace_thistype(ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(ast_id(child) == TK_THISTYPE)
+    {
+      REPLACE(&child,
+        NODE(TK_NOMINAL,
+          NONE
+          ID("$This")
+          NONE
+          NONE
+          NONE));
+    } else {
+      replace_thistype(child);
+    }
+  }
+}
+
+
 static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 {
   pony_assert(astp != NULL);
@@ -994,11 +1035,80 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
     ast_setid(interface_cap, TK_VAL);
   }
 
+  // Check if params or ret_type contain this-> viewpoints.
+  // If so, we need to capture the receiver capability via a $This type
+  // parameter on the generated interface, rather than preserving this->
+  // verbatim (which would refer to the interface's receiver, not the
+  // enclosing class's receiver).
+  bool has_thistype = contains_thistype(params) || contains_thistype(ret_type);
+  const char* entity_name = NULL;
+  ast_t* entity_t_params_ast = NULL;
+
+  if(has_thistype)
+  {
+    // Find the enclosing entity.
+    ast_t* entity = ast;
+
+    while(entity != NULL && ast_id(entity) != TK_INTERFACE &&
+      ast_id(entity) != TK_TRAIT && ast_id(entity) != TK_PRIMITIVE &&
+      ast_id(entity) != TK_STRUCT && ast_id(entity) != TK_CLASS &&
+      ast_id(entity) != TK_ACTOR && ast_id(entity) != TK_TYPE)
+    {
+      entity = ast_parent(entity);
+    }
+
+    pony_assert(entity != NULL);
+    entity_name = ast_name(ast_child(entity));
+    entity_t_params_ast = ast_childidx(entity, 1);
+
+    // Replace this-> with $This-> in params and ret_type.
+    replace_thistype(params);
+    replace_thistype(ret_type);
+  }
+
   const char* i_name = package_hygienic_id(&opt->check);
 
   ast_t* interface_t_params;
   ast_t* t_args;
   collect_type_params(ast, NULL, &t_args);
+
+  if(has_thistype)
+  {
+    // Build type argument: this->EntityName[A, B, ...]
+    // This defers viewpoint adaptation to the call site, where this->
+    // refers to the enclosing method's receiver.
+    ast_t* ta_entity_args = ast_from(ast, TK_NONE);
+
+    for(ast_t* p = ast_child(entity_t_params_ast); p != NULL;
+      p = ast_sibling(p))
+    {
+      const char* pname = ast_name(ast_child(p));
+
+      BUILD(arg, ast,
+        NODE(TK_NOMINAL,
+          NONE
+          ID(pname)
+          NONE
+          NONE
+          NONE));
+
+      ast_append(ta_entity_args, arg);
+      ast_setid(ta_entity_args, TK_TYPEARGS);
+    }
+
+    BUILD(this_arg, ast,
+      NODE(TK_ARROW,
+        NODE(TK_THISTYPE)
+        NODE(TK_NOMINAL,
+          NONE
+          ID(entity_name)
+          TREE(ta_entity_args)
+          NONE
+          NONE)));
+
+    ast_append(t_args, this_arg);
+    ast_setid(t_args, TK_TYPEARGS);
+  }
 
   // We will replace {..} with $0
   REPLACE(astp,
@@ -1014,6 +1124,45 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   // Fetch the interface type parameters after we replace the ast, so that if
   // we are an interface type parameter, we get ourselves as the constraint.
   collect_type_params(ast, &interface_t_params, NULL);
+
+  if(has_thistype)
+  {
+    // Build type parameter: $This: EntityName[A, B, ...] #read
+    // The #read constraint matches the receiver capability range of fun box
+    // methods, which is the only context where this-> is allowed.
+    ast_t* tp_entity_args = ast_from(ast, TK_NONE);
+
+    for(ast_t* p = ast_child(entity_t_params_ast); p != NULL;
+      p = ast_sibling(p))
+    {
+      const char* pname = ast_name(ast_child(p));
+
+      BUILD(arg, ast,
+        NODE(TK_NOMINAL,
+          NONE
+          ID(pname)
+          NONE
+          NONE
+          NONE));
+
+      ast_append(tp_entity_args, arg);
+      ast_setid(tp_entity_args, TK_TYPEARGS);
+    }
+
+    BUILD(this_param, ast,
+      NODE(TK_TYPEPARAM,
+        ID("$This")
+        NODE(TK_NOMINAL,
+          NONE
+          ID(entity_name)
+          TREE(tp_entity_args)
+          NODE(TK_CAP_READ)
+          NONE)
+        NONE));
+
+    ast_append(interface_t_params, this_param);
+    ast_setid(interface_t_params, TK_TYPEPARAMS);
+  }
 
   printbuf_t* buf = printbuf_new();
 
