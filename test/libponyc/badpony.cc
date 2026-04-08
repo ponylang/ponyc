@@ -1685,6 +1685,30 @@ TEST_F(BadPonyTest, MatchGenericCaptureFromAliasedUnion)
   DO(test_compile(src, "expr"));
 }
 
+TEST_F(BadPonyTest, MatchAliasedCaptureTypeIsUnsound)
+{
+  // Regression test for the TK_TYPEALIASREF case in capture_needs_ephemeral.
+  // When the capture's written type is itself a type alias whose underlying
+  // form has a capability that changes under aliasing (iso/trn/#any/#send),
+  // the check must unfold the alias to determine this. Without the unfold,
+  // the soundness check silently accepts an unsound capture.
+  const char* src =
+    "type AnyT[T] is T\n"
+
+    "class Holder[T: Any #any]\n"
+    "  fun pick(): T ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | let v: AnyT[T] => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
 TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
 {
   // Regression test for the interaction with PR #5145. When an alias
