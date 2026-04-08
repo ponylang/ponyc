@@ -44,6 +44,14 @@ primitive ASTIdentifier
           return id
         end
       end
+    | TokenIds.tk_typealiasref() =>
+      // Type alias references: identifier at child(0) (no package prefix)
+      try
+        let id = ast(0)?
+        if id.id() == TokenIds.tk_id() then
+          return id
+        end
+      end
     | TokenIds.tk_fvarref()
     | TokenIds.tk_fletref()
     | TokenIds.tk_embedref() =>

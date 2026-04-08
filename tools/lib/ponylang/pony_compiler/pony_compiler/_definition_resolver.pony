@@ -121,6 +121,9 @@ primitive DefinitionResolver
     | TokenIds.tk_typeref() =>
       // typerefs have their definition set in their data field
       _data_ast(ast)
+    | TokenIds.tk_typealiasref() =>
+      // type alias refs have their definition set in their data field
+      _data_ast(ast)
     | TokenIds.tk_typeparamref() =>
       // type param refs have their definition set in their data field
       _data_ast(ast)

@@ -94,7 +94,7 @@ class val PositionIndex
     | TokenIds.tk_trait() | TokenIds.tk_interface() | TokenIds.tk_type()
     | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be()
     | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed()
-    | TokenIds.tk_nominal() | TokenIds.tk_param()
+    | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() | TokenIds.tk_param()
     => true
     else
       false
@@ -181,7 +181,7 @@ class val PositionIndex
         match parent'.id()
         | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new()
         | TokenIds.tk_use()
-        | TokenIds.tk_nominal() =>
+        | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() =>
           return parent'
         end
       end
@@ -194,6 +194,7 @@ class val PositionIndex
         | TokenIds.tk_funref() | TokenIds.tk_beref() | TokenIds.tk_newref() | TokenIds.tk_newberef() // reference to function
         | TokenIds.tk_funchain() | TokenIds.tk_bechain()
         | TokenIds.tk_typeref() // reference to type
+        | TokenIds.tk_typealiasref() // reference to type alias
         | TokenIds.tk_typeparamref() // reference to generic type parameter
         | TokenIds.tk_nominal() // name of a type
         | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed() // fields
@@ -219,7 +220,7 @@ class val PositionIndex
         match parent'.id()
         | TokenIds.tk_actor() | TokenIds.tk_class() | TokenIds.tk_struct()
         | TokenIds.tk_primitive() | TokenIds.tk_trait() | TokenIds.tk_interface()
-        | TokenIds.tk_nominal()
+        | TokenIds.tk_nominal() | TokenIds.tk_typealiasref()
         | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be() =>
           return parent'
         end
