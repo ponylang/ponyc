@@ -11,7 +11,7 @@ primitive _InlayHintIntegrationTests is TestList
     let server = _LspTestServer(workspace_dir)
     test(_InlayHintDemoTest.create(server))
     test(_InlayHintRangeFirstLineTest.create(server))
-    test(_InlayHintRangeMiddleTest.create(server))
+    test(_InlayHintRangeTwoLineTest.create(server))
     test(_InlayHintRangeEmptyTest.create(server))
 
 class \nodoc\ iso _InlayHintDemoTest is UnitTest
@@ -57,9 +57,9 @@ class \nodoc\ iso _InlayHintRangeFirstLineTest is UnitTest
             [ (15, 23, ": String val") ]
             where range = (15, 0, 16, 0))) ])
 
-class \nodoc\ iso _InlayHintRangeMiddleTest is UnitTest
+class \nodoc\ iso _InlayHintRangeTwoLineTest is UnitTest
   """
-  Range covering lines 16-17 (inferred_bool only). Expects exactly one hint.
+  Range covering lines 15-17. Expects exactly two hints.
   """
   let _server: _LspTestServer
 
@@ -76,8 +76,9 @@ class \nodoc\ iso _InlayHintRangeMiddleTest is UnitTest
       "inlay_hint/_inlay_hint.pony",
       [ (0, 0,
           _InlayHintChecker(
-            [ (16, 21, ": Bool") ]
-            where range = (16, 0, 17, 0))) ])
+            [ (15, 23, ": String val")           // inferred_string
+              (16, 21, ": Bool") ]               // inferred_bool
+            where range = (15, 0, 17, 0))) ])
 
 class \nodoc\ iso _InlayHintRangeEmptyTest is UnitTest
   """
