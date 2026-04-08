@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix pony-lsp failures with some code constructs ([PR #5144](https://github.com/ponylang/ponyc/pull/5144))
 - Fix silent timer hangs on Linux ([PR #5151](https://github.com/ponylang/ponyc/pull/5151))
 - Fix pony-lsp hanging after shutdown and exit ([PR #5170](https://github.com/ponylang/ponyc/pull/5170))
+- Fix pony-lsp hanging on startup on Windows ([PR #5171](https://github.com/ponylang/ponyc/pull/5171))
 
 ### Added
 
