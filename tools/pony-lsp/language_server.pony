@@ -259,7 +259,7 @@ actor LanguageServer is (Notifier & RequestSender)
       handle_initialized(n)
     | Methods.exit() =>
       this._channel.log("Exiting.")
-      this._channel.dispose()
+      this.dispose()
       this._env.exitcode(
         if this._state is _ShuttingDown then
           0
