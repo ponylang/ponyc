@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
@@ -207,6 +208,18 @@ static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
       ast_t* def = (ast_t*)ast_data(ast);
       pony_assert(ast_id(def) == TK_TYPEPARAM);
       find_possible_fun_defs(opt, ast_childidx(def, 1), fun_defs, obj_caps);
+      break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      // Don't free the unfolded AST: find_possible_fun_defs stores pointers
+      // into it (the obj_cap at child 3 of the nominal) that the caller uses.
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+        find_possible_fun_defs(opt, unfolded, fun_defs, obj_caps);
+
       break;
     }
 
@@ -669,6 +682,27 @@ static bool catch_up_provides(pass_opt_t* opt, ast_t* provides, ast_t* obj_ast)
       return false;
 
     ast_t* def = (ast_t*)ast_data(child);
+
+    // For type aliases, unfold to get the concrete type definition.
+    // ast_data on TK_TYPEALIASREF points to TK_TYPE, not a class/trait.
+    if((def != NULL) && (ast_id(child) == TK_TYPEALIASREF))
+    {
+      ast_t* unfolded = typealias_unfold(child);
+
+      if(unfolded != NULL)
+      {
+        if(ast_id(unfolded) == TK_NOMINAL)
+          def = (ast_t*)ast_data(unfolded);
+        else
+          def = NULL;
+
+        ast_free_unattached(unfolded);
+      }
+      else
+      {
+        def = NULL;
+      }
+    }
 
     if(def != NULL)
     {

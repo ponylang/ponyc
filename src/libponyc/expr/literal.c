@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/alias.h"
 #include "../type/reify.h"
+#include "../type/typealias.h"
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
 #include "ponyassert.h"
@@ -422,6 +423,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
         {
           case TK_NOMINAL:
           case TK_TYPEPARAMREF:
+          case TK_TYPEALIASREF:
             return uifset(opt, rhs, chain);
 
           default:
@@ -459,6 +461,19 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
         return UIF_NO_TYPES;
 
       return uifset_simple_type(opt, type);
+
+    case TK_TYPEALIASREF:
+    {
+      // Unfold the alias and re-dispatch.
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return UIF_ERROR;
+
+      int r = uifset(opt, unfolded, chain);
+      ast_free_unattached(unfolded);
+      return r;
+    }
 
     case TK_DONTCARETYPE:
     case TK_FUNTYPE:

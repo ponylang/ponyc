@@ -288,6 +288,7 @@ static const lextoken_t abstract[] =
   { "packageref", TK_PACKAGEREF },
   { "typeref", TK_TYPEREF },
   { "typeparamref", TK_TYPEPARAMREF },
+  { "typealiasref", TK_TYPEALIASREF },
   { "newref", TK_NEWREF },
   { "newberef", TK_NEWBEREF },
   { "beref", TK_BEREF },

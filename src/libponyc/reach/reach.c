@@ -8,6 +8,7 @@
 #include "../type/cap.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -198,7 +199,29 @@ static void set_method_types(reach_t* r, reach_method_t* m,
       m->params[i].type = add_type(r, p_type, opt);
 
       if((ast_id(p_type) != TK_NOMINAL) && (ast_id(p_type) != TK_TYPEPARAMREF))
-        m->params[i].cap = TK_REF;
+      {
+        if(ast_id(p_type) == TK_TYPEALIASREF)
+        {
+          // Unfold to get the concrete type's cap.
+          ast_t* unfolded = typealias_unfold(p_type);
+
+          if(unfolded != NULL)
+          {
+            m->params[i].cap = (ast_id(unfolded) == TK_NOMINAL ||
+              ast_id(unfolded) == TK_TYPEPARAMREF)
+              ? ast_id(cap_fetch(unfolded)) : TK_REF;
+            ast_free_unattached(unfolded);
+          }
+          else
+          {
+            m->params[i].cap = TK_REF;
+          }
+        }
+        else
+        {
+          m->params[i].cap = TK_REF;
+        }
+      }
       else
         m->params[i].cap = ast_id(cap_fetch(p_type));
 
@@ -238,6 +261,22 @@ static void trace_kind_append(printbuf_t* buf, ast_t* type)
             default:     printbuf(buf, "m"); return;
           }
       }
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded != NULL)
+      {
+        trace_kind_append(buf, unfolded);
+        ast_free_unattached(unfolded);
+      }
+      else
+      {
+        printbuf(buf, "x");
+      }
+      return;
     }
 
     case TK_UNIONTYPE:
@@ -890,7 +929,16 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
 
   while(child != NULL)
   {
-    t->fields[index].ast = ast_dup(child);
+    // Unfold type aliases in field ASTs so codegen sees concrete types.
+    if(ast_id(child) == TK_TYPEALIASREF)
+    {
+      ast_t* unfolded = typealias_unfold(child);
+      t->fields[index].ast = (unfolded != NULL) ? unfolded : ast_dup(child);
+    }
+    else
+    {
+      t->fields[index].ast = ast_dup(child);
+    }
     t->fields[index].type = add_type(r, child, opt);
     t->fields[index].embed = false;
     printbuf(mangle, "%s", t->fields[index].type->mangle);
@@ -1079,6 +1127,16 @@ static reach_type_t* add_type(reach_t* r, ast_t* type, pass_opt_t* opt)
 
     case TK_NOMINAL:
       return add_nominal(r, type, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      reach_type_t* result = add_type(r, unfolded, opt);
+      ast_free_unattached(unfolded);
+      return result;
+    }
 
     default:
       pony_assert(0);
@@ -1522,8 +1580,25 @@ void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
 
 reach_type_t* reach_type(reach_t* r, ast_t* type)
 {
+  pony_assert(type != NULL);
+
+  // Unfold type aliases so the name matches the reach table entry.
+  ast_t* unfolded = NULL;
+
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    unfolded = typealias_unfold(type);
+
+    if(unfolded != NULL)
+      type = unfolded;
+  }
+
   reach_type_t k;
   k.name = genname_type(type);
+
+  if(unfolded != NULL)
+    ast_free_unattached(unfolded);
+
   size_t index = HASHMAP_UNKNOWN;
   return reach_types_get(&r->types, &k, &index);
 }

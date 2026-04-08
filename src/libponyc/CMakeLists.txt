@@ -89,6 +89,7 @@ add_library(libponyc STATIC
     type/safeto.c
     type/sanitise.c
     type/subtype.c
+    type/typealias.c
     type/typeparam.c
     type/viewpoint.c
     verify/call.c

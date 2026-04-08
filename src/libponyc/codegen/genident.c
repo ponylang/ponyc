@@ -7,6 +7,7 @@
 #include "genopt.h"
 #include "../reach/subtype.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -21,6 +22,22 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {
+  // Unfold type aliases to get the actual tuple types.
+  ast_t* unfolded_l = NULL;
+  ast_t* unfolded_r = NULL;
+
+  if(ast_id(left_type) == TK_TYPEALIASREF)
+  {
+    unfolded_l = typealias_unfold(left_type);
+    if(unfolded_l != NULL) left_type = unfolded_l;
+  }
+
+  if(ast_id(right_type) == TK_TYPEALIASREF)
+  {
+    unfolded_r = typealias_unfold(right_type);
+    if(unfolded_r != NULL) right_type = unfolded_r;
+  }
+
   pony_assert(ast_id(left_type) == TK_TUPLETYPE);
   pony_assert(ast_id(right_type) == TK_TUPLETYPE);
   pony_assert(ast_childcount(left_type) == ast_childcount(right_type));
@@ -229,12 +246,27 @@ static LLVMValueRef tuple_is_box_element(compile_t* c, ast_t* l_field_type,
   LLVMValueRef l_field, LLVMValueRef r_fields, LLVMValueRef r_desc,
   unsigned int field_index)
 {
+  // Unfold type alias to determine field kind.
+  ast_t* check_field = l_field_type;
+  ast_t* field_unfolded = NULL;
+
+  if(ast_id(check_field) == TK_TYPEALIASREF)
+  {
+    field_unfolded = typealias_unfold(check_field);
+
+    if(field_unfolded != NULL)
+      check_field = field_unfolded;
+  }
+
   int field_kind = SUBTYPE_KIND_UNBOXED;
 
-  if((ast_id(l_field_type) == TK_TUPLETYPE))
+  if((ast_id(check_field) == TK_TUPLETYPE))
     field_kind = SUBTYPE_KIND_TUPLE;
-  else if(is_machine_word(l_field_type))
+  else if(is_machine_word(check_field))
     field_kind = SUBTYPE_KIND_NUMERIC;
+
+  if(field_unfolded != NULL)
+    ast_free_unattached(field_unfolded);
 
   LLVMValueRef r_field_info = gendesc_fieldinfo(c, r_desc, field_index);
   LLVMValueRef r_field_ptr = gendesc_fieldptr(c, r_fields, r_field_info);
@@ -296,6 +328,17 @@ static LLVMValueRef tuple_is_box(compile_t* c, ast_t* left_type,
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(l_value)) == LLVMStructTypeKind);
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMPointerTypeKind);
+
+  // Unfold type aliases to get the actual tuple type.
+  ast_t* unfolded_left = NULL;
+
+  if(ast_id(left_type) == TK_TYPEALIASREF)
+  {
+    unfolded_left = typealias_unfold(left_type);
+
+    if(unfolded_left != NULL)
+      left_type = unfolded_left;
+  }
 
   size_t cardinality = ast_childcount(left_type);
 
