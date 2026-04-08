@@ -8,4 +8,5 @@ interface val _ResponseChecker
   the shared test server.
   """
   fun lsp_method(): String
+  fun lsp_range(): (None | (I64, I64, I64, I64))
   fun check(res: ResponseMessage val, h: TestHelper): Bool
