@@ -4,14 +4,29 @@ use "pony_compiler"
 
 primitive DocumentHighlights
   """
-  Collects document highlight ranges for a given AST node within a module, by
-  walking the module AST and finding all nodes that resolve to the same
-  definition.
+  Collects `textDocument/documentHighlight` results for a given AST node.
+
+  Walking the entire module AST, it finds every node that resolves to the same
+  definition as the cursor node and returns each as a `(range, kind)` pair,
+  where `kind` is a `DocumentHighlightKind` value (Text=1, Read=2, Write=3).
   """
-  fun collect(node: AST box, module: Module val): Array[LspPositionRange] =>
+  fun collect(
+    node: AST box,
+    module: Module val): Array[(LspPositionRange, I64)]
+  =>
     """
-    Walk the module AST and return the source ranges of all nodes that resolve
-    to the same definition as `node`. Includes the definition site itself.
+    Walk the module AST and return the source ranges and kinds of all nodes
+    that resolve to the same definition as `node`, including the definition
+    site itself.
+
+    Each element of the returned array is `(range, kind)` where `kind` is a
+    `DocumentHighlightKind` value:
+    - **Write (3)**: the node is the left-hand side of a `tk_assign` (but not
+      a local declaration-with-initializer, which ponyc also represents as
+      `tk_assign(tk_let/tk_var, expr)`).
+    - **Read (2)**: the node is a reference token (field ref, var ref, param
+      ref, function/behaviour/constructor call site, etc.).
+    - **Text (1)**: everything else — declarations and type references.
     """
     // Literals have no referenceable identity — do not highlight.
     let nid = node.id()
@@ -19,7 +34,7 @@ primitive DocumentHighlights
       or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
       or (nid == TokenIds.tk_string())
     then
-      return []
+      return Array[(LspPositionRange, I64)]
     end
 
     // Type-literal expressions such as `None` are desugared by the compiler
@@ -34,7 +49,7 @@ primitive DocumentHighlights
         if (par.id() == TokenIds.tk_call()) and
           (par.position() == node.position())
         then
-          return []
+          return Array[(LspPositionRange, I64)]
         end
       end
     end
@@ -88,16 +103,25 @@ primitive DocumentHighlights
 
 class ref _HighlightCollector is ASTVisitor
   """
-  AST visitor that collects the source ranges of all nodes that resolve to a
-  given target definition AST node.
+  AST visitor that collects `(range, kind)` pairs for every node in the module
+  that resolves to a given target definition.
+
+  Kind assignment rules (evaluated on the matched AST node before extracting
+  its identifier sub-node for the span):
+  - **Write**: the node is at child index 0 of a `tk_assign` parent, and is
+    not itself a declaration node (`tk_let`/`tk_var` with initializer).
+  - **Read**: the node's token id is one of the reference kinds listed in
+    `_read_kind`.
+  - **Text**: all other nodes — declarations (`tk_fvar`, `tk_fun`, `tk_class`,
+    etc.) and type references (`tk_nominal`, `tk_typeref`).
   """
   let _target: AST val
-  let _highlights: Array[LspPositionRange] ref
+  let _highlights: Array[(LspPositionRange, I64)] ref
   let _seen: Set[String]
 
   new ref create(target: AST val) =>
     _target = target
-    _highlights = Array[LspPositionRange].create()
+    _highlights = Array[(LspPositionRange, I64)].create()
     _seen = Set[String].create()
 
   fun ref visit(ast: AST box): VisitResult =>
@@ -121,6 +145,24 @@ class ref _HighlightCollector is ASTVisitor
     end
 
     if matches then
+      let kind: I64 =
+        try
+          let par = ast.parent() as AST
+          // Local declarations with initializers (let x = v, var x = v) are
+          // represented as tk_assign(tk_let/tk_var, expr) in the AST. These
+          // are declaration sites, not writes — exclude them from Write kind.
+          let is_decl =
+            (ast.id() == TokenIds.tk_let()) or (ast.id() == TokenIds.tk_var())
+          if (par.id() == TokenIds.tk_assign()) and (ast.sibling_idx() == 0)
+            and not is_decl
+          then
+            DocumentHighlightKind.write()
+          else
+            _read_kind(ast.id())
+          end
+        else
+          _read_kind(ast.id())
+        end
       let hl_node = ASTIdentifier.identifier_node(ast)
       (let start_pos, let end_pos) = hl_node.span()
       // Deduplicate: skip if this start position was already added
@@ -133,12 +175,40 @@ class ref _HighlightCollector is ASTVisitor
       if not _seen.contains(key) then
         _seen.set(key)
         _highlights.push(
-          LspPositionRange(
-            LspPosition.from_ast_pos(start_pos),
-            LspPosition.from_ast_pos_end(end_pos)))
+          ( LspPositionRange(
+              LspPosition.from_ast_pos(start_pos),
+              LspPosition.from_ast_pos_end(end_pos))
+          , kind))
       end
     end
     Continue
 
-  fun ref highlights(): Array[LspPositionRange] =>
+  fun _read_kind(id: I32): I64 =>
+    """
+    Map a token id to Read (2) or Text (1).
+
+    Reference tokens — nodes that represent a use of a named symbol rather
+    than its declaration or its appearance in a type expression — are Read.
+    Everything else (declarations, type annotations) is Text.
+    """
+    match id
+    | TokenIds.tk_fvarref()
+    | TokenIds.tk_fletref()
+    | TokenIds.tk_embedref()
+    | TokenIds.tk_varref()
+    | TokenIds.tk_letref()
+    | TokenIds.tk_paramref()
+    | TokenIds.tk_funref()
+    | TokenIds.tk_beref()
+    | TokenIds.tk_newref()
+    | TokenIds.tk_newberef()
+    | TokenIds.tk_funchain()
+    | TokenIds.tk_bechain()
+    | TokenIds.tk_reference() =>
+      DocumentHighlightKind.read()
+    else
+      DocumentHighlightKind.text()
+    end
+
+  fun ref highlights(): Array[(LspPositionRange, I64)] =>
     _highlights
