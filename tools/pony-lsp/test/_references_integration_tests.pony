@@ -16,7 +16,9 @@ primitive _ReferencesIntegrationTests is TestList
     test(_RefsCountRefIncludedTest.create(server, fixture))
     test(_RefsCountRefExcludedTest.create(server, fixture))
     test(_RefsIncrementCrossFileTest.create(server, fixture))
+    test(_RefsIncrementDeclExcludedTest.create(server, fixture))
     test(_RefsTypeNameTest.create(server, fixture))
+    test(_RefsTypeNameDeclExcludedTest.create(server, fixture))
     test(_RefsLiteralTest.create(server, fixture))
     test(_RefsSyntheticNewrefTest.create(server, fixture))
 
@@ -170,6 +172,33 @@ class \nodoc\ iso _RefsIncrementCrossFileTest is UnitTest
         [ ("referenced_class.pony", 21, 10, 21, 19)
           ("references_user.pony", 12, 8, 12, 17)], true))])
 
+class \nodoc\ iso _RefsIncrementDeclExcludedTest is UnitTest
+  """
+  Find references to `increment` method from its declaration site,
+  with includeDeclaration = false. Expects 1 location (no declaration):
+    references_user.pony  (12, 8)-(12,17)  reference in ReferencesUser.use_it
+  Exercises the tk_id promotion path: the cursor lands on the tk_id child
+  of the tk_fun node, which is promoted to tk_fun before the exclusion key
+  is computed.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/increment_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (21, 10, _RefsChecker(
+        [("references_user.pony", 12, 8, 12, 17)], false))])
+
 class \nodoc\ iso _RefsTypeNameTest is UnitTest
   """
   Find references to `ReferencedClass` from its declaration name (line 0,
@@ -195,6 +224,33 @@ class \nodoc\ iso _RefsTypeNameTest is UnitTest
       [ (0, 6, _RefsChecker(
         [ ("referenced_class.pony", 0, 6, 0, 21)
           ("references_user.pony", 11, 18, 11, 33)], true))])
+
+class \nodoc\ iso _RefsTypeNameDeclExcludedTest is UnitTest
+  """
+  Find references to `ReferencedClass` from its declaration name (line 0,
+  col 6), with includeDeclaration = false. Expects 1 location (no declaration):
+    references_user.pony  (11,18)-(11,33)  type annotation in use_it param
+  Exercises the tk_id promotion path for entity declarations: the cursor
+  lands on the tk_id child of tk_class, which is promoted to tk_class before
+  the exclusion key is computed.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/type_name_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (0, 6, _RefsChecker(
+        [("references_user.pony", 11, 18, 11, 33)], false))])
 
 class \nodoc\ iso _RefsLiteralTest is UnitTest
   """
