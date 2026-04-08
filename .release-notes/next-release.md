@@ -93,3 +93,7 @@ The runtime now detects timer setup and arming failures and notifies the affecte
 
 The Pony language server now handles `textDocument/references` requests. References searches across all packages in the workspace, and supports the `includeDeclaration` option to optionally include the definition site in the results.
 
+## Fix pony-lsp hanging after shutdown and exit
+
+pony-lsp would hang indefinitely after receiving the LSP `shutdown` request followed by the `exit` notification. The process had to be killed manually. The exit handler now properly disposes all actors, allowing the runtime to shut down cleanly.
+
