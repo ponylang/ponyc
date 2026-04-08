@@ -24,8 +24,10 @@ primitive ASTIdentifier
     | TokenIds.tk_embed()
     | TokenIds.tk_let()
     | TokenIds.tk_var()
-    | TokenIds.tk_param() =>
-      // Declarations: identifier at child(0)
+    | TokenIds.tk_param()
+    | TokenIds.tk_typeparam()
+    | TokenIds.tk_typeparamref() =>
+      // Identifier at child(0)
       try
         let id = ast(0)?
         if id.id() == TokenIds.tk_id() then

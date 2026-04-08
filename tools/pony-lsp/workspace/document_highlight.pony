@@ -58,10 +58,10 @@ primitive DocumentHighlights
     end
 
     // When the cursor lands on the name identifier of an entity declaration
-    // (tk_class, tk_actor, etc.), _refine_node returns the bare tk_id rather
-    // than the enclosing entity node. Promote to the entity node so that
-    // references to the type (which resolve to tk_class, not its tk_id child)
-    // are found by the walker.
+    // (tk_class, tk_actor, etc.) or type parameter declaration (tk_typeparam),
+    // _refine_node returns the bare tk_id rather than the enclosing node.
+    // Promote to the enclosing node so that references (which resolve to
+    // tk_class or tk_typeparam, not their tk_id child) are found by the walker.
     let node' =
       if nid == TokenIds.tk_id() then
         try
@@ -73,7 +73,8 @@ primitive DocumentHighlights
           | TokenIds.tk_primitive()
           | TokenIds.tk_trait()
           | TokenIds.tk_interface()
-          | TokenIds.tk_type() =>
+          | TokenIds.tk_type()
+          | TokenIds.tk_typeparam() =>
             par
           else
             node
@@ -148,6 +149,23 @@ class ref _HighlightCollector is ASTVisitor
     end
 
     if matches then
+      // ponyc synthesizes a nominal self-type as the return type of
+      // auto-generated constructors in generic classes, forming the chain:
+      // tk_new -> tk_nominal -> tk_typeargs -> tk_typeparamref
+      // This internal node resolves to the class's type param but is not a
+      // user-visible occurrence — skip it.
+      try
+        let p = ast.parent() as AST    // tk_typeargs?
+        let gp = p.parent() as AST     // tk_nominal?
+        let ggp = gp.parent() as AST   // tk_new?
+        if (p.id() == TokenIds.tk_typeargs()) and
+          (gp.id() == TokenIds.tk_nominal()) and
+          (ggp.id() == TokenIds.tk_new())
+        then
+          return Continue
+        end
+      end
+
       let kind: I64 =
         if _is_assign_lhs(ast) then
           // LHS of any assignment — covers regular writes,
