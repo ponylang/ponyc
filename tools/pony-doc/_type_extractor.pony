@@ -16,6 +16,8 @@ primitive _TypeExtractor
   =>
     match type_ast.id()
     | ast.TokenIds.tk_nominal() => _nominal(type_ast, package_map)
+    | ast.TokenIds.tk_typealiasref() =>
+      _type_alias_ref(type_ast, package_map)
     | ast.TokenIds.tk_typeparamref() => _type_param_ref(type_ast)
     | ast.TokenIds.tk_uniontype() =>
       _type_list(
@@ -91,6 +93,68 @@ primitive _TypeExtractor
         end
 
       // Resolve TQFN: find definition, walk to TK_PACKAGE, look up name
+      let tqfn = _resolve_tqfn(type_ast, package_map)
+
+      DocNominal(
+        display_name,
+        tqfn,
+        type_args,
+        cap,
+        ephemeral,
+        Filter.is_private(raw_name),
+        Filter.is_internal(raw_name))
+    else
+      DocNominal(
+        "unknown",
+        "",
+        recover val Array[DocType] end,
+        None,
+        None,
+        false,
+        false)
+    end
+
+  fun _type_alias_ref(
+    type_ast: ast.AST box,
+    package_map: Map[USize, String] val)
+    : DocNominal
+  =>
+    """
+    Extracts a `DocNominal` from a TK_TYPEALIASREF AST node.
+
+    Child access: [0] id, [1] type_args, [2] cap, [3] ephemeral.
+    Unlike TK_NOMINAL, there is no package child so indices are shifted.
+    """
+    try
+      let id_node = type_ast(0)?
+
+      let display_name = id_node.nice_name()
+      let raw_name = (id_node.token_value() as String)
+
+      // Type args
+      let targs_node = type_ast(1)?
+      let args: Array[DocType] iso = recover iso Array[DocType] end
+      for child in targs_node.children() do
+        if child.id() != ast.TokenIds.tk_none() then
+          args.push(apply(child, package_map))
+        end
+      end
+      let type_args: Array[DocType] val = consume args
+
+      // Cap
+      let cap_node = type_ast(2)?
+      let cap = _get_cap(cap_node)
+
+      // Ephemeral
+      let eph_node = type_ast(3)?
+      let ephemeral: (String | None) =
+        if eph_node.id() != ast.TokenIds.tk_none() then
+          eph_node.get_print()
+        else
+          None
+        end
+
+      // Resolve TQFN via definition pointer
       let tqfn = _resolve_tqfn(type_ast, package_map)
 
       DocNominal(
