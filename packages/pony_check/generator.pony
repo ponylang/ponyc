@@ -241,12 +241,12 @@ class box Generator[T] is GenObj[T]
           a strange hierarchy of generators is used, which does not make use of
           the pre-generated shrink results, we keep this method here.
           """
-          match u
+          match consume u
           | let ut: T =>
             (let uts: T, let shrunken: Iterator[T^]) = _gen.shrink(consume ut)
             (fn(consume uts), _map_shrunken(shrunken))
-          else
-            (consume u, Poperator[U].empty())
+          | let uu: U =>
+            (consume uu, Poperator[U].empty())
           end
 
         fun _map_shrunken(shrunken: Iterator[T^]): Iterator[U^] =>
