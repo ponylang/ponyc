@@ -1658,3 +1658,56 @@ TEST_F(BadPonyTest, MatchUnionGenericIsoCaptureWithoutConsume)
 
   TEST_ERRORS_1(src, "this capture is unsound");
 }
+
+TEST_F(BadPonyTest, MatchGenericCaptureFromAliasedUnion)
+{
+  // Regression test for the interaction with PR #5145, which stopped
+  // expanding type aliases during name resolution. The discriminee's
+  // type is now seen as a TK_TYPEALIASREF rather than its expanded form,
+  // and the soundness check must unfold the alias to find the ephemeral
+  // member that makes the generic capture sound. This mirrors the failing
+  // pattern in pony_check's Generator.value_iter.
+  const char* src =
+    "type AliasedResult[T2] is (T2^ | (T2^, U32))\n"
+
+    "class Container[T: Any #any]\n"
+    "  fun pick(): AliasedResult[T] ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | let v: T => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
+{
+  // Regression test for the interaction with PR #5145. When an alias
+  // unfolds directly to a tuple type, the tuple-pattern walk in
+  // check_capture_soundness must unfold the alias to see the underlying
+  // TK_TUPLETYPE. Without the unfold, the tuple branch would silently
+  // skip the check on alias-bearing tuple types — a false negative that
+  // lets unsound generic captures through.
+  const char* src =
+    "type AliasedPair[T] is (T, T)\n"
+
+    "class Container[T: Any #any]\n"
+    "  fun pick(): AliasedPair[T] ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | (let a: T, let b: T) => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "this capture is unsound",
+    "this capture is unsound");
+}

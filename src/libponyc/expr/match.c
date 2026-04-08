@@ -6,6 +6,7 @@
 #include "../type/alias.h"
 #include "../type/lookup.h"
 #include "../type/cap.h"
+#include "../type/typealias.h"
 #include "../ast/astbuild.h"
 #include "../ast/stringtab.h"
 #include "../ast/id.h"
@@ -572,6 +573,18 @@ static bool capture_needs_ephemeral(ast_t* type)
       return false;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = capture_needs_ephemeral(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
     default:
       return false;
   }
@@ -612,6 +625,18 @@ static bool type_is_ephemeral(ast_t* type)
     case TK_ARROW:
       return type_is_ephemeral(ast_childidx(type, 1));
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = type_is_ephemeral(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
     default:
       return false;
   }
@@ -625,6 +650,22 @@ static bool type_is_ephemeral(ast_t* type)
 static bool check_capture_soundness(pass_opt_t* opt, ast_t* pattern,
   ast_t* match_type, ast_t* match_expr)
 {
+  // Unfold any top-level type alias in the match type so the pattern walk
+  // below can see the underlying form. This is required for tuple patterns
+  // matched against an aliased tuple type, and avoids reporting the alias
+  // name when the underlying form is what determines soundness.
+  if(ast_id(match_type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(match_type);
+
+    if(unfolded == NULL)
+      return true;
+
+    bool result = check_capture_soundness(opt, pattern, unfolded, match_expr);
+    ast_free_unattached(unfolded);
+    return result;
+  }
+
   switch(ast_id(pattern))
   {
     case TK_MATCH_CAPTURE:
