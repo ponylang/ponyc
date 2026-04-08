@@ -378,6 +378,9 @@ class val _HoverChecker
   fun lsp_range(): (None | (I64, I64, I64, I64)) =>
     None
 
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     if _expected.size() == 0 then

@@ -206,6 +206,9 @@ class val _DefinitionChecker
   fun lsp_range(): (None | (I64, I64, I64, I64)) =>
     None
 
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     let got_count =

@@ -542,7 +542,7 @@ actor WorkspaceManager
 
     // For declarations, use identifier span;
     // for references, use the whole node
-    let highlight_node = _get_node_for_highlight(ast)
+    let highlight_node = ASTIdentifier.identifier_node(ast)
     (let start_pos, let end_pos) = highlight_node.span()
     let hover_range =
       LspPositionRange(
@@ -570,6 +570,36 @@ actor WorkspaceManager
       var json_arr = JsonArray
       for range in ranges.values() do
         json_arr = json_arr.push(JsonObject.update("range", range.to_json()))
+      end
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be references(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/references request.
+    """
+    this._channel.log("Handling textDocument/references")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let include_declaration: Bool =
+      try
+        JsonNav(request.params)("context")("includeDeclaration").as_bool()?
+      else
+        true
+      end
+    let document_path = Uris.to_path(document_uri)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      let locations =
+        References.collect(node, this._packages, include_declaration)
+      var json_arr = JsonArray
+      for loc in locations.values() do
+        json_arr = json_arr.push(loc.to_json())
       end
       this._channel.send(ResponseMessage(request.id, json_arr))
       return
@@ -743,74 +773,6 @@ actor WorkspaceManager
       this._channel.log("document not in workspace: " + document_path)
     end
     this._channel.send(ResponseMessage.create(request.id, None))
-
-  fun _get_node_for_highlight(ast: AST box): AST box =>
-    """
-    Get the appropriate node for hover highlighting.
-    For declarations (class, fun, let, etc.), return the identifier child.
-    For references and type nodes, find the identifier within them.
-    Otherwise return the original node.
-    """
-    match ast.id()
-    | TokenIds.tk_class()
-    | TokenIds.tk_actor()
-    | TokenIds.tk_trait()
-    | TokenIds.tk_interface()
-    | TokenIds.tk_primitive()
-    | TokenIds.tk_type()
-    | TokenIds.tk_struct()
-    | TokenIds.tk_flet()
-    | TokenIds.tk_fvar()
-    | TokenIds.tk_embed()
-    | TokenIds.tk_let()
-    | TokenIds.tk_var()
-    | TokenIds.tk_param() =>
-      // Declarations with identifier at child(0)
-      try
-        let id = ast(0)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    | TokenIds.tk_fun()
-    | TokenIds.tk_be()
-    | TokenIds.tk_new()
-    | TokenIds.tk_nominal()
-    | TokenIds.tk_typeref() =>
-      // Declarations/types with identifier
-      // at child(1)
-      try
-        let id = ast(1)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    | TokenIds.tk_funref()
-    | TokenIds.tk_beref()
-    | TokenIds.tk_newref()
-    | TokenIds.tk_newberef()
-    | TokenIds.tk_funchain()
-    | TokenIds.tk_bechain() =>
-      // For method/function references, get
-      // the method name (sibling of receiver)
-      try
-        let receiver = ast.child() as AST
-        let method = receiver.sibling() as AST
-        if method.id() == TokenIds.tk_id() then
-          return method
-        end
-      end
-    | TokenIds.tk_reference() =>
-      // For references, try to find the id child
-      try
-        let id = ast(0)?
-        if id.id() == TokenIds.tk_id() then
-          return id
-        end
-      end
-    end
-    // Default: return original node
-    ast
 
   be dispose() =>
     for package_state in this._packages.values() do

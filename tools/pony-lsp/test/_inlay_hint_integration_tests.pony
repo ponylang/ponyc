@@ -124,6 +124,9 @@ class val _InlayHintChecker
   fun lsp_range(): (None | (I64, I64, I64, I64)) =>
     _range
 
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     try

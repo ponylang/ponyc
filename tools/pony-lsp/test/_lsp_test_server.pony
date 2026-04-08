@@ -82,6 +82,10 @@ actor _LspTestServer is Channel
                 "end",
                 JsonObject.update("line", el).update("character", ec)))
       end
+      match pending.checker.lsp_context()
+      | let ctx: JsonObject =>
+        params = params.update("context", ctx)
+      end
       (_server as BaseProtocol)(
         RequestMessage(id, pending.checker.lsp_method(), params).into_bytes())
       _in_flight(id) = pending
