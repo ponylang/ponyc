@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Protect pony-lint against oversize ignore files ([PR #5140](https://github.com/ponylang/ponyc/pull/5140))
 - Add LSP `textDocument/documentHighlight` support ([PR #5111](https://github.com/ponylang/ponyc/pull/5111))
 - Add LSP `textDocument/inlayHint` support ([PR #5159](https://github.com/ponylang/ponyc/pull/5159))
+- Add LSP `textDocument/references` support ([PR #5165](https://github.com/ponylang/ponyc/pull/5165))
 
 ### Changed
 
