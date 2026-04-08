@@ -1446,3 +1446,292 @@ TEST_F(BadPonyTest, MatchArrayPatternWithBareIntegerLiterals)
     "couldn't find 'eq' in 'Array'",
     "this pattern element doesn't support structural equality");
 }
+
+TEST_F(BadPonyTest, MatchViewpointIsoCaptureWithoutConsume)
+{
+  // From issue #3596
+  // Viewpoint-adapted iso capture from non-ephemeral field bypasses
+  // the is_matchtype_with_consumed_pattern check.
+  const char* src =
+    "class B\n"
+    "  var data: U64 = 99\n"
+
+    "class Holder\n"
+    "  let b: B iso = B\n"
+
+    "  fun get(): this->B iso =>\n"
+    "    match b\n"
+    "    | let b': this->B iso => b'\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchGenericCaptureWithoutConsume)
+{
+  // From issue #3596
+  // Generic this->T capture where T could be iso bypasses
+  // the is_matchtype_with_consumed_pattern check.
+  const char* src =
+    "class UsesNoConsume[T]\n"
+    "  var value: (T | None) = None\n"
+
+    "  fun ref set(t: T) =>\n"
+    "    value = consume t\n"
+
+    "  fun get(): this->T ? =>\n"
+    "    match value\n"
+    "    | let none: None => error\n"
+    "    | let t: this->T => t\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchViewpointIsoCaptureNoReturn)
+{
+  // From issue #3596
+  // Even when the capture isn't returned, binding an iso from a
+  // non-ephemeral field is unsound.
+  const char* src =
+    "class Holder2\n"
+    "  let b: String iso = String\n"
+
+    "  fun box bad() =>\n"
+    "    match b\n"
+    "    | let b': this->String iso => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchIsoCaptureWithConsume)
+{
+  // From issue #3596
+  // Consuming the match expression makes the discriminee ephemeral,
+  // so iso captures are sound.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: String iso = recover iso String end\n"
+    "    match consume x\n"
+    "    | let y: String iso => None\n"
+    "    end";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchNonIsoCaptureFromUnion)
+{
+  // From issue #3596
+  // Non-iso captures (ref, val, box) from non-ephemeral discriminees are safe
+  // and should not trigger the new soundness check.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: (String | U32) = \"hello\"\n"
+    "    match x\n"
+    "    | let s: String => None\n"
+    "    end";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchViewpointRefCaptureFromField)
+{
+  // From issue #3596
+  // Viewpoint-adapted captures with ref/val/box caps should not trigger
+  // the new soundness check — only iso/trn/cap_any are dangerous.
+  const char* src =
+    "class Holder\n"
+    "  let _s: (String | None) = \"hello\"\n"
+
+    "  fun box get(): (this->String | None) =>\n"
+    "    match _s\n"
+    "    | let s: this->String => s\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchValConstraintCapture)
+{
+  // From issue #3596
+  // Generic captures with val constraint don't need ephemeral since
+  // val is safe to alias.
+  const char* src =
+    "class Container[K: Any val]\n"
+    "  var _data: (K | None) = None\n"
+
+    "  fun box lookup(): (this->K | None) =>\n"
+    "    match _data\n"
+    "    | let k: this->K => k\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchAliasedViewpointCapture)
+{
+  // From issue #3596
+  // Already-aliased viewpoint captures (this->K!) should be accepted
+  // since the aliased eph marker means aliasing won't change the capability.
+  // This exercises the ast_id(eph) != TK_NONE early return in
+  // capture_needs_ephemeral.
+  const char* src =
+    "class Container[K: Any #any]\n"
+    "  var _data: (K | U32) = U32(0)\n"
+
+    "  fun box lookup(): (this->K! | None) =>\n"
+    "    match _data\n"
+    "    | let k: this->K! => k\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchTupleViewpointIsoCaptureWithoutConsume)
+{
+  // Joe's review comment on PR #4975:
+  // Viewpoint-adapted iso captures in tuple patterns must be checked
+  // position by position. Both captures here need ephemeral but the
+  // fields aren't consumed.
+  const char* src =
+    "class Foo\n"
+    "  var data: U64 = 0\n"
+
+    "class Holder\n"
+    "  let a: Foo iso = Foo\n"
+    "  let b: Foo iso = Foo\n"
+
+    "  fun box bad() =>\n"
+    "    match (a, b)\n"
+    "    | (let x: this->Foo iso, let y: this->Foo iso) => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "this capture is unsound",
+    "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchUnionGenericIsoCaptureWithoutConsume)
+{
+  // Joe's review comment on PR #4975:
+  // Generic iso capture from a non-ephemeral union is correctly rejected
+  // by the new check_capture_soundness check.
+  const char* src =
+    "class Holder[T: Any #any]\n"
+    "  var _a: (T | None) = None\n"
+
+    "  fun box get(): (this->T | None) =>\n"
+    "    match _a\n"
+    "    | let t: this->T => t\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchGenericCaptureFromAliasedUnion)
+{
+  // Regression test for the interaction with PR #5145, which stopped
+  // expanding type aliases during name resolution. The discriminee's
+  // type is now seen as a TK_TYPEALIASREF rather than its expanded form,
+  // and the soundness check must unfold the alias to find the ephemeral
+  // member that makes the generic capture sound. This mirrors the failing
+  // pattern in pony_check's Generator.value_iter.
+  const char* src =
+    "type AliasedResult[T2] is (T2^ | (T2^, U32))\n"
+
+    "class Container[T: Any #any]\n"
+    "  fun pick(): AliasedResult[T] ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | let v: T => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchAliasedCaptureTypeIsUnsound)
+{
+  // Regression test for the TK_TYPEALIASREF case in capture_needs_ephemeral.
+  // When the capture's written type is itself a type alias whose underlying
+  // form has a capability that changes under aliasing (iso/trn/#any/#send),
+  // the check must unfold the alias to determine this. Without the unfold,
+  // the soundness check silently accepts an unsound capture.
+  const char* src =
+    "type AnyT[T] is T\n"
+
+    "class Holder[T: Any #any]\n"
+    "  fun pick(): T ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | let v: AnyT[T] => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
+{
+  // Regression test for the interaction with PR #5145. When an alias
+  // unfolds directly to a tuple type, the tuple-pattern walk in
+  // check_capture_soundness must unfold the alias to see the underlying
+  // TK_TUPLETYPE. Without the unfold, the tuple branch would silently
+  // skip the check on alias-bearing tuple types — a false negative that
+  // lets unsound generic captures through.
+  const char* src =
+    "type AliasedPair[T] is (T, T)\n"
+
+    "class Container[T: Any #any]\n"
+    "  fun pick(): AliasedPair[T] ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | (let a: T, let b: T) => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "this capture is unsound",
+    "this capture is unsound");
+}
