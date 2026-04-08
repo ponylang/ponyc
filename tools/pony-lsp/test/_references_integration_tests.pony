@@ -14,6 +14,7 @@ primitive _ReferencesIntegrationTests is TestList
     test(_RefsCountDeclIncludedTest.create(server, fixture))
     test(_RefsCountDeclExcludedTest.create(server, fixture))
     test(_RefsCountRefIncludedTest.create(server, fixture))
+    test(_RefsCountRefExcludedTest.create(server, fixture))
     test(_RefsIncrementCrossFileTest.create(server, fixture))
     test(_RefsTypeNameTest.create(server, fixture))
     test(_RefsLiteralTest.create(server, fixture))
@@ -114,6 +115,33 @@ class \nodoc\ iso _RefsCountRefIncludedTest is UnitTest
           ("referenced_class.pony", 22, 4, 22, 10)
           ("referenced_class.pony", 22, 13, 22, 19)
           ("referenced_class.pony", 23, 4, 23, 10)], true))])
+
+class \nodoc\ iso _RefsCountRefExcludedTest is UnitTest
+  """
+  Find references to `_count` field from a reference site (line 23, col 4),
+  with includeDeclaration = false. Expects 4 locations (no declaration),
+  same as _RefsCountDeclExcludedTest but starting from a reference site.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/count_ref_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (23, 4, _RefsChecker(
+        [ ("referenced_class.pony", 19, 4, 19, 10)
+          ("referenced_class.pony", 22, 4, 22, 10)
+          ("referenced_class.pony", 22, 13, 22, 19)
+          ("referenced_class.pony", 23, 4, 23, 10)], false))])
 
 class \nodoc\ iso _RefsIncrementCrossFileTest is UnitTest
   """
