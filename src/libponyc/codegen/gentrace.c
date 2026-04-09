@@ -814,7 +814,30 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
         LLVMPositionBuilderAtEnd(c->builder, trace_block);
 
         // If we are (A, B), turn (_, _) into (A, _).
-        ast_t* swap = ast_dup(child);
+        // If the element is a type alias for a tuple, unfold it once so the
+        // recursive call sees the concrete TK_TUPLETYPE; iterating the alias
+        // ref's children (TK_ID, typeargs, cap, eph) as tuple elements would
+        // trip trace_type's default assertion. typealias_unfold is guaranteed
+        // to succeed here because trace_type already unfolded the same child
+        // to classify it as TRACE_TUPLE; reify is deterministic. Chained
+        // aliases (alias of alias of tuple) are a known gap tracked in
+        // ponylang/ponyc#5195 — typealias_unfold only unfolds one level, so
+        // swap is still a TK_TYPEALIASREF and the recursive call hits the
+        // same assertion. Constructing a test that reaches this site with a
+        // chained alias is currently blocked by other PR #5145 regressions
+        // elsewhere in codegen (the static trace_tuple path in this file and
+        // gen_digestof_value in genreference.c), which fire first for every
+        // configuration tried.
+        ast_t* swap;
+
+        if(ast_id(child) == TK_TYPEALIASREF)
+        {
+          swap = typealias_unfold(child);
+          pony_assert(swap != NULL);
+        } else {
+          swap = ast_dup(child);
+        }
+
         ast_swap(dc_child, swap);
 
         // Get a pointer to the unboxed tuple and its descriptor.
@@ -950,7 +973,29 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
       if(unfolded != NULL)
       {
-        trace_dynamic(c, ctx, object, unfolded, orig, tuple, next_block);
+        // Splice the unfolded form into the alias's position in its parent.
+        // This keeps the tree attached so that downstream code (e.g.
+        // trace_dynamic_tuple's ast_swap into the enclosing tuple context)
+        // always sees a non-NULL parent.
+        //
+        // If the alias itself has no parent, the only way to get here is
+        // gentrace's own top-level TRACE_DYNAMIC case below, which always
+        // passes tuple == NULL, so trace_dynamic_tuple's in_tuple branch
+        // never runs and the missing parent does not matter. The other
+        // callers of trace_dynamic (trace_dynamic_union_or_isect,
+        // trace_dynamic_tuple's TRACE_MUT/VAL/TAG/DYNAMIC case) always pass
+        // an attached type, and the recursive self-call below preserves
+        // that invariant.
+        if(ast_parent(type) != NULL)
+        {
+          ast_swap(type, unfolded);
+          trace_dynamic(c, ctx, object, unfolded, orig, tuple, next_block);
+          ast_swap(unfolded, type);
+        } else {
+          pony_assert(tuple == NULL);
+          trace_dynamic(c, ctx, object, unfolded, orig, tuple, next_block);
+        }
+
         ast_free_unattached(unfolded);
       }
       break;
