@@ -268,7 +268,7 @@ primitive MkDocsBackend is Backend
     content.append(
       TypeRenderer.render_type_params(
         entity.type_params,
-        true,
+        MkDocsLinkFormat,
         false,
         include_private))
     content.append(_source_link(entity.source, sanitized_pkg))
@@ -294,7 +294,7 @@ primitive MkDocsBackend is Backend
     content.append(
       TypeRenderer.render_type_params(
         entity.type_params,
-        false,
+        None,
         true,
         include_private))
     content.append(
@@ -303,7 +303,7 @@ primitive MkDocsBackend is Backend
         " is\n  ",
         ",\n  ",
         "",
-        false,
+        None,
         include_private))
     content.append("\n```\n\n")
 
@@ -316,7 +316,7 @@ primitive MkDocsBackend is Backend
           "#### Type Alias For\n\n* ",
           "\n* ",
           "\n\n---\n\n",
-          true,
+          MkDocsLinkFormat,
           include_private))
     else
       content.append(
@@ -325,7 +325,7 @@ primitive MkDocsBackend is Backend
           "#### Implements\n\n* ",
           "\n* ",
           "\n\n---\n\n",
-          true,
+          MkDocsLinkFormat,
           include_private))
     end
 
@@ -411,7 +411,7 @@ primitive MkDocsBackend is Backend
     result.append(
       TypeRenderer.render_type_params(
         method.type_params,
-        true,
+        MkDocsLinkFormat,
         false,
         include_private))
     result.append(_source_link(method.source, sanitized_pkg))
@@ -443,7 +443,7 @@ primitive MkDocsBackend is Backend
     result.append(
       TypeRenderer.render_type_params(
         method.type_params,
-        false,
+        None,
         true,
         include_private))
 
@@ -461,7 +461,7 @@ primitive MkDocsBackend is Backend
       result.append(
         TypeRenderer.render(
           param.param_type,
-          false,
+          None,
           true,
           include_private))
       match param.default_value
@@ -481,7 +481,7 @@ primitive MkDocsBackend is Backend
         result.append(
           TypeRenderer.render(
             rt,
-            false,
+            None,
             true,
             include_private))
       end
@@ -502,7 +502,7 @@ primitive MkDocsBackend is Backend
         result.append(
           TypeRenderer.render(
             param.param_type,
-            true,
+            MkDocsLinkFormat,
             true,
             include_private))
         match param.default_value
@@ -525,7 +525,7 @@ primitive MkDocsBackend is Backend
         result.append(
           TypeRenderer.render(
             rt,
-            true,
+            MkDocsLinkFormat,
             true,
             include_private))
       end
@@ -567,7 +567,7 @@ primitive MkDocsBackend is Backend
       result.append(
         TypeRenderer.render(
           field.field_type,
-          true,
+          MkDocsLinkFormat,
           false,
           include_private))
       result.append(_source_link(field.source, sanitized_pkg))

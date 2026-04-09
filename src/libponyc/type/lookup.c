@@ -2,6 +2,7 @@
 #include "assemble.h"
 #include "cap.h"
 #include "reify.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "subtype.h"
 #include "../ast/token.h"
@@ -35,6 +36,21 @@ static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver) {
         default:
           return receiver;
       }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(receiver);
+
+      if(unfolded == NULL)
+        return receiver;
+
+      ast_t* result = downcast_iso_trn_receiver_to_ref(unfolded);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
 
     case TK_ARROW:
     {
@@ -558,6 +574,19 @@ static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
     case TK_TYPEPARAMREF:
       return lookup_typeparam(opt, from, orig, type, name, errors,
         allow_private);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      deferred_reification_t* result = lookup_base(opt, from, orig, unfolded,
+        name, errors, allow_private);
+      ast_free_unattached(unfolded);
+      return result;
+    }
 
     case TK_FUNTYPE:
       if(errors)

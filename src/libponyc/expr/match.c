@@ -5,6 +5,8 @@
 #include "../type/matchtype.h"
 #include "../type/alias.h"
 #include "../type/lookup.h"
+#include "../type/cap.h"
+#include "../type/typealias.h"
 #include "../ast/astbuild.h"
 #include "../ast/stringtab.h"
 #include "../ast/id.h"
@@ -521,6 +523,214 @@ static bool infer_pattern_type(ast_t** astp, ast_t* match_expr_type,
   return coerce_literals(astp, match_expr_type, opt);
 }
 
+// Check if a type has a capability that would change under aliasing,
+// meaning it requires an ephemeral discriminee for a sound capture.
+static bool capture_needs_ephemeral(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* cap = cap_fetch(type);
+      ast_t* eph = ast_sibling(cap);
+
+      // Already aliased or ephemeral — aliasing won't change this type.
+      if(ast_id(eph) != TK_NONE)
+        return false;
+
+      switch(ast_id(cap))
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_CAP_SEND:
+        case TK_CAP_ANY:
+        case TK_NONE:
+          // TK_NONE cap occurs on type param refs with no explicit constraint.
+          return true;
+
+        default:
+          return false;
+      }
+    }
+
+    case TK_ARROW:
+      return capture_needs_ephemeral(ast_childidx(type, 1));
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(capture_needs_ephemeral(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = capture_needs_ephemeral(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// Check if a type has any ephemeral component.
+// For unions/intersections, "any" is correct: a match capture binds a
+// single member, so it's sound if the matched member is ephemeral.
+// Tuples are handled position-by-position in check_capture_soundness.
+static bool type_is_ephemeral(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* eph = ast_sibling(cap_fetch(type));
+      return ast_id(eph) == TK_EPHEMERAL;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(type_is_ephemeral(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_ARROW:
+      return type_is_ephemeral(ast_childidx(type, 1));
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = type_is_ephemeral(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// Check that match captures don't grant capabilities that require consuming
+// the match expression. This catches viewpoint-adapted and generic captures
+// (e.g. this->B iso, this->T where T could be iso) that bypass the
+// is_matchtype_with_consumed_pattern check due to viewpoint adaptation
+// erasing the ephemeral distinction.
+static bool check_capture_soundness(pass_opt_t* opt, ast_t* pattern,
+  ast_t* match_type, ast_t* match_expr)
+{
+  // Unfold any top-level type alias in the match type so the pattern walk
+  // below can see the underlying form. This is required for tuple patterns
+  // matched against an aliased tuple type, and avoids reporting the alias
+  // name when the underlying form is what determines soundness.
+  if(ast_id(match_type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(match_type);
+
+    if(unfolded == NULL)
+      return true;
+
+    bool result = check_capture_soundness(opt, pattern, unfolded, match_expr);
+    ast_free_unattached(unfolded);
+    return result;
+  }
+
+  switch(ast_id(pattern))
+  {
+    case TK_MATCH_CAPTURE:
+    {
+      ast_t* capture_type = ast_type(pattern);
+
+      if(capture_needs_ephemeral(capture_type) &&
+        !type_is_ephemeral(match_type))
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, pattern,
+          "this capture is unsound: the capture type can grant capabilities "
+          "that require consuming the match expression");
+        ast_error_frame(&frame, pattern, "capture type: %s",
+          ast_print_type(capture_type));
+        ast_error_frame(&frame, match_expr, "match type: %s",
+          ast_print_type(match_type));
+        ast_error_frame(&frame, pattern,
+          "if you need to capture with this capability, "
+          "consume the match expression");
+        errorframe_report(&frame, opt->check.errors);
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_SEQ:
+    {
+      if(ast_childcount(pattern) == 1)
+        return check_capture_soundness(opt, ast_child(pattern),
+          match_type, match_expr);
+
+      return true;
+    }
+
+    case TK_TUPLE:
+    {
+      if(ast_id(match_type) != TK_TUPLETYPE)
+        return true;
+
+      ast_t* pattern_child = ast_child(pattern);
+      ast_t* type_child = ast_child(match_type);
+      bool ok = true;
+
+      while((pattern_child != NULL) && (type_child != NULL))
+      {
+        if(!check_capture_soundness(opt, pattern_child,
+          type_child, match_expr))
+        {
+          ok = false;
+        }
+
+        pattern_child = ast_sibling(pattern_child);
+        type_child = ast_sibling(type_child);
+      }
+
+      return ok;
+    }
+
+    default:
+      return true;
+  }
+}
+
 bool expr_case(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(opt != NULL);
@@ -580,6 +790,8 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     switch(is_matchtype_with_consumed_pattern(match_type, pattern_type, &info, opt))
     {
       case MATCHTYPE_ACCEPT:
+        if(!check_capture_soundness(opt, pattern, match_type, match_expr))
+          ok = false;
         break;
 
       case MATCHTYPE_REJECT:

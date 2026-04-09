@@ -4,6 +4,7 @@
 #include "cap.h"
 #include "matchtype.h"
 #include "reify.h"
+#include "typealias.h"
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
@@ -555,6 +556,7 @@ static bool is_x_sub_isect(ast_t* sub, ast_t* super, check_cap_t check_cap,
 //
 // For TK_UNIONTYPE: collects alternatives from all members.
 // For TK_TUPLETYPE: computes the cross-product of each element's alternatives.
+// For TK_TYPEALIASREF: unfolds the alias and recurses.
 // For anything else: returns a 1-element union containing a copy of the type.
 static ast_t* expand_type_alternatives(ast_t* type, size_t max_alternatives)
 {
@@ -640,6 +642,22 @@ static ast_t* expand_type_alternatives(ast_t* type, size_t max_alternatives)
         }
       }
 
+      return result;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+      {
+        ast_t* result = ast_from(type, TK_UNIONTYPE);
+        ast_append(result, ast_dup(type));
+        return result;
+      }
+
+      ast_t* result = expand_type_alternatives(unfolded, max_alternatives);
+      ast_free_unattached(unfolded);
       return result;
     }
 
@@ -799,6 +817,16 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
       break;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(super);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_x_sub_x(sub, unfolded, check_cap, errorf, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default: {}
   }
 
@@ -940,6 +968,16 @@ static bool is_tuple_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
 
     case TK_ARROW:
       return is_x_sub_arrow(sub, super, check_cap, errorf, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(super);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_x_sub_x(sub, unfolded, check_cap, errorf, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
@@ -1460,6 +1498,16 @@ static bool is_nominal_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     case TK_ARROW:
       return is_x_sub_arrow(sub, super, check_cap, errorf, opt);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(super);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_x_sub_x(sub, unfolded, check_cap, errorf, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_FUNTYPE:
     case TK_INFERTYPE:
     case TK_ERRORTYPE:
@@ -1580,6 +1628,16 @@ static bool is_typeparam_base_sub_x(ast_t* sub, ast_t* super,
 
     case TK_ARROW:
       return is_typeparam_sub_arrow(sub, super, check_cap, errorf, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(super);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_x_sub_x(sub, unfolded, check_cap, errorf, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
@@ -1807,6 +1865,16 @@ static bool is_arrow_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     case TK_ARROW:
       return is_arrow_sub_arrow(sub, super, check_cap, errorf, opt);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(super);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_x_sub_x(sub, unfolded, check_cap, errorf, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_FUNTYPE:
     case TK_INFERTYPE:
     case TK_ERRORTYPE:
@@ -1847,6 +1915,16 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
 
     case TK_ARROW:
       return is_arrow_sub_x(sub, super, check_cap, errorf, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(sub);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_x_sub_x(unfolded, super, check_cap, errorf, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
@@ -1900,6 +1978,18 @@ bool is_literal(ast_t* type, const char* name)
 {
   if(type == NULL)
     return false;
+
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(type);
+
+    if(unfolded == NULL)
+      return false;
+
+    bool r = is_literal(unfolded, name);
+    ast_free_unattached(unfolded);
+    return r;
+  }
 
   if(ast_id(type) != TK_NOMINAL)
     return false;
@@ -2045,6 +2135,16 @@ bool is_constructable(ast_t* type)
     case TK_ARROW:
       return is_constructable(ast_childidx(type, 1));
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_constructable(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default: {}
   }
 
@@ -2104,6 +2204,16 @@ bool is_concrete(ast_t* type)
 
     case TK_ARROW:
       return is_concrete(ast_childidx(type, 1));
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_concrete(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     default: {}
   }
@@ -2165,6 +2275,16 @@ bool is_known(ast_t* type)
     case TK_TYPEPARAMREF:
       return is_known(typeparam_constraint(type));
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_known(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default: {}
   }
 
@@ -2203,6 +2323,16 @@ bool is_bare(ast_t* type)
 
     case TK_ARROW:
       return is_bare(ast_childidx(type, 1));
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_bare(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_TYPEPARAMREF:
     case TK_FUNTYPE:
@@ -2276,6 +2406,16 @@ bool is_top_type(ast_t* type, bool ignore_cap)
       return r;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_top_type(unfolded, ignore_cap);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_TUPLETYPE:
     case TK_TYPEPARAMREF:
     case TK_FUNTYPE:
@@ -2342,6 +2482,16 @@ bool is_entity(ast_t* type, token_id entity)
 
     case TK_TYPEPARAMREF:
       return is_entity(typeparam_constraint(type), entity);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_entity(unfolded, entity);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     default: {}
   }

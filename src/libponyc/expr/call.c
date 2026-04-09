@@ -18,6 +18,7 @@
 #include "../type/safeto.h"
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
 
@@ -201,7 +202,20 @@ static ast_t* method_receiver_type(ast_t* method);
 bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast)
 {
   // we're not going to try auto-recovering to a complex type
-  if (ast_id(dest_type) != TK_NOMINAL)
+  token_id dest_id = ast_id(dest_type);
+
+  if(dest_id == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(dest_type);
+
+    if(unfolded != NULL)
+    {
+      dest_id = ast_id(unfolded);
+      ast_free_unattached(unfolded);
+    }
+  }
+
+  if(dest_id != TK_NOMINAL)
     return false;
 
   while (ast != NULL && ast_id(ast) != TK_CALL)

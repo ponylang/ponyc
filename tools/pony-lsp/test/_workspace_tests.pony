@@ -17,13 +17,10 @@ class \nodoc\ iso _RouterFindTest is UnitTest
   fun apply(h: TestHelper) ? =>
     let file_auth = FileAuth(h.env.root)
     let this_dir_path = Path.dir(__loc.file())
-    let folder =
-      FilePath(file_auth, this_dir_path)
+    let folder = FilePath(file_auth, this_dir_path)
     let channel = FakeChannel
-    let scanner =
-      WorkspaceScanner.create(channel)
-    let workspaces =
-      scanner.scan(file_auth, this_dir_path)
+    let scanner = WorkspaceScanner.create(channel)
+    let workspaces = scanner.scan(file_auth, this_dir_path)
     h.assert_eq[USize](3, workspaces.size())
 
     // Verify all expected workspaces were found
@@ -39,8 +36,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
         folder.join("error_workspace")?.path
         folder.join("workspace")?.path
       ]
-    h.assert_array_eq_unordered[String](
-      expected, actual)
+    h.assert_array_eq_unordered[String](expected, actual)
 
     // Verify router lookup works
     let router = WorkspaceRouter.create()
@@ -60,10 +56,8 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     router.add_workspace(folder, mgr)?
 
     let file_path = folder.join("main.pony")?
-    let found =
-      router.find_workspace(file_path.path)
-    h.assert_isnt[(WorkspaceManager | None)](
-      None, found)
+    let found = router.find_workspace(file_path.path)
+    h.assert_isnt[(WorkspaceManager | None)](None, found)
 
 class tag FakeRequestSender is RequestSender
   """
@@ -82,14 +76,14 @@ actor FakeChannel is Channel
   """
   Fake communication channel for testing.
   """
-  be send(msg: Message val) => None
-
-  be log(
-    data: String val,
-    message_type: MessageType = Debug)
-  =>
+  be send(msg: Message val) =>
     None
 
-  be set_notifier(notifier: Notifier tag) => None
+  be log(data: String val, message_type: MessageType = Debug) =>
+    None
 
-  be dispose() => None
+  be set_notifier(notifier: Notifier tag) =>
+    None
+
+  be dispose() =>
+    None

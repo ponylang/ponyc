@@ -79,3 +79,116 @@ The Pony language server now handles `textDocument/documentHighlight` requests. 
 
 Fixed go-to-definition failing for type arguments inside generic type aliases. For example, go-to-definition on `String` or `U32` in `Map[String, U32]` now correctly navigates to their definitions. Previously, these positions returned no result.
 
+## Fix silent timer hangs on Linux
+
+On Linux, if a timer system call failed (due to resource exhaustion or other system error), the failure was silently ignored. Actors waiting for timer notifications would hang indefinitely with no error — timers that should fire simply never did.
+
+The runtime now detects timer setup and arming failures and notifies the affected actor, which tears down cleanly — the same as any other I/O failure. Stdlib consumers like `Timers` handle this automatically.
+
+## Add LSP `textDocument/inlayHint` support
+
+`pony-lsp` now supports inlay hints. Editors that request `textDocument/inlayHint` will receive inline type annotations after the variable name for `let` and `var` declarations whose type is inferred rather than explicitly written.
+
+## Add LSP `textDocument/references` support
+
+The Pony language server now handles `textDocument/references` requests. References searches across all packages in the workspace, and supports the `includeDeclaration` option to optionally include the definition site in the results.
+
+## Fix pony-lsp hanging after shutdown and exit
+
+pony-lsp would hang indefinitely after receiving the LSP `shutdown` request followed by the `exit` notification. The process had to be killed manually. The exit handler now properly disposes all actors, allowing the runtime to shut down cleanly.
+
+## Fix pony-lsp hanging on startup on Windows
+
+pony-lsp was unresponsive on Windows when launched by an editor. The LSP base protocol uses explicit `\r\n` sequences in message headers, but Windows opens stdout in text mode by default, which translates every `\n` to `\r\n`. This turned the header separator `\r\n\r\n` into `\r\r\n\r\r\n` on the wire — a sequence that LSP clients don't recognize, causing them to wait forever for the end of the headers.
+
+pony-lsp now sets stdout to binary mode on Windows at startup, so `\r\n` is written to the pipe unchanged.
+
+## Fix type checking failure for interfaces with interdependent type parameters
+
+Previously, interfaces with multiple type parameters where one parameter appeared as a type argument to the same interface would fail to type check:
+
+```pony
+interface State[S, I, O]
+  fun val apply(state: S, input: I): (S, O)
+  fun val bind[O2](next: State[S, O, O2]): State[S, I, O2]
+```
+
+```
+Error:
+type argument is outside its constraint
+  argument: O #any
+  constraint: O2 #any
+```
+
+The compiler replaced type variables one at a time during reification, so replacing `S` with its value could inadvertently transform a different parameter's constraint before that parameter was processed. This has been fixed by replacing all type variables in a single pass.
+
+## Fix incorrect code generation for `this->` in lambda type parameters
+
+When a lambda type used `this->` for viewpoint adaptation (e.g., `{(this->A)}`), the compiler desugared it into an anonymous interface where `this` incorrectly referred to the interface's own receiver rather than the enclosing class's receiver. This caused wrong vtable dispatch, incorrect results, or segfaults when the lambda was forwarded to another function.
+
+```pony
+class Container[A: Any #read]
+  fun box apply(f: {(this->A)}) =>
+    f(_value)
+```
+
+The desugaring now correctly preserves the polymorphic behavior of `this->` across different receiver capabilities.
+
+## Add LSP go-to-definition for type aliases
+
+The Pony language server now supports go-to-definition on type alias names. For example, placing the cursor on `Map` in `Map[String, U32]` and invoking go-to-definition navigates to the `type Map` declaration in the standard library. Previously, go-to-definition only worked on the type arguments (`String`, `U32`) but not on the alias name itself.
+
+This also works for local type aliases defined in the same package.
+
+## Fix soundness hole in match capture bindings
+
+Match `let` bindings with viewpoint-adapted or generic types could bypass the compiler's capability checks, allowing creation of multiple `iso` references to the same object. A direct `let x: Foo iso` capture was correctly rejected, but `let x: this->B iso` and `let x: this->T` (where T could be iso) slipped through because viewpoint adaptation through `box` erases the ephemeral marker that the existing check relies on to detect unsoundness.
+
+The compiler now checks whether a capture type has a capability that would change under aliasing (iso, trn, or a generic cap that includes them) and rejects the capture when the match expression isn't ephemeral. Previously-accepted code that hits this check was unsound and could segfault at runtime.
+
+### How to fix code broken by this change
+
+Consume the match expression so the discriminee is ephemeral:
+
+Before (unsound, now rejected):
+
+```pony
+match u
+| let ut: T =>
+  do_something(consume ut)
+else
+  (consume u, default())
+end
+```
+
+After:
+
+```pony
+match consume u
+| let ut: T =>
+  do_something(consume ut)
+| let uu: U =>
+  (consume uu, default())
+end
+```
+
+The `else` branch becomes `| let uu: U =>` because `u` is consumed and no longer available. For field access, use a destructive read (`match field_name = sentinel_value`) to get an ephemeral result.
+
+## Fix segfault when matching tuple elements against unions or interfaces via Any
+
+Matching a tuple element against a union or interface type when the tuple was accessed through `Any val` caused a segfault at runtime:
+
+```pony
+actor Main
+  new create(env: Env) =>
+    let x: Any val = ("a", U8(1))
+    match x
+    | (let a: String, let b: (U8 | U16)) =>
+      env.out.print(b.string())  // segfault
+    end
+```
+
+The same crash happened when matching against an interface like `Stringable` instead of a union. Matching against concrete types (e.g., `let b: U8`) was unaffected.
+
+This has been fixed. Tuple elements that are unboxed primitives are now correctly boxed when the match pattern requires a pointer representation.
+

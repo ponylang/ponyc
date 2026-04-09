@@ -16,6 +16,8 @@ For user documentation — installation and editor configuration — see the [po
 | **Go To Definition** | For most language constructs, you can go from a reference to its definition. |
 | **Document Symbols** | pony-lsp provides a list of available symbols for each opened document. |
 | **Document Highlight** | All occurrences of the symbol under the cursor are highlighted simultaneously across the document. |
+| **Inlay Hints** | Inferred types are shown inline after the variable name for `let` and `var` declarations with no explicit type annotation. |
+| **Find References** | All references to the symbol under the cursor are returned, with optional inclusion of the declaration site. |
 
 New features are actively being added. Contributions are welcome — we are happy to provide help and guidance.
 

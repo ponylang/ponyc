@@ -10,6 +10,13 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix rare silent connection hangs on Linux ([PR #5131](https://github.com/ponylang/ponyc/pull/5131))
 - Fix bug in pony-lsp's goto definition ([PR #5123](https://github.com/ponylang/ponyc/pull/5123))
 - Fix pony-lsp failures with some code constructs ([PR #5144](https://github.com/ponylang/ponyc/pull/5144))
+- Fix silent timer hangs on Linux ([PR #5151](https://github.com/ponylang/ponyc/pull/5151))
+- Fix pony-lsp hanging after shutdown and exit ([PR #5170](https://github.com/ponylang/ponyc/pull/5170))
+- Fix pony-lsp hanging on startup on Windows ([PR #5171](https://github.com/ponylang/ponyc/pull/5171))
+- Fix type checking failure for interfaces with interdependent type parameters ([PR #3664](https://github.com/ponylang/ponyc/pull/3664))
+- Fix incorrect code generation for `this->` in lambda type parameters ([PR #5127](https://github.com/ponylang/ponyc/pull/5127))
+- Fix soundness hole in match capture bindings ([PR #4975](https://github.com/ponylang/ponyc/pull/4975))
+- Fix segfault when matching tuple elements against unions or interfaces via Any ([PR #5134](https://github.com/ponylang/ponyc/pull/5134))
 
 ### Added
 
@@ -18,6 +25,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - Protect pony-lint against oversize configuration files ([PR #5138](https://github.com/ponylang/ponyc/pull/5138))
 - Protect pony-lint against oversize ignore files ([PR #5140](https://github.com/ponylang/ponyc/pull/5140))
 - Add LSP `textDocument/documentHighlight` support ([PR #5111](https://github.com/ponylang/ponyc/pull/5111))
+- Add LSP `textDocument/inlayHint` support ([PR #5159](https://github.com/ponylang/ponyc/pull/5159))
+- Add LSP `textDocument/references` support ([PR #5165](https://github.com/ponylang/ponyc/pull/5165))
+- Add LSP go-to-definition for type aliases ([PR #5163](https://github.com/ponylang/ponyc/pull/5163))
 
 ### Changed
 

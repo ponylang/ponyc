@@ -79,6 +79,36 @@ actor LanguageServer is (Notifier & RequestSender)
     | _Initialized =>
       this._channel.log("\n\n<-\n" + r.json().string())
       match \exhaustive\ r.method
+      | Methods.text_document().inlay_hint() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .inlay_hint(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
+      | Methods.text_document().references() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .references(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
       | Methods.text_document().document_highlight() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -244,7 +274,7 @@ actor LanguageServer is (Notifier & RequestSender)
       handle_initialized(n)
     | Methods.exit() =>
       this._channel.log("Exiting.")
-      this._channel.dispose()
+      this.dispose()
       this._env.exitcode(
         if this._state is _ShuttingDown then
           0
@@ -394,13 +424,17 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("openClose", true)
                     .update("save", JsonObject.update("includeText", true)))
                 .update("definitionProvider", true)
+                .update("referencesProvider", true)
                 .update(
                   "diagnosticProvider",
                   JsonObject
                     .update("identifier", "pony-lsp")
                     .update("interFileDependencies", true)
                     .update("workspaceDiagnostics", false))
-                .update("documentSymbolProvider", true))
+                .update("documentSymbolProvider", true)
+                .update(
+                  "inlayHintProvider",
+                  JsonObject.update("resolveProvider", false)))
             .update(
               "serverInfo",
               JsonObject

@@ -99,6 +99,12 @@ primitive TextDocumentMethods
   fun hover(): String val =>
     "textDocument/hover"
 
+  fun inlay_hint(): String val =>
+    "textDocument/inlayHint"
+
+  fun references(): String val =>
+    "textDocument/references"
+
   fun publish_diagnostics(): String val =>
     "textDocument/publishDiagnostics"
 

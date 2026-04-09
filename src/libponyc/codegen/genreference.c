@@ -11,6 +11,7 @@
 #include "../reach/subtype.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../type/viewpoint.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -435,9 +436,21 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
 
     case LLVMStructTypeKind:
     {
+      // Unfold type aliases to get the actual tuple element types.
+      ast_t* iter_type = type;
+      ast_t* unfolded = NULL;
+
+      if(ast_id(type) == TK_TYPEALIASREF)
+      {
+        unfolded = typealias_unfold(type);
+
+        if(unfolded != NULL)
+          iter_type = unfolded;
+      }
+
       uint32_t count = LLVMCountStructElementTypes(impl_type);
       LLVMValueRef result = LLVMConstInt(c->intptr, 0, false);
-      ast_t* child = ast_child(type);
+      ast_t* child = ast_child(iter_type);
 
       for(uint32_t i = 0; i < count; i++)
       {
@@ -448,6 +461,9 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
       }
 
       pony_assert(child == NULL);
+
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
 
       return result;
     }

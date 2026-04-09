@@ -5,11 +5,13 @@
 #include "genfun.h"
 #include "genexpr.h"
 #include "genoperator.h"
+#include "genopt.h"
 #include "genreference.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../type/matchtype.h"
 #include "../type/alias.h"
+#include "../type/typealias.h"
 #include "../type/viewpoint.h"
 #include "../type/lookup.h"
 #include "ponyassert.h"
@@ -214,6 +216,16 @@ static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
       return check_type(c, ptr, desc, ast_childidx(pattern_type, 1),
         next_block, weight);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(pattern_type);
+      pony_assert(unfolded != NULL);
+
+      bool ok = check_type(c, ptr, desc, unfolded, next_block, weight);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default: {}
   }
 
@@ -247,6 +259,46 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
 
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
   return true;
+}
+
+// Box a raw unboxed value (numeric primitive or inline tuple) into a heap-
+// allocated object using the value's runtime descriptor.  field_ptr points to
+// the raw data inside a tuple's fields area; field_desc is the descriptor for
+// that field's concrete type.
+//
+// Type-id encoding (see reach.c type_id assignment):
+//   odd  → object (class/actor), stored as a pointer — never needs this path
+//   even → numeric primitive or tuple, stored as raw inline data
+static LLVMValueRef box_field_with_descriptor(compile_t* c,
+  LLVMValueRef field_ptr, LLVMValueRef field_desc)
+{
+  // Read the object size from the descriptor.
+  LLVMValueRef size = gendesc_size(c, field_desc);
+  LLVMValueRef size_ext = LLVMBuildZExt(c->builder, size, c->intptr, "");
+
+  // Allocate a new object.
+  LLVMValueRef alloc_args[2];
+  alloc_args[0] = codegen_ctx(c);
+  alloc_args[1] = size_ext;
+  LLVMValueRef object = gencall_runtime(c, "pony_alloc", alloc_args, 2, "");
+
+  // Store the descriptor at offset 0.
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP2(c->builder, c->object_type,
+    object, 0, "");
+  LLVMBuildStore(c->builder, field_desc, desc_ptr);
+
+  // Copy the raw data into the object's value area.  DESC_FIELD_OFFSET gives
+  // the byte offset from the object start to the value/fields area, respecting
+  // alignment (e.g. I128 on x86-64 has the value at offset 16, not 8).
+  LLVMValueRef obj_data = gendesc_ptr_to_fields(c, object, field_desc);
+  LLVMValueRef field_offset = gendesc_fieldoffset(c, field_desc);
+  LLVMValueRef field_offset_ext = LLVMBuildZExt(c->builder, field_offset,
+    c->intptr, "");
+  LLVMValueRef copy_size = LLVMBuildSub(c->builder, size_ext,
+    field_offset_ext, "");
+  gencall_memcpy(c, obj_data, field_ptr, copy_size);
+
+  return object;
 }
 
 static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
@@ -336,6 +388,70 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
   return true;
 }
 
+// Load the value of a tuple field whose concrete type is described by desc,
+// using pattern_type to determine the expected LLVM representation.
+//
+// The field at ptr may be a raw inline value or an object pointer, depending
+// on the runtime type_id from the descriptor:
+//   odd  type_id → object (class/actor), data at ptr is a pointer
+//   even type_id → numeric or tuple, data at ptr is raw inline data
+// See reach.c for the type_id assignment scheme.
+//
+// When pattern_type's use_type is a pointer (union, interface, trait, or
+// class), the actual field data may still be a raw unboxed primitive (e.g. a
+// U8 matched against (U8 | U16)). In that case we must box the raw value
+// into a heap object so the caller sees a uniform pointer representation.
+// We branch on the type_id to either load the pointer directly or box the
+// raw value before merging.
+//
+// When pattern_type's use_type is not a pointer (concrete primitive type),
+// we load directly with the pattern type's representation.
+static LLVMValueRef load_tuple_field_value(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef desc, ast_t* pattern_type)
+{
+  reach_type_t* t = reach_type(c->reach, pattern_type);
+  LLVMTypeRef use_type = ((compile_type_t*)t->c_type)->use_type;
+
+  if(LLVMGetTypeKind(use_type) != LLVMPointerTypeKind)
+    return LLVMBuildLoad2(c->builder, use_type, ptr, "");
+
+  // The pattern expects a pointer. Check the runtime type_id to determine
+  // whether the field data is an object pointer (odd type_id) or raw inline
+  // data (even type_id).
+  LLVMValueRef type_id = gendesc_typeid(c, desc);
+  LLVMValueRef is_odd = LLVMBuildAnd(c->builder, type_id,
+    LLVMConstInt(c->i32, 1, false), "");
+  LLVMValueRef is_object = LLVMBuildICmp(c->builder, LLVMIntNE, is_odd,
+    LLVMConstInt(c->i32, 0, false), "");
+
+  LLVMBasicBlockRef object_block = codegen_block(c, "value_is_object");
+  LLVMBasicBlockRef raw_block = codegen_block(c, "value_is_raw");
+  LLVMBasicBlockRef merge_block = codegen_block(c, "value_merge");
+  LLVMBuildCondBr(c->builder, is_object, object_block, raw_block);
+
+  // Object: load the pointer directly.
+  LLVMPositionBuilderAtEnd(c->builder, object_block);
+  LLVMValueRef object_value = LLVMBuildLoad2(c->builder, c->ptr, ptr, "");
+  LLVMBuildBr(c->builder, merge_block);
+  LLVMBasicBlockRef object_from = LLVMGetInsertBlock(c->builder);
+
+  // Raw value: box it into a heap-allocated object.
+  LLVMMoveBasicBlockAfter(raw_block, object_from);
+  LLVMPositionBuilderAtEnd(c->builder, raw_block);
+  LLVMValueRef boxed_value = box_field_with_descriptor(c, ptr, desc);
+  LLVMBuildBr(c->builder, merge_block);
+  LLVMBasicBlockRef raw_from = LLVMGetInsertBlock(c->builder);
+
+  // Merge.
+  LLVMMoveBasicBlockAfter(merge_block, raw_from);
+  LLVMPositionBuilderAtEnd(c->builder, merge_block);
+  LLVMValueRef value = LLVMBuildPhi(c->builder, c->ptr, "");
+  LLVMValueRef values[2] = {object_value, boxed_value};
+  LLVMBasicBlockRef blocks[2] = {object_from, raw_from};
+  LLVMAddIncoming(value, values, blocks, 2);
+  return value;
+}
+
 static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
@@ -356,13 +472,7 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
   if(!check_type(c, ptr, desc, param_type, next_block, weight))
     return false;
 
-  // We now know that ptr points to something of type pattern_type, and that
-  // it isn't a boxed primitive, as that would go through the other path, ie
-  // dynamic_match_object(). We also know it isn't an unboxed tuple. We can
-  // load from ptr with a type based on the static type of the pattern.
-  reach_type_t* t = reach_type(c->reach, param_type);
-  LLVMTypeRef use_type = ((compile_type_t*)t->c_type)->use_type;
-  LLVMValueRef value = LLVMBuildLoad2(c->builder, use_type, ptr, "");
+  LLVMValueRef value = load_tuple_field_value(c, ptr, desc, param_type);
 
   return check_value(c, pattern, param_type, value, next_block);
 }
@@ -370,8 +480,6 @@ static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
 static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
-  // Here, ptr is a pointer to a tuple field. It could be a primitive, an
-  // object, or a nested tuple.
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
     c->opt);
 
@@ -392,13 +500,7 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
     return false;
   }
 
-  // We now know that ptr points to something of type pattern_type, and that
-  // it isn't a boxed primitive or tuple, as that would go through the other
-  // path, ie dynamic_match_object(). We also know it isn't an unboxed tuple.
-  // We can load from ptr with a type based on the static type of the pattern.
-  reach_type_t* t = reach_type(c->reach, pattern_type);
-  LLVMTypeRef use_type = ((compile_type_t*)t->c_type)->use_type;
-  LLVMValueRef value = LLVMBuildLoad2(c->builder, use_type, ptr, "");
+  LLVMValueRef value = load_tuple_field_value(c, ptr, desc, pattern_type);
 
   LLVMValueRef r = gen_assign_value(c, pattern, value, pattern_type);
 
@@ -592,6 +694,16 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_ARROW:
       return static_tuple(c, value, ast_childidx(type, 1), pattern,
         next_block);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      bool ok = static_tuple(c, value, unfolded, pattern, next_block);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     default: {}
   }
