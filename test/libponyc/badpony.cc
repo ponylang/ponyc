@@ -1735,3 +1735,143 @@ TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
     "this capture is unsound",
     "this capture is unsound");
 }
+
+TEST_F(BadPonyTest, RecursiveGenericInterfaceDoesNotHang)
+{
+  // Regression test for ponylang/ponyc#1216. A recursive generic
+  // interface whose method return type references the same interface
+  // with strictly larger type arguments caused the compiler to hang
+  // indefinitely in the structural subtype check. The divergence guard
+  // in is_nominal_sub_nominal now terminates the check and produces a
+  // normal type error.
+  //
+  // The specific message matched below is incidental — the critical
+  // property under test is that compilation terminates with a diagnostic
+  // rather than hanging. If the error text is refactored, update the
+  // match; the test still serves its purpose as long as it asserts
+  // bounded-time failure on this source.
+  const char* src =
+    "interface Iter[A]\n"
+    "  fun enum[B](): Iter[(B, A)] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+TEST_F(BadPonyTest, RecursiveGenericInterfaceEmitsGuardDiagnostic)
+{
+  // Companion to RecursiveGenericInterfaceDoesNotHang: when the
+  // divergence guard in is_nominal_sub_nominal bails on a drifting
+  // recursion it must write an ast_error_frame naming the guard, so a
+  // user who trips it knows they hit a compiler safeguard rather than
+  // a real subtype error. Without this diagnostic breadcrumb, bug
+  // reports from guard-tripping stdlib authors would be
+  // incomprehensible — they would see only a generic "not a subtype"
+  // error with no indication it came from SAME_DEF_LIMIT.
+  const char* src =
+    "interface Iter[A]\n"
+    "  fun enum[B](): Iter[(B, A)] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  const char* errs[] = {"function body isn't the result type", NULL};
+  DO(test_expected_errors(src, "ir", errs));
+
+  // Walk all error frames looking for the guard's diagnostic text.
+  // The exact count and ordering of frames is incidental — what
+  // matters is that somewhere in the error tree the guard's message
+  // is visible. If the text below is refactored in subtype.c, update
+  // this match too; the two are deliberately coupled.
+  bool found_guard_frame = false;
+  for(errormsg_t* e = errors_get_first(opt.check.errors);
+    (e != NULL) && !found_guard_frame; e = e->next)
+  {
+    for(errormsg_t* ef = e->frame; ef != NULL; ef = ef->frame)
+    {
+      if(strstr(ef->msg, "recursion-divergence guard") != NULL)
+      {
+        found_guard_frame = true;
+        break;
+      }
+    }
+  }
+  ASSERT_TRUE(found_guard_frame)
+    << "Expected the divergence guard diagnostic frame to be present in "
+    << "the error output, but it was not found. The guard in "
+    << "is_nominal_sub_nominal (src/libponyc/type/subtype.c) must call "
+    << "ast_error_frame when it bails so users know they hit "
+    << "SAME_DEF_LIMIT rather than a real subtype error.";
+}
+
+TEST_F(BadPonyTest, RecursiveGenericInterfaceNestedWrappingDoesNotHang)
+{
+  // Regression test for ponylang/ponyc#5198. A second shape of the
+  // ponylang/ponyc#1216 recursive-interface hang: instead of drifting
+  // the type arguments via a tuple (Iter[A] -> Iter[(B, A)]), this
+  // shape drifts by wrapping the interface around itself
+  // (I[A] -> I[I[A]]).
+  //
+  // Prior to the fix, the SAME_DEF_LIMIT divergence guard in
+  // is_nominal_sub_nominal terminated the outer recursion correctly,
+  // but exact_nominal's semantic typearg equality (is_eq_typeargs ->
+  // is_eqtype -> is_subtype) re-entered the subtype machinery from
+  // inside check_assume, producing exponential fan-out that prevented
+  // the guard from being reached in any practical wall-clock time.
+  // Replacing the semantic comparison with a structural string-based
+  // comparison collapses that fan-out and lets the guard fire.
+  //
+  // As with RecursiveGenericInterfaceDoesNotHang, the specific error
+  // messages below are incidental — the critical property is that
+  // compilation terminates with diagnostics rather than hanging.
+  // Unlike the tupling drift shape, the nested-wrapping shape also
+  // fails the typearg-constraint check on the wrapped I[A], so two
+  // errors are emitted.
+  const char* src =
+    "interface I[A]\n"
+    "  fun f(): I[I[A]] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "type argument is outside its constraint",
+    "function body isn't the result type");
+}
+
+TEST_F(BadPonyTest, RecursiveTypeParameterConstraintCompiles)
+{
+  // Regression test for ponylang/ponyc#3930. A type parameter whose
+  // constraint references the parameter itself
+  // (`A: Array[Array[A]]`) previously caused a stack overflow in
+  // exact_nominal's semantic typearg equality, crashing the compiler.
+  //
+  // This test lives alongside the recursive-interface regression
+  // tests because the underlying fix is shared: both symptoms come
+  // from exact_nominal calling is_eq_typeargs, which re-enters the
+  // subtype checker and eventually re-enters check_assume for the
+  // same pair — unbounded at depth for recursive type parameter
+  // constraints, and exponentially at each guard-capped chain for
+  // nested-wrapping interfaces.
+  //
+  // Unlike the other recursive-shape tests in this file, this source
+  // is well-formed and must compile successfully.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+
+    "  fun flatten[A: Array[Array[A]] #read](arrayin: Array[Array[A]])\n"
+    "    : Array[A]\n"
+    "  =>\n"
+    "    let rv: Array[A] = Array[A]\n"
+    "    for f in arrayin.values() do\n"
+    "      for g in f.values() do\n"
+    "        rv.push(g)\n"
+    "      end\n"
+    "    end\n"
+    "    rv";
+
+  TEST_COMPILE(src);
+}
