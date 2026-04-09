@@ -310,6 +310,12 @@ void PassTest::add_package(const char* path, const char* src)
 }
 
 
+void PassTest::add_package_path(const char* path, const char* real_dir)
+{
+  package_add_magic_path(path, real_dir, &opt);
+}
+
+
 void PassTest::default_package_name(const char* path)
 {
   _first_pkg_path = path;

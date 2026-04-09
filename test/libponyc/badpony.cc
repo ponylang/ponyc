@@ -1735,3 +1735,30 @@ TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
     "this capture is unsound",
     "this capture is unsound");
 }
+
+TEST_F(BadPonyTest, SpuriousErrorMessageGeneration)
+{
+  // From issue #4160
+  // A parse error in one file of a package must not produce spurious
+  // "can't reuse name" errors in other files of the same package that
+  // reuse a loop variable name across consecutive for loops.
+  // The fixture package has two files: bad.pony (parse error) comes before
+  // good.pony (valid, with consecutive "for i" loops) alphabetically.
+  add_package_path("pkg", PONY_TEST_LIBPONYC_DIR "/fixtures/spurious-error-message-generation");
+  const char* src =
+    "use \"pkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    for i in Range(0, 3) do\n"
+    "      None\n"
+    "    end\n"
+    "    for i in Range(0, 3) do\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "syntax error: unexpected token = after type, interface, trait, primitive,"
+    " class or actor definition",
+    "can't load package 'pkg'");
+}
+
