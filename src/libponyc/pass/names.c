@@ -5,6 +5,12 @@
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
+// Resolve a type alias definition, rejecting cyclic chains. Note that
+// `typealias_unfold` (in src/libponyc/type/typealias.c) relies on this
+// rejection: its transitive recursion is bounded by the assumption that
+// alias chains form a finite DAG, which only holds because cycles are
+// rejected here. If you change the cycle detection mechanism, also update
+// the safety argument in `typealias_unfold`.
 static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 {
   int state = ast_checkflag(def,
