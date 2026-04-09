@@ -132,3 +132,14 @@ class _LiteralExamples
   """
   let _f: F64 = 3.14
   let _s: String val = "hello"
+
+class _UninitLocal
+  """
+  Demonstrates a local variable declared without an inline initializer.
+  `acc` is declared as `var acc: U32` (no `= expr`), so its declaration
+  site is Read kind; subsequent assignments are Write.
+  """
+  fun ref example(): U32 =>
+    var acc: U32
+    acc = 0
+    acc

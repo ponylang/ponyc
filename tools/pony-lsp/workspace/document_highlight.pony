@@ -21,12 +21,16 @@ primitive DocumentHighlights
 
     Each element of the returned array is `(range, kind)` where `kind` is a
     `DocumentHighlightKind` value:
-    - **Write (3)**: the node is the left-hand side of a `tk_assign` (but not
-      a local declaration-with-initializer, which ponyc also represents as
-      `tk_assign(tk_let/tk_var, expr)`).
-    - **Read (2)**: the node is a reference token (field ref, var ref, param
-      ref, function/behaviour/constructor call site, etc.).
-    - **Text (1)**: everything else — declarations and type references.
+    - **Write (3)**: the node is the left-hand side of a `tk_assign` (including
+      local declaration-with-initializer, which ponyc represents as
+      `tk_assign(tk_let/tk_var, expr)`), or a field declaration with an inline
+      initializer (`var f: T = v` → child 2 of `tk_fvar`/`tk_flet`/`tk_embed`
+      is not `tk_none`).
+    - **Read (2)**: a reference token (field ref, var ref, param ref,
+      function/behaviour/constructor call site, etc.), a local declaration
+      without an initializer (`var x: T` not in `tk_assign`), or a field
+      declaration without an inline initializer.
+    - **Text (1)**: function/method/type declarations and type references.
     """
     // Literals have no referenceable identity — do not highlight.
     let nid = node.id()
@@ -108,12 +112,14 @@ class ref _HighlightCollector is ASTVisitor
 
   Kind assignment rules (evaluated on the matched AST node before extracting
   its identifier sub-node for the span):
-  - **Write**: the node is at child index 0 of a `tk_assign` parent, and is
-    not itself a declaration node (`tk_let`/`tk_var` with initializer).
-  - **Read**: the node's token id is one of the reference kinds listed in
-    `_read_kind`.
-  - **Text**: all other nodes — declarations (`tk_fvar`, `tk_fun`, `tk_class`,
-    etc.) and type references (`tk_nominal`, `tk_typeref`).
+  - **Write**: the node is at child index 0 of a `tk_assign` parent (covers
+    regular assignments and local decl-with-initializer), or is a field
+    declaration (`tk_fvar`/`tk_flet`/`tk_embed`) whose initializer child
+    (index 2) is not `tk_none`.
+  - **Read**: the node is a local declaration (`tk_let`/`tk_var`) not inside a
+    `tk_assign` (i.e. declared without an initializer), a field declaration
+    without an inline initializer, or a reference token.
+  - **Text**: method/function/type declarations and type references.
   """
   let _target: AST val
   let _highlights: Array[(LspPositionRange, I64)] ref
@@ -148,20 +154,16 @@ class ref _HighlightCollector is ASTVisitor
       let kind: I64 =
         try
           let par = ast.parent() as AST
-          // Local declarations with initializers (let x = v, var x = v) are
-          // represented as tk_assign(tk_let/tk_var, expr) in the AST. These
-          // are declaration sites, not writes — exclude them from Write kind.
-          let is_decl =
-            (ast.id() == TokenIds.tk_let()) or (ast.id() == TokenIds.tk_var())
           if (par.id() == TokenIds.tk_assign()) and (ast.sibling_idx() == 0)
-            and not is_decl
           then
+            // LHS of any assignment — covers regular writes and
+            // local decl-with-initializer (tk_assign(tk_let/tk_var, expr)).
             DocumentHighlightKind.write()
           else
-            _read_kind(ast.id())
+            _decl_or_read_kind(ast)
           end
         else
-          _read_kind(ast.id())
+          _decl_or_read_kind(ast)
         end
       let hl_node = ASTIdentifier.identifier_node(ast)
       (let start_pos, let end_pos) = hl_node.span()
@@ -183,13 +185,81 @@ class ref _HighlightCollector is ASTVisitor
     end
     Continue
 
+  fun _decl_or_read_kind(ast: AST box): I64 =>
+    """
+    Classify a declaration or reference node that is NOT the LHS of a
+    `tk_assign`.
+
+    - Local declaration (`tk_let`/`tk_var`) not in an assignment: the name is
+      being bound without an immediate write, so Read.
+    - Field declaration (`tk_fvar`/`tk_flet`/`tk_embed`): Write if the field
+      has an inline initializer (child index 2 is not `tk_none`), Read if not.
+    - Reference tokens: Read.
+    - Everything else (methods, types, etc.): Text.
+    """
+    match ast.id()
+    | TokenIds.tk_let() | TokenIds.tk_var() =>
+      // local decl without initializer
+      DocumentHighlightKind.read()
+    | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed() =>
+      // Field declarations with an inline initializer (`var f: T = v`) are
+      // Write; those without are Read. The sugar pass strips the initializer
+      // from the field's AST node (replacing it with tk_none) before the LSP
+      // sees the AST, so we check the source text instead: if the field's
+      // source line contains `=`, there was an inline initializer.
+      if _field_has_initializer(ast) then
+        DocumentHighlightKind.write()
+      else
+        DocumentHighlightKind.read()
+      end
+    else
+      _read_kind(ast.id())
+    end
+
+  fun _field_has_initializer(ast: AST box): Bool =>
+    """
+    Return true if the field declaration had an inline `= expr` initializer.
+
+    The sugar pass strips the initializer from the field AST node (replacing
+    child 2 with `tk_none`) before the LSP sees the tree, so we detect the
+    initializer by scanning the field's source line for `=`.  Pony type syntax
+    never uses `=` in a field's type annotation, so any `=` on the field line
+    (after the start of the declaration) is the initializer separator.
+    """
+    try
+      let src = ast.source_contents() as String box
+      let l = ast.line()  // 1-indexed
+      let line_start: USize =
+        if l == 1 then
+          0
+        else
+          (src.find("\n" where nth = l - 2)? + 1).usize()
+        end
+      let line_end: USize =
+        try
+          src.find("\n" where offset = line_start.isize())?.usize()
+        else
+          src.size()
+        end
+      let col = ast.pos()  // 1-indexed
+      // Search for '=' starting from the field keyword's column.
+      var i = line_start + (col - 1)
+      while i < line_end do
+        if src(i)? == '=' then
+          return true
+        end
+        i = i + 1
+      end
+    end
+    false
+
   fun _read_kind(id: I32): I64 =>
     """
-    Map a token id to Read (2) or Text (1).
+    Map a reference token id to Read (2) or Text (1).
 
-    Reference tokens — nodes that represent a use of a named symbol rather
-    than its declaration or its appearance in a type expression — are Read.
-    Everything else (declarations, type annotations) is Text.
+    Reference tokens — nodes that represent a use of a named symbol at a
+    call or access site — are Read. Everything else (method/type declarations,
+    type annotations) is Text.
     """
     match id
     | TokenIds.tk_fvarref()

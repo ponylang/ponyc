@@ -40,13 +40,14 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightStringLiteralTest.create(server, fixture))
     test(_DocHighlightWhitespaceTest.create(server, fixture))
     test(_DocHighlightOutOfBoundsTest.create(server, fixture))
+    test(_DocHighlightUninitLocalTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
   """
   Highlights the `count` field from its declaration site.
   Expects all 5 occurrences to be found:
-    line 21 col  6  (var count declaration)
+    line 21 col  6  (var count: U32 = 0 declaration — Write, has initializer)
     line 24 col  4  (tick LHS)
     line 24 col 12  (tick RHS)
     line 27 col  4  (value() body)
@@ -68,7 +69,7 @@ class \nodoc\ iso _DocHighlightFieldTest
       _server,
       _fixture,
       [ (21, 6, _DocHighlightChecker(
-        [ (21, 6, 21, 11, DocumentHighlightKind.text())
+        [ (21, 6, 21, 11, DocumentHighlightKind.write())
           (24, 4, 24, 9, DocumentHighlightKind.write())
           (24, 12, 24, 17, DocumentHighlightKind.read())
           (27, 4, 27, 9, DocumentHighlightKind.read())
@@ -96,7 +97,7 @@ class \nodoc\ iso _DocHighlightFieldRefTest
       _server,
       _fixture,
       [ (27, 4, _DocHighlightChecker(
-        [ (21, 6, 21, 11, DocumentHighlightKind.text())
+        [ (21, 6, 21, 11, DocumentHighlightKind.write())
           (24, 4, 24, 9, DocumentHighlightKind.write())
           (24, 12, 24, 17, DocumentHighlightKind.read())
           (27, 4, 27, 9, DocumentHighlightKind.read())
@@ -107,7 +108,7 @@ class \nodoc\ iso _DocHighlightLocalTest
   """
   Highlights the `result` local variable from its declaration site.
   Expects 3 occurrences:
-    line 30 col  8  (let result declaration)
+    line 30 col  8  (let result: U32 = count — Write, has initializer)
     line 31 col  4  (first use in result + result)
     line 31 col 13  (second use in result + result)
   """
@@ -127,7 +128,7 @@ class \nodoc\ iso _DocHighlightLocalTest
       _server,
       _fixture,
       [ (30, 8, _DocHighlightChecker(
-        [ (30, 8, 30, 14, DocumentHighlightKind.text())
+        [ (30, 8, 30, 14, DocumentHighlightKind.write())
           (31, 4, 31, 10, DocumentHighlightKind.read())
           (31, 13, 31, 19, DocumentHighlightKind.read())]))])
 
@@ -135,7 +136,7 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
   Highlights the `_flag` let field from its declaration.
   Expects 3 occurrences:
-    line 80 col  6  (_flag declaration)
+    line 80 col  6  (let _flag: Bool — Read, no inline initializer)
     line 85 col  4  (assigned true in create)
     line 90 col  4  (assigned false in other)
   """
@@ -155,7 +156,7 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
       _server,
       _fixture,
       [ (80, 6, _DocHighlightChecker(
-        [ (80, 6, 80, 11, DocumentHighlightKind.text())
+        [ (80, 6, 80, 11, DocumentHighlightKind.read())
           (85, 4, 85, 9, DocumentHighlightKind.write())
           (90, 4, 90, 9, DocumentHighlightKind.write())]))])
 
@@ -163,7 +164,7 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
   Highlights the `_inner` embed field from its declaration.
   Expects 3 occurrences:
-    line 81 col  8  (_inner embed declaration)
+    line 81 col  8  (embed _inner: _Inner — Read, no inline initializer)
     line 86 col  4  (assigned in create)
     line 91 col  4  (assigned in other)
   """
@@ -183,7 +184,7 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
       _server,
       _fixture,
       [ (81, 8, _DocHighlightChecker(
-        [ (81, 8, 81, 14, DocumentHighlightKind.text())
+        [ (81, 8, 81, 14, DocumentHighlightKind.read())
           (86, 4, 86, 10, DocumentHighlightKind.write())
           (91, 4, 91, 10, DocumentHighlightKind.write())]))])
 
@@ -276,7 +277,7 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
   """
   Highlights the `w` var local from its declaration.
   Expects 4 occurrences:
-    line 106 col  8  (var w declaration)
+    line 106 col  8  (var w: U32 = v — Write, has initializer)
     line 107 col  4  (w = w + ... LHS)
     line 107 col  8  (w = w + ... RHS)
     line 108 col  4  (w return value)
@@ -297,7 +298,7 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
       _server,
       _fixture,
       [ (106, 8, _DocHighlightChecker(
-        [ (106, 8, 106, 9, DocumentHighlightKind.text())
+        [ (106, 8, 106, 9, DocumentHighlightKind.write())
           (107, 4, 107, 5, DocumentHighlightKind.write())
           (107, 8, 107, 9, DocumentHighlightKind.read())
           (108, 4, 108, 5, DocumentHighlightKind.read())]))])
@@ -484,7 +485,7 @@ class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
   """
   Highlights the `x` fvar field of _Inner from its declaration.
   Expects 2 occurrences:
-    line 49 col 6  (var x declaration in _Inner)
+    line 49 col 6  (var x: U32 = 0 — Write, has inline initializer)
     line 52 col 4  (x = 0 assignment in create)
   """
   let _server: _LspTestServer
@@ -503,14 +504,14 @@ class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
       _server,
       _fixture,
       [ (49, 6, _DocHighlightChecker(
-        [ (49, 6, 49, 7, DocumentHighlightKind.text())
+        [ (49, 6, 49, 7, DocumentHighlightKind.write())
           (52, 4, 52, 5, DocumentHighlightKind.write())]))])
 
 class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
   """
   Highlights the `_val` fvar field of _HighlightMore from its declaration.
   Expects 5 occurrences:
-    line 82 col  6  (_val declaration)
+    line 82 col  6  (var _val: U32 — Read, no inline initializer)
     line 87 col  4  (_val = 0 in create)
     line 92 col  4  (_val = 1 in other)
     line 95 col  4  (_val = ... LHS in add)
@@ -532,7 +533,7 @@ class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
       _server,
       _fixture,
       [ (82, 6, _DocHighlightChecker(
-        [ (82, 6, 82, 10, DocumentHighlightKind.text())
+        [ (82, 6, 82, 10, DocumentHighlightKind.read())
           (87, 4, 87, 8, DocumentHighlightKind.write())
           (92, 4, 92, 8, DocumentHighlightKind.write())
           (95, 4, 95, 8, DocumentHighlightKind.write())
@@ -570,7 +571,7 @@ class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
   """
   Highlights the `v` let local of do_work from its declaration.
   Expects 2 occurrences:
-    line 105 col  8  (let v declaration in do_work)
+    line 105 col  8  (let v: U32 = n — Write, has initializer)
     line 106 col 17  (var w: U32 = v)
   """
   let _server: _LspTestServer
@@ -589,7 +590,7 @@ class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
       _server,
       _fixture,
       [ (105, 8, _DocHighlightChecker(
-        [ (105, 8, 105, 9, DocumentHighlightKind.text())
+        [ (105, 8, 105, 9, DocumentHighlightKind.write())
           (106, 17, 106, 18, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
@@ -618,7 +619,7 @@ class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
       _server,
       _fixture,
       [ (31, 4, _DocHighlightChecker(
-        [ (30, 8, 30, 14, DocumentHighlightKind.text())
+        [ (30, 8, 30, 14, DocumentHighlightKind.write())
           (31, 4, 31, 10, DocumentHighlightKind.read())
           (31, 13, 31, 19, DocumentHighlightKind.read())]))])
 
@@ -649,7 +650,7 @@ class \nodoc\ iso _DocHighlightVarRefTest is UnitTest
       _server,
       _fixture,
       [ (107, 4, _DocHighlightChecker(
-        [ (106, 8, 106, 9, DocumentHighlightKind.text())
+        [ (106, 8, 106, 9, DocumentHighlightKind.write())
           (107, 4, 107, 5, DocumentHighlightKind.write())
           (107, 8, 107, 9, DocumentHighlightKind.read())
           (108, 4, 108, 5, DocumentHighlightKind.read())]))])
@@ -803,6 +804,34 @@ class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
 
   fun apply(h: TestHelper) =>
     _RunLspChecks(h, _server, _fixture, [(21, 100, _DocHighlightChecker([]))])
+
+class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
+  """
+  Highlights `acc` — a local var declared without an initializer.
+  Expects 3 occurrences:
+    line 142 col  8  (var acc: U32 — Read, no initializer)
+    line 143 col  4  (acc = 0 LHS — Write)
+    line 144 col  4  (return acc — Read)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/uninit_local"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (142, 8, _DocHighlightChecker(
+        [ (142, 8, 142, 11, DocumentHighlightKind.read())
+          (143, 4, 143, 7, DocumentHighlightKind.write())
+          (144, 4, 144, 7, DocumentHighlightKind.read())]))])
 
 class val _DocHighlightChecker
   let _expected: Array[(I64, I64, I64, I64, I64)] val
