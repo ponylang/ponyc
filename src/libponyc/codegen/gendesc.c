@@ -238,8 +238,22 @@ static LLVMValueRef make_field_count(compile_t* c, reach_type_t* t)
 
 static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
 {
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
   if(t->field_count == 0)
+  {
+    if(c_t->primitive != NULL)
+    {
+      // Boxable numeric type: the value is at element 1 of the boxed struct
+      // (element 0 is the descriptor pointer).  We need this offset for
+      // boxing raw tuple fields during dynamic match — see genmatch.c
+      // box_field_with_descriptor().
+      return LLVMConstInt(c->i32,
+        LLVMOffsetOfElement(c->target_data, c_t->structure, 1), false);
+    }
+
     return LLVMConstInt(c->i32, 0, false);
+  }
 
   int index = 0;
 
@@ -249,7 +263,6 @@ static LLVMValueRef make_field_offset(compile_t* c, reach_type_t* t)
   if(t->underlying == TK_ACTOR)
     index++;
 
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
   return LLVMConstInt(c->i32,
     LLVMOffsetOfElement(c->target_data, c_t->structure, index), false);
 }
@@ -681,6 +694,16 @@ LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
 LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info)
 {
   return LLVMBuildExtractValue(c->builder, field_info, 1, "");
+}
+
+LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc)
+{
+  return desc_field(c, desc, DESC_SIZE);
+}
+
+LLVMValueRef gendesc_fieldoffset(compile_t* c, LLVMValueRef desc)
+{
+  return desc_field(c, desc, DESC_FIELD_OFFSET);
 }
 
 LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* type)
