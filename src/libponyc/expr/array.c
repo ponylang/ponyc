@@ -121,11 +121,9 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
   if(ast_id(typeparams) == TK_TYPEPARAMS)
     elem_type = reify(elem_type, typeparams, typeargs, opt, true);
 
-  if((ast_id(elem_type) == TK_ARROW) &&
-    (ast_id(ast_child(elem_type)) == TK_THISTYPE))
-    elem_type = ast_childidx(elem_type, 1);
-
-  return elem_type;
+  // Strip `this->` viewpoint arrows, including any that were distributed
+  // into a union/intersection/tuple when a type alias was expanded.
+  return strip_this_arrow(opt, elem_type);
 }
 
 static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
