@@ -556,6 +556,7 @@ static bool is_x_sub_isect(ast_t* sub, ast_t* super, check_cap_t check_cap,
 //
 // For TK_UNIONTYPE: collects alternatives from all members.
 // For TK_TUPLETYPE: computes the cross-product of each element's alternatives.
+// For TK_TYPEALIASREF: unfolds the alias and recurses.
 // For anything else: returns a 1-element union containing a copy of the type.
 static ast_t* expand_type_alternatives(ast_t* type, size_t max_alternatives)
 {
@@ -641,6 +642,22 @@ static ast_t* expand_type_alternatives(ast_t* type, size_t max_alternatives)
         }
       }
 
+      return result;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+      {
+        ast_t* result = ast_from(type, TK_UNIONTYPE);
+        ast_append(result, ast_dup(type));
+        return result;
+      }
+
+      ast_t* result = expand_type_alternatives(unfolded, max_alternatives);
+      ast_free_unattached(unfolded);
       return result;
     }
 

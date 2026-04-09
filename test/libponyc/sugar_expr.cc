@@ -755,6 +755,51 @@ TEST_F(SugarExprTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
 }
 
 
+TEST_F(SugarExprTest, MatchExhaustiveTupleOverAliasedUnion)
+{
+  // Regression test for the interaction with PR #5145, which stopped
+  // expanding type aliases during name resolution. Tuple match exhaustiveness
+  // distributes the tuple over its element unions by computing a cross-
+  // product of the element alternatives, and must unfold TK_TYPEALIASREF
+  // elements to see the underlying union. Without the unfold, each element
+  // is treated as a single opaque alternative and the cases do not look
+  // exhaustive. This mirrors the failing pattern in corral's
+  // CompareVersions._compare_pr_Fields.
+  const char* src =
+    "type PRF is (String | U64)\n"
+
+    "primitive Foo\n"
+    "  fun apply(p1: PRF, p2: PRF): Bool =>\n"
+    "    match (p1, p2)\n"
+    "    | (let u1: U64, let s2: String) => true\n"
+    "    | (let s1: String, let u2: U64) => false\n"
+    "    | (let u1: U64, let u2: U64) => true\n"
+    "    | (let s1: String, let s2: String) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveTupleOverAliasedUnion)
+{
+  // Paired negative for MatchExhaustiveTupleOverAliasedUnion: dropping one
+  // cross-product case must still be detected as non-exhaustive after the
+  // TK_TYPEALIASREF unfold in expand_type_alternatives.
+  const char* src =
+    "type PRF is (String | U64)\n"
+
+    "primitive Foo\n"
+    "  fun apply(p1: PRF, p2: PRF): Bool =>\n"
+    "    match (p1, p2)\n"
+    "    | (let u1: U64, let s2: String) => true\n"
+    "    | (let s1: String, let u2: U64) => false\n"
+    "    | (let u1: U64, let u2: U64) => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
 
 TEST_F(SugarExprTest, MatchNonExhaustiveSomeTupleCaseElementsMatchOnValue)
 {
