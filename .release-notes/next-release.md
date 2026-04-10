@@ -204,3 +204,7 @@ The three kinds from the LSP spec are applied as follows:
 
 The `kind` field was always optional in the spec and defaulted to Text, so editors that do not support per-kind highlighting are unaffected.
 
+## Add generic type parameter highlights to pony-lsp
+
+Placing the cursor on a generic type parameter (e.g., `T` in `class Foo[T]` or `fun apply[T](...)`) now highlights all occurrences of that parameter across the method or class body. Both the declaration site and every use site are returned as `Text` (kind 1) highlights.
+
