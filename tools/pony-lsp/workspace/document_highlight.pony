@@ -193,7 +193,7 @@ class ref _HighlightCollector is ASTVisitor
     - Local declaration (`tk_let`/`tk_var`) not in an assignment: the name is
       being bound without an immediate write, so Read.
     - Field declaration (`tk_fvar`/`tk_flet`/`tk_embed`): Write if the field
-      has an inline initializer (child index 2 is not `tk_none`), Read if not.
+      had an inline initializer (detected via `HighlightSource`), Read if not.
     - Reference tokens: Read.
     - Everything else (methods, types, etc.): Text.
     """
@@ -204,10 +204,9 @@ class ref _HighlightCollector is ASTVisitor
     | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed() =>
       // Field declarations with an inline initializer (`var f: T = v`) are
       // Write; those without are Read. The sugar pass strips the initializer
-      // from the field's AST node (replacing it with tk_none) before the LSP
-      // sees the AST, so we check the source text instead: if the field's
-      // source line contains `=`, there was an inline initializer.
-      if _field_has_initializer(ast) then
+      // from the field's AST node before the LSP sees the tree, so we recover
+      // the information from the source text via HighlightSource.
+      if HighlightSource.field_has_initializer(ast) then
         DocumentHighlightKind.write()
       else
         DocumentHighlightKind.read()
@@ -215,43 +214,6 @@ class ref _HighlightCollector is ASTVisitor
     else
       _read_kind(ast.id())
     end
-
-  fun _field_has_initializer(ast: AST box): Bool =>
-    """
-    Return true if the field declaration had an inline `= expr` initializer.
-
-    The sugar pass strips the initializer from the field AST node (replacing
-    child 2 with `tk_none`) before the LSP sees the tree, so we detect the
-    initializer by scanning the field's source line for `=`.  Pony type syntax
-    never uses `=` in a field's type annotation, so any `=` on the field line
-    (after the start of the declaration) is the initializer separator.
-    """
-    try
-      let src = ast.source_contents() as String box
-      let l = ast.line()  // 1-indexed
-      let line_start: USize =
-        if l == 1 then
-          0
-        else
-          (src.find("\n" where nth = l - 2)? + 1).usize()
-        end
-      let line_end: USize =
-        try
-          src.find("\n" where offset = line_start.isize())?.usize()
-        else
-          src.size()
-        end
-      let col = ast.pos()  // 1-indexed
-      // Search for '=' starting from the field keyword's column.
-      var i = line_start + (col - 1)
-      while i < line_end do
-        if src(i)? == '=' then
-          return true
-        end
-        i = i + 1
-      end
-    end
-    false
 
   fun _read_kind(id: I32): I64 =>
     """
