@@ -206,7 +206,22 @@ class ref _HighlightCollector is ASTVisitor
       // Write; those without are Read. The sugar pass strips the initializer
       // from the field's AST node before the LSP sees the tree, so we recover
       // the information from the source text via HighlightSource.
-      if HighlightSource.field_has_initializer(ast) then
+      let has_init =
+        try
+          let src = ast.source_contents() as String box
+          let l = ast.line()
+          let col = ast.pos()
+          let kw_start: USize =
+            if l == 1 then
+              col - 1
+            else
+              (src.find("\n" where nth = l - 2)? + 1).usize() + (col - 1)
+            end
+          DocumentHighlightSource.field_has_initializer(src, kw_start)
+        else
+          false
+        end
+      if has_init then
         DocumentHighlightKind.write()
       else
         DocumentHighlightKind.read()
