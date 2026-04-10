@@ -43,6 +43,8 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightWhitespaceTest.create(server, fixture))
     test(_DocHighlightOutOfBoundsTest.create(server, fixture))
     test(_DocHighlightUninitLocalTest.create(server, fixture))
+    test(_DocHighlightTupleAssignATest.create(server, fixture))
+    test(_DocHighlightTupleAssignBTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -838,6 +840,62 @@ class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
         [ (148, 8, 148, 11, DocumentHighlightKind.read())
           (149, 4, 149, 7, DocumentHighlightKind.write())
           (150, 4, 150, 7, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightTupleAssignATest is UnitTest
+  """
+  Highlights `ta` in a tuple destructuring assignment.
+  Expects 3 occurrences:
+    line 163 col  8  (var ta: U32 = 0 — Write, has initializer)
+    line 165 col  5  ((ta, tb) = ... LHS — Write, tuple destructuring)
+    line 166 col  4  (ta + tb — Read)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/tuple_assign_a"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (163, 8, _DocHighlightChecker(
+        [ (163, 8, 163, 10, DocumentHighlightKind.write())
+          (165, 5, 165, 7, DocumentHighlightKind.write())
+          (166, 4, 166, 6, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightTupleAssignBTest is UnitTest
+  """
+  Highlights `tb` in a tuple destructuring assignment.
+  Expects 3 occurrences:
+    line 164 col  8  (var tb: U32 = 0 — Write, has initializer)
+    line 165 col  9  ((ta, tb) = ... LHS — Write, tuple destructuring)
+    line 166 col  9  (ta + tb — Read)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/tuple_assign_b"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (164, 8, _DocHighlightChecker(
+        [ (164, 8, 164, 10, DocumentHighlightKind.write())
+          (165, 9, 165, 11, DocumentHighlightKind.write())
+          (166, 9, 166, 11, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
   """

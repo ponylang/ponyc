@@ -152,16 +152,11 @@ class ref _HighlightCollector is ASTVisitor
 
     if matches then
       let kind: I64 =
-        try
-          let par = ast.parent() as AST
-          if (par.id() == TokenIds.tk_assign()) and (ast.sibling_idx() == 0)
-          then
-            // LHS of any assignment — covers regular writes and
-            // local decl-with-initializer (tk_assign(tk_let/tk_var, expr)).
-            DocumentHighlightKind.write()
-          else
-            _decl_or_read_kind(ast)
-          end
+        if _is_assign_lhs(ast) then
+          // LHS of any assignment — covers regular writes,
+          // local decl-with-initializer (tk_assign(tk_let/tk_var, expr)),
+          // and tuple destructuring LHS (tk_assign(tk_tuple(...), ...)).
+          DocumentHighlightKind.write()
         else
           _decl_or_read_kind(ast)
         end
@@ -184,6 +179,33 @@ class ref _HighlightCollector is ASTVisitor
       end
     end
     Continue
+
+  fun _is_assign_lhs(ast: AST box): Bool =>
+    """
+    Returns true if `ast` is on the left-hand side of a `tk_assign`,
+    including when nested inside a destructuring tuple on the LHS
+    (e.g. the `a` in `(a, b) = expr`).
+
+    Ponyc wraps each tuple element in a single-child `tk_seq` node, so
+    the actual parent chain is: varref → tk_seq(1 child) → tk_tuple → tk_assign.
+    We traverse through both `tk_seq` (single-child) and `tk_tuple` nodes.
+    """
+    try
+      let par = ast.parent() as AST
+      if par.id() == TokenIds.tk_assign() then
+        ast.sibling_idx() == 0
+      elseif par.id() == TokenIds.tk_tuple() then
+        _is_assign_lhs(par)
+      elseif (par.id() == TokenIds.tk_seq()) and
+        (par.num_children() == 1)
+      then
+        _is_assign_lhs(par)
+      else
+        false
+      end
+    else
+      false
+    end
 
   fun _decl_or_read_kind(ast: AST box): I64 =>
     """

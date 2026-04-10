@@ -149,3 +149,19 @@ class _UninitLocal
     var acc: U32
     acc = 0
     acc
+
+class _TupleAssign
+  """
+  Demonstrates tuple destructuring assignment.
+  LHS elements of a tuple assignment are Write kind.
+
+  Place the cursor on `ta` to see both occurrences:
+    the var declaration (Write — has initializer)
+    the LHS of the tuple assign (Write)
+    the use in ta + tb (Read)
+  """
+  fun ref work(): U32 =>
+    var ta: U32 = 0
+    var tb: U32 = 0
+    (ta, tb) = (1, 2)
+    ta + tb
