@@ -21,15 +21,12 @@ primitive DocumentHighlights
 
     Each element of the returned array is `(range, kind)` where `kind` is a
     `DocumentHighlightKind` value:
-    - **Write (3)**: the node is the left-hand side of a `tk_assign` (including
-      local declaration-with-initializer, which ponyc represents as
-      `tk_assign(tk_let/tk_var, expr)`), or a field declaration with an inline
-      initializer (`var f: T = v` → child 2 of `tk_fvar`/`tk_flet`/`tk_embed`
-      is not `tk_none`).
+    - **Write (3)**: the node is the left-hand side of a `tk_assign`, or is
+      any value-binding declaration (`tk_let`, `tk_var`, `tk_fvar`, `tk_flet`,
+      `tk_embed`, `tk_param`). All declaration sites are Write, consistent with
+      mainstream LSP convention (clangd, rust-analyzer, tsserver).
     - **Read (2)**: a reference token (field ref, var ref, param ref,
-      function/behaviour/constructor call site, etc.), a local declaration
-      without an initializer (`var x: T` not in `tk_assign`), or a field
-      declaration without an inline initializer.
+      function/behaviour/constructor call site, etc.).
     - **Text (1)**: function/method/type declarations and type references.
     """
     // Literals have no referenceable identity — do not highlight.
@@ -112,13 +109,11 @@ class ref _HighlightCollector is ASTVisitor
 
   Kind assignment rules (evaluated on the matched AST node before extracting
   its identifier sub-node for the span):
-  - **Write**: the node is at child index 0 of a `tk_assign` parent (covers
-    regular assignments and local decl-with-initializer), or is a field
-    declaration (`tk_fvar`/`tk_flet`/`tk_embed`) whose initializer child
-    (index 2) is not `tk_none`.
-  - **Read**: the node is a local declaration (`tk_let`/`tk_var`) not inside a
-    `tk_assign` (i.e. declared without an initializer), a field declaration
-    without an inline initializer, or a reference token.
+  - **Write**: the node is at child index 0 of a `tk_assign` parent, or is any
+    value-binding declaration (`tk_let`, `tk_var`, `tk_fvar`, `tk_flet`,
+    `tk_embed`, `tk_param`).
+  - **Read**: a reference token (field ref, var ref, param ref,
+    function/behaviour/constructor call site, etc.).
   - **Text**: method/function/type declarations and type references.
   """
   let _target: AST val
@@ -212,42 +207,17 @@ class ref _HighlightCollector is ASTVisitor
     Classify a declaration or reference node that is NOT the LHS of a
     `tk_assign`.
 
-    - Local declaration (`tk_let`/`tk_var`) not in an assignment: the name is
-      being bound without an immediate write, so Read.
-    - Field declaration (`tk_fvar`/`tk_flet`/`tk_embed`): Write if the field
-      had an inline initializer (detected via `HighlightSource`), Read if not.
+    - Value-binding declarations (`tk_let`, `tk_var`, `tk_fvar`, `tk_flet`,
+      `tk_embed`, `tk_param`): always Write, consistent with mainstream LSP
+      implementations (clangd, rust-analyzer, tsserver).
     - Reference tokens: Read.
     - Everything else (methods, types, etc.): Text.
     """
     match ast.id()
-    | TokenIds.tk_let() | TokenIds.tk_var() =>
-      // local decl without initializer
-      DocumentHighlightKind.read()
-    | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed() =>
-      // Field declarations with an inline initializer (`var f: T = v`) are
-      // Write; those without are Read. The sugar pass strips the initializer
-      // from the field's AST node before the LSP sees the tree, so we recover
-      // the information from the source text via HighlightSource.
-      let has_init =
-        try
-          let src = ast.source_contents() as String box
-          let l = ast.line()
-          let col = ast.pos()
-          let kw_start: USize =
-            if l == 1 then
-              col - 1
-            else
-              (src.find("\n" where nth = l - 2)? + 1).usize() + (col - 1)
-            end
-          DocumentHighlightSource.field_has_initializer(src, kw_start)
-        else
-          false
-        end
-      if has_init then
-        DocumentHighlightKind.write()
-      else
-        DocumentHighlightKind.read()
-      end
+    | TokenIds.tk_let() | TokenIds.tk_var()
+    | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed()
+    | TokenIds.tk_param() =>
+      DocumentHighlightKind.write()
     else
       _read_kind(ast.id())
     end

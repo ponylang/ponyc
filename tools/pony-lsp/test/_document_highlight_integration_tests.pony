@@ -143,7 +143,7 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
   Highlights the `_flag` let field from its declaration.
   Expects 4 occurrences:
-    line  80 col  6  (let _flag: Bool — Read, no inline initializer)
+    line  80 col  6  (let _flag: Bool — Write, declaration)
     line  85 col  4  (assigned true in create — Write)
     line  90 col  4  (assigned false in other — Write)
     line 111 col  4  (_flag in enabled() body — Read, tk_fletref)
@@ -164,7 +164,7 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
       _server,
       _fixture,
       [ (80, 6, _DocHighlightChecker(
-        [ (80, 6, 80, 11, DocumentHighlightKind.read())
+        [ (80, 6, 80, 11, DocumentHighlightKind.write())
           (85, 4, 85, 9, DocumentHighlightKind.write())
           (90, 4, 90, 9, DocumentHighlightKind.write())
           (111, 4, 111, 9, DocumentHighlightKind.read())]))])
@@ -173,7 +173,7 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
   Highlights the `_inner` embed field from its declaration.
   Expects 4 occurrences:
-    line  81 col  8  (embed _inner: _Inner — Read, no inline initializer)
+    line  81 col  8  (embed _inner: _Inner — Write, declaration)
     line  86 col  4  (assigned in create — Write)
     line  91 col  4  (assigned in other — Write)
     line 114 col  4  (_inner in inner_x() body — Read, tk_embedref)
@@ -194,7 +194,7 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
       _server,
       _fixture,
       [ (81, 8, _DocHighlightChecker(
-        [ (81, 8, 81, 14, DocumentHighlightKind.read())
+        [ (81, 8, 81, 14, DocumentHighlightKind.write())
           (86, 4, 86, 10, DocumentHighlightKind.write())
           (91, 4, 91, 10, DocumentHighlightKind.write())
           (114, 4, 114, 10, DocumentHighlightKind.read())]))])
@@ -260,7 +260,7 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
   """
   Highlights the `x` parameter of `add` from its declaration.
   Expects 3 occurrences:
-    line 94 col 14  (x param declaration in add — Text)
+    line 94 col 14  (x param declaration in add — Write)
     line 95 col 18  (_val = _val + x — Read)
     line 96 col  4  (x — return value — Read)
   """
@@ -280,7 +280,7 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
       _server,
       _fixture,
       [ (94, 14, _DocHighlightChecker(
-        [ (94, 14, 94, 15, DocumentHighlightKind.text())
+        [ (94, 14, 94, 15, DocumentHighlightKind.write())
           (95, 18, 95, 19, DocumentHighlightKind.read())
           (96, 4, 96, 5, DocumentHighlightKind.read())]))])
 
@@ -522,7 +522,7 @@ class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
   """
   Highlights the `_val` fvar field of _HighlightMore from its declaration.
   Expects 5 occurrences:
-    line 82 col  6  (var _val: U32 — Read, no inline initializer)
+    line 82 col  6  (var _val: U32 — Write, declaration)
     line 87 col  4  (_val = 0 in create — Write)
     line 92 col  4  (_val = 1 in other — Write)
     line 95 col  4  (_val = ... LHS in add — Write)
@@ -544,7 +544,7 @@ class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
       _server,
       _fixture,
       [ (82, 6, _DocHighlightChecker(
-        [ (82, 6, 82, 10, DocumentHighlightKind.read())
+        [ (82, 6, 82, 10, DocumentHighlightKind.write())
           (87, 4, 87, 8, DocumentHighlightKind.write())
           (92, 4, 92, 8, DocumentHighlightKind.write())
           (95, 4, 95, 8, DocumentHighlightKind.write())
@@ -554,7 +554,7 @@ class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
   """
   Highlights the `n` parameter of do_work from its declaration.
   Expects 3 occurrences:
-    line 104 col 18  (n param declaration in do_work — Text)
+    line 104 col 18  (n param declaration in do_work — Write)
     line 105 col 17  (let v: U32 = n — Read)
     line 107 col 16  (w = w + add(n) — Read)
   """
@@ -574,7 +574,7 @@ class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
       _server,
       _fixture,
       [ (104, 18, _DocHighlightChecker(
-        [ (104, 18, 104, 19, DocumentHighlightKind.text())
+        [ (104, 18, 104, 19, DocumentHighlightKind.write())
           (105, 17, 105, 18, DocumentHighlightKind.read())
           (107, 16, 107, 17, DocumentHighlightKind.read())]))])
 
@@ -672,7 +672,7 @@ class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
   Verifies that starting from a reference produces the same highlights
   as starting from the declaration (_DocHighlightParamTest).
   Expects 3 occurrences:
-    line 94 col 14  (x param declaration in add — Text)
+    line 94 col 14  (x param declaration in add — Write)
     line 95 col 18  (_val = _val + x — Read)
     line 96 col  4  (x — return value — Read)
   """
@@ -692,7 +692,7 @@ class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
       _server,
       _fixture,
       [ (95, 18, _DocHighlightChecker(
-        [ (94, 14, 94, 15, DocumentHighlightKind.text())
+        [ (94, 14, 94, 15, DocumentHighlightKind.write())
           (95, 18, 95, 19, DocumentHighlightKind.read())
           (96, 4, 96, 5, DocumentHighlightKind.read())]))])
 
@@ -820,7 +820,7 @@ class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
   """
   Highlights `acc` — a local var declared without an initializer.
   Expects 3 occurrences:
-    line 148 col  8  (var acc: U32 — Read, no initializer)
+    line 148 col  8  (var acc: U32 — Write, declaration)
     line 149 col  4  (acc = 0 LHS — Write)
     line 150 col  4  (return acc — Read)
   """
@@ -840,7 +840,7 @@ class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
       _server,
       _fixture,
       [ (148, 8, _DocHighlightChecker(
-        [ (148, 8, 148, 11, DocumentHighlightKind.read())
+        [ (148, 8, 148, 11, DocumentHighlightKind.write())
           (149, 4, 149, 7, DocumentHighlightKind.write())
           (150, 4, 150, 7, DocumentHighlightKind.read())]))])
 
@@ -985,7 +985,7 @@ class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
   """
   Highlights `_flag` from a tk_fletref site (enabled() body, line 111 col 4).
   Expects the same 4 occurrences as _DocHighlightFletTest:
-    line  80 col  6  (let _flag: Bool — Read, no inline initializer)
+    line  80 col  6  (let _flag: Bool — Write, declaration)
     line  85 col  4  (assigned true in create — Write)
     line  90 col  4  (assigned false in other — Write)
     line 111 col  4  (_flag in enabled() body — Read, tk_fletref)
@@ -1006,7 +1006,7 @@ class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
       _server,
       _fixture,
       [ (111, 4, _DocHighlightChecker(
-        [ (80, 6, 80, 11, DocumentHighlightKind.read())
+        [ (80, 6, 80, 11, DocumentHighlightKind.write())
           (85, 4, 85, 9, DocumentHighlightKind.write())
           (90, 4, 90, 9, DocumentHighlightKind.write())
           (111, 4, 111, 9, DocumentHighlightKind.read())]))])
@@ -1015,7 +1015,7 @@ class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
   """
   Highlights `_inner` from a tk_embedref site (inner_x() body, line 114 col 4).
   Expects the same 4 occurrences as _DocHighlightEmbedTest:
-    line  81 col  8  (embed _inner: _Inner — Read, no inline initializer)
+    line  81 col  8  (embed _inner: _Inner — Write, declaration)
     line  86 col  4  (assigned in create — Write)
     line  91 col  4  (assigned in other — Write)
     line 114 col  4  (_inner in inner_x() body — Read, tk_embedref)
@@ -1036,7 +1036,7 @@ class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
       _server,
       _fixture,
       [ (114, 4, _DocHighlightChecker(
-        [ (81, 8, 81, 14, DocumentHighlightKind.read())
+        [ (81, 8, 81, 14, DocumentHighlightKind.write())
           (86, 4, 86, 10, DocumentHighlightKind.write())
           (91, 4, 91, 10, DocumentHighlightKind.write())
           (114, 4, 114, 10, DocumentHighlightKind.read())]))])

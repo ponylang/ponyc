@@ -142,8 +142,8 @@ class _LiteralExamples
 class _UninitLocal
   """
   Demonstrates a local variable declared without an inline initializer.
-  `acc` is declared as `var acc: U32` (no `= expr`), so its declaration
-  site is Read kind; subsequent assignments are Write.
+  `acc` is declared as `var acc: U32` (no `= expr`). All declarations are
+  Write kind; the `acc = 0` assignment below is also Write; the return is Read.
   """
   fun ref example(): U32 =>
     var acc: U32
