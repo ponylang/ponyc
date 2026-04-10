@@ -976,6 +976,26 @@ class val _DocHighlightChecker
     var ok = true
     match res.result
     | let arr: JsonArray =>
+      // Log all actual highlights upfront so they appear on any failure,
+      // including kind mismatches where the count happens to match.
+      for item in arr.values() do
+        try
+          let range = JsonNav(item)("range")
+          let sl = range("start")("line").as_i64()?
+          let sc = range("start")("character").as_i64()?
+          let el = range("end")("line").as_i64()?
+          let ec = range("end")("character").as_i64()?
+          let kind = try
+            JsonNav(item)("kind").as_i64()?
+          else
+            I64(1)
+          end
+          h.log(
+            "  actual highlight (" + sl.string() + ", " + sc.string() +
+            ")–(" + el.string() + ", " + ec.string() +
+            ") kind=" + kind.string())
+        end
+      end
       let got = arr.size()
       let want = _expected.size()
       if not h.assert_eq[USize](
@@ -984,21 +1004,6 @@ class val _DocHighlightChecker
         "Expected " + want.string() + " highlights, got " + got.string())
       then
         ok = false
-        // Log all actual highlights to diagnose unexpected results
-        for item in arr.values() do
-          try
-            let range = JsonNav(item)("range")
-            let sl = range("start")("line").as_i64()?
-            let sc = range("start")("character").as_i64()?
-            let el = range("end")("line").as_i64()?
-            let ec = range("end")("character").as_i64()?
-            let kind = try JsonNav(item)("kind").as_i64()? else I64(1) end
-            h.log(
-              "  actual highlight (" + sl.string() + ", " + sc.string() +
-              ")–(" + el.string() + ", " + ec.string() +
-              ") kind=" + kind.string())
-          end
-        end
       end
       for (exp_sl, exp_sc, exp_el, exp_ec, exp_kind) in _expected.values() do
         var found = false
