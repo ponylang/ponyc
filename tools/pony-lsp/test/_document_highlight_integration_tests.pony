@@ -1069,11 +1069,12 @@ class val _DocHighlightChecker
           let sc = range("start")("character").as_i64()?
           let el = range("end")("line").as_i64()?
           let ec = range("end")("character").as_i64()?
-          let kind = try
-            JsonNav(item)("kind").as_i64()?
-          else
-            I64(1)
-          end
+          let kind =
+            try
+              JsonNav(item)("kind").as_i64()?
+            else
+              I64(1)
+            end
           h.log(
             "  actual highlight (" + sl.string() + ", " + sc.string() +
             ")–(" + el.string() + ", " + ec.string() +
