@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add LSP `textDocument/references` support ([PR #5165](https://github.com/ponylang/ponyc/pull/5165))
 - Add LSP go-to-definition for type aliases ([PR #5163](https://github.com/ponylang/ponyc/pull/5163))
 - Add kind to pony-lsp document highlights ([PR #5188](https://github.com/ponylang/ponyc/pull/5188))
+- Add generic type parameter highlights to pony-lsp ([PR #5190](https://github.com/ponylang/ponyc/pull/5190))
 
 ### Changed
 
