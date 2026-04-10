@@ -108,6 +108,12 @@ class _HighlightMore
     w = w + add(n)
     w
 
+  fun box enabled(): Bool =>
+    _flag
+
+  fun box inner_x(): U32 =>
+    _inner.x
+
 actor _HighlightRunner
   """
   Demonstrates behaviour and beref highlights.
@@ -132,3 +138,71 @@ class _LiteralExamples
   """
   let _f: F64 = 3.14
   let _s: String val = "hello"
+
+class _UninitLocal
+  """
+  Demonstrates a local variable declared without an inline initializer.
+  `acc` is declared as `var acc: U32` (no `= expr`). All declarations are
+  Write kind; the `acc = 0` assignment below is also Write; the return is Read.
+  """
+  fun ref example(): U32 =>
+    var acc: U32
+    acc = 0
+    acc
+
+class _TupleAssign
+  """
+  Demonstrates tuple destructuring assignment.
+  LHS elements of a tuple assignment are Write kind.
+
+  Place the cursor on `ta` to see both occurrences:
+    the var declaration (Write — has initializer)
+    the LHS of the tuple assign (Write)
+    the use in ta + tb (Read)
+  """
+  fun ref work(): U32 =>
+    var ta: U32 = 0
+    var tb: U32 = 0
+    (ta, tb) = (1, 2)
+    ta + tb
+
+class _TupleElemAccess
+  """
+  Demonstrates a tuple element reference (tk_tupleelemref).
+  Placing the cursor on `_1` in `pair._1` should produce a Read highlight
+  spanning the full `pair._1` expression.
+  """
+  fun box work(): U32 =>
+    let pair: (U32, U32) = (42, 7)
+    pair._1
+
+actor _BeChainActor
+  """
+  Demonstrates tk_beref (expression receiver) and tk_newberef highlights.
+
+  Place the cursor on `go` to see both occurrences: the behaviour
+  declaration and the expression-receiver call site in chain_go (tk_beref).
+
+  Place the cursor on `create` to see both occurrences: the constructor
+  declaration and the call site in _NewBeRefExample (tk_newberef).
+  """
+  new create() =>
+    None
+
+  be go(n: U32) =>
+    None
+
+  fun box get_self(): _BeChainActor tag =>
+    this
+
+  fun box chain_go(): None =>
+    get_self().go(1)
+
+class _NewBeRefExample
+  """
+  Demonstrates tk_newberef highlights.
+  Place the cursor on `create` in _BeChainActor.create() to see both
+  occurrences: the constructor declaration and this call site.
+  """
+  fun ref work(): _BeChainActor tag =>
+    _BeChainActor.create()

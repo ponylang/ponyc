@@ -566,10 +566,14 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     match _find_node_and_module(document_path, line, column)
     | (let node: AST box, let module: Module val) =>
-      let ranges = DocumentHighlights.collect(node, module)
+      let highlights = DocumentHighlights.collect(node, module)
       var json_arr = JsonArray
-      for range in ranges.values() do
-        json_arr = json_arr.push(JsonObject.update("range", range.to_json()))
+      for (range, kind) in highlights.values() do
+        json_arr =
+          json_arr.push(
+            JsonObject
+              .update("range", range.to_json())
+              .update("kind", kind))
       end
       this._channel.send(ResponseMessage(request.id, json_arr))
       return

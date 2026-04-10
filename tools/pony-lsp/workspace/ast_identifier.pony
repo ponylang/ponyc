@@ -63,13 +63,16 @@ primitive ASTIdentifier
         end
       end
     | TokenIds.tk_funref()
+    | TokenIds.tk_funapp()
     | TokenIds.tk_beref()
+    | TokenIds.tk_beapp()
     | TokenIds.tk_newref()
     | TokenIds.tk_newberef()
+    | TokenIds.tk_newapp()
     | TokenIds.tk_funchain()
     | TokenIds.tk_bechain() =>
-      // Method call references: method name is the sibling of
-      // the receiver child
+      // Method call references and partial applications: method name is the
+      // sibling of the receiver child
       try
         let receiver = ast.child() as AST
         let method = receiver.sibling() as AST
