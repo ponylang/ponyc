@@ -99,14 +99,38 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 
     case TK_TYPEALIASREF:
     {
-      // Don't free: find_infer_type may return a pointer into the unfolded
-      // tree (e.g., the TK_TUPLETYPE node itself or a child of it).
       ast_t* unfolded = typealias_unfold(type);
 
       if(unfolded == NULL)
         return NULL;
 
-      return find_infer_type(opt, unfolded, path);
+      ast_t* result = find_infer_type(opt, unfolded, path);
+
+      if(result == NULL)
+      {
+        ast_free_unattached(unfolded);
+        return NULL;
+      }
+
+      // The recursive call may return: (a) unfolded itself, (b) an
+      // interior descendant of unfolded, or (c) a freshly-built tree from
+      // type_union or type_isect. Dup result so the returned subtree is
+      // independent of unfolded. ast_dup copies the root's scope pointer
+      // from result->parent — which in cases (a) and (b) points inside
+      // the unfolded tree we are about to free — so clear it before the
+      // free. Do not remove the ast_set_scope call: no downstream pass
+      // reads this scope today, but any future code walking ast_parent
+      // or ast_get on the returned type would dereference freed memory.
+      // Free unfolded (collects cases a and b) and, separately, any
+      // fresh tree returned in case (c).
+      ast_t* dup_result = ast_dup(result);
+      ast_set_scope(dup_result, NULL);
+
+      if(result != unfolded)
+        ast_free_unattached(result);
+
+      ast_free_unattached(unfolded);
+      return dup_result;
     }
 
     default:
