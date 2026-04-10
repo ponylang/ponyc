@@ -15,7 +15,9 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightFieldRefTest.create(server, fixture))
     test(_DocHighlightLocalTest.create(server, fixture))
     test(_DocHighlightFletTest.create(server, fixture))
+    test(_DocHighlightFletRefTest.create(server, fixture))
     test(_DocHighlightEmbedTest.create(server, fixture))
+    test(_DocHighlightEmbedRefTest.create(server, fixture))
     test(_DocHighlightNewRefTest.create(server, fixture))
     test(_DocHighlightFunRefTest.create(server, fixture))
     test(_DocHighlightParamTest.create(server, fixture))
@@ -135,10 +137,11 @@ class \nodoc\ iso _DocHighlightLocalTest
 class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
   Highlights the `_flag` let field from its declaration.
-  Expects 3 occurrences:
-    line 80 col  6  (let _flag: Bool — Read, no inline initializer)
-    line 85 col  4  (assigned true in create)
-    line 90 col  4  (assigned false in other)
+  Expects 4 occurrences:
+    line  80 col  6  (let _flag: Bool — Read, no inline initializer)
+    line  85 col  4  (assigned true in create)
+    line  90 col  4  (assigned false in other)
+    line 111 col  4  (_flag in enabled() body — Read, tk_fletref)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -158,15 +161,17 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
       [ (80, 6, _DocHighlightChecker(
         [ (80, 6, 80, 11, DocumentHighlightKind.read())
           (85, 4, 85, 9, DocumentHighlightKind.write())
-          (90, 4, 90, 9, DocumentHighlightKind.write())]))])
+          (90, 4, 90, 9, DocumentHighlightKind.write())
+          (111, 4, 111, 9, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
   Highlights the `_inner` embed field from its declaration.
-  Expects 3 occurrences:
-    line 81 col  8  (embed _inner: _Inner — Read, no inline initializer)
-    line 86 col  4  (assigned in create)
-    line 91 col  4  (assigned in other)
+  Expects 4 occurrences:
+    line  81 col  8  (embed _inner: _Inner — Read, no inline initializer)
+    line  86 col  4  (assigned in create)
+    line  91 col  4  (assigned in other)
+    line 114 col  4  (_inner in inner_x() body — Read, tk_embedref)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -186,7 +191,8 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
       [ (81, 8, _DocHighlightChecker(
         [ (81, 8, 81, 14, DocumentHighlightKind.read())
           (86, 4, 86, 10, DocumentHighlightKind.write())
-          (91, 4, 91, 10, DocumentHighlightKind.write())]))])
+          (91, 4, 91, 10, DocumentHighlightKind.write())
+          (114, 4, 114, 10, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
   """
@@ -307,8 +313,8 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
   Highlights the `run` behaviour from its declaration.
   Expects 2 occurrences:
-    line 121 col  5  (be run declaration)
-    line 125 col  4  (run(1) call in trigger)
+    line 127 col  5  (be run declaration)
+    line 131 col  4  (run(1) call in trigger)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -325,9 +331,9 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (121, 5, _DocHighlightChecker(
-        [ (121, 5, 121, 8, DocumentHighlightKind.text())
-          (125, 4, 125, 7, DocumentHighlightKind.read())]))])
+      [ (127, 5, _DocHighlightChecker(
+        [ (127, 5, 127, 8, DocumentHighlightKind.text())
+          (131, 4, 131, 7, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
   """
@@ -466,7 +472,7 @@ class \nodoc\ iso _DocHighlightNoneTest is UnitTest
   Placing the cursor on `None` (a type-literal expression) should produce no
   highlights. `None` desugars to `None.create()` synthetically; it has no
   referenceable identity.
-  Tests `None` on line 122 col 4 (body of be run in _HighlightRunner).
+  Tests `None` on line 128 col 4 (body of be run in _HighlightRunner).
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -479,7 +485,7 @@ class \nodoc\ iso _DocHighlightNoneTest is UnitTest
     "document_highlight/integration/none_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(122, 4, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [(128, 4, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
   """
@@ -736,7 +742,7 @@ class \nodoc\ iso _DocHighlightIntLiteralTest is UnitTest
 class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
   """
   Placing the cursor on a float literal should produce no highlights.
-  Tests `3.14` on line 132 col 16 (let _f: F64 = 3.14 in _LiteralExamples).
+  Tests `3.14` on line 138 col 16 (let _f: F64 = 3.14 in _LiteralExamples).
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -749,12 +755,12 @@ class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
     "document_highlight/integration/float_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(132, 16, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [(138, 16, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
   """
   Placing the cursor on a string literal should produce no highlights.
-  Tests `"hello"` on line 133 col 23 (in _LiteralExamples).
+  Tests `"hello"` on line 139 col 23 (in _LiteralExamples).
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -767,7 +773,7 @@ class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
     "document_highlight/integration/string_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(133, 23, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [(139, 23, _DocHighlightChecker([]))])
 
 class \nodoc\ iso _DocHighlightWhitespaceTest is UnitTest
   """
@@ -809,9 +815,9 @@ class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
   """
   Highlights `acc` — a local var declared without an initializer.
   Expects 3 occurrences:
-    line 142 col  8  (var acc: U32 — Read, no initializer)
-    line 143 col  4  (acc = 0 LHS — Write)
-    line 144 col  4  (return acc — Read)
+    line 148 col  8  (var acc: U32 — Read, no initializer)
+    line 149 col  4  (acc = 0 LHS — Write)
+    line 150 col  4  (return acc — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -828,10 +834,70 @@ class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (142, 8, _DocHighlightChecker(
-        [ (142, 8, 142, 11, DocumentHighlightKind.read())
-          (143, 4, 143, 7, DocumentHighlightKind.write())
-          (144, 4, 144, 7, DocumentHighlightKind.read())]))])
+      [ (148, 8, _DocHighlightChecker(
+        [ (148, 8, 148, 11, DocumentHighlightKind.read())
+          (149, 4, 149, 7, DocumentHighlightKind.write())
+          (150, 4, 150, 7, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
+  """
+  Highlights `_flag` from a tk_fletref site (enabled() body, line 111 col 4).
+  Expects the same 4 occurrences as _DocHighlightFletTest:
+    line  80 col  6  (let _flag: Bool — Read, no inline initializer)
+    line  85 col  4  (assigned true in create)
+    line  90 col  4  (assigned false in other)
+    line 111 col  4  (_flag in enabled() body — Read, tk_fletref)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/flet_ref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (111, 4, _DocHighlightChecker(
+        [ (80, 6, 80, 11, DocumentHighlightKind.read())
+          (85, 4, 85, 9, DocumentHighlightKind.write())
+          (90, 4, 90, 9, DocumentHighlightKind.write())
+          (111, 4, 111, 9, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
+  """
+  Highlights `_inner` from a tk_embedref site (inner_x() body, line 114 col 4).
+  Expects the same 4 occurrences as _DocHighlightEmbedTest:
+    line  81 col  8  (embed _inner: _Inner — Read, no inline initializer)
+    line  86 col  4  (assigned in create)
+    line  91 col  4  (assigned in other)
+    line 114 col  4  (_inner in inner_x() body — Read, tk_embedref)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/embed_ref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (114, 4, _DocHighlightChecker(
+        [ (81, 8, 81, 14, DocumentHighlightKind.read())
+          (86, 4, 86, 10, DocumentHighlightKind.write())
+          (91, 4, 91, 10, DocumentHighlightKind.write())
+          (114, 4, 114, 10, DocumentHighlightKind.read())]))])
 
 class val _DocHighlightChecker
   let _expected: Array[(I64, I64, I64, I64, I64)] val

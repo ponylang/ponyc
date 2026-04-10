@@ -108,6 +108,12 @@ class _HighlightMore
     w = w + add(n)
     w
 
+  fun box enabled(): Bool =>
+    _flag
+
+  fun box inner_x(): U32 =>
+    _inner.x
+
 actor _HighlightRunner
   """
   Demonstrates behaviour and beref highlights.
