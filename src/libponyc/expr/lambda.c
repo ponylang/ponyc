@@ -213,12 +213,44 @@ static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
 
     case TK_TYPEALIASREF:
     {
-      // Don't free the unfolded AST: find_possible_fun_defs stores pointers
-      // into it (the obj_cap at child 3 of the nominal) that the caller uses.
       ast_t* unfolded = typealias_unfold(ast);
 
       if(unfolded != NULL)
-        find_possible_fun_defs(opt, unfolded, fun_defs, obj_caps);
+      {
+        // Recurse into temporary local lists. The recursion may store
+        // pointers into the unfolded tree in obj_caps (the obj_cap at
+        // child 3 of any TK_NOMINAL found inside the unfolded result).
+        // We dup those pointers before freeing the unfolded tree so the
+        // caller doesn't hold dangling references. fun_defs entries
+        // point to permanent type definitions (via ast_data) or are
+        // freshly allocated by reify_method_def, so they don't need
+        // duping.
+        astlist_t* local_fun_defs = NULL;
+        astlist_t* local_obj_caps = NULL;
+        find_possible_fun_defs(opt, unfolded, &local_fun_defs,
+          &local_obj_caps);
+
+        astlist_t* fd = local_fun_defs;
+        astlist_t* oc = local_obj_caps;
+        while(fd != NULL && oc != NULL)
+        {
+          *fun_defs = astlist_push(*fun_defs, astlist_data(fd));
+
+          // ast_dup copies the scope pointer from the original's parent
+          // (which is inside the unfolded tree we're about to free).
+          // Clear it to avoid a dangling scope reference.
+          ast_t* dup_cap = ast_dup(astlist_data(oc));
+          ast_set_scope(dup_cap, NULL);
+          *obj_caps = astlist_push(*obj_caps, dup_cap);
+
+          fd = astlist_next(fd);
+          oc = astlist_next(oc);
+        }
+
+        astlist_free(local_fun_defs);
+        astlist_free(local_obj_caps);
+        ast_free_unattached(unfolded);
+      }
 
       break;
     }
@@ -273,26 +305,38 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       ast_t* def_obj_cap = astlist_data(obj_cap_cursor);
 
       if(is_typecheck_error(fun_def))
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       AST_GET_CHILDREN(fun_def, def_receiver_cap, def_name, def_t_params,
         def_params, def_ret_type, def_raises);
 
       // Must have the same number of parameters.
       if(ast_childcount(params) != ast_childcount(def_params))
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       // Must have a supercap of the def's receiver cap (if present).
       if((ast_id(receiver_cap) != TK_NONE) && (ast_id(receiver_cap) != TK_AT) &&
         !is_cap_sub_cap(ast_id(def_receiver_cap), TK_NONE,
         ast_id(receiver_cap), TK_NONE)
         )
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       // Must have a supercap of the def's object cap (if present).
       if((ast_id(obj_cap) != TK_NONE) &&
         !is_cap_sub_cap(ast_id(obj_cap), TK_NONE, ast_id(def_obj_cap), TK_NONE))
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       // TODO: This logic could potentially be expanded to do deeper
       // compatibility checks, but checks involving subtyping here would be
@@ -352,6 +396,18 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     ast_free_unattached(fun_def);
   }
 
+  // Free any owned obj_cap entries remaining in the list. For caps from
+  // the TK_TYPEALIASREF path these are owned dups; consumed caps (moved
+  // into the tree by ast_replace) have a parent, so ast_free_unattached
+  // is a no-op. For caps from permanent AST nominals they also have a
+  // parent. This handles all list sizes uniformly: the == 1 case (where
+  // ast_replace may or may not have consumed the cap), the > 1 case
+  // (surviving candidates after filtering), and the 0 case (no-op).
+  for(astlist_t* oc = possible_obj_caps; oc != NULL;
+    oc = astlist_next(oc))
+  {
+    ast_free_unattached(astlist_data(oc));
+  }
   astlist_free(possible_obj_caps);
 
   // If any parameters still have no type specified, it's an error.
