@@ -20,6 +20,12 @@
 //
 // The pre-fix counterfactual fires first at `operator.c:660`. With the
 // fix, all three sites are exercised end-to-end. See ponylang/ponyc#5195.
+//
+// This test also exercises the fix for ponylang/ponyc#5199 (memory leak
+// in `find_infer_type`'s TK_TYPEALIASREF case): the destructure routes
+// through `infer_local_inner` → `find_infer_type(TK_TYPEALIASREF, path)`
+// and hits case (b), where the recursive call returns an interior
+// descendant of the unfolded tree.
 
 use @pony_exitcode[None](code: I32)
 
