@@ -2,6 +2,8 @@ use ".."
 use "collections"
 use "pony_compiler"
 
+type DocumentHighlight is (LspPositionRange, I64)
+
 primitive DocumentHighlights
   """
   Collects `textDocument/documentHighlight` results for a given AST node.
@@ -12,7 +14,7 @@ primitive DocumentHighlights
   """
   fun collect(
     node: AST box,
-    module: Module val): Array[(LspPositionRange, I64)]
+    module: Module val): Array[DocumentHighlight]
   =>
     """
     Walk the module AST and return the source ranges and kinds of all nodes
@@ -35,7 +37,7 @@ primitive DocumentHighlights
       or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
       or (nid == TokenIds.tk_string())
     then
-      return Array[(LspPositionRange, I64)]
+      return Array[DocumentHighlight]
     end
 
     // Type-literal expressions such as `None` are desugared by the compiler
@@ -50,7 +52,7 @@ primitive DocumentHighlights
         if (par.id() == TokenIds.tk_call()) and
           (par.position() == node.position())
         then
-          return Array[(LspPositionRange, I64)]
+          return Array[DocumentHighlight]
         end
       end
     end
@@ -117,12 +119,12 @@ class ref _HighlightCollector is ASTVisitor
   - **Text**: method/function/type declarations and type references.
   """
   let _target: AST val
-  let _highlights: Array[(LspPositionRange, I64)] ref
+  let _highlights: Array[DocumentHighlight] ref
   let _seen: Set[String]
 
   new ref create(target: AST val) =>
     _target = target
-    _highlights = Array[(LspPositionRange, I64)].create()
+    _highlights = Array[DocumentHighlight].create()
     _seen = Set[String].create()
 
   fun ref visit(ast: AST box): VisitResult =>
@@ -253,5 +255,5 @@ class ref _HighlightCollector is ASTVisitor
       DocumentHighlightKind.text()
     end
 
-  fun ref highlights(): Array[(LspPositionRange, I64)] =>
+  fun ref highlights(): Array[DocumentHighlight] =>
     _highlights
