@@ -10,6 +10,8 @@ primitive _DocumentHighlightSourceTests is TestList
     test(_HighlightSourceEqInCommentTest)
     test(_HighlightSourceFletInitializerTest)
     test(_HighlightSourceFletNoInitializerTest)
+    test(_HighlightSourceEmbedInitializerTest)
+    test(_HighlightSourceEmbedNoInitializerTest)
     test(_HighlightSourceMultilineInitializerTest)
     test(_HighlightSourceMultilineNoInitializerTest)
 
@@ -48,6 +50,22 @@ class \nodoc\ iso _HighlightSourceFletNoInitializerTest is UnitTest
 
   fun apply(h: TestHelper) =>
     let src = "let flet_without_init: Bool"
+    h.assert_false(DocumentHighlightSource.field_has_initializer(src, 0))
+
+class \nodoc\ iso _HighlightSourceEmbedInitializerTest is UnitTest
+  fun name(): String =>
+    "highlight_source/field_has_initializer/embed_with_init"
+
+  fun apply(h: TestHelper) =>
+    let src = "embed e: _Inner = _Inner.create()"
+    h.assert_true(DocumentHighlightSource.field_has_initializer(src, 0))
+
+class \nodoc\ iso _HighlightSourceEmbedNoInitializerTest is UnitTest
+  fun name(): String =>
+    "highlight_source/field_has_initializer/embed_without_init"
+
+  fun apply(h: TestHelper) =>
+    let src = "embed e: _Inner"
     h.assert_false(DocumentHighlightSource.field_has_initializer(src, 0))
 
 class \nodoc\ iso _HighlightSourceMultilineInitializerTest is UnitTest
