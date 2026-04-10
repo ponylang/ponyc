@@ -45,6 +45,7 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightUninitLocalTest.create(server, fixture))
     test(_DocHighlightTupleAssignATest.create(server, fixture))
     test(_DocHighlightTupleAssignBTest.create(server, fixture))
+    test(_DocHighlightTupleElemRefTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -896,6 +897,34 @@ class \nodoc\ iso _DocHighlightTupleAssignBTest is UnitTest
         [ (164, 8, 164, 10, DocumentHighlightKind.write())
           (165, 9, 165, 11, DocumentHighlightKind.write())
           (166, 9, 166, 11, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightTupleElemRefTest is UnitTest
+  """
+  Highlights from the `_1` position in `pair._1` (tk_tupleelemref).
+  The resolver follows the receiver, so this highlights all occurrences of
+  `pair`. Crucially, the tk_tupleelemref itself must be kind=Read (not Text).
+  Expects 2 occurrences:
+    line 175 col  8  (let pair declaration — Write, has initializer)
+    line 176 col  4  (pair._1 full expression — Read, tk_tupleelemref)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/tuple_elem_ref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (176, 9, _DocHighlightChecker(
+        [ (175, 8, 175, 12, DocumentHighlightKind.write())
+          (176, 4, 176, 11, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
   """

@@ -165,3 +165,13 @@ class _TupleAssign
     var tb: U32 = 0
     (ta, tb) = (1, 2)
     ta + tb
+
+class _TupleElemAccess
+  """
+  Demonstrates a tuple element reference (tk_tupleelemref).
+  Placing the cursor on `_1` in `pair._1` should produce a Read highlight
+  spanning the full `pair._1` expression.
+  """
+  fun box work(): U32 =>
+    let pair: (U32, U32) = (42, 7)
+    pair._1
