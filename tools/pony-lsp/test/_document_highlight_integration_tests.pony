@@ -55,10 +55,10 @@ class \nodoc\ iso _DocHighlightFieldTest
   Highlights the `count` field from its declaration site.
   Expects all 5 occurrences to be found:
     line 21 col  6  (var count: U32 = 0 declaration — Write, has initializer)
-    line 24 col  4  (tick LHS)
-    line 24 col 12  (tick RHS)
-    line 27 col  4  (value() body)
-    line 30 col 22  (use_local() body)
+    line 24 col  4  (tick LHS — Write)
+    line 24 col 12  (tick RHS — Read)
+    line 27 col  4  (value() body — Read)
+    line 30 col 22  (use_local() body — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -144,8 +144,8 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
   Highlights the `_flag` let field from its declaration.
   Expects 4 occurrences:
     line  80 col  6  (let _flag: Bool — Read, no inline initializer)
-    line  85 col  4  (assigned true in create)
-    line  90 col  4  (assigned false in other)
+    line  85 col  4  (assigned true in create — Write)
+    line  90 col  4  (assigned false in other — Write)
     line 111 col  4  (_flag in enabled() body — Read, tk_fletref)
   """
   let _server: _LspTestServer
@@ -174,8 +174,8 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   Highlights the `_inner` embed field from its declaration.
   Expects 4 occurrences:
     line  81 col  8  (embed _inner: _Inner — Read, no inline initializer)
-    line  86 col  4  (assigned in create)
-    line  91 col  4  (assigned in other)
+    line  86 col  4  (assigned in create — Write)
+    line  91 col  4  (assigned in other — Write)
     line 114 col  4  (_inner in inner_x() body — Read, tk_embedref)
   """
   let _server: _LspTestServer
@@ -203,9 +203,9 @@ class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
   """
   Highlights `create` constructor of _Inner from its declaration.
   Expects 3 occurrences:
-    line 51 col  6  (new create declaration in _Inner)
-    line 86 col 20  (_Inner.create() in create body)
-    line 91 col 20  (_Inner.create() in other body)
+    line 51 col  6  (new create declaration in _Inner — Text)
+    line 86 col 20  (_Inner.create() in create body — Read)
+    line 91 col 20  (_Inner.create() in other body — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -232,9 +232,9 @@ class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
   Highlights `add` from its declaration, covering tk_fun,
   tk_funref (direct call), and tk_funchain (chained call).
   Expects 3 occurrences:
-    line 94 col 10  (fun ref add declaration)
-    line 102 col 15  (get_self().add(1) — funchain)
-    line 107 col 12  (w = w + add(n) — funref)
+    line 94 col 10  (fun ref add declaration — Text)
+    line 102 col 15  (get_self().add(1) — Read, tk_funchain)
+    line 107 col 12  (w = w + add(n) — Read, tk_funref)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -260,9 +260,9 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
   """
   Highlights the `x` parameter of `add` from its declaration.
   Expects 3 occurrences:
-    line 94 col 14  (x param declaration in add)
-    line 95 col 18  (_val = _val + x — body use)
-    line 96 col  4  (x — return value)
+    line 94 col 14  (x param declaration in add — Text)
+    line 95 col 18  (_val = _val + x — Read)
+    line 96 col  4  (x — return value — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -318,8 +318,8 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
   Highlights the `run` behaviour from its declaration.
   Expects 2 occurrences:
-    line 127 col  5  (be run declaration)
-    line 131 col  4  (run(1) call in trigger)
+    line 127 col  5  (be run declaration — Text)
+    line 131 col  4  (run(1) call in trigger — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -497,7 +497,7 @@ class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
   Highlights the `x` fvar field of _Inner from its declaration.
   Expects 2 occurrences:
     line 49 col 6  (var x: U32 = 0 — Write, has inline initializer)
-    line 52 col 4  (x = 0 assignment in create)
+    line 52 col 4  (x = 0 assignment in create — Write)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -523,10 +523,10 @@ class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
   Highlights the `_val` fvar field of _HighlightMore from its declaration.
   Expects 5 occurrences:
     line 82 col  6  (var _val: U32 — Read, no inline initializer)
-    line 87 col  4  (_val = 0 in create)
-    line 92 col  4  (_val = 1 in other)
-    line 95 col  4  (_val = ... LHS in add)
-    line 95 col 11  (... + _val RHS in add)
+    line 87 col  4  (_val = 0 in create — Write)
+    line 92 col  4  (_val = 1 in other — Write)
+    line 95 col  4  (_val = ... LHS in add — Write)
+    line 95 col 11  (... + _val RHS in add — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -554,9 +554,9 @@ class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
   """
   Highlights the `n` parameter of do_work from its declaration.
   Expects 3 occurrences:
-    line 104 col 18  (n param declaration in do_work)
-    line 105 col 17  (let v: U32 = n)
-    line 107 col 16  (w = w + add(n))
+    line 104 col 18  (n param declaration in do_work — Text)
+    line 105 col 17  (let v: U32 = n — Read)
+    line 107 col 16  (w = w + add(n) — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -672,9 +672,9 @@ class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
   Verifies that starting from a reference produces the same highlights
   as starting from the declaration (_DocHighlightParamTest).
   Expects 3 occurrences:
-    line 94 col 14  (x param declaration in add)
-    line 95 col 18  (_val = _val + x — body use)
-    line 96 col  4  (x — return value)
+    line 94 col 14  (x param declaration in add — Text)
+    line 95 col 18  (_val = _val + x — Read)
+    line 96 col  4  (x — return value — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -702,9 +702,9 @@ class \nodoc\ iso _DocHighlightNewRefCallTest is UnitTest
   Verifies that starting from a newref reference produces the same highlights
   as starting from the declaration (_DocHighlightNewRefTest).
   Expects 3 occurrences:
-    line 51 col  6  (new create declaration in _Inner)
-    line 86 col 20  (_Inner.create() in _HighlightMore.create body)
-    line 91 col 20  (_Inner.create() in _HighlightMore.other body)
+    line 51 col  6  (new create declaration in _Inner — Text)
+    line 86 col 20  (_Inner.create() in _HighlightMore.create body — Read)
+    line 91 col 20  (_Inner.create() in _HighlightMore.other body — Read)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -986,8 +986,8 @@ class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
   Highlights `_flag` from a tk_fletref site (enabled() body, line 111 col 4).
   Expects the same 4 occurrences as _DocHighlightFletTest:
     line  80 col  6  (let _flag: Bool — Read, no inline initializer)
-    line  85 col  4  (assigned true in create)
-    line  90 col  4  (assigned false in other)
+    line  85 col  4  (assigned true in create — Write)
+    line  90 col  4  (assigned false in other — Write)
     line 111 col  4  (_flag in enabled() body — Read, tk_fletref)
   """
   let _server: _LspTestServer
@@ -1016,8 +1016,8 @@ class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
   Highlights `_inner` from a tk_embedref site (inner_x() body, line 114 col 4).
   Expects the same 4 occurrences as _DocHighlightEmbedTest:
     line  81 col  8  (embed _inner: _Inner — Read, no inline initializer)
-    line  86 col  4  (assigned in create)
-    line  91 col  4  (assigned in other)
+    line  86 col  4  (assigned in create — Write)
+    line  91 col  4  (assigned in other — Write)
     line 114 col  4  (_inner in inner_x() body — Read, tk_embedref)
   """
   let _server: _LspTestServer
