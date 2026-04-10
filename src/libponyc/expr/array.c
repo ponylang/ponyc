@@ -522,7 +522,17 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return true;
       }
 
-      type = type_union(opt, type, c_type);
+      ast_t* prev_type = type;
+      type = type_union(opt, prev_type, c_type);
+
+      // type_union may return prev_type, c_type, or a freshly-built tree.
+      // Free any input it did not return as-is: ast_free_unattached is a
+      // no-op on aliases (still parented) and on NULL, so no ownership
+      // tracking is needed.
+      if(type != prev_type)
+        ast_free_unattached(prev_type);
+      if(type != c_type)
+        ast_free_unattached(c_type);
     }
   }
 
