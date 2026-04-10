@@ -175,3 +175,34 @@ class _TupleElemAccess
   fun box work(): U32 =>
     let pair: (U32, U32) = (42, 7)
     pair._1
+
+actor _BeChainActor
+  """
+  Demonstrates tk_beref (expression receiver) and tk_newberef highlights.
+
+  Place the cursor on `go` to see both occurrences: the behaviour
+  declaration and the expression-receiver call site in chain_go (tk_beref).
+
+  Place the cursor on `create` to see both occurrences: the constructor
+  declaration and the call site in _NewBeRefExample (tk_newberef).
+  """
+  new create() =>
+    None
+
+  be go(n: U32) =>
+    None
+
+  fun box get_self(): _BeChainActor tag =>
+    this
+
+  fun box chain_go(): None =>
+    get_self().go(1)
+
+class _NewBeRefExample
+  """
+  Demonstrates tk_newberef highlights.
+  Place the cursor on `create` in _BeChainActor.create() to see both
+  occurrences: the constructor declaration and this call site.
+  """
+  fun ref work(): _BeChainActor tag =>
+    _BeChainActor.create()

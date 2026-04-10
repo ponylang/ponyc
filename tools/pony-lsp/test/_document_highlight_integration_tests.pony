@@ -46,6 +46,8 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightTupleAssignATest.create(server, fixture))
     test(_DocHighlightTupleAssignBTest.create(server, fixture))
     test(_DocHighlightTupleElemRefTest.create(server, fixture))
+    test(_DocHighlightBeRefExprTest.create(server, fixture))
+    test(_DocHighlightNewBeRefTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -925,6 +927,59 @@ class \nodoc\ iso _DocHighlightTupleElemRefTest is UnitTest
       [ (176, 9, _DocHighlightChecker(
         [ (175, 8, 175, 12, DocumentHighlightKind.write())
           (176, 4, 176, 11, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightBeRefExprTest is UnitTest
+  """
+  Highlights `go` called on an expression receiver (get_self().go(1)).
+  The call produces tk_beref (not tk_bechain — that requires ~ syntax).
+  Expects 2 occurrences:
+    line 191 col  5  (be go declaration — Text)
+    line 198 col 15  (get_self().go(1) — Read, tk_beref)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/be_ref_expr"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (198, 15, _DocHighlightChecker(
+        [ (191, 5, 191, 7, DocumentHighlightKind.text())
+          (198, 15, 198, 17, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightNewBeRefTest is UnitTest
+  """
+  Highlights `create` from a tk_newberef call site (_BeChainActor.create()).
+  Expects 2 occurrences:
+    line 188 col  6  (new create declaration — Text)
+    line 207 col 18  (_BeChainActor.create() — Read, tk_newberef)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/new_be_ref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (207, 18, _DocHighlightChecker(
+        [ (188, 6, 188, 12, DocumentHighlightKind.text())
+          (207, 18, 207, 24, DocumentHighlightKind.read())]))])
 
 class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
   """
