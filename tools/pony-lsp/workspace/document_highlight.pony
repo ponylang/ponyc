@@ -231,6 +231,10 @@ class ref _HighlightCollector is ASTVisitor
     Reference tokens — nodes that represent a use of a named symbol at a
     call or access site — are Read. Everything else (method/type declarations,
     type annotations) is Text.
+
+    Note: `consume x` expressions produce a `tk_varref` or `tk_letref` for
+    the consumed variable, so they are classified as Read. The LSP kind
+    vocabulary has no "destructive read" concept.
     """
     match id
     | TokenIds.tk_fvarref()
