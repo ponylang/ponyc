@@ -206,3 +206,52 @@ class _NewBeRefExample
   """
   fun ref work(): _BeChainActor tag =>
     _BeChainActor.create()
+
+class _HighlightGenericMethod
+  """
+  Demonstrates type parameter highlights in a generic method.
+
+  Place the cursor on `T` in `apply[T]` to see all 3 occurrences:
+  the type parameter declaration and both type annotations for the
+  parameter and return type.
+  """
+  fun apply[T](x: T): T =>
+    x
+
+class _HighlightGenericClass[T]
+  """
+  Demonstrates type parameter highlights on a generic class.
+
+  Place the cursor on `T` to see all 3 occurrences: the class-level
+  type parameter declaration and both type annotations in the
+  parameter and return type of `id`.
+  """
+  fun id(x: T): T =>
+    x
+
+class _HighlightGenericPair[A, B]
+  """
+  Demonstrates independent type parameter highlights on a class
+  with two type parameters.
+
+  Place the cursor on `A` to see its 4 occurrences: the declaration
+  in `[A, B]` and the three type annotations in `first` and `second`.
+  Place the cursor on `B` to see its 4 independent occurrences: the
+  declaration in `[A, B]` and the three type annotations in `first`
+  and `second`.
+  """
+  fun first(a: A, b: B): A =>
+    a
+
+  fun second(a: A, b: B): B =>
+    b
+
+class _HighlightConstrainedGeneric[T: Stringable]
+  """
+  Demonstrates highlights for a constrained type parameter. The constraint
+  Stringable should not be highlighted when placing the cursor on T.
+  Expects 3 occurrences: the declaration in [T: Stringable] and both type
+  annotations in apply.
+  """
+  fun apply(x: T): T =>
+    x

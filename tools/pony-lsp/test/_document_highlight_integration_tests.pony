@@ -48,6 +48,12 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightTupleElemRefTest.create(server, fixture))
     test(_DocHighlightBeRefExprTest.create(server, fixture))
     test(_DocHighlightNewBeRefTest.create(server, fixture))
+    test(_DocHighlightGenericMethodTTest.create(server, fixture))
+    test(_DocHighlightGenericClassTTest.create(server, fixture))
+    test(_DocHighlightGenericClassTRefTest.create(server, fixture))
+    test(_DocHighlightGenericPairATest.create(server, fixture))
+    test(_DocHighlightGenericPairBTest.create(server, fixture))
+    test(_DocHighlightConstrainedGenericTTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -1040,6 +1046,180 @@ class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
           (86, 4, 86, 10, DocumentHighlightKind.write())
           (91, 4, 91, 10, DocumentHighlightKind.write())
           (114, 4, 114, 10, DocumentHighlightKind.read())]))])
+
+class \nodoc\ iso _DocHighlightGenericMethodTTest is UnitTest
+  """
+  Highlights the type parameter `T` of `apply[T]` in _HighlightGenericMethod.
+  Expects 3 occurrences, all Text kind:
+    line 217 col 12  (T type param declaration in [T])
+    line 217 col 18  (T in parameter type x: T)
+    line 217 col 22  (T in return type ): T)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/generic_method_t"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (217, 12, _DocHighlightChecker(
+        [ (217, 12, 217, 13, DocumentHighlightKind.text())
+          (217, 18, 217, 19, DocumentHighlightKind.text())
+          (217, 22, 217, 23, DocumentHighlightKind.text())]))])
+
+class \nodoc\ iso _DocHighlightGenericClassTTest is UnitTest
+  """
+  Highlights the type parameter `T` of `_HighlightGenericClass[T]`.
+  Expects 3 occurrences, all Text kind:
+    line 220 col 29  (T type param declaration in class [T])
+    line 228 col 12  (T in parameter type x: T in id)
+    line 228 col 16  (T in return type ): T in id)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/generic_class_t"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (220, 29, _DocHighlightChecker(
+        [ (220, 29, 220, 30, DocumentHighlightKind.text())
+          (228, 12, 228, 13, DocumentHighlightKind.text())
+          (228, 16, 228, 17, DocumentHighlightKind.text())]))])
+
+class \nodoc\ iso _DocHighlightGenericPairATest is UnitTest
+  """
+  Highlights the type parameter `A` of `_HighlightGenericPair[A, B]`.
+  Expects 4 occurrences, all Text kind:
+    line 231 col 28  (A type param declaration in class [A, B])
+    line 242 col 15  (A in first parameter a: A)
+    line 242 col 25  (A in first return type ): A)
+    line 245 col 16  (A in second parameter a: A)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/generic_pair_a"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (231, 28, _DocHighlightChecker(
+        [ (231, 28, 231, 29, DocumentHighlightKind.text())
+          (242, 15, 242, 16, DocumentHighlightKind.text())
+          (242, 25, 242, 26, DocumentHighlightKind.text())
+          (245, 16, 245, 17, DocumentHighlightKind.text())]))])
+
+class \nodoc\ iso _DocHighlightGenericPairBTest is UnitTest
+  """
+  Highlights the type parameter `B` of `_HighlightGenericPair[A, B]`.
+  Expects 4 occurrences, all Text kind, independent of the A occurrences:
+    line 231 col 31  (B type param declaration in class [A, B])
+    line 242 col 21  (B in first parameter b: B)
+    line 245 col 22  (B in second parameter b: B)
+    line 245 col 26  (B in second return type ): B)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/generic_pair_b"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (231, 31, _DocHighlightChecker(
+        [ (231, 31, 231, 32, DocumentHighlightKind.text())
+          (242, 21, 242, 22, DocumentHighlightKind.text())
+          (245, 22, 245, 23, DocumentHighlightKind.text())
+          (245, 26, 245, 27, DocumentHighlightKind.text())]))])
+
+class \nodoc\ iso _DocHighlightGenericClassTRefTest is UnitTest
+  """
+  Highlights the type parameter `T` of `_HighlightGenericClass[T]`,
+  with cursor placed on a USE site (the `T` in `x: T` on line 228 col 12).
+  Expects the same 3 occurrences as _DocHighlightGenericClassTTest:
+    line 220 col 29  (T type param declaration in class [T])
+    line 228 col 12  (T in parameter type x: T in id)
+    line 228 col 16  (T in return type ): T in id)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/generic_class_t_ref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (228, 12, _DocHighlightChecker(
+        [ (220, 29, 220, 30, DocumentHighlightKind.text())
+          (228, 12, 228, 13, DocumentHighlightKind.text())
+          (228, 16, 228, 17, DocumentHighlightKind.text())]))])
+
+class \nodoc\ iso _DocHighlightConstrainedGenericTTest is UnitTest
+  """
+  Highlights the type parameter `T` of `_HighlightConstrainedGeneric[T: Stringable]`.
+  The constraint (`Stringable`) should NOT appear as a highlight.
+  Expects 3 occurrences, all Text kind:
+    line 248 col 35  (T type param declaration in [T: Stringable])
+    line 255 col 15  (T in parameter type x: T in apply)
+    line 255 col 19  (T in return type ): T in apply)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/constrained_generic_t"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (248, 35, _DocHighlightChecker(
+        [ (248, 35, 248, 36, DocumentHighlightKind.text())
+          (255, 15, 255, 16, DocumentHighlightKind.text())
+          (255, 19, 255, 20, DocumentHighlightKind.text())]))])
 
 class val _DocHighlightChecker
   let _expected: Array[(I64, I64, I64, I64, I64)] val
