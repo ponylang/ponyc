@@ -1236,3 +1236,61 @@ TEST_F(SubTypeTest, ConsumeRefNotIso)
 
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
+
+TEST_F(SubTypeTest, RecursiveInterfaceCompiles)
+{
+  // Guards against the ponylang/ponyc#1216 fix being too aggressive.
+  // Self-referential interfaces must still type-check via the existing
+  // exact_nominal path, independent of the divergence guard in
+  // is_nominal_sub_nominal.
+  const char* src =
+    "interface I\n"
+    "  fun ref f(): I\n"
+
+    "interface J[A]\n"
+    "  fun ref g(): J[A]\n"
+
+    "class C is I\n"
+    "  fun ref f(): I => this\n"
+
+    "class D[A] is J[A]\n"
+    "  fun ref g(): J[A] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: I = C\n"
+    "    let d: J[U32] = D[U32]";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(SubTypeTest, MutuallyRecursiveInterfacesCompile)
+{
+  // Additional ponylang/ponyc#1216 guardrail: mutually-recursive
+  // interfaces where each interface's method returns the other must
+  // still type-check. The subtype check recurses through B's
+  // structural check and back to A, closing the proof via
+  // check_assume/exact_nominal across def-pair boundaries rather than
+  // inside a single def.
+  const char* src =
+    "interface A\n"
+    "  fun ref get_b(): B\n"
+
+    "interface B\n"
+    "  fun ref get_a(): A\n"
+
+    "class ConcreteA is A\n"
+    "  new create() => None\n"
+    "  fun ref get_b(): B => ConcreteB\n"
+
+    "class ConcreteB is B\n"
+    "  new create() => None\n"
+    "  fun ref get_a(): A => ConcreteA\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: A = ConcreteA\n"
+    "    let b: B = ConcreteB";
+
+  TEST_COMPILE(src);
+}

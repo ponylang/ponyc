@@ -50,15 +50,39 @@ static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
     ast_print_type(sub), ast_print_type(super), entity);
 }
 
-static bool exact_nominal(ast_t* a, ast_t* b, pass_opt_t* opt)
+static bool exact_nominal(ast_t* a, ast_t* b)
 {
-  AST_GET_CHILDREN(a, a_pkg, a_id, a_typeargs, a_cap, a_eph);
-  AST_GET_CHILDREN(b, b_pkg, b_id, b_typeargs, b_cap, b_eph);
+  pony_assert(ast_id(a) == TK_NOMINAL);
+  pony_assert(ast_id(b) == TK_NOMINAL);
 
   ast_t* a_def = (ast_t*)ast_data(a);
   ast_t* b_def = (ast_t*)ast_data(b);
 
-  return (a_def == b_def) && is_eq_typeargs(a, b, NULL, opt);
+  if(a_def != b_def)
+    return false;
+
+  // Use string comparison instead of is_eq_typeargs to avoid
+  // re-entering the subtype machinery (is_eqtype -> is_subtype ->
+  // check_assume) on the same recursive shapes. The re-entry
+  // previously stack-overflowed on recursive type parameter
+  // constraints (ponylang/ponyc#3930), hung indefinitely on the
+  // nested-wrapping recursive interface shape (ponylang/ponyc#5198),
+  // and produced residual exponential fan-out on the tupling drift
+  // shape (ponylang/ponyc#1216) that made the SAME_DEF_LIMIT guard
+  // in is_nominal_sub_nominal unreachable in practice.
+  //
+  // ast_print_type produces a canonical string representation that
+  // encodes typeargs, caps, and ephemerality. This makes the new
+  // comparison strictly tighter than is_eq_typeargs, which walked
+  // only the typeargs children and ignored the outer nominal's cap
+  // and ephemerality. The tightening is intentional: coinductive
+  // closure via check_assume only needs to recognize the exact
+  // stored (sub, super) pair, and a narrower match is sound. The
+  // SAME_DEF_LIMIT guard in is_nominal_sub_nominal is the backstop
+  // for drifting chains that the narrower match fails to close.
+  const char* a_str = ast_print_type(a);
+  const char* b_str = ast_print_type(b);
+  return strcmp(a_str, b_str) == 0;
 }
 
 static ast_t* push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
@@ -98,8 +122,8 @@ static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
     {
       AST_GET_CHILDREN(assumption, assume_sub, assume_super);
 
-      if(exact_nominal(sub, assume_sub, opt) &&
-        exact_nominal(super, assume_super, opt))
+      if(exact_nominal(sub, assume_sub) &&
+        exact_nominal(super, assume_super))
       {
         ret = true;
         break;
@@ -267,7 +291,9 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
         return false;
       }
 
-      // Covariant result.
+      // Covariant result. See the coupling note on the TK_FUN/TK_BE
+      // branch below about divergence on recursive generic interfaces
+      // and the is_nominal_sub_nominal divergence guard.
       if(!is_subtype(sub_result, super_result, errorf, opt))
       {
         if(errorf != NULL)
@@ -303,6 +329,17 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
       }
 
       // Covariant result.
+      // NOTE: is_reified_fun_sub_fun recurses into subtype checks at
+      // four sites — the TK_NEW covariant result above, this
+      // TK_FUN/TK_BE covariant result, the contravariant type parameter
+      // constraints below, and the contravariant parameter types below.
+      // Any of these can produce drifting same-def chains on
+      // structurally-recursive generic interfaces (e.g. an interface
+      // method whose return type, parameter type, or type-parameter
+      // constraint references the same interface with strictly larger
+      // type arguments). Termination relies on the divergence guard in
+      // is_nominal_sub_nominal. If you change how any of these four
+      // recursions work, revisit that guard. See ponylang/ponyc#1216.
       if(!is_subtype(sub_result, super_result, errorf, opt))
       {
         if(errorf != NULL)
@@ -329,6 +366,9 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
     ast_t* super_constraint = ast_childidx(super_typeparam, 1);
 
+    // Contravariant recursion. See the coupling note on the TK_FUN/TK_BE
+    // covariant-result branch above about divergence on recursive
+    // generic interfaces and the is_nominal_sub_nominal divergence guard.
     if(!is_x_sub_x(super_constraint, sub_constraint, CHECK_CAP_EQ, errorf,
       opt))
     {
@@ -362,6 +402,9 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     }
 
     // Contravariant: the super type must be a subtype of the sub type.
+    // See the coupling note on the TK_FUN/TK_BE covariant-result branch
+    // above about divergence on recursive generic interfaces and the
+    // is_nominal_sub_nominal divergence guard.
     if(!is_x_sub_x(super_type, sub_type, CHECK_CAP_SUB, errorf, opt))
     {
       if(errorf != NULL)
@@ -1320,9 +1363,92 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
   // N k <: N' k'
+  ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
   if(check_assume(sub, super, opt))
     return true;
+
+  // Guard against structural divergence on recursive generic interfaces.
+  // The coinductive mechanism above (check_assume / exact_nominal) closes
+  // a proof when the same (sub, super) pair recurs with equal type args.
+  // It does not close when the same def pair recurs with drifting type
+  // args, because exact_nominal requires exact structural equality and
+  // drifting typeargs produce distinct canonical type strings — so each
+  // new frame fails to match any earlier one on the assume stack. In
+  // that case the recursion grows without bound (see ponylang/ponyc#1216:
+  // the covariant result recursion in is_reified_fun_sub_fun can drive
+  // this via methods like `fun f[B](): I[(B, A)]` on `interface I[A]`).
+  //
+  // If the same (sub_def, super_def) pair has already accumulated
+  // SAME_DEF_LIMIT entries on the assume stack without any of them
+  // matching exactly, the chain is diverging and bailing with `false`
+  // is sound: a convergent proof would have closed through check_assume
+  // by now. Worst case if that reasoning is wrong: programs that should
+  // type check get a spurious "not a subtype" error, still preferable
+  // to a hang. When bailing, we write an ast_error_frame naming the
+  // guard so a user who trips it knows to report it (rather than
+  // assuming their code has a real subtype error).
+  //
+  // SAME_DEF_LIMIT was chosen empirically. The real-world regression
+  // surface is packages/pony_check/generator.pony: the `GenObj[T]`
+  // trait combined with `type GenerateResult[T2] is (T2^ |
+  // ValueAndShrink[T2])` and uses like `shuffled_iter[T]():
+  // Generator[Iterator[this->T!]]` produce drifting same-def chains
+  // during structural subtype checks. K = 2 was empirically refuted:
+  // it rejected pony_check shapes that need more than one drifting
+  // round to reach a closing frame, so the real-world minimum
+  // observed is K >= 3. K = 4 is the current value and leaves one
+  // round of headroom above the observed floor. Validation
+  // procedure if you change K: rebuild ponyc and confirm that
+  // `make test` still cleanly compiles pony_check — if pony_check
+  // fails to type-check, K is too low. Raising K is always safe;
+  // lowering it requires empirical re-verification against
+  // pony_check and any other stdlib shape that might have grown
+  // since. If you restructure GenObj or GenerateResult in
+  // pony_check, rerun the same validation — there is a back-pointer
+  // comment on GenObj in packages/pony_check/generator.pony.
+  //
+  // Coupled to is_reified_fun_sub_fun's covariant-result is_subtype
+  // recursion; if that recursion changes, revisit this guard.
+  {
+    const int SAME_DEF_LIMIT = 4;
+    int count = 0;
+    if(subtype_assume != NULL)
+    {
+      for(ast_t* a = ast_child(subtype_assume); a != NULL; a = ast_sibling(a))
+      {
+        AST_GET_CHILDREN(a, a_sub, a_super);
+        if(((ast_t*)ast_data(a_sub) == sub_def) &&
+           ((ast_t*)ast_data(a_super) == super_def))
+        {
+          if(++count >= SAME_DEF_LIMIT)
+          {
+            // NOTE: The "recursion-divergence guard" substring below is
+            // the marker that BadPonyTest.
+            // RecursiveGenericInterfaceEmitsGuardDiagnostic asserts on.
+            // If you rename it, update that test.
+            if(errorf != NULL)
+            {
+              ast_error_frame(errorf, sub,
+                "%s is not a subtype of %s: the structural subtype "
+                "check was aborted by the recursion-divergence guard "
+                "after %d drifting same-def frames. This is a compiler "
+                "safeguard against unbounded recursion on "
+                "structurally-recursive generic interfaces "
+                "(ponylang/ponyc#1216). If you believe this program "
+                "should type-check, please report it with a minimal "
+                "reproducer so the guard's SAME_DEF_LIMIT can be "
+                "re-evaluated.",
+                ast_print_type(sub), ast_print_type(super),
+                SAME_DEF_LIMIT);
+            }
+            return false;
+          }
+        }
+      }
+    }
+  }
+
   // Add an assumption: sub <: super
   push_assume(sub, super, opt);
 
