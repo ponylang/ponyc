@@ -69,7 +69,19 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        u_type = type_union(opt, u_type, t);
+        ast_t* prev_u = u_type;
+        u_type = type_union(opt, prev_u, t);
+
+        // type_union may return prev_u, t, or a freshly-built tree. Free
+        // any input it did not return as-is: ast_free_unattached is a
+        // no-op on aliases (still parented) and on NULL, so no ownership
+        // tracking is needed. This is safe because type_typeexpr is
+        // non-mutating — inputs are neither reparented nor freed by the
+        // call (see assemble.c's input-preservation invariant).
+        if(u_type != prev_u)
+          ast_free_unattached(prev_u);
+        if(u_type != t)
+          ast_free_unattached(t);
       }
 
       return u_type;
@@ -91,7 +103,15 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        i_type = type_isect(opt, i_type, t);
+        ast_t* prev_i = i_type;
+        i_type = type_isect(opt, prev_i, t);
+
+        // See the TK_UNIONTYPE comment above: free any input that
+        // type_isect did not return as-is.
+        if(i_type != prev_i)
+          ast_free_unattached(prev_i);
+        if(i_type != t)
+          ast_free_unattached(t);
       }
 
       return i_type;
