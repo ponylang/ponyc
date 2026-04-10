@@ -704,7 +704,18 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
       return false;
     }
 
-    block_type = type_union(opt, block_type, ast_type(branch));
+    ast_t* prev_block = block_type;
+    ast_t* branch_type = ast_type(branch);
+    block_type = type_union(opt, prev_block, branch_type);
+
+    // type_union may return prev_block, branch_type, or a freshly-built
+    // tree. Free any input it did not return as-is: ast_free_unattached
+    // is a no-op on aliases (still parented) and on NULL, so no ownership
+    // tracking is needed.
+    if(block_type != prev_block)
+      ast_free_unattached(prev_block);
+    if(block_type != branch_type)
+      ast_free_unattached(branch_type);
   }
 
   if(is_typecheck_error(block_type))
