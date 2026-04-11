@@ -287,6 +287,13 @@ actor WorkspaceManager
           Methods.workspace().diagnostic().refresh(),
           None)
       end
+      if this._client.supports_inlay_hint_refresh() then
+        // tell the client to re-request inlay hints
+        // for all open documents
+        this._request_sender.send_request(
+          Methods.workspace().inlay_hint().refresh(),
+          None)
+      end
     else
       this._channel.log(
         "Received compilation result for run " + run.string() +
