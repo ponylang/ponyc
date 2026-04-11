@@ -1194,7 +1194,8 @@ class \nodoc\ iso _DocHighlightGenericClassTRefTest is UnitTest
 
 class \nodoc\ iso _DocHighlightConstrainedGenericTTest is UnitTest
   """
-  Highlights the type parameter `T` of `_HighlightConstrainedGeneric[T: Stringable]`.
+  Highlights the type parameter `T` of
+  `_HighlightConstrainedGeneric[T: Stringable]`.
   The constraint (`Stringable`) should NOT appear as a highlight.
   Expects 3 occurrences, all Text kind:
     line 248 col 35  (T type param declaration in [T: Stringable])
