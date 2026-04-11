@@ -62,6 +62,17 @@ primitive WorkspaceMethods
   fun diagnostic(): WorkspaceDiagnosticMethods =>
     WorkspaceDiagnosticMethods
 
+  fun inlay_hint(): WorkspaceInlayHintMethods =>
+    WorkspaceInlayHintMethods
+
+primitive WorkspaceInlayHintMethods
+  """
+  Collection of workspace/inlayHint related methods.
+  """
+
+  fun refresh(): String val =>
+    "workspace/inlayHint/refresh"
+
 primitive WorkspaceDiagnosticMethods
   """
   Collection of workspace/diagnostic related methods.
