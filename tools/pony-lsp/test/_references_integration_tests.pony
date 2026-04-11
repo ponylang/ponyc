@@ -305,12 +305,12 @@ class \nodoc\ iso _RefsGenericTypeparamDeclIncludedTest is UnitTest
   declaration site (line 0, col 18), with includeDeclaration = true.
   Expects 3 locations — the declaration and both type annotations in id:
     generic_refs.pony (0, 18)-(0, 19)   T declaration in class [T]
-    generic_refs.pony (4, 12)-(4, 13)   T in parameter type x: T
-    generic_refs.pony (4, 16)-(4, 17)   T in return type ): T
+    generic_refs.pony (14, 12)-(14, 13)  T in parameter type x: T
+    generic_refs.pony (14, 16)-(14, 17)  T in return type ): T
 
   generic_refs.pony layout (0-indexed):
-    line 0:  class GenericRefs[T]    T at (0,18)
-    line 4:    fun id(x: T): T =>    T at (4,12) and (4,16)
+    line 0:   class GenericRefs[T]    T at (0,18)
+    line 14:    fun id(x: T): T =>    T at (14,12) and (14,16)
   """
   let _server: _LspTestServer
 
@@ -327,16 +327,16 @@ class \nodoc\ iso _RefsGenericTypeparamDeclIncludedTest is UnitTest
       "references/generic_refs.pony",
       [ (0, 18, _RefsChecker(
         [ ("generic_refs.pony", 0, 18, 0, 19)
-          ("generic_refs.pony", 4, 12, 4, 13)
-          ("generic_refs.pony", 4, 16, 4, 17)], true))])
+          ("generic_refs.pony", 14, 12, 14, 13)
+          ("generic_refs.pony", 14, 16, 14, 17)], true))])
 
 class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
   """
   Find references to type parameter `T` of `GenericRefs[T]` from its
   declaration site (line 0, col 18), with includeDeclaration = false.
   Expects 2 locations (no declaration):
-    generic_refs.pony (4, 12)-(4, 13)   T in parameter type x: T
-    generic_refs.pony (4, 16)-(4, 17)   T in return type ): T
+    generic_refs.pony (14, 12)-(14, 13)  T in parameter type x: T
+    generic_refs.pony (14, 16)-(14, 17)  T in return type ): T
   """
   let _server: _LspTestServer
 
@@ -352,17 +352,16 @@ class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
       _server,
       "references/generic_refs.pony",
       [ (0, 18, _RefsChecker(
-        [ ("generic_refs.pony", 4, 12, 4, 13)
-          ("generic_refs.pony", 4, 16, 4, 17)], false))])
+        [ ("generic_refs.pony", 14, 12, 14, 13)
+          ("generic_refs.pony", 14, 16, 14, 17)], false))])
 
 class \nodoc\ iso _RefsGenericTypeparamRefIncludedTest is UnitTest
   """
   Find references to type parameter `T` of `GenericRefs[T]` from a usage site
-  (line 4, col 12, the `T` in `x: T`), with includeDeclaration = true.
+  (line 14, col 12, the `T` in `x: T`), with includeDeclaration = true.
   Expects the same 3 locations as querying from the declaration site — verifies
   that the reverse lookup via definitions() on tk_typeparamref resolves
   correctly.
-
   """
   let _server: _LspTestServer
 
@@ -377,18 +376,18 @@ class \nodoc\ iso _RefsGenericTypeparamRefIncludedTest is UnitTest
       h,
       _server,
       "references/generic_refs.pony",
-      [ (4, 12, _RefsChecker(
+      [ (14, 12, _RefsChecker(
         [ ("generic_refs.pony", 0, 18, 0, 19)
-          ("generic_refs.pony", 4, 12, 4, 13)
-          ("generic_refs.pony", 4, 16, 4, 17)], true))])
+          ("generic_refs.pony", 14, 12, 14, 13)
+          ("generic_refs.pony", 14, 16, 14, 17)], true))])
 
 class \nodoc\ iso _RefsGenericTypeparamRefExcludedTest is UnitTest
   """
   Find references to type parameter `T` of `GenericRefs[T]` from a usage site
-  (line 4, col 12, the `T` in `x: T`), with includeDeclaration = false.
+  (line 14, col 12, the `T` in `x: T`), with includeDeclaration = false.
   Expects 2 locations (the two type annotation usages, no declaration):
-    generic_refs.pony (4, 12)-(4, 13)   T in parameter type x: T
-    generic_refs.pony (4, 16)-(4, 17)   T in return type ): T
+    generic_refs.pony (14, 12)-(14, 13)  T in parameter type x: T
+    generic_refs.pony (14, 16)-(14, 17)  T in return type ): T
   """
   let _server: _LspTestServer
 
@@ -403,9 +402,9 @@ class \nodoc\ iso _RefsGenericTypeparamRefExcludedTest is UnitTest
       h,
       _server,
       "references/generic_refs.pony",
-      [ (4, 12, _RefsChecker(
-        [ ("generic_refs.pony", 4, 12, 4, 13)
-          ("generic_refs.pony", 4, 16, 4, 17)], false))])
+      [ (14, 12, _RefsChecker(
+        [ ("generic_refs.pony", 14, 12, 14, 13)
+          ("generic_refs.pony", 14, 16, 14, 17)], false))])
 
 class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
   """
@@ -413,7 +412,7 @@ class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
   declaration site (line 0, col 19), with includeDeclaration = true.
   Expects 2 locations — declaration and the behaviour parameter:
     generic_actor.pony (0, 19)-(0, 20)   T declaration in actor [T]
-    generic_actor.pony (4, 12)-(4, 13)   T in parameter type x: T
+    generic_actor.pony (8, 12)-(8, 13)   T in parameter type x: T
 
   This test exercises the tk_be synthesized-node filter: ponyc generates
   a nominal return type for behaviours in generic actors forming the chain
@@ -421,8 +420,8 @@ class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
   a third phantom result would appear.
 
   generic_actor.pony layout (0-indexed):
-    line 0:  actor GenericActor[T]    T at (0,19)
-    line 4:    be run(x: T) =>        T at (4,12)
+    line 0:  actor GenericActor[T: Any val]    T at (0,19)
+    line 8:    be run(x: T) =>                 T at (8,12)
   """
   let _server: _LspTestServer
 
@@ -439,7 +438,7 @@ class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
       "references/generic_actor.pony",
       [ (0, 19, _RefsChecker(
         [ ("generic_actor.pony", 0, 19, 0, 20)
-          ("generic_actor.pony", 4, 12, 4, 13)], true))])
+          ("generic_actor.pony", 8, 12, 8, 13)], true))])
 
 class val _RefsChecker
   """

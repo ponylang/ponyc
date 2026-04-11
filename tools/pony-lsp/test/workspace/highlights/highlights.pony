@@ -258,7 +258,11 @@ class _HighlightConstrainedGeneric[T: Stringable]
 
 actor _HighlightGenericActor[T: Any val]
   """
-  Generic actor for testing the tk_be synthesized-node filter.
+  Demonstrates Document Highlight on a generic actor type parameter.
+
+  Place the cursor on `T` in `actor _HighlightGenericActor[T: Any val]`
+  and invoke Document Highlight. Expect 2 occurrences: the declaration
+  and the type annotation in the `run` behaviour parameter.
   """
   be run(x: T) =>
     None

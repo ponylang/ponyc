@@ -1231,7 +1231,7 @@ class \nodoc\ iso _DocHighlightGenericActorBeTTest is UnitTest
   a third result.
   Expects 2 occurrences, all Text kind:
     line 258 col 29  (T type param declaration in actor [T: Any val])
-    line 262 col 12  (T in parameter type x: T in be run)
+    line 266 col 12  (T in parameter type x: T in be run)
   """
   let _server: _LspTestServer
   let _fixture: String val
@@ -1250,7 +1250,7 @@ class \nodoc\ iso _DocHighlightGenericActorBeTTest is UnitTest
       _fixture,
       [ (258, 29, _DocHighlightChecker(
         [ (258, 29, 258, 30, DocumentHighlightKind.text())
-          (262, 12, 262, 13, DocumentHighlightKind.text())]))])
+          (266, 12, 266, 13, DocumentHighlightKind.text())]))])
 
 class val _DocHighlightChecker
   let _expected: Array[(I64, I64, I64, I64, I64)] val
