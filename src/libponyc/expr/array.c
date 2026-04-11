@@ -476,7 +476,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
     ast_t* c_type = ast_type(ele);
     if(is_typecheck_error(c_type))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
     if(told_type)
     {
