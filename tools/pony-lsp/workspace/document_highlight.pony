@@ -150,17 +150,18 @@ class ref _HighlightCollector is ASTVisitor
 
     if matches then
       // ponyc synthesizes a nominal self-type as the return type of
-      // auto-generated constructors in generic classes, forming the chain:
-      // tk_new -> tk_nominal -> tk_typeargs -> tk_typeparamref
+      // auto-generated constructors (tk_new) and behaviours (tk_be) in generic
+      // classes and actors, forming the chain:
+      // tk_new/tk_be -> tk_nominal -> tk_typeargs -> tk_typeparamref
       // This internal node resolves to the class's type param but is not a
       // user-visible occurrence — skip it.
       try
         let p = ast.parent() as AST    // tk_typeargs?
         let gp = p.parent() as AST     // tk_nominal?
-        let ggp = gp.parent() as AST   // tk_new?
+        let ggp = gp.parent() as AST   // tk_new or tk_be?
         if (p.id() == TokenIds.tk_typeargs()) and
           (gp.id() == TokenIds.tk_nominal()) and
-          (ggp.id() == TokenIds.tk_new())
+          ((ggp.id() == TokenIds.tk_new()) or (ggp.id() == TokenIds.tk_be()))
         then
           return Continue
         end

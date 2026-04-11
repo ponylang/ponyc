@@ -255,3 +255,10 @@ class _HighlightConstrainedGeneric[T: Stringable]
   """
   fun apply(x: T): T =>
     x
+
+actor _HighlightGenericActor[T: Any val]
+  """
+  Generic actor for testing the tk_be synthesized-node filter.
+  """
+  be run(x: T) =>
+    None

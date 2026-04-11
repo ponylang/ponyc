@@ -23,6 +23,9 @@ primitive _ReferencesIntegrationTests is TestList
     test(_RefsSyntheticNewrefTest.create(server, fixture))
     test(_RefsGenericTypeparamDeclIncludedTest.create(server))
     test(_RefsGenericTypeparamDeclExcludedTest.create(server))
+    test(_RefsGenericTypeparamRefIncludedTest.create(server))
+    test(_RefsGenericTypeparamRefExcludedTest.create(server))
+    test(_RefsGenericActorBeIncludedTest.create(server))
 
 class \nodoc\ iso _RefsCountDeclIncludedTest is UnitTest
   """
@@ -351,6 +354,92 @@ class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
       [ (0, 18, _RefsChecker(
         [ ("generic_refs.pony", 4, 12, 4, 13)
           ("generic_refs.pony", 4, 16, 4, 17)], false))])
+
+class \nodoc\ iso _RefsGenericTypeparamRefIncludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from a usage site
+  (line 4, col 12, the `T` in `x: T`), with includeDeclaration = true.
+  Expects the same 3 locations as querying from the declaration site — verifies
+  that the reverse lookup via definitions() on tk_typeparamref resolves
+  correctly.
+
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_ref_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ (4, 12, _RefsChecker(
+        [ ("generic_refs.pony", 0, 18, 0, 19)
+          ("generic_refs.pony", 4, 12, 4, 13)
+          ("generic_refs.pony", 4, 16, 4, 17)], true))])
+
+class \nodoc\ iso _RefsGenericTypeparamRefExcludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from a usage site
+  (line 4, col 12, the `T` in `x: T`), with includeDeclaration = false.
+  Expects 2 locations (the two type annotation usages, no declaration):
+    generic_refs.pony (4, 12)-(4, 13)   T in parameter type x: T
+    generic_refs.pony (4, 16)-(4, 17)   T in return type ): T
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_ref_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ (4, 12, _RefsChecker(
+        [ ("generic_refs.pony", 4, 12, 4, 13)
+          ("generic_refs.pony", 4, 16, 4, 17)], false))])
+
+class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericActor[T]` from its
+  declaration site (line 0, col 19), with includeDeclaration = true.
+  Expects 2 locations — declaration and the behaviour parameter:
+    generic_actor.pony (0, 19)-(0, 20)   T declaration in actor [T]
+    generic_actor.pony (4, 12)-(4, 13)   T in parameter type x: T
+
+  This test exercises the tk_be synthesized-node filter: ponyc generates
+  a nominal return type for behaviours in generic actors forming the chain
+  tk_be -> tk_nominal -> tk_typeargs -> tk_typeparamref. Without the filter
+  a third phantom result would appear.
+
+  generic_actor.pony layout (0-indexed):
+    line 0:  actor GenericActor[T]    T at (0,19)
+    line 4:    be run(x: T) =>        T at (4,12)
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_actor_be_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_actor.pony",
+      [ (0, 19, _RefsChecker(
+        [ ("generic_actor.pony", 0, 19, 0, 20)
+          ("generic_actor.pony", 4, 12, 4, 13)], true))])
 
 class val _RefsChecker
   """

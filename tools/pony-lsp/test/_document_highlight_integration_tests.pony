@@ -54,6 +54,7 @@ primitive _DocumentHighlightIntegrationTests is TestList
     test(_DocHighlightGenericPairATest.create(server, fixture))
     test(_DocHighlightGenericPairBTest.create(server, fixture))
     test(_DocHighlightConstrainedGenericTTest.create(server, fixture))
+    test(_DocHighlightGenericActorBeTTest.create(server, fixture))
 
 class \nodoc\ iso _DocHighlightFieldTest
   is UnitTest
@@ -1221,6 +1222,35 @@ class \nodoc\ iso _DocHighlightConstrainedGenericTTest is UnitTest
         [ (248, 35, 248, 36, DocumentHighlightKind.text())
           (255, 15, 255, 16, DocumentHighlightKind.text())
           (255, 19, 255, 20, DocumentHighlightKind.text())]))])
+
+class \nodoc\ iso _DocHighlightGenericActorBeTTest is UnitTest
+  """
+  Highlights the type parameter `T` of `_HighlightGenericActor[T: Any val]`.
+  Exercises the tk_be synthesized-node filter: without the filter a phantom
+  tk_typeparamref from the synthesized behaviour return type would appear as
+  a third result.
+  Expects 2 occurrences, all Text kind:
+    line 258 col 29  (T type param declaration in actor [T: Any val])
+    line 262 col 12  (T in parameter type x: T in be run)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "document_highlight/integration/generic_actor_be_t"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ (258, 29, _DocHighlightChecker(
+        [ (258, 29, 258, 30, DocumentHighlightKind.text())
+          (262, 12, 262, 13, DocumentHighlightKind.text())]))])
 
 class val _DocHighlightChecker
   let _expected: Array[(I64, I64, I64, I64, I64)] val
