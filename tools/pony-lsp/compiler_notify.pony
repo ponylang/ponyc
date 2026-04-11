@@ -1,7 +1,9 @@
-use "pony_compiler"
-use "term"
 use "cli"
 use "files"
+use "collections"
+use "term"
+
+use "pony_compiler"
 
 use @get_compiler_exe_directory[Bool](
   output_path: Pointer[U8] tag,
@@ -11,9 +13,9 @@ use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 
 actor PonyCompiler is LspCompiler
   """
-  Actor wrapping the pony_compiler `Compiler`
-  primitive to serialize compilation requests
-  (libponyc is not fully thread-safe).
+  Actor wrapping the pony_compiler `CompileSession` to serialize compilation requests.
+
+  Compilation will notify the caller for each requested pass.
 
   Determines the ponyc standard library location
   automatically by finding the executable directory
@@ -113,10 +115,23 @@ actor PonyCompiler is LspCompiler
   be compile(
     package: FilePath,
     paths: Array[String val] val,
-    notify: CompilerNotify tag)
+    notify: CompilerNotify tag,
+    notify_passes: Array[PassId] val = [PassFinaliser])
   =>
     """
     Compile a package with the given paths.
+
+    Notify `notify` for every pass provided in `notify_passes`. The default is
+    to only notify once for the result of the finaliser pass.
+
+    If an error happens while compiling up to the next pass, the `notify` will
+    be notified about the errors and no more notifications will arrive.
+
+    Compilation is done when either the `result` param of
+    `CompilerNotify.on_compile_result()` is an Array of errors or if the `pass`
+    is the last one in the `notify_passes`.
+
+    If `notify_passes` is empty, `notify` will never be called.
     """
     if not this._got_settings then
       // enqueue compilation and dont execute it yet
@@ -136,17 +151,45 @@ actor PonyCompiler is LspCompiler
         tmp.append(paths)
         tmp
       end
-    let result =
-      Compiler.compile(
-        package,
-        package_paths
-        where
-          user_flags = this._defines,
-          release = false,
-          verbosity = VerbosityQuiet,
-          limit = PassFinaliser)
-    let run_id = _run_id_gen = _run_id_gen + 1
-    notify.done_compiling(package, result, run_id)
+    let sorted_passes = Sort[Array[PassId], PassId](notify_passes.clone())
+    try
+      let first_pass = sorted_passes.shift()?
+      let run_id = _run_id_gen = _run_id_gen + 1
+      let session =
+        CompileSession.create(
+          package,
+          package_paths
+          where
+            user_flags = this._defines,
+            release = false,
+            verbosity = VerbosityQuiet,
+            limit = first_pass)
+      try
+        let program = session.program() as Program val
+        notify.on_compile_result(package, run_id, first_pass, program)
+        for pass in sorted_passes.values() do
+          if session.continue_to(pass) then
+            // compilation success up until pass
+            let result =
+              try
+                session.program() as Program val
+              else
+                session.errors()
+              end
+            notify.on_compile_result(package, run_id, pass, result)
+          else
+            // compile error
+            notify.on_compile_result(package, run_id, pass, session.errors())
+            // don't continue upon errors
+            break
+          end
+        end
+      else
+        // compile error up until first pass
+        notify.on_compile_result(package, run_id, first_pass, session.errors())
+      end
+      session.dispose()
+    end
 
 trait tag LspCompiler
   """
@@ -164,20 +207,27 @@ trait tag LspCompiler
   be compile(
     package: FilePath,
     paths: Array[String val] val,
-    notify: CompilerNotify tag)
+    notify: CompilerNotify tag,
+    notify_pass_result: Array[PassId] val)
     """
-    Compile the given package.
+    Compile the given package and call the `notify` with the compilation result
+    after the provided passes in `notify_pass_result`.
     """
 
 interface CompilerNotify
   """
-  Notify which is called by the compiler when it is done.
+  Notify which is called by the compiler when it is done with a requested pass.
   """
 
-  be done_compiling(
+  be on_compile_result(
     package: FilePath,
-    result: (Program val | Array[Error val] val),
-    run: USize)
+    compile_run: USize,
+    pass: PassId,
+    result: (Program val | Array[Error val] val)
+    )
     """
-    Called when compilation completes.
+    Called when a compilation result after the provided pass is available.
+
+    Do not keep the Program or any part of it around without copying, if further passes are executed.
+    The underlying AST might be modified and parts of it replaced and deleted.
     """

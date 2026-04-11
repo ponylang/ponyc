@@ -24,12 +24,28 @@ actor WorkspaceManager
   let _client: Client
   let _channel: Channel
   let _request_sender: RequestSender
-  let _compiler: LspCompiler
   let _packages: Map[String, PackageState]
   let _global_errors: Array[Diagnostic val]
+  let _compiler: LspCompiler
+  // we get notified about all passes, mostly for progress reporting
+  let _compile_passes: Array[PassId] val = [
+    PassParse
+    PassSyntax
+    PassSugar
+    PassScope
+    PassImport
+    PassNameResolution
+    PassFlatten
+    PassTraits
+    PassRefer
+    PassExpr
+    PassCompleteness
+    PassVerify
+    PassFinaliser
+  ]
   var _compile_run: USize = 0
-  var _current_request: (RequestMessage val | None) = None
   var _compiling: Bool = false
+  var _current_request: (RequestMessage val | None) = None
   var _awaiting_compilation_for: Map[String, (USize | None)] =
     _awaiting_compilation_for.create()
     """
@@ -98,66 +114,133 @@ actor WorkspaceManager
     end
     error
 
-  be done_compiling(
+  fun _progress_report_nofitication(package: FilePath, pass: PassId): Notification =>
+    let token = this._compilation_token(package)
+    (let percentage: I64, let message: String) = match pass
+    | PassParse =>
+      (I64(5), "Pass: " + PassSyntax.string())
+    | PassSyntax =>
+      (I64(10), "Pass: " + PassSugar.string())
+    | PassSugar =>
+      (I64(15), "Pass: " + PassScope.string())
+    | PassScope =>
+      (I64(20), "Pass: " + PassImport.string())
+    | PassImport =>
+      (I64(25), "Pass: " + PassNameResolution.string())
+    | PassNameResolution =>
+      (I64(30), "Pass: " + PassFlatten.string())
+    | PassFlatten =>
+      (I64(35), "Pass: " + PassTraits.string())
+    | PassTraits =>
+      (I64(40), "Pass: " + PassRefer.string())
+    | PassRefer =>
+      (I64(50), "Pass: type-checking") // more meaningful than expr
+    | PassExpr =>
+      (I64(85), "Pass: " + PassCompleteness.string())
+    | PassCompleteness =>
+      (I64(90), "Pass: " + PassVerify.string())
+    | PassVerify =>
+      (I64(95), "Pass: " + PassFinaliser.string())
+    | PassFinaliser =>
+      (I64(100), "Done")
+    else
+      // shouldn't happen
+      (I64(0), "")
+    end
+    Notification(
+      Methods.progress(),
+      JsonObject
+        .update("token", token)
+        .update(
+          "value",
+          JsonObject
+            .update("kind", "report")
+            .update(
+              "title",
+              "Compiling " + Path.base(package.path) +
+              " (" + this._compile_run.string() + ")")
+            .update("message", message)
+            .update("percentage", percentage)
+            .update("cancellable", false)
+        )
+    )
+
+  be on_compile_result(
     program_dir: FilePath,
-    result: (Program val | Array[Error val] val),
-    run: USize)
+    run: USize,
+    pass: PassId,
+    result: (Program val | Array[Error val] val))
   =>
     """
     Handle compilation completion.
     """
-    if this._client.supports_window_work_done_progress()
-    then
-      let message =
-        match \exhaustive\ result
-        | let p: Program val => "Success"
-        | let errors: Array[Error val] val => errors.size().string() + " Errors"
-        end
-      this._channel.send(
-        Notification(
-          Methods.progress(),
-          JsonObject
-            .update(
-              "token",
-              this._compilation_token(program_dir))
-            .update(
-              "value",
-              JsonObject
-                .update("kind", "end")
-                .update("message", message)
-            )
-        )
-      )
-    end
-    this._compiling = false
-    // TODO: check if we are awaiting compilation
-    // for some files and compare their hash against
-    // the current document hashes
-    this._channel.log(
-      "done compilation run " + run.string() +
-      " of " + program_dir.path)
-
-    // ignore older compile runs
     if run > this._compile_run then
-      this._compile_run = run
-      // group errors by file
-      let errors_by_file = Map[String, pc.Vec[JsonValue]].create(4)
-
-      if this._client.supports_publish_diagnostics() then
-        // pre-fill with empty list of errors for
-        // all files for which we have errors now
-        for pkg in this._packages.values() do
-          for doc in pkg.documents.keys() do
-            errors_by_file(doc) = pc.Vec[JsonValue]
-          end
-        end
+      // notify client about progress
+      let notification = this._progress_report_nofitication(program_dir, pass)
+      if this._client.supports_window_work_done_progress() then
+        this._channel.send(notification)
       end
 
-      // clear out global errors
-      this._global_errors.clear()
+      // group errors by file
+      let errors_by_file = Map[String, pc.Vec[JsonValue]].create()
 
-      match \exhaustive\ result
-      | let program: Program val =>
+      let done_compiling =
+        match (result, pass)
+        | (let program: Program val, PassFinaliser) | (let errors: Array[Error val] val, _) => true
+        else
+          false
+        end
+
+      // preparations when compilation is done - on error or success
+      if done_compiling then
+        if this._client.supports_window_work_done_progress() then
+          let message =
+            match \exhaustive\ result
+            | let p: Program val => "Success"
+            | let errors: Array[Error val] val => errors.size().string() + " Errors"
+            end
+          this._channel.send(
+            Notification(
+              Methods.progress(),
+              JsonObject
+                .update("token", this._compilation_token(program_dir))
+                .update("value", JsonObject
+                  .update("kind", "end")
+                  .update("message", message))
+            )
+          )
+        end
+        // mark that we are done with compilation
+        this._compiling = false
+
+        this._channel.log(
+          "done compilation run " + run.string() +
+          " of " + program_dir.path)
+
+        // ignore older compile runs
+        this._compile_run = run.max(this._compile_run)
+
+        if this._client.supports_publish_diagnostics() then
+          // pre-fill with empty list of errors for
+          // all files for which we have errors now
+          for pkg in this._packages.values() do
+            for doc in pkg.documents.keys() do
+              errors_by_file(doc) = pc.Vec[JsonValue]
+            end
+          end
+        end
+
+        // clear out global errors
+        this._global_errors.clear()
+      end
+
+      // handle compilation result, if compilation is fully done (last pass) or not
+      match (result, pass)
+      | (let program: Program val, PassParse) =>
+        // parsing was successful
+        // TODO: use parse pass data already to pre-fill some package and module states
+        None
+      | (let program: Program val, PassFinaliser) =>
         this._channel.log("Successfully compiled " + program_dir.path)
         // create/update package states for every
         // package being part of the program
@@ -198,10 +281,10 @@ actor WorkspaceManager
             this._compile(program_dir)
           end
         end
-      | let errors: Array[Error val] val =>
+      | (let errors: Array[Error val] val, let err_pass: PassId) =>
         this._channel.log(
           "Compilation failed with " +
-          errors.size().string() + " errors")
+          errors.size().string() + " errors after pass " + err_pass.string())
 
         let diag_iter =
           Iter[Error](errors.values())
@@ -243,49 +326,41 @@ actor WorkspaceManager
         end
       end
 
-      // notify client about errors, if any
-      // create (or clear) error diagnostics
-      // message for each open file
-      if this._client.supports_publish_diagnostics() then
-        for file in errors_by_file.keys() do
-          try
-            let file_errors: pc.Vec[JsonValue] = errors_by_file(file)?
-            let msg =
+      if done_compiling then
+        // notify client about errors, if any
+        // create (or clear) error diagnostics
+        // message for each open file
+        if this._client.supports_publish_diagnostics() then
+          for file in errors_by_file.keys() do
+            try
+              let file_errors: pc.Vec[JsonValue] = errors_by_file(file)?
+              let msg =
+                Notification.create(
+                  Methods.text_document().publish_diagnostics(),
+                  JsonObject
+                    .update("uri", Uris.from_path(file))
+                    .update("diagnostics", JsonArray(consume file_errors)))
+              this._channel.send(msg)
+            end
+          end
+
+          // publish global diagnostics if any
+          let num_global_errs = this._global_errors.size()
+          if (num_global_errs > 0) then
+            let json_global_diagnostics =
+              pc.Vec[JsonValue].concat(
+                Iter[Diagnostic](
+                  this._global_errors.values())
+                    .map[JsonValue]({(diagnostic) => diagnostic.to_json() }))
+            let global_notifications =
               Notification.create(
                 Methods.text_document().publish_diagnostics(),
                 JsonObject
-                  .update("uri", Uris.from_path(file))
-                  .update("diagnostics", JsonArray(consume file_errors)))
-            this._channel.send(msg)
+                  .update("uri", "global")
+                  .update("diagnostics", JsonArray(json_global_diagnostics)))
+            this._channel.send(global_notifications)
           end
         end
-
-        // publish global diagnostics if any
-        let num_global_errs = this._global_errors.size()
-        if (num_global_errs > 0) then
-          let json_global_diagnostics =
-            pc.Vec[JsonValue].concat(
-              Iter[Diagnostic](
-                this._global_errors.values())
-                  .map[JsonValue]({(diagnostic) => diagnostic.to_json() }))
-          let global_notifications =
-            Notification.create(
-              Methods.text_document().publish_diagnostics(),
-              JsonObject
-                .update("uri", "global")
-                .update("diagnostics", JsonArray(json_global_diagnostics)))
-          this._channel.send(global_notifications)
-        end
-      elseif this._client.supports_workspace_diagnostic_refresh() then
-        // we only need to issue a refresh if
-        // the client doesn't support publish
-        // diagnostics
-
-        // tell the client to refresh all
-        // diagnostics for us
-        this._request_sender.send_request(
-          Methods.workspace().diagnostic().refresh(),
-          None)
       end
     else
       this._channel.log(
@@ -305,8 +380,7 @@ actor WorkspaceManager
       ", ".join(workspace.dependency_paths.values()))
 
     let token = this._compilation_token(package)
-    if this._client.supports_window_work_done_progress()
-    then
+    if this._client.supports_window_work_done_progress() then
       let chan = this._channel
       let progress_begin_notification =
         Notification(
@@ -321,6 +395,8 @@ actor WorkspaceManager
                   "title",
                   "Compiling " + Path.base(package.path) +
                   " (" + this._compile_run.string() + ")")
+                .update("message", "Pass: Parse")
+                .update("percentage", I64(5))
                 .update("cancellable", false)
             )
         )
@@ -336,7 +412,8 @@ actor WorkspaceManager
         end
       )
     end
-    _compiler.compile(package, workspace.dependency_paths, this)
+    // get results after parse pass and after finaliser pass
+    _compiler.compile(package, workspace.dependency_paths, this, this._compile_passes)
     _compiling = true
 
   fun _compilation_token(package: FilePath): String =>
