@@ -208,3 +208,10 @@ The `kind` field was always optional in the spec and defaulted to Text, so edito
 
 Placing the cursor on a generic type parameter (e.g., `T` in `class Foo[T]` or `fun apply[T](...)`) now highlights all occurrences of that parameter across the method or class body. Both the declaration site and every use site are returned as `Text` (kind 1) highlights.
 
+## Add `textDocument/references` for generic type parameters in pony-lsp
+
+Placing the cursor on a generic type parameter declaration (e.g., `T` in `class Foo[T]` or `actor Bar[T: Any val]`) and invoking Find All References now returns all occurrences correctly. Two fixes were required:
+
+- **Zero results from declaration site**: the cursor-side `tk_id` node was not promoted to its parent `tk_typeparam` before resolution, so the walker never matched any references.
+- **Phantom results in generic actors**: ponyc synthesizes a nominal return type for constructors and behaviours in generic types, producing an internal `tk_new`/`tk_be` → `tk_nominal` → `tk_typeargs` → `tk_typeparamref` chain. This phantom node resolved to the type parameter and appeared as a spurious reference; it is now filtered in both `textDocument/references` and `textDocument/documentHighlight`.
+
