@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add LSP `workspace/inlayHint/refresh` support ([PR #5224](https://github.com/ponylang/ponyc/pull/5224))
 
 ### Changed
 
