@@ -6,12 +6,12 @@
 - **pony-doc**: `tools/pony-doc/` — Pony documentation generator
 
 ## Make Commands
-Each tool has corresponding test and lint targets:
+All test commands are slow (full rebuild + test run). Run each command at most once per code change — never re-run a command if the code has not changed since the last run.
+
+- `make test-pony-compiler`
 - `make test-pony-lsp` / `make lint-pony-lsp`
 - `make test-pony-lint` / `make lint-pony-lint`
 - `make test-pony-doc` / `make lint-pony-doc`
-
-These commands are slow (full rebuild + test run). Run each command at most once per code change — never re-run a command if the code has not changed since the last run.
 
 ## Known Couplings
 
