@@ -21,6 +21,8 @@ primitive _ReferencesIntegrationTests is TestList
     test(_RefsTypeNameDeclExcludedTest.create(server, fixture))
     test(_RefsLiteralTest.create(server, fixture))
     test(_RefsSyntheticNewrefTest.create(server, fixture))
+    test(_RefsGenericTypeparamDeclIncludedTest.create(server))
+    test(_RefsGenericTypeparamDeclExcludedTest.create(server))
 
 class \nodoc\ iso _RefsCountDeclIncludedTest is UnitTest
   """
@@ -293,6 +295,62 @@ class \nodoc\ iso _RefsSyntheticNewrefTest is UnitTest
 
   fun apply(h: TestHelper) =>
     _RunLspChecks(h, _server, _fixture, [(26, 4, _RefsChecker([], true))])
+
+class \nodoc\ iso _RefsGenericTypeparamDeclIncludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from its
+  declaration site (line 0, col 18), with includeDeclaration = true.
+  Expects 3 locations — the declaration and both type annotations in id:
+    generic_refs.pony (0, 18)-(0, 19)   T declaration in class [T]
+    generic_refs.pony (4, 12)-(4, 13)   T in parameter type x: T
+    generic_refs.pony (4, 16)-(4, 17)   T in return type ): T
+
+  generic_refs.pony layout (0-indexed):
+    line 0:  class GenericRefs[T]    T at (0,18)
+    line 4:    fun id(x: T): T =>    T at (4,12) and (4,16)
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_decl_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ (0, 18, _RefsChecker(
+        [ ("generic_refs.pony", 0, 18, 0, 19)
+          ("generic_refs.pony", 4, 12, 4, 13)
+          ("generic_refs.pony", 4, 16, 4, 17)], true))])
+
+class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from its
+  declaration site (line 0, col 18), with includeDeclaration = false.
+  Expects 2 locations (no declaration):
+    generic_refs.pony (4, 12)-(4, 13)   T in parameter type x: T
+    generic_refs.pony (4, 16)-(4, 17)   T in return type ): T
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ (0, 18, _RefsChecker(
+        [ ("generic_refs.pony", 4, 12, 4, 13)
+          ("generic_refs.pony", 4, 16, 4, 17)], false))])
 
 class val _RefsChecker
   """
