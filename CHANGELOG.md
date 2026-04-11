@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add kind to pony-lsp document highlights ([PR #5188](https://github.com/ponylang/ponyc/pull/5188))
 - Add generic type parameter highlights to pony-lsp ([PR #5190](https://github.com/ponylang/ponyc/pull/5190))
 - Add textDocument/references for generic type parameters in pony-lsp ([PR #5221](https://github.com/ponylang/ponyc/pull/5221))
+- Add textDocument/references for generic type parameters in pony-lsp ([PR #5221](https://github.com/ponylang/ponyc/pull/5221))
 
 ### Changed
 
