@@ -1735,3 +1735,110 @@ TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
     "this capture is unsound",
     "this capture is unsound");
 }
+
+TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
+{
+  // Exercises the error path in expr_if where the first branch
+  // produces a literal type (unparented TK_LITERAL accumulator)
+  // and the second branch has a type error (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true then 1 else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, IftypeLiteralBranchWithTypecheckError)
+{
+  // Same pattern for iftype (#5214).
+  const char* src =
+    "trait T\n"
+    "class C is T\n"
+
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    _test[C]()\n"
+
+    "  fun _test[A: T]() =>\n"
+    "    iftype A <: C then 1\n"
+    "    else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src,
+    "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, TryLiteralBodyWithTypecheckErrorElse)
+{
+  // Same pattern for try (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try 1 else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, WhileLiteralBodyWithTypecheckErrorElse)
+{
+  // Same pattern for while: the body produces a literal type,
+  // then the else clause has a type error (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    while true do 1\n"
+    "    else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, RepeatLiteralBodyWithTypecheckErrorElse)
+{
+  // Same pattern for repeat (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    repeat 1 until true\n"
+    "    else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, MatchLiteralCaseWithTypecheckErrorElse)
+{
+  // Same pattern for match: case body is a literal, else clause
+  // has a type error. Non-exhaustive match so the else clause
+  // is reached during type checking (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "class Bar\n"
+    "class Baz\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let b: (Bar | Baz) = Bar\n"
+    "    match b\n"
+    "    | let _: Bar => 1\n"
+    "    else\n"
+    "      Foo.bar(true)\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
