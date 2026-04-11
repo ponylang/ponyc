@@ -327,7 +327,17 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
 
     if(!is_typecheck_error(body_type) &&
       !ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+    {
+      ast_t* prev_type = type;
       type = control_type_add_branch(opt, type, body);
+
+      // control_type_add_branch may return prev_type, a parented alias,
+      // or a freshly-built tree. Free any previous accumulator it did
+      // not return as-is: ast_free_unattached is a no-op on parented
+      // aliases and on NULL.
+      if(type != prev_type)
+        ast_free_unattached(prev_type);
+    }
 
     the_case = ast_sibling(the_case);
   }
