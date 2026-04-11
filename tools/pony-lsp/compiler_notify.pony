@@ -13,7 +13,8 @@ use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 
 actor PonyCompiler is LspCompiler
   """
-  Actor wrapping the pony_compiler `CompileSession` to serialize compilation requests.
+  Actor wrapping the pony_compiler `CompileSession`
+  to serialize compilation requests.
 
   Compilation will notify the caller for each requested pass.
 
@@ -208,10 +209,10 @@ trait tag LspCompiler
     package: FilePath,
     paths: Array[String val] val,
     notify: CompilerNotify tag,
-    notify_pass_result: Array[PassId] val)
+    notify_passes: Array[PassId] val)
     """
     Compile the given package and call the `notify` with the compilation result
-    after the provided passes in `notify_pass_result`.
+    after the provided passes in `notify_passes`.
     """
 
 interface CompilerNotify
@@ -228,6 +229,7 @@ interface CompilerNotify
     """
     Called when a compilation result after the provided pass is available.
 
-    Do not keep the Program or any part of it around without copying, if further passes are executed.
+    Do not keep the Program or any part of it around without copying,
+    if further passes are executed.
     The underlying AST might be modified and parts of it replaced and deleted.
     """

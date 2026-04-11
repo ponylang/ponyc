@@ -28,21 +28,22 @@ actor WorkspaceManager
   let _global_errors: Array[Diagnostic val]
   let _compiler: LspCompiler
   // we get notified about all passes, mostly for progress reporting
-  let _compile_passes: Array[PassId] val = [
-    PassParse
-    PassSyntax
-    PassSugar
-    PassScope
-    PassImport
-    PassNameResolution
-    PassFlatten
-    PassTraits
-    PassRefer
-    PassExpr
-    PassCompleteness
-    PassVerify
-    PassFinaliser
-  ]
+  let _compile_passes: Array[PassId] val =
+    [
+      PassParse
+      PassSyntax
+      PassSugar
+      PassScope
+      PassImport
+      PassNameResolution
+      PassFlatten
+      PassTraits
+      PassRefer
+      PassExpr
+      PassCompleteness
+      PassVerify
+      PassFinaliser
+    ]
   var _compile_run: USize = 0
   var _compiling: Bool = false
   var _current_request: (RequestMessage val | None) = None
@@ -114,39 +115,44 @@ actor WorkspaceManager
     end
     error
 
-  fun _progress_report_nofitication(package: FilePath, pass: PassId): Notification =>
+  fun _progress_report_nofitication(
+    package: FilePath,
+    pass: PassId)
+    : Notification
+  =>
     let token = this._compilation_token(package)
-    (let percentage: I64, let message: String) = match pass
-    | PassParse =>
-      (I64(5), "Pass: " + PassSyntax.string())
-    | PassSyntax =>
-      (I64(10), "Pass: " + PassSugar.string())
-    | PassSugar =>
-      (I64(15), "Pass: " + PassScope.string())
-    | PassScope =>
-      (I64(20), "Pass: " + PassImport.string())
-    | PassImport =>
-      (I64(25), "Pass: " + PassNameResolution.string())
-    | PassNameResolution =>
-      (I64(30), "Pass: " + PassFlatten.string())
-    | PassFlatten =>
-      (I64(35), "Pass: " + PassTraits.string())
-    | PassTraits =>
-      (I64(40), "Pass: " + PassRefer.string())
-    | PassRefer =>
-      (I64(50), "Pass: type-checking") // more meaningful than expr
-    | PassExpr =>
-      (I64(85), "Pass: " + PassCompleteness.string())
-    | PassCompleteness =>
-      (I64(90), "Pass: " + PassVerify.string())
-    | PassVerify =>
-      (I64(95), "Pass: " + PassFinaliser.string())
-    | PassFinaliser =>
-      (I64(100), "Done")
-    else
-      // shouldn't happen
-      (I64(0), "")
-    end
+    (let percentage: I64, let message: String) =
+      match pass
+      | PassParse =>
+        (I64(5), "Pass: " + PassSyntax.string())
+      | PassSyntax =>
+        (I64(10), "Pass: " + PassSugar.string())
+      | PassSugar =>
+        (I64(15), "Pass: " + PassScope.string())
+      | PassScope =>
+        (I64(20), "Pass: " + PassImport.string())
+      | PassImport =>
+        (I64(25), "Pass: " + PassNameResolution.string())
+      | PassNameResolution =>
+        (I64(30), "Pass: " + PassFlatten.string())
+      | PassFlatten =>
+        (I64(35), "Pass: " + PassTraits.string())
+      | PassTraits =>
+        (I64(40), "Pass: " + PassRefer.string())
+      | PassRefer =>
+        (I64(50), "Pass: type-checking") // more meaningful than expr
+      | PassExpr =>
+        (I64(85), "Pass: " + PassCompleteness.string())
+      | PassCompleteness =>
+        (I64(90), "Pass: " + PassVerify.string())
+      | PassVerify =>
+        (I64(95), "Pass: " + PassFinaliser.string())
+      | PassFinaliser =>
+        (I64(100), "Done")
+      else
+        // shouldn't happen
+        (I64(0), "")
+      end
     Notification(
       Methods.progress(),
       JsonObject
@@ -186,7 +192,8 @@ actor WorkspaceManager
 
       let done_compiling =
         match (result, pass)
-        | (let program: Program val, PassFinaliser) | (let errors: Array[Error val] val, _) => true
+        | (let program: Program val, PassFinaliser)
+        | (let errors: Array[Error val] val, _) => true
         else
           false
         end
@@ -197,16 +204,21 @@ actor WorkspaceManager
           let message =
             match \exhaustive\ result
             | let p: Program val => "Success"
-            | let errors: Array[Error val] val => errors.size().string() + " Errors"
+            | let errors: Array[Error val] val =>
+              errors.size().string() + " Errors"
             end
           this._channel.send(
             Notification(
               Methods.progress(),
               JsonObject
-                .update("token", this._compilation_token(program_dir))
-                .update("value", JsonObject
-                  .update("kind", "end")
-                  .update("message", message))
+                .update(
+                  "token",
+                  this._compilation_token(program_dir))
+                .update(
+                  "value",
+                  JsonObject
+                    .update("kind", "end")
+                    .update("message", message))
             )
           )
         end
@@ -234,11 +246,13 @@ actor WorkspaceManager
         this._global_errors.clear()
       end
 
-      // handle compilation result, if compilation is fully done (last pass) or not
+      // handle compilation result,
+      // if compilation is fully done (last pass) or not
       match (result, pass)
       | (let program: Program val, PassParse) =>
         // parsing was successful
-        // TODO: use parse pass data already to pre-fill some package and module states
+        // TODO: use parse pass data already
+        // to pre-fill some package and module states
         None
       | (let program: Program val, PassFinaliser) =>
         this._channel.log("Successfully compiled " + program_dir.path)
@@ -413,7 +427,12 @@ actor WorkspaceManager
       )
     end
     // get results after parse pass and after finaliser pass
-    _compiler.compile(package, workspace.dependency_paths, this, this._compile_passes)
+    _compiler.compile(
+      package,
+      workspace.dependency_paths,
+      this,
+      this._compile_passes
+    )
     _compiling = true
 
   fun _compilation_token(package: FilePath): String =>
