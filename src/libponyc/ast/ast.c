@@ -1886,6 +1886,14 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
       printbuf(buffer, "_");
       break;
 
+    case TK_BOOL_TRUE:
+      printbuf(buffer, "true");
+      break;
+
+    case TK_BOOL_FALSE:
+      printbuf(buffer, "false");
+      break;
+
     case TK_FUNTYPE:
       printbuf(buffer, "function");
       break;

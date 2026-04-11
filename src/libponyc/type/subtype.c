@@ -1896,6 +1896,10 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   if((ast_id(super) == TK_DONTCARETYPE) || (ast_id(sub) == TK_DONTCARETYPE))
     return true;
 
+  // Bool singleton types: only the identical singleton matches as super.
+  if(ast_id(super) == TK_BOOL_TRUE || ast_id(super) == TK_BOOL_FALSE)
+    return ast_id(sub) == ast_id(super);
+
   switch(ast_id(sub))
   {
     case TK_UNIONTYPE:
@@ -1930,6 +1934,18 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     case TK_INFERTYPE:
     case TK_ERRORTYPE:
       return false;
+
+    case TK_BOOL_TRUE:
+    case TK_BOOL_FALSE:
+    {
+      if(ast_id(sub) == ast_id(super))
+        return true;
+      if(is_bool(super))
+        return true;
+      if(ast_id(super) == TK_UNIONTYPE)
+        return is_x_sub_union(sub, super, check_cap, errorf, opt);
+      return false;
+    }
 
     default: {}
   }
