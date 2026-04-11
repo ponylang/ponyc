@@ -248,6 +248,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         {
           ast_error(opt->check.errors, ast,
             "match marked \\exhaustive\\ is not exhaustive");
+          ast_free_unattached(type);
           return false;
         }
 
@@ -264,7 +265,10 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         ast_add(else_clause, ref);
 
         if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
+        {
+          ast_free_unattached(type);
           return false;
+        }
       }
     }
     else
@@ -276,6 +280,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         ast_error(opt->check.errors, ast, "match contains unreachable cases");
         ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
           "first unreachable case expression");
+        ast_free_unattached(type);
         return false;
       }
       else if((ast_id(else_clause) != TK_NONE))
@@ -284,6 +289,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
           "match is exhaustive, the else clause is unreachable");
         ast_error_continue(opt->check.errors, else_clause,
           "unreachable code");
+        ast_free_unattached(type);
         return false;
       }
     }
@@ -294,7 +300,10 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     if (!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
     {
       if(is_typecheck_error(ast_type(else_clause)))
+      {
+        ast_free_unattached(type);
         return false;
+      }
 
       type = control_type_add_branch(opt, type, else_clause);
     }
