@@ -511,6 +511,8 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         ast_free_unattached(w_type);
         return false;
       }
+
+      ast_free_unattached(w_type);
     }
     else
     {
