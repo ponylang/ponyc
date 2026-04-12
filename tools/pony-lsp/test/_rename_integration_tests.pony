@@ -693,7 +693,7 @@ class val _PrepareRenameChecker
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     try
-      let range = JsonNav(res.result)("range")
+      let range = JsonNav(res.result)
       let sl = range("start")("line").as_i64()?
       let sc = range("start")("character").as_i64()?
       let el = range("end")("line").as_i64()?

@@ -675,9 +675,7 @@ actor WorkspaceManager
         LspPositionRange(
           LspPosition.from_ast_pos(start_pos),
           LspPosition.from_ast_pos_end(end_pos))
-      this._channel.send(
-        ResponseMessage(
-          request.id, JsonObject.update("range", range.to_json())))
+      this._channel.send(ResponseMessage(request.id, range.to_json()))
       return
     end
     this._channel.send(ResponseMessage.create(request.id, None))
