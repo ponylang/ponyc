@@ -115,7 +115,7 @@ actor WorkspaceManager
     end
     error
 
-  fun _progress_report_nofitication(
+  fun _progress_report_notification(
     package: FilePath,
     pass: PassId)
     : Notification
