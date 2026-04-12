@@ -46,6 +46,14 @@ class ref _InlayHintCollector is ASTVisitor
     to the return type and receiver cap hint handlers. Behaviours (be) and
     constructors (new) are excluded: be has no receiver cap or return type,
     and new always returns the constructed type which is unambiguous.
+
+    Invariant: nodes must be visited in non-decreasing source line order
+    for _byte_offset's forward-only cursor to work correctly. This holds
+    because AST.children() reorders children into source order for class,
+    fun, and other compound nodes, and _add_nominal_hints processes each
+    outer type name before its type arguments (which always appear later
+    in source). A change to either traversal order would silently produce
+    missing hints via the error path in _byte_offset.
     """
     match node.id()
     | TokenIds.tk_let() | TokenIds.tk_var()
@@ -121,13 +129,15 @@ class ref _InlayHintCollector is ASTVisitor
       for child in type_node.children() do
         _add_nominal_hints(child, src)
       end
+    // TODO: unhandled type forms (no hints produced):
+    // tk_arrow, tk_lambdatype, tk_barelambdatype, tk_typeparamref, tk_funtype
     end
 
   fun ref _add_one_nominal_hint(nominal: AST box, src: String box) =>
     """
     Checks whether a tk_nominal type annotation has an explicit capability
-    in source. If not, pushes a capability hint right after the type's
-    source span (name + optional type args).
+    in source. If not, pushes a capability hint right after the type's source
+    span (name + optional type args).
     """
     try
       let id_node = nominal(1)?

@@ -28,6 +28,11 @@ primitive InlayHintSource
     Scans forward past a balanced [...] sequence, tracking line/col.
     Returns (byte_index, line, col) immediately after the closing ']'.
     Errors if the source ends before the brackets close.
+
+    Note: line and block comments are not handled. A ']' inside a
+    `//` or `/* */` comment would be miscounted, causing the scan
+    to end early. The effect is a silently missing hint, not a wrong
+    hint or a crash, because the downstream try block absorbs the error.
     """
     var j: USize = start
     var j_line: USize = start_line
@@ -129,6 +134,12 @@ primitive InlayHintSource
     parameter list. If start is already inside the list, the first ')'
     encountered will decrement paren depth below zero and the closing ')'
     will never be recognised.
+
+    Note: line and block comments are not handled. A ')' inside a
+    `//` or `/* */` comment within the parameter list (e.g. a trailing
+    comment on a parameter line) would be miscounted, causing the scan
+    to end early. The effect is a silently missing hint, not a wrong
+    hint or a crash, because the downstream try block absorbs the error.
     """
     var j: USize = start
     var j_line: USize = start_line
@@ -184,11 +195,13 @@ primitive InlayHintSource
     Handles \\-escaped characters and newlines. Returns (j, line, col)
     immediately after the closing delimiter, or at end-of-string if the
     literal is unterminated.
+
     Note: triple-quoted strings are not handled. Each '"' is treated as a
     single-character delimiter, so three consecutive '"' characters are seen
-    as an empty string followed by an opening '"'. This function is only
-    correct in contexts where triple-quoted strings cannot appear, such as
-    function parameter lists.
+    as an empty string followed by an opening '"'. Triple-quoted strings can
+    appear as default parameter values, so a closing '"' inside such a default
+    could end the scan early. The effect is a silently missing hint, not a
+    wrong hint or a crash.
     """
     var j: USize = j_start
     var j_line: USize = j_line_start
@@ -223,6 +236,11 @@ primitive InlayHintSource
     Returns true if ':' is found before '=>' (explicit return type).
     Returns false if '=>' is found first (inferred return type).
     Errors on unexpected input.
+
+    Note: line and block comments are not handled. A `//` or `/* */`
+    comment between ')' and '=>' that contains ':' would be mistaken
+    for a return type annotation. The effect is a silently missing
+    hint, not a wrong hint or a crash.
     """
     var j = after_paren
     while j < src.size() do
