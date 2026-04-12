@@ -86,6 +86,9 @@ primitive TextDocumentMethods
   Collection of textDocument scoped methods.
   """
 
+  fun declaration(): String val =>
+    "textDocument/declaration"
+
   fun definition(): String val =>
     "textDocument/definition"
 
