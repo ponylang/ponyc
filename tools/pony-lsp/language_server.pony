@@ -109,6 +109,36 @@ actor LanguageServer is (Notifier & RequestSender)
                 "[" + r.method + "] No workspace found for '" +
                 r.json().string() + "'")))
         end
+      | Methods.text_document().prepare_rename() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .prepare_rename(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
+      | Methods.text_document().rename() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .rename(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
       | Methods.text_document().document_highlight() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -425,6 +455,9 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("save", JsonObject.update("includeText", true)))
                 .update("definitionProvider", true)
                 .update("referencesProvider", true)
+                .update(
+                  "renameProvider",
+                  JsonObject.update("prepareProvider", true))
                 .update(
                   "diagnosticProvider",
                   JsonObject

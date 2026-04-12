@@ -465,6 +465,9 @@ class val _RefsChecker
   fun lsp_context(): (None | JsonObject) =>
     JsonObject.update("includeDeclaration", _include_declaration)
 
+  fun lsp_extra_params(): (None | JsonObject) =>
+    None
+
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result
