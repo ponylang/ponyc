@@ -11,3 +11,7 @@ The pony-lsp inlay hint feature now covers additional implicit capability annota
 - **Return type capability**: when a function has an explicit return type annotation, a capability hint is added after the type name if the cap is absent.
 - **Inferred return type**: when a function has no return type annotation, a hint shows the full inferred return type (e.g. `: None val`).
 
+## Add LSP `textDocument/declaration` support
+
+The Pony language server now handles `textDocument/declaration` requests. In Pony there are no separate declaration sites — declaration and definition are always the same location — so the handler routes directly to the existing go-to-definition implementation. The server advertises `declarationProvider: true` in its capabilities.
+
