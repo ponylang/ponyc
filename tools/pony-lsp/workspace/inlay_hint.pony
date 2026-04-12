@@ -70,6 +70,13 @@ class ref _InlayHintCollector is ASTVisitor
       end
 
       let name = id_node.token_value() as String
+      if name.size() == 0 then
+        return
+      end
+      if name(0)? == '$' then
+        return
+      end
+
       let line = id_node.line()
       let col = id_node.pos()
       if (line == 0) or (col == 0) then

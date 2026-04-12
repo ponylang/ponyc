@@ -20,6 +20,7 @@ primitive _InlayHintIntegrationTests is TestList
     test(_InlayHintUnionTupleTest.create(server))
     test(_InlayHintBeNewExclusionTest.create(server))
     test(_InlayHintExplicitReceiverCapTest.create(server))
+    test(_InlayHintSyntheticNameExclusionTest.create(server))
 
 class \nodoc\ iso _InlayHintDemoTest is UnitTest
   let _server: _LspTestServer
@@ -48,7 +49,12 @@ class \nodoc\ iso _InlayHintDemoTest is UnitTest
               (22, 28, " val")                   // explicit_fun return type cap
               (26, 5, " box")                    // multiline receiver cap
               (27, 12, " val")                   // multiline return type cap
-              (31, 24, ": None val") ]           // explicit_cap return type
+              (31, 24, ": None val")             // explicit_cap return type
+              (35, 5, " box")                    // for_loop receiver cap
+              (35, 16, ": None val")             // for_loop return type
+              (36, 27, " val")                   // String cap in Array[String]
+              (36, 28, " ref")                   // Array cap in Array[String]
+              (37, 12, ": String val") ]         // item type in for loop
             )) ])
 
 class \nodoc\ iso _InlayHintRangeFirstLineTest is UnitTest
@@ -316,6 +322,30 @@ class \nodoc\ iso _InlayHintExplicitReceiverCapTest is UnitTest
           _InlayHintChecker(
             [ (31, 24, ": None val") ] // return type only; no receiver cap hint
             where range = (31, 0, 33, 0))) ])
+
+class \nodoc\ iso _InlayHintSyntheticNameExclusionTest is UnitTest
+  """
+  Verifies that synthetic compiler-generated names (prefixed with `$`) do not
+  produce inlay hints. For-loop desugaring introduces a `$`-named iterator
+  variable; only the user-visible `item` binding should receive a hint.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/synthetic_name_exclusion"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ (0, 0,
+          _InlayHintChecker(
+            [ (37, 12, ": String val") ] // item hint; no hint for $iterator
+            where range = (37, 0, 39, 0))) ])
 
 class val _InlayHintChecker
   """

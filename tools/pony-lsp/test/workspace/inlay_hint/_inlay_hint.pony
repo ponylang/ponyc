@@ -31,3 +31,10 @@ class _InlayHint
   // no receiver cap hint (explicit ref), hint: ": None val" (return type)
   fun ref explicit_cap() =>
     None
+
+  // no hint for the synthetic $-named loop iterator variable
+  fun for_loop() =>
+    let items: Array[String] = ["a"; "b"]
+    for item in items.values() do
+      None
+    end
