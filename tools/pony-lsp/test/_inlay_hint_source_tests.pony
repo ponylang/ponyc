@@ -337,7 +337,7 @@ class \nodoc\ iso _InlayHintSourceExplicitReturnTypeColonTest is UnitTest
 
   fun apply(h: TestHelper) =>
     try
-      h.assert_true(InlayHintSource.explicit_return_type(": String", 0)?)
+      h.assert_true(InlayHintSource.has_explicit_return_type(": String", 0)?)
     else
       h.fail("unexpected error")
     end
@@ -347,7 +347,7 @@ class \nodoc\ iso _InlayHintSourceExplicitReturnTypeArrowTest is UnitTest
 
   fun apply(h: TestHelper) =>
     try
-      h.assert_false(InlayHintSource.explicit_return_type("=>", 0)?)
+      h.assert_false(InlayHintSource.has_explicit_return_type("=>", 0)?)
     else
       h.fail("unexpected error")
     end
@@ -359,9 +359,9 @@ class \nodoc\ iso _InlayHintSourceExplicitReturnTypeSkipTest is UnitTest
   fun apply(h: TestHelper) =>
     // spaces and '?' are skipped before ':'
     try
-      h.assert_true(InlayHintSource.explicit_return_type(" ?: String", 0)?)
+      h.assert_true(InlayHintSource.has_explicit_return_type(" ?: String", 0)?)
       // spaces and '?' are skipped before '=>'
-      h.assert_false(InlayHintSource.explicit_return_type(" ? =>", 0)?)
+      h.assert_false(InlayHintSource.has_explicit_return_type(" ? =>", 0)?)
     else
       h.fail("unexpected error")
     end
@@ -372,7 +372,12 @@ class \nodoc\ iso _InlayHintSourceExplicitReturnTypeErrorTest is UnitTest
   fun apply(h: TestHelper) =>
     // unexpected character
     h.assert_true(
-      try InlayHintSource.explicit_return_type("x", 0)? ; false else true end)
+      try
+        InlayHintSource.has_explicit_return_type("x", 0)?
+        false
+      else
+        true
+      end)
 
 class \nodoc\ iso _InlayHintSourceHasExplicitReceiverCapCapTest is UnitTest
   fun name(): String => "inlay_hint_source/has_explicit_receiver_cap/cap"
@@ -459,7 +464,7 @@ class \nodoc\ iso _InlayHintSourceExplicitReturnTypeTabNewlineSkipTest
   fun apply(h: TestHelper) =>
     // tab and newline are skipped like space
     try
-      h.assert_true(InlayHintSource.explicit_return_type("\t\n: T", 0)?)
+      h.assert_true(InlayHintSource.has_explicit_return_type("\t\n: T", 0)?)
     else
       h.fail("unexpected error")
     end
@@ -472,7 +477,12 @@ class \nodoc\ iso _InlayHintSourceExplicitReturnTypeEqualNotArrowTest
   fun apply(h: TestHelper) =>
     // '=' not followed by '>' errors
     h.assert_true(
-      try InlayHintSource.explicit_return_type("= x", 0)? ; false else true end)
+      try
+        InlayHintSource.has_explicit_return_type("= x", 0)?
+        false
+      else
+        true
+      end)
 
 class \nodoc\ iso _InlayHintSourceHasExplicitReceiverCapTabTest is UnitTest
   fun name(): String => "inlay_hint_source/has_explicit_receiver_cap/tab"

@@ -214,7 +214,7 @@ class ref _InlayHintCollector is ASTVisitor
         InlayHintSource.scan_to_close_paren(
           src, start, line, col + name.size())?
 
-      if InlayHintSource.explicit_return_type(src, close_j)? then
+      if InlayHintSource.has_explicit_return_type(src, close_j)? then
         _add_nominal_hints(node(4)?, src)
       else
         let type_str = node(4)?.type_string() as String

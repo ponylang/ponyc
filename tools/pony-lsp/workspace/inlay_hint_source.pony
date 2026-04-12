@@ -230,7 +230,7 @@ primitive InlayHintSource
     end
     (j, j_line, j_col)
 
-  fun explicit_return_type(src: String box, after_paren: USize): Bool ? =>
+  fun has_explicit_return_type(src: String box, after_paren: USize): Bool ? =>
     """
     Scans from after_paren to determine the function return type syntax.
     Returns true if ':' is found before '=>' (explicit return type).
