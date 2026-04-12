@@ -142,7 +142,7 @@ class DocumentState
         FromCompilerRun[Array[DocumentSymbol]]
           .create(run_id, DocumentSymbols.from_module(module', this._channel))
       this._hash.update(run_id, module'.hash())
-      // compilation was successful, clear out document diagnositcs
+      // compilation was successful, clear out document diagnostics
       this._diagnostics.update(run_id, [])
     end
 
