@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add LSP `workspace/inlayHint/refresh` support ([PR #5224](https://github.com/ponylang/ponyc/pull/5224))
+- Extend LSP inlay hints with generic caps, return type caps, and receiver caps ([PR #5222](https://github.com/ponylang/ponyc/pull/5222))
 
 ### Changed
 
