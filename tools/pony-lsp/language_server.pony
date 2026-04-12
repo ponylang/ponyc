@@ -126,6 +126,8 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      // In Pony, declaration and definition are the same location.
+      | Methods.text_document().declaration()
       | Methods.text_document().definition() =>
         try
           let document_uri =
@@ -423,6 +425,7 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("change", I64(0))
                     .update("openClose", true)
                     .update("save", JsonObject.update("includeText", true)))
+                .update("declarationProvider", true)
                 .update("definitionProvider", true)
                 .update("referencesProvider", true)
                 .update(

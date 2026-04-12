@@ -621,7 +621,7 @@ actor WorkspaceManager
     """
     Handling the textDocument/definition request.
     """
-    this._channel.log("handling textDocument/definition")
+    this._channel.log("handling " + request.method)
     this._current_request = request
     (let line, let column) =
       match \exhaustive\ _parse_hover_position(request)
