@@ -62,8 +62,19 @@ primitive WorkspaceMethods
   fun diagnostic(): WorkspaceDiagnosticMethods =>
     WorkspaceDiagnosticMethods
 
+  fun folding_range(): WorkspaceFoldingRangeMethods =>
+    WorkspaceFoldingRangeMethods
+
   fun inlay_hint(): WorkspaceInlayHintMethods =>
     WorkspaceInlayHintMethods
+
+primitive WorkspaceFoldingRangeMethods
+  """
+  Collection of workspace/foldingRange related methods.
+  """
+
+  fun refresh(): String val =>
+    "workspace/foldingRange/refresh"
 
 primitive WorkspaceInlayHintMethods
   """
@@ -109,6 +120,9 @@ primitive TextDocumentMethods
 
   fun document_symbol(): String val =>
     "textDocument/documentSymbol"
+
+  fun folding_range(): String val =>
+    "textDocument/foldingRange"
 
   fun hover(): String val =>
     "textDocument/hover"

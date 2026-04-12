@@ -288,11 +288,14 @@ actor WorkspaceManager
           None)
       end
       if this._client.supports_inlay_hint_refresh() then
-        // tell the client to re-request inlay hints
-        // for all open documents
+        // tell the client to re-request inlay hints for all open documents
         this._request_sender.send_request(
-          Methods.workspace().inlay_hint().refresh(),
-          None)
+          Methods.workspace().inlay_hint().refresh(), None)
+      end
+      if this._client.supports_folding_range_refresh() then
+        // tell the client to re-request folding ranges for all open documents
+        this._request_sender.send_request(
+          Methods.workspace().folding_range().refresh(), None)
       end
     else
       this._channel.log(
@@ -779,6 +782,44 @@ actor WorkspaceManager
       | None =>
         this._channel.log(
           "No package state available for " + document_path)
+      end
+    else
+      this._channel.log("document not in workspace: " + document_path)
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be folding_range(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/foldingRange request.
+    """
+    this._channel.log("Handling " + request.method)
+    let document_path = Uris.to_path(document_uri)
+    try
+      let package: FilePath = this._find_workspace_package(document_path)?
+      match \exhaustive\ this._get_package(package)
+      | let pkg_state: PackageState =>
+        match \exhaustive\ pkg_state.get_document(document_path)
+        | let doc: DocumentState =>
+          match \exhaustive\ doc.module()
+          | let module: Module val =>
+            let fold_ranges = FoldingRanges.collect(module)
+            var json_arr = JsonArray
+            for range in fold_ranges.values() do
+              json_arr = json_arr.push(range)
+            end
+            this._channel.send(ResponseMessage(request.id, json_arr))
+            return
+          | None =>
+            this._channel.log(
+              "No module available for " + document_path)
+          end
+        | None =>
+          this._channel.log(
+            "No document state available for " + document_path)
+        end
+      | None =>
+        this._channel.log(
+          "No package state available for package: " + package.path)
       end
     else
       this._channel.log("document not in workspace: " + document_path)

@@ -182,6 +182,21 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      | Methods.text_document().folding_range() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .folding_range(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
       | Methods.text_document().diagnostic() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -435,6 +450,7 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("interFileDependencies", true)
                     .update("workspaceDiagnostics", false))
                 .update("documentSymbolProvider", true)
+                .update("foldingRangeProvider", true)
                 .update(
                   "inlayHintProvider",
                   JsonObject.update("resolveProvider", false)))
