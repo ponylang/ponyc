@@ -104,6 +104,13 @@ primitive FoldingRanges
     line equals the entity's line (synthetic default constructors injected by
     ponyc) and any member whose body does not extend past its declaration line
     (synthetic single-line methods such as eq, ne, hash added for primitives).
+
+    The end-line scan uses entity_cap in the first pass so the result can be
+    cached and reused for the range push, eliminating a second traversal. For
+    real methods, _end_line(member, entity_cap) == _end_line(member, member_cap)
+    since a method's body content does not extend past the next method's start
+    line. member_cap is still passed to _collect_body for expression-level
+    ranges within the body.
     """
     try
       let members = entity(4)?
@@ -111,26 +118,32 @@ primitive FoldingRanges
         return
       end
       let entity_line = entity.line()
-      let real_members: Array[AST box] = Array[AST box]
+      let real_members: Array[(AST box, USize)] = Array[(AST box, USize)]
       for member in members.children() do
         match member.id()
         | TokenIds.tk_fun()
         | TokenIds.tk_be()
         | TokenIds.tk_new() =>
-          if (member.line() > entity_line) and
-            (_end_line(member, entity_cap) > member.line())
-          then
-            real_members.push(member)
+          let sl = member.line()
+          if sl > entity_line then
+            let el = _end_line(member, entity_cap)
+            if el > sl then
+              real_members.push((member, el))
+            end
           end
         end
       end
       for i in real_members.keys() do
-        let member = real_members(i)?
+        (let member, let el) = real_members(i)?
         let member_cap =
-          try real_members(i + 1)?.line()
+          try real_members(i + 1)?._1.line()
           else entity_cap
           end
-        _push_range(member, ranges, member_cap)
+        let sl = member.line()
+        ranges.push(
+          JsonObject
+            .update("startLine", sl.i64() - 1)
+            .update("endLine", el.i64() - 1))
         _collect_body(member, ranges, member_cap)
       end
     end
