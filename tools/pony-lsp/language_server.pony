@@ -194,7 +194,7 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
+                "[" + r.method + "] No workspace found for request '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().diagnostic() =>

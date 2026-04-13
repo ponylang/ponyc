@@ -792,7 +792,7 @@ actor WorkspaceManager
     """
     Handle textDocument/foldingRange request.
     """
-    this._channel.log("Handling " + request.method)
+    this._channel.log("Handling textDocument/foldingRange")
     let document_path = Uris.to_path(document_uri)
     try
       let package: FilePath = this._find_workspace_package(document_path)?
@@ -819,7 +819,7 @@ actor WorkspaceManager
         end
       | None =>
         this._channel.log(
-          "No package state available for package: " + package.path)
+          "No package state available for " + document_path)
       end
     else
       this._channel.log("document not in workspace: " + document_path)

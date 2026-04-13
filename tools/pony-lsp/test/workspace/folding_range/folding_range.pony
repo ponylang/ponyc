@@ -56,6 +56,11 @@ Expected fold regions per file:
   type_alias.pony — multi-line type alias
     - `type TypeAlias is` (line 1) → folds through the closing `)`
 
+  ifdef_expressions.pony — ifdef expression-level range
+    - `class IfdefExpressions` (line 1) → folds entire class
+    - `fun with_ifdef` (line 5) → folds method body
+    - `ifdef debug then` (line 6) → folds through the else branch value
+
   entity_types.pony — all entity kinds and be behaviors
     - `primitive P` (line 1) → folds through `42`
     - `fun value(): U32 =>` (line 2) → folds through `42`

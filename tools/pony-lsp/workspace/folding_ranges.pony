@@ -118,7 +118,7 @@ primitive FoldingRanges
         | TokenIds.tk_be()
         | TokenIds.tk_new() =>
           if (member.line() > entity_line) and
-            (_end_line(member) > member.line())
+            (_end_line(member, entity_cap) > member.line())
           then
             real_members.push(member)
           end
@@ -142,9 +142,13 @@ primitive FoldingRanges
   =>
     """
     Walks all descendants of node and pushes folding ranges for multi-line
-    compound expressions: if, ifdef, while, for, repeat, match, try,
-    object, lambda, barelambda, and recover blocks. tk_try_no_check covers
-    desugared `with` expressions.
+    compound expressions: if, ifdef, while, for, repeat, match, try, and
+    recover blocks. tk_try_no_check covers desugared `with` expressions.
+
+    Note: tk_object, tk_lambda, and tk_barelambda are not matched here
+    because PassExpr replaces those literals with constructor calls before
+    the AST reaches the LSP. Fold ranges for object/lambda expressions are
+    produced via the synthetic entity classes appended to the module.
     """
     let collector =
       object ref is ASTVisitor
@@ -153,8 +157,7 @@ primitive FoldingRanges
           | TokenIds.tk_if() | TokenIds.tk_ifdef() | TokenIds.tk_while()
           | TokenIds.tk_for() | TokenIds.tk_repeat() | TokenIds.tk_match()
           | TokenIds.tk_try() | TokenIds.tk_try_no_check()
-          | TokenIds.tk_object() | TokenIds.tk_lambda()
-          | TokenIds.tk_barelambda() | TokenIds.tk_recover() =>
+          | TokenIds.tk_recover() =>
             let sl = n.line().i64() - 1
             let el = FoldingRanges._end_line(n, cap).i64() - 1
             if el > sl then

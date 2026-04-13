@@ -14,6 +14,7 @@ primitive _FoldingRangeIntegrationTests is TestList
     test(_FoldingRangeExpressionsRangesTest.create(server))
     test(_FoldingRangeTypeRangeTest.create(server))
     test(_FoldingRangeMoreExpressionsRangesTest.create(server))
+    test(_FoldingRangeIfdefTest.create(server))
 
 class \nodoc\ iso _FoldingRangeClassTest is UnitTest
   """
@@ -316,3 +317,32 @@ class val _FoldingRangeChecker
       return false
     end
     ok
+
+class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
+  """
+  FoldingRange for ifdef_expressions.pony: verifies that an ifdef block
+  produces an expression-level folding range.
+
+  ifdef_expressions.pony layout (0-indexed lines):
+    line 0: class IfdefExpressions          → (0, 8)
+    line 4:   fun with_ifdef(x: U32): U32   → (4, 8)
+    line 5:     ifdef debug then ... end    → (5, 8)
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "folding_range/integration/ifdef"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "folding_range/ifdef_expressions.pony",
+      [ ( 0, 0,
+          _FoldingRangeChecker(
+            [ (0, 8)
+              (4, 8)
+              (5, 8)]))])
