@@ -56,10 +56,22 @@ Expected fold regions per file:
   type_alias.pony — multi-line type alias
     - `type TypeAlias is` (line 1) → folds through the closing `)`
 
+  nested_expressions.pony — nested and sequential compound expressions
+    - `class NestedExpressions` (line 1) → folds entire class
+    - `fun with_nested` (line 5) → folds method body
+    - `while i < n do` (line 7) → folds through `end` of nested if (line 12)
+    - `if (i % 2) == 0 then` (line 8) → folds through `i = i + 1`
+        (nested inside while)
+    - `fun with_sequential` (line 16) → folds method body
+    - `if n > 0 then` (line 18) → folds through `result = 0`
+    - `while result > 0 do` (line 23) → folds through `result = result - 1`
+
   ifdef_expressions.pony — ifdef expression-level range
+      (`ifdef` is resolved to `if` by the compiler; range comes from the if arm)
     - `class IfdefExpressions` (line 1) → folds entire class
     - `fun with_ifdef` (line 5) → folds method body
     - `ifdef debug then` (line 6) → folds through the else branch value
+        (via tk_if after compiler resolution)
 
   entity_types.pony — all entity kinds and be behaviors
     - `primitive P` (line 1) → folds through `42`

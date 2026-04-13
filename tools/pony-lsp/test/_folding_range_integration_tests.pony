@@ -15,6 +15,7 @@ primitive _FoldingRangeIntegrationTests is TestList
     test(_FoldingRangeTypeRangeTest.create(server))
     test(_FoldingRangeMoreExpressionsRangesTest.create(server))
     test(_FoldingRangeIfdefTest.create(server))
+    test(_FoldingRangeNestedExpressionsTest.create(server))
 
 class \nodoc\ iso _FoldingRangeClassTest is UnitTest
   """
@@ -323,10 +324,14 @@ class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
   FoldingRange for ifdef_expressions.pony: verifies that an ifdef block
   produces an expression-level folding range.
 
+  `ifdef` is resolved to `if` by resolve_ifdef() during the expr pass, so the
+  fold range is produced by the tk_if arm, not a tk_ifdef arm. The test
+  verifies the correct user-facing behavior regardless of the internal token.
+
   ifdef_expressions.pony layout (0-indexed lines):
     line 0: class IfdefExpressions          → (0, 8)
     line 4:   fun with_ifdef(x: U32): U32   → (4, 8)
-    line 5:     ifdef debug then ... end    → (5, 8)
+    line 5:     ifdef debug then ... end    → (5, 8)  via tk_if after resolution
   """
   let _server: _LspTestServer
 
@@ -346,3 +351,42 @@ class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
             [ (0, 8)
               (4, 8)
               (5, 8)]))])
+
+class \nodoc\ iso _FoldingRangeNestedExpressionsTest is UnitTest
+  """
+  FoldingRange for nested_expressions.pony: verifies that compound expressions
+  nested within other compound expressions each produce their own fold range,
+  and that sequential compound expressions in a single method body both produce
+  fold ranges.
+
+  nested_expressions.pony layout (0-indexed lines):
+    line  0: class NestedExpressions             → (0, 25)
+    line  4:   fun with_nested(n: U32): U32 =>   → (4, 13)
+    line  6:     while i < n do                  → (6, 11)  last: if's `end`
+    line  7:       if (i % 2) == 0 then          → (7, 10)  nested inside while
+    line 15:   fun with_sequential(n: U32): U32  → (15, 25)
+    line 17:     if n > 0 then                   → (17, 20)  first sequential
+    line 22:     while result > 0 do             → (22, 23)  second sequential
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "folding_range/integration/nested_expressions"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "folding_range/nested_expressions.pony",
+      [ ( 0, 0,
+          _FoldingRangeChecker(
+            [ (0, 25)
+              (4, 13)
+              (6, 11)
+              (7, 10)
+              (15, 25)
+              (17, 20)
+              (22, 23)]))])
