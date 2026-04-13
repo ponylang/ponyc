@@ -1,7 +1,3 @@
-class _D
-  new create() => None
-  fun dispose(): None => None
-
 class MoreExpressions
   """
   Test fixture for additional expression-level folding ranges.
@@ -46,3 +42,7 @@ class MoreExpressions
       s.append("hello")
       consume s
     end
+
+class _D
+  new create() => None
+  fun dispose(): None => None

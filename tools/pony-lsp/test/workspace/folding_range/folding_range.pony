@@ -38,22 +38,20 @@ Expected fold regions per file:
     - `try` (line 29) → folds through `0` (the else branch)
 
   more_expressions.pony — for, repeat, with, object, lambda, recover
-    - `class _D` (line 1) → folds through `fun dispose`
-    - `class MoreExpressions` (line 5) → folds entire class
-    - `fun with_for` (line 10) → folds method body
-    - `for i in ...` (line 12) → folds through `sum = sum + i`
-    - `fun with_repeat` (line 17) → folds method body
-    - `repeat` (line 19) → folds through `until i >= 3`
-    - `fun with_with` (line 24) → folds method body
+    - `class MoreExpressions` (line 1) → folds entire class
+    - `fun with_for` (line 6) → folds method body
+    - `for i in ...` (line 8) → folds through `sum = sum + i`
+    - `fun with_repeat` (line 13) → folds method body
+    - `repeat` (line 15) → folds through `i >= 3` (the until condition)
+    - `fun with_with` (line 20) → folds method body
       (`with` desugars to try — no separate expression-level fold)
-    - `fun with_object` (line 29) → folds method body
-    - `object` (line 31) → folds through `fun value`
-    - `fun with_lambda` (line 36) → folds method body
-    - `{(): String =>` (line 38) → folds through `"hello world"` (two
-      overlapping indicators: one for tk_lambda, one for the desugared
-      tk_object)
-    - `fun with_recover` (line 43) → folds method body
-    - `recover` (line 44) → folds through `consume s`
+    - `fun with_object` (line 25) → folds method body
+    - `object` (line 27) → folds through `fun value` body
+    - `fun with_lambda` (line 32) → folds method body
+    - `{(): String =>` (line 34) → folds through `"hello world"`
+    - `fun with_recover` (line 39) → folds method body
+    - `recover` (line 40) → folds through `consume s`
+    - `class _D` (line 46) → folds through `fun dispose`
 
   type_alias.pony — multi-line type alias
     - `type TypeAlias is` (line 1) → folds through the closing `)`
@@ -63,15 +61,15 @@ Expected fold regions per file:
     - `fun value(): U32 =>` (line 2) → folds through `42`
     - `struct S` (line 5) → folds through `x`
     - `new create() => None` — single-line, no fold indicator
-    - `fun get(): U32 =>` (line 9) → folds through `x`
-    - `actor A` (line 12) → folds entire actor body
+    - `fun get(): U32 =>` (line 10) → folds through `x`
+    - `actor A` (line 13) → folds entire actor body
     - `new create() => _n = 0` — single-line, no fold indicator
-    - `be tick() =>` (line 16) → folds through `_n = _n + 1`
-    - `fun count(): U32 =>` (line 19) → folds through `_n`
-    - `trait T` (line 22) → folds through `required() * 2`
+    - `be tick() =>` (line 18) → folds through `_n = _n + 1`
+    - `fun count(): U32 =>` (line 21) → folds through `_n`
+    - `trait T` (line 24) → folds through `required() * 2`
     - `fun required(): U32` — single-line (abstract), no fold indicator
-    - `fun doubled(): U32 =>` (line 25) → folds through `required() * 2`
-    - `interface I` (line 28) → folds through `required() * 3`
+    - `fun doubled(): U32 =>` (line 27) → folds through `required() * 2`
+    - `interface EntityTypes` (line 30) → folds through `required() * 3`
     - `fun required(): U32` — single-line, no fold indicator
-    - `fun tripled(): U32 =>` (line 31) → folds through `required() * 3`
+    - `fun tripled(): U32 =>` (line 33) → folds through `required() * 3`
 """

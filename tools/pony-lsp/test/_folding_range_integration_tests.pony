@@ -73,18 +73,18 @@ class \nodoc\ iso _FoldingRangeEntityTypesTest is UnitTest
   entity_types.pony layout (0-indexed lines):
     line  0: primitive P                → (0, 2)
     line  1:   fun value(): U32 =>      → (1, 2)
-    line  4: struct S                   → (4, 9)
-    line  6:   new create() => None     — single-line, excluded
-    line  8:   fun get(): U32 =>        → (8, 9)
-    line 11: actor A                    → (11, 19)
-    line 13:   new create() => _n = 0   — single-line, excluded
-    line 15:   be tick() =>             → (15, 16)
-    line 18:   fun count(): U32 =>      → (18, 19)
-    line 21: trait T                    → (21, 25)
-    line 24:   fun doubled(): U32 =>    → (24, 25)
-    line 27: interface I                → (27, 31)
-    line 30:   fun tripled(): U32 =>    → (30, 31)
-    fun required(): U32 (lines 22, 28) — single-line, excluded
+    line  4: struct S                   → (4, 10)
+    line  7:   new create() => None     — single-line, excluded
+    line  9:   fun get(): U32 =>        → (9, 10)
+    line 12: actor A                    → (12, 21)
+    line 15:   new create() => _n = 0   — single-line, excluded
+    line 17:   be tick() =>             → (17, 18)
+    line 20:   fun count(): U32 =>      → (20, 21)
+    line 23: trait T                    → (23, 27)
+    line 26:   fun doubled(): U32 =>    → (26, 27)
+    line 29: interface EntityTypes       → (29, 33)
+    line 32:   fun tripled(): U32 =>    → (32, 33)
+    fun required(): U32 (lines 24, 30) — single-line, excluded
   """
   let _server: _LspTestServer
 
@@ -103,15 +103,15 @@ class \nodoc\ iso _FoldingRangeEntityTypesTest is UnitTest
           _FoldingRangeChecker(
             [ (0, 2)
               (1, 2)
-              (4, 9)
-              (8, 9)
-              (11, 19)
-              (15, 16)
-              (18, 19)
-              (21, 25)
-              (24, 25)
-              (27, 31)
-              (30, 31)]))])
+              (4, 10)
+              (9, 10)
+              (12, 21)
+              (17, 18)
+              (20, 21)
+              (23, 27)
+              (26, 27)
+              (29, 33)
+              (32, 33)]))])
 
 class \nodoc\ iso _FoldingRangeExpressionsRangesTest is UnitTest
   """
@@ -126,9 +126,9 @@ class \nodoc\ iso _FoldingRangeExpressionsRangesTest is UnitTest
     line  5: fun with_if                   → (5, 9)
     line  6:   if x > 0 then ... end      → (6, 9)   last child: `0` at line 9
     line 12: fun with_match                → (12, 17)
-    line 13:   match x ... end            → (13, 17)  last child: `"many"` at line 17
+    line 13:   match x ... end            → (13, 17)  last child:  at line 17
     line 20: fun with_while                → (20, 25)
-    line 22:   while i < x do ... end     → (22, 23)  last child: `i = i + 1` at line 23
+    line 22:   while i < x do ... end     → (22, 23)  last child:  at line 23
     line 27: fun with_try                  → (27, 31)
     line 28:   try ... else ... end       → (28, 31)  last child: `0` at line 31
   """
@@ -185,30 +185,39 @@ class \nodoc\ iso _FoldingRangeTypeRangeTest is UnitTest
 
 class \nodoc\ iso _FoldingRangeMoreExpressionsRangesTest is UnitTest
   """
-  FoldingRange for more_expressions.pony: verifies all 14 exact
-  (startLine, endLine) pairs — 2 classes, 6 methods, and 6 expression ranges.
+  FoldingRange for more_expressions.pony: verifies all 13 exact
+  (startLine, endLine) pairs — 2 classes, 6 methods, and 5 expression ranges.
 
   `end` keywords have no source position in the typechecked AST, so endLine
   is always the last real statement/expression before `end`.
 
   more_expressions.pony layout (0-indexed lines):
-    line  0: class _D                          → (0, 2)
-    line  4: class MoreExpressions             → (4, 46)
-    line  9: fun with_for                      → (9, 14)
-    line 11:   for i in [...].values() do end  → (11, 12)  last: `sum = sum + i`
-    line 16: fun with_repeat                   → (16, 21)
-    line 18:   repeat...until i >= 3 end       → (18, 20)  last: condition `i >= 3`
-    line 23: fun with_with                     → (23, 25)
-    line 28: fun with_object                   → (28, 33)
-    line 30:   object...end                    → (30, 31)  last: `fun value` body
-    line 35: fun with_lambda                   → (35, 40)
-    line 37:   {(): String =>...}              → (37, 38) × 2  last: `"hello world"`
-    line 42: fun with_recover                  → (42, 46)
-    line 43:   recover...end                   → (43, 46)  last: `consume s`
-  (Lambda produces two ranges: one for tk_lambda, one for the desugared
-   tk_object. Both span the same lines.
-   `with` desugars before the typechecked AST; tk_with never appears, so
-   no expression-level range is produced for with_with.)
+    line  0: class MoreExpressions             → (0, 42)
+    line  5: fun with_for                      → (5, 10)
+    line  7:   for i in [...].values() do end  → (7, 8)    last: `sum = sum + i`
+    line 12: fun with_repeat                   → (12, 17)
+    line 14:   repeat...until i >= 3 end       → (14, 16)  last: `i >= 3`
+    line 19: fun with_with                     → (19, 21)
+    line 24: fun with_object                   → (24, 29)
+    line 26:   object...end                    → (26, 27)  via synthetic class
+    line 31: fun with_lambda                   → (31, 36)
+    line 33:   {(): String =>...}              → (33, 34)  via synthetic class
+    line 38: fun with_recover                  → (38, 42)
+    line 39:   recover...end                   → (39, 42)  last: `consume s`
+    line 45: class _D                          → (45, 47)
+
+  After PassExpr, ponyc replaces `object`/lambda literals in method bodies
+  with constructor calls and appends synthetic entity classes to the module.
+  The synthetic classes carry the source position of the original expression,
+  so we emit fold ranges for them rather than scanning method bodies for
+  tk_object/tk_lambda (which are no longer there after desugaring).
+
+  `with` desugars before the typechecked AST; tk_with never appears, so
+  no expression-level range is produced for with_with.
+
+  The cap approach (next entity's line) prevents synthetic nodes from the
+  desugared `with_with` dispose call (positioned at _D's line) from inflating
+  MoreExpressions' end line past line 42.
   """
   let _server: _LspTestServer
 
@@ -225,20 +234,19 @@ class \nodoc\ iso _FoldingRangeMoreExpressionsRangesTest is UnitTest
       "folding_range/more_expressions.pony",
       [ ( 0, 0,
           _FoldingRangeChecker(
-            [ (0, 2)
-              (4, 46)
-              (9, 14)
-              (11, 12)
-              (16, 21)
-              (18, 20)
-              (23, 25)
-              (28, 33)
-              (30, 31)
-              (35, 40)
-              (37, 38)
-              (37, 38)
-              (42, 46)
-              (43, 46)]))])
+            [ (0, 42)
+              (5, 10)
+              (7, 8)
+              (12, 17)
+              (14, 16)
+              (19, 21)
+              (24, 29)
+              (26, 27)
+              (31, 36)
+              (33, 34)
+              (38, 42)
+              (39, 42)
+              (45, 47)]))])
 
 class val _FoldingRangeChecker
   """
@@ -286,7 +294,8 @@ class val _FoldingRangeChecker
         end
         if not h.assert_true(
           found,
-          "Expected (" + exp_sl.string() + ", " + exp_el.string() + ") not found")
+          "Expected (" + exp_sl.string() + ", " +
+          exp_el.string() + ") not found")
         then
           ok = false
         end
