@@ -92,6 +92,9 @@ primitive TextDocumentMethods
   fun definition(): String val =>
     "textDocument/definition"
 
+  fun type_definition(): String val =>
+    "textDocument/typeDefinition"
+
   fun diagnostic(): String val =>
     "textDocument/diagnostic"
 

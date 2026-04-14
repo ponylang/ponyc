@@ -657,6 +657,51 @@ actor WorkspaceManager
     // send a null-response in every failure case
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be type_definition(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/typeDefinition request.
+
+    Finds the definition of the type of the symbol at the cursor position.
+    E.g. for a local variable `x: MyClass`, this navigates to `MyClass`.
+    """
+    this._channel.log("handling textDocument/typeDefinition")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let ast: AST box, _) =>
+      this._channel.log(ast.debug())
+      var json_arr = JsonArray
+      match ast.ast_type()
+      | let type_ast: AST =>
+        for type_def in type_ast.definitions().values() do
+          (let start_pos, let end_pos) = type_def.span()
+          try
+            json_arr =
+              json_arr.push(
+                LspLocation(
+                  Uris.from_path(type_def.source_file() as String val),
+                  LspPositionRange(
+                    LspPosition.from_ast_pos(start_pos),
+                    LspPosition.from_ast_pos_end(end_pos))
+                ).to_json()
+              )
+          else
+            this._channel.log(
+              "No source file found for type definition: " + type_def.debug())
+          end
+        end
+      end
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
+    | None => None
+    end
+    // send a null-response in every failure case
+    this._channel.send(ResponseMessage.create(request.id, None))
+
   be document_symbols(document_uri: String, request: RequestMessage val) =>
     """
     Handle textDocument/documentSymbol request.
