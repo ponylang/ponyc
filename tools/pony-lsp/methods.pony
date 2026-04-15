@@ -119,6 +119,12 @@ primitive TextDocumentMethods
   fun references(): String val =>
     "textDocument/references"
 
+  fun prepare_rename(): String val =>
+    "textDocument/prepareRename"
+
+  fun rename(): String val =>
+    "textDocument/rename"
+
   fun publish_diagnostics(): String val =>
     "textDocument/publishDiagnostics"
 
