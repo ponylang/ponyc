@@ -179,6 +179,21 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      | Methods.text_document().type_definition() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .type_definition(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
       | Methods.text_document().hover() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -457,6 +472,7 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("save", JsonObject.update("includeText", true)))
                 .update("declarationProvider", true)
                 .update("definitionProvider", true)
+                .update("typeDefinitionProvider", true)
                 .update("referencesProvider", true)
                 .update(
                   "renameProvider",
