@@ -9,6 +9,7 @@ concurrency: release
 
 permissions:
   packages: read
+  contents: write
 
 jobs:
   # validation to assure that we should in fact continue with the release should
@@ -24,9 +25,20 @@ jobs:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Validate CHANGELOG
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.5
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.6
         with:
           entrypoint: pre-artefact-changelog-check
+      # Create the GitHub Release now with an empty body so each platform job
+      # can attach its archive as an asset. announce-a-release.yml later
+      # populates the body via publish-release-notes-to-github, which updates
+      # rather than replaces the release and therefore leaves the assets
+      # intact.
+      - name: Create GitHub release (empty body; announce fills it)
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.6
+        with:
+          entrypoint: create-empty-github-release
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   x86_64-linux:
     needs:
@@ -92,6 +104,8 @@ jobs:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
           TRIPLE_VENDOR: ${{ matrix.triple-vendor }}
           TRIPLE_OS: ${{ matrix.triple-os }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   # Currently, Github actions supplied by GH like checkout and cache do not work
   # in musl libc environments on arm64. We can work around this by running
@@ -171,6 +185,8 @@ jobs:
           -w /home/pony/project \
           -e CLOUDSMITH_API_KEY=${{ secrets.CLOUDSMITH_API_KEY }} \
           -e TRIPLE_OS=${{ matrix.triple-os }} \
+          -e RELEASE_TOKEN=${{ secrets.RELEASE_TOKEN }} \
+          -e GITHUB_REPOSITORY=${{ github.repository }} \
           ${{ matrix.image }} \
           bash .ci-scripts/arm64-unknown-linux-release.bash
 
@@ -211,6 +227,8 @@ jobs:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
           TRIPLE_VENDOR: apple
           TRIPLE_OS: darwin
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   arm64_macos:
     needs:
@@ -247,6 +265,8 @@ jobs:
         run: bash .ci-scripts/arm64-apple-darwin-release.bash
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   x86_64-windows:
     needs:
@@ -295,7 +315,15 @@ jobs:
       - name: Package
         run: .\make.ps1 -Command package-x86-64 -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Upload
-        run: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
+        run: |
+          $version = (Get-Content .\VERSION)
+          cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .ci-scripts\release\github_release.py upload $version build\ponyc-x86-64-pc-windows-msvc.zip
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   arm64-windows:
     needs:
@@ -343,4 +371,12 @@ jobs:
       - name: Package
         run: .\make.ps1 -Command package-arm64 -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Upload
-        run: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-arm64-pc-windows-msvc.zip
+        run: |
+          $version = (Get-Content .\VERSION)
+          cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-arm64-pc-windows-msvc.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .ci-scripts\release\github_release.py upload $version build\ponyc-arm64-pc-windows-msvc.zip
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
