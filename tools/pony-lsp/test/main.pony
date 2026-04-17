@@ -31,6 +31,7 @@ actor Main is TestList
     _InlayHintIntegrationTests.make().tests(test)
     _ReferencesIntegrationTests.make().tests(test)
     _RenameIntegrationTests.make().tests(test)
+    _FoldingRangeIntegrationTests.make().tests(test)
 
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"
