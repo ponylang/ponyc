@@ -196,7 +196,7 @@ class \nodoc\ iso _FoldingRangeMoreExpressionsRangesTest is UnitTest
   more_expressions.pony layout (0-indexed lines):
     line  0: class MoreExpressions             → (0, 42)
     line  5: fun with_for                      → (5, 10)
-    line  7:   for i in [...].values() do end  → (7, 8)    via tk_while after sugar
+    line  7:   for i in [...].values() do end  → (7, 8)    via tk_while
     line 12: fun with_repeat                   → (12, 17)
     line 14:   repeat...until i >= 3 end       → (14, 16)  last: `i >= 3`
     line 19: fun with_with                     → (19, 21)
@@ -268,6 +268,9 @@ class val _FoldingRangeChecker
     None
 
   fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
