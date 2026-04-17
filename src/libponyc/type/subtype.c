@@ -50,15 +50,99 @@ static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
     ast_print_type(sub), ast_print_type(super), entity);
 }
 
-static bool exact_nominal(ast_t* a, ast_t* b, pass_opt_t* opt)
+static bool exact_type(ast_t* a, ast_t* b)
 {
-  AST_GET_CHILDREN(a, a_pkg, a_id, a_typeargs, a_cap, a_eph);
-  AST_GET_CHILDREN(b, b_pkg, b_id, b_typeargs, b_cap, b_eph);
+  if(ast_id(a) != ast_id(b))
+    return false;
 
-  ast_t* a_def = (ast_t*)ast_data(a);
-  ast_t* b_def = (ast_t*)ast_data(b);
+  switch(ast_id(a))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* a_def = (ast_t*)ast_data(a);
+      ast_t* b_def = (ast_t*)ast_data(b);
 
-  return (a_def == b_def) && is_eq_typeargs(a, b, NULL, opt);
+      if(a_def != b_def)
+        return false;
+
+      // Structurally compare typeargs without invoking the subtype checker
+      // (is_eq_typeargs calls is_eqtype, which can recurse back into
+      // check_assume and cause infinite recursion for union types).
+      ast_t* a_arg = ast_child(ast_childidx(a, 2));
+      ast_t* b_arg = ast_child(ast_childidx(b, 2));
+
+      while((a_arg != NULL) && (b_arg != NULL))
+      {
+        if(!exact_type(a_arg, b_arg))
+          return false;
+
+        a_arg = ast_sibling(a_arg);
+        b_arg = ast_sibling(b_arg);
+      }
+
+      return (a_arg == NULL) && (b_arg == NULL);
+    }
+
+    case TK_TYPEPARAMREF:
+      return ast_data(a) == ast_data(b);
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* a_child = ast_child(a);
+      ast_t* b_child = ast_child(b);
+
+      while((a_child != NULL) && (b_child != NULL))
+      {
+        if(!exact_type(a_child, b_child))
+          return false;
+
+        a_child = ast_sibling(a_child);
+        b_child = ast_sibling(b_child);
+      }
+
+      return (a_child == NULL) && (b_child == NULL);
+    }
+
+    case TK_ARROW:
+    {
+      ast_t* a_left = ast_child(a);
+      ast_t* a_right = ast_sibling(a_left);
+      ast_t* b_left = ast_child(b);
+      ast_t* b_right = ast_sibling(b_left);
+      return exact_type(a_left, b_left) &&
+        exact_type(a_right, b_right);
+    }
+
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+    case TK_DONTCARETYPE:
+      return true;
+
+    // Capability and ephemeral tokens (leaves with no children)
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    case TK_CAP_READ:
+    case TK_CAP_SEND:
+    case TK_CAP_SHARE:
+    case TK_CAP_ALIAS:
+    case TK_CAP_ANY:
+    case TK_EPHEMERAL:
+    case TK_ALIASED:
+    case TK_THISTYPE:
+    case TK_NONE:
+      // Already checked ast_id(a) == ast_id(b) above
+      return true;
+
+    default:
+      return false;
+  }
 }
 
 static ast_t* push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
@@ -84,35 +168,26 @@ static void pop_assume()
   }
 }
 
-static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
+static bool check_assume(ast_t* sub, ast_t* super)
 {
-  bool ret = false;
   // Returns true if we have already assumed sub is a subtype of super.
   if(subtype_assume != NULL)
   {
     ast_t* assumption = ast_child(subtype_assume);
-    ast_t* new_assume = NULL;
-    new_assume = push_assume(sub, super, opt);
 
-    while(assumption != NULL && assumption != new_assume)
+    while(assumption != NULL)
     {
       AST_GET_CHILDREN(assumption, assume_sub, assume_super);
 
-      if(exact_nominal(sub, assume_sub, opt) &&
-        exact_nominal(super, assume_super, opt))
-      {
-        ret = true;
-        break;
-      }
+      if(exact_type(sub, assume_sub) &&
+        exact_type(super, assume_super))
+        return true;
 
       assumption = ast_sibling(assumption);
     }
-    pony_assert(ret || (assumption == NULL));
-    pony_assert(ast_child(subtype_assume) == new_assume);
-    pop_assume();
   }
 
-  return ret;
+  return false;
 }
 
 static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
@@ -751,6 +826,10 @@ static bool is_x_sub_union(ast_t* sub, ast_t* super, check_cap_t check_cap,
 static bool is_union_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
+  if(check_assume(sub, super))
+    return true;
+  push_assume(sub, super, opt);
+
   // T1 <: T3
   // T2 <: T3
   // ---
@@ -768,10 +847,12 @@ static bool is_union_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
           ast_print_type(sub), ast_print_type(super));
       }
 
+      pop_assume();
       return false;
     }
   }
 
+  pop_assume();
   return true;
 }
 
@@ -1321,7 +1402,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
 {
   // N k <: N' k'
   ast_t* super_def = (ast_t*)ast_data(super);
-  if(check_assume(sub, super, opt))
+  if(check_assume(sub, super))
     return true;
   // Add an assumption: sub <: super
   push_assume(sub, super, opt);
