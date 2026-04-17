@@ -251,78 +251,6 @@ class \nodoc\ iso _FoldingRangeMoreExpressionsRangesTest is UnitTest
               (39, 42)
               (45, 47)]))])
 
-class val _FoldingRangeChecker
-  """
-  Validates a textDocument/foldingRange response. Each expected entry is
-  (startLine, endLine). Asserts that every expected range appears in the
-  response and that the total count matches.
-  """
-  let _expected: Array[(I64, I64)] val
-
-  new val create(expected: Array[(I64, I64)] val) =>
-    _expected = expected
-
-  fun lsp_method(): String =>
-    Methods.text_document().folding_range()
-
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
-
-  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
-    var ok = true
-    try
-      let ranges = res.result as JsonArray
-      if not h.assert_eq[USize](
-        _expected.size(),
-        ranges.size(),
-        "Expected " + _expected.size().string() +
-        " ranges, got " + ranges.size().string())
-      then
-        ok = false
-      end
-      for (exp_sl, exp_el) in _expected.values() do
-        var found = false
-        for range_val in ranges.values() do
-          try
-            let sl = JsonNav(range_val)("startLine").as_i64()?
-            let el = JsonNav(range_val)("endLine").as_i64()?
-            if (sl == exp_sl) and (el == exp_el) then
-              found = true
-              break
-            end
-          end
-        end
-        if not h.assert_true(
-          found,
-          "Expected (" + exp_sl.string() + ", " +
-          exp_el.string() + ") not found")
-        then
-          ok = false
-        end
-      end
-      if not ok then
-        h.log("Actual ranges:")
-        for r in ranges.values() do
-          try
-            let sl = JsonNav(r)("startLine").as_i64()?
-            let el = JsonNav(r)("endLine").as_i64()?
-            h.log("  (" + sl.string() + ", " + el.string() + ")")
-          end
-        end
-      end
-    else
-      h.log(
-        "Expected foldingRange array but got: " + res.string())
-      return false
-    end
-    ok
-
 class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
   """
   FoldingRange for ifdef_expressions.pony: verifies that an ifdef block
@@ -431,3 +359,74 @@ class \nodoc\ iso _FoldingRangeForExpressionsTest is UnitTest
               (14, 21)
               (16, 19)
               (17, 18)]))])
+
+class val _FoldingRangeChecker
+  """
+  Validates a textDocument/foldingRange response. Each expected entry is
+  (startLine, endLine). Asserts that every expected range appears in the
+  response and that the total count matches.
+  """
+  let _expected: Array[(I64, I64)] val
+
+  new val create(expected: Array[(I64, I64)] val) =>
+    _expected = expected
+
+  fun lsp_method(): String =>
+    Methods.text_document().folding_range()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    None
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    var ok = true
+    try
+      let ranges = res.result as JsonArray
+      if not h.assert_eq[USize](
+        _expected.size(),
+        ranges.size(),
+        "Expected " + _expected.size().string() +
+        " ranges, got " + ranges.size().string())
+      then
+        ok = false
+      end
+      for (exp_sl, exp_el) in _expected.values() do
+        var found = false
+        for range_val in ranges.values() do
+          try
+            let sl = JsonNav(range_val)("startLine").as_i64()?
+            let el = JsonNav(range_val)("endLine").as_i64()?
+            if (sl == exp_sl) and (el == exp_el) then
+              found = true
+              break
+            end
+          end
+        end
+        if not h.assert_true(
+          found,
+          "Expected (" + exp_sl.string() + ", " +
+          exp_el.string() + ") not found")
+        then
+          ok = false
+        end
+      end
+      if not ok then
+        h.log("Actual ranges:")
+        for r in ranges.values() do
+          try
+            let sl = JsonNav(r)("startLine").as_i64()?
+            let el = JsonNav(r)("endLine").as_i64()?
+            h.log("  (" + sl.string() + ", " + el.string() + ")")
+          end
+        end
+      end
+    else
+      h.log("Expected foldingRange array but got: " + res.string())
+      return false
+    end
+    ok
