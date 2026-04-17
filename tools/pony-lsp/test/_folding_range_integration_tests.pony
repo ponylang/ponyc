@@ -16,6 +16,7 @@ primitive _FoldingRangeIntegrationTests is TestList
     test(_FoldingRangeMoreExpressionsRangesTest.create(server))
     test(_FoldingRangeIfdefTest.create(server))
     test(_FoldingRangeNestedExpressionsTest.create(server))
+    test(_FoldingRangeForExpressionsTest.create(server))
 
 class \nodoc\ iso _FoldingRangeClassTest is UnitTest
   """
@@ -393,3 +394,40 @@ class \nodoc\ iso _FoldingRangeNestedExpressionsTest is UnitTest
               (15, 25)
               (17, 20)
               (22, 23)]))])
+
+class \nodoc\ iso _FoldingRangeForExpressionsTest is UnitTest
+  """
+  FoldingRange for for_expressions.pony: verifies that for loops produce
+  fold ranges via the tk_while arm after sugar_for() desugaring.
+
+  Tests a multi-statement for body and a nested if inside a for body.
+
+  for_expressions.pony layout (0-indexed lines):
+    line  0: class ForExpressions                  → (0, 21)
+    line  6:   fun with_multi_statement_for        → (6, 12)
+    line  8:     for i in Range[U32](0, n) do      → (8, 10)  via tk_while
+    line 14:   fun with_nested_for(n: U32): U32    → (14, 21)
+    line 16:     for i in Range[U32](0, n) do      → (16, 19)  via tk_while
+    line 17:       if (i % 2) == 0 then            → (17, 18)  nested inside for
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "folding_range/integration/for_expressions"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "folding_range/for_expressions.pony",
+      [ ( 0, 0,
+          _FoldingRangeChecker(
+            [ (0, 21)
+              (6, 12)
+              (8, 10)
+              (14, 21)
+              (16, 19)
+              (17, 18)]))])
