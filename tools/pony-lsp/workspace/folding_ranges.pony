@@ -9,7 +9,7 @@ primitive FoldingRanges
   Returns one FoldingRange per top-level type entity (class, actor, struct,
   trait, interface, primitive, type alias) and one per member (fun, be, new).
   Also returns ranges for multi-line compound expressions within method bodies
-  (if, while, for, repeat, match, try, and recover blocks).
+  (if, while, repeat, match, try, and recover blocks).
   Single-line nodes are skipped since there is nothing to fold.
 
   Note: `with` is desugared to `tk_try_no_check` before typechecking, so
@@ -20,6 +20,11 @@ primitive FoldingRanges
   (`src/libponyc/expr/control.c`), so `tk_ifdef` never appears in the AST that
   the LSP processes. Fold ranges for `ifdef` expressions are produced via the
   `tk_if` arm.
+
+  Note: `for` is desugared to a `let` binding and a `while` loop by
+  `sugar_for()` in `src/libponyc/pass/sugar.c`, so `tk_for` never appears in
+  the AST that the LSP processes. Fold ranges for `for` expressions are
+  produced via the `tk_while` arm.
 
   End-line calculation uses a `cap` equal to the next sibling's start line.
   This prevents synthetic nodes introduced by desugaring (e.g. the constructor
@@ -160,8 +165,8 @@ primitive FoldingRanges
   =>
     """
     Walks all descendants of node and pushes folding ranges for multi-line
-    compound expressions: if, while, for, repeat, match, try, and recover
-    blocks. tk_try_no_check covers desugared `with` expressions.
+    compound expressions: if, while, repeat, match, try, and recover blocks.
+    tk_try_no_check covers desugared `with` expressions.
 
     Note: tk_object, tk_lambda, and tk_barelambda are not matched here
     because PassExpr replaces those literals with constructor calls before
@@ -171,6 +176,11 @@ primitive FoldingRanges
     Note: tk_ifdef is not matched here because resolve_ifdef() converts it
     to tk_if during the expr pass. Fold ranges for ifdef expressions are
     produced via the tk_if arm.
+
+    Note: tk_for is not matched here because sugar_for() in
+    src/libponyc/pass/sugar.c replaces the for node with a let binding
+    and a while loop before the AST reaches the LSP. Fold ranges for for
+    expressions are produced via the tk_while arm.
     """
     let collector =
       object ref is ASTVisitor
@@ -178,7 +188,6 @@ primitive FoldingRanges
           match n.id()
           | TokenIds.tk_if()
           | TokenIds.tk_while()
-          | TokenIds.tk_for()
           | TokenIds.tk_repeat()
           | TokenIds.tk_match()
           | TokenIds.tk_try()
