@@ -18,6 +18,18 @@ if [[ -z "${TRIPLE_OS}" ]]; then
   exit 1
 fi
 
+if [[ -z "${RELEASE_TOKEN}" ]]; then
+  echo -e "\e[31mGitHub release token needs to be set in RELEASE_TOKEN."
+  echo -e "Exiting.\e[0m"
+  exit 1
+fi
+
+if [[ -z "${GITHUB_REPOSITORY}" ]]; then
+  echo -e "\e[31mGitHub repository needs to be set in GITHUB_REPOSITORY."
+  echo -e "Exiting.\e[0m"
+  exit 1
+fi
+
 # Compiler target parameters
 MACHINE=arm64
 PROCESSOR=armv8-a
@@ -61,3 +73,8 @@ echo "Uploading package to cloudsmith..."
 cloudsmith push raw --version "${CLOUDSMITH_VERSION}" \
   --api-key "${CLOUDSMITH_API_KEY}" --summary "${ASSET_SUMMARY}" \
   --description "${ASSET_DESCRIPTION}" ${ASSET_PATH} "${ASSET_FILE}"
+
+# Attach the archive and its SHA-512 sibling to the GitHub Release
+echo "Uploading package to GitHub Release..."
+python3 "$(dirname "$0")/release/github_release.py" upload \
+  "${CLOUDSMITH_VERSION}" "${ASSET_FILE}"

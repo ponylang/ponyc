@@ -11,4 +11,5 @@ interface val _ResponseChecker
   fun lsp_method(): String
   fun lsp_range(): (None | (I64, I64, I64, I64))
   fun lsp_context(): (None | JsonObject)
+  fun lsp_extra_params(): (None | JsonObject)
   fun check(res: ResponseMessage val, h: TestHelper): Bool

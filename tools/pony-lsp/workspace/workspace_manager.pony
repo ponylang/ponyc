@@ -620,6 +620,123 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be prepare_rename(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/prepareRename request.
+
+    Validates that the symbol at the given position can be renamed and returns
+    its identifier range. The client uses this range to pre-select text in the
+    rename dialog. Returns an error if the symbol is not renameable (literal,
+    synthetic node, or defined outside the workspace).
+    """
+    this._channel.log("Handling textDocument/prepareRename")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      let target: AST val =
+        match \exhaustive\ _ResolveASTTarget(node)
+        | let t: AST val => t
+        | None =>
+          this._channel.send(
+            ResponseMessage.create(
+              request.id,
+              None,
+              ResponseError(
+                ErrorCodes.request_failed(), "Symbol is not renameable")))
+          return
+        end
+      let target_file: String val =
+        try
+          target.source_file() as String val
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              request.id,
+              None,
+              ResponseError(
+                ErrorCodes.request_failed(), "Symbol has no source location")))
+          return
+        end
+      if not target_file.at(workspace.folder.path + Path.sep(), 0) then
+        this._channel.send(
+          ResponseMessage.create(
+            request.id,
+            None,
+            ResponseError(
+              ErrorCodes.request_failed(),
+              "Symbol is defined outside the workspace")))
+        return
+      end
+      let ident_node = ASTIdentifier.identifier_node(node)
+      (let start_pos, let end_pos) = ident_node.span()
+      let range =
+        LspPositionRange(
+          LspPosition.from_ast_pos(start_pos),
+          LspPosition.from_ast_pos_end(end_pos))
+      this._channel.send(ResponseMessage(request.id, range.to_json()))
+      return
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be rename(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/rename request.
+    """
+    this._channel.log("Handling textDocument/rename")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let new_name: String val =
+      try
+        JsonNav(request.params)("newName").as_string()?
+      else
+        this._channel.send(
+          ResponseMessage.create(
+            request.id,
+            None,
+            ResponseError(
+              ErrorCodes.invalid_params(),
+              "Missing or invalid newName")))
+        return
+      end
+    if not _IsValidPonyIdentifier(new_name) then
+      this._channel.send(
+        ResponseMessage.create(
+          request.id,
+          None,
+          ResponseError(
+            ErrorCodes.invalid_params(),
+            "newName is not a valid Pony identifier")))
+      return
+    end
+    let document_path = Uris.to_path(document_uri)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      match \exhaustive\ Rename.collect(
+        node,
+        this._packages,
+        workspace.folder.path,
+        new_name)
+      | let workspace_edit: JsonObject val =>
+        this._channel.send(ResponseMessage(request.id, workspace_edit))
+      | let err_msg: String val =>
+        this._channel.send(
+          ResponseMessage.create(
+            request.id,
+            None,
+            ResponseError(ErrorCodes.request_failed(), err_msg)))
+      end
+      return
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
   be goto_definition(document_uri: String, request: RequestMessage val) =>
     """
     Handling the textDocument/definition request.
@@ -651,6 +768,51 @@ actor WorkspaceManager
         else
           this._channel.log(
             "No source file found for definition: " + ast_definition.debug())
+        end
+      end
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
+    | None => None
+    end
+    // send a null-response in every failure case
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be type_definition(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/typeDefinition request.
+
+    Finds the definition of the type of the symbol at the cursor position.
+    E.g. for a local variable `x: MyClass`, this navigates to `MyClass`.
+    """
+    this._channel.log("handling textDocument/typeDefinition")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let ast: AST box, _) =>
+      this._channel.log(ast.debug())
+      var json_arr = JsonArray
+      match ast.ast_type()
+      | let type_ast: AST =>
+        for type_def in type_ast.definitions().values() do
+          (let start_pos, let end_pos) = type_def.span()
+          try
+            json_arr =
+              json_arr.push(
+                LspLocation(
+                  Uris.from_path(type_def.source_file() as String val),
+                  LspPositionRange(
+                    LspPosition.from_ast_pos(start_pos),
+                    LspPosition.from_ast_pos_end(end_pos))
+                ).to_json()
+              )
+          else
+            this._channel.log(
+              "No source file found for type definition: " + type_def.debug())
+          end
         end
       end
       this._channel.send(ResponseMessage(request.id, json_arr))

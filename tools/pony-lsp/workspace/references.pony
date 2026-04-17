@@ -18,69 +18,10 @@ primitive References
     all nodes that resolve to the same definition as `node`. Pass
     `include_declaration = false` to exclude the definition site itself.
     """
-    // Literals have no referenceable identity — no references.
-    let nid = node.id()
-    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false())
-      or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
-      or (nid == TokenIds.tk_string())
-    then
-      return []
-    end
-
-    // Type-literal expressions such as `None` are desugared by the compiler
-    // into implicit constructor calls. The synthetic tk_newref inside a tk_call
-    // at the same position has no referenceable identity — no references.
-    if nid == TokenIds.tk_newref() then
-      try
-        let par = node.parent() as AST box
-        if (par.id() == TokenIds.tk_call()) and
-          (par.position() == node.position())
-        then
-          return []
-        end
-      end
-    end
-
-    // When the cursor lands on the name identifier of an entity declaration
-    // (tk_class, tk_actor, etc.) or type parameter declaration (tk_typeparam),
-    // promote to the enclosing node so that references (which resolve to
-    // tk_class or tk_typeparam, not their tk_id child) are found by the walker.
-    let node' =
-      if nid == TokenIds.tk_id() then
-        try
-          let par = node.parent() as AST box
-          match par.id()
-          | TokenIds.tk_class()
-          | TokenIds.tk_actor()
-          | TokenIds.tk_struct()
-          | TokenIds.tk_primitive()
-          | TokenIds.tk_trait()
-          | TokenIds.tk_interface()
-          | TokenIds.tk_type()
-          | TokenIds.tk_typeparam() =>
-            par
-          else
-            node
-          end
-        else
-          node
-        end
-      else
-        node
-      end
-
-    // Determine the canonical target definition.
-    // If the node has no definitions it IS the definition.
-    let defs = node'.definitions()
     let target: AST val =
-      if defs.size() > 0 then
-        try
-          AST(defs(0)?.raw)
-        else
-          return []
-        end
-      else
-        AST(node'.raw)
+      match \exhaustive\ _ResolveASTTarget(node)
+      | let t: AST val => t
+      | None => return []
       end
 
     let collector = _ReferenceCollector(target)

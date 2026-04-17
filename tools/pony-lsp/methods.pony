@@ -103,6 +103,9 @@ primitive TextDocumentMethods
   fun definition(): String val =>
     "textDocument/definition"
 
+  fun type_definition(): String val =>
+    "textDocument/typeDefinition"
+
   fun diagnostic(): String val =>
     "textDocument/diagnostic"
 
@@ -132,6 +135,12 @@ primitive TextDocumentMethods
 
   fun references(): String val =>
     "textDocument/references"
+
+  fun prepare_rename(): String val =>
+    "textDocument/prepareRename"
+
+  fun rename(): String val =>
+    "textDocument/rename"
 
   fun publish_diagnostics(): String val =>
     "textDocument/publishDiagnostics"
