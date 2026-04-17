@@ -988,6 +988,52 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be selection_range(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/selectionRange request.
+
+    Parses the `positions` array from the request params. For each position,
+    finds the AST node under the cursor and builds a SelectionRange linked list
+    from innermost to outermost. The response is a JsonArray parallel to the
+    request positions array; entries are null when no node is found at a
+    position. Returns null if the request has no valid `positions` array.
+    """
+    this._channel.log("Handling textDocument/selectionRange")
+    let document_path = Uris.to_path(document_uri)
+
+    // Each position maps to one response entry (null when no node found), so
+    // the output array is always parallel to the input positions array.
+    var out = JsonArray
+    try
+      let arr = JsonNav(request.params)("positions").as_array()?
+      for pos_val in arr.values() do
+        let entry: JsonValue =
+          try
+            let l = JsonNav(pos_val)("line").as_i64()?
+            let c = JsonNav(pos_val)("character").as_i64()?
+            match _find_node_and_module(document_path, l, c)
+            | (let node: AST box, _) =>
+              SelectionRanges.collect(node, document_path)
+            else
+              None
+            end
+          else
+            None // malformed position entry — keep array parallel
+          end
+        out = out.push(entry)
+      end
+    else
+      this._channel.send(
+        ResponseMessage.create(
+          request.id,
+          None,
+          ResponseError(
+            ErrorCodes.invalid_params(),
+            "Missing or invalid 'positions' array in selectionRange request")))
+      return
+    end
+    this._channel.send(ResponseMessage(request.id, out))
+
   be dispose() =>
     for package_state in this._packages.values() do
       package_state.dispose()
