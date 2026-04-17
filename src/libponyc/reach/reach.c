@@ -441,6 +441,16 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt,
   bool internal)
 {
+  // A behavior has exactly one concrete cap (tag). If a caller asks for a
+  // non-tag cap — e.g. add_rmethod_to_subtype propagating a `fun box apply`
+  // interface method onto an actor whose `apply` is a `be` — normalize to
+  // tag so the concrete entry is keyed under "tag_<name>" where later
+  // reach_method lookups (which also normalize via n->cap) expect to find
+  // it. The forwarding entry in r_mangled is independent and keeps its own
+  // interface-cap mangled name.
+  if(n->id == TK_BE)
+    cap = TK_TAG;
+
   const char* name = genname_fun(cap, n->name, typeargs);
   reach_method_t* m = reach_rmethod(n, name);
 
