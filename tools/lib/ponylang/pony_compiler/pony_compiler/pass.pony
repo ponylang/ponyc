@@ -10,27 +10,131 @@ type PassId is (
   PassASM        | PassObj            | PassAll
 )
 
-primitive PassParse fun apply(): I32 => 0
-primitive PassSyntax fun apply(): I32 => 1
-primitive PassSugar fun apply(): I32 => 2
-primitive PassScope fun apply(): I32 => 3
-primitive PassImport fun apply(): I32 => 4
-primitive PassNameResolution fun apply(): I32 => 5
-primitive PassFlatten fun apply(): I32 => 6
-primitive PassTraits fun apply(): I32 => 7
-primitive PassRefer fun apply(): I32 => 8
-primitive PassExpr fun apply(): I32 => 9
-primitive PassCompleteness fun apply(): I32 => 10
-primitive PassVerify fun apply(): I32 => 11
-primitive PassFinaliser fun apply(): I32 => 12
-primitive PassSerialiser fun apply(): I32 => 13
-primitive PassReach fun apply(): I32 => 14
-primitive PassPaint fun apply(): I32 => 15
-primitive PassLLVMIR fun apply(): I32 => 16
-primitive PassBitcode fun apply(): I32 => 17
-primitive PassASM fun apply(): I32 => 18
-primitive PassObj fun apply(): I32 => 19
-primitive PassAll fun apply(): I32 => 20
+primitive PassParse is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 0
+  fun string(): String iso^ => recover String .> append("parse") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassSyntax is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 1
+  fun string(): String iso^ => recover String .> append("syntax") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassSugar is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 2
+  fun string(): String iso^ => recover String .> append("sugar") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassScope is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 3
+  fun string(): String iso^ => recover String .> append("scope") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassImport is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 4
+  fun string(): String iso^ => recover String .> append("import") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassNameResolution is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 5
+  fun string(): String iso^ => recover String .> append("name resolution") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassFlatten is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 6
+  fun string(): String iso^ => recover String .> append("flatten") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassTraits is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 7
+  fun string(): String iso^ => recover String .> append("traits") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassRefer is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 8
+  fun string(): String iso^ => recover String .> append("refer") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassExpr is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 9
+  fun string(): String iso^ => recover String .> append("expr") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassCompleteness is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 10
+  fun string(): String iso^ => recover String .> append("completeness") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassVerify is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 11
+  fun string(): String iso^ => recover String .> append("verify") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassFinaliser is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 12
+  fun string(): String iso^ => recover String .> append("finaliser") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassSerialiser is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 13
+  fun string(): String iso^ => recover String .> append("serialiser") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassReach is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 14
+  fun string(): String iso^ => recover String .> append("reach") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassPaint is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 15
+  fun string(): String iso^ => recover String .> append("paint") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassLLVMIR is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 16
+  fun string(): String iso^ => recover String .> append("LLVM IR") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassBitcode is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 17
+  fun string(): String iso^ => recover String .> append("bitcode") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassASM is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 18
+  fun string(): String iso^ => recover String .> append("asm") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassObj is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 19
+  fun string(): String iso^ => recover String .> append("obj") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
+
+primitive PassAll is (Equatable[PassId] & Comparable[PassId])
+  fun apply(): I32 => 20
+  fun string(): String iso^ => recover String .> append("all") end
+  fun eq(that: box->PassId): Bool => this.apply() == that.apply()
+  fun lt(that: box->PassId): Bool => this.apply().lt(that.apply())
 
 primitive _StrList
   """STUB"""

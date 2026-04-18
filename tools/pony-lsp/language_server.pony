@@ -377,8 +377,7 @@ actor LanguageServer is (Notifier & RequestSender)
           "[" + n.method + "] No workspace found for '" +
           n.json().string() + "'")
       end
-    | Methods.workspace().did_change_configuration()
-    =>
+    | Methods.workspace().did_change_configuration() =>
       try
         let settings =
           JsonPathParser.compile("$.settings")?.query_one(n.params) as JsonValue

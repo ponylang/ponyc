@@ -1,5 +1,6 @@
 use ".."
 use "pony_test"
+use "pony_compiler"
 use "files"
 
 actor TestCompiler is LspCompiler
@@ -40,7 +41,8 @@ actor TestCompiler is LspCompiler
   be compile(
     package: FilePath,
     paths: Array[String val] val,
-    notify: CompilerNotify tag)
+    notify: CompilerNotify tag,
+    notify_passes: Array[PassId] val)
   =>
     """
     Most efficient compiler ever.
