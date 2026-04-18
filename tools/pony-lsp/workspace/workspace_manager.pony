@@ -71,19 +71,20 @@ actor WorkspaceManager
         return
       end
     end
-    match _next_workspace
+    match \exhaustive\ _next_workspace
     | let next_mgr: WorkspaceManager =>
       next_mgr.handle_request_chained(file_uri, request, handler)
     | None =>
-      // if there is no next workspace, return a error response (no workspace found)
+      // if there is no next workspace,
+      // return a error response (no workspace found)
       this._channel.send(
         ResponseMessage.create(
           request.id,
           None,
           ResponseError(
             ErrorCodes.internal_error(),
-            "[" + request.method + "] No workspace found for request '" +
-            request.json().string() + "'")
+            "[" + request.method + "] " +
+            "No workspace found for request '" + request.json().string() + "'")
         )
       )
     end
@@ -102,7 +103,7 @@ actor WorkspaceManager
         return
       end
     end
-    match _next_workspace
+    match \exhaustive\ _next_workspace
     | let next_mgr: WorkspaceManager =>
       next_mgr.handle_notification_chained(file_uri, notification, handler)
     | None =>
@@ -238,7 +239,8 @@ actor WorkspaceManager
                 // get the hash of the module file
                 // ponyc considered for compilation
                 let new_mod_hash =
-                  (package_state.get_open_document(await_comp_file) as DocumentState)
+                  (package_state
+                    .get_open_document(await_comp_file) as DocumentState)
                     .module_hash()
                 this._awaiting_compilation_for.remove(await_comp_file)?
                 requires_another_compilation =
@@ -468,7 +470,8 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       let package_state = this._ensure_package(package)
       try
-        let document_state = package_state.open_documents.remove(document_path)?._2
+        let document_state =
+          package_state.open_documents.remove(document_path)?._2
         document_state.dispose()
       end
     else

@@ -63,7 +63,8 @@ class PackageState
     pony module.
 
     This is different to `has_open_document()` in that it also returns true if
-    `document_path` is a part of the package but not marked as opened in an editor.
+    `document_path` is a part of the package
+    but not marked as opened in an editor.
     """
     try
       (this.package() as Package).find_module(document_path) isnt None

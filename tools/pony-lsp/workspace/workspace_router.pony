@@ -70,7 +70,7 @@ class WorkspaceRouter
     Find a workspace that contains this `file_uri`.
 
     This method only checks if `file_uri` is contained in the main folder
-    of a workspace. It doesn't check if that workspace has the provided 
+    of a workspace. It doesn't check if that workspace has the provided
     file_uri as one of its program modules.
     """
     var file_path = Uris.to_path(file_uri)
@@ -113,7 +113,9 @@ class WorkspaceRouter
     let abs_folder = folder.canonical()?.path
     let old_mgr = workspaces(abs_folder) = mgr
     match old_mgr
-    | let old: WorkspaceManager => old.dispose() // unlink the old one from the chain
+    | let old: WorkspaceManager =>
+      // unlink the old one from the chain
+      old.dispose()
     end
     this.min_workspace_path_len =
       this.min_workspace_path_len.min(abs_folder.size())

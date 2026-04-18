@@ -85,7 +85,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.inlay_hint(file_uri, request)
             }
           )
@@ -96,7 +100,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().references() =>
@@ -105,7 +110,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.references(file_uri, request)
             }
           )
@@ -116,7 +125,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().prepare_rename() =>
@@ -125,7 +135,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.prepare_rename(file_uri, request)
             }
           )
@@ -136,7 +150,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().rename() =>
@@ -145,7 +160,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.rename(file_uri, request)
             }
           )
@@ -156,7 +175,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().document_highlight() =>
@@ -165,7 +185,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.document_highlight(file_uri, request)
             }
           )
@@ -176,7 +200,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")
             )
           )
@@ -189,7 +214,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.goto_definition(file_uri, request)
             }
           )
@@ -200,7 +229,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")
             )
           )
@@ -208,16 +238,26 @@ actor LanguageServer is (Notifier & RequestSender)
       | Methods.text_document().type_definition() =>
         try
           let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .type_definition(document_uri, r)
+          _router.handle_request_chained(
+            document_uri,
+            r,
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
+              mgr.type_definition(file_uri, request)
+            }
+          )
         else
           this._channel.send(
             ResponseMessage.create(
               r.id,
               None,
               ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
+                ErrorCodes.invalid_request(),
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().hover() =>
@@ -226,7 +266,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.hover(file_uri, request)
             }
           )
@@ -237,7 +281,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().document_symbol() =>
@@ -246,7 +291,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.document_symbols(file_uri, request)
             }
           )
@@ -257,7 +306,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")
             )
           )
@@ -265,16 +315,26 @@ actor LanguageServer is (Notifier & RequestSender)
       | Methods.text_document().folding_range() =>
         try
           let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .folding_range(document_uri, r)
+          _router.handle_request_chained(
+            document_uri,
+            r,
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
+              mgr.folding_range(file_uri, request)
+            }
+          )
         else
           this._channel.send(
             ResponseMessage.create(
               r.id,
               None,
               ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for request '" +
+                ErrorCodes.invalid_request(),
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")))
         end
       | Methods.text_document().diagnostic() =>
@@ -283,7 +343,11 @@ actor LanguageServer is (Notifier & RequestSender)
           _router.handle_request_chained(
             document_uri,
             r,
-            {(mgr: WorkspaceManager, file_uri: String, request: RequestMessage val) =>
+            {(
+              mgr: WorkspaceManager,
+              file_uri: String,
+              request: RequestMessage val)
+            =>
               mgr.document_diagnostic(file_uri, request)
             }
           )
@@ -294,7 +358,8 @@ actor LanguageServer is (Notifier & RequestSender)
               None,
               ResponseError(
                 ErrorCodes.invalid_request(),
-                "[" + r.method + "] 'textDocument.uri' missing from request: '" +
+                "[" + r.method + "] " +
+                "'textDocument.uri' missing from request: '" +
                 r.json().string() + "'")
             )
           )
@@ -390,12 +455,17 @@ actor LanguageServer is (Notifier & RequestSender)
         _router.handle_notification_chained(
           document_uri,
           n,
-          {(mgr: WorkspaceManager, file_uri: String, notification: Notification) =>
+          {(
+            mgr: WorkspaceManager,
+            file_uri: String,
+            notification: Notification)
+          =>
             mgr.did_open(file_uri, notification)}
         )
       else
         this._channel.log(
-          "[" + n.method + "] 'textDocument.uri' missing from notification: '" +
+          "[" + n.method + "] " +
+          "'textDocument.uri' missing from notification: '" +
           n.json().string() + "'")
       end
     | Methods.text_document().did_save() =>
@@ -404,13 +474,18 @@ actor LanguageServer is (Notifier & RequestSender)
         _router.handle_notification_chained(
           document_uri,
           n,
-          {(mgr: WorkspaceManager, file_uri: String, notification: Notification) =>
+          {(
+            mgr: WorkspaceManager,
+            file_uri: String,
+            notification: Notification)
+          =>
             mgr.did_save(file_uri, notification)
           }
         )
       else
         this._channel.log(
-          "[" + n.method + "] 'textDocument.uri' missing from notification: '" +
+          "[" + n.method + "] " +
+          "'textDocument.uri' missing from notification: '" +
           n.json().string() + "'")
       end
     | Methods.text_document().did_close() =>
@@ -419,13 +494,18 @@ actor LanguageServer is (Notifier & RequestSender)
         _router.handle_notification_chained(
           document_uri,
           n,
-          {(mgr: WorkspaceManager, file_uri: String, notification: Notification) =>
+          {(
+            mgr: WorkspaceManager,
+            file_uri: String,
+            notification: Notification)
+          =>
             mgr.did_close(file_uri, notification)
           }
         )
       else
         this._channel.log(
-          "[" + n.method + "] 'textDocument.uri' missing from notification: '" +
+          "[" + n.method + "] " +
+          "'textDocument.uri' missing from notification: '" +
           n.json().string() + "'")
       end
     | Methods.workspace().did_change_configuration()
