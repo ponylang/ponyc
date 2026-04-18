@@ -11,7 +11,7 @@ class PackageState
   State of a compiled package, containing its modules and document states.
   """
   let path: FilePath
-  let documents: Map[String, DocumentState]
+  let open_documents: Map[String, DocumentState]
   let _channel: Channel
   var _package: FromCompilerRun[Package]
   var _compiler_run_id: USize
@@ -19,7 +19,7 @@ class PackageState
   new create(path': FilePath, channel: Channel) =>
     path = path'
     _channel = channel
-    documents = documents.create()
+    open_documents = open_documents.create()
     _package = _package.empty()
     _compiler_run_id = 0
 
@@ -31,7 +31,7 @@ class PackageState
         ""
       end
     ) + "):\n\t" + "\n\t".join(
-      Iter[(String box, DocumentState box)](documents.pairs())
+      Iter[(String box, DocumentState box)](open_documents.pairs())
         .map[String]({(kv) =>
           kv._1 + " (" +
             if kv._2.module() isnt None then
@@ -45,17 +45,35 @@ class PackageState
   fun package(): (Package | None) =>
     this._package.get(this._compiler_run_id)
 
-  fun get_document(document_path: String): (this->DocumentState | None) =>
+  fun get_open_document(document_path: String): (this->DocumentState | None) =>
     try
-      this.documents(document_path)?
+      this.open_documents(document_path)?
     end
 
-  fun has_document(document_path: String): Bool =>
-    this.documents.contains(document_path)
+  fun has_open_document(document_path: String): Bool =>
+    """
+    Returns true if this package has the document at `document_path`
+    marked as open in an editor.
+    """
+    this.open_documents.contains(document_path)
+
+  fun has_module(document_path: String): Bool =>
+    """
+    Returns true, if this package contains the provided `document_path` as a
+    pony module.
+
+    This is different to `has_open_document()` in that it also returns true if
+    `document_path` is a part of the package but not marked as opened in an editor.
+    """
+    try
+      (this.package() as Package).find_module(document_path) isnt None
+    else
+      false
+    end
 
   fun ref insert_new(document_path: String): DocumentState =>
     """
-    Insert a new module by the given `document_path` into this package.
+    Mark the document as opened in the current workspace.
     """
     let doc_state = DocumentState.create(document_path, this._channel)
 
@@ -65,14 +83,14 @@ class PackageState
       let module = pkg.find_module(document_path) as Module
       doc_state.update(this._compiler_run_id, module)
     end
-    this.documents.insert(document_path, doc_state)
+    this.open_documents.insert(document_path, doc_state)
 
-  fun ref ensure_document(document_path: String): DocumentState =>
+  fun ref ensure_open_document(document_path: String): DocumentState =>
     """
     Returns the document state in a tuple together with a boolean,
     denoting whether this documents needs compilation.
     """
-    match \exhaustive\ this.get_document(document_path)
+    match \exhaustive\ this.get_open_document(document_path)
     | let d: DocumentState => d
     | None => this.insert_new(document_path)
     end
@@ -89,7 +107,7 @@ class PackageState
       this._channel.log(this.debug())
       // for each open document, update the
       // document state if we have a module for it
-      for (doc_path, doc_state) in this.documents.pairs() do
+      for (doc_path, doc_state) in this.open_documents.pairs() do
         // TODO: ensure both module and package-state paths are normalized
         match \exhaustive\ result.find_module(doc_path)
         | let m: Module val => doc_state.update(run_id, m)
@@ -105,7 +123,7 @@ class PackageState
     end
 
   fun dispose() =>
-    for doc_state in this.documents.values() do
+    for doc_state in this.open_documents.values() do
       doc_state.dispose()
     end
 
