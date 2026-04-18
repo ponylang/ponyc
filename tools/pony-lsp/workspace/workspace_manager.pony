@@ -27,6 +27,8 @@ actor WorkspaceManager
   let _compiler: LspCompiler
   let _packages: Map[String, PackageState]
   let _global_errors: Array[Diagnostic val]
+  var _next_workspace: (WorkspaceManager | None) = None
+  var _prev_workspace: (WorkspaceManager | None) = None
   var _compile_run: USize = 0
   var _current_request: (RequestMessage val | None) = None
   var _compiling: Bool = false
@@ -54,6 +56,67 @@ actor WorkspaceManager
     _packages = _packages.create()
     _global_errors =
       Array[Diagnostic val].create(4)
+
+  be handle_request_chained(
+    file_uri: String val,
+    request: RequestMessage val,
+    handler: {(WorkspaceManager tag, String val, RequestMessage val)} val
+  ) =>
+    var file_path = Uris.to_path(file_uri)
+    // check if we have this file somewhere in package modules
+    for package in _packages.values() do
+      if package.has_module(file_path) then
+        // if so handle it
+        handler(this, file_uri, request)
+        return
+      end
+    end
+    match \exhaustive\ _next_workspace
+    | let next_mgr: WorkspaceManager =>
+      next_mgr.handle_request_chained(file_uri, request, handler)
+    | None =>
+      // if there is no next workspace,
+      // return a error response (no workspace found)
+      this._channel.send(
+        ResponseMessage.create(
+          request.id,
+          None,
+          ResponseError(
+            ErrorCodes.internal_error(),
+            "[" + request.method + "] " +
+            "No workspace found for request '" + request.json().string() + "'")
+        )
+      )
+    end
+
+  be handle_notification_chained(
+    file_uri: String val,
+    notification: Notification val,
+    handler: {(WorkspaceManager tag, String val, Notification val)} val
+  ) =>
+    var file_path = Uris.to_path(file_uri)
+    // check if we have this file somewhere in package modules
+    for package in _packages.values() do
+      if package.has_module(file_path) then
+        // if so handle it, if not, pass it to _next_workspace
+        handler(this, file_uri, notification)
+        return
+      end
+    end
+    match \exhaustive\ _next_workspace
+    | let next_mgr: WorkspaceManager =>
+      next_mgr.handle_notification_chained(file_uri, notification, handler)
+    | None =>
+      this._channel.log(
+        "[" + notification.method + "] No workspace found for '" +
+        notification.json().string() + "'")
+    end
+
+  be set_next_workspace(mgr: WorkspaceManager) =>
+    _next_workspace = mgr
+
+  be set_prev_workspace(mgr: WorkspaceManager) =>
+    _prev_workspace = mgr
 
   fun ref _ensure_package(package_path: FilePath): PackageState =>
     try
@@ -147,7 +210,7 @@ actor WorkspaceManager
         // pre-fill with empty list of errors for
         // all files for which we have errors now
         for pkg in this._packages.values() do
-          for doc in pkg.documents.keys() do
+          for doc in pkg.open_documents.keys() do
             errors_by_file(doc) = pc.Vec[JsonValue]
           end
         end
@@ -176,7 +239,8 @@ actor WorkspaceManager
                 // get the hash of the module file
                 // ponyc considered for compilation
                 let new_mod_hash =
-                  (package_state.get_document(await_comp_file) as DocumentState)
+                  (package_state
+                    .get_open_document(await_comp_file) as DocumentState)
                     .module_hash()
                 this._awaiting_compilation_for.remove(await_comp_file)?
                 requires_another_compilation =
@@ -225,7 +289,7 @@ actor WorkspaceManager
             try
               let package: FilePath = this._find_workspace_package(err_file)?
               let package_state = this._ensure_package(package)
-              let document_state = package_state.ensure_document(err_file)
+              let document_state = package_state.ensure_open_document(err_file)
               document_state.add_diagnostic(run, diagnostic)
             end
 
@@ -383,7 +447,7 @@ actor WorkspaceManager
       end
     this._channel.log("did_open in pony package @ " + package.path)
     let package_state = this._ensure_package(package)
-    let doc_state = package_state.ensure_document(document_path)
+    let doc_state = package_state.ensure_open_document(document_path)
     if doc_state.needs_compilation() then
       if this._compiling then
         let current_hash = doc_state.module_hash()
@@ -406,7 +470,8 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       let package_state = this._ensure_package(package)
       try
-        let document_state = package_state.documents.remove(document_path)?._2
+        let document_state =
+          package_state.open_documents.remove(document_path)?._2
         document_state.dispose()
       end
     else
@@ -513,7 +578,7 @@ actor WorkspaceManager
 
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_open_document(document_path)
         | let doc: DocumentState =>
           match (doc.position_index(), doc.module())
           | (let index: PositionIndex, let module: Module val) =>
@@ -833,7 +898,7 @@ actor WorkspaceManager
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
         // this._channel.log(pkg_state.debug())
-        match \exhaustive\ pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_open_document(document_path)
         | let doc: DocumentState =>
           let symbols = doc.document_symbols()
           var json_arr = JsonArray
@@ -866,7 +931,7 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_open_document(document_path)
         | let doc: DocumentState =>
           try
             diagnostics =
@@ -911,7 +976,7 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_open_document(document_path)
         | let doc: DocumentState =>
           match \exhaustive\ doc.module()
           | let module: Module val =>
@@ -960,7 +1025,7 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_open_document(document_path)
         | let doc: DocumentState =>
           match \exhaustive\ doc.module()
           | let module: Module val =>
@@ -989,6 +1054,13 @@ actor WorkspaceManager
     this._channel.send(ResponseMessage.create(request.id, None))
 
   be dispose() =>
+    // remove from the workspace-chain
+    match (_prev_workspace, _next_workspace)
+    | (let prev: WorkspaceManager, let next: WorkspaceManager) =>
+      prev.set_next_workspace(next)
+      next.set_prev_workspace(prev)
+    end
+    // dispose packages etc.
     for package_state in this._packages.values() do
       package_state.dispose()
     end
