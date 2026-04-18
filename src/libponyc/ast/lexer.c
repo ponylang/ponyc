@@ -251,6 +251,8 @@ static const lextoken_t abstract[] =
   { "lambdatype", TK_LAMBDATYPE },
   { "barelambdatype", TK_BARELAMBDATYPE },
   { "dontcaretype", TK_DONTCARETYPE },
+  { "bool_true", TK_BOOL_TRUE },
+  { "bool_false", TK_BOOL_FALSE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 
