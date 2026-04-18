@@ -127,6 +127,9 @@ primitive TextDocumentMethods
   fun folding_range(): String val =>
     "textDocument/foldingRange"
 
+  fun selection_range(): String val =>
+    "textDocument/selectionRange"
+
   fun hover(): String val =>
     "textDocument/hover"
 
