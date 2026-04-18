@@ -1022,7 +1022,7 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
+        match \exhaustive\ pkg_state.get_open_document(document_path)
         | let doc: DocumentState =>
           match \exhaustive\ doc.module()
           | let module: Module val =>
