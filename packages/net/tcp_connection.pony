@@ -11,11 +11,11 @@ use @pony_asio_event_get_disposable[Bool](event: AsioEventID)
 use @pony_asio_event_set_writeable[None](event: AsioEventID, writeable: Bool)
 use @pony_asio_event_set_readable[None](event: AsioEventID, readable: Bool)
 use @pony_os_recv[USize](event: AsioEventID, buffer: Pointer[U8] tag,
-  size: USize) ?
+  size: USize)
 use @pony_os_writev[USize](ev: AsioEventID, wsa: Pointer[(USize, Pointer[U8] tag)] tag,
-  wsacnt: I32) ? if windows
+  wsacnt: I32) if windows
 use @pony_os_writev[USize](ev: AsioEventID, iov: Pointer[(Pointer[U8] tag, USize)] tag,
-  iovcnt: I32) ? if not windows
+  iovcnt: I32) if not windows
 use @pony_os_writev_max[I32]()
 use @pony_os_keepalive[None](fd: U32, secs: U32)
 use @pony_os_socket_close[None](fd: U32)
@@ -476,7 +476,8 @@ actor TCPConnection is AsioEventNotify
           let len =
             @pony_os_writev(_event,
               _pending_writev_windows.cpointer(_pending_sent),
-              num_to_send)?
+              num_to_send)
+          if len == USize.max_value() then error end
 
           if len == 0 then
             _apply_backpressure()
@@ -721,7 +722,8 @@ actor TCPConnection is AsioEventNotify
           // Write as much data as possible
           // Returns how many we sent or 0 if we are experiencing backpressure
           let len = @pony_os_writev(_event,
-            _pending_writev_windows.cpointer(_pending_sent), I32(1))?
+            _pending_writev_windows.cpointer(_pending_sent), I32(1))
+          if len == USize.max_value() then error end
 
           if len == 0 then
             _apply_backpressure()
@@ -803,7 +805,8 @@ actor TCPConnection is AsioEventNotify
 
           // Write as much data as possible.
           var len = @pony_os_writev(_event,
-            _pending_writev_posix.cpointer(), num_to_send.i32()) ?
+            _pending_writev_posix.cpointer(), num_to_send.i32())
+          if len == USize.max_value() then error end
 
           if _manage_pending_buffer(len, bytes_to_send, num_to_send)? then
             return true
@@ -939,10 +942,11 @@ actor TCPConnection is AsioEventNotify
     """
     ifdef windows then
       try
-        @pony_os_recv(
+        let recv_len = @pony_os_recv(
           _event,
           _read_buf.cpointer(_read_buf_offset),
-          _read_buf.size() - _read_buf_offset) ?
+          _read_buf.size() - _read_buf_offset)
+        if recv_len == USize.max_value() then error end
       else
         hard_close()
       end
@@ -1003,7 +1007,8 @@ actor TCPConnection is AsioEventNotify
           let len = @pony_os_recv(
             _event,
             _read_buf.cpointer(_read_buf_offset),
-            _read_buf.size() - _read_buf_offset) ?
+            _read_buf.size() - _read_buf_offset)
+          if len == USize.max_value() then error end
 
           if len == 0 then
             // Would block, try again later.
