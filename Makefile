@@ -178,7 +178,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint pony-doc test-pony-doc
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint pony-doc test-pony-doc test-pony-compiler
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
