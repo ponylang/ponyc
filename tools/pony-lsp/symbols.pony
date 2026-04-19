@@ -97,7 +97,7 @@ class DocumentSymbol
       .update("name", this.name)
       .update("kind", this.kind)
       .update("range", this.range.to_json())
-      .update("selectionRange", this.range.to_json())
+      .update("selectionRange", this.selection_range.to_json())
     if this.detail isnt None then
       obj = obj.update("detail", detail)
     end

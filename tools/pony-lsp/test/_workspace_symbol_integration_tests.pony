@@ -17,6 +17,7 @@ primitive _WorkspaceSymbolIntegrationTests is TestList
     test(_WsSymMemberTest.create(server, fixture))
     test(_WsSymNoMatchTest.create(server, fixture))
     test(_WsSymEmptyQueryTest.create(server, fixture))
+    test(_WsSymRangeTest.create(server, fixture))
 
 class \nodoc\ iso _WsSymExactMatchTest is UnitTest
   """
@@ -287,3 +288,96 @@ class val _WsSymChecker
       end
     end
     ok
+
+class \nodoc\ iso _WsSymRangeTest is UnitTest
+  """
+  Verifies that workspace/symbol returns the full declaration range for
+  SymbolInformation.location.range, not the identifier-only span.
+
+  "class ReferencedClass" — full declaration starts at char 0 (the
+  "class" keyword); the identifier span would start at char 6.
+
+  "  fun ref increment" — full declaration starts at char 2 (the "fun"
+  keyword); the identifier span would start at char 10.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "workspace_symbol/integration/range"
+
+  fun apply(h: TestHelper) =>
+    // Query "ReferencedClass": top-level class declared as
+    // "class ReferencedClass" — full range starts at char 0, not char 6.
+    // Query "increment": member declared as "  fun ref increment" —
+    // full range starts at char 2, not char 10.
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ ( 0, 0,
+          _WsSymRangeChecker(
+            "ReferencedClass", "ReferencedClass", 0))
+        ( 0, 0,
+          _WsSymRangeChecker("increment", "increment", 2))])
+
+class val _WsSymRangeChecker
+  """
+  Validates that a named symbol in a workspace/symbol response has a
+  location.range.start.character equal to the expected value.
+  """
+  let _query: String
+  let _symbol_name: String
+  let _expected_start_char: I64
+
+  new val create(
+    query: String,
+    symbol_name: String,
+    expected_start_char: I64)
+  =>
+    _query = query
+    _symbol_name = symbol_name
+    _expected_start_char = expected_start_char
+
+  fun lsp_method(): String =>
+    Methods.workspace().symbol()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    JsonObject.update("query", _query)
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    match res.result
+    | let arr: JsonArray =>
+      for item in arr.values() do
+        try
+          if JsonNav(item)("name").as_string()? == _symbol_name then
+            let start_char =
+              JsonNav(item)("location")("range")("start")("character").as_i64()?
+            return h.assert_eq[I64](
+              _expected_start_char,
+              start_char,
+              _symbol_name +
+              ": location.range.start.character should be " +
+              _expected_start_char.string())
+          end
+        end
+      end
+      h.fail(
+        "workspace/symbol '" + _query +
+        "': expected symbol '" + _symbol_name + "' not found")
+      false
+    else
+      h.fail(
+        "workspace/symbol '" + _query + "': expected array result, got null")
+      false
+    end
