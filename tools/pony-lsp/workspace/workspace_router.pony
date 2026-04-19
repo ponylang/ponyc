@@ -1,5 +1,6 @@
 use "collections"
 use "files"
+use "json"
 use ".."
 
 class WorkspaceRouter
@@ -43,6 +44,24 @@ class WorkspaceRouter
     end
     this.min_workspace_path_len =
       this.min_workspace_path_len.min(abs_folder.size())
+
+  fun workspace_symbol(
+    query: String,
+    channel: Channel,
+    request_id: RequestId)
+  =>
+    """
+    Broadcast a workspace/symbol request to all workspace managers.
+    """
+    let count = workspaces.size()
+    if count == 0 then
+      channel.send(ResponseMessage.create(request_id, JsonArray))
+    else
+      let agg = WorkspaceSymbolAggregator(channel, request_id, count)
+      for mgr in workspaces.values() do
+        mgr.workspace_symbol(query, agg)
+      end
+    end
 
   fun ref dispose() =>
     for mgr in this.workspaces.values() do
