@@ -884,7 +884,7 @@ actor WorkspaceManager
                       .update("uri", file_uri)
                       .update(
                         "range",
-                        symbol.selection_range.to_json())))
+                        symbol.range.to_json())))
           end
           for child in symbol.children.values() do
             if _symbol_matches(child.name, query_lower) then
@@ -900,7 +900,7 @@ actor WorkspaceManager
                         .update("uri", file_uri)
                         .update(
                           "range",
-                          child.selection_range.to_json())))
+                          child.range.to_json())))
             end
           end
         end
