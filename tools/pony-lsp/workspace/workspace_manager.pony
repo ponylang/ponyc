@@ -855,6 +855,75 @@ actor WorkspaceManager
     // send a null-response in every failure case
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be workspace_symbol(
+    query: String val,
+    aggregator: WorkspaceSymbolAggregator)
+  =>
+    """
+    Handle workspace/symbol request.
+    Collects symbols matching the query across all packages
+    in this workspace.
+    """
+    this._channel.log("Handling workspace/symbol: '" + query + "'")
+    let query_lower: String val = query.lower()
+    var results = JsonArray
+    for pkg_state in this._packages.values() do
+      for doc_state in pkg_state.documents.values() do
+        let file_uri = Uris.from_path(doc_state.path)
+        let top_symbols = doc_state.document_symbols()
+        for symbol in top_symbols.values() do
+          if _symbol_matches(symbol.name, query_lower) then
+            results =
+              results.push(
+                JsonObject
+                  .update("name", symbol.name)
+                  .update("kind", symbol.kind)
+                  .update(
+                    "location",
+                    JsonObject
+                      .update("uri", file_uri)
+                      .update(
+                        "range",
+                        symbol.selection_range.to_json())))
+          end
+          for child in symbol.children.values() do
+            if _symbol_matches(child.name, query_lower) then
+              results =
+                results.push(
+                  JsonObject
+                    .update("name", child.name)
+                    .update("kind", child.kind)
+                    .update("containerName", symbol.name)
+                    .update(
+                      "location",
+                      JsonObject
+                        .update("uri", file_uri)
+                        .update(
+                          "range",
+                          child.selection_range.to_json())))
+            end
+          end
+        end
+      end
+    end
+    aggregator.add_results(results)
+
+  fun _symbol_matches(name: String, query_lower: String): Bool =>
+    """
+    Returns true if `name` matches `query_lower` (already lowercased).
+    An empty query matches everything; otherwise a case-insensitive substring
+    match is performed.
+    """
+    if query_lower.size() == 0 then
+      return true
+    end
+    try
+      name.lower().find(query_lower)?
+      true
+    else
+      false
+    end
+
   be document_diagnostic(document_uri: String, request: RequestMessage val) =>
     """
     Handle textDocument/diagnostic request.

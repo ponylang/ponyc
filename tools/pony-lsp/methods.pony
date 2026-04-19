@@ -68,6 +68,9 @@ primitive WorkspaceMethods
   fun inlay_hint(): WorkspaceInlayHintMethods =>
     WorkspaceInlayHintMethods
 
+  fun symbol(): String val =>
+    "workspace/symbol"
+
 primitive WorkspaceFoldingRangeMethods
   """
   Collection of workspace/foldingRange related methods.
