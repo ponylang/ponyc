@@ -2,10 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
-
-### Fixed
-
+## [0.63.2] - 2026-04-19
 
 ### Added
 
@@ -14,9 +11,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add LSP `textDocument/declaration` support ([PR #5229](https://github.com/ponylang/ponyc/pull/5229))
 - Add LSP `textDocument/rename` and `textDocument/prepareRename` support ([PR #5228](https://github.com/ponylang/ponyc/pull/5228))
 - Add LSP `textDocument/typeDefinition` support ([PR #5231](https://github.com/ponylang/ponyc/pull/5231))
-
-### Changed
-
 
 ## [0.63.1] - 2026-04-11
 
