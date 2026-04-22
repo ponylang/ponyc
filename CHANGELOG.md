@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add LSP `textDocument/selectionRange` support ([PR #5236](https://github.com/ponylang/ponyc/pull/5236))
+- Add LSP `workspace/symbol` support ([PR #5239](https://github.com/ponylang/ponyc/pull/5239))
 
 ### Changed
 
