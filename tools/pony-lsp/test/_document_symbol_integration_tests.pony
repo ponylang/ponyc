@@ -9,9 +9,16 @@ primitive _DocumentSymbolIntegrationTests is TestList
   fun tag tests(test: PonyTest) =>
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
     let server = _LspTestServer(workspace_dir)
-    let fixture = "references/referenced_class.pony"
-    test(_DocSymContainmentTest.create(server, fixture))
-    test(_DocSymRangeTest.create(server, fixture))
+    // All fixtures live under workspace/document_symbol/ so the whole
+    // suite compiles a single package once (the test server's first-
+    // `publish_diagnostics` gate only drains pending requests on the
+    // initial compile — a mid-suite package switch would race the new
+    // compile and hand documentSymbol requests an empty module).
+    test(_DocSymContainmentTest.create(server))
+    test(_DocSymRangeTest.create(server))
+    test(_DocSymEntityKindsTest.create(server))
+    test(_DocSymMemberKindsTest.create(server))
+    test(_DocSymCrossFileTraitTest.create(server))
 
 class \nodoc\ iso _DocSymContainmentTest is UnitTest
   """
@@ -20,11 +27,9 @@ class \nodoc\ iso _DocSymContainmentTest is UnitTest
   nested children recursively.
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "document_symbol/integration/containment"
@@ -33,25 +38,23 @@ class \nodoc\ iso _DocSymContainmentTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "document_symbol/_ds_containment.pony",
       [(0, 0, _DocSymContainmentChecker)])
 
 class \nodoc\ iso _DocSymRangeTest is UnitTest
   """
-  "class ReferencedClass" — full `range` should span from the `class`
-  keyword on line 0 past the class body (at least through line 21 where
+  "class _DsContainment" — full `range` should span from the `class`
+  keyword on line 0 past the class body (at least through line 13 where
   `fun ref increment` is declared), distinguishing it from the
   keyword-only span that would end at column 5.
 
   "fun ref increment" — full `range` should span from the `fun` keyword
-  on line 21 through the method body (at least line 22).
+  on line 13 through the method body (at least line 14).
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "document_symbol/integration/range"
@@ -60,20 +63,20 @@ class \nodoc\ iso _DocSymRangeTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "document_symbol/_ds_containment.pony",
       [ ( 0, 0,
           _DocSymRangeChecker(
-            "ReferencedClass",
+            "_DsContainment",
             None,
             // range.start (line, char); selectionRange.start (line, char)
             (0, 0, 0, 6),
-            21))
+            13))
         ( 0, 0,
           _DocSymRangeChecker(
             "increment",
-            "ReferencedClass",
-            (21, 2, 21, 10),
-            22))])
+            "_DsContainment",
+            (13, 2, 13, 10),
+            14))])
 
 class val _DocSymContainmentChecker
   """
@@ -283,3 +286,287 @@ class val _DocSymRangeChecker
       ok = false
     end
     ok
+
+class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
+  """
+  Asserts that every Pony entity token surfaces as a top-level
+  DocumentSymbol with the LSP SymbolKind it is mapped to by
+  `DocumentSymbols.from_module`:
+    class, actor, primitive, type  → sk_class (5)
+    trait, interface               → sk_interface (11)
+    struct                         → sk_struct (23)
+
+  Regression guard against silent edits to the `tk_*` → SymbolKind
+  match table at `tools/pony-lsp/symbols.pony:134-143`.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/entity_kinds"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_ent_interface.pony",
+      [ ( 0, 0,
+          _DocSymTopLevelKindsChecker(
+            [ ("_DsEntClass", 5)
+              ("_DsEntActor", 5)
+              ("_DsEntTrait", 11)
+              ("_DsEntInterface", 11)
+              ("_DsEntPrimitive", 5)
+              ("_DsEntStruct", 23)
+              ("_DsEntType", 5)]))])
+
+class \nodoc\ iso _DocSymMemberKindsTest is UnitTest
+  """
+  Asserts that every member token surfaces as a child DocumentSymbol
+  under its enclosing entity with the LSP SymbolKind it is mapped to
+  by `DocumentSymbols.find_members`:
+    tk_new                         → constructor (9)
+    tk_fun, tk_be                  → method (6)
+    tk_flet, tk_fvar, tk_embed     → field (8)
+
+  Regression guard against silent edits to the member `tk_*` →
+  SymbolKind match table at `tools/pony-lsp/symbols.pony:214-220`.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/member_kinds"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_member_host.pony",
+      [ ( 0, 0,
+          _DocSymChildKindsChecker(
+            "_DsMemberHost",
+            [ ("_let_field", 8)
+              ("_var_field", 8)
+              ("_embed_field", 8)
+              ("create", 9)
+              ("ds_fun", 6)
+              ("ds_be", 6)]))])
+
+class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
+  """
+  Regression guard for the source-file filter in `ASTSourceSpan`.
+
+  `_DsImpl` (in `_ds_impl.pony`) inherits `ds_default_method` from
+  `_DsTrait` (in `_ds_trait.pony`) without overriding it. ponyc merges
+  the trait's default body into the impl's AST, but the merged tokens
+  carry the trait file's `source_file()`. `ASTSourceSpan` filters those
+  descendants out when computing the impl's span.
+
+  If the filter regresses, `_DsImpl.range.end.line` would jump to a line
+  in the trait file (past line 20). The assertion below caps end.line
+  well below that, so any drift into the trait file is detected.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/cross_file_trait"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_impl.pony",
+      [ ( 0, 0,
+          _DocSymMaxEndLineChecker("_DsImpl", 15))])
+
+class val _DocSymTopLevelKindsChecker
+  """
+  Validates that the documentSymbol response contains exactly the
+  expected list of top-level (name, kind) pairs, in any order.
+  """
+  let _expected: Array[(String, I64)] val
+
+  new val create(expected: Array[(String, I64)] val) =>
+    _expected = expected
+
+  fun lsp_method(): String =>
+    Methods.text_document().document_symbol()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    None
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    var ok = true
+    match res.result
+    | let arr: JsonArray =>
+      ok = h.assert_eq[USize](
+        _expected.size(),
+        arr.size(),
+        "documentSymbol: top-level count") and ok
+      for (exp_name, exp_kind) in _expected.values() do
+        var found = false
+        for item in arr.values() do
+          try
+            let n = JsonNav(item)("name").as_string()?
+            let k = JsonNav(item)("kind").as_i64()?
+            if (n == exp_name) and (k == exp_kind) then
+              found = true
+              break
+            end
+          end
+        end
+        ok = h.assert_true(
+          found,
+          "documentSymbol: expected top-level symbol '" + exp_name +
+          "' with kind " + exp_kind.string() + " not found") and ok
+      end
+    else
+      h.fail("documentSymbol: expected array result, got null")
+      ok = false
+    end
+    ok
+
+class val _DocSymChildKindsChecker
+  """
+  Finds `_parent_name` at the top level of the documentSymbol response,
+  then validates that its `children` array contains exactly the
+  expected list of (name, kind) pairs, in any order.
+  """
+  let _parent_name: String
+  let _expected: Array[(String, I64)] val
+
+  new val create(
+    parent_name: String,
+    expected: Array[(String, I64)] val)
+  =>
+    _parent_name = parent_name
+    _expected = expected
+
+  fun lsp_method(): String =>
+    Methods.text_document().document_symbol()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    None
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    match res.result
+    | let arr: JsonArray =>
+      for item in arr.values() do
+        try
+          if JsonNav(item)("name").as_string()? == _parent_name then
+            return _check_children(item, h)
+          end
+        end
+      end
+      h.fail(
+        "documentSymbol: parent '" + _parent_name + "' not found")
+      false
+    else
+      h.fail("documentSymbol: expected array result, got null")
+      false
+    end
+
+  fun _check_children(parent: JsonValue, h: TestHelper): Bool =>
+    var ok = true
+    try
+      let children = JsonNav(parent)("children").as_array()?
+      ok = h.assert_eq[USize](
+        _expected.size(),
+        children.size(),
+        "documentSymbol '" + _parent_name + "': children count") and ok
+      for (exp_name, exp_kind) in _expected.values() do
+        var found = false
+        for child in children.values() do
+          try
+            let n = JsonNav(child)("name").as_string()?
+            let k = JsonNav(child)("kind").as_i64()?
+            if (n == exp_name) and (k == exp_kind) then
+              found = true
+              break
+            end
+          end
+        end
+        ok = h.assert_true(
+          found,
+          "documentSymbol '" + _parent_name +
+          "': expected child '" + exp_name + "' with kind " +
+          exp_kind.string() + " not found") and ok
+      end
+    else
+      h.fail(
+        "documentSymbol '" + _parent_name +
+        "': children array missing")
+      ok = false
+    end
+    ok
+
+class val _DocSymMaxEndLineChecker
+  """
+  Asserts that a named top-level symbol's range.end.line is strictly
+  less than `_max_end_line`. Used to detect source-file filter
+  regressions where the range inflates to include descendants from
+  other files.
+  """
+  let _symbol_name: String
+  let _max_end_line: I64
+
+  new val create(symbol_name: String, max_end_line: I64) =>
+    _symbol_name = symbol_name
+    _max_end_line = max_end_line
+
+  fun lsp_method(): String =>
+    Methods.text_document().document_symbol()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    None
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    match res.result
+    | let arr: JsonArray =>
+      for item in arr.values() do
+        try
+          if JsonNav(item)("name").as_string()? == _symbol_name then
+            let end_line =
+              JsonNav(item)("range")("end")("line").as_i64()?
+            return h.assert_true(
+              end_line < _max_end_line,
+              _symbol_name +
+              ": range.end.line (" + end_line.string() +
+              ") should be < " + _max_end_line.string() +
+              " (source-file filter)")
+          end
+        end
+      end
+      h.fail(
+        "documentSymbol: symbol '" + _symbol_name + "' not found")
+      false
+    else
+      h.fail("documentSymbol: expected array result, got null")
+      false
+    end
