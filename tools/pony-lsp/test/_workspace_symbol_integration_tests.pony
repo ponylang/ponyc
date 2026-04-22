@@ -226,28 +226,28 @@ class \nodoc\ iso _WsSymRangeTest is UnitTest
       "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymRangeChecker(
-            "_WsSymHost", "_WsSymHost", (5, 0, 18, 10)))
+            "_WsSymHost", "_WsSymHost", None, (5, 0, 18, 10)))
         ( 0, 1,
           _WsSymRangeChecker(
-            "_count", "_count", (6, 2, 6, 17)))
+            "_count", "_count", "_WsSymHost", (6, 2, 6, 17)))
         ( 0, 2,
           _WsSymRangeChecker(
-            "_name", "_name", (7, 2, 7, 19)))
+            "_name", "_name", "_WsSymHost", (7, 2, 7, 19)))
         ( 0, 3,
           _WsSymRangeChecker(
-            "_inner", "_inner", (8, 2, 8, 27)))
+            "_inner", "_inner", "_WsSymHost", (8, 2, 8, 27)))
         ( 0, 4,
           _WsSymRangeChecker(
-            "create", "create", (5, 0, 11, 14)))
+            "create", "create", "_WsSymHost", (5, 0, 11, 14)))
         ( 0, 5,
           _WsSymRangeChecker(
-            "increment", "increment", (13, 2, 15, 10)))
+            "increment", "increment", "_WsSymHost", (13, 2, 15, 10)))
         ( 0, 6,
           _WsSymRangeChecker(
-            "ping", "ping", (17, 2, 18, 10)))
+            "ping", "ping", "_WsSymHost", (17, 2, 18, 10)))
         ( 0, 7,
           _WsSymRangeChecker(
-            "_WsSymInner", "_WsSymInner", (20, 0, 20, 17)))])
+            "_WsSymInner", "_WsSymInner", None, (20, 0, 20, 17)))])
 
 class val _WsSymChecker
   """
@@ -353,18 +353,25 @@ class val _WsSymRangeChecker
   that collapse the range to `{0,0}-{0,0}` or any other degenerate span
   — a single-coordinate check would be silently satisfied by several
   wrong values.
+
+  The optional `container` parameter disambiguates symbols whose names
+  are not unique within a fixture (e.g. two `create` constructors).
+  When `None`, any symbol with the matching name is accepted.
   """
   let _query: String
   let _symbol_name: String
+  let _container: (String | None)
   let _expected: (I64, I64, I64, I64)
 
   new val create(
     query: String,
     symbol_name: String,
+    container: (String | None),
     expected: (I64, I64, I64, I64))
   =>
     _query = query
     _symbol_name = symbol_name
+    _container = container
     _expected = expected
 
   fun lsp_method(): String =>
@@ -385,7 +392,17 @@ class val _WsSymRangeChecker
     | let arr: JsonArray =>
       for item in arr.values() do
         try
-          if JsonNav(item)("name").as_string()? == _symbol_name then
+          let container: (String | None) =
+            try JsonNav(item)("containerName").as_string()? else None end
+          let container_ok =
+            match (_container, container)
+            | (None, None) => true
+            | (let a: String, let b: String) => a == b
+            else false
+            end
+          let name_ok =
+            JsonNav(item)("name").as_string()? == _symbol_name
+          if name_ok and container_ok then
             let r = JsonNav(item)("location")("range")
             let sl = r("start")("line").as_i64()?
             let sc = r("start")("character").as_i64()?
