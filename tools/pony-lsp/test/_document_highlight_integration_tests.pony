@@ -1306,14 +1306,14 @@ class val _DocHighlightChecker
       end
       for (exp_sl, exp_sc, exp_el, exp_ec, exp_kind) in _expected.values() do
         var found = false
-        for item in arr.values() do
+        for candidate in arr.values() do
           try
-            let range = JsonNav(item)("range")
+            let range = JsonNav(candidate)("range")
             let sl = range("start")("line").as_i64()?
             let sc = range("start")("character").as_i64()?
             let el = range("end")("line").as_i64()?
             let ec = range("end")("character").as_i64()?
-            let kind = JsonNav(item)("kind").as_i64()?
+            let kind = JsonNav(candidate)("kind").as_i64()?
             if (sl == exp_sl) and (sc == exp_sc) and
               (el == exp_el) and (ec == exp_ec) and (kind == exp_kind)
             then

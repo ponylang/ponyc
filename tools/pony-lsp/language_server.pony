@@ -274,6 +274,9 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      | Methods.workspace().symbol() =>
+        let query = try JsonNav(r.params)("query").as_string()? else "" end
+        _router.workspace_symbol(query, this._channel, r.id)
       | Methods.shutdown() =>
         this._state = _ShuttingDown
         this._channel.send(ResponseMessage.create(r.id, None))
@@ -516,6 +519,7 @@ actor LanguageServer is (Notifier & RequestSender)
                 .update("documentSymbolProvider", true)
                 .update("foldingRangeProvider", true)
                 .update("selectionRangeProvider", true)
+                .update("workspaceSymbolProvider", true)
                 .update(
                   "inlayHintProvider",
                   JsonObject.update("resolveProvider", false)))

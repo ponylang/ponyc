@@ -33,6 +33,7 @@ actor Main is TestList
     _RenameIntegrationTests.make().tests(test)
     _FoldingRangeIntegrationTests.make().tests(test)
     _SelectionRangeIntegrationTests.make().tests(test)
+    _WorkspaceSymbolIntegrationTests.make().tests(test)
 
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"
