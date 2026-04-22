@@ -1,0 +1,91 @@
+use "pony_compiler"
+
+primitive ASTSourceSpan
+  """
+  Computes the true source span of an AST node, including all descendants
+  whose `source_file()` is None (synthetic container nodes) or matches
+  `doc_path` (leaf tokens from the current file). Descendants whose
+  source_file() is a non-empty string that does not match doc_path are
+  excluded — this filters trait method bodies merged from other files.
+
+  Seeded with the node's own position and end_pos (if any) so that
+  declaration keywords (tk_fun, tk_class, etc.) are included even though
+  they are the node's token rather than a child.
+
+  Note: AST.span() short-circuits on keyword tokens returning only the
+  keyword extent; this helper always scans children to get the full body
+  range. Required by any LSP response that quotes a "full declaration
+  range" for entity or member declarations.
+
+  Returns None when the computed span is inverted (should not occur for
+  well-formed AST nodes).
+  """
+
+  fun tag apply(
+    n: AST box,
+    doc_path: String val)
+    : ((Position, Position) | None)
+  =>
+    """
+    Compute the span of `n`, returning `(start, end)` in ponyc's native
+    `Position` units (1-based line, 1-based column, end inclusive), or
+    `None` if the computed span is inverted.
+    """
+    // Seed with this node's own extent. Declaration nodes like tk_fun and
+    // tk_class have end_pos() set to their keyword's last column — include
+    // that so the keyword itself is covered even if no children are visited.
+    let n_start = n.position()
+    let n_end =
+      match \exhaustive\ n.end_pos()
+      | let ep: Position => ep
+      | None => n_start
+      end
+
+    let visitor =
+      object ref is ASTVisitor
+        var _min: Position = n_start
+        var _max: Position = n_end
+
+        fun ref visit(child: AST box): VisitResult =>
+          // Exclude descendants from other source files. Note: returning
+          // Continue (not Stop) still descends into the child's subtree;
+          // AST.visit() itself pre-filters children by _from_same_source(),
+          // so this check is defence-in-depth.
+          match child.source_file()
+          | let sf: String val =>
+            if sf != doc_path then
+              return Continue
+            end
+          end
+          let pos = child.position()
+          if pos < _min then
+            _min = pos
+          end
+          let child_ep =
+            match \exhaustive\ child.end_pos()
+            | let ep: Position => ep
+            | None => pos
+            end
+          if child_ep > _max then
+            _max = child_ep
+          end
+          Continue
+
+        fun ref leave(child: AST box): VisitResult =>
+          Continue
+
+        fun min(): Position =>
+          _min
+
+        fun max(): Position =>
+          _max
+      end
+    n.visit(visitor)
+
+    let min = visitor.min()
+    let max = visitor.max()
+    if min <= max then
+      (min, max)
+    else
+      None
+    end

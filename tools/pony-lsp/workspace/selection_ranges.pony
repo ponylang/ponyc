@@ -58,7 +58,7 @@ primitive SelectionRanges
     var last_el: USize = 0
     var last_ec: USize = 0
 
-    // TODO(perf): _source_span traverses each ancestor's entire subtree, so
+    // TODO(perf): ASTSourceSpan traverses each ancestor's entire subtree, so
     // total work is O(sum of subtree sizes) ≈ O(depth * module_node_count).
     // A bottom-up approach — one full traversal recording spans by node, then
     // reading cached values per chain entry — would reduce this to O(N).
@@ -66,7 +66,7 @@ primitive SelectionRanges
     while i > 0 do
       i = i - 1
       let n = try chain(i)? else continue end
-      match \exhaustive\ _source_span(n, doc_path)
+      match \exhaustive\ ASTSourceSpan(n, doc_path)
       | (let s: Position, let e: Position) =>
         // Deduplicate: skip if this span is identical to the last emitted.
         let sl = s.line()
@@ -102,83 +102,3 @@ primitive SelectionRanges
     end
     result
 
-  fun _source_span(
-    n: AST box,
-    doc_path: String val)
-    : ((Position, Position) | None)
-  =>
-    """
-    Compute the source span of AST node `n`, including all descendants
-    whose `source_file()` is None (synthetic container nodes) or matches
-    `doc_path` (leaf tokens from the current file). Descendants whose
-    source_file() is a non-empty string that does not match doc_path are
-    excluded — this filters trait method bodies merged from other files.
-
-    Seeded with the node's own position and end_pos (if any) so that
-    declaration keywords (tk_fun, tk_class, etc.) are included even though
-    they are the node's token rather than a child.
-
-    Note: span() short-circuits on keyword tokens returning only the keyword
-    extent; this visitor always scans children to get the full body range.
-
-    Returns None when the computed span is inverted (should not occur for
-    well-formed AST nodes).
-    """
-    // Seed with this node's own extent. Declaration nodes like tk_fun and
-    // tk_class have end_pos() set to their keyword's last column — include
-    // that so the keyword itself is covered even if no children are visited.
-    let n_start = n.position()
-    let n_end =
-      match \exhaustive\ n.end_pos()
-      | let ep: Position => ep
-      | None => n_start
-      end
-
-    let visitor =
-      object ref is ASTVisitor
-        var _min: Position = n_start
-        var _max: Position = n_end
-
-        fun ref visit(child: AST box): VisitResult =>
-          // Exclude descendants from other source files. Note: returning
-          // Continue (not Stop) still descends into the child's subtree;
-          // AST.visit() itself pre-filters children by _from_same_source(),
-          // so this check is defence-in-depth.
-          match child.source_file()
-          | let sf: String val =>
-            if sf != doc_path then
-              return Continue
-            end
-          end
-          let pos = child.position()
-          if pos < _min then
-            _min = pos
-          end
-          let child_ep =
-            match \exhaustive\ child.end_pos()
-            | let ep: Position => ep
-            | None => pos
-            end
-          if child_ep > _max then
-            _max = child_ep
-          end
-          Continue
-
-        fun ref leave(child: AST box): VisitResult =>
-          Continue
-
-        fun min(): Position =>
-          _min
-
-        fun max(): Position =>
-          _max
-      end
-    n.visit(visitor)
-
-    let min = visitor.min()
-    let max = visitor.max()
-    if min <= max then
-      (min, max)
-    else
-      None
-    end

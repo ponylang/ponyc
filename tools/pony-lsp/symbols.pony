@@ -147,16 +147,33 @@ primitive DocumentSymbols
           let id = module_child(0)?
           if id.id() == TokenIds.tk_id() then
             let name = id.token_value() as String
-            (let start_pos, let end_pos) = module_child.span()
+            let doc_path =
+              try
+                module_child.source_file() as String val
+              else
+                channel.log(
+                  "No source_file for " +
+                  TokenIds.string(module_child.id()) + " '" + name + "'")
+                error
+              end
+            (let start_pos, let end_pos) =
+              match \exhaustive\ ASTSourceSpan(module_child, doc_path)
+              | (let s: Position, let e: Position) => (s, e)
+              | None =>
+                channel.log(
+                  "Inverted source span for " +
+                  TokenIds.string(module_child.id()) + " '" + name + "'")
+                error
+              end
             let full_range =
               LspPositionRange(
                 LspPosition.from_ast_pos(start_pos),
-                LspPosition.from_ast_pos(end_pos))
+                LspPosition.from_ast_pos_end(end_pos))
             (let id_start, let id_end) = id.span()
             let selection_range =
               LspPositionRange(
                 LspPosition.from_ast_pos(id_start),
-                LspPosition.from_ast_pos(id_end))
+                LspPosition.from_ast_pos_end(id_end))
             let symbol =
               DocumentSymbol(name, kind, full_range, selection_range)
             this.find_members(module_child, symbol, channel)
@@ -213,16 +230,33 @@ primitive DocumentSymbols
             TokenIds.string(entity_child.id()) +
             ", got " + TokenIds.string(id.id()))?
           let name = id.token_value() as String
-          (let start_pos, let end_pos) = entity_child.span()
+          let doc_path =
+            try
+              entity_child.source_file() as String val
+            else
+              channel.log(
+                "No source_file for " +
+                TokenIds.string(entity_child.id()) + " '" + name + "'")
+              error
+            end
+          (let start_pos, let end_pos) =
+            match \exhaustive\ ASTSourceSpan(entity_child, doc_path)
+            | (let s: Position, let e: Position) => (s, e)
+            | None =>
+              channel.log(
+                "Inverted source span for " +
+                TokenIds.string(entity_child.id()) + " '" + name + "'")
+              error
+            end
           let full_range =
             LspPositionRange(
               LspPosition.from_ast_pos(start_pos),
-              LspPosition.from_ast_pos(end_pos))
+              LspPosition.from_ast_pos_end(end_pos))
           (let id_start, let id_end) = id.span()
           let selection_range =
             LspPositionRange(
               LspPosition.from_ast_pos(id_start),
-              LspPosition.from_ast_pos(id_end))
+              LspPosition.from_ast_pos_end(id_end))
           let member_symbol =
             DocumentSymbol(name, kind, full_range, selection_range)
           symbol.push_child(member_symbol)

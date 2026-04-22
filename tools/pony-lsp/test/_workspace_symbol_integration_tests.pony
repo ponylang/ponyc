@@ -312,36 +312,45 @@ class \nodoc\ iso _WsSymRangeTest is UnitTest
 
   fun apply(h: TestHelper) =>
     // Query "ReferencedClass": top-level class declared as
-    // "class ReferencedClass" — full range starts at char 0, not char 6.
+    // "class ReferencedClass" — full range starts at char 0, not char 6,
+    // and extends past line 22 (the class body contains at least that
+    // many lines of members).
     // Query "increment": member declared as "  fun ref increment" —
-    // full range starts at char 2, not char 10.
+    // full range starts at char 2, not char 10, and covers the method
+    // body through at least line 23.
     _RunLspChecks(
       h,
       _server,
       _fixture,
       [ ( 0, 0,
           _WsSymRangeChecker(
-            "ReferencedClass", "ReferencedClass", 0))
+            "ReferencedClass", "ReferencedClass", 0, 22))
         ( 0, 0,
-          _WsSymRangeChecker("increment", "increment", 2))])
+          _WsSymRangeChecker("increment", "increment", 2, 23))])
 
 class val _WsSymRangeChecker
   """
   Validates that a named symbol in a workspace/symbol response has a
-  location.range.start.character equal to the expected value.
+  location.range.start.character equal to the expected value, and
+  that location.range.end.line reaches at least `expected_min_end_line`
+  — proving the range covers the full declaration, not just the
+  keyword.
   """
   let _query: String
   let _symbol_name: String
   let _expected_start_char: I64
+  let _expected_min_end_line: I64
 
   new val create(
     query: String,
     symbol_name: String,
-    expected_start_char: I64)
+    expected_start_char: I64,
+    expected_min_end_line: I64)
   =>
     _query = query
     _symbol_name = symbol_name
     _expected_start_char = expected_start_char
+    _expected_min_end_line = expected_min_end_line
 
   fun lsp_method(): String =>
     Methods.workspace().symbol()
@@ -363,12 +372,22 @@ class val _WsSymRangeChecker
           if JsonNav(item)("name").as_string()? == _symbol_name then
             let start_char =
               JsonNav(item)("location")("range")("start")("character").as_i64()?
-            return h.assert_eq[I64](
-              _expected_start_char,
-              start_char,
+            let end_line =
+              JsonNav(item)("location")("range")("end")("line").as_i64()?
+            var ok =
+              h.assert_eq[I64](
+                _expected_start_char,
+                start_char,
+                _symbol_name +
+                ": location.range.start.character should be " +
+                _expected_start_char.string())
+            ok = h.assert_true(
+              end_line >= _expected_min_end_line,
               _symbol_name +
-              ": location.range.start.character should be " +
-              _expected_start_char.string())
+              ": location.range.end.line (" + end_line.string() +
+              ") should be >= " + _expected_min_end_line.string() +
+              " (full declaration, not keyword-only)") and ok
+            return ok
           end
         end
       end
