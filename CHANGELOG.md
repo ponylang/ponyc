@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix compiler crash when passing an array literal to `OutStream.writev` ([PR #5192](https://github.com/ponylang/ponyc/pull/5192))
 
 ### Added
 
