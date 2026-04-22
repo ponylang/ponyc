@@ -78,6 +78,106 @@ class \nodoc\ iso _DocSymRangeTest is UnitTest
             (13, 2, 13, 10),
             14))])
 
+class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
+  """
+  Asserts that every Pony entity token surfaces as a top-level
+  DocumentSymbol with the LSP SymbolKind it is mapped to by
+  `DocumentSymbols.from_module`:
+    class, actor, primitive, type  → sk_class (5)
+    trait, interface               → sk_interface (11)
+    struct                         → sk_struct (23)
+
+  Regression guard against silent edits to the `tk_*` → SymbolKind
+  match table at `tools/pony-lsp/symbols.pony:134-143`.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/entity_kinds"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_ent_interface.pony",
+      [ ( 0, 0,
+          _DocSymTopLevelKindsChecker(
+            [ ("_DsEntClass", 5)
+              ("_DsEntActor", 5)
+              ("_DsEntTrait", 11)
+              ("_DsEntInterface", 11)
+              ("_DsEntPrimitive", 5)
+              ("_DsEntStruct", 23)
+              ("_DsEntType", 5)]))])
+
+class \nodoc\ iso _DocSymMemberKindsTest is UnitTest
+  """
+  Asserts that every member token surfaces as a child DocumentSymbol
+  under its enclosing entity with the LSP SymbolKind it is mapped to
+  by `DocumentSymbols.find_members`:
+    tk_new                         → constructor (9)
+    tk_fun, tk_be                  → method (6)
+    tk_flet, tk_fvar, tk_embed     → field (8)
+
+  Regression guard against silent edits to the member `tk_*` →
+  SymbolKind match table at `tools/pony-lsp/symbols.pony:214-220`.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/member_kinds"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_member_host.pony",
+      [ ( 0, 0,
+          _DocSymChildKindsChecker(
+            "_DsMemberHost",
+            [ ("_let_field", 8)
+              ("_var_field", 8)
+              ("_embed_field", 8)
+              ("create", 9)
+              ("ds_fun", 6)
+              ("ds_be", 6)]))])
+
+class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
+  """
+  Regression guard for the source-file filter in `ASTSourceSpan`.
+
+  `_DsImpl` (in `_ds_impl.pony`) inherits `ds_default_method` from
+  `_DsTrait` (in `_ds_trait.pony`) without overriding it. ponyc merges
+  the trait's default body into the impl's AST, but the merged tokens
+  carry the trait file's `source_file()`. `ASTSourceSpan` filters those
+  descendants out when computing the impl's span.
+
+  If the filter regresses, `_DsImpl.range.end.line` would jump to a line
+  in the trait file (past line 20). The assertion below caps end.line
+  well below that, so any drift into the trait file is detected.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/cross_file_trait"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_impl.pony",
+      [ ( 0, 0,
+          _DocSymMaxEndLineChecker("_DsImpl", 15))])
+
 class val _DocSymContainmentChecker
   """
   Validates that every DocumentSymbol (and every nested child) in a
@@ -286,106 +386,6 @@ class val _DocSymRangeChecker
       ok = false
     end
     ok
-
-class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
-  """
-  Asserts that every Pony entity token surfaces as a top-level
-  DocumentSymbol with the LSP SymbolKind it is mapped to by
-  `DocumentSymbols.from_module`:
-    class, actor, primitive, type  → sk_class (5)
-    trait, interface               → sk_interface (11)
-    struct                         → sk_struct (23)
-
-  Regression guard against silent edits to the `tk_*` → SymbolKind
-  match table at `tools/pony-lsp/symbols.pony:134-143`.
-  """
-  let _server: _LspTestServer
-
-  new iso create(server: _LspTestServer) =>
-    _server = server
-
-  fun name(): String =>
-    "document_symbol/integration/entity_kinds"
-
-  fun apply(h: TestHelper) =>
-    _RunLspChecks(
-      h,
-      _server,
-      "document_symbol/_ds_ent_interface.pony",
-      [ ( 0, 0,
-          _DocSymTopLevelKindsChecker(
-            [ ("_DsEntClass", 5)
-              ("_DsEntActor", 5)
-              ("_DsEntTrait", 11)
-              ("_DsEntInterface", 11)
-              ("_DsEntPrimitive", 5)
-              ("_DsEntStruct", 23)
-              ("_DsEntType", 5)]))])
-
-class \nodoc\ iso _DocSymMemberKindsTest is UnitTest
-  """
-  Asserts that every member token surfaces as a child DocumentSymbol
-  under its enclosing entity with the LSP SymbolKind it is mapped to
-  by `DocumentSymbols.find_members`:
-    tk_new                         → constructor (9)
-    tk_fun, tk_be                  → method (6)
-    tk_flet, tk_fvar, tk_embed     → field (8)
-
-  Regression guard against silent edits to the member `tk_*` →
-  SymbolKind match table at `tools/pony-lsp/symbols.pony:214-220`.
-  """
-  let _server: _LspTestServer
-
-  new iso create(server: _LspTestServer) =>
-    _server = server
-
-  fun name(): String =>
-    "document_symbol/integration/member_kinds"
-
-  fun apply(h: TestHelper) =>
-    _RunLspChecks(
-      h,
-      _server,
-      "document_symbol/_ds_member_host.pony",
-      [ ( 0, 0,
-          _DocSymChildKindsChecker(
-            "_DsMemberHost",
-            [ ("_let_field", 8)
-              ("_var_field", 8)
-              ("_embed_field", 8)
-              ("create", 9)
-              ("ds_fun", 6)
-              ("ds_be", 6)]))])
-
-class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
-  """
-  Regression guard for the source-file filter in `ASTSourceSpan`.
-
-  `_DsImpl` (in `_ds_impl.pony`) inherits `ds_default_method` from
-  `_DsTrait` (in `_ds_trait.pony`) without overriding it. ponyc merges
-  the trait's default body into the impl's AST, but the merged tokens
-  carry the trait file's `source_file()`. `ASTSourceSpan` filters those
-  descendants out when computing the impl's span.
-
-  If the filter regresses, `_DsImpl.range.end.line` would jump to a line
-  in the trait file (past line 20). The assertion below caps end.line
-  well below that, so any drift into the trait file is detected.
-  """
-  let _server: _LspTestServer
-
-  new iso create(server: _LspTestServer) =>
-    _server = server
-
-  fun name(): String =>
-    "document_symbol/integration/cross_file_trait"
-
-  fun apply(h: TestHelper) =>
-    _RunLspChecks(
-      h,
-      _server,
-      "document_symbol/_ds_impl.pony",
-      [ ( 0, 0,
-          _DocSymMaxEndLineChecker("_DsImpl", 15))])
 
 class val _DocSymTopLevelKindsChecker
   """

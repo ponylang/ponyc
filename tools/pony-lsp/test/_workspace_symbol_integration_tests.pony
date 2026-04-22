@@ -186,6 +186,69 @@ class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
               ("_WsSymInner", 5, "_ws_sym_host.pony", None)
               ("create", 9, "_ws_sym_host.pony", "_WsSymInner")]))])
 
+class \nodoc\ iso _WsSymRangeTest is UnitTest
+  """
+  Verifies that workspace/symbol returns the full declaration range for
+  every member and top-level token kind. Each check asserts the exact
+  LSP range (start_line, start_char, end_line, end_char), not just the
+  start column — a degenerate `{0,0}-{0,0}` response would pass a one-
+  coordinate check.
+
+  Exact position tuples are derived from the fixture layout in
+  `workspace_symbol/_ws_sym_host.pony`; see the comment at the top of
+  that file for the coupling note.
+
+  Coverage map (symbol → token kind asserted):
+    _WsSymHost   → tk_actor
+    _count       → tk_fvar
+    _name        → tk_flet
+    _inner       → tk_embed
+    create       → tk_new
+    increment    → tk_fun
+    ping         → tk_be
+    _WsSymInner  → tk_class
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "workspace_symbol/integration/range"
+
+  fun apply(h: TestHelper) =>
+    // Distinct dummy (line, character) per check so the pony_test
+    // action strings are unique — failure diagnostics will point at the
+    // specific assertion rather than all sharing one action id.
+    _RunLspChecks(
+      h,
+      _server,
+      "workspace_symbol/_ws_sym_host.pony",
+      [ ( 0, 0,
+          _WsSymRangeChecker(
+            "_WsSymHost", "_WsSymHost", (5, 0, 18, 10)))
+        ( 0, 1,
+          _WsSymRangeChecker(
+            "_count", "_count", (6, 2, 6, 17)))
+        ( 0, 2,
+          _WsSymRangeChecker(
+            "_name", "_name", (7, 2, 7, 19)))
+        ( 0, 3,
+          _WsSymRangeChecker(
+            "_inner", "_inner", (8, 2, 8, 27)))
+        ( 0, 4,
+          _WsSymRangeChecker(
+            "create", "create", (5, 0, 11, 14)))
+        ( 0, 5,
+          _WsSymRangeChecker(
+            "increment", "increment", (13, 2, 15, 10)))
+        ( 0, 6,
+          _WsSymRangeChecker(
+            "ping", "ping", (17, 2, 18, 10)))
+        ( 0, 7,
+          _WsSymRangeChecker(
+            "_WsSymInner", "_WsSymInner", (20, 0, 20, 17)))])
+
 class val _WsSymChecker
   """
   Validates a workspace/symbol response.
@@ -281,69 +344,6 @@ class val _WsSymChecker
       end
     end
     ok
-
-class \nodoc\ iso _WsSymRangeTest is UnitTest
-  """
-  Verifies that workspace/symbol returns the full declaration range for
-  every member and top-level token kind. Each check asserts the exact
-  LSP range (start_line, start_char, end_line, end_char), not just the
-  start column — a degenerate `{0,0}-{0,0}` response would pass a one-
-  coordinate check.
-
-  Exact position tuples are derived from the fixture layout in
-  `workspace_symbol/_ws_sym_host.pony`; see the comment at the top of
-  that file for the coupling note.
-
-  Coverage map (symbol → token kind asserted):
-    _WsSymHost   → tk_actor
-    _count       → tk_fvar
-    _name        → tk_flet
-    _inner       → tk_embed
-    create       → tk_new
-    increment    → tk_fun
-    ping         → tk_be
-    _WsSymInner  → tk_class
-  """
-  let _server: _LspTestServer
-
-  new iso create(server: _LspTestServer) =>
-    _server = server
-
-  fun name(): String =>
-    "workspace_symbol/integration/range"
-
-  fun apply(h: TestHelper) =>
-    // Distinct dummy (line, character) per check so the pony_test
-    // action strings are unique — failure diagnostics will point at the
-    // specific assertion rather than all sharing one action id.
-    _RunLspChecks(
-      h,
-      _server,
-      "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymRangeChecker(
-            "_WsSymHost", "_WsSymHost", (5, 0, 18, 10)))
-        ( 0, 1,
-          _WsSymRangeChecker(
-            "_count", "_count", (6, 2, 6, 17)))
-        ( 0, 2,
-          _WsSymRangeChecker(
-            "_name", "_name", (7, 2, 7, 19)))
-        ( 0, 3,
-          _WsSymRangeChecker(
-            "_inner", "_inner", (8, 2, 8, 27)))
-        ( 0, 4,
-          _WsSymRangeChecker(
-            "create", "create", (5, 0, 11, 14)))
-        ( 0, 5,
-          _WsSymRangeChecker(
-            "increment", "increment", (13, 2, 15, 10)))
-        ( 0, 6,
-          _WsSymRangeChecker(
-            "ping", "ping", (17, 2, 18, 10)))
-        ( 0, 7,
-          _WsSymRangeChecker(
-            "_WsSymInner", "_WsSymInner", (20, 0, 20, 17)))])
 
 class val _WsSymRangeChecker
   """
