@@ -43,13 +43,19 @@ class \nodoc\ iso _DocSymContainmentTest is UnitTest
 
 class \nodoc\ iso _DocSymRangeTest is UnitTest
   """
-  "class _DsContainment" — full `range` should span from the `class`
-  keyword on line 0 past the class body (at least through line 13 where
-  `fun ref increment` is declared), distinguishing it from the
-  keyword-only span that would end at column 5.
+  Verifies that documentSymbol returns the full declaration range for
+  two representative symbols, asserting all four coordinates of both
+  `range` and `selectionRange` exactly.
 
-  "fun ref increment" — full `range` should span from the `fun` keyword
-  on line 13 through the method body (at least line 14).
+  "_DsContainment" — `range` must span from the `class` keyword to the
+  end of the class body; `selectionRange` covers the identifier only.
+
+  "increment" — `range` must span from the `fun` keyword to the end of
+  the method body; `selectionRange` covers the identifier only.
+
+  Exact position tuples are derived from the fixture layout in
+  `document_symbol/_ds_containment.pony`. Reformatting that file
+  invalidates the tuples below.
   """
   let _server: _LspTestServer
 
@@ -68,15 +74,16 @@ class \nodoc\ iso _DocSymRangeTest is UnitTest
           _DocSymRangeChecker(
             "_DsContainment",
             None,
-            // range.start (line, char); selectionRange.start (line, char)
-            (0, 0, 0, 6),
-            13))
-        ( 0, 0,
+                      // range: (start_line, start_char, end_line, end_char)
+            (0, 0, 18, 10),
+            // selectionRange: (start_line, start_char, end_line, end_char)
+            (0, 6, 0, 20)))
+        ( 0, 1,
           _DocSymRangeChecker(
             "increment",
             "_DsContainment",
-            (13, 2, 13, 10),
-            14))])
+            (13, 2, 15, 10),
+            (13, 10, 13, 19)))])
 
 class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
   """
@@ -265,29 +272,27 @@ class val _DocSymContainmentChecker
 
 class val _DocSymRangeChecker
   """
-  Validates range/selectionRange for a named symbol (optionally nested
-  under a parent) in a documentSymbol response.
-
-  - positions: (range.start.line, range.start.char,
-      selectionRange.start.line, selectionRange.start.char)
-  - min_end_line: asserts range.end.line >= this value, proving the full
-    declaration is covered rather than just the keyword.
+  Validates that a named symbol (optionally nested under a named parent)
+  in a documentSymbol response has the expected exact `range` and
+  `selectionRange` coordinates. Asserting all four coordinates of both
+  fields catches regressions that collapse a range to `{0,0}-{0,0}` or
+  that set `range` to a keyword-only span.
   """
   let _symbol_name: String
   let _parent_name: (String | None)
-  let _positions: (I64, I64, I64, I64)
-  let _min_end_line: I64
+  let _range: (I64, I64, I64, I64)
+  let _selection_range: (I64, I64, I64, I64)
 
   new val create(
     symbol_name: String,
     parent_name: (String | None),
-    positions: (I64, I64, I64, I64),
-    min_end_line: I64)
+    range': (I64, I64, I64, I64),
+    selection_range': (I64, I64, I64, I64))
   =>
     _symbol_name = symbol_name
     _parent_name = parent_name
-    _positions = positions
-    _min_end_line = min_end_line
+    _range = range'
+    _selection_range = selection_range'
 
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
@@ -350,37 +355,37 @@ class val _DocSymRangeChecker
     None
 
   fun _assert_ranges(item: JsonValue, h: TestHelper): Bool =>
-    (let exp_r_sl, let exp_r_sc, let exp_s_sl, let exp_s_sc) = _positions
+    (let exp_r_sl, let exp_r_sc, let exp_r_el, let exp_r_ec) = _range
+    (let exp_s_sl, let exp_s_sc, let exp_s_el, let exp_s_ec) = _selection_range
     var ok = true
     try
       let r_sl = JsonNav(item)("range")("start")("line").as_i64()?
       let r_sc = JsonNav(item)("range")("start")("character").as_i64()?
       let r_el = JsonNav(item)("range")("end")("line").as_i64()?
+      let r_ec = JsonNav(item)("range")("end")("character").as_i64()?
       let s_sl = JsonNav(item)("selectionRange")("start")("line").as_i64()?
       let s_sc = JsonNav(item)("selectionRange")("start")("character").as_i64()?
+      let s_el = JsonNav(item)("selectionRange")("end")("line").as_i64()?
+      let s_ec = JsonNav(item)("selectionRange")("end")("character").as_i64()?
 
       ok = h.assert_eq[I64](
-        exp_r_sl,
-        r_sl,
-        _symbol_name + ": range.start.line") and ok
+        exp_r_sl, r_sl, _symbol_name + ": range.start.line") and ok
       ok = h.assert_eq[I64](
-        exp_r_sc,
-        r_sc,
-        _symbol_name + ": range.start.character") and ok
+        exp_r_sc, r_sc, _symbol_name + ": range.start.character") and ok
       ok = h.assert_eq[I64](
-        exp_s_sl,
-        s_sl,
-        _symbol_name + ": selectionRange.start.line") and ok
+        exp_r_el, r_el, _symbol_name + ": range.end.line") and ok
+      ok = h.assert_eq[I64](
+        exp_r_ec, r_ec, _symbol_name + ": range.end.character") and ok
+      ok = h.assert_eq[I64](
+        exp_s_sl, s_sl, _symbol_name + ": selectionRange.start.line") and ok
       ok = h.assert_eq[I64](
         exp_s_sc,
         s_sc,
         _symbol_name + ": selectionRange.start.character") and ok
-      ok = h.assert_true(
-        r_el >= _min_end_line,
-        _symbol_name +
-        ": range.end.line (" + r_el.string() +
-        ") should be >= " + _min_end_line.string() +
-        " (full declaration, not keyword-only)") and ok
+      ok = h.assert_eq[I64](
+        exp_s_el, s_el, _symbol_name + ": selectionRange.end.line") and ok
+      ok = h.assert_eq[I64](
+        exp_s_ec, s_ec, _symbol_name + ": selectionRange.end.character") and ok
     else
       h.fail(_symbol_name + ": malformed symbol entry")
       ok = false
