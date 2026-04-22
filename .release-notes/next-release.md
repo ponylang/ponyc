@@ -6,3 +6,9 @@ This rule is correct under C11 but was narrowed in C++20, and depending on it ma
 
 The push operations on the actor message queue and on the scheduler's multi-producer multi-consumer queue have been changed to establish happens-before directly with acquire-release read-modify-writes instead of through the release-sequence rule. The multi-producer push paths generate identical machine code on x86 because x86's atomic read-modify-writes are always full barriers regardless of the requested ordering. The single-producer push paths replace two plain atomic stores with one `xchg` on x86. On ARM and other weakly-ordered platforms, the generated code changes in all paths but shouldn't have an impact on performance. Stronger memory ordering should not introduce any incorrect behavior; the change is strictly defensive.
 
+## Add LSP `textDocument/selectionRange` support
+
+The Pony language server now handles `textDocument/selectionRange` requests, enabling editors to expand the selection to progressively larger syntactic units (e.g. Alt+Shift+→ in VS Code).
+
+For a given cursor position the server returns a chain of nested ranges — innermost first — walking up the AST from the token under the cursor through its enclosing expressions, function, class body, and finally the whole file. Ancestor nodes whose span is identical to their child are collapsed so that each step in the chain produces a visible selection change. Descendant nodes from other source files (such as trait methods merged into a class by the compiler) are excluded so that the ranges always stay within the current file.
+
