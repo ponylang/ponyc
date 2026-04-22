@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Strengthen memory ordering on runtime queue pushes ([PR #5245](https://github.com/ponylang/ponyc/pull/5245))
 
 ## [0.63.2] - 2026-04-19
 
