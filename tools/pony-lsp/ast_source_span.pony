@@ -47,10 +47,15 @@ primitive ASTSourceSpan
         var _max: Position = n_end
 
         fun ref visit(child: AST box): VisitResult =>
-          // Exclude descendants from other source files. Note: returning
-          // Continue (not Stop) still descends into the child's subtree;
-          // AST.visit() itself pre-filters children by _from_same_source(),
-          // so this check is defence-in-depth.
+          // Exclude descendants from other source files. This is the
+          // primary filter for nodes that reach here via a synthetic
+          // (None source_file) intermediary: AST.visit()'s own
+          // _from_same_source() returns true when either side is None,
+          // so a chain our_file -> None-source -> other_file can pass
+          // AST.visit()'s check. The explicit test here catches that.
+          // Note: returning Continue still descends into the child's
+          // subtree — only the child's own position is excluded from
+          // the min/max accumulation, not its descendants.
           match child.source_file()
           | let sf: String val =>
             if sf != doc_path then
