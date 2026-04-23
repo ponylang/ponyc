@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix compiler crash when passing an array literal to `OutStream.writev` ([PR #5192](https://github.com/ponylang/ponyc/pull/5192))
 - Fix runtime crash with iso in mixed-capability union type ([PR #4809](https://github.com/ponylang/ponyc/pull/4809))
+- Fix LSP symbol range semantics ([PR #5241](https://github.com/ponylang/ponyc/pull/5241))
 
 ### Added
 
