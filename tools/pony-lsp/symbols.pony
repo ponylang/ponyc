@@ -208,14 +208,14 @@ primitive DocumentSymbols
       return
     end
     for entity_child in members.children() do
+      // Skip members whose position is at or beyond max_pos. ponyc
+      // positions synthesized constructors at the start of the next
+      // entity in the file; max_pos is that entity's start position.
+      match max_pos
+      | let m: Position =>
+        if entity_child.position() >= m then continue end
+      end
       try
-        // Skip members whose position is at or beyond max_pos. ponyc
-        // positions synthesized constructors at the start of the next
-        // entity in the file; max_pos is that entity's start position.
-        match max_pos
-        | let m: Position =>
-          Fact(entity_child.position() < m, "member position out of bounds")?
-        end
         let maybe_kind_and_idx =
           match entity_child.id()
           | TokenIds.tk_new() => (SymbolKinds.constructor(), USize(1))

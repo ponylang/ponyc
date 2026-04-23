@@ -3,7 +3,7 @@
 // SymbolKind (class, actor, trait, interface, primitive, struct, type).
 //
 // Regression guard against silent edits to the `tk_*` → SymbolKind match
-// table at `tools/pony-lsp/symbols.pony:134-143`.
+// table at `tools/pony-lsp/symbols.pony:153-163`.
 
 class _DsEntClass
 

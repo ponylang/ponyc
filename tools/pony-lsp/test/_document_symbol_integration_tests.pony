@@ -97,7 +97,7 @@ class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
     struct                         → sk_struct (23)
 
   Regression guard against silent edits to the `tk_*` → SymbolKind
-  match table at `tools/pony-lsp/symbols.pony:134-143`.
+  match table at `tools/pony-lsp/symbols.pony:153-163`.
   """
   let _server: _LspTestServer
 
