@@ -8,6 +8,13 @@ primitive ASTSourceSpan
   source_file() is a non-empty string that does not match doc_path are
   excluded — this filters trait method bodies merged from other files.
 
+  The optional `max_pos` parameter caps the end of the computed span:
+  only descendants whose end position is strictly less than `max_pos`
+  contribute to `_max`. Pass the start position of the next sibling
+  entity to prevent synthesized constructors (ponyc inserts them for
+  bare primitives, bare classes, etc.) from inflating the entity's range
+  into the next entity's lines.
+
   Seeded with the node's own position and end_pos (if any) so that
   declaration keywords (tk_fun, tk_class, etc.) are included even though
   they are the node's token rather than a child.
@@ -23,7 +30,8 @@ primitive ASTSourceSpan
 
   fun tag apply(
     n: AST box,
-    doc_path: String val)
+    doc_path: String val,
+    max_pos: (Position | None) = None)
     : ((Position, Position) | None)
   =>
     """
@@ -71,7 +79,16 @@ primitive ASTSourceSpan
             | let ep: Position => ep
             | None => pos
             end
-          if child_ep > _max then
+          // Only extend _max if child_ep is within the allowed bound.
+          // This prevents synthesized constructors (whose body tokens
+          // ponyc positions at the start of the next sibling entity)
+          // from inflating the span past the current entity's content.
+          let ep_in_bounds =
+            match \exhaustive\ max_pos
+            | None => true
+            | let m: Position => child_ep < m
+            end
+          if ep_in_bounds and (child_ep > _max) then
             _max = child_ep
           end
           Continue

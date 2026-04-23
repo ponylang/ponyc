@@ -20,6 +20,7 @@ primitive _DocumentSymbolIntegrationTests is TestList
     test(_DocSymMemberKindsTest.create(server))
     test(_DocSymCrossFileTraitTest.create(server))
     test(_DocSymTypeAliasRangeTest.create(server))
+    test(_DocSymPrimitiveRangeTest.create(server))
 
 class \nodoc\ iso _DocSymContainmentTest is UnitTest
   """
@@ -221,6 +222,39 @@ class \nodoc\ iso _DocSymTypeAliasRangeTest is UnitTest
             None,
             (22, 0, 22, 30),
             (22, 5, 22, 15)))])
+
+class \nodoc\ iso _DocSymPrimitiveRangeTest is UnitTest
+  """
+  Verifies that a bare `primitive` (no explicit body) has a range
+  covering only the declaration line — from the `primitive` keyword to
+  the end of the identifier — and a selectionRange covering only the
+  identifier.
+
+  Exact positions are derived from `_ds_ent_interface.pony` line 18
+  (1-based) = line 17 (0-based):
+    `primitive _DsEntPrimitive`
+     ^0                       ^25
+               ^10            ^25
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/primitive_range"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_ent_interface.pony",
+      [ ( 0, 0,
+          _DocSymRangeChecker(
+            "_DsEntPrimitive",
+            None,
+            (17, 0, 17, 25),
+            (17, 10, 17, 25)))])
 
 class val _DocSymContainmentChecker
   """

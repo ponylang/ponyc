@@ -127,7 +127,27 @@ primitive DocumentSymbols
     module: Module,
     channel: Channel): Array[DocumentSymbol] ref
   =>
+    """
+    Build DocumentSymbol trees for every top-level entity in the module.
+    """
     let symbols: Array[DocumentSymbol] ref = Array[DocumentSymbol].create(4)
+    // Collect entity start positions for look-ahead. Each entity's range
+    // is bounded by the next entity's start — this prevents synthesized
+    // constructors (which ponyc positions at the next entity's line) from
+    // inflating the entity's span.
+    let entity_starts = Array[Position].create()
+    for module_child in module.ast.children() do
+      match module_child.id()
+      | TokenIds.tk_interface()
+      | TokenIds.tk_trait()
+      | TokenIds.tk_primitive()
+      | TokenIds.tk_class()
+      | TokenIds.tk_type()
+      | TokenIds.tk_actor()
+      | TokenIds.tk_struct() => entity_starts.push(module_child.position())
+      end
+    end
+    var entity_idx: USize = 0
     for module_child in module.ast.children() do
       let maybe_kind =
         match module_child.id()
@@ -143,15 +163,18 @@ primitive DocumentSymbols
         end
       match maybe_kind
       | let kind: I64 =>
+        let max_pos: (Position | None) =
+          try entity_starts(entity_idx + 1)? else None end
+        entity_idx = entity_idx + 1
         try
           let id = module_child(0)?
           if id.id() == TokenIds.tk_id() then
             let name = id.token_value() as String
             (let full_range, let selection_range) =
-              this._symbol_ranges(module_child, id, name, channel)?
+              this._symbol_ranges(module_child, id, name, channel, max_pos)?
             let symbol =
               DocumentSymbol(name, kind, full_range, selection_range)
-            this.find_members(module_child, symbol, channel)
+            this.find_members(module_child, symbol, channel, max_pos)
             symbols.push(symbol)
           else
             channel.log("Expecred TK_ID, got " + TokenIds.string(id.id()))
@@ -166,7 +189,8 @@ primitive DocumentSymbols
   fun tag find_members(
     entity: AST,
     symbol: DocumentSymbol ref,
-    channel: Channel)
+    channel: Channel,
+    max_pos: (Position | None) = None)
   =>
     let members =
       try
@@ -185,6 +209,13 @@ primitive DocumentSymbols
     end
     for entity_child in members.children() do
       try
+        // Skip members whose position is at or beyond max_pos. ponyc
+        // positions synthesized constructors at the start of the next
+        // entity in the file; max_pos is that entity's start position.
+        match max_pos
+        | let m: Position =>
+          Fact(entity_child.position() < m, "member position out of bounds")?
+        end
         let maybe_kind_and_idx =
           match entity_child.id()
           | TokenIds.tk_new() => (SymbolKinds.constructor(), USize(1))
@@ -206,7 +237,7 @@ primitive DocumentSymbols
             ", got " + TokenIds.string(id.id()))?
           let name = id.token_value() as String
           (let full_range, let selection_range) =
-            this._symbol_ranges(entity_child, id, name, channel)?
+            this._symbol_ranges(entity_child, id, name, channel, max_pos)?
           let member_symbol =
             DocumentSymbol(name, kind, full_range, selection_range)
           symbol.push_child(member_symbol)
@@ -218,7 +249,8 @@ primitive DocumentSymbols
     node: AST box,
     id: AST box,
     name: String,
-    channel: Channel)
+    channel: Channel,
+    max_pos: (Position | None) = None)
     : (LspPositionRange, LspPositionRange) ?
   =>
     """
@@ -237,7 +269,7 @@ primitive DocumentSymbols
         error
       end
     (let start_pos, let end_pos) =
-      match \exhaustive\ ASTSourceSpan(node, doc_path)
+      match \exhaustive\ ASTSourceSpan(node, doc_path, max_pos)
       | (let s: Position, let e: Position) => (s, e)
       | None =>
         channel.log(
