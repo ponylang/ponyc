@@ -28,6 +28,7 @@ actor Main is TestList
     _DefinitionIntegrationTests.make().tests(test)
     _TypeDefinitionIntegrationTests.make().tests(test)
     _DocumentHighlightIntegrationTests.make().tests(test)
+    _DocumentSymbolIntegrationTests.make().tests(test)
     _InlayHintIntegrationTests.make().tests(test)
     _ReferencesIntegrationTests.make().tests(test)
     _RenameIntegrationTests.make().tests(test)

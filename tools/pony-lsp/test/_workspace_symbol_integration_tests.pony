@@ -9,26 +9,26 @@ primitive _WorkspaceSymbolIntegrationTests is TestList
   fun tag tests(test: PonyTest) =>
     let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
     let server = _LspTestServer(workspace_dir)
-    let fixture = "references/referenced_class.pony"
-    test(_WsSymExactMatchTest.create(server, fixture))
-    test(_WsSymSubstringMatchTest.create(server, fixture))
-    test(_WsSymSubstringInMiddleTest.create(server, fixture))
-    test(_WsSymCaseInsensitiveTest.create(server, fixture))
-    test(_WsSymMemberTest.create(server, fixture))
-    test(_WsSymNoMatchTest.create(server, fixture))
-    test(_WsSymEmptyQueryTest.create(server, fixture))
+    // All fixtures live under workspace/workspace_symbol/ so the suite
+    // compiles a single package once.
+    test(_WsSymExactMatchTest.create(server))
+    test(_WsSymSubstringMatchTest.create(server))
+    test(_WsSymSubstringInMiddleTest.create(server))
+    test(_WsSymCaseInsensitiveTest.create(server))
+    test(_WsSymMemberTest.create(server))
+    test(_WsSymNoMatchTest.create(server))
+    test(_WsSymEmptyQueryTest.create(server))
+    test(_WsSymRangeTest.create(server))
 
 class \nodoc\ iso _WsSymExactMatchTest is UnitTest
   """
-  Query "ReferencedClass" → exactly 1 top-level result named "ReferencedClass"
-  with symbol kind 5 (class).
+  Query "_WsSymHost" → exactly 1 top-level result named "_WsSymHost"
+  with symbol kind 5 (class; actors are reported as sk_class).
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/exact_match"
@@ -37,22 +37,21 @@ class \nodoc\ iso _WsSymExactMatchTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymChecker(
-            "ReferencedClass",
-            [("ReferencedClass", 5, "referenced_class.pony", None)]))])
+            "_WsSymHost",
+            [("_WsSymHost", 5, "_ws_sym_host.pony", None)]))])
 
 class \nodoc\ iso _WsSymSubstringMatchTest is UnitTest
   """
-  Query "Referenced" → matches "ReferencedClass" only (prefix substring).
+  Query "_WsSym" → prefix substring matches both top-level entities
+  `_WsSymHost` (actor) and `_WsSymInner` (class).
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/substring_match"
@@ -61,23 +60,22 @@ class \nodoc\ iso _WsSymSubstringMatchTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymChecker(
-            "Referenced",
-            [("ReferencedClass", 5, "referenced_class.pony", None)]))])
+            "_WsSym",
+            [ ("_WsSymHost", 5, "_ws_sym_host.pony", None)
+              ("_WsSymInner", 5, "_ws_sym_host.pony", None)]))])
 
 class \nodoc\ iso _WsSymSubstringInMiddleTest is UnitTest
   """
-  Query "Class" → matches "ReferencedClass" via substring in the middle.
+  Query "Host" → matches `_WsSymHost` via substring in the middle.
   Distinguishes substring matching from prefix-only matching.
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/substring_in_middle"
@@ -86,22 +84,20 @@ class \nodoc\ iso _WsSymSubstringInMiddleTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymChecker(
-            "Class",
-            [("ReferencedClass", 5, "referenced_class.pony", None)]))])
+            "Host",
+            [("_WsSymHost", 5, "_ws_sym_host.pony", None)]))])
 
 class \nodoc\ iso _WsSymCaseInsensitiveTest is UnitTest
   """
-  Query "referencedclass" (all lower-case) → still matches "ReferencedClass".
+  Query "_wssymhost" (all lower-case) → still matches `_WsSymHost`.
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/case_insensitive"
@@ -110,23 +106,21 @@ class \nodoc\ iso _WsSymCaseInsensitiveTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymChecker(
-            "referencedclass",
-            [("ReferencedClass", 5, "referenced_class.pony", None)]))])
+            "_wssymhost",
+            [("_WsSymHost", 5, "_ws_sym_host.pony", None)]))])
 
 class \nodoc\ iso _WsSymMemberTest is UnitTest
   """
-  Query "increment" → matches the method "increment" inside "ReferencedClass",
-  which should appear with containerName "ReferencedClass".
+  Query "increment" → matches the method `increment` inside `_WsSymHost`,
+  which should appear with containerName "_WsSymHost".
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/member_match"
@@ -135,23 +129,21 @@ class \nodoc\ iso _WsSymMemberTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymChecker(
             "increment",
-            [ ("increment", 6, "referenced_class.pony",
-                "ReferencedClass")]))])
+            [ ("increment", 6, "_ws_sym_host.pony",
+                "_WsSymHost")]))])
 
 class \nodoc\ iso _WsSymNoMatchTest is UnitTest
   """
   Query "zzznomatch" → empty result array.
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/no_match"
@@ -160,20 +152,18 @@ class \nodoc\ iso _WsSymNoMatchTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [(0, 0, _WsSymChecker("zzznomatch", []))])
 
 class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
   """
-  Empty query → all symbols from the fixture file are returned: the
-  top-level class, its field, constructor, and two methods.
+  Empty query → all symbols from the fixture: the top-level actor and
+  class, plus every member (var/let/embed fields, constructor, fun, be).
   """
   let _server: _LspTestServer
-  let _fixture: String val
 
-  new iso create(server: _LspTestServer, fixture: String val) =>
+  new iso create(server: _LspTestServer) =>
     _server = server
-    _fixture = fixture
 
   fun name(): String =>
     "workspace_symbol/integration/empty_query"
@@ -182,15 +172,82 @@ class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
     _RunLspChecks(
       h,
       _server,
-      _fixture,
+      "workspace_symbol/_ws_sym_host.pony",
       [ ( 0, 0,
           _WsSymChecker(
             "",
-            [ ("ReferencedClass", 5, "referenced_class.pony", None)
-              ("_count", 8, "referenced_class.pony", "ReferencedClass")
-              ("create", 9, "referenced_class.pony", "ReferencedClass")
-              ("increment", 6, "referenced_class.pony", "ReferencedClass")
-              ("maybe", 6, "referenced_class.pony", "ReferencedClass")]))])
+            [ ("_WsSymHost", 5, "_ws_sym_host.pony", None)
+              ("_count", 8, "_ws_sym_host.pony", "_WsSymHost")
+              ("_name", 8, "_ws_sym_host.pony", "_WsSymHost")
+              ("_inner", 8, "_ws_sym_host.pony", "_WsSymHost")
+              ("create", 9, "_ws_sym_host.pony", "_WsSymHost")
+              ("increment", 6, "_ws_sym_host.pony", "_WsSymHost")
+              ("ping", 6, "_ws_sym_host.pony", "_WsSymHost")
+              ("_WsSymInner", 5, "_ws_sym_host.pony", None)
+              ("create", 9, "_ws_sym_host.pony", "_WsSymInner")]))])
+
+class \nodoc\ iso _WsSymRangeTest is UnitTest
+  """
+  Verifies that workspace/symbol returns the full declaration range for
+  every member and top-level token kind. Each check asserts the exact
+  LSP range (start_line, start_char, end_line, end_char), not just the
+  start column — a degenerate `{0,0}-{0,0}` response would pass a one-
+  coordinate check.
+
+  Exact position tuples are derived from the fixture layout in
+  `workspace_symbol/_ws_sym_host.pony`; see the comment at the top of
+  that file for the coupling note.
+
+  Coverage map (symbol → token kind asserted):
+    _WsSymHost   → tk_actor
+    _count       → tk_fvar
+    _name        → tk_flet
+    _inner       → tk_embed
+    create       → tk_new
+    increment    → tk_fun
+    ping         → tk_be
+    _WsSymInner  → tk_class
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "workspace_symbol/integration/range"
+
+  fun apply(h: TestHelper) =>
+    // Distinct dummy (line, character) per check so the pony_test
+    // action strings are unique — failure diagnostics will point at the
+    // specific assertion rather than all sharing one action id.
+    _RunLspChecks(
+      h,
+      _server,
+      "workspace_symbol/_ws_sym_host.pony",
+      [ ( 0, 0,
+          _WsSymRangeChecker(
+            "_WsSymHost", "_WsSymHost", None, (5, 0, 18, 10)))
+        ( 0, 1,
+          _WsSymRangeChecker(
+            "_count", "_count", "_WsSymHost", (6, 2, 6, 17)))
+        ( 0, 2,
+          _WsSymRangeChecker(
+            "_name", "_name", "_WsSymHost", (7, 2, 7, 19)))
+        ( 0, 3,
+          _WsSymRangeChecker(
+            "_inner", "_inner", "_WsSymHost", (8, 2, 8, 27)))
+        ( 0, 4,
+          _WsSymRangeChecker(
+            "create", "create", "_WsSymHost", (10, 2, 11, 14)))
+        ( 0, 5,
+          _WsSymRangeChecker(
+            "increment", "increment", "_WsSymHost", (13, 2, 15, 10)))
+        ( 0, 6,
+          _WsSymRangeChecker(
+            "ping", "ping", "_WsSymHost", (17, 2, 18, 10)))
+        ( 0, 7,
+          _WsSymRangeChecker(
+            "_WsSymInner", "_WsSymInner", None, (20, 0, 20, 17)))])
 
 class val _WsSymChecker
   """
@@ -287,3 +344,89 @@ class val _WsSymChecker
       end
     end
     ok
+
+class val _WsSymRangeChecker
+  """
+  Validates that a named symbol in a workspace/symbol response has a
+  location.range equal to the expected (start_line, start_char, end_line,
+  end_char) tuple. Asserting all four coordinates catches regressions
+  that collapse the range to `{0,0}-{0,0}` or any other degenerate span
+  — a single-coordinate check would be silently satisfied by several
+  wrong values.
+
+  The optional `container` parameter disambiguates symbols whose names
+  are not unique within a fixture (e.g. two `create` constructors).
+  When `None`, any symbol with the matching name is accepted.
+  """
+  let _query: String
+  let _symbol_name: String
+  let _container: (String | None)
+  let _expected: (I64, I64, I64, I64)
+
+  new val create(
+    query: String,
+    symbol_name: String,
+    container: (String | None),
+    expected: (I64, I64, I64, I64))
+  =>
+    _query = query
+    _symbol_name = symbol_name
+    _container = container
+    _expected = expected
+
+  fun lsp_method(): String =>
+    Methods.workspace().symbol()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    JsonObject.update("query", _query)
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    (let exp_sl, let exp_sc, let exp_el, let exp_ec) = _expected
+    match res.result
+    | let arr: JsonArray =>
+      for item in arr.values() do
+        try
+          let container: (String | None) =
+            try JsonNav(item)("containerName").as_string()? else None end
+          let container_ok =
+            match (_container, container)
+            | (None, None) => true
+            | (let a: String, let b: String) => a == b
+            else false
+            end
+          let name_ok =
+            JsonNav(item)("name").as_string()? == _symbol_name
+          if name_ok and container_ok then
+            let r = JsonNav(item)("location")("range")
+            let sl = r("start")("line").as_i64()?
+            let sc = r("start")("character").as_i64()?
+            let el = r("end")("line").as_i64()?
+            let ec = r("end")("character").as_i64()?
+            var ok =
+              h.assert_eq[I64](
+                exp_sl, sl, _symbol_name + ": range.start.line")
+            ok = h.assert_eq[I64](
+              exp_sc, sc, _symbol_name + ": range.start.character") and ok
+            ok = h.assert_eq[I64](
+              exp_el, el, _symbol_name + ": range.end.line") and ok
+            ok = h.assert_eq[I64](
+              exp_ec, ec, _symbol_name + ": range.end.character") and ok
+            return ok
+          end
+        end
+      end
+      h.fail(
+        "workspace/symbol '" + _query +
+        "': expected symbol '" + _symbol_name + "' not found")
+      false
+    else
+      h.fail(
+        "workspace/symbol '" + _query + "': expected array result, got null")
+      false
+    end
