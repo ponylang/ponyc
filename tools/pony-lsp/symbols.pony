@@ -245,9 +245,17 @@ primitive DocumentSymbols
           TokenIds.string(node.id()) + " '" + name + "'")
         error
       end
+    // Clamp start to the node's own keyword position. Nominal references
+    // in `type` aliases store the definition-site position of the
+    // referenced type (same file, earlier line), which ASTSourceSpan's
+    // min-walk would otherwise include, pulling the start before the
+    // declaration keyword.
+    let n_pos = node.position()
+    let clamped_start =
+      if start_pos < n_pos then n_pos else start_pos end
     let full_range =
       LspPositionRange(
-        LspPosition.from_ast_pos(start_pos),
+        LspPosition.from_ast_pos(clamped_start),
         LspPosition.from_ast_pos_end(end_pos))
     (let id_start, let id_end) = id.span()
     let selection_range =

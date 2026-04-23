@@ -19,6 +19,7 @@ primitive _DocumentSymbolIntegrationTests is TestList
     test(_DocSymEntityKindsTest.create(server))
     test(_DocSymMemberKindsTest.create(server))
     test(_DocSymCrossFileTraitTest.create(server))
+    test(_DocSymTypeAliasRangeTest.create(server))
 
 class \nodoc\ iso _DocSymContainmentTest is UnitTest
   """
@@ -184,6 +185,42 @@ class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
       "document_symbol/_ds_impl.pony",
       [ ( 0, 0,
           _DocSymMaxEndLineChecker("_DsImpl", 15))])
+
+class \nodoc\ iso _DocSymTypeAliasRangeTest is UnitTest
+  """
+  Verifies that a `type` alias has a range covering the entire
+  declaration — from the `type` keyword to the end of the nominal
+  reference — and a selectionRange covering only the identifier.
+
+  Regression guard for cross-entity bleed: type aliases hold usage-site
+  positions for the nominal reference, so `ASTSourceSpan` must not drift
+  into the referenced entity's tokens.
+
+  Exact positions are derived from `_ds_ent_interface.pony` line 23
+  (1-based) = line 22 (0-based):
+    `type _DsEntType is _DsEntClass`
+     ^0                            ^30
+          ^5        ^15
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/type_alias_range"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_ent_interface.pony",
+      [ ( 0, 0,
+          _DocSymRangeChecker(
+            "_DsEntType",
+            None,
+            (22, 0, 22, 30),
+            (22, 5, 22, 15)))])
 
 class val _DocSymContainmentChecker
   """

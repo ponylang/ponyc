@@ -238,7 +238,7 @@ class \nodoc\ iso _WsSymRangeTest is UnitTest
             "_inner", "_inner", "_WsSymHost", (8, 2, 8, 27)))
         ( 0, 4,
           _WsSymRangeChecker(
-            "create", "create", "_WsSymHost", (5, 0, 11, 14)))
+            "create", "create", "_WsSymHost", (10, 2, 11, 14)))
         ( 0, 5,
           _WsSymRangeChecker(
             "increment", "increment", "_WsSymHost", (13, 2, 15, 10)))
