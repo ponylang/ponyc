@@ -158,7 +158,10 @@ class \nodoc\ iso _WsSymNoMatchTest is UnitTest
 class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
   """
   Empty query → all symbols from the fixture: the top-level actor and
-  class, plus every member (var/let/embed fields, constructor, fun, be).
+  class, plus every explicitly written member (var/let/embed fields,
+  constructor, fun, be). Synthesized constructors on bare classes are
+  excluded — `_WsSymInner` has no explicit `new` so its ponyc-generated
+  `create` does not appear.
   """
   let _server: _LspTestServer
 
@@ -183,8 +186,7 @@ class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
               ("create", 9, "_ws_sym_host.pony", "_WsSymHost")
               ("increment", 6, "_ws_sym_host.pony", "_WsSymHost")
               ("ping", 6, "_ws_sym_host.pony", "_WsSymHost")
-              ("_WsSymInner", 5, "_ws_sym_host.pony", None)
-              ("create", 9, "_ws_sym_host.pony", "_WsSymInner")]))])
+              ("_WsSymInner", 5, "_ws_sym_host.pony", None)]))])
 
 class \nodoc\ iso _WsSymRangeTest is UnitTest
   """

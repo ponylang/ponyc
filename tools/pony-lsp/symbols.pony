@@ -192,6 +192,23 @@ primitive DocumentSymbols
     channel: Channel,
     max_pos: (Position | None) = None)
   =>
+    """
+    Walk the members of `entity` and append a child DocumentSymbol for each
+    explicitly written member (field, constructor, function, or behaviour).
+
+    Two categories of members are filtered out:
+    - Synthesized constructors: ponyc's sugar pass places the default `create`
+      at the entity keyword's own source position (via token_dup). Any
+      explicitly written member must appear after the entity keyword, so
+      members at or before that position are skipped.
+    - Trait-merged methods: ponyc merges trait default method bodies into
+      implementing classes; those merged nodes carry the trait file's
+      source_file(). Members whose source_file() is a non-None string that
+      does not match the entity's source_file() are skipped. (When the
+      trait is defined in the same file as the implementing class, the
+      merged methods share the same source_file() and are instead caught
+      by the position or max_pos filters.)
+    """
     let members =
       try
         entity(4)?
@@ -207,13 +224,30 @@ primitive DocumentSymbols
         TokenIds.string(members.id()))
       return
     end
+    let doc_path = entity.source_file()
+    let entity_pos = entity.position()
     for entity_child in members.children() do
-      // Skip members whose position is at or beyond max_pos. ponyc
-      // positions synthesized constructors at the start of the next
-      // entity in the file; max_pos is that entity's start position.
+      // Skip members whose position is at or beyond max_pos.
       match max_pos
       | let m: Position =>
         if entity_child.position() >= m then continue end
+      end
+      // Skip members at or before the entity's keyword position.
+      // ponyc places synthesized constructors (the default `create`
+      // added to bare classes/actors/primitives/structs) at the entity
+      // keyword's own source position via token_dup(). Any explicitly
+      // written member must appear after the entity keyword.
+      if entity_child.position() <= entity_pos then continue end
+      // Skip members from other source files. ponyc merges trait
+      // default method bodies into implementing classes; those merged
+      // nodes carry the trait file's source_file(). Nodes with
+      // source_file() == None are synthetic containers and are kept.
+      match doc_path
+      | let dp: String val =>
+        match entity_child.source_file()
+        | let sf: String val =>
+          if sf != dp then continue end
+        end
       end
       try
         let maybe_kind_and_idx =
