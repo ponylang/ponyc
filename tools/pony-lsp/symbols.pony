@@ -256,7 +256,7 @@ primitive DocumentSymbols
     """
     Compute the full declaration range and the identifier selection range
     for an entity or member AST node. Raises error (logging to `channel`)
-    if `source_file()` is absent or if `ASTSourceSpan` returns an inverted
+    if `source_file()` is absent or if `ASTClampedRange` returns an inverted
     span — callers inside a `try` block will skip the symbol on failure.
     """
     let doc_path =
@@ -268,27 +268,15 @@ primitive DocumentSymbols
           TokenIds.string(node.id()) + " '" + name + "'")
         error
       end
-    (let start_pos, let end_pos) =
-      match \exhaustive\ ASTSourceSpan(node, doc_path, max_pos)
-      | (let s: Position, let e: Position) => (s, e)
+    let full_range =
+      match \exhaustive\ ASTClampedRange(node, doc_path, max_pos)
+      | let r: LspPositionRange => r
       | None =>
         channel.log(
           "Inverted source span for " +
           TokenIds.string(node.id()) + " '" + name + "'")
         error
       end
-    // Clamp start to the node's own keyword position. Nominal references
-    // in `type` aliases store the definition-site position of the
-    // referenced type (same file, earlier line), which ASTSourceSpan's
-    // min-walk would otherwise include, pulling the start before the
-    // declaration keyword.
-    let n_pos = node.position()
-    let clamped_start =
-      if start_pos < n_pos then n_pos else start_pos end
-    let full_range =
-      LspPositionRange(
-        LspPosition.from_ast_pos(clamped_start),
-        LspPosition.from_ast_pos_end(end_pos))
     (let id_start, let id_end) = id.span()
     let selection_range =
       LspPositionRange(

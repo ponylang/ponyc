@@ -66,8 +66,15 @@ primitive SelectionRanges
     while i > 0 do
       i = i - 1
       let n = try chain(i)? else continue end
-      match \exhaustive\ ASTSourceSpan(n, doc_path)
+      match \exhaustive\ ASTSourceSpan(n, doc_path, SiblingBound(n))
       | (let s: Position, let e: Position) =>
+        // Note: no clamped-start correction here, unlike _symbol_ranges and
+        // _node_location. Selection ranges must grow outward — an ancestor's
+        // range legitimately starts before n.position() when real descendants
+        // (e.g. earlier tokens in a sequence) extend the span backwards.
+        // Clamping to n.position() would move a parent's start forward past
+        // its own child's start, breaking the LSP containment requirement.
+        //
         // Deduplicate: skip if this span is identical to the last emitted.
         let sl = s.line()
         let sc = s.column()

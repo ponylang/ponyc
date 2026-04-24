@@ -754,20 +754,13 @@ actor WorkspaceManager
       this._channel.log(ast.debug())
       var json_arr = JsonArray
       for ast_definition in ast.definitions().values() do
-        (let start_pos, let end_pos) = ast_definition.span()
-        try
-          json_arr =
-            json_arr.push(
-              LspLocation(
-                Uris.from_path(ast_definition.source_file() as String val),
-                LspPositionRange(
-                  LspPosition.from_ast_pos(start_pos),
-                  LspPosition.from_ast_pos_end(end_pos))
-              ).to_json()
-            )
-        else
+        match \exhaustive\ _node_location(ast_definition)
+        | let loc: LspLocation val =>
+          json_arr = json_arr.push(loc.to_json())
+        | None =>
           this._channel.log(
-            "No source file found for definition: " + ast_definition.debug())
+            "No source file found for definition: " +
+              ast_definition.debug())
         end
       end
       this._channel.send(ResponseMessage(request.id, json_arr))
@@ -798,20 +791,13 @@ actor WorkspaceManager
       match ast.ast_type()
       | let type_ast: AST =>
         for type_def in type_ast.definitions().values() do
-          (let start_pos, let end_pos) = type_def.span()
-          try
-            json_arr =
-              json_arr.push(
-                LspLocation(
-                  Uris.from_path(type_def.source_file() as String val),
-                  LspPositionRange(
-                    LspPosition.from_ast_pos(start_pos),
-                    LspPosition.from_ast_pos_end(end_pos))
-                ).to_json()
-              )
-          else
+          match \exhaustive\ _node_location(type_def)
+          | let loc: LspLocation val =>
+            json_arr = json_arr.push(loc.to_json())
+          | None =>
             this._channel.log(
-              "No source file found for type definition: " + type_def.debug())
+              "No source file found for type definition: " +
+                type_def.debug())
           end
         end
       end
@@ -907,6 +893,25 @@ actor WorkspaceManager
       end
     end
     aggregator.add_results(results)
+
+  fun _node_location(node: AST box): (LspLocation val | None) =>
+    """
+    Builds an `LspLocation` for `node`.
+
+    Returns `None` if the node has no source file (e.g. synthesised nodes)
+    or if the computed source span is inverted.
+    """
+    try
+      let doc_path = node.source_file() as String val
+      let range =
+        match \exhaustive\ ASTClampedRange(node, doc_path, SiblingBound(node))
+        | let r: LspPositionRange => r
+        | None => error
+        end
+      LspLocation(Uris.from_path(doc_path), range)
+    else
+      None
+    end
 
   fun _symbol_matches(name: String, query_lower: String): Bool =>
     """

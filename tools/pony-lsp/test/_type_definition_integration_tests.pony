@@ -19,13 +19,13 @@ class \nodoc\ iso _TypeDefinitionLocalVarIntegrationTest is UnitTest
   """
   Cursor on `obj` in `demo()` (line 28, col 4) — explicitly annotated let.
   type_definition.pony layout (0-indexed lines/cols):
-    line 21:  class _TypeDefTarget          target declaration (21,0)-(21,5)
+    line 21:  class _TypeDefTarget          target declaration (21,0)-(23,10)
     line 25:  class _TypeDefUser
     line 26:    fun demo() =>
     line 27:      let obj: _TypeDefTarget = ...
     line 28:      obj                            obj at (28,4)
 
-  Expects type definition at class _TypeDefTarget (21,0)-(21,5).
+  Expects type definition at class _TypeDefTarget (21,0)-(23,10).
   """
   let _server: _LspTestServer
 
@@ -40,17 +40,17 @@ class \nodoc\ iso _TypeDefinitionLocalVarIntegrationTest is UnitTest
       _server,
       "type_definition/type_definition.pony",
       [ (28, 4, _TypeDefinitionChecker(
-        [("type_definition.pony", (21, 0), (21, 5))]))])
+        [("type_definition.pony", (21, 0), (23, 10))]))])
 
 class \nodoc\ iso _TypeDefinitionParamIntegrationTest is UnitTest
   """
   Cursor on `target` in `with_param()` (line 31, col 4) — typed parameter.
   type_definition.pony layout (0-indexed lines/cols):
-    line 21:  class _TypeDefTarget          target declaration (21,0)-(21,5)
+    line 21:  class _TypeDefTarget          target declaration (21,0)-(23,10)
     line 30:    fun with_param(target: _TypeDefTarget) =>
     line 31:      target                             target at (31,4)
 
-  Expects type definition at class _TypeDefTarget (21,0)-(21,5).
+  Expects type definition at class _TypeDefTarget (21,0)-(23,10).
   """
   let _server: _LspTestServer
 
@@ -65,7 +65,7 @@ class \nodoc\ iso _TypeDefinitionParamIntegrationTest is UnitTest
       _server,
       "type_definition/type_definition.pony",
       [ (31, 4, _TypeDefinitionChecker(
-        [("type_definition.pony", (21, 0), (21, 5))]))])
+        [("type_definition.pony", (21, 0), (23, 10))]))])
 
 class \nodoc\ iso _TypeDefinitionNoTypeIntegrationTest is UnitTest
   """
@@ -91,12 +91,12 @@ class \nodoc\ iso _TypeDefinitionInferredIntegrationTest is UnitTest
   Cursor on `x` in `inferred_demo()` (line 35, col 4) — type inferred from
   `_TypeDefTarget.create()`, no explicit annotation.
   type_definition.pony layout (0-indexed lines/cols):
-    line 21:  class _TypeDefTarget          target declaration (21,0)-(21,5)
+    line 21:  class _TypeDefTarget          target declaration (21,0)-(23,10)
     line 33:    fun inferred_demo() =>
     line 34:      let x = _TypeDefTarget.create()
     line 35:      x                              x at (35,4)
 
-  Expects type definition at class _TypeDefTarget (21,0)-(21,5).
+  Expects type definition at class _TypeDefTarget (21,0)-(23,10).
   """
   let _server: _LspTestServer
 
@@ -111,7 +111,7 @@ class \nodoc\ iso _TypeDefinitionInferredIntegrationTest is UnitTest
       _server,
       "type_definition/type_definition.pony",
       [ (35, 4, _TypeDefinitionChecker(
-        [("type_definition.pony", (21, 0), (21, 5))]))])
+        [("type_definition.pony", (21, 0), (23, 10))]))])
 
 class val _TypeDefinitionChecker
   let _expected: Array[DefinitionExpectation] val

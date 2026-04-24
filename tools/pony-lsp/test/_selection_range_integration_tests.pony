@@ -15,6 +15,8 @@ primitive _SelectionRangeIntegrationTests is TestList
     test(_SelectionRangeKeywordTest.create(server))
     test(_SelectionRangePositionsArrayTest.create(server))
     test(_SelectionRangeEmptyPositionsTest.create(server))
+    test(_SelectionRangePrimitiveBoundTest.create(server))
+    test(_SelectionRangeCrossFileTraitTest.create(server))
 
 class \nodoc\ iso _SelectionRangeTokenTest is UnitTest
   """
@@ -359,3 +361,85 @@ class val _SelectionRangeChecker
       "(" + sl.string() + ":" + sc.string() +
       ")-(" + el.string() + ":" + ec.string() + ")"
     end
+
+class \nodoc\ iso _SelectionRangePrimitiveBoundTest is UnitTest
+  """
+  Regression test for synthesized-constructor end-bleed in SelectionRanges.
+
+  ponyc inserts a synthesized `create` constructor for bare primitives and
+  positions its tokens at the start of the next entity. Without the
+  SiblingBound cap, ASTSourceSpan would include those tokens when computing
+  the primitive's span, inflating the range into the next entity's lines.
+
+  Fixture: `selection_range/_sr_edge_cases.pony`
+    line 0: primitive _SrPrimA
+    line 1: primitive _SrPrimB
+
+  Cursor at (0, 0) — the `primitive` keyword of `_SrPrimA`.  The innermost
+  SelectionRange entry is the `tk_primitive` node.  With the SiblingBound cap
+  (max_pos = start of _SrPrimB), the synthesized constructor tokens are
+  excluded and the span correctly ends at (0, 18) — the last char of
+  `_SrPrimA`.  Without the cap, the span's end would bleed onto line 1.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "selection_range/integration/primitive_bound"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "selection_range/_sr_edge_cases.pony",
+      [ (0, 0,
+        _SelectionRangeChecker(recover val
+          [as _SrCheck: (0, 0, 2, (0, 0, 0, 18))]
+        end))])
+
+class \nodoc\ iso _SelectionRangeCrossFileTraitTest is UnitTest
+  """
+  Regression test for SiblingBound guard 2 (cross-source-file sibling).
+
+  ponyc merges default trait methods into implementing classes. The merged
+  node appears as a sibling in tk_members with the trait file's source_file().
+  SiblingBound._sibling_pos must return None (guard 2) rather than returning
+  the trait-file position as max_pos.
+
+  Fixture: _sr_cross_impl.pony implements _SrCrossTrait from
+  _sr_cross_trait.pony.
+  sr_own_method is on 1-indexed line 3 of the impl file; the merged
+  sr_cross_default is on 1-indexed line 4 of the trait file.
+  sr_cross_default.line (4) > sr_own_method.line (3), so guard 1
+  (child_pos <= n.position()) does NOT fire; guard 2 fires instead.
+
+  Without guard 2, max_pos would be (line=4, col=3) from the trait file.
+  The body token `42` is on impl line 4 at columns 5-6. ep_in_bounds =
+  (4, 6) < (4, 3) is false, so the body would be excluded from the method's
+  span. The method range would shrink to just the fun header, and the `42`
+  token's range (on the next line) would fail the LSP containment check.
+
+  _sr_cross_impl.pony layout (0-indexed):
+    line 1: class _SrCrossImpl is _SrCrossTrait
+    line 2:   fun sr_own_method(): U32 =>
+    line 3:     42                              <- cursor here (3, 4)
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "selection_range/integration/cross_file_trait"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "selection_range/_sr_cross_impl.pony",
+      [ (3, 4,
+        _SelectionRangeChecker(recover val
+          [as _SrCheck: (3, 4, 3, None)]
+        end))])

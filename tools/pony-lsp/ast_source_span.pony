@@ -111,3 +111,31 @@ primitive ASTSourceSpan
     else
       None
     end
+
+primitive ASTClampedRange
+  """
+  Computes a clamped `LspPositionRange` from an AST node.
+
+  Calls `ASTSourceSpan(node, doc_path, max_pos)` to get the full source
+  extent, then clamps the start to `node.position()`. The clamp prevents
+  positions from referenced types earlier in the file (e.g. in `type`
+  aliases) from pulling the start before the declaration keyword.
+
+  Returns `None` when `ASTSourceSpan` returns an inverted span.
+  """
+  fun tag apply(
+    node: AST box,
+    doc_path: String val,
+    max_pos: (Position | None) = None)
+    : (LspPositionRange | None)
+  =>
+    match \exhaustive\ ASTSourceSpan(node, doc_path, max_pos)
+    | (let s: Position, let e: Position) =>
+      let n_pos = node.position()
+      let clamped_start = if s < n_pos then n_pos else s end
+      LspPositionRange(
+        LspPosition.from_ast_pos(clamped_start),
+        LspPosition.from_ast_pos_end(e))
+    | None =>
+      None
+    end
