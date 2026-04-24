@@ -204,7 +204,10 @@ primitive DocumentSymbols
     - Trait-merged methods: ponyc merges trait default method bodies into
       implementing classes; those merged nodes carry the trait file's
       source_file(). Members whose source_file() is a non-None string that
-      does not match the entity's source_file() are skipped.
+      does not match the entity's source_file() are skipped. (When the
+      trait is defined in the same file as the implementing class, the
+      merged methods share the same source_file() and are instead caught
+      by the position or max_pos filters.)
     """
     let members =
       try

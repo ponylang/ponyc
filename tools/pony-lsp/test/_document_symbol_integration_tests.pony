@@ -20,6 +20,7 @@ primitive _DocumentSymbolIntegrationTests is TestList
     test(_DocSymMemberKindsTest.create(server))
     test(_DocSymCrossFileTraitTest.create(server))
     test(_DocSymImplNoChildrenTest.create(server))
+    test(_DocSymMixedChildrenTest.create(server))
     test(_DocSymTypeAliasRangeTest.create(server))
     test(_DocSymPrimitiveRangeTest.create(server))
 
@@ -213,6 +214,32 @@ class \nodoc\ iso _DocSymImplNoChildrenTest is UnitTest
       _server,
       "document_symbol/_ds_impl.pony",
       [(0, 0, _DocSymNoChildrenChecker("_DsImpl"))])
+
+class \nodoc\ iso _DocSymMixedChildrenTest is UnitTest
+  """
+  Verifies that the position filter suppresses the synthesized `create`
+  constructor without over-suppressing explicitly written members.
+
+  `_DsMixed` (in `_ds_mixed.pony`) has no explicit `new`, so ponyc's
+  sugar pass synthesizes a `create` at the class keyword's position.
+  It has one explicitly written `fun ds_mixed_method`. The outline must
+  include the explicit method and exclude the synthesized constructor —
+  exactly one child with the right name and kind.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/mixed_children"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_mixed.pony",
+      [(0, 0, _DocSymChildKindsChecker("_DsMixed", [("ds_mixed_method", 6)]))])
 
 class \nodoc\ iso _DocSymTypeAliasRangeTest is UnitTest
   """
