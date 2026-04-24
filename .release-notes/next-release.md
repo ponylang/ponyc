@@ -72,3 +72,9 @@ LSP clients that use `textDocument/documentSymbol` (the outline/breadcrumb view 
 
 In addition, symbol ranges across both `textDocument/documentSymbol` and `workspace/symbol` now correctly cover the full declaration — from the opening keyword to the end of the body. Previously, `textDocument/documentSymbol` ranges covered only the declaration keyword (`class`, `fun`, etc.), and `workspace/symbol` ranges covered only the identifier. Highlighting a symbol or jumping to it now selects the whole declaration.
 
+## Fix LSP definition and type-definition ranges
+
+`textDocument/definition` and `textDocument/typeDefinition` responses now return a range that covers the full declaration — from the opening keyword to the end of the body. Previously the range covered only the declaration keyword (`class`, `fun`, etc.).
+
+Range computation now also correctly handles the last type declaration in a file. Previously the compiler's synthesized default constructors could cause the final entity's range to extend to an incorrect position; this no longer occurs.
+
