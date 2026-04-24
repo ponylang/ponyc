@@ -78,3 +78,9 @@ In addition, symbol ranges across both `textDocument/documentSymbol` and `worksp
 
 Range computation now also correctly handles the last type declaration in a file. Previously the compiler's synthesized default constructors could cause the final entity's range to extend to an incorrect position; this no longer occurs.
 
+## Fix LSP outline including synthetic and inherited members
+
+Previously, the `textDocument/documentSymbol` response (used by editors to build the outline/symbol tree) included members that were not explicitly written in a class's source file. A bare class that inherited a trait with a default method, or any class without an explicit constructor, would have those synthesized or inherited members appear as children in the outline.
+
+This has been fixed. The outline now shows only members that are explicitly written in the file being viewed.
+
