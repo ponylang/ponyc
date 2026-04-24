@@ -14,10 +14,16 @@ For user documentation — installation and editor configuration — see the [po
 | **Diagnostics** (push, pull, refresh and change notifications) | Ponyc errors and related information is reported as LSP diagnostics. |
 | **Hover** | Additional information is shown for: entities, methods, fields, local variables and references. |
 | **Go To Definition** | For most language constructs, you can go from a reference to its definition. |
+| **Go To Declaration** | Navigate from a reference to the declaration site of a symbol. |
+| **Go To Type Definition** | Navigate to the type definition of the symbol under the cursor. |
 | **Document Symbols** | pony-lsp provides a list of available symbols for each opened document. |
+| **Workspace Symbols** | Fuzzy search over all symbols across the entire workspace. |
 | **Document Highlight** | All occurrences of the symbol under the cursor are highlighted simultaneously across the document. |
 | **Inlay Hints** | Inferred types are shown inline after the variable name for `let` and `var` declarations with no explicit type annotation. |
 | **Find References** | All references to the symbol under the cursor are returned, with optional inclusion of the declaration site. |
+| **Rename** | Rename a symbol and all its references across the workspace. |
+| **Folding Range** | Code folding ranges are provided for blocks, methods, classes, and other structured constructs. |
+| **Selection Range** | Smart expand/shrink selection based on the AST structure of the document. |
 
 New features are actively being added. Contributions are welcome — we are happy to provide help and guidance.
 
