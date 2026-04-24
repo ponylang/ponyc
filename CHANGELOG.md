@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix runtime crash with iso in mixed-capability union type ([PR #4809](https://github.com/ponylang/ponyc/pull/4809))
 - Fix LSP symbol range semantics ([PR #5241](https://github.com/ponylang/ponyc/pull/5241))
 - Fix LSP definition and type-definition ranges ([PR #5247](https://github.com/ponylang/ponyc/pull/5247))
+- Fix LSP outline including synthetic and inherited members ([PR #5249](https://github.com/ponylang/ponyc/pull/5249))
 
 ### Added
 
