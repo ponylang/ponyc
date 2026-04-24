@@ -19,6 +19,7 @@ primitive _DocumentSymbolIntegrationTests is TestList
     test(_DocSymEntityKindsTest.create(server))
     test(_DocSymMemberKindsTest.create(server))
     test(_DocSymCrossFileTraitTest.create(server))
+    test(_DocSymImplNoChildrenTest.create(server))
     test(_DocSymTypeAliasRangeTest.create(server))
     test(_DocSymPrimitiveRangeTest.create(server))
 
@@ -186,6 +187,32 @@ class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
       "document_symbol/_ds_impl.pony",
       [ ( 0, 0,
           _DocSymMaxEndLineChecker("_DsImpl", 15))])
+
+class \nodoc\ iso _DocSymImplNoChildrenTest is UnitTest
+  """
+  Regression guard for synthesized and trait-merged members leaking into
+  the outline.
+
+  `_DsImpl` (in `_ds_impl.pony`) has no explicitly written members: it
+  inherits `ds_default_method` from `_DsTrait` (merged by ponyc) and
+  receives a synthesized `create` from the sugar pass. Both must be
+  filtered out by `DocumentSymbols.find_members`; the symbol's children
+  array must be empty.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/impl_no_children"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_impl.pony",
+      [(0, 0, _DocSymNoChildrenChecker("_DsImpl"))])
 
 class \nodoc\ iso _DocSymTypeAliasRangeTest is UnitTest
   """
@@ -641,6 +668,55 @@ class val _DocSymMaxEndLineChecker
       end
       h.fail(
         "documentSymbol: symbol '" + _symbol_name + "' not found")
+      false
+    else
+      h.fail("documentSymbol: expected array result, got null")
+      false
+    end
+
+class val _DocSymNoChildrenChecker
+  """
+  Asserts that a named top-level symbol has no children in the
+  documentSymbol response. Used to verify that synthesized constructors
+  (ponyc sugar) and trait-merged methods are not included in the outline.
+  """
+  let _symbol_name: String
+
+  new val create(symbol_name: String) =>
+    _symbol_name = symbol_name
+
+  fun lsp_method(): String =>
+    Methods.text_document().document_symbol()
+
+  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
+    None
+
+  fun lsp_context(): (None | JsonObject) =>
+    None
+
+  fun lsp_extra_params(): (None | JsonObject) =>
+    None
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    match res.result
+    | let arr: JsonArray =>
+      for item in arr.values() do
+        try
+          if JsonNav(item)("name").as_string()? == _symbol_name then
+            // children key is omitted from JSON when the array is empty;
+            // if present it must be empty.
+            try
+              let children = JsonNav(item)("children").as_array()?
+              return h.assert_eq[USize](
+                0,
+                children.size(),
+                _symbol_name + ": expected no children in outline")
+            end
+            return true
+          end
+        end
+      end
+      h.fail("documentSymbol: symbol '" + _symbol_name + "' not found")
       false
     else
       h.fail("documentSymbol: expected array result, got null")
