@@ -38,4 +38,3 @@ tools/pony-doc/version.pony
 
 # Allow these paths
 !src/libponyrt/lang/except_try_catch.ll
-.claude
