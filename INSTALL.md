@@ -20,7 +20,7 @@ Currently, we have packages for the following Glibc based distributions:
 
 - Linux Mint 19, 20, 21
 - Pop!_OS 22.04, 24.04
-- Ubuntu 22.04, 24.04
+- Ubuntu 22.04, 24.04, 26.04
 
 ### Supported Alpine versions
 
@@ -51,6 +51,8 @@ Pop!_OS 24.04 | arm-linux-ubuntu24.04
 Ubuntu 22.04 | x86_64-linux-ubuntu22.04
 Ubuntu 24.04 amd64 | x86_64-linux-ubuntu24.04
 Ubuntu 24.04 arm64 | arm-linux-ubuntu24.04
+Ubuntu 26.04 amd64 | x86_64-linux-ubuntu26.04
+Ubuntu 26.04 arm64 | arm-linux-ubuntu26.04
 
 ### Install the latest release
 
