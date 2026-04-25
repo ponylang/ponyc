@@ -269,20 +269,42 @@ grep -rn "<distro><version>" .github/workflows/ INSTALL.md RELEASE_PROCESS.md .c
 
 ### 12. Squash, push, open PR
 
+The PR title must exactly match the release-note title from step 11 (`<Distro> <Version> added as a supported platform`) — both end up as public-facing CHANGELOG content, so they must agree. The commit message matches too (it becomes the squash-merge commit subject).
+
+The PR also needs the `changelog - added` label so release-notes aggregation picks up the entry under the right CHANGELOG section.
+
 ```bash
 git fetch origin main
 git reset --soft origin/main
 git add -A
-git commit -m "Add <Distro> <Version> as a release target"
+git commit -m "<Distro> <Version> added as a supported platform"
 git push --force-with-lease
 
-gh pr create --title "Add <Distro> <Version> as a release target" --body "$(cat <<'EOF'
+PR_URL=$(gh pr create \
+  --title "<Distro> <Version> added as a supported platform" \
+  --label "changelog - added" \
+  --body "$(cat <<'EOF'
 Adds <Distro> <Version> as a supported release target. Builder image, release/nightly/lib-cache workflow entries, INSTALL/RELEASE_PROCESS docs, and a release note are all included.
 EOF
-)"
+)")
+PR_NUM=${PR_URL##*/}
 ```
 
-### 13. Post-merge: Last Week in Pony comment
+### 13. Wait for CI, then squash-merge
+
+Block until all PR checks complete, then merge if they pass:
+
+```bash
+gh pr checks "$PR_NUM" --watch --exit-status
+gh pr merge "$PR_NUM" --squash --delete-branch
+git checkout main && git pull
+```
+
+`--watch --exit-status` blocks until checks finish and exits non-zero if any failed. If checks fail: **STOP**. Read the failure with `gh pr checks "$PR_NUM"` to see which check, drill into its logs, and surface to the human. Don't retry the merge.
+
+`--squash --delete-branch` matches the ponylang merge convention (repos under the ponylang and seantallen-org GitHub orgs only allow squash merges) and removes both the remote and local branch. The `git checkout main && git pull` afterward returns you to an up-to-date main.
+
+### 14. Post-merge: Last Week in Pony comment
 
 After the PR merges, find the open LWIP issue and post a comment.
 
@@ -310,6 +332,7 @@ After this step, the add-a-release-target work is complete.
 - **GHA builder dispatch fails.** Read run logs with `gh run view <id> --log-failed`. Most causes are the same as above.
 - **GHCR tag query returns no result.** Build may not have pushed (auth failure, network error). Check the workflow run logs.
 - **arm64 build fails but amd64 succeeds (or vice versa).** Multi-platform `docker buildx` produces a single manifest covering both arches; if either platform fails, the whole build fails and nothing gets pushed. Triage from the failed-platform logs.
+- **PR CI checks fail.** Don't retry the merge. Read the failed check's logs, surface to the human. Possible causes range from a flaky test (rare on a docs/config-only PR like this) to a real interaction with workflows you didn't expect to touch.
 
 ## Anti-patterns
 
