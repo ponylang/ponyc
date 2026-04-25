@@ -178,7 +178,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp build-pony-lint-ci pony-doc test-pony-doc test-pony-compiler
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
@@ -272,16 +272,20 @@ test-pony-lsp: all
 test-pony-lint: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
-build-pony-lint-ci: all
+# Build the lint binary once. Order-only dep on `all` so we get a built
+# compiler without forcing a rebuild every time `all` is touched (it's
+# .PHONY). Real prereqs are the lint tool source and the pony_compiler
+# library it links against, so the binary is rebuilt when those change.
+$(outDir)/pony-lint-ci: $(wildcard tools/pony-lint/*.pony) $(wildcard tools/lib/ponylang/pony_compiler/pony_compiler/*.pony) | all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci
 
-lint-pony-lint: build-pony-lint-ci
+lint-pony-lint: $(outDir)/pony-lint-ci
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lint/
 
-lint-pony-doc: build-pony-lint-ci
+lint-pony-doc: $(outDir)/pony-lint-ci
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-doc/
 
-lint-pony-lsp: build-pony-lint-ci
+lint-pony-lsp: $(outDir)/pony-lint-ci
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lsp/
 
 test-pony-compiler: all
