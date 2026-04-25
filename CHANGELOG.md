@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Ubuntu 26.04 added as a supported platform ([PR #5256](https://github.com/ponylang/ponyc/pull/5256))
 
 ### Changed
 
