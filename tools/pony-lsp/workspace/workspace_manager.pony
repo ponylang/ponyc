@@ -508,21 +508,32 @@ actor WorkspaceManager
     Returns None if the document or package is not found,
     or no node exists at that position.
     """
+    match _get_index_and_module(document_path)
+    | (let index: PositionIndex val, let module: Module val) =>
+      match index.find_node_at(
+        USize.from[I64](line + 1),
+        USize.from[I64](column + 1))
+      | let node: AST box => (node, module)
+      end
+    end
+
+  fun ref _get_index_and_module(
+    document_path: String): ((PositionIndex val, Module val) | None)
+  =>
+    """
+    Returns the position index and compiled module for the given document
+    path, or None if the document is not in any workspace, has not yet
+    been compiled, or its index is not yet available.
+    """
     try
       let package: FilePath = this._find_workspace_package(document_path)?
-
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
           match (doc.position_index(), doc.module())
-          | (let index: PositionIndex, let module: Module val) =>
-            match \exhaustive\ index.find_node_at(
-              USize.from[I64](line + 1),
-              USize.from[I64](column + 1))
-            | let node: AST box => (node, module)
-            | None => None
-            end
+          | (let index: PositionIndex val, let module: Module val) =>
+            (index, module)
           else
             this._channel.log(
               "No index or module available for " + document_path)
@@ -1107,6 +1118,46 @@ actor WorkspaceManager
       return
     end
     this._channel.send(ResponseMessage(request.id, out))
+
+  be signature_help(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/signatureHelp request.
+    """
+    this._channel.log("Handling textDocument/signatureHelp")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    // Convert LSP 0-based cursor to 1-based AST coordinates.
+    let cursor_line = USize.from[I64](line + 1)
+    let cursor_col  = USize.from[I64](column + 1)
+    match _get_index_and_module(document_path)
+    | (let index: PositionIndex val, let module: Module val) =>
+      // Scan the source text forward from the cursor, skipping whitespace
+      // and commas, to find the next real token.  This handles the case
+      // where the cursor is on a separator character or trailing whitespace
+      // where no AST node exists — without magic column limits.
+      (let tok_line, let tok_col) =
+        match \exhaustive\ module.ast.source_contents()
+        | let src: String box =>
+          SignatureHelpSource.scan_to_token(src, cursor_line, cursor_col)
+        | None =>
+          (cursor_line, cursor_col)
+        end
+      match index.find_node_at(tok_line, tok_col)
+      | let node: AST box =>
+        match \exhaustive\ SignatureHelp.collect(
+          node, tok_line, tok_col, this._channel)
+        | let result: JsonObject =>
+          this._channel.send(ResponseMessage(request.id, result))
+          return
+        | None => None
+        end
+      end
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
 
   be dispose() =>
     for package_state in this._packages.values() do

@@ -151,6 +151,9 @@ primitive TextDocumentMethods
   fun publish_diagnostics(): String val =>
     "textDocument/publishDiagnostics"
 
+  fun signature_help(): String val =>
+    "textDocument/signatureHelp"
+
 primitive ClientMethods
   """
   Collection of client scoped methods.
