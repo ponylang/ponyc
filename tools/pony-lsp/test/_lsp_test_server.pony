@@ -6,10 +6,17 @@ use "collections"
 
 actor _LspTestServer is Channel
   """
-  Shared LSP server for integration tests. Initializes and compiles the
-  workspace once, then dispatches individual requests to each test's TestHelper.
+  Test-local LSP server for integration tests. Each suite creates its own
+  instance so that workspace compilation happens independently per suite.
   The response checker supplied with each request handles method-specific
   dispatch and validation.
+
+  Readiness gate: the server buffers all incoming requests in `_pending` until
+  the first `textDocument/publishDiagnostics` notification arrives, which
+  signals that the initial workspace compilation is done. Only then are pending
+  requests dispatched (and any new requests dispatched immediately). The server
+  always sends `publishDiagnostics` after compilation, even for a clean build
+  (with an empty diagnostics array).
   """
   let _workspace_dir: String
   var _server: (BaseProtocol | None)
@@ -28,7 +35,9 @@ actor _LspTestServer is Channel
     _pending = Array[_PendingRequest]
     _opened = Set[String]
     _in_flight = Map[I64, _PendingRequest]
-    _next_id = 2
+    // id 0 = initialize request; ids 1-99 reserved for server-originated
+    // requests (e.g. client/registerCapability, workspace/configuration).
+    _next_id = 100
 
   be request(
     h: TestHelper,
@@ -107,15 +116,21 @@ actor _LspTestServer is Channel
         if RequestIds.eq(id, I64(0)) then
           try (_server as BaseProtocol)(LspMsg.initialized()) end
         else
-          try
-            let id_i64 = id as I64
-            (_, let pending) = _in_flight.remove(id_i64)?
-            let action = pending.pos.action()
-            if pending.checker.check(res, pending.h) then
-              pending.h.complete_action(action)
+          match \exhaustive\ id
+          | let id_i64: I64 =>
+            try
+              (_, let pending) = _in_flight.remove(id_i64)?
+              let action = pending.pos.action()
+              if pending.checker.check(res, pending.h) then
+                pending.h.complete_action(action)
+              else
+                pending.h.fail_action(action)
+              end
             else
-              pending.h.fail_action(action)
+              _fail_all_in_flight()
             end
+          | let _: String =>
+            _fail_all_in_flight()
           end
         end
       end
@@ -137,12 +152,22 @@ actor _LspTestServer is Channel
         if not _ready then
           _ready = true
           for p in _pending.values() do
+            if not _opened.contains(p.file_path) then
+              _opened.set(p.file_path)
+              _did_open(p.file_path)
+            end
             _dispatch(p)
           end
           _pending.clear()
         end
       end
     end
+
+  fun ref _fail_all_in_flight() =>
+    for (_, p) in _in_flight.pairs() do
+      p.h.fail_action(p.pos.action())
+    end
+    _in_flight.clear()
 
   fun ref _did_open(file_path: String) =>
     try
