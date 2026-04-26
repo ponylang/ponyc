@@ -274,9 +274,18 @@ test-pony-lint: all
 
 # Build the lint binary once. Order-only dep on `all` so we get a built
 # compiler without forcing a rebuild every time `all` is touched (it's
-# .PHONY). Real prereqs are the lint tool source and the pony_compiler
-# library it links against, so the binary is rebuilt when those change.
-$(outDir)/pony-lint-ci: $(wildcard tools/pony-lint/*.pony) $(wildcard tools/lib/ponylang/pony_compiler/pony_compiler/*.pony) | all
+# .PHONY). Real prereqs are every .pony file in the lint tool tree (minus
+# its `test/` sub-package, which is compiled by `test-pony-lint`) and the
+# pony_compiler library it links against, plus the directories
+# themselves. Recursive `find` covers files in current or future
+# subpackages, and listing the directories means the binary rebuilds when
+# a source is deleted (directory mtime updates on add/remove, the
+# remaining files' mtimes do not).
+lint-bin-srcs := $(shell find tools/pony-lint -path tools/pony-lint/test -prune -o -name '*.pony' -print) \
+                 $(shell find tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony')
+lint-bin-dirs := $(shell find tools/pony-lint -path tools/pony-lint/test -prune -o -type d -print) \
+                 $(shell find tools/lib/ponylang/pony_compiler/pony_compiler -type d)
+$(outDir)/pony-lint-ci: $(lint-bin-srcs) $(lint-bin-dirs) | all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci
 
 lint-pony-lint: $(outDir)/pony-lint-ci

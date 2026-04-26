@@ -250,3 +250,7 @@ To ease development and support LSP tools like [clangd](https://clangd.llvm.org)
   Replace `build_debug` with `build_release` is you are using a release configuration for compilation.
 
 Now [clangd](https://clangd.llvm.org) will pick up the generated file and will be able to respond much quicker than without `compile_commands.json` file.
+
+### Re-running `make lint-pony-*` after compiler changes
+
+The `lint-pony-lint`, `lint-pony-doc`, and `lint-pony-lsp` targets share a single `pony-lint-ci` binary that is rebuilt only when files under `tools/pony-lint/` (excluding its `test/` sub-package) or `tools/lib/ponylang/pony_compiler/pony_compiler/` change. Editing `ponyc` itself (`src/`) does not invalidate `pony-lint-ci`, so an iterative loop of "tweak the compiler, then `make lint-pony-lint`" will lint with the previously built binary. Delete `build/<config>/pony-lint-ci` (or `make clean`) to force a rebuild against the updated compiler. CI is unaffected because each run starts in a clean workspace.
