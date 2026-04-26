@@ -274,6 +274,21 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      | Methods.text_document().signature_help() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .signature_help(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
       | Methods.workspace().symbol() =>
         let query = try JsonNav(r.params)("query").as_string()? else "" end
         _router.workspace_symbol(query, this._channel, r.id)
@@ -522,7 +537,16 @@ actor LanguageServer is (Notifier & RequestSender)
                 .update("workspaceSymbolProvider", true)
                 .update(
                   "inlayHintProvider",
-                  JsonObject.update("resolveProvider", false)))
+                  JsonObject.update("resolveProvider", false))
+                .update(
+                  "signatureHelpProvider",
+                  JsonObject
+                    .update(
+                      "triggerCharacters",
+                      JsonArray.push("(").push(","))
+                    .update(
+                      "retriggerCharacters",
+                      JsonArray.push("(").push(","))))
             .update(
               "serverInfo",
               JsonObject

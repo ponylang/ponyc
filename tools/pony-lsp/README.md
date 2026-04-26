@@ -13,6 +13,7 @@ For user documentation — installation and editor configuration — see the [po
 | ------- | ----------- |
 | **[Diagnostics][spec-diagnostics]** (push, pull, refresh and change notifications) | Ponyc errors and related information is reported as LSP diagnostics. |
 | **[Hover][spec-hover]** | Additional information is shown for: entities, methods, fields, local variables and references. |
+| **[Signature Help][spec-signature-help]** | Parameter hints are shown when the cursor is inside a call expression, with the active parameter highlighted. Includes the method's docstring when present. Requires the file to be saved — signature help is not available while the file has unsaved edits. |
 | **[Go To Definition][spec-definition]** | For most language constructs, you can go from a reference to its definition. |
 | **[Go To Declaration][spec-declaration]** | Navigate from a reference to the declaration site of a symbol. |
 | **[Go To Type Definition][spec-type-definition]** | Navigate to the type definition of the symbol under the cursor. |
@@ -27,6 +28,7 @@ For user documentation — installation and editor configuration — see the [po
 
 [spec-diagnostics]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#pull-diagnostics
 [spec-hover]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#hover-request-leftwards_arrow_with_hook
+[spec-signature-help]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_signatureHelp
 [spec-definition]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#goto-definition-request-leftwards_arrow_with_hook
 [spec-declaration]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#goto-declaration-request-leftwards_arrow_with_hook
 [spec-type-definition]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#goto-type-definition-request-leftwards_arrow_with_hook
