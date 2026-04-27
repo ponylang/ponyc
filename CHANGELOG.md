@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix linking failures on Fedora and other RPM-based distributions ([PR #5262](https://github.com/ponylang/ponyc/pull/5262))
 
 ### Added
 
