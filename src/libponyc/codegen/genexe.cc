@@ -381,7 +381,10 @@ static const char* find_libc_crt_dir(const char* sysroot,
   const char* sys_triple)
 {
   // Search candidate paths for libc CRT objects (crt1.o).
-  const char* candidates[4];
+  // The lib64 candidates cover Fedora, RHEL, and other distros that
+  // place 64-bit libc startup objects in /usr/lib64 rather than
+  // /usr/lib/<triple> or /usr/lib.
+  const char* candidates[6];
   char buf[PATH_MAX];
 
   snprintf(buf, sizeof(buf), "%s/usr/lib/%s", sysroot, sys_triple);
@@ -396,7 +399,13 @@ static const char* find_libc_crt_dir(const char* sysroot,
   snprintf(buf, sizeof(buf), "%s/lib", sysroot);
   candidates[3] = stringtab(buf);
 
-  for(int i = 0; i < 4; i++)
+  snprintf(buf, sizeof(buf), "%s/usr/lib64", sysroot);
+  candidates[4] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/lib64", sysroot);
+  candidates[5] = stringtab(buf);
+
+  for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++)
   {
     snprintf(buf, sizeof(buf), "%s/crt1.o", candidates[i]);
     if(file_exists(buf))
@@ -597,11 +606,14 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
 
     errorf(errors, NULL,
       "sysroot '%s' does not contain libc CRT objects (crt1.o)\n"
-      "  Searched: %s/usr/lib/%s/, %s/usr/lib/, %s/lib/%s/, %s/lib/",
+      "  Searched: %s/usr/lib/%s/, %s/usr/lib/, %s/lib/%s/, %s/lib/,\n"
+      "            %s/usr/lib64/, %s/lib64/",
       c->opt->sysroot,
       c->opt->sysroot, sys_triple,
       c->opt->sysroot,
       c->opt->sysroot, sys_triple,
+      c->opt->sysroot,
+      c->opt->sysroot,
       c->opt->sysroot);
     return NULL;
   }
